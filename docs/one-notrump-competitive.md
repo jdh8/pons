@@ -227,12 +227,12 @@ the defensive campaign and shipped there as M1+M2. Both rows have moved to the
 table but a *different published table* for the same object — the
 Kokish–Kraft notes, the most complete exact-object package the
 [survey](ai-bidder/multi-landy-2d-counter-defense-research.md) found. It is
-built, default-off, and **measured 2026-08-25**: the owned lane is the shippable shape, but the mirror-read leak fails the isolation gate, so it stays off pending an ownership gate
+built, default-off, and **measured 2026-08-25**: the owned lane is the shippable shape, but the mirror-read leak failed the isolation gate; the **mirror book landed 2026-08-25** and closed it, so a re-measure on a fresh seed is what stands between it and a verdict
 ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)).
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **measured 2026-08-25** — owned lane is the shippable shape (plain wash, PD +0.29/+0.77 per fired none/both, SD-PD agreeing) but the residue-1 mirror leak prices at −1.6/−2.5 PD per foreign board (55% of divergence) and fails the isolation gate; **stays off pending an ownership gate on the table + readings, then re-measure**. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)) |
+| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **measured 2026-08-25** — owned lane is the shippable shape (plain wash, PD +0.29/+0.77 per fired none/both, SD-PD agreeing) but the residue-1 mirror leak prices at −1.6/−2.5 PD per foreign board (55% of divergence) and fails the isolation gate; **stays off pending the re-measure** — the leak's fix (the mirror book, `System::opponents`) landed 2026-08-25 and the acceptance probes pass; a fresh-seed A/B is owed. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)) |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -1565,16 +1565,15 @@ Six consequences of the design, each traced with `probe-decision` /
 `probe-call-reading` during the build review. None is a bug; all five are what
 the arm is actually testing, and each names its reversible alternative.
 
-1. **The mirror lane widens.** The competitive book is keyed by call *shape*
-   with no seat gate on the reader side
-   ([authored-reading-handoff.md](authored-reading-handoff.md)), so when *they*
-   open `1NT` and *we* overcall a natural `2♦`, their `2NT`/`3♣` decode off our
-   table. The shipped lane leaks a *strength* claim there; K–K's floorless
-   transfers leak a hard **six-card suit**. This is the campaign's known
-   mirror-read leak, one notch louder — which is exactly why
-   `probe-divergence --gate-opener ours` must read **0 foreign** before any
-   headline is quoted, and why a raw headline in this bucket has historically
-   been 60–70% foreign.
+1. **The mirror lane widens.** ~~The competitive book is keyed by call
+   *shape* with no seat gate on the reader side.~~ **FIXED 2026-08-25 — see
+   [the mirror book](#the-mirror-book--why-the-leak-was-not-a-seat-gate) below.**
+   As measured, when *they* opened `1NT` and *we* overcalled a natural `2♦`,
+   their calls decoded off our `1NT (2♦)` counter-table. The shipped lane leaks
+   a *strength* claim there; K–K's floorless transfers leak a hard **six-card
+   suit**. This was 55% of the A/B's divergence at −1.6/−2.5 PD per foreign
+   board, and it is why `probe-divergence --gate-opener ours` must read
+   **0 foreign** before any headline is quoted.
 2. **The values double loses its `♥ ≤4 / ♠ ≤4` caps.** Base publishes
    `points 8.. ♥ 0..4 ♠ 0..4`; K–K publishes `points 8.. ♥ 0..13 ♠ 0..13` and
    gains `♣ 0..5 ♦ 0..5` instead. Deleting the `2NT` relay removed the rung the
@@ -1613,6 +1612,66 @@ the arm is actually testing, and each names its reversible alternative.
    candidate is a `5m` rung gated on `len(major, ..=1)`; it is not in this
    build because five of a minor needs eleven tricks and the A/B should price
    the two-call table first.
+
+### The mirror book — why the leak was not a seat gate
+
+**Fixed 2026-08-25**, ahead of the re-measure. The diagnosis in the handoff
+("keyed by call shape with no seat gate") was wrong in a way worth recording,
+because it pointed the repair at the wrong layer.
+
+The K–K table is *already* ownership-keyed: `kokish_kraft_entries` registers
+under `Pattern::after("P* 1NT", "(2♦)")`, and an unparenthesized `1NT` is our
+side. In the mirror lane the auction is `P* (1NT) 2♦`, which that pattern never
+matches for us. Nothing about the table needed a seat gate.
+
+The leak is a **frame flip**. Undeclared opponents are decoded with *our* book,
+rebased so that they are "we" (`inference/projection.rs`). Their auction is then
+`P* 1NT (2♦)` — genuinely, from their seat — and
+`decision.their.two_diamonds_multi`, a fact about **our** opponents, survives
+the flip and gets asserted about **theirs**: us. Our natural `2♦` overcall is
+not a Multi, and we do not play a counter-defense to ourselves.
+
+No pattern can separate the two frames, because from the bidder's own seat they
+are the same auction. The only distinguishing fact is per-side, so the fix is a
+per-side book: `System::opponents`, a second build of our own system with
+`decision.their` cleared, which their calls decode in. It is built only when
+something is declared, so the shipped default carries no second book.
+
+A profile flag would not have reached it. `defense_2d_multi` chooses the
+`1NT (2♦)` leg at **build** time — `inference/read.rs` says in as many words
+that clearing the classify-time flag "cannot un-compile it" — which is why the
+existing local precedent there (the systems-on strip clears `two_clubs_landy`
+and `two_diamonds_multi` from the profile) never closed this lane.
+
+Acceptance, both halves:
+
+```sh
+# mirror lane — the two arms must now print identical rho reads and logits
+PROBE_THEIR_2D_MULTI=1 target/release/examples/probe-decision \
+  "AQ54.T8653.7.954" "- 1NT 2♦ X" none
+PROBE_THEIR_2D_MULTI=1 PROBE_MULTI_KOKISH_KRAFT=1 \
+  target/release/examples/probe-decision "AQ54.T8653.7.954" "- 1NT 2♦ X" none
+
+# owned lane — they must still differ, or the fix turned K–K off
+PROBE_THEIR_2D_MULTI=1 target/release/examples/probe-decision \
+  "AQ54.T8653.7.954" "- - 1NT 2♦" none
+```
+
+**The whole-struct clear, decided 2026-08-25 (jdh8).** The mirror clears the
+whole `their` struct, so `two_clubs_landy` goes with it — the same
+misapplication one suit lower, which `read.rs` had deliberately declined to fix
+at its own site because it moves the Landy campaign's measured base. Fixing it
+is correct; the cost is that the Landy campaign's recorded numbers no longer
+describe the engine and want re-anchoring. Narrowing
+`common::mirror_agreements` to `two_diamonds_multi` alone stays the one-line
+reversal.
+
+**Why no leading-pass quantifier could have done this.** A pattern-level
+discriminator was considered and rejected: the routed decode cuts the auction at
+*their* turn and re-parenthesises it, so the actor index and the fan move
+together and the parity of leading passes carries no side information. The
+parenthesisation *is* the side marker, and the flip rewrites it by construction.
+Only a per-side fact — the agreements — can separate the frames.
 
 Separately, and **not** this change's to fix: `slam::rkcb_rows` offers an
 insufficient `5♥` at `… 4NT - 5♥ -` (weight 50, `asker_after_5h`). Registering

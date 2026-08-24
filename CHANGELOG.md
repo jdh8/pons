@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The mirror-read leak — their calls no longer decode against the
+  *opponents'* disclosures.** No user impact on the shipped default system,
+  which declares nothing (`smoke-default` byte-identical); it moves every run
+  that *does* declare — the BBA anchor and the N4/Landy A/B arms.
+
+  `Agreements::decision.their` states what **our** opponents play. Decoding
+  their calls rebases the auction so that *they* are "we", and those facts were
+  then asserted about *their* opponents — us. Over their `1NT`, our natural
+  `2♦` overcall decoded as the Multi their disclosure names, so the whole
+  `1NT (2♦)` counter-table applied to their calls: their negative double read
+  as our values double, flipping advancer's floor from Pass to `2♥`. The
+  N4-KK A/B priced that at **−1.6/−2.5 IMPs PD per foreign board, 55% of all
+  divergence**, which is why the knob could not be measured in isolation.
+
+  The fix is a **mirror book** (`System::opponents`): a second build of our own
+  system with `decision.their` cleared, which their calls decode in. It reaches
+  the half a profile flag cannot — `defense_2d_multi` chooses the `1NT (2♦)`
+  leg at *build* time, so clearing the classify-time flag "cannot un-compile
+  it" (`inference/read.rs`). Built only when something is declared, so the
+  default system carries no second book and pays nothing.
+
+  Two supporting changes: `Partnership` now separates *routing* their calls to
+  another book from the table being a **declared** mixed one, so a mirror does
+  not turn on the `declared_opponent_all` reading arm; and the incremental
+  authoring cache routes its `routed` cursors `[side][phase]` — six slots, as
+  the legacy full-auction reader already did — so a mirror does not drop every
+  deal to the legacy reader.
+
+  **Flagged, not silently resolved:** the mirror clears the whole `their`
+  struct, `two_clubs_landy` included, which moves the Landy campaign's measured
+  base — a thing `read.rs` had deliberately declined to do at its own site.
+  Narrowing `common::mirror_agreements` to `two_diamonds_multi` alone is the
+  one-line reversal.
+
 ### Added
 
 - **Kokish–Kraft counter-defense to their `(2♦)` Multi, as an opt-in
