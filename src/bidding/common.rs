@@ -5,7 +5,7 @@
 //! [`american`][super::american] and [`dutch`][super::dutch] — and any future
 //! system — import these from here rather than from each other.
 
-use super::agreements::Agreements;
+use super::agreements::{Agreements, TheirDisclosures};
 use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
@@ -134,4 +134,17 @@ pub(in crate::bidding) fn with_instinct_floor(system: System, agreements: &Agree
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::Classify(ladder.clone());
     with_floors(system, &ladder, contested)
+}
+
+/// The agreements a [mirror book][crate::bidding::book::System::opponents] is
+/// built from — ours with the opponents' disclosures cleared
+///
+/// [`None`] when nothing is declared, in which case the mirror would be a
+/// second copy of the same books and is not built at all.
+pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<Agreements> {
+    (agreements.decision.their != TheirDisclosures::default()).then(|| {
+        let mut mirror = *agreements;
+        mirror.decision.their = TheirDisclosures::default();
+        mirror
+    })
 }

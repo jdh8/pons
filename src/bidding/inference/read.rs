@@ -98,8 +98,13 @@ pub(super) fn systems_on_overcall_strip(
     // gate (seed 1787325027), replicated 27/267 (seed 1787327781).
     //
     // Their `2♣`-as-Landy (`two_clubs_landy`) is the same misapplication one
-    // suit lower and is deliberately left alone: clearing it moves the Landy
-    // campaign's measured base.  Flagged, not silently resolved.
+    // suit lower.  It is left alone *here* — this strip is not its lane — but
+    // the general form is fixed at the source: the mirror book
+    // ([`System::opponents`][crate::bidding::book::System::opponents]) clears
+    // the whole `their` struct before their calls decode, `two_clubs_landy`
+    // included.  That does move the Landy campaign's measured base; narrowing
+    // `common::mirror_agreements` to `two_diamonds_multi` alone is the
+    // one-line reversal.  Flagged, not silently resolved.
     if profile.their.two_diamonds_multi
         && auction.get(open + 2) == Some(&Call::Bid(Bid::new(2, Strain::Diamonds)))
     {

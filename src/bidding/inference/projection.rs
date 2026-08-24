@@ -682,7 +682,10 @@ pub(crate) struct AuthoringStepCache {
     auction: Vec<Call>,
     context_cursor: crate::bidding::context::ContextCursor,
     own_cursor: crate::bidding::decoder::DecoderCursorState,
-    routed_cursors: [crate::bidding::decoder::DecoderCursorState; 3],
+    /// `[side][phase]`, side 0 ours and side 1 theirs — a mirror or declared
+    /// book decodes their calls, so the routed walk cannot share one cursor
+    /// set across the table (the legacy reader splits the same way).
+    routed_cursors: [[crate::bidding::decoder::DecoderCursorState; 3]; 2],
     own: AbsoluteProjection,
     opponents: AbsoluteProjection,
     passes: AbsoluteProjection,
@@ -708,7 +711,7 @@ impl Default for AuthoringStepCache {
             context_cursor: crate::bidding::context::ContextCursor::new(),
             own_cursor: crate::bidding::decoder::DecoderCursorState::default(),
             routed_cursors: std::array::from_fn(|_| {
-                crate::bidding::decoder::DecoderCursorState::default()
+                std::array::from_fn(|_| crate::bidding::decoder::DecoderCursorState::default())
             }),
             own: AbsoluteProjection::unknown(),
             opponents: AbsoluteProjection::unknown(),
@@ -797,12 +800,17 @@ impl AuthoringStepCache {
                     crate::bidding::context::flipped(vul)
                 };
                 let at_time = Context::new(actor_vul, prefix);
+                let routed_books = if opponent {
+                    partnership.opponents()
+                } else {
+                    partnership
+                };
                 assert_cached_route_matches_one_shot(
                     "routed",
                     index,
                     record.routed,
-                    partnership.decoder_for(prefix),
-                    partnership.trie_for(prefix),
+                    routed_books.decoder_for(prefix),
+                    routed_books.trie_for(prefix),
                     &at_time,
                     prefix,
                 );
@@ -828,8 +836,9 @@ impl AuthoringStepCache {
         self.auction.clear();
         self.context_cursor = crate::bidding::context::ContextCursor::new();
         self.own_cursor = crate::bidding::decoder::DecoderCursorState::default();
-        self.routed_cursors =
-            std::array::from_fn(|_| crate::bidding::decoder::DecoderCursorState::default());
+        self.routed_cursors = std::array::from_fn(|_| {
+            std::array::from_fn(|_| crate::bidding::decoder::DecoderCursorState::default())
+        });
         self.own = AbsoluteProjection::unknown();
         self.opponents = AbsoluteProjection::unknown();
         self.passes = AbsoluteProjection::unknown();
@@ -857,7 +866,7 @@ impl AuthoringStepCache {
         // the side that made it.  Splitting this incremental walk's `routed`
         // cursors the same way is straightforward — six slots instead of
         // three — but a mixed table is an A/B instrument, not a hot path.
-        if !std::ptr::eq(partnership.opponents(), partnership) {
+        if partnership.has_declared_opponents() {
             return self.disable();
         }
         match &self.partnership_identity {
@@ -921,7 +930,9 @@ impl AuthoringStepCache {
             core::mem::take(&mut self.own_cursor)
         };
         let mut scan_routed_cursors = if phase_changed {
-            std::array::from_fn(|_| crate::bidding::decoder::DecoderCursorState::default())
+            std::array::from_fn(|_| {
+                std::array::from_fn(|_| crate::bidding::decoder::DecoderCursorState::default())
+            })
         } else {
             core::mem::take(&mut self.routed_cursors)
         };
@@ -981,10 +992,19 @@ impl AuthoringStepCache {
             let routed_needed = (table_alerts && opponent)
                 || (read_passes && made == Call::Pass && (!opponent || table_alerts));
             let routed_phase = scan_context_cursor.phase();
-            let routed_decoder = partnership.decoder_for_phase(routed_phase);
+            // Each call resolves in the books of the side that *made* it — the
+            // mirror book for theirs, ours for ours.  Same books twice unless
+            // one is attached, and the cursor slot follows the side.
+            let routed_books = if opponent {
+                partnership.opponents()
+            } else {
+                partnership
+            };
+            let routed_slot = &mut scan_routed_cursors[usize::from(opponent)];
+            let routed_decoder = routed_books.decoder_for_phase(routed_phase);
             let routed_answer = if routed_needed {
                 match routed_decoder.resolve_checked_with_cursor(
-                    &mut scan_routed_cursors[Self::phase_index(routed_phase)],
+                    &mut routed_slot[Self::phase_index(routed_phase)],
                     &at_time,
                     prefix,
                 ) {
@@ -994,12 +1014,11 @@ impl AuthoringStepCache {
             } else {
                 None
             };
-            if routed_needed && !scan_routed_cursors[Self::phase_index(routed_phase)].cache_stable()
-            {
+            if routed_needed && !routed_slot[Self::phase_index(routed_phase)].cache_stable() {
                 return self.disable();
             }
             let routed_compiled = routed_answer.and_then(|answer| {
-                partnership.compiled_rules_for(prefix, answer.classifier, profile)
+                routed_books.compiled_rules_for(prefix, answer.classifier, profile)
             });
             if routed_answer.is_some_and(|answer| {
                 !authored_effect_is_reusable(made, answer.classifier, routed_compiled, profile)

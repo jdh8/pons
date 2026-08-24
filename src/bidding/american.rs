@@ -346,12 +346,20 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     strong_two::register(&mut c, &agreements);
     weak_twos::register(&mut c, &agreements);
 
-    System::new(
+    let system = System::new(
         c,
         competition::competition(&agreements),
         defense::defensive(&agreements),
         agreements,
-    )
+    );
+    // The mirror book: their calls decode in our system with the
+    // opponents' disclosures cleared, which are facts about *our* opponents
+    // and would otherwise be asserted about theirs — us — once the auction is
+    // rebased.  `None` on every default build.
+    match super::common::mirror_agreements(&agreements) {
+        Some(mirror) => system.with_mirror(book(&mirror)),
+        None => system,
+    }
 }
 
 #[cfg(test)]

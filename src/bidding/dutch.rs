@@ -150,7 +150,13 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
         &agreements,
         &[openings::package(), responses::package(), multi::package()],
     );
-    system
+    // The mirror book American attached is American; Dutch's must carry the
+    // Dutch packages, so re-attach ours over it.  Both are `None` whenever
+    // nothing is declared, which is every default build.
+    match super::common::mirror_agreements(&agreements) {
+        Some(mirror) => system.with_mirror(book(&mirror)),
+        None => system,
+    }
 }
 
 #[cfg(test)]

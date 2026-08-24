@@ -278,6 +278,18 @@ pub struct System {
     /// from, and the source of the classify-time half that
     /// [`bind`][Self::bind] pins into the [`Partnership`]
     pub agreements: Agreements,
+    /// The **mirror book** — this system as it reads *their* auctions
+    ///
+    /// [`Agreements::decision`]`.their` states what **our** opponents play.
+    /// Decoding their calls rebases the auction so that they are "we", where
+    /// those facts would describe *us* — and we do not play them.  So their
+    /// calls decode in a second build of this system with the disclosures
+    /// cleared, attached here by the family factories and bound alongside by
+    /// [`bind`][Self::bind].
+    ///
+    /// [`None`] whenever nothing is declared, which is every default build, so
+    /// the shipped system carries no second book and pays nothing.
+    pub opponents: Option<Arc<System>>,
 }
 
 impl System {
@@ -299,7 +311,18 @@ impl System {
             competitive,
             defensive,
             agreements,
+            opponents: None,
         }
+    }
+
+    /// Attach the [mirror book][Self::opponents]
+    ///
+    /// Not to be confused with [`Partnership::with_opponents`], which declares
+    /// a *foreign* card: a mirror is our own system, and declares nothing.
+    #[must_use]
+    pub fn with_mirror(mut self, them: Self) -> Self {
+        self.opponents = Some(Arc::new(them));
+        self
     }
 
     /// Bind this system into a playable [`Partnership`]
@@ -353,7 +376,12 @@ impl System {
             competitive,
             defensive,
             probed: HashMap::new(),
-            opponents: None,
+            // Routing without declaring: the mirror is our own system, so
+            // nothing about the table is foreign and `declared_opponent_all`
+            // stays off.  It recurses at most once — a mirror's own
+            // disclosures are already cleared, so it attaches none.
+            opponents: self.opponents.as_ref().map(|them| Arc::new(them.bind())),
+            opponents_declared: false,
             cache_identity: Arc::new(PartnershipCacheIdentity),
             agreements: self.agreements,
         }
@@ -552,10 +580,21 @@ pub struct Partnership {
     /// until [`probe`][Self::probe] runs; consumed by the projection pass
     /// under [`probed`][field@crate::bidding::ReadingProfile::probed].
     probed: HashMap<Vec<Call>, Envelope>,
-    /// The books the *opponents* are declared to play, for reading their
-    /// calls ([`with_opponents`][Self::with_opponents]).  [`None`] — the default — models them as
-    /// playing ours, which is exact in self-play.
+    /// The books their calls decode in.  [`None`] — the default — models them
+    /// as playing ours, which is exact in self-play.
+    ///
+    /// This is *routing* only.  Whether the table is a **declared** mixed one
+    /// is [`opponents_declared`][Self::has_declared_opponents], a separate
+    /// fact: a mirror book (our own system with the opponents' disclosures
+    /// cleared, [`System::with_mirror`]) routes without declaring anything.
     opponents: Option<Arc<Partnership>>,
+    /// Whether [`with_opponents`][Self::with_opponents] declared a foreign
+    /// card, as opposed to [`bind`][System::bind] attaching a mirror book
+    ///
+    /// Only a declared card turns on the whole-reading `declared_opponent_all`
+    /// arm and drops the deal to the legacy full-auction reader; a mirror is
+    /// neither.
+    opponents_declared: bool,
     /// Stable across clones, replaced whenever partnership-local reading data
     /// changes. Deal caches retain this small token, so an allocator cannot
     /// recycle a raw address into a false identity match.
@@ -576,6 +615,7 @@ impl Default for Partnership {
             defensive: BoundBook::default(),
             probed: HashMap::new(),
             opponents: None,
+            opponents_declared: false,
             cache_identity: Arc::new(PartnershipCacheIdentity),
             agreements: Agreements::default(),
         }
@@ -589,7 +629,7 @@ impl core::fmt::Debug for Partnership {
             .field("competitive", &self.competitive.trie)
             .field("defensive", &self.defensive.trie)
             .field("probed", &self.probed)
-            .field("declared_opponents", &self.opponents.is_some())
+            .field("declared_opponents", &self.opponents_declared)
             .finish()
     }
 }
@@ -653,6 +693,7 @@ impl Partnership {
     #[must_use]
     pub fn with_opponents(mut self, them: &Self) -> Self {
         self.opponents = Some(Arc::new(them.clone()));
+        self.opponents_declared = true;
         self.invalidate_cache_identity();
         self
     }
@@ -663,7 +704,7 @@ impl Partnership {
     }
 
     pub(crate) const fn has_declared_opponents(&self) -> bool {
-        self.opponents.is_some()
+        self.opponents_declared
     }
 
     fn invalidate_cache_identity(&mut self) {
