@@ -371,6 +371,75 @@ fn the_two_spade_hole_is_inherited() {
     }
 }
 
+/// A forced call gets its answer under interference, never a sit
+///
+/// The pre-fix A/B's worst boards were `2♦ - 4♦ (X)` passed out by opener —
+/// `4♦` doubled with no diamond suit, −21 IMP a board.  Registration is
+/// suffix-exact, so every forced continuation needs its doubled and
+/// overcalled twins keyed (as a node or a systems-on rebase); these are the
+/// lanes the trace convicted, plus the `4♣` machinery and the `XX` re-ask
+/// that share the shape.
+#[test]
+fn forced_calls_are_answered_under_interference() {
+    for champion in [false, true] {
+        let agreements = multi(champion);
+        // `2♦ - 4♦ (X)`: opener names the major instead of sitting.
+        let doubled = [OPENED[0], P, bid(4, Strain::Diamonds), Call::Double];
+        assert_eq!(
+            calls(&agreements, &doubled, "x.AQxxxx.Kxx.xxx"),
+            bid(4, Strain::Hearts),
+        );
+        assert_eq!(
+            calls(&agreements, &doubled, "KQxxxx.x.xxx.Qxx"),
+            bid(4, Strain::Spades),
+        );
+        // The competitive twin: `2♦ (2♠) 4♦ -`.
+        let overcalled = [
+            OPENED[0],
+            bid(2, Strain::Spades),
+            bid(4, Strain::Diamonds),
+            P,
+        ];
+        assert_eq!(
+            calls(&agreements, &overcalled, "x.AQxxxx.Kxx.xxx"),
+            bid(4, Strain::Hearts),
+        );
+        // `2♦ - 4♣ (X)`: the transfer answer still comes…
+        let ask_doubled = [OPENED[0], P, bid(4, Strain::Clubs), Call::Double];
+        assert_eq!(
+            calls(&agreements, &ask_doubled, "x.AQxxxx.Kxx.xxx"),
+            bid(4, Strain::Diamonds),
+        );
+        // …and the doubled transfer answer still gets completed.
+        let transfer_doubled = [
+            OPENED[0],
+            P,
+            bid(4, Strain::Clubs),
+            P,
+            bid(4, Strain::Diamonds),
+            Call::Double,
+        ];
+        assert_eq!(
+            calls(&agreements, &transfer_doubled, "AQx.Kx.AQxx.AKxx"),
+            bid(4, Strain::Hearts),
+        );
+    }
+    // Base only: after the `XX` re-ask, responder places over the answer
+    // rather than passing opener's phantom `3♣`.
+    let xx_answered = [
+        OPENED[0],
+        Call::Double,
+        Call::Redouble,
+        P,
+        bid(3, Strain::Clubs),
+        P,
+    ];
+    assert_eq!(
+        calls(&multi(false), &xx_answered, "AQx.Kxx.AQxx.Kxx"),
+        bid(4, Strain::Hearts),
+    );
+}
+
 /// The champion's three-level pass-or-correct, and the forced `4♥` over `3♠`.
 #[test]
 fn champion_three_level_corrections() {

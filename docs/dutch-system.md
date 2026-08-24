@@ -453,6 +453,31 @@ was doubled. `2♦ - 2♥ (X)` and `2♦ - 2♠ (X)` are now authored as opener'
 undisturbed decision minus the maximum jump, and the `(X)` rebase routes the
 doubled auction onto the same keys.
 
+**The first A/B was aborted on a build defect, and its numbers are not
+verdicts.** The NV half at `d66b66ef` (SEED_BASE 1787570257, 204 800 bd/arm)
+read a decisive loss — E1 (base − plain) −0.0442 ±0.0055 plain / −0.0702
+±0.0066 PD — but losing *harder* under PD is not the preemptive signature
+(plain DD is the pessimistic scorer for obstruction), and tracing the worst
+boards convicted one unauthored continuation: **`2♦ - 4♦ (X)` and
+`2♦ (2♠) 4♦ -` fell to the floor, which passed**, playing `4♦` doubled with no
+diamond suit at −21 IMP a board (4 of the 5 worst plain boards, 3 of 5 PD).
+The repair (2026-08-24) keys every *forced* continuation's doubled and
+overcalled twins: the four-level `4♣`/`4♦` machinery registered again behind
+each overcall, systems-on rebases for their double of the `2NT` ask, its four
+answers, the `3♦` try, the champion's `3♣`/`3♥`/`3♠`, the `4♣` ask, its
+transfer answers and the `4♦` pass-or-correct, plus the base's four `XX`
+re-ask placement keys (the opening rebase cannot serve those — stripping the
+double leaves an illegal `2♦ - XX` auction). Pinned by
+`forced_calls_are_answered_under_interference`. Pre-fix raw files kept in
+`ab-results/dutch-multi/`; the relaunch writes `ab-results/dutch-multi-v2/`
+(SEED_BASE 1787574574, 204 800 bd/arm/vul — its log's `sha=d66b66ef` predates
+the fix commit, whose binaries the run was built from).
+
+One pre-fix number survives the bug, because both arms shared the defect:
+**E2 (champion − base) read +0.0080 ±0.0031 plain, +0.0105/+0.0064 sd-lead, NV,
+204 800 paired boards** — all CIs clear of zero. Real evidence the champion
+structure is the better one, to confirm post-fix before it means anything.
+
 **Still floor territory, and the leading E1 risk**: opener's action when they
 overcall partner's *correction* (`2♦ - 2♥ (3♥)` and friends) — the plan leaves
 three-level-and-up interference to the floor, and the trace shows it taking
@@ -498,6 +523,13 @@ a verdict on the Multi itself.
    `multi_two_diamonds` toggle there would be a permanently inert control — the
    lie the `Requires` doctrine exists to prevent. Add one only if the web ever
    grows a system selector.
+8. **The champion's `XX` placement stays floor.** After
+   `2♦ (X) XX - 2♥/2♠ -` (opener names the major he does *not* hold),
+   responder's placement is unauthored — passing the answer is right only when
+   it names responder's own long major, and the sign-off/game decision in
+   opener's known major is new agreement design, not a mechanical twin of an
+   existing table. The base's `XX` placements *are* keyed (they reuse the
+   `2NT` ask's). Trace before designing.
 
 ### Phase 2.1 A/B result — LOSS, as expected for a half-built system
 

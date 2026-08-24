@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dutch Multi `2♦`: forced continuations answered under interference.** The
+  first (aborted) A/B at `d66b66ef` read a decisive NV loss whose worst boards
+  were one shape — `2♦ - 4♦ (X)` and `2♦ (2♠) 4♦ -` passed out by opener, `4♦`
+  doubled with no diamond suit at −21 IMP a board — an unauthored continuation,
+  not the Multi idea. Registration is suffix-exact, so every *forced* artificial
+  call now has its doubled and overcalled twins keyed in
+  [src/bidding/dutch/multi.rs](src/bidding/dutch/multi.rs): the four-level
+  `4♣`/`4♦` machinery is registered again behind each overcall, systems-on
+  rebases cover their double of the `2NT` ask, its four answers, the base's `3♦`
+  try, the champion's `3♣`/`3♥`/`3♠`, the `4♣` ask, its transfer answers, and
+  the `4♦` pass-or-correct — and the base's `XX` re-ask gains its four placement
+  keys (the opening rebase cannot serve them: stripping the double leaves an
+  illegal `2♦ - XX` auction). Pinned by
+  `forced_calls_are_answered_under_interference`. Both knobs stay default-off;
+  the pre-fix numbers are recorded in
+  [docs/dutch-system.md](docs/dutch-system.md) §*Phase 3* and the A/B relaunched
+  from a fresh seed.
+
 ### Added
 
 - **Dutch's Multi `2♦`, in two variants (Phase 3's Multi slice).**

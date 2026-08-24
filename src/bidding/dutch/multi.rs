@@ -619,17 +619,28 @@ pub(super) fn package() -> Package {
             ));
 
             // The 2NT ask and its four answers, then responder's placement.
+            // The base's `XX` twin needs its own placement keys: the opening
+            // rebase below cannot serve them, because stripping their double
+            // out of `2♦ (X) XX - 3♣ -` leaves an illegal `2♦ - XX` auction
+            // that resolves nowhere — and the floor would sit for opener's
+            // phantom `3♣`.
             entries.extend(rows_of(Pattern::node("P* 2♦ - 2NT -"), ask_answers()));
-            for (pattern, major, maximum) in [
-                ("P* 2♦ - 2NT - 3♣ -", Suit::Hearts, true),
-                ("P* 2♦ - 2NT - 3♦ -", Suit::Spades, true),
-                ("P* 2♦ - 2NT - 3♥ -", Suit::Hearts, false),
-                ("P* 2♦ - 2NT - 3♠ -", Suit::Spades, false),
+            for (answer, major, maximum) in [
+                ("3♣", Suit::Hearts, true),
+                ("3♦", Suit::Spades, true),
+                ("3♥", Suit::Hearts, false),
+                ("3♠", Suit::Spades, false),
             ] {
                 entries.extend(rows_of(
-                    Pattern::node(pattern),
+                    Pattern::node(&format!("P* 2♦ - 2NT - {answer} -")),
                     asker_after_answer(major, maximum),
                 ));
+                if !champion(agreements) {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* 2♦ (X) XX - {answer} -")),
+                        asker_after_answer(major, maximum),
+                    ));
+                }
             }
 
             // The three-level rungs: the base's natural minors and artificial
@@ -664,23 +675,30 @@ pub(super) fn package() -> Package {
                 entries.extend(rows_of(Pattern::node("P* 2♦ - 3♠ -"), play_it()));
             }
 
-            // The four-level machinery, identical in both variants.
-            entries.extend(rows_of(
-                Pattern::node("P* 2♦ - 4♣ -"),
-                opener_over_four_clubs(),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♦ - 4♣ - 4♦ -"),
-                complete_the_transfer(Suit::Hearts),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♦ - 4♣ - 4♥ -"),
-                complete_the_transfer(Suit::Spades),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♦ - 4♦ -"),
-                opener_over_four_diamonds(),
-            ));
+            // The four-level machinery, identical in both variants — and
+            // registered again behind each overcall, because registration is
+            // suffix-exact: `2♦ (2♠) 4♦` reaches no `2♦ - 4♦` key on its own,
+            // the node falls to the floor, and the floor sits.  The pre-fix
+            // A/B's worst boards were exactly that shape — `4♦` passed out
+            // with no diamond suit, −21 IMP a board.
+            for prefix in ["P* 2♦ -", "P* 2♦ (2♥)", "P* 2♦ (2♠)"] {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} 4♣ -")),
+                    opener_over_four_clubs(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} 4♣ - 4♦ -")),
+                    complete_the_transfer(Suit::Hearts),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} 4♣ - 4♥ -")),
+                    complete_the_transfer(Suit::Spades),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} 4♦ -")),
+                    opener_over_four_diamonds(),
+                ));
+            }
             for pattern in ["P* 2♦ - 4♥ -", "P* 2♦ - 4♠ -"] {
                 entries.extend(rows_of(Pattern::node(pattern), play_it()));
             }
@@ -715,6 +733,45 @@ pub(super) fn package() -> Package {
                 Pattern::node("P* 2♦ (2♠)"),
                 responses_overcalled(Suit::Spades),
             ));
+
+            // Systems on over their double of every forced continuation: the
+            // asks still get their answers, the transfers still complete, the
+            // pass-or-corrects still correct.  Without these, the doubled
+            // node falls to the floor and the floor sits — the `4♦ (X)`
+            // disaster above, one seat over.  The `2♥`/`2♠` pass-or-corrects
+            // keep their bespoke doubled tables and stay off this list; the
+            // rebases chain, so a second double deeper in the tail resolves
+            // through the same keys.
+            let champion_corrections: &[&str] = if champion(agreements) {
+                &["P* 2♦ - 3♣", "P* 2♦ - 3♥", "P* 2♦ - 3♠"]
+            } else {
+                &[]
+            };
+            for key in [
+                "P* 2♦ - 2NT",
+                "P* 2♦ - 2NT - 3♣",
+                "P* 2♦ - 2NT - 3♦",
+                "P* 2♦ - 2NT - 3♥",
+                "P* 2♦ - 2NT - 3♠",
+                "P* 2♦ - 3♦",
+                "P* 2♦ - 4♣",
+                "P* 2♦ - 4♣ - 4♦",
+                "P* 2♦ - 4♣ - 4♥",
+                "P* 2♦ - 4♦",
+                "P* 2♦ (2♥) 4♣",
+                "P* 2♦ (2♥) 4♣ - 4♦",
+                "P* 2♦ (2♥) 4♣ - 4♥",
+                "P* 2♦ (2♥) 4♦",
+                "P* 2♦ (2♠) 4♣",
+                "P* 2♦ (2♠) 4♣ - 4♦",
+                "P* 2♦ (2♠) 4♣ - 4♥",
+                "P* 2♦ (2♠) 4♦",
+            ]
+            .into_iter()
+            .chain(champion_corrections.iter().copied())
+            {
+                entries.push(rebase(Pattern::first(key, "X"), ReplaceNext(Call::Pass)));
+            }
             entries
         },
     }
