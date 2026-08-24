@@ -1,10 +1,13 @@
 //! Dutch openings — the wide, non-forcing 1♣ table (Phase 1)
 //!
 //! Diverges from american in the one-level suit partition and the strong 2♣;
-//! the 1NT/2NT/weak-two/preempt rows are held at american's defaults for now
-//! (Phase 3 replaces the 2-level rows with Multi/Muiderberg/UNT).  See
-//! `docs/dutch-system.md` for the full spec.
+//! the 1NT/2NT/preempt rows are held at american's defaults for now.  Phase 3's
+//! Multi slice is live behind `opening.multi_two_diamonds`, which replaces all
+//! three weak twos with one artificial `2♦!` (the Polish two-suiter `2♥`/`2♠`
+//! and UNT `2NT` are still to come).  See `docs/dutch-system.md` for the full
+//! spec.
 
+use crate::bidding::agreements::Agreements;
 use crate::bidding::american::{NotrumpShape, notrump_shape};
 use crate::bidding::constraint::{balanced, fifths, hcp, len, nth_seat, or, points};
 use crate::bidding::rows::{Package, Pattern, rows_of};
@@ -13,6 +16,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
 /// The strong, artificial 2♣ opening — the only artificial Dutch opening
+/// (Phase 1; the Multi `2♦` below joins it under `opening.multi_two_diamonds`)
 const STRONG_2C: Alert = Alert("strong-2c");
 
 /// The Dutch opening table, shared by every seat
@@ -21,14 +25,15 @@ const STRONG_2C: Alert = Alert("strong-2c");
 /// 4=4=4=1); five-card majors 10–20; the strong artificial 2♣ (21–23 with a
 /// five-card major or six-card minor, or any 24+).  Strong balanced 20–21 still
 /// opens 2NT here — the wide 1♣ only hosts 22–23 balanced until Phase 3 turns
-/// 2NT into UNT.
+/// 2NT into UNT.  The 2-level weak openings are natural (american's) by default
+/// and one artificial Multi `2♦!` under `opening.multi_two_diamonds`.
 ///
 /// Sharp on shape, and sound: a one-level opening needs its raw-HCP band **and**
 /// `points(12..)`, which on the shipped rule-of-N+8 scale is the Rule of 20
 /// wherever the two longest suits reach eight cards — every shape but flat
 /// 4-3-3-3, which reads its raw HCP.  The finite `Pass` catch-all keeps the
 /// table total.
-pub(super) fn dutch_openings() -> Rules {
+pub(super) fn dutch_openings(agreements: &Agreements) -> Rules {
     let majors = [Suit::Hearts, Suit::Spades];
     let minors = [Suit::Clubs, Suit::Diamonds];
     let mut rules = Rules::new()
@@ -100,13 +105,28 @@ pub(super) fn dutch_openings() -> Rules {
                 & len(Suit::Hearts, ..5)
                 & len(Suit::Spades, ..5),
         );
-    // Weak twos (Phase 1: american defaults; Phase 3 → Multi 2♦ / Muiderberg 2M).
-    for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        rules = rules.rule(
-            Bid::new(2, Strain::from(suit)),
-            100,
-            len(suit, 6..=6) & points(5..=10) & !nth_seat(4),
-        );
+    if agreements.opening.multi_two_diamonds {
+        // Phase 3's Multi slice: one artificial `2♦!` replaces all three weak
+        // twos.  4-10 HCP with exactly one six-card major — no strong variant,
+        // at any vulnerability (BBA's book and the independent BBA-WJ harvest
+        // agree).  Seven-card majors keep falling to the three-level preempts
+        // below, and a six-card *diamond* suit now has no opening at all.
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Diamonds),
+                100,
+                hcp(4..=10) & (len(Suit::Hearts, 6..=6) | len(Suit::Spades, 6..=6)) & !nth_seat(4),
+            )
+            .alert(super::multi::MULTI_2D);
+    } else {
+        // Weak twos (Phase 1: american defaults).
+        for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            rules = rules.rule(
+                Bid::new(2, Strain::from(suit)),
+                100,
+                len(suit, 6..=6) & points(5..=10) & !nth_seat(4),
+            );
+        }
     }
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -125,6 +145,6 @@ pub(super) fn package() -> Package {
     Package {
         name: "dutch-openings",
         gate: |_| true,
-        entries: |_| rows_of(Pattern::node("P*"), dutch_openings()),
+        entries: |agreements| rows_of(Pattern::node("P*"), dutch_openings(agreements)),
     }
 }

@@ -11,6 +11,7 @@
 //! it lives here as a sibling factory under the standard A/B discipline; see
 //! `docs/dutch-system.md` for the campaign ledger.
 
+mod multi;
 mod openings;
 mod responses;
 
@@ -147,7 +148,7 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     compile_into(
         &mut system.constructive.0,
         &agreements,
-        &[openings::package(), responses::package()],
+        &[openings::package(), responses::package(), multi::package()],
     );
     system
 }

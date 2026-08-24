@@ -22,6 +22,44 @@ fn the_checked_in_cards_match_the_generator() {
     );
 }
 
+/// The Dutch card discloses the Multi `2♦` — and both sides of its radio group
+///
+/// `Multi` (EPBot id 110) and `Weak natural 2D` (id 168) are mutually exclusive
+/// in the schema, and the natural weak `2♥`/`2♠` go with them: under
+/// `opening.multi_two_diamonds` there is exactly one weak two-level opening and
+/// it is artificial.  Writing only the `Multi` side would leave BBA holding a
+/// card that claims both, which is a misdisclosure nothing else checks.
+///
+/// The **champion** variant deliberately moves no row: no schema row says
+/// "`3♥` is pass-or-correct", so BBA reads a champion `3♥` as natural whatever
+/// we write.  That is the cost the champion arm pays and the reason the
+/// verbatim base is what anchor runs are pinned to.
+#[test]
+fn the_dutch_card_discloses_the_multi() {
+    let mut agreements = Agreements::default();
+    assert_eq!(dutch_card(&agreements).row("Multi"), Some(0));
+    assert_eq!(dutch_card(&agreements).row("Weak natural 2D"), Some(1));
+    assert_eq!(dutch_card(&agreements).row("Weak natural 2M"), Some(1));
+
+    agreements.opening.multi_two_diamonds = true;
+    let card = dutch_card(&agreements);
+    assert_eq!(card.row("Multi"), Some(1));
+    assert_eq!(card.row("Weak natural 2D"), Some(0));
+    assert_eq!(card.row("Weak natural 2M"), Some(0));
+
+    let mut champion = agreements;
+    champion.opening.multi_two_diamonds_champion = true;
+    assert_eq!(
+        dutch_card(&champion).to_string(),
+        card.to_string(),
+        "the champion structure has no `.bbsa` expression",
+    );
+
+    // american never compiles the package, so its card never claims the Multi.
+    assert_eq!(american_card(&agreements).row("Multi"), Some(0));
+    assert_eq!(american_card(&agreements).row("Weak natural 2D"), Some(1));
+}
+
 /// The card never claims a relocation the floor cannot make
 ///
 /// `Kickback 1430` rides the combination of

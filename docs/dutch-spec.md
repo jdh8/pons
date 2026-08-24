@@ -28,7 +28,8 @@ Where pons deviates from the book it is called out inline (`pons:`).
 | **1♦** | 5+♦, or the singleton-club 4=4=4=1 — never 3♦. (`pons:` (xx)45 [4♦5♣] and all other 4-diamond hands open 1♣; the book's online "open 1♦ for (xx)45" is stale per jdh8.) |
 | **1♥ / 1♠** | 5+ cards, 10–20 HCP, 12+ points (≡ Rule of 20 with a five-card suit) |
 | **2♣!** | strong: 21–23 with a 5-card major or 6-card minor, or any 24+ |
-| **2♦ / 2♥ / 2♠ / 2NT** | `pons:` still american weak-twos / strong 2NT until Phase 3 — which adopts **BBA's Multi 2♦ + Polish two-suiters** (decision 2026-07-20, dutch-system.md); the book's Muiderberg/UNT line is superseded |
+| **2♦!** | `pons:` **Multi**, 4–10 with exactly one six-card major, weak only, not in fourth seat — authored 2026-08-24 behind `opening.multi_two_diamonds` (default off) in **two variants**, BBA-verbatim and champion; see dutch-system.md Phase 3. Off, still american's natural weak `2♦` |
+| **2♥ / 2♠ / 2NT** | `pons:` still american weak-twos / strong 2NT. Under the Multi gate the weak `2♥`/`2♠` are **deleted** until the Polish two-suiter slice lands (decision 2026-07-20 adopts **BBA's Polish two-suiters**, not the book's Muiderberg/UNT chapter) |
 
 ---
 
@@ -213,7 +214,11 @@ passed 1♣ originally (e.g. 0–3 HCP 3=3=2=5). A full transfer structure.
 
 ## Not yet transcribed
 
-The book's `1♣ - 1M` chapter (`src/1C/1M.md`) and the 2-level openings
-(Phase 3) are not pulled here yet — fetch raw from the repo when those phases
-come up. Note the Phase-3 openings will follow the 2026-07-20 decision
-(BBA's Multi 2♦ + Polish two-suiters), not the book's Muiderberg/UNT chapter.
+The book's `1♣ - 1M` chapter (`src/1C/1M.md`) and the remaining 2-level openings
+(the Polish two-suiters and UNT) are not pulled here yet — fetch raw from the
+repo when those phases come up. Note the Phase-3 openings follow the 2026-07-20
+decision (BBA's Multi 2♦ + Polish two-suiters), not the book's Muiderberg/UNT
+chapter. The Multi 2♦ slice is authored: its base structure is BBA's, walked in
+[ai-bidder/bba-multi-2d-opening.md](ai-bidder/bba-multi-2d-opening.md), and its
+champion structure is <https://polish.club/2D.html>; both tables are tabulated
+in dutch-system.md's Phase 3 section.

@@ -76,6 +76,12 @@ six cards with a maximum** (10 exactly).  Opener's other calls there fall on
 generic templates (`NT style`, `bidable suit` at 4-10) — the book has no rule
 for them, so they are floor territory.
 
+Opener over `2♠` is **entirely** floor territory: a re-walk at
+`--prefix "2♦ - 2♠ -"` returns only the escape template (`6+ <suit>` at every
+rung, with `2NT` reading `6+ ♥` at 9-10) plus `P` = six spades at 4-10.  There is
+no book rule for the minimum heart correction, so a port authors that node
+itself.
+
 **The `2NT` ask — the cheapest step is the *maximum*:**
 
 | answer | reading |
@@ -88,7 +94,13 @@ for them, so they are floor territory.
 | `4♥` / `4♠` | natural, 10 |
 
 Worth noting for anyone porting this: many European Multi cards answer
-min-first.  BBA answers **max-first**, so `2NT - 3♥` is the weak hand.
+min-first.  BBA answers **max-first**, so `2NT - 3♥` is the weak hand.  (The
+split re-reads as `3♣`/`3♦` = 8-10 and `3♥`/`3♠` = 4-7 at `--reach-depth 5`.)
+
+The **asker's** continuation after an answer is floor territory too: at
+`--reach-depth 8`, `2♦ - 2NT - 3♣ -` and `2♦ - 2NT - 3♥ -` return `bidable suit`
+at every rung and no raise of the named major at all, so nothing there is a
+rule.
 
 `3♦` (10+, both majors 2+): opener answers `3♥` / `3♠` natural 5-10, jumping to
 `4♥` / `4♠` with 10.
@@ -145,13 +157,19 @@ responder who would have played 2♥ opposite hearts has nothing: `3♥` reads
 20-24 natural.  The book's answer is `P` with ≤20, leaving the opponents in 2♠
 whenever responder is weak, which is most of the time.
 
+One qualification the table above hides, because the walk marks it a ceiling
+dead end rather than a rung: the `4♦` pass-or-correct **is** live in both
+columns, at `≤14` with `♥ 3+` **and** `♠ 3+`.  So the hole is not "every weak
+responder"; it is every weak responder without three cards in *both* majors —
+still the large majority, and still a rung-less one.
+
 Opener's own competitive rebids (`2♦ (2♥) 2♠ (3♣)` and friends) are mostly
 `artificial` cues and `calculated bid` — the floor, not the book.
 
 ## 5. What this means for us
 
-We have **nothing** for a Multi 2♦ opening today: neither our own (Dutch Phase 3
-is where it lands) nor a defence to theirs.  `defense_to_weak_two` in
+We have a Multi 2♦ **opening** as of 2026-08-24 (Dutch Phase 3, default off, two
+variants — see below) but still **no defence to theirs**.  `defense_to_weak_two` in
 [src/bidding/american/defense/weak_two_defense.rs](../../src/bidding/american/defense/weak_two_defense.rs)
 derives its overcall levels from `their_opening`'s suit and treats a `2♦`
 opening as natural diamonds; no anchor opponent opens Multi, so that path has
@@ -166,3 +184,19 @@ Two rows for Phase 3's ledger when it authors these:
 2. **The `(2♠)` hole is inherited if we copy verbatim.**  Authoring a weak
    pass-or-correct rung there (`2NT` as the weak relay, or `X` as pass-or-correct)
    diverges from the teacher, so it is an A/B, not a free repair.
+
+**Both rows are now settled, 2026-08-24.**  Row 1: the port answers max-first,
+in both variants — the champion page answers max-first too, so there was no
+direction conflict to trade off.  Row 2: the hole is inherited in both variants
+and pinned by a test; the repair stays a separate A/B.  The rows live in
+[src/bidding/dutch/multi.rs](../../src/bidding/dutch/multi.rs) behind
+`opening.multi_two_diamonds`, with a second variant behind
+`opening.multi_two_diamonds_champion`; the tables and the ledger are in
+[dutch-system.md](../dutch-system.md) §*Phase 3*.
+
+A third row the walk did not anticipate: **BBA states bands but no precedence**,
+and several of its responder bands overlap (`2NT` 16+ against `4♣` 15+, `2♠`
+12-17 against `3♦` 10+, `3♦` against `4♦`).  The port's weight order is therefore
+its own, not a copy, and is documented as such at the rule site.  Together with
+the two floor-territory nodes above, that is everything in the lane the phrase
+"copied verbatim" does **not** cover.

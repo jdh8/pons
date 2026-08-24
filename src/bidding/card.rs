@@ -389,6 +389,24 @@ pub fn dutch_card(a: &Agreements) -> Card {
     // 1♦ can be three cards, so this is the one row the two systems disagree on
     // that BBA's schema can express.
     card.set("1D opening with 5 cards", 1);
+    if a.opening.multi_two_diamonds {
+        // Phase 3's Multi slice replaces all three weak twos with one
+        // artificial `2♦!` (`dutch::multi`).  `Multi` and `Weak natural 2D` are
+        // the same mutually-exclusive radio group in EPBot, so both sides are
+        // written explicitly rather than left to the engine's own clearing;
+        // `Weak natural 2M` goes with them because the natural weak `2♥`/`2♠`
+        // are deleted until the Polish two-suiter slice lands.
+        //
+        // The **champion** variant is deliberately *not* disclosed here: no row
+        // in the schema says "`3♥` is pass-or-correct", so BBA would read a
+        // champion `3♥` as natural hearts either way.  That misdisclosure is the
+        // stated cost of the champion arm, and the reason the BBA-verbatim base
+        // is the variant pinned for anchor runs
+        // (`opening.multi_two_diamonds_champion`).
+        card.set("Multi", 1);
+        card.set("Weak natural 2D", 0);
+        card.set("Weak natural 2M", 0);
+    }
     card
 }
 

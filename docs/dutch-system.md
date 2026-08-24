@@ -66,7 +66,7 @@ the floor's transfer-completion still holds.
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
 | 2.2 | Deep relay continuations (`1♣ - 1♦ - 1M/1NT/2♣/2♦`) + `1♣ - 2♣` / `1♣ - 2♦` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣ - 1♦ - 1M` + `1♣ - 1♦ - 2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
-| 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below; the Multi rows to author are walked in [bba-multi-2d-opening.md](ai-bidder/bba-multi-2d-opening.md) |
+| 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | **Multi slice AUTHORED, both variants** (`opening.multi_two_diamonds` + `…_champion`, both default off; A/B pending — `scripts/ab-dutch-multi.sh`). Polish two-suiters / UNT / strong-2♣ tree still pending; **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
@@ -368,8 +368,8 @@ the binary survives at `target/release/examples/bba-wj-reference`.
 
 **Decision (jdh8, 2026-07-20): Phase 3 adopts BBA's two-level openings** — Multi
 2♦ + the 5-5 Polish two-suiters, **replacing the spec's planned Muiderberg**
-([dutch-spec.md](dutch-spec.md) still says Muiderberg; update that line when
-Phase 3 authors the rows). Book and teacher then share the same rows, which
+([dutch-spec.md](dutch-spec.md) line 31 carries the correction). Book and
+teacher then share the same rows, which
 makes the two-level branch the cleanest floor-transfer in the system. Costs a
 weak 5-4's opening, gains the weak 5-5 majors an opening Dutch does not have
 today (1♠ needs 10+ HCP and 12+ points).
@@ -388,6 +388,116 @@ minimums. The breach lands on 1♣, which stays an opt-in knob default-off; 1♦
 the arm to ship, and its residual has no unexplained component. **Never route
 2♣**: Dutch's is strong (21–23/24+), WJ's is an 11–14 minimum — same call,
 opposite meanings, the one spot the WJ net would be catastrophically wrong.
+
+### Phase 3 — the Multi 2♦ slice, in two variants
+
+**Authored 2026-08-24, both variants, both default off.** The Multi replaces all
+three natural weak twos with one artificial `2♦!` — 4–10 HCP, exactly one
+six-card major, weak only, never in fourth seat. Seven-card majors keep falling
+to the three-level preempts; a six-card *diamond* suit now has no opening and
+passes. Code: [src/bidding/dutch/multi.rs](../src/bidding/dutch/multi.rs) plus
+the gated branch in `dutch/openings.rs`; knobs
+`opening.multi_two_diamonds` and `opening.multi_two_diamonds_champion`;
+harness flags `--ns-multi-2d` / `--ns-multi-2d-champion`; runner
+[scripts/ab-dutch-multi.sh](../scripts/ab-dutch-multi.sh).
+
+Two variants, because responder's table is a **decision, not a copy**:
+
+| | base (`--ns-multi-2d`) | champion (`+ --ns-multi-2d-champion`) |
+| --- | --- | --- |
+| `2♠` | pass-or-correct, 12–17, ♥2+ ♠1+ | plain pass-or-correct: ♥3+, 8–12 |
+| `2NT` | the ask, **16+** | the ask, **invitational+** (13+) |
+| `3♣` / `3♦` | natural 7+ to play, 10–14 · artificial three-level try, 10+ | natural, **forcing**, 6+ and 13+ |
+| `3♥` / `3♠` | natural 7+ to play, 10–14 | competitive **pass-or-correct** (`3♠` forces `4♥`, so it needs the fourth heart) |
+| `4♦` | pass-or-correct, ≤14, majors 3+ | the ten-card-fit blast: majors 4+, ≤12 |
+| `4♥` / `4♠` | natural 7+, **13+** | natural 7+, **10+** — re-housing the seven-card hands `3M` no longer takes |
+| `XX` over their `X` | the same 16+ ask as `2NT` | ask for the major opener does **not** hold |
+
+Everything below responder's first call is **shared**: the `2NT` ask ladder
+(**maximum-first** — `3♣`/`3♦` are the 8–10 answers, `3♥`/`3♠` the 4–7 ones;
+BBA and [polish.club/2D](https://polish.club/2D.html) agree, so there is no
+direction conflict with the WJ teacher), the `4♣` transfer machinery and its
+completions, the pass-or-correct rebids, and every interfered tail.
+
+**Base = verbatim, and that is the point.** BBA's Multi book
+([bba-multi-2d-opening.md](ai-bidder/bba-multi-2d-opening.md)) is what the WJ
+teacher net was trained on, and BBA — the anchor — reads our calls through its
+own book. Three nodes came back as *generic templates* rather than rules when
+the walk was re-run for the module, so they are ours in both variants and are
+flagged as such in the module doc: opener's rebid over the constructive `2♠`,
+responder's continuation after either ask answer, and the responder table's own
+**weight order** (BBA states bands, no precedence — several of its bands
+overlap).
+
+**The champion is not `.bbsa`-expressible.** No schema row says "`3♥` is
+pass-or-correct", so BBA reads a champion `3♥` as natural hearts however the card
+is written. `dutch_card` therefore discloses the Multi itself — `Multi = 1`,
+`Weak natural 2D = 0`, `Weak natural 2M = 0`, both radio sides written
+explicitly — and moves **no** row for the champion. That misdisclosure is the
+champion arm's stated cost and the reason the verbatim base is the variant
+pinned for anchor runs.
+
+**Pre-A/B smoke, unpaired and indicative only.** Three 1 500-board `bba-gen`
+runs at `--our-floor dutch` (plain / `--ns-multi-2d` / `+ --ns-multi-2d-champion`)
+took **random seeds**, so they are not paired and are not a measurement. What
+they say: the Multi fires on ~3–4% of boards, every authored rung is reached and
+answered correctly on inspection, and the share of *our* declared contracts that
+end doubled is flat — 6.36% plain, 6.31% base, 5.88% champion. That last number
+is the one worth having before the A/B, because a preemptive opening's
+characteristic failure is walking into doubled partscores, and it is not
+happening at the top level.
+
+The one leak the trace did surface has been closed: at `2♦ (X) 2♥ (X)` — them
+doubling partner's pass-or-correct — the floor jumped to `4♥` on eight HCP and
+was doubled. `2♦ - 2♥ (X)` and `2♦ - 2♠ (X)` are now authored as opener's
+undisturbed decision minus the maximum jump, and the `(X)` rebase routes the
+doubled auction onto the same keys.
+
+**Still floor territory, and the leading E1 risk**: opener's action when they
+overcall partner's *correction* (`2♦ - 2♥ (3♥)` and friends) — the plan leaves
+three-level-and-up interference to the floor, and the trace shows it taking
+aggressive doubled games there. Trace those boards before reading any E1 loss as
+a verdict on the Multi itself.
+
+**Default-off is a proof, not a claim**: `smoke-default` and `smoke-dutch`
+(20 000 boards, seed 1) are byte-identical to `main` at `bae94768` —
+`81c92bd4…` and `da3be4a6…` respectively.
+
+#### Phase 3 follow-up ledger
+
+1. **The `2♦ (2♠)` hole — inherited on purpose.** Responder's table over their
+   spade overcall has no weak rung: `2♥` is gone, support starts at `2NT` and
+   needs 14+, and the natural `3♥` is 20+. The `4♦` pass-or-correct is the one
+   weak rung that survives, and it wants three cards in *both* majors — so every
+   weak responder without that shape passes them out in `2♠`. Both variants keep it, pinned
+   by `the_two_spade_hole_is_inherited`. The repair (a weak `2NT` relay, or `X`
+   as pass-or-correct) diverges from the teacher, so it is **its own A/B**, not a
+   free fix.
+2. **No defence to a Multi *opening* exists** — ours or BBA's.
+   `defense_to_weak_two` derives its overcall levels from `their_opening`'s suit
+   and treats a `2♦` opening as natural diamonds, and BBA has no Multi-specific
+   defence either (its cue, Leaping Michaels and stopper-`3NT` are all keyed to
+   real diamonds and evaporate). Safe for the A/Bs above — BBA never opens Multi
+   — but `ab-declared-book.sh`, `ab-declared-opponents.sh` and the ben-gen mixed
+   tables seat american against dutch, so **those are the tripwire**. Fix =
+   `their.*` disclosure + a diamond-hooks-voided table.
+3. **WJ-floor routing.** Once book and teacher share these rows, the contested
+   two-level subtrees are candidates for `NeuralFloorWj` — a separate A/B. Interim
+   check owed: the flipped `Multi` card row against `CompactConfig`, whose 28
+   slots have no Multi axis; confirm no untrained column feeds the v6 floor.
+4. **The `2♥`/`2♠` response subtrees go dead** under the gate — we never open
+   either — until the Polish two-suiter slice lands. Harmless surface, not
+   deleted.
+5. **Inert knobs under the gate**: `weak_two_hcp`, `weak_two_eval`,
+   `weak_two_wild`, `weak_two_major_priority` and `weak_two_longest_first` all
+   read nothing once the natural weak twos are gone.
+6. **Strength gauge** is `hcp(4..=10)`, from the walk's declared `pts [4,10]`
+   (observed HCP 1–10). A reversible one-token change if the A/B says the light
+   end is not worth its disclosure.
+7. **No web Settings row.** The web crate never builds `dutch()`, so a
+   `multi_two_diamonds` toggle there would be a permanently inert control — the
+   lie the `Requires` doctrine exists to prevent. Add one only if the web ever
+   grows a system selector.
 
 ### Phase 2.1 A/B result — LOSS, as expected for a half-built system
 

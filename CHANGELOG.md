@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dutch's Multi `2♦`, in two variants (Phase 3's Multi slice).**
+  [`opening.multi_two_diamonds`](src/bidding/agreements.rs) replaces all three
+  of Dutch's natural weak twos with one artificial `2♦!` — 4–10 HCP, exactly one
+  six-card major, weak only, never in fourth seat. Seven-card majors keep
+  falling to the three-level preempts; a six-card *diamond* suit now has no
+  opening and passes.
+  [`opening.multi_two_diamonds_champion`](src/bidding/dutch/multi.rs) then swaps
+  responder's table for the champion structure. **Both default off**, so the
+  shipped system is untouched: `smoke-default` and `smoke-dutch` (20 000 boards,
+  seed 1) are byte-identical to `bae94768` — `81c92bd4…` / `da3be4a6…`.
+
+  The **base** is BBA's Multi book copied verbatim
+  ([docs/ai-bidder/bba-multi-2d-opening.md](docs/ai-bidder/bba-multi-2d-opening.md)):
+  the WJ teacher net that floors Dutch's divergent subtrees was trained on those
+  rows, and BBA — the anchor — reads our calls through its own book. The
+  **champion** is <https://polish.club/2D.html>: `2♠` a plain pass-or-correct,
+  `2NT` an invitational-or-better ask rather than 16+, `3♣`/`3♦` natural
+  *forcing*, `3♥`/`3♠` competitive pass-or-correct (`3♠` forces the `4♥`
+  correction), the natural `4M` floor widened to 10+, and `XX` over their double
+  an ask for the major opener does **not** hold. It is not `.bbsa`-expressible —
+  BBA reads a champion `3♥` as natural — which is why the verbatim base is the
+  variant pinned for anchor runs.
+
+  Everything below responder's first call is shared: the `2NT` ask ladder
+  (**maximum-first**, which BBA and the champion page agree on), the `4♣`
+  transfer machinery and its completions, the pass-or-correct rebids, and every
+  interfered tail — their double (table unchanged plus the redouble, the rest
+  rebased to the quiet auction), their `(2♥)` and their `(2♠)`. The `2♦ (2♠)`
+  hole is **inherited on purpose** in both variants and pinned by a test: its
+  repair diverges from the teacher, so it is its own A/B.
+
+  Three lane nodes turned out to be BBA *floor* territory rather than book, and
+  are ours in both variants: opener's rebid over the constructive `2♠`,
+  responder's continuation after either ask answer, and the responder table's
+  weight order — BBA states bands and no precedence, and several of its bands
+  overlap. The walk document now records all three.
+
+  One leak an unpaired 1 500-board smoke trace surfaced is closed in the same
+  change: at `2♦ (X) 2♥ (X)` the floor jumped to `4♥` on eight HCP and was
+  doubled, so `2♦ - 2♥ (X)` and `2♦ - 2♠ (X)` are authored as opener's
+  undisturbed decision minus the maximum jump. The share of our declared
+  contracts ending doubled is flat across the three arms (6.36% plain / 6.31%
+  base / 5.88% champion) — indicative only, the seeds were not paired.
+
+  `dutch_card` discloses the opening (`Multi = 1`, `Weak natural 2D = 0`,
+  `Weak natural 2M = 0` — both radio sides written explicitly) and moves no row
+  for the champion. Harness flags `--ns-multi-2d` / `--ns-multi-2d-champion` in
+  `bba-gen`; runner [scripts/ab-dutch-multi.sh](scripts/ab-dutch-multi.sh) runs
+  all three arms and both verdicts. **No A/B yet, so no measured IMPs**: the
+  campaign ledger, the variant tables and the seven follow-up rows are in
+  [docs/dutch-system.md](docs/dutch-system.md) §*Phase 3*.
+
+  ```sh
+  PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+      scripts/ab-dutch-multi.sh ab-results/dutch-multi \
+      >ab-results/dutch-multi.log 2>&1 &
+  ```
+
 - **BBA's counter to `1NT (2♦)`, natural and Multi, walked.**
   [docs/ai-bidder/bba-book.md](docs/ai-bidder/bba-book.md) §5.5.1 compares the
   141-node shipped-card natural-diamond lane with a clean bounded

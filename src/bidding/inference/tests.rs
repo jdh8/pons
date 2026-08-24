@@ -1798,6 +1798,33 @@ fn dutch_artificial_calls_are_alerted() {
     );
 }
 
+/// The same alert invariant for Dutch's opt-in Multi `2♦`, in **both** variants
+///
+/// `dutch_artificial_calls_are_alerted` above walks the default agreements,
+/// where both Multi knobs are off, so it never sees a single Multi row.  An
+/// unalerted artificial call here would be the phantom-diamond disaster the
+/// invariant exists to prevent — the whole point of the `2♦` is that opener has
+/// no diamonds.
+#[test]
+fn dutch_multi_artificial_calls_are_alerted() {
+    use crate::bidding::dutch::dutch;
+
+    for champion in [false, true] {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.opening.multi_two_diamonds = true;
+        agreements.opening.multi_two_diamonds_champion = champion;
+        let system = dutch(&agreements);
+        assert_all_alerted(
+            if champion {
+                "Dutch Multi 2♦ (champion)"
+            } else {
+                "Dutch Multi 2♦ (BBA-verbatim)"
+            },
+            unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
+        );
+    }
+}
+
 /// The same alert invariant for the opt-in New Minor Forcing book (off by
 /// default, so the shipped-system walk never sees it).  Guards the one
 /// artificial call NMF adds — responder's `2`-of-the-new-minor checkback —

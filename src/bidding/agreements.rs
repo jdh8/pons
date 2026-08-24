@@ -2417,6 +2417,48 @@ pub struct OpeningKnobs {
     /// 10⁴, so a random-deal A/B cannot resolve it.  The knob exists to ablate
     /// it in the enriched probe (`examples/probe-weak-two-major --mode tie`).
     pub weak_two_longest_first: bool,
+    // --- dutch/multi.rs
+    /// Open a **Multi `2♦`** in the Dutch system — Phase 3's Multi slice
+    ///
+    /// **Default off.**  On, `dutch()` (and `dutch()` only — `american()` never
+    /// compiles the package) replaces all three natural weak twos with one
+    /// artificial `2♦!`: 4-10 HCP with exactly one six-card major, weak only,
+    /// never in fourth seat.  A six-card *diamond* suit then has no opening and
+    /// passes, and the natural weak `2♥`/`2♠` are deleted until the Polish
+    /// two-suiter slice lands, so [`weak_two_hcp`][Self::weak_two_hcp],
+    /// [`weak_two_eval`][Self::weak_two_eval], [`weak_two_wild`][Self::weak_two_wild],
+    /// [`weak_two_major_priority`][Self::weak_two_major_priority] and
+    /// [`weak_two_longest_first`][Self::weak_two_longest_first] all go inert
+    /// under this gate.
+    ///
+    /// The base table is BBA's Multi book copied verbatim
+    /// (`docs/ai-bidder/bba-multi-2d-opening.md`) so our rows and the WJ teacher
+    /// net share a system; [`multi_two_diamonds_champion`][Self::multi_two_diamonds_champion]
+    /// swaps responder's table for the champion spec.
+    ///
+    /// Not to be confused with `TheirDisclosures::two_diamonds_multi`, which is
+    /// the *opponents'* Multi `2♦` **overcall of our 1NT** (Woolsey Multi-Landy)
+    /// — a different lane, a different call, and an intermediate rather than a
+    /// weak hand.
+    pub multi_two_diamonds: bool,
+    /// Play the **champion** Multi `2♦` structure rather than BBA's
+    ///
+    /// Read only under [`multi_two_diamonds`][Self::multi_two_diamonds].
+    /// **Default off** — the BBA-verbatim base is the shipped variant because
+    /// row alignment with the WJ teacher net and card fidelity outrank the style
+    /// preference; this flips only on a measured win.
+    ///
+    /// The champion is jdh8's own spec (<https://polish.club/2D.html>): `2♠` a
+    /// plain pass-or-correct rather than a banded 12-17, `2NT` an
+    /// invitational-or-better ask rather than 16+, `3♣`/`3♦` natural **forcing**
+    /// rather than a natural to-play club bid and an artificial try, `3♥`/`3♠`
+    /// competitive pass-or-correct rather than natural, the natural `4M` floor
+    /// widened to 10+ to re-house the displaced seven-card hands, and `XX` over
+    /// their double an ask for the major opener does *not* hold.
+    ///
+    /// It is **not `.bbsa`-expressible**: BBA reads a champion `3♥` as natural.
+    /// That is why the verbatim base exists and stays pinned for anchor runs.
+    pub multi_two_diamonds_champion: bool,
 }
 
 impl Default for OpeningKnobs {
@@ -2431,6 +2473,8 @@ impl Default for OpeningKnobs {
             weak_two_wild: false,
             weak_two_major_priority: true,
             weak_two_longest_first: true,
+            multi_two_diamonds: false,
+            multi_two_diamonds_champion: false,
         }
     }
 }

@@ -697,6 +697,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
+    /// Open a Multi `2♦` — **Dutch only** (`--our-floor dutch`), replacing all
+    /// three natural weak twos with one artificial 4-10 six-card-major `2♦!`
+    /// (default off; see `opening.multi_two_diamonds`).  Inert under
+    /// `--our-floor american`, which never compiles the package.
+    #[arg(long, default_value_t = false)]
+    ns_multi_2d: bool,
+
+    /// Play the **champion** Multi `2♦` structure rather than BBA's verbatim
+    /// book — read only under `--ns-multi-2d` (default off; see
+    /// `opening.multi_two_diamonds_champion`).
+    #[arg(long, default_value_t = false)]
+    ns_multi_2d_champion: bool,
+
     /// Disable our continuations after the opponents contest our 2♣ Stayman
     /// (`1NT - 2♣ (X)` / `1NT - 2♣ (2♦/2♥/2♠)`); on by default. Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -2340,6 +2353,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     agreements.opening.open_one_notrump = !args.no_our_1nt;
     agreements.opening.one_notrump_fifths = args.nt_fifths;
+    agreements.opening.multi_two_diamonds = args.ns_multi_2d;
+    agreements.opening.multi_two_diamonds_champion = args.ns_multi_2d_champion;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
     agreements.response.major_choice_of_games = !args.no_ns_major_choice_of_games;
     agreements.response.two_over_one_fit = !args.no_ns_two_over_one_fit;
