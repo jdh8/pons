@@ -6,8 +6,8 @@
 # 2-level opening table:
 #
 #   plain      Dutch with american's three natural weak twos   (control)
-#   multi      + `--ns-multi-2d`             — BBA's Multi book, verbatim
-#   champion   + `--ns-multi-2d-champion`    — the polish.club structure
+#   multi      + `--ns-multi-2d --no-ns-multi-2d-champion` — BBA's book, verbatim
+#   champion   + `--ns-multi-2d`             — the polish.club structure (default)
 #
 # Two verdicts come out of it:
 #
@@ -42,8 +42,8 @@ SEED_BASE=$(seed_for)
 log "=== dutch multi start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
     arm plain    "$vul" --our-floor dutch
-    arm multi    "$vul" --our-floor dutch --ns-multi-2d
-    arm champion "$vul" --our-floor dutch --ns-multi-2d --ns-multi-2d-champion
+    arm multi    "$vul" --our-floor dutch --ns-multi-2d --no-ns-multi-2d-champion
+    arm champion "$vul" --our-floor dutch --ns-multi-2d
 
     for pair in multi:plain champion:multi champion:plain; do
         on=${pair%%:*}

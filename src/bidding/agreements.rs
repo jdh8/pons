@@ -2444,9 +2444,12 @@ pub struct OpeningKnobs {
     /// Play the **champion** Multi `2♦` structure rather than BBA's
     ///
     /// Read only under [`multi_two_diamonds`][Self::multi_two_diamonds].
-    /// **Default off** — the BBA-verbatim base is the shipped variant because
-    /// row alignment with the WJ teacher net and card fidelity outrank the style
-    /// preference; this flips only on a measured win.
+    /// **Default on** — the pre-registered flip condition (a measured win over
+    /// the BBA-verbatim base) was met twice: +0.0080 plain NV on the aborted
+    /// 2026-08-24 run (SEED_BASE 1787570257) and +0.0064/+0.0097 plain,
+    /// +0.0069/+0.0099 SD-PD (NV/vul, 204 800 bd/vul, SEED_BASE 1787574574)
+    /// on the post-repair rerun.  Anchor runs pin the base by setting this
+    /// `false` explicitly.
     ///
     /// The champion is jdh8's own spec (<https://polish.club/2D.html>): `2♠` a
     /// plain pass-or-correct rather than a banded 12-17, `2NT` an
@@ -2474,7 +2477,7 @@ impl Default for OpeningKnobs {
             weak_two_major_priority: true,
             weak_two_longest_first: true,
             multi_two_diamonds: false,
-            multi_two_diamonds_champion: false,
+            multi_two_diamonds_champion: true,
         }
     }
 }

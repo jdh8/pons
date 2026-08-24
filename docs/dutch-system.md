@@ -484,6 +484,41 @@ three-level-and-up interference to the floor, and the trace shows it taking
 aggressive doubled games there. Trace those boards before reading any E1 loss as
 a verdict on the Multi itself.
 
+**The post-repair A/B (2026-08-24, `ab-results/dutch-multi-v2/`, SEED_BASE
+1787574574, 204 800 bd/arm/vul, fix at `a4fc4a36`).** IMPs/board, 95% CIs:
+
+| Pair | Vul | plain DD | PD | plain SD | SD-PD |
+| --- | --- | --- | --- | --- | --- |
+| E1 base − plain | none | −0.0319 ±0.0052 | −0.0554 ±0.0063 | −0.0331 ±0.0054 | −0.0555 ±0.0063 |
+| E1 base − plain | both | −0.0390 ±0.0065 | −0.0553 ±0.0077 | −0.0391 ±0.0067 | −0.0548 ±0.0077 |
+| E2 champion − base | none | +0.0064 ±0.0027 | +0.0034 ±0.0031 | +0.0087 ±0.0028 | +0.0069 ±0.0032 |
+| E2 champion − base | both | +0.0097 ±0.0035 | +0.0057 ±0.0041 | +0.0127 ±0.0037 | +0.0099 ±0.0042 |
+
+(Champion − plain lands in between: −0.0263/−0.0296 plain, −0.0530/−0.0506 PD.)
+
+**E1 verdict: a real loss.** Every scorer at both vulnerabilities, and the
+sd-lead bracket *agrees* with DD (SD-PD −0.055), so the obstruction wall is not
+hiding a win — the preemptive signature (plain wash + sd win) did not appear.
+The repair itself worked: E1 recovered ~0.013 plain / ~0.015 PD versus the
+aborted run, and no `4♦`-doubled phantom appears in the worst boards. But the
+losing class moved rather than closed — all ten worst boards (5 per vul, PD)
+are opponents acting **over the Multi machinery** into spots the plan left to
+the floor: their jump overcall of the `2NT` ask (`2♦ - 2NT (4♦)` → runaway to
+`6♦`), their balance over the corrected pass-or-correct (`2♦ - 2♥ (X) 2♠ … (3♦)`
+→ floor wanders to 3NT redoubled), opener's phantom over their balance of the
+doubled lane (`2♦ (X) 2♥ - - (3♣)` → `3♦` on two diamonds), and their high
+direct overcall (`2♦ (4♦)` → responder's floor `4NT`, opener "answers" `5♦`).
+The Multi stays a default-off knob; ledger row 9 holds the authoring queue that
+a re-measure would need.
+
+**E2 verdict: a win, and the champion default flipped.** All four scoring
+columns positive at both vulnerabilities, plain-DD and SD-PD CIs clear of zero
+— the second independent seed agreeing with the aborted run's +0.0080 plain NV.
+Per the pre-registered rule, `opening.multi_two_diamonds_champion` now defaults
+**on** (inert while the gate is off; the default system stays byte-identical),
+and `bba-gen` grew `--no-ns-multi-2d-champion` so anchor runs pin the
+`.bbsa`-expressible base explicitly.
+
 **Default-off is a proof, not a claim**: `smoke-default` and `smoke-dutch`
 (20 000 boards, seed 1) are byte-identical to `main` at `bae94768` —
 `81c92bd4…` and `da3be4a6…` respectively.
@@ -530,6 +565,20 @@ a verdict on the Multi itself.
    opener's known major is new agreement design, not a mechanical twin of an
    existing table. The base's `XX` placements *are* keyed (they reuse the
    `2NT` ask's). Trace before designing.
+9. **The v2 E1 loss class: they act over the Multi machinery** (the v2 A/B's
+   ten worst PD boards, all one family). Four lanes, none authored: (a) their
+   jump overcall of the `2NT` ask (`2♦ - 2NT (3♦/4♦)`) — the ask ladder has no
+   interfered twin and the floor runs to slam; (b) their balance after the
+   corrected pass-or-correct (`2♦ - 2♥ (X) 2♠ - - (3♦)`) — nobody owns the
+   reopening decision and the floor once redoubled 3NT; (c) opener's action
+   when they balance over the doubled lane (`2♦ (X) 2♥ - - (3♣)`) — the floor
+   bid `3♦` on a doubleton, a phantom the `(X)` rebase cannot reach because the
+   auction left its keys; (d) their high direct overcall (`2♦ (4♦)`) —
+   responder's floor `4NT` gets "answered" `5♦`. (a), (c) and (d) are bounded
+   authoring (a rebase or a small table plus a pass-or-correct discipline);
+   (b) is a competitive-decision design. **E1 cannot be re-measured honestly
+   before at least (a), (c) and (d) exist** — the same rule the `4♦ (X)` abort
+   taught.
 
 ### Phase 2.1 A/B result — LOSS, as expected for a half-built system
 

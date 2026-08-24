@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dutch Multi `2♦` measured: the slice stays default-off; the champion
+  variant becomes the default of the (still-gated) pair.** The post-repair A/B
+  (`ab-results/dutch-multi-v2/`, SEED_BASE 1787574574, 204 800 bd/arm/vul,
+  fix at `a4fc4a36`) reads, in IMPs/board with 95% CIs:
+  - **E1 (base − plain): a real loss at both vulnerabilities on every
+    scorer** — NV −0.0319 ±0.0052 plain / −0.0554 ±0.0063 PD, vul −0.0390
+    ±0.0065 / −0.0553 ±0.0077; sd-lead agrees (SD-PD −0.0555/−0.0548), so
+    this is not the obstruction wall. The repair recovered ~0.013 plain /
+    ~0.015 PD versus the aborted run but the losing *class* moved, not
+    closed: the new worst boards are opponents acting over the Multi
+    machinery — jump overcalls of the `2NT` ask (`2♦ - 2NT (4♦)`), their
+    balancing over the correction (`2♦ - 2♥ (X) 2♠ (3♦)` ending 3NT
+    redoubled), opener's floor phantom (`2♦ (X) 2♥ - - (3♣)` → `3♦` on two
+    diamonds), and high direct overcalls (`2♦ (4♦)` → floor `4NT`). Ledger
+    row 9 in [docs/dutch-system.md](docs/dutch-system.md) holds the queue.
+  - **E2 (champion − base): a win** — plain +0.0064 ±0.0027 NV / +0.0097
+    ±0.0035 vul, PD +0.0034 ±0.0031 / +0.0057 ±0.0041, SD-PD +0.0069
+    ±0.0032 / +0.0099 ±0.0042 — the second independent seed agreeing with
+    the aborted run's +0.0080 plain NV. Per the pre-registered rule on the
+    knob, `opening.multi_two_diamonds_champion` now **defaults on** (inert
+    while `multi_two_diamonds` is off — the default system stays
+    byte-identical); `bba-gen` grows `--no-ns-multi-2d-champion` so anchor
+    runs pin the `.bbsa`-expressible base explicitly.
+
 ### Fixed
 
 - **Dutch Multi `2♦`: forced continuations answered under interference.** The
@@ -36,9 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   falling to the three-level preempts; a six-card *diamond* suit now has no
   opening and passes.
   [`opening.multi_two_diamonds_champion`](src/bidding/dutch/multi.rs) then swaps
-  responder's table for the champion structure. **Both default off**, so the
-  shipped system is untouched: `smoke-default` and `smoke-dutch` (20 000 boards,
-  seed 1) are byte-identical to `bae94768` — `81c92bd4…` / `da3be4a6…`.
+  responder's table for the champion structure. **The gate defaults off**, so
+  the shipped system is untouched: `smoke-default` and `smoke-dutch` (20 000
+  boards, seed 1) are byte-identical to `bae94768` — `81c92bd4…` / `da3be4a6…`.
+  (The champion knob, read only under the gate, defaults **on** since the
+  measurement below.)
 
   The **base** is BBA's Multi book copied verbatim
   ([docs/ai-bidder/bba-multi-2d-opening.md](docs/ai-bidder/bba-multi-2d-opening.md)):

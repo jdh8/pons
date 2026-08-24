@@ -42,6 +42,7 @@ fn the_dutch_card_discloses_the_multi() {
     assert_eq!(dutch_card(&agreements).row("Weak natural 2M"), Some(1));
 
     agreements.opening.multi_two_diamonds = true;
+    agreements.opening.multi_two_diamonds_champion = false;
     let card = dutch_card(&agreements);
     assert_eq!(card.row("Multi"), Some(1));
     assert_eq!(card.row("Weak natural 2D"), Some(0));
