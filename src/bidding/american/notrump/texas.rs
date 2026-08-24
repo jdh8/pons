@@ -28,6 +28,20 @@ pub(super) fn texas_game_floor(agreements: &Agreements) -> usize {
     usize::from(agreements.notrump.texas_game_floor)
 }
 
+/// The strength ceiling on a **direct** `4♥`/`4♠` (the opener-decides slam try)
+///
+/// With the Texas slam-drive reroute on, `17+` transfers at the four level and
+/// drives its own RKCB, so the direct call caps at the 15–16 invitational band;
+/// off, it carries the whole slam zone.  Shared with the competitive book's
+/// Kokish–Kraft lane, which copies the tier under their `(2♦)` Multi.
+pub(crate) fn direct_4m_max(agreements: &Agreements) -> u8 {
+    if agreements.notrump.texas_slam_drive {
+        15
+    } else {
+        18
+    }
+}
+
 /// The South African Texas game-blast strength gate for `major`:
 /// `point_count + trump length ≥ T` (default `T = 14`).
 ///

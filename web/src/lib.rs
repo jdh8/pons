@@ -961,6 +961,7 @@ knob!(set_competition_over_stayman, competition_over_stayman, competition.compet
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
 knob!(set_multi_stopper_ask, multi_stopper_ask, competition.multi_stopper_ask: american::MultiStopperAsk);
+knob!(set_multi_kokish_kraft, multi_kokish_kraft, competition.multi_kokish_kraft: bool);
 // The declaration's read-side wiring: their 2♣ reads as both majors instead
 // of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
 // PD win); a no-op unless the disclosure is declared.
@@ -1483,6 +1484,7 @@ static SETTINGS: &[Setting] = &[
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
     Setting::Choice { key: "multi_stopper_ask", section: COMPETITION, label: "Multi 3♠ stopper ask", variants: MULTI_STOPPER_ASK_VARIANTS, default: "off", requires: Some("opponent:notrump_defense=woolsey"), set: set_multi_stopper_ask_choice, get: get_multi_stopper_ask_choice },
+    gated("multi_kokish_kraft", COMPETITION, "Kokish–Kraft counter to their Multi 2♦", false, set_multi_kokish_kraft, multi_kokish_kraft, "opponent:notrump_defense=woolsey"),
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     // Implies the cues row above (N1c keeps them and re-rungs what is below).
     // The stack below it shipped default-on 2026-08-14 (pooled two-seed

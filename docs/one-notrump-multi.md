@@ -25,6 +25,12 @@ below that key is authored at all.
 # The tree: 89 sections, the whole lane, rules with their own English
 cargo run --release --example render-book -- --their-2d-multi --prefix "1NT 2♦"
 
+# ...and the opt-in Kokish–Kraft variant of the same lane (§N4-KK)
+cargo run --release --example render-book -- --their-2d-multi \
+    --ns-multi-kokish-kraft --prefix "1NT 2♦"
+cargo run --release --example probe-call-reading -- --their-2d-multi \
+    --ns-multi-kokish-kraft "1N (2D) X -" "1N (2D) 2N -" "1N (2D) - (2H) - - X -"
+
 # What one call reads as, from the seat about to act
 cargo run --release --example probe-call-reading -- --their-2d-multi "1N (2D) X -"
 # ...and on the two opt-in reading arms
@@ -313,10 +319,115 @@ trigger-gated — and responder's natural minor single-suiter stays unbuilt at
    `hcp 7–18`, the strength-showing catch-all).
 4. `docs/ai-bidder/bba-1nt-defense.md` documents no four-level advance at all.
 
+## The Kokish–Kraft variant — `competition.multi_kokish_kraft` (opt-in, A/B owed)
+
+Everything above maps the **shipped** v7 lane. One knob replaces most of it with
+a different published table for the same object: the Eric Kokish–Beverly Kraft
+notes, the most complete exact-object package in
+[the survey](ai-bidder/multi-landy-2d-counter-defense-research.md). Built
+2026-08-25, **default off, unmeasured**; the campaign row, the design-sketch
+repairs and what is owed live in
+[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed).
+
+Registered *instead of* the v7 subtree, never over it (`kokish_kraft_entries`,
+`lebensohl.rs`) — the two tables disagree on `2NT`, `3♣`, `3♠` and both delayed
+doubles.
+
+### Responder's table — `1NT (2♦) ?` on the variant
+
+| call | w | constraint | branch |
+| --- | ---: | --- | --- |
+| `4♦` | 200 | 5+♥, 5+♠, 10+ pts | Leaping Michaels — unchanged |
+| `4♣` | 200 | 5+♣ and a 5-card major, 10+ pts | Leaping Michaels — unchanged |
+| `4♥`/`4♠` | 260 | 6+ M, ≤4 oM, `hcp 15..=`[`direct_4m_max`](../src/bidding/american/notrump/texas.rs) — **exactly 15** under the shipped `texas_slam_drive` | **new** — the uncontested direct slam-try tier, `slam_try_answer` + the 1430 ladder below it. See the residue note below |
+| `3♦`/`3♥` | 180 | 5+♥ / 5+♠, 9+ pts | transfers to ♥/♠ — unchanged, auto-driven to game |
+| `3♣` | 178 | **6+♦, no point floor** | **new** — transfer to diamonds (v7: Stayman) |
+| `2NT` | 176 | **6+♣, no point floor** | **new** — transfer to clubs (v7: the weak relay) |
+| `3♠` | 152 | 4+♣ *and* 4+♦, one of them 5+, 10+ pts | **new** — both minors, game-forcing (v7: the forced `3♠`→♣ GF) |
+| `3NT` | 150 | 10+ pts, **both** majors stopped | unchanged from v4–v7 — see the repair note in §N4-KK |
+| `2♥`/`2♠` | 140 | the weak escape, `multi_weak_escape` rung included | unchanged |
+| `X` | 130 | **`hcp 8+`, no shape promise** | **changed** — invitational-plus (v7: `hcp 6+`) |
+| `P` | 0 | catch-all — and now a **designed** action | **new** — the 6–7 band, with its own delayed table |
+
+Reads (`probe-call-reading --their-2d-multi --ns-multi-kokish-kraft`): `X` →
+`points 8..` unbounded; `2NT` → `♣ 6..13, points 0..`; `3♣` → `♦ 6..13,
+points 0..`; `3♠` → `♣ 4..5, ♦ 4..5, points 10..`; `2♠` → `♠ 5.., points 0..8`.
+
+### The delayed-double split
+
+The one structural idea every exact-object source in the survey shares, and the
+shipped lane's table does not have:
+
+| after | second `X` means | opener answers with |
+| --- | --- | --- |
+| `1NT (2♦) X (2M) - -` | **penalty**, four-plus of their resolved major | a sit (`multi_signoff_pass`) |
+| `1NT (2♦) - (2M) - -` | **takeout**, four of the *other* major and ≤2 of theirs | `multi_takeout_answer` |
+
+v7 has one double at the first row (takeout) and nothing authored at the second
+at all. The neutral pass's table also carries a natural `2NT` (`hcp 7..=9` with
+their major stopped) and competitive `3♣`/`3♦` on a six-card suit.
+
+### The minor transfers, which are two-way
+
+`2NT`→`3♣` and `3♣`→`3♦`, completed unconditionally (doubled or not), then:
+
+- **Pass** — the sign-off. This is the whole point of the floorless rung: a
+  0-count with six clubs preempts their unknown major and stops.
+- **`3NT`** — the plain six-bagger's choice of games, `points 10+`.
+- **the source's two-suiter steps**, game-forcing with a four-card second suit,
+  which are *not* next-suit-up: after `3♣` → `3♦` = +♥, `3♥` = +♠, `3♠` = +♦;
+  after `3♦` → `3♥` = +♠, `3♠` = +♥. Opener bids the major game on four-card
+  support, else `3NT`.
+
+Their pass-or-correct above the completion gets a **guarded sit** from opener —
+the transfer promised no values, so opener cannot act — and responder's values,
+if any, act again (`3NT` with their now-named major stopped, else pass).
+
+### Residue — the 16+ six-card major has no slam try here
+
+`direct_4m_max` is `15` whenever `notrump.texas_slam_drive` is on (the shipped
+default), because uncontested a 17+ six-card major takes South African Texas at
+`4♣`/`4♦` and drives its own RKCB. **Under their `(2♦)` those two calls are
+Leaping Michaels**, so that route does not exist and the 16+ hand falls back on
+the `3♦`/`3♥` transfer, reaching `4M` through `transfer_completion` with its
+slam try left to the floor.
+
+That is *not* a K–K regression — the shipped v7 lane routes the identical hand
+the identical way, and K–K only adds the exactly-15 direct rung on top. It is
+recorded because the fix is one token (`15..=18`, i.e. ignore
+`texas_slam_drive` in this lane, where Texas is not available) and it is a
+behaviour change, so it wants its own arm rather than riding this one.
+
+### Reading residues
+
+The variant's readings are sound but two of them moved, and both are recorded
+in [§N4-KK](one-notrump-competitive.md#known-residues--priced-by-the-ab-not-fixed-in-the-build)
+rather than repaired:
+
+- the values `X` publishes `points 8.. ♥ 0..13 ♠ 0..13` where the shipped table
+  publishes `♥ 0..4 ♠ 0..4` — deleting the `2NT` relay removed the rung the
+  projector negated the five-card majors from. Looser, not false.
+- the floorless minor transfers publish a hard six-card suit, which the
+  **mirror lane** picks up: when *they* open 1NT and *we* overcall a natural
+  `2♦`, their `2NT`/`3♣` decode off this table. That leak is campaign-wide
+  ([the measurement discipline section](one-notrump-competitive.md#measurement-discipline))
+  and K–K makes it louder, so the isolation gate is load-bearing on this arm.
+
+### What the variant leaves alone
+
+`multi_weak_escape`'s `2M` rung and its whole interfered tail, Leaping Michaels
+and its advances, every answer of the double family, and `multi_balance` (a
+different seat, so it composes). `multi_stopper_ask` goes **inert** — its `3♠`
+is the both-minors call here. Off, or with their `2♦` undeclared or natural, the
+knob changes nothing at all.
+
 ## See also
 
 - [one-notrump-competitive.md](one-notrump-competitive.md) — the campaign, the
-  census, the ledger; §N4/§N4e own this lane's verdicts.
+  census, the ledger; §N4/§N4e own this lane's verdicts, §N4-KK the opt-in
+  Kokish–Kraft variant.
+- [ai-bidder/multi-landy-2d-counter-defense-research.md](ai-bidder/multi-landy-2d-counter-defense-research.md)
+  — the six published counter-defense families and their sources.
 - [authored-reading-handoff.md](authored-reading-handoff.md) — why a
   reading-only change is a bidding change, and the mirror-read leak that makes
   our `1NT (2♦)` table decode *their* `2NT`.

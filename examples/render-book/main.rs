@@ -20,7 +20,8 @@
 //! Unlabeled guards are counted the same way.
 //!
 //! Run with `cargo run --example render-book` (pipe to a pager — it is long).
-//! `--prefix "1NT 2♦"` cuts it to one lane's subtree, and `--their-2d-multi`
+//! `--prefix "1NT 2♦"` cuts it to one lane's subtree, `--ns-multi-kokish-kraft`
+//! swaps that lane for the §N4-KK variant, and `--their-2d-multi`
 //! declares their `2♦` a Multi first, so the N4 tables are in the book at all
 //! ([docs/one-notrump-multi.md](../../docs/one-notrump-multi.md)).
 
@@ -43,6 +44,12 @@ struct Args {
     /// natural `(2♦)` leg for the N4 tables
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
+
+    /// Play the Kokish–Kraft counter to their Multi
+    /// (`competition.multi_kokish_kraft`), which swaps the N4 tables again —
+    /// needs `--their-2d-multi` to do anything (§N4-KK)
+    #[arg(long, default_value_t = false)]
+    ns_multi_kokish_kraft: bool,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -67,6 +74,7 @@ fn main() {
     let args = Args::parse();
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.competition.multi_kokish_kraft = args.ns_multi_kokish_kraft;
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

@@ -743,6 +743,17 @@ struct Args {
     #[arg(long)]
     ns_multi_balance: bool,
 
+    /// Play the Kokish–Kraft counter-defense to their declared `(2♦)` Multi —
+    /// a whole-table swap of responder's subtree: `X` invitational-plus with
+    /// no shape promise, a neutral pass with its own delayed takeout double,
+    /// floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a penalty
+    /// repeated double, and the uncontested direct `4M` slam-try tier.  `3NT`
+    /// keeps its both-majors stopper gate — see §N4-KK for why the source's
+    /// stopperless letter is a recorded sub-arm rather than this build
+    /// (default off; opt-in A/B).
+    #[arg(long)]
+    ns_multi_kokish_kraft: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2179,6 +2190,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             })?),
         };
     agreements.competition.multi_balance = args.ns_multi_balance;
+    agreements.competition.multi_kokish_kraft = args.ns_multi_kokish_kraft;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

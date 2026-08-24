@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Kokish–Kraft counter-defense to their `(2♦)` Multi, as an opt-in
+  whole-table variant** (`competition.multi_kokish_kraft`,
+  `--ns-multi-kokish-kraft`, default **off**; no user impact until it is armed,
+  and inert while their `2♦` is undeclared or natural, so the default system is
+  byte-identical). The
+  [survey](docs/ai-bidder/multi-landy-2d-counter-defense-research.md) of
+  published counters to a `1NT (2♦ = one unknown 6+ major)` overcall found no
+  consensus — six families disagreeing on the most basic question — and the
+  Eric Kokish–Beverly Kraft notes as the most complete exact-object package.
+  This registers that table *instead of* the shipped v7 subtree (the
+  `landy_bba_entries` whole-swap idiom), changing five things at once:
+  - `X` is invitational-plus values with **no shape promise** (`hcp 8+`, where
+    v7 mimics BBA's `hcp 6+`), so the 6–7 band takes a **designed neutral
+    pass** — which now has its own delayed table (takeout `X`, natural `2NT`,
+    competitive `3m`) once their pass-or-correct names the major.
+  - `2NT` and `3♣` become **floorless transfers** to clubs and diamonds on a
+    six-card suit: a preempt of their unknown major *and* the start of a game
+    force, with the source's two-suiter rebid steps behind the completion.
+    They replace the weak `2NT` relay and `3♣` Stayman, which die structurally.
+  - `3♠` is both minors, game-forcing, 5-4 or better.
+  - The **repeated** double is penalty (v4's trump-length gate) while the
+    double after the neutral pass is takeout — the delayed-double split every
+    exact-object source in the survey makes, and which the shipped lane has
+    only half of.
+  - `4♥`/`4♠` copy the uncontested direct slam-try tier, RKCB ladder included.
+
+  Unchanged and shared with the shipped lane: `3♦`/`3♥`, the weak `2♥`/`2♠`
+  escape and its interfered tail (`multi_weak_escape` composes), Leaping
+  Michaels, and every answer of the double family. `multi_balance` composes;
+  `multi_stopper_ask` goes inert.
+
+  **Two design-sketch repairs are recorded at the rule, both one-line
+  reversible.** The sketch made `3NT` a bare `points(10..)` outranking `3♠` and
+  `X`; a bare `points(10..)` contains every other constructive gate, so (i)
+  `3♠` would have been dead code — it now outranks `3NT` — and (ii) the values
+  double collapsed to `points 8..9` (measured on `probe-call-reading`),
+  contradicting the same source's "invitational **or better**" and re-running
+  the stopperless blast perfect defense priced at −3.7/−4.3 a board in N4
+  v2/v3, so `3NT` keeps its both-majors stopper gate. Dropping that gate is a
+  recorded sub-arm.
+
+  Five residues are recorded rather than fixed, because they are what the arm
+  is testing: the mirror-read leak widens from a strength claim to a hard
+  six-card suit (so the isolation gate is load-bearing here); the values
+  double's reading loses its `♥ ≤4 / ♠ ≤4` caps (looser, not false); an
+  uncapped floorless transfer takes every strong long-minor hand off the
+  double; the penalty repeated double gives up v7's takeout rung, the one BBA
+  rung that measured positive on both scorers; and two rungs of the delayed
+  table are dead in self-play as a consequence of the floorless transfers.
+
+  **A/B owed** — `scripts/ab-2d-multi-kk.sh`, two arms against shipped v7, both
+  vulnerabilities, plain and perfect defense; nothing ships until it reads.
+  Campaign row in
+  [docs/one-notrump-competitive.md §N4-KK](docs/one-notrump-competitive.md),
+  variant map in [docs/one-notrump-multi.md](docs/one-notrump-multi.md).
+
 ### Changed
 
 - **Dutch Multi `2♦` measured: the slice stays default-off; the champion

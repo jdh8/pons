@@ -389,3 +389,84 @@ fn test_slam_zone_control_bid_does_not_hijack_the_trump_suit() {
         "a 4♣ control bid opposite an agreed heart fit is not a club suit"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Section: the Kokish–Kraft counter to their (2♦) Multi (opt-in, N4-KK)
+// ---------------------------------------------------------------------------
+
+/// Walk a whole `1NT (2♦)` auction on the Kokish–Kraft arm, asserting **our**
+/// call at every seat we own
+///
+/// The lane had no full-auction coverage at all; each unit test below
+/// `competition::rubensohl` pins one node in isolation, which cannot catch a
+/// key that never gets reached because the seat before it took a different
+/// branch.  `theirs` supplies the opponents' scripted calls in order;
+/// `expected` is our call at each of our turns, alternating opener/responder
+/// from the `1NT` opening.
+fn walk_kokish_kraft(opener: &str, responder: &str, theirs: &[Call], expected: &[Call]) {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.decision.their.two_diamonds_multi = true;
+    agreements.competition.multi_kokish_kraft = true;
+    let system = american(&agreements).bind();
+
+    let mut auction = vec![call(1, Strain::Notrump)];
+    let mut theirs = theirs.iter();
+    for (turn, want) in expected.iter().enumerate() {
+        auction.push(*theirs.next().expect("a scripted opposing call"));
+        let hand = if turn % 2 == 0 { responder } else { opener };
+        let got = best_call(&system, &auction, hand);
+        assert_eq!(
+            got, *want,
+            "turn {turn} of {auction:?}: {hand} should call {want}"
+        );
+        auction.push(got);
+    }
+}
+
+#[test]
+fn kokish_kraft_transfers_a_long_minor_and_finds_the_major_game() {
+    // 1NT (2♦) 2NT - 3♣ - 3♦ - 4♥: the floorless club transfer is two-way, so
+    // responder completes the picture with the source's clubs-plus-hearts step
+    // and opener bids the game in the ten-card fit.  Nothing in this auction
+    // exists on the shipped v7 lane, where 2NT is the weak relay.
+    walk_kokish_kraft(
+        "AQ2.KJ32.AQ3.432", // 16 balanced, four hearts
+        "3.AQ32.32.AKQJ32", // 1-4-2-6, a solid six-card club suit
+        &[
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            call(2, Strain::Notrump),  // responder: transfer to clubs
+            call(3, Strain::Clubs),    // opener: the forced completion
+            call(3, Strain::Diamonds), // responder: clubs + hearts, game-forcing
+            call(4, Strain::Hearts),   // opener: the 4-4 heart game
+        ],
+    );
+}
+
+#[test]
+fn kokish_kraft_doubles_then_penalizes_their_resolved_major() {
+    // 1NT (2♦) X (2♥) - (-) X: the values double waits for the pass-or-correct
+    // to name the suit, and the *repeated* double is penalty under K–K's
+    // delayed-double split — where shipped v7 makes it takeout.  Opener, having
+    // sat the first time on three trumps, sits again.
+    walk_kokish_kraft(
+        "AQ2.J32.AQ32.K32", // 16 balanced, only three hearts: it waits
+        "432.KQ98.A32.Q32", // 11, four good hearts behind the overcaller
+        &[
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double, // responder: values, no shape promise
+            Call::Pass,   // opener: three trumps is not a trump stack
+            Call::Double, // responder: penalty, on the now-known suit
+            Call::Pass,   // opener: sits for the penalty, it is not takeout
+        ],
+    );
+}

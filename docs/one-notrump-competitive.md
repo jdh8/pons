@@ -223,8 +223,16 @@ usually `3NT`. **N4-mirror**, the biggest number the lane produced, left for
 the defensive campaign and shipped there as M1+M2. Both rows have moved to the
 [ledger](#ledger); reopening N4 needs a new bucket, not a new seed.
 
+**And one arrived (2026-08-25).** **N4-KK** is not another rung of the shipped
+table but a *different published table* for the same object — the
+Kokish–Kraft notes, the most complete exact-object package the
+[survey](ai-bidder/multi-landy-2d-counter-defense-research.md) found. It is
+built, default-off and **owes its A/B**
+([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed)).
+
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
+| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **built 2026-08-25, A/B owed** — `scripts/ab-2d-multi-kk.sh`, two arms vs shipped v7. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed)) |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -1448,6 +1456,191 @@ The lane's real, gateable leak is the **≤7-HCP tail** that `points(8..=14)`
 admits through distribution points, plus the unauthored advance.  Full
 forensic, candidates and pre-registered decision rule:
 [defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23).
+
+## N4-KK — the Kokish–Kraft counter, as an opt-in whole-table variant (**BUILT 2026-08-25; A/B OWED**)
+
+The one bucket that reopens N4 (see the queue note above): not another rung of
+the shipped lane but a **different published table** for the same object, so it
+is a new variant rather than a new seed.
+
+`docs/ai-bidder/multi-landy-2d-counter-defense-research.md` surveyed the
+counter-defenses to a `1NT (2♦ = one unknown 6+ major)` overcall and found no
+consensus — six credible families, differing on the most basic question (is the
+immediate `X` values, a major, or a transfer?) and on whether a *later* double
+is takeout or penalty. The **Eric Kokish–Beverly Kraft** notes (January 2008,
+printed p. 163) carry a table for exactly this object and are the most complete
+exact-object package in the survey. `competition.multi_kokish_kraft`
+(`--ns-multi-kokish-kraft`, default **off**) plays it.
+
+### What moves — five changes at once, deliberately
+
+This is a whole-table swap, registered *instead of* the v7 subtree for
+[`landy_bba_entries`][n1j]'s reason: the two disagree on `2NT`, `3♣`, `3♠` and
+both delayed doubles, so an overlay would leave v7's rows shadowing these.
+
+| call | v7 (shipped) | K–K (this arm) |
+| --- | --- | --- |
+| `X` | values, `hcp 6+` (BBA's own band, the 41% workhorse) | invitational-plus values, `hcp 8+`, **no shape promise**; the 6–7 band takes a *designed* neutral pass |
+| `-` | nothing authored past opener's floor seat | a **neutral pass with its own delayed table** once they name the major: takeout `X`, natural `2NT`, competitive `3m` |
+| `2NT` | the weak Lebensohl relay to `3♣` | **floorless transfer to clubs** (`len ♣ 6+`, no point floor) |
+| `3♣` | game-forcing Stayman, Smolen behind it | **floorless transfer to diamonds** |
+| `3♠` | forced `3♠`→♣ game force | **both minors, game-forcing, 5-4 or better** |
+| second `X` | takeout, four of the other major (v7's one BBA rung that measured positive on both scorers) | **penalty**, v4's trump-length gate — the takeout double moves to the *pass* branch |
+| `4♥`/`4♠` | the floor's | the **uncontested direct slam-try tier** copied under the overcall, RKCB ladder included (`hcp 15..=direct_4m_max`, i.e. exactly 15 under the shipped `texas_slam_drive` — see the residue below) |
+
+Unchanged and shared: `3♦`/`3♥` (INV+ transfers to ♥/♠), the weak `2♥`/`2♠`
+escape and its whole interfered tail (`multi_weak_escape` composes), Leaping
+Michaels `4♣`/`4♦`, and every answer of the double family
+(`multi_pass_answer`, `multi_penalty_answer`, `multi_takeout_answer`,
+`multi_quant_answer`). `multi_balance` composes — a different seat.
+`multi_stopper_ask` goes **inert**: the `3♠` that carried the ask is the
+both-minors call here.
+
+The **delayed-double split** is the one structural idea every exact-object
+source in the survey agrees on, and the shipped lane does not have: after an
+initial `X`, a second double is cooperative penalty; after an initial *pass*, it
+is takeout. v7 has one takeout double and no pass table at all, so the two arms
+differ on both halves at once.
+
+### Two design-sketch repairs, both forced by the same thing
+
+The design sketch specified `3NT` as a bare `points(10..)` — "no stopper
+requirement (per source)" — ranked at weight 150, above `3♠` (145) and `X`
+(130). A bare `points(10..)` **contains every other constructive gate in the
+table**, so whatever sits below it is unreachable. Both repairs are recorded at
+[`kokish_kraft_responder`](../src/bidding/american/competition/rubensohl.rs)
+and are one-line reversible:
+
+1. **`3♠` now outranks `3NT`** (152 vs 150). The both-minors gate implies
+   `points(10..)`, so a higher `3NT` made `3♠` dead code rather than a rare
+   rung. The source agrees on the merits — its `3NT` is the last-resort gamble,
+   the shape calls come first — and the sketch's stated ordering constraints
+   (minor transfers above `3NT`/`3♠`/`2M`/`X`; `2M` above `X`; Leaping Michaels
+   above the transfers) say nothing about this pair.
+2. **`3NT` keeps its both-majors stopper gate**, unchanged from v4–v7. Measured
+   bare, it confines the values double to `points 8..9` —
+   `probe-call-reading --their-2d-multi --ns-multi-kokish-kraft "1N (2D) X -"`
+   reads exactly that — which contradicts the *same source's* "`X` =
+   invitational **or better**" and re-runs at maximum frequency the stopperless
+   blast perfect defense priced at **−3.7/−4.3 a board** in N4 v2/v3. Ranking
+   `X` above a bare `3NT` does not rescue it either: the survivors are then
+   `hcp ≤ 7` hands with distributional points and no transfer — a 7-count
+   4-4-4-1 blasting 3NT — which is worse than dead. **Dropping the gate is a
+   recorded sub-arm**, owed its own seed, if K–K's letter is wanted measured.
+
+### Build
+
+- Table: `kokish_kraft_responder` and its ten leaf tables in
+  [`rubensohl.rs`](../src/bidding/american/competition/rubensohl.rs);
+  registration in `kokish_kraft_entries`
+  ([`lebensohl.rs`](../src/bidding/american/competition/lebensohl.rs)), which
+  the `for over` loop branches to and `continue`s past — the `landy_bba_entries`
+  idiom.
+- New alert slugs: `comp:kk-values`, `comp:kk-minor-transfer`,
+  `comp:kk-two-suiter`, `comp:kk-minors`. The delayed takeout and the repeated
+  penalty double **reuse** `comp:multi-takeout` / `comp:multi-penalty`, whose
+  claims are identical one branch over. `[kokish-kraft]` is the new
+  `tests/fixtures/alert-sites.txt` delta section; `card.rs` records why no
+  `.bbsa` row exists (the whole subtree is keyed on a fact about *their* `2♦`,
+  which EPBot's schema cannot name).
+- Readings come from `.alert(...)` + projection, no hand-written `Inferences`.
+  Probed: `X` reads `points 8..` unbounded, the minor transfers read six cards
+  with `points 0..`, the delayed `X` reads the other major 4+ with `≤2` of
+  theirs.
+- Tests: nine `kk_*` cases in `rubensohl/tests.rs` (every rung of responder's
+  table, the retired relay/Stayman, the transfers with their two-suiter rebids
+  and both competitive tails, the double split, `3♠`, the `4M` tier,
+  composition with the escape and `multi_balance`, and inertness without the
+  disclosure) plus a tenth pinning the readings; a `kokish_kraft_*` arm in
+  `competition/tests.rs`'s package-invariant sweep; two full-auction
+  integration tests in `tests/american_competition.rs` (the lane had none); and
+  a `their-multi-kokish-kraft` profile in
+  `gated_profiles_preserve_alert_invariant`.
+- Byte-identity: inert while their `2♦` is undeclared or natural, so the
+  default system is unchanged.
+
+### Known residues — priced by the A/B, not fixed in the build
+
+Six consequences of the design, each traced with `probe-decision` /
+`probe-call-reading` during the build review. None is a bug; all five are what
+the arm is actually testing, and each names its reversible alternative.
+
+1. **The mirror lane widens.** The competitive book is keyed by call *shape*
+   with no seat gate on the reader side
+   ([authored-reading-handoff.md](authored-reading-handoff.md)), so when *they*
+   open `1NT` and *we* overcall a natural `2♦`, their `2NT`/`3♣` decode off our
+   table. The shipped lane leaks a *strength* claim there; K–K's floorless
+   transfers leak a hard **six-card suit**. This is the campaign's known
+   mirror-read leak, one notch louder — which is exactly why
+   `probe-divergence --gate-opener ours` must read **0 foreign** before any
+   headline is quoted, and why a raw headline in this bucket has historically
+   been 60–70% foreign.
+2. **The values double loses its `♥ ≤4 / ♠ ≤4` caps.** Base publishes
+   `points 8.. ♥ 0..4 ♠ 0..4`; K–K publishes `points 8.. ♥ 0..13 ♠ 0..13` and
+   gains `♣ 0..5 ♦ 0..5` instead. Deleting the `2NT` relay removed the rung the
+   projector negated the five-card majors from. The reading is *looser, not
+   false*, so nothing phantom is claimed — recorded because it is a disclosure
+   change the A/B is measuring alongside the bidding.
+3. **A strong long minor never doubles.** The transfers are floorless *and*
+   uncapped, so a 21-count with six clubs transfers, opener completes
+   unconditionally, and the ladder tops out at `3NT` — no slam channel and no
+   access to `kokish_kraft_doubler_rebid`. K–K's own transfers are
+   invitational-plus; floorless was the design's deliberate change, and putting
+   a ceiling on them (transfer below, `X` above) is the reversible alternative.
+4. **The doubler has no takeout.** v7's second `X` is takeout showing four of
+   the other major, and it is the one BBA rung that measured positive on *both*
+   scorers (+2.4 plain / +1.6 PD per fired NV). K–K's is penalty, so a 12-count
+   with four of the *other* major and a doubleton in theirs now passes their
+   partscore. This is the delayed-double split, the arm's single biggest known
+   risk, and the first thing to trace if the A/B reads a loss.
+5. **Two rungs of the delayed table are dead in self-play.** Responder reached
+   that seat by passing, and under K–K a weak six-card minor does not pass — it
+   transfers. So the source's competitive `3♣`/`3♦` fire only opposite a partner
+   who is not bidding this table, and the natural `2NT` beside them is really
+   `hcp == 7` rather than the `7..=9` the rule spells. Both are consequences of
+   (3); the rungs are kept, documented at
+   [`kokish_kraft_delayed`](../src/bidding/american/competition/rubensohl.rs),
+   because deleting them would silently hand those seats to the floor.
+
+6. **Responder's contested channel is two calls wide.** Over their
+   pass-or-correct above a minor transfer, responder has `3NT` (game values
+   with their now-named major stopped) and `X` (`hcp 10+` without one) — a
+   census of 60,000 deals during review found that without the `X` about *half*
+   of all game-forcing transferors were book-forced to pass out their `3M`, so
+   the double is load-bearing, not a nicety. What is still missing is the
+   shortness hand: 10+ points with a singleton or void in their major wants to
+   play our minor, and doubling with a void is the wrong call. The reversible
+   candidate is a `5m` rung gated on `len(major, ..=1)`; it is not in this
+   build because five of a minor needs eleven tricks and the A/B should price
+   the two-call table first.
+
+Separately, and **not** this change's to fix: `slam::rkcb_rows` offers an
+insufficient `5♥` at `… 4NT - 5♥ -` (weight 50, `asker_after_5h`). Registering
+the ladder under `1NT (2♦) 4♥` newly exposes it in this lane, but it is
+identical in the uncontested tree (`1NT - 4♥ - 4NT - 5♥ -` offers the same call)
+and production filters illegal calls at selection. Flagged for the slam module.
+
+### What is owed
+
+`scripts/ab-2d-multi-kk.sh` — two arms, `base` (shipped v7) vs `kk`, one fresh
+`SEED_BASE`, both vulnerabilities, plain **and** perfect defense, sequential
+under `scripts/idle-run.sh`. `probe-divergence --gate-opener ours` must read
+**0 foreign** before any headline, then `probe-1nt-interference --bucket "2♦"
+--responses 6` for the decomposition. The floorless minor transfers are partly
+*obstructive*, and DD play scoring is blind to obstruction — read the verdict
+from [the decision table](measurement.md), where `plain wash | PD win` ships.
+
+Recorded follow-ups, each owed its own seed: the `3♠` **5-5** fallback if 5-4
+measures badly, the bare stopperless `3NT` sub-arm above, a weight retune
+against `probe-decision`, and the `4M` band. On the last:
+`direct_4m_max` is `15` under the shipped `notrump.texas_slam_drive`, because
+uncontested a 17+ six-card major takes South African Texas and drives its own
+RKCB — but under their `(2♦)` those calls are Leaping Michaels, so the 16+ hand
+falls back on the `3♦`/`3♥` transfer with its slam try floored. Not a
+regression (v7 routes it identically and gains no direct rung at all), and the
+fix is one token (`15..=18`), but it is a behaviour change owed its own arm.
+
+[n1j]: archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15
 
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 

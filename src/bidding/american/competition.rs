@@ -37,8 +37,8 @@ use super::super::rows::{
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
-    PUPPET, complete_transfer, notrump_responses, smolen_at_three, smolen_completion,
-    stayman_answers,
+    PUPPET, complete_transfer, direct_4m_max, notrump_responses, slam_try_answer, smolen_at_three,
+    smolen_completion, stayman_answers,
 };
 use super::weak_twos;
 use super::{COMPLETION, call};
@@ -127,17 +127,43 @@ const MULTI_VALUES: Alert = Alert("comp:multi-values");
 /// `2♥`/`2♠` after responder's values double: four-plus trumps.  Nominally
 /// penalty; when the overcaller's major is the other one they correct, and
 /// the double has told partner where our trumps are.  Alerted for the same
-/// reason as [`MULTI_VALUES`] — the length is the whole message.
+/// reason as [`MULTI_VALUES`] — the length is the whole message.  Shared with
+/// the Kokish–Kraft variant's *repeated* double, which is the same claim one
+/// round later (`competition.multi_kokish_kraft`).
 const MULTI_PENALTY: Alert = Alert("comp:multi-penalty");
 /// Multi takeout double — responder's second `X` once their pass-or-correct
 /// has resolved the major (`1NT (2♦) X (2M) - (-) X`): four of the *other*
 /// major and 1–2 of theirs, BBA's "reopening double".  Alerted so opener
-/// reads the other major, not a penalty holding.
+/// reads the other major, not a penalty holding.  Under the Kokish–Kraft
+/// variant the same claim moves one branch over, to the double that follows
+/// responder's *neutral pass* — the delayed-double split every exact-object
+/// source in the survey makes.
 const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 /// Multi stopper ask — responder's `3♠` after the opponents correct their
 /// disclosed Multi to spades.  It denies a spade stopper and asks opener to
 /// bid `3NT` with one or place the contract in a side suit.
 const MULTI_STOPPER_ASK: Alert = Alert("comp:multi-stopper-ask");
+/// Kokish–Kraft values double — `X` of their `(2♦)` Multi under
+/// `competition.multi_kokish_kraft`: invitational-plus values (`hcp 8+`) with
+/// **no shape promise at all**, the waiting call of that variant's table.
+/// Alerted for [`MULTI_VALUES`]'s reason (an unalerted double is not decoded,
+/// and the cooperative diamond double it replaces is what opener would
+/// otherwise believe was bid); a separate slug because the band differs — the
+/// 6–7 hands this one refuses take the designed neutral pass instead.
+const KK_VALUES: Alert = Alert("comp:kk-values");
+/// Kokish–Kraft minor transfer — `2NT`→♣ and `3♣`→♦ over their `(2♦)` Multi:
+/// a six-card minor with **no point floor**, so it is both the preempt of
+/// their unknown major and the start of a game force.  Their `2♦` holds no
+/// diamonds, so both minors are ours to transfer into.
+const KK_MINOR_TRANSFER: Alert = Alert("comp:kk-minor-transfer");
+/// Kokish–Kraft two-suiter rebid — responder's second call over a completed
+/// minor transfer, naming a four-card second suit at a step the source fixes
+/// rather than by rank (after `3♣`: `3♦` = ♥, `3♥` = ♠, `3♠` = ♦).  Game
+/// forcing; the alert is what stops the step reading as its own suit.
+const KK_TWO_SUITER: Alert = Alert("comp:kk-two-suiter");
+/// Kokish–Kraft both minors — `3♠` over their `(2♦)` Multi: game-forcing with
+/// at least 5-4 in the minors, naming a major nobody claims.
+const KK_MINORS: Alert = Alert("comp:kk-minors");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.

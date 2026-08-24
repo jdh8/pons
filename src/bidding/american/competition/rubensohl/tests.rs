@@ -950,3 +950,510 @@ fn multi_balance_doubles_on_five_trumps_only() {
         assert!(floored, "the seat must fall to the floor with the knob off");
     }
 }
+
+// ---- N4-KK: the opt-in Kokish–Kraft counter (`competition.multi_kokish_kraft`) ----
+
+fn kk_arm() -> crate::bidding::agreements::Agreements {
+    let mut arm = multi_arm();
+    arm.competition.multi_kokish_kraft = true;
+    arm
+}
+
+/// Walk `auction` (house notation, `-` for either side's pass) and return the
+/// call the Kokish–Kraft arm makes plus whether it came from the floor.
+fn kk(auction: &str, hand: &str) -> (Call, bool) {
+    let calls: Vec<Call> = auction
+        .split_whitespace()
+        .map(|token| {
+            let token = token
+                .strip_prefix('(')
+                .and_then(|t| t.strip_suffix(')'))
+                .unwrap_or(token);
+            if token == "-" {
+                Call::Pass
+            } else {
+                token.parse().expect("a legal call")
+            }
+        })
+        .collect();
+    best_call_with(&kk_arm(), &calls, hand)
+}
+
+/// The whole table swaps: every rung of responder's first call, and none of it
+/// floored.  The rungs that *move* against the shipped v7 lane are `2NT`, `3♣`,
+/// `3♠` and the `4M` tier; the rest is the assertion that they did not disturb
+/// what K–K keeps.
+#[test]
+fn kk_responder_table_is_the_whole_swap() {
+    for (hand, expected, why) in [
+        (
+            "432.K32.KQ2.J432",
+            Call::Double,
+            "9 flat, no shape: the values double",
+        ),
+        (
+            "Q32.K32.432.Q432",
+            Call::Pass,
+            "7 flat: the designed neutral pass",
+        ),
+        (
+            "K3.KQ976.A32.432",
+            call(3, Strain::Diamonds),
+            "5 hearts INV+: transfer",
+        ),
+        (
+            "KQ976.K3.A32.432",
+            call(3, Strain::Hearts),
+            "5 spades INV+: transfer",
+        ),
+        (
+            "32.32.432.AKQJ32",
+            call(2, Strain::Notrump),
+            "6 clubs: the club transfer",
+        ),
+        (
+            "432.4.32.KQJ8765",
+            call(2, Strain::Notrump),
+            "7 clubs, 5 hcp: floorless",
+        ),
+        (
+            "3.32.J87642.9876",
+            call(3, Strain::Clubs),
+            "6 diamonds, 1 hcp: floorless",
+        ),
+        (
+            "3.32.AQ765.KJ765",
+            call(3, Strain::Spades),
+            "5-5 minors GF: both minors",
+        ),
+        (
+            "A32.A32.A32.A432",
+            call(3, Strain::Notrump),
+            "16 flat, both majors stopped",
+        ),
+        (
+            "AKQ876.32.AQ2.32",
+            call(4, Strain::Spades),
+            "6 spades, 16: the slam try",
+        ),
+        (
+            "AKJ54.KQ432.2.32",
+            call(4, Strain::Diamonds),
+            "5-5 majors: Leaping Michaels",
+        ),
+        (
+            "KQJ9876.32.32.32",
+            call(2, Strain::Spades),
+            "7 spades weak: the escape",
+        ),
+    ] {
+        let (c, floored) = kk("1NT 2♦", hand);
+        assert_eq!(c, expected, "{hand}: {why}");
+        assert!(!floored, "{hand} must come from the book");
+    }
+}
+
+/// The two rungs the shipped lane owns at those calls are gone: `2NT` is no
+/// longer the weak relay and `3♣` is no longer Stayman.
+#[test]
+fn kk_retires_the_relay_and_stayman() {
+    // A 4-4 majors game force has no Stayman here — with a major unstopped it
+    // doubles and listens (with both stopped it blasts 3NT, as v4–v7 do).
+    let (c, _) = kk("1NT 2♦", "AQ32.9432.AQ2.32");
+    assert_eq!(c, Call::Double, "no 3♣ Stayman under K–K");
+    // A weak 5-card diamond hand has no relay: the transfer wants six.
+    let (c, _) = kk("1NT 2♦", "432.32.Q8765.432");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "the 2NT relay is gone; five diamonds is not enough"
+    );
+}
+
+/// The floorless minor transfers: forced completion (doubled or not), the weak
+/// pass, the game-forcing two-suiter rebids at the source's own steps, and
+/// opener's answer to each.
+#[test]
+fn kk_minor_transfers_complete_and_rebid() {
+    for (transfer, completion) in [("2NT", Strain::Clubs), ("3♣", Strain::Diamonds)] {
+        for auction in [
+            format!("1NT 2♦ {transfer} -"),
+            format!("1NT 2♦ {transfer} X"),
+        ] {
+            let (c, floored) = kk(&auction, "AQ2.KJ32.A32.432");
+            assert_eq!(
+                c,
+                call(3, completion),
+                "{auction}: the completion is forced"
+            );
+            assert!(!floored, "{auction} must come from the book");
+        }
+    }
+    // Weak: pass the completion.  That is what the floorless rung buys.
+    let (c, floored) = kk("1NT 2♦ 2NT - 3♣ -", "32.32.5432.J87654");
+    assert_eq!(c, Call::Pass, "the preempt has said everything");
+    assert!(!floored, "the sign-off must come from the book");
+
+    // Game-forcing: the source's steps, which are not next-suit-up.
+    for (hand, expected, why) in [
+        (
+            "32.AQ32.32.AKQJ3",
+            call(3, Strain::Diamonds),
+            "3♦ = clubs + hearts",
+        ),
+        (
+            "AQ32.32.32.AKQJ3",
+            call(3, Strain::Hearts),
+            "3♥ = clubs + spades",
+        ),
+        (
+            "32.32.AQ32.AKQJ3",
+            call(3, Strain::Spades),
+            "3♠ = clubs + diamonds",
+        ),
+        (
+            "32.32.A32.AKQJ32",
+            call(3, Strain::Notrump),
+            "3NT = the plain six-bagger",
+        ),
+    ] {
+        let (c, floored) = kk("1NT 2♦ 2NT - 3♣ -", hand);
+        assert_eq!(c, expected, "{hand}: {why}");
+        assert!(!floored, "{hand} must come from the book");
+    }
+    for (hand, expected, why) in [
+        (
+            "AQ32.32.AJ8764.2",
+            call(3, Strain::Hearts),
+            "3♥ = diamonds + spades",
+        ),
+        (
+            "32.AQ32.AJ8764.2",
+            call(3, Strain::Spades),
+            "3♠ = diamonds + hearts",
+        ),
+    ] {
+        let (c, floored) = kk("1NT 2♦ 3♣ - 3♦ -", hand);
+        assert_eq!(c, expected, "{hand}: {why}");
+        assert!(!floored, "{hand} must come from the book");
+    }
+
+    // Opener answers a two-suiter rebid: the major game on four-card support,
+    // else 3NT.
+    let (c, floored) = kk("1NT 2♦ 2NT - 3♣ - 3♦ -", "AQ2.KJ32.A32.432");
+    assert_eq!(
+        c,
+        call(4, Strain::Hearts),
+        "four hearts is the ten-card fit"
+    );
+    assert!(!floored, "the answer must come from the book");
+    let (c, _) = kk("1NT 2♦ 2NT - 3♣ - 3♦ -", "AQ32.K2.A432.432");
+    assert_eq!(c, call(3, Strain::Notrump), "no heart fit: 3NT");
+
+    // Their pass-or-correct above the completion: opener sits, responder's
+    // values act again.
+    let (c, floored) = kk("1NT 2♦ 2NT 3♥", "AQ2.KJ32.A32.432");
+    assert_eq!(c, Call::Pass, "the transfer promised nothing; opener waits");
+    assert!(!floored, "the guarded sit must come from the book");
+    let (c, floored) = kk("1NT 2♦ 2NT 3♥ - -", "32.KQ2.32.AKQJ32");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "the stopper turns the preempt into a game"
+    );
+    assert!(
+        !floored,
+        "responder's second action must come from the book"
+    );
+    let (c, _) = kk("1NT 2♦ 2NT 3♥ - -", "32.432.32.J87654");
+    assert_eq!(c, Call::Pass, "no stopper, no values: take the plus");
+    // …but the same seat holding real defence doubles rather than selling out.
+    // `hcp`, not `points`, so the preempt's own six-card length — which cashes
+    // nothing on defence — never pushes a bust hand into the double.
+    let (c, floored) = kk("1NT 2♦ 2NT 3♥ - -", "32.432.32.AKQJ32");
+    assert_eq!(c, Call::Double, "10 HCP opposite 15-17 defends 3♥");
+    assert!(!floored, "the values double must come from the book");
+
+    // And the same pair one round later, when they let the completion through
+    // and compete over *it*.  The shipped relay owns this seat; the K–K swap
+    // `continue`s past that block, so it re-registers its own.
+    let (c, floored) = kk("1NT 2♦ 2NT - 3♣ 3♥", "32.KQ2.32.AKQJ32");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "the game-forcing hand has not spoken yet"
+    );
+    assert!(!floored, "the completion's tail must come from the book");
+    let (c, _) = kk("1NT 2♦ 2NT - 3♣ 3♥", "32.432.32.J87654");
+    assert_eq!(c, Call::Pass, "and the weak one still passes");
+    let (c, floored) = kk("1NT 2♦ 3♣ - 3♦ 3♥", "32.KQ2.AKQJ32.32");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "the diamond side of the same seat"
+    );
+    assert!(!floored, "which must also come from the book");
+    let (c, floored) = kk("1NT 2♦ 2NT - 3♣ - - 3♥", "AQ2.KJ32.AQ3.432");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "opener sits when they balance over the passed-out preempt"
+    );
+    assert!(!floored, "the balance seat must come from the book");
+}
+
+/// K–K's delayed-double split: the *repeated* double is penalty, the double
+/// after the **neutral pass** is takeout, and opener answers each accordingly.
+#[test]
+fn kk_splits_the_delayed_doubles() {
+    // Repeated: four of their resolved major, penalty; opener sits.
+    let (c, floored) = kk("1NT 2♦ X 2♥ - -", "432.KQ32.A32.Q32");
+    assert_eq!(c, Call::Double, "four hearts behind their major: penalty");
+    assert!(!floored, "the repeated double must come from the book");
+    let (c, floored) = kk("1NT 2♦ X 2♥ - - X -", "AQ2.32.AQ32.K432");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "opener sits for the penalty, it is not takeout"
+    );
+    assert!(!floored, "the sit must come from the book");
+
+    // Delayed after the pass: takeout, four of the *other* major and at most a
+    // doubleton in theirs.
+    let (c, floored) = kk("1NT 2♦ - 2♥ - -", "AQ32.32.K432.432");
+    assert_eq!(c, Call::Double, "four spades, two hearts: takeout");
+    assert!(!floored, "the delayed takeout must come from the book");
+    let (c, floored) = kk("1NT 2♦ - 2♥ - - X -", "K2.A32.AQ32.KQ32");
+    assert_eq!(
+        c,
+        call(3, Strain::Clubs),
+        "opener answers the takeout in a minor"
+    );
+    assert!(!floored, "the answer must come from the book");
+    // And after they correct hearts to spades, keyed on the resolved suit.
+    let (c, floored) = kk("1NT 2♦ - 2♥ - 2♠", "32.AQ32.K432.432");
+    assert_eq!(c, Call::Double, "four hearts, two spades: takeout");
+    assert!(
+        !floored,
+        "the corrected delayed double must come from the book"
+    );
+}
+
+/// The doubler's own second round: K–K's natural invitational `2NT`, the
+/// stopper-gated `3NT`, and the quantitative `4NT` — each with opener's answer.
+#[test]
+fn kk_doubler_rebids_and_their_answers() {
+    for (hand, expected, why) in [
+        (
+            "K32.Q32.K432.J32",
+            call(2, Strain::Notrump),
+            "9 with a heart guard and only three of them: the natural invite",
+        ),
+        (
+            "K32.AQ2.KJ32.Q32",
+            call(3, Strain::Notrump),
+            "11 with the stopper: game",
+        ),
+        (
+            "K32.AQ2.AKJ2.AQ2",
+            call(4, Strain::Notrump),
+            "16+: quantitative",
+        ),
+    ] {
+        let (c, floored) = kk("1NT 2♦ X 2♥ - -", hand);
+        assert_eq!(c, expected, "{hand}: {why}");
+        assert!(!floored, "{hand} must come from the book");
+    }
+    // …and the stopperless 8-9 hand has no invite at all: it would reach 3NT
+    // with their known six-card suit unguarded in both hands, so it sells out.
+    let (c, _) = kk("1NT 2♦ X 2♥ - -", "K32.932.K432.J32");
+    assert_eq!(c, Call::Pass, "no heart guard, no natural invite");
+
+    let (c, floored) = kk("1NT 2♦ X 2♥ - - 2NT -", "AQ2.K32.KQ32.J32");
+    assert_eq!(c, Call::Pass, "15 declines the invite");
+    assert!(!floored, "the invite answer must come from the book");
+    let (c, _) = kk("1NT 2♦ X 2♥ - - 2NT -", "AQ2.K32.KQ32.K32");
+    assert_eq!(c, call(3, Strain::Notrump), "16 accepts");
+    let (c, _) = kk("1NT 2♦ X 2♥ - - 4NT -", "AQ2.K32.AQ32.KQ2");
+    assert_eq!(c, call(6, Strain::Notrump), "17 accepts the quantitative");
+}
+
+/// `3♠` both minors: the double stopper decides `3NT`, else four of the better
+/// minor and responder raises to game.  Their interference is answered too.
+#[test]
+fn kk_both_minors_is_answered_and_placed() {
+    let (c, floored) = kk("1NT 2♦ 3♠ -", "AQ2.KJ32.A32.432");
+    assert_eq!(c, call(3, Strain::Notrump), "both majors stopped: 3NT");
+    assert!(!floored, "the answer must come from the book");
+    let (c, _) = kk("1NT 2♦ 3♠ -", "A32.432.KQ32.K32");
+    assert_eq!(
+        c,
+        call(4, Strain::Diamonds),
+        "no heart stopper: the better minor"
+    );
+    let (c, _) = kk("1NT 2♦ 3♠ X", "A32.432.KQ32.K32");
+    assert_eq!(c, call(4, Strain::Diamonds), "their double takes no room");
+    let (c, floored) = kk("1NT 2♦ 3♠ 4♥", "A32.K32.KQ32.K32");
+    assert_eq!(c, Call::Double, "25+ behind a four-level save: double");
+    assert!(!floored, "the guarded answer must come from the book");
+    for (minor, place) in [(Strain::Clubs, 5), (Strain::Diamonds, 5)] {
+        let auction = format!("1NT 2♦ 3♠ - 4{minor} -");
+        let (c, floored) = kk(&auction, "3.32.AQ765.KJ765");
+        assert_eq!(c, call(place, minor), "{auction}: complete the game force");
+        assert!(!floored, "{auction} must come from the book");
+    }
+}
+
+/// The direct `4M` tier is the *uncontested* slam try copied under the
+/// overcall — opener passes a minimum, keycards on a maximum, and the 1430
+/// ladder is installed below it.
+#[test]
+fn kk_direct_four_major_is_the_slam_try() {
+    let (c, floored) = kk("1NT 2♦ 4♠ -", "AQ2.K32.A432.K32");
+    assert_eq!(c, Call::Pass, "16 signs off");
+    assert!(!floored, "the slam-try answer must come from the book");
+    let (c, _) = kk("1NT 2♦ 4♠ -", "AQ2.KQ2.A432.K32");
+    assert_eq!(c, call(4, Strain::Notrump), "17 launches RKCB");
+    let (c, floored) = kk("1NT 2♦ 4♠ - 4NT -", "AKQ876.32.AQ2.32");
+    assert_eq!(
+        c,
+        call(5, Strain::Diamonds),
+        "two keycards without the queen"
+    );
+    assert!(!floored, "the keycard answer must come from the book");
+}
+
+/// What K–K keeps: the weak escape and its interfered tail
+/// ([`CompetitionKnobs::multi_weak_escape`]) and Leaping Michaels both survive
+/// the swap, and `multi_balance` still composes at its own seat.
+#[test]
+fn kk_composes_with_the_escape_and_the_balancing_double() {
+    let (c, floored) = kk("1NT 2♦ 2♠ -", "AQ2.KJ32.A32.432");
+    assert_eq!(c, Call::Pass, "opener passes the weak escape");
+    assert!(!floored, "the sign-off raise must come from the book");
+    let (c, floored) = kk("1NT 2♦ 2♠ 3♥", "AQ2.KJ32.A32.432");
+    assert_eq!(c, Call::Pass, "and over their competition of it");
+    assert!(!floored, "the escape's tail must come from the book");
+    let (c, floored) = kk("1NT 2♦ 4♦ -", "AQ32.K432.A32.32");
+    assert_eq!(
+        c,
+        call(4, Strain::Spades),
+        "Leaping Michaels still advances"
+    );
+    assert!(!floored, "the advance must come from the book");
+
+    let mut arm = kk_arm();
+    arm.competition.multi_balance = true;
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Hearts),
+    ];
+    let (c, floored) = best_call_with(&arm, &auction, "A2.KQJ32.A32.432");
+    assert_eq!(c, Call::Double, "the balancing double is a different seat");
+    assert!(!floored, "and it still comes from the book");
+}
+
+/// Off by default and inert without the disclosure: the knob alone must not
+/// move a single call of the shipped natural `(2♦)` leg.
+#[test]
+fn kk_is_inert_without_the_disclosure() {
+    let mut knob_only = crate::bidding::agreements::Agreements::default();
+    knob_only.competition.multi_kokish_kraft = true;
+    let auction = one_nt_two_diamonds();
+    for hand in [
+        "432.K32.KQ2.J432",
+        "32.32.432.AKQJ32",
+        "3.32.AQ765.KJ765",
+        "AQ32.9432.AQ2.32",
+    ] {
+        let base = best_call_with(
+            &crate::bidding::agreements::Agreements::default(),
+            &auction,
+            hand,
+        );
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            base,
+            "{hand}: the knob is inert while their 2♦ is natural"
+        );
+    }
+}
+
+/// What the new alerts publish, since a reading is the only thing the floor
+/// and opener ever see of an artificial call
+///
+/// Three claims that a missing `.alert(...)` or a mis-ordered rule would break,
+/// each of which the design turns on:
+///
+/// - the values `X` is invitational **or better** — an unbounded `points 8..`,
+///   not the `points 8..9` a `3NT` outranking it would leave behind (the
+///   ordering repair recorded beside the rule);
+/// - the minor transfers publish six cards and **no strength**, so the preempt
+///   half is readable as such;
+/// - the delayed `X` publishes the *other* major and shortness in theirs.
+#[test]
+fn kk_alerts_publish_what_the_calls_promise() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let partnership = crate::bidding::american::american(&kk_arm()).bind();
+    let read = |auction: &str| {
+        let calls: Vec<Call> = auction
+            .split_whitespace()
+            .map(|t| {
+                let t = t
+                    .strip_prefix('(')
+                    .and_then(|t| t.strip_suffix(')'))
+                    .unwrap_or(t);
+                if t == "-" {
+                    Call::Pass
+                } else {
+                    t.parse().expect("a legal call")
+                }
+            })
+            .collect();
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, &calls))
+    };
+
+    let doubled = read("1NT 2♦ X -");
+    let partner = doubled.get(Relative::Partner);
+    assert_eq!(partner.strength.points.min, 8, "the values double is 8+");
+    assert!(
+        partner.strength.points.max >= 37,
+        "and unbounded above: invitational *or better* (got {:?})",
+        partner.strength.points,
+    );
+
+    for (auction, minor) in [
+        ("1NT 2♦ 2NT -", Suit::Clubs),
+        ("1NT 2♦ 3♣ -", Suit::Diamonds),
+    ] {
+        let transferred = read(auction);
+        let partner = transferred.get(Relative::Partner);
+        assert_eq!(
+            partner.length(minor).min,
+            6,
+            "{auction}: the transfer shows six {minor}",
+        );
+        assert_eq!(
+            partner.strength.points.min, 0,
+            "{auction}: and no values at all — the rung is floorless",
+        );
+    }
+
+    let delayed = read("1NT 2♦ - 2♥ - - X -");
+    let partner = delayed.get(Relative::Partner);
+    assert_eq!(
+        partner.length(Suit::Spades).min,
+        4,
+        "the delayed X is takeout"
+    );
+    assert_eq!(partner.length(Suit::Hearts).max, 2, "short in their major");
+    assert_eq!(
+        partner.strength.points.min, 6,
+        "and 6+, the pass having denied 8"
+    );
+}

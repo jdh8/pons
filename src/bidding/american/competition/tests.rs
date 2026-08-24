@@ -137,6 +137,29 @@ fn multi_stopper_package_invariants() {
     }
 }
 
+/// The Kokish–Kraft counter is default-off *and* gated on the `(2♦)`
+/// disclosure, so no default sweep ever builds its rows.  This is the arm that
+/// does: every guarded continuation total, every artificial row alerted, no
+/// same-call weight ties.  Its composition matrix rides along — the variant
+/// shares seats with `multi_weak_escape` and `multi_balance`, and a table that
+/// is total on one arm can be holed on another.
+#[test]
+fn kokish_kraft_package_invariants() {
+    for (weak, balance) in [
+        (Some(6), false),
+        (None, false),
+        (Some(6), true),
+        (None, true),
+    ] {
+        let mut arm = Agreements::default();
+        arm.decision.their.two_diamonds_multi = true;
+        arm.competition.multi_kokish_kraft = true;
+        arm.competition.multi_weak_escape = weak;
+        arm.competition.multi_balance = balance;
+        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+    }
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {

@@ -892,6 +892,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.multi_balance = true;
         profiles.push(("their-multi-balance", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_diamonds_multi = true;
+        a.competition.multi_kokish_kraft = true;
+        profiles.push(("their-multi-kokish-kraft", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),
@@ -1112,7 +1118,8 @@ fn completion_readings_admit_the_bidder() {
 /// whose count moves under that gate, so the fielded system's disclosure
 /// surface is what the tripwire actually watches.  `[multi-stopper]` is the
 /// default-off stopper-ask delta; both continuation modes must expose the
-/// same artificial ask sites.
+/// same artificial ask sites.  `[kokish-kraft]` is the opt-in whole-table
+/// counter-defense delta over the same anchor gate.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::agreements::Agreements;
@@ -1153,6 +1160,9 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     let mut place = anchor;
     place.competition.multi_stopper_ask = crate::bidding::american::MultiStopperAsk::OpenerPlaces;
     let place_counts = alert_site_counts(&place);
+    let mut kk = anchor;
+    kk.competition.multi_kokish_kraft = true;
+    let kk_counts = alert_site_counts(&kk);
     assert_eq!(
         search_counts, place_counts,
         "both stopper continuations must expose the same artificial calls"
@@ -1184,6 +1194,19 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     for slug in slugs {
         let before = anchor_counts.get(slug).copied().unwrap_or_default();
         let after = search_counts.get(slug).copied().unwrap_or_default();
+        if before != after {
+            found.push_str(&format!("{slug} {before} -> {after}\n"));
+        }
+    }
+    found.push_str("\n[kokish-kraft]\n");
+    let slugs: BTreeSet<&str> = anchor_counts
+        .keys()
+        .chain(kk_counts.keys())
+        .copied()
+        .collect();
+    for slug in slugs {
+        let before = anchor_counts.get(slug).copied().unwrap_or_default();
+        let after = kk_counts.get(slug).copied().unwrap_or_default();
         if before != after {
             found.push_str(&format!("{slug} {before} -> {after}\n"));
         }

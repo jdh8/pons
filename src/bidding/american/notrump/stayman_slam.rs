@@ -12,7 +12,7 @@ use super::*;
 /// Non-forcing: a **maximum** (17) accepts by launching RKCB (`4NT`); a minimum
 /// signs off by passing the major game.  The 1430 ladder ([`slam`]) then exchanges
 /// keycards and places `6M`, or `5M` when the partnership is missing two.
-pub(super) fn slam_try_answer() -> Rules {
+pub(crate) fn slam_try_answer() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 100, hcp(17..))
         .alert(slam::RKCB)

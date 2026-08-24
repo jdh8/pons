@@ -827,6 +827,55 @@ pub struct CompetitionKnobs {
     /// arm before any claim.  Inert while their `2♦` is undeclared or natural,
     /// so the default system is byte-identical.
     pub multi_balance: bool,
+    /// Play the **Kokish–Kraft** counter-defense to their declared `(2♦)` Multi
+    ///
+    /// A *whole-table* swap of responder's `1NT (2♦)` subtree and its
+    /// continuations (`competition::rubensohl::kokish_kraft_responder`),
+    /// registered instead of the shipped v7 lane rather than over it — the two
+    /// disagree on `2NT`, `3♣`, `3♠` and both delayed doubles, so an overlay
+    /// would leave v7's rows shadowing these.
+    ///
+    /// The Eric Kokish–Beverly Kraft notes (January 2008, printed p. 163) carry
+    /// a table for exactly this object — `2♦` as one unknown six-card major —
+    /// and it is the most complete published package the survey in
+    /// `docs/ai-bidder/multi-landy-2d-counter-defense-research.md` found.  What
+    /// moves: `X` becomes invitational-plus values with **no shape promise**
+    /// (`hcp 8+`, against v6's BBA-mimic `hcp 6+`), so the 6–7 band takes a
+    /// designed **neutral pass** with its own delayed table; `2NT` and `3♣`
+    /// become **floorless** transfers to clubs and diamonds, replacing the weak
+    /// `2NT` relay; `3♠` becomes both minors game-forcing; and the *repeated*
+    /// double reverts to v4's trump penalty while the double after the neutral
+    /// pass is takeout — the delayed-double split every exact-object source in
+    /// the survey makes.
+    ///
+    /// `3NT` **keeps** its both-majors stopper gate, against the source's
+    /// stopperless letter and against the design sketch: bare, the rule
+    /// contains every other constructive gate in the table, which collapses
+    /// the values double to `points 8..9` (contradicting the same source's
+    /// "invitational *or better*") and re-runs at maximum frequency the
+    /// stopperless blast perfect defense priced at −3.7/−4.3 a board in N4
+    /// v2/v3.  Dropping it is a recorded one-line sub-arm — see
+    /// `competition::rubensohl::kokish_kraft_responder` and
+    /// `docs/one-notrump-competitive.md` §N4-KK.
+    ///
+    /// `3♦`/`3♥`, the weak `2♥`/`2♠` escapes and Leaping Michaels `4♣`/`4♦` are
+    /// unchanged, and `4♥`/`4♠` copy the uncontested direct slam-try tier —
+    /// which caps at `hcp 15` under the shipped `NotrumpKnobs::texas_slam_drive`,
+    /// because uncontested a 17+ six-card major takes Texas at `4♣`/`4♦`
+    /// instead.  Those calls are Leaping Michaels here, so the 16+ hand keeps
+    /// the shipped `3♦`/`3♥` transfer route with its slam try floored — no
+    /// regression (v7 routes it identically), and widening to `15..=18` is a
+    /// second recorded sub-arm.
+    ///
+    /// Composes with [`Self::multi_weak_escape`] (its `2M` rung and interfered
+    /// tail stay live; its `2NT`-relay rung dies structurally) and with
+    /// [`Self::multi_balance`] (a different seat).  It makes
+    /// [`Self::multi_stopper_ask`] inert — the `3♠` that carried the ask is the
+    /// both-minors call here.
+    ///
+    /// **Off by default, unmeasured.**  Inert while their `2♦` is undeclared or
+    /// natural, so the default system is byte-identical.
+    pub multi_kokish_kraft: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -958,6 +1007,7 @@ impl Default for CompetitionKnobs {
             multi_stopper_ask: MultiStopperAsk::Off,
             multi_weak_escape: Some(6),
             multi_balance: false,
+            multi_kokish_kraft: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

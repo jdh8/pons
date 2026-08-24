@@ -382,7 +382,18 @@ fn stayman_2d_constructive(mut rules: Rules, gate_4333: bool, agreements: &Agree
         )
         .alert(LEBENSOHL_TRANSFER);
 
-    // Leaping Michaels: 5-5 game-forcing two-suiters.
+    leaping_michaels_2d(rules)
+}
+
+/// Leaping Michaels over their `(2♦)`: `4♦` both majors, `4♣` clubs plus an
+/// unknown major, both 5-5 game-forcing
+///
+/// Its own function because three responder tables carry it verbatim — the
+/// natural leg, the N4 Multi leg (both via [`stayman_2d_constructive`]) and
+/// the Kokish–Kraft variant ([`kokish_kraft_responder`]), which shares no
+/// other constructive rung.  Partner opened `1NT`, so `points(10..)` (≈ 8 HCP
+/// after the 5-5 upgrade) already forces game.
+fn leaping_michaels_2d(rules: Rules) -> Rules {
     rules
         .rule(
             Bid::new(4, Strain::Diamonds),
@@ -928,6 +939,390 @@ pub(crate) fn lm_2d_clubs_major() -> Rules {
         .rule(Bid::new(4, Strain::Hearts), 150, len(Suit::Hearts, 5..))
         .rule(Bid::new(4, Strain::Spades), 150, len(Suit::Spades, 5..))
         .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Kokish–Kraft — the opt-in whole-table counter-defense to their `(2♦)` Multi
+// ---------------------------------------------------------------------------
+
+/// Responder's Kokish–Kraft table over their `(2♦)` Multi
+/// (`competition.multi_kokish_kraft`, campaign package N4-KK)
+///
+/// The Eric Kokish–Beverly Kraft notes carry a table for exactly this object —
+/// `2♦` as one unknown six-card major — and it is the most complete published
+/// package for it (`docs/ai-bidder/multi-landy-2d-counter-defense-research.md`
+/// §1).  Registered *instead of* [`multi_2d_responder`]'s subtree, never over
+/// it: the two disagree on `2NT`, `3♣` and `3♠`, so an overlay would leave the
+/// shipped rows shadowing these.
+///
+/// What changes against the shipped v7 lane:
+///
+/// - **`X` is invitational-plus values with no shape promise** (`hcp 8+`), not
+///   v6's BBA-mimic `hcp 6+`.  K–K's doubler-rebid table has a natural
+///   invitational `2NT` in it, so majorless doubles are part of the method; the
+///   6–7 band that v6 doubled on now takes the designed **neutral pass**, whose
+///   own delayed table is [`kokish_kraft_delayed`].
+/// - **`2NT` and `3♣` are floorless minor transfers** (→♣ and →♦, six-card
+///   suit, *no* point floor).  They replace the weak `2NT` relay, which dies
+///   structurally, and are two-way: a weak hand preempts their unknown major
+///   and passes the completion, a game hand rebids ([`kokish_kraft_transfer_rebid`]).
+///   K–K makes them invitational-or-better; the floor is dropped here because
+///   this lane's own census prices a passed-out long minor at −3.92 plain /
+///   −4.84 PD a board (see [`CompetitionKnobs::multi_weak_escape`][crate::bidding::agreements::CompetitionKnobs::multi_weak_escape]).
+/// - **`3♠` is both minors, game-forcing** at 5-4 or better, not the shipped
+///   forced `3♠`→♣ game force (which the `2NT` transfer now carries).
+/// - **`3NT` claims no stopper** (the source's gamble on a long suit), where
+///   v4–v7 wanted both majors stopped.
+/// - **`3♦`/`3♥` (transfers to ♥/♠), the weak `2♥`/`2♠` escapes and Leaping
+///   Michaels `4♣`/`4♦` are unchanged**, and `4♥`/`4♠` are the *uncontested*
+///   direct slam-try tier copied under the overcall.
+///
+/// Ordering constraints the weights encode: the minor transfers outrank `3NT`,
+/// `3♠`, the natural `2M` and `X` (a long-minor hand transfers, it never
+/// blasts); `2M` outranks `X` (a weak five-card major escapes); Leaping
+/// Michaels outranks the transfers.
+pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
+    let mut rules = leaping_michaels_2d(Rules::new());
+    // The uncontested `1NT - 4M` tier verbatim: a six-card major with
+    // slam-invitational values, opener passing a minimum or launching RKCB
+    // ([`slam_try_answer`]).  Deliberately *not* South African Texas — our
+    // `4♣`/`4♦` are Leaping Michaels here.
+    //
+    // Which is also why the band is thin: [`direct_4m_max`] is `15` under the
+    // shipped `notrump.texas_slam_drive`, because uncontested a 17+ six-card
+    // major takes Texas at `4♣`/`4♦` and drives its own keycard ask.  That
+    // route does not exist in this lane, so the 16+ hand falls back on the
+    // `3♦`/`3♥` transfer and reaches `4M` with its slam try floored — exactly
+    // as the shipped v7 lane already routes it, so nothing regresses, but
+    // widening to `15..=18` here is a real candidate and a behaviour change.
+    // Recorded in docs/one-notrump-competitive.md §N4-KK; it wants its own arm.
+    let slam_try_max = direct_4m_max(agreements);
+    for (major, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(major)),
+            260,
+            len(major, 6..) & len(other, ..5) & hcp(15..=slam_try_max),
+        );
+    }
+    // The major transfers, unchanged from the shipped leg: INV+, auto-driven
+    // to game by [`transfer_completion`].
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            180,
+            len(Suit::Hearts, 5..) & points(9..),
+        )
+        .alert(LEBENSOHL_TRANSFER)
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            180,
+            len(Suit::Spades, 5..) & points(9..),
+        )
+        .alert(LEBENSOHL_TRANSFER);
+    // The floorless minor transfers.  `3♣`→♦ above `2NT`→♣ so a hand long in
+    // both takes the higher-ranking suit at the cheaper relative cost.
+    rules = rules
+        .rule(Bid::new(3, Strain::Clubs), 178, len(Suit::Diamonds, 6..))
+        .alert(KK_MINOR_TRANSFER)
+        .rule(Bid::new(2, Strain::Notrump), 176, len(Suit::Clubs, 6..))
+        .alert(KK_MINOR_TRANSFER);
+    // `3♠` both minors GF at 5-4+, then the direct `3NT` blast.
+    //
+    // Two ordering repairs against the design sketch, both forced by the same
+    // thing — a *bare* `points(10..)` `3NT` contains every other constructive
+    // gate in the table, so whatever sits below it is unreachable:
+    //
+    // 1. `3♠` outranks `3NT` (the sketch had it the other way): the
+    //    both-minors gate implies `points(10..)`, so a higher `3NT` would make
+    //    `3♠` dead code rather than a rare rung.  The source agrees on the
+    //    merits — its `3NT` is the last-resort gamble, the shape calls come
+    //    first — and the sketch's stated ordering constraints say nothing
+    //    about this pair.
+    // 2. **`3NT` keeps a stopper gate.**  The sketch dropped it "per source"
+    //    (K–K's `3NT` promises no stopper information).  Measured bare, the
+    //    rule confines the values double to `points 8..9` — `probe-call-reading
+    //    --ns-multi-kokish-kraft "1N (2D) X -"` reads exactly that — because
+    //    every 10+ hand blasts instead, which contradicts the same source's
+    //    "`X` = invitational **or better**" and re-runs at maximum frequency
+    //    the stopperless blast perfect defense priced at −3.7/−4.3 a board in
+    //    N4 v2/v3.  Ranking `X` above a bare `3NT` does not fix it either: the
+    //    survivors are then `hcp ≤ 7` hands with distributional points and no
+    //    transfer — a 7-count 4-4-4-1 blasting 3NT — which is worse than dead.
+    //    So the gate stays, unchanged from v4–v7, and dropping it is a
+    //    one-line sub-arm if the user wants K–K's letter measured.
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Spades),
+            152,
+            len(Suit::Clubs, 4..)
+                & len(Suit::Diamonds, 4..)
+                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                & points(10..),
+        )
+        .alert(KK_MINORS)
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        );
+    // The weak natural escapes, shared with the shipped leg (and with its
+    // floorless `multi_weak_escape` rung, which composes).
+    rules = natural_major_escapes(rules, agreements, agreements.competition.multi_weak_escape);
+    rules
+        .rule(Call::Double, 130, hcp(8..))
+        .alert(KK_VALUES)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The Kokish–Kraft doubler's rebid once their pass-or-correct has resolved the
+/// major (`1NT (2♦) X (2♥) - (-)` and its three siblings)
+///
+/// [`multi_responder_rebid`]'s fork.  The one structural difference is the
+/// **repeated double**: K–K (like every other exact-object source surveyed)
+/// separates the two delayed doubles — after an initial `X` a second double is
+/// cooperative *penalty*, while after an initial *pass* it is takeout
+/// ([`kokish_kraft_delayed`]).  So this arm reverts v7's takeout `X` to v4's
+/// trump-length penalty double, inside this variant only.  The `ran` shape
+/// (their weak advancer corrected `2♥` to `2♠`) was already penalty and is
+/// unchanged.
+///
+/// `2NT` is K–K's natural invitational rebid, new here: v6 played BBA's own
+/// 8–9 invite and perfect defense priced it at −3.0/−6.9 per invite, so it
+/// rides this arm rather than the default lane.  It carries the same
+/// `stopper_in(major)` its delayed twin does ([`kokish_kraft_delayed`]) —
+/// natural notrump opposite a *known* six-card suit means a guard in it, and
+/// without the gate an 8-count and a 16-count reach `3NT` with the opponents'
+/// long major unstopped in both hands.  The weak `2♠` signoff of v7 dies — a
+/// weak five-card spade hand bids `2♠` directly instead of doubling.
+pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool) -> Rules {
+    let mut rules = Rules::new().rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
+    rules = if ran {
+        rules.rule(Call::Double, 155, len(Suit::Spades, 4..) & hcp(7..))
+    } else {
+        rules.rule(Call::Double, 155, len(major, 4..))
+    }
+    .alert(MULTI_PENALTY);
+    rules
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(major),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            145,
+            hcp(8..=9) & stopper_in(major),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the doubler's natural invitational `2NT`: accept the
+/// game from the top of the range, else pass.  Total.
+pub(crate) fn kokish_kraft_invite_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 140, hcp(16..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's **delayed** table after the neutral pass, once their
+/// pass-or-correct has named the major (`1NT (2♦) - (2♥) - -` and siblings)
+///
+/// The other half of K–K's split-double theory: having passed the Multi rather
+/// than doubling it, responder's double here is **takeout** — four of the other
+/// major, at most a doubleton in theirs — and opener answers it with the
+/// shipped [`multi_takeout_answer`].  `2NT` is natural and competitive with
+/// their suit stopped; `3♣`/`3♦` are competitive six-card suits, kept from the
+/// source though the traffic is thin now that a long minor transfers at once.
+///
+/// This seat is where the shipped lane's `hcp 6+` doubles go under K–K's `hcp
+/// 8+` gate: the 6–7 band passes first and speaks here, with the major known.
+///
+/// **Two rungs are dead in self-play, and they are kept anyway.** Responder
+/// reached this seat by *passing*, and under K–K a weak six-card minor does not
+/// pass — it transfers, floorlessly, at `2NT`/`3♣`. So the source's competitive
+/// `3♣`/`3♦` can only ever fire opposite a partner who is not bidding this
+/// table (a human, or a hand that passed for a reason the book does not model),
+/// and every A/B will show them at zero. For the same reason the first-turn
+/// pass denies `hcp 8+`, so the natural `2NT` is really `hcp == 7`, not the
+/// `7..=9` the rule spells. Both are consequences of making the minor
+/// transfers floorless where K–K makes them invitational-plus; the reversible
+/// alternative is a floor on the transfers, which is a different arm.  The
+/// rungs stay because they cost nothing, they are the source's, and deleting
+/// them would silently hand those seats to the floor.
+pub(crate) fn kokish_kraft_delayed(major: Suit) -> Rules {
+    let other = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    Rules::new()
+        .rule(
+            Call::Double,
+            150,
+            len(other, 4..) & len(major, ..=2) & hcp(6..),
+        )
+        .alert(MULTI_TAKEOUT)
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            140,
+            hcp(7..=9) & stopper_in(major),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            130,
+            len(Suit::Clubs, 6..) & points(..=9),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            129,
+            len(Suit::Diamonds, 6..) & points(..=9),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's forced completion of a Kokish–Kraft minor transfer — `2NT`→`3♣`,
+/// `3♣`→`3♦`
+///
+/// Unconditional, doubled or not: the transfer carries no point floor, so
+/// opener has nothing to decide and the whole message is "partner declares".
+pub(crate) fn kokish_kraft_minor_completion(minor: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
+    Rules::new()
+        .rule(Bid::new(3, Strain::from(minor)), 100, hcp(0..))
+        .alert_if(completion_alerts, COMPLETION)
+}
+
+/// Responder's rebid over the completed minor transfer
+///
+/// Pass is the sign-off — the whole point of the floorless rung.  Above it sit
+/// the source's two-suiter steps (after `3♣`: `3♦` = +♥, `3♥` = +♠, `3♠` = +♦;
+/// after `3♦`: `3♥` = +♠, `3♠` = +♥) and `3NT` as the plain six-card-minor
+/// choice of games.  Every rung above Pass is game-forcing, so the transfer is
+/// two-way and opener's completion never strands one.
+pub(crate) fn kokish_kraft_transfer_rebid(minor: Suit) -> Rules {
+    let mut rules = Rules::new();
+    let mut weight = 160;
+    for (second, step) in kokish_kraft_second_suits(minor) {
+        rules = rules
+            .rule(Bid::new(3, *step), weight, len(*second, 4..) & points(10..))
+            .alert(KK_TWO_SUITER);
+        weight -= 4;
+    }
+    rules
+        .rule(Bid::new(3, Strain::Notrump), 150, points(10..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The `(second suit, step)` pairs a completed transfer to `minor` can show
+///
+/// The source's own assignment, which is *not* next-suit-up: after the club
+/// transfer the three steps are ♥, ♠, ♦; after the diamond transfer the two
+/// steps are ♠ then ♥.  One table so the responder's rebid and opener's answer
+/// cannot drift apart.
+pub(crate) fn kokish_kraft_second_suits(minor: Suit) -> &'static [(Suit, Strain)] {
+    match minor {
+        Suit::Clubs => &[
+            (Suit::Hearts, Strain::Diamonds),
+            (Suit::Spades, Strain::Hearts),
+            (Suit::Diamonds, Strain::Spades),
+        ],
+        _ => &[
+            (Suit::Spades, Strain::Hearts),
+            (Suit::Hearts, Strain::Spades),
+        ],
+    }
+}
+
+/// Opener's answer to a two-suiter rebid behind a Kokish–Kraft minor transfer
+///
+/// Responder is 6-4 and game-forcing.  Bid the major game on four-card support
+/// (a ten-card fit's worth of trumps between the two hands is not on offer
+/// anywhere else), else `3NT` — the same call [`multi_clubs_transfer_completion`]
+/// settled on in this lane, and for the same reason: opener cannot know which
+/// major is theirs, and five of a minor on a 6-2 is the worse guess.
+//
+// ponytail: no minor-suit slam ladder and no 5m rung. Author one only if the
+// A/B shows the 3NT-or-4M pair costs.
+pub(crate) fn kokish_kraft_two_suiter_answer(second: Suit) -> Rules {
+    let mut rules = Rules::new();
+    if matches!(second, Suit::Hearts | Suit::Spades) {
+        rules = rules.rule(Bid::new(4, Strain::from(second)), 160, len(second, 4..));
+    }
+    rules.rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+}
+
+/// Responder, after their advancer competes over a Kokish–Kraft minor transfer
+/// and opener sits
+///
+/// The transfer was floorless, so opener's guarded sit is the only safe answer
+/// and the values — if responder has any — must act here instead.  `3NT` with
+/// game values and their now-named major stopped; **`X` on `hcp 10+` without
+/// one**, which is what keeps a 25-plus-point pair from selling out to a
+/// three-level partscore in a suit we know is only six long; otherwise the
+/// preempt has done its job and Pass takes the plus.
+///
+/// `hcp`, not `points`, on the double alone: responder's shown suit is six
+/// long, so `points` counts length this hand cannot cash on defence, and the
+/// `3NT` rung above is the one that wants the length term.
+///
+/// Opener has already passed, so the double stands as penalty
+/// ([`multi_signoff_pass`] answers it).  Unalerted: a double is penalty by
+/// default in this book, and it claims no shape — so the natural walk's reading
+/// is the true one and there is nothing an alert would add.
+pub(crate) fn kokish_kraft_transfer_overcalled(major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(major),
+        )
+        .rule(Call::Double, 140, hcp(10..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Kokish–Kraft `3♠` (both minors, game-forcing)
+///
+/// The unknown major cuts both ways, so `3NT` needs **both** majors stopped —
+/// that double stopper is exactly the information the call was made to buy.
+/// Without it, four of the better minor and responder raises to game
+/// ([`kokish_kraft_minors_place`]).
+pub(crate) fn kokish_kraft_minors_answer() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            160,
+            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            150,
+            at_least_as_long(Suit::Diamonds, Suit::Clubs),
+        )
+        .rule(Bid::new(4, Strain::Clubs), 100, hcp(0..))
+}
+
+/// Responder completes the both-minors game force in opener's chosen minor.
+/// Total — responder holds four-plus in each, so opener's pick is playable.
+pub(crate) fn kokish_kraft_minors_place(minor: Suit) -> Rules {
+    Rules::new().rule(Bid::new(5, Strain::from(minor)), 100, hcp(0..))
+}
+
+/// Opener when they compete over the Kokish–Kraft `3♠` both-minors game force
+///
+/// Responder promised game values with both minors, so 25+ combined points sit
+/// behind a call in a suit responder is by definition short in: double.
+///
+/// **Total on purpose, one rule.** An earlier draft wrote `X` on `hcp(15..)`
+/// with a `Pass` catch-all under it, which is a lie twice over: this seat
+/// belongs to the hand that opened `1NT`, so `hcp(15..)` is vacuous and the
+/// `Pass` could never fire.  A rule nothing reaches is worse than no rule —
+/// it reads as a decision that was made.
+//
+// ponytail: no 5m rung. Opener cannot know which minor responder is longer in
+// and we are already at the four level; if the A/B shows the doubles costing,
+// the fix is a length-gated pull, not a Pass.
+pub(crate) fn kokish_kraft_minors_overcalled() -> Rules {
+    Rules::new().rule(Call::Double, 100, hcp(0..))
 }
 
 #[cfg(test)]

@@ -105,8 +105,8 @@ pub(super) use sixcard_invitation::sixcard_invite;
 pub use size_ask::SizeAskEight;
 pub(super) use splinter::notrump_splinter;
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
-pub(super) use stayman_slam::{cue, minor_slam};
-pub(super) use texas::{texas_drive, texas_transfers};
+pub(super) use stayman_slam::{cue, minor_slam, slam_try_answer};
+pub(super) use texas::{direct_4m_max, texas_drive, texas_transfers};
 pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_force};
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
@@ -176,11 +176,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     // Direct `4♥/4♠` is the opener-decides slam try; with the Texas slam-drive
     // reroute on it caps at the 15–16 invitational band (17+ Texas-transfers and
     // drives its own RKCB instead — see `notrump.texas_slam_drive`).
-    let direct_4m_max: u8 = if agreements.notrump.texas_slam_drive {
-        15
-    } else {
-        18
-    };
+    let slam_try_max = direct_4m_max(agreements);
     // Jacoby transfers — any strength, except a game-forcing 5-4 in the majors
     // (its weak-only arm denies it): that hand keeps off the transfer and takes
     // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
@@ -318,7 +314,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
             260,
             len(Suit::Hearts, 6..)
                 & len(Suit::Spades, ..5)
-                & hcp(15..=direct_4m_max)
+                & hcp(15..=slam_try_max)
                 & not_major_splinter_slam(Suit::Hearts),
         )
         .alert(TEXAS)
@@ -327,7 +323,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
             260,
             len(Suit::Spades, 6..)
                 & len(Suit::Hearts, ..5)
-                & hcp(15..=direct_4m_max)
+                & hcp(15..=slam_try_max)
                 & not_major_splinter_slam(Suit::Spades),
         )
         .alert(TEXAS)

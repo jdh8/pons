@@ -122,6 +122,11 @@ fn main() {
         Ok(n) => agreements.competition.multi_weak_escape = Some(n.parse().expect("a suit length")),
         Err(_) => {}
     }
+    // The Kokish–Kraft whole-table counter (`competition.multi_kokish_kraft`),
+    // which needs `PROBE_THEIR_2D_MULTI` set to do anything at all.
+    if std::env::var("PROBE_MULTI_KOKISH_KRAFT").is_ok_and(|v| v != "0") {
+        agreements.competition.multi_kokish_kraft = true;
+    }
     // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
     // needs the same floor: under the shipped net floor a `floor#N` row prints

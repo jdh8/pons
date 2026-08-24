@@ -72,3 +72,19 @@ completion 696 -> 680
 
 [multi-stopper]
 comp:multi-stopper-ask 0 -> 8
+
+[kokish-kraft]
+comp:kk-minor-transfer 0 -> 8
+comp:kk-minors 0 -> 4
+comp:kk-two-suiter 0 -> 40
+comp:kk-values 0 -> 4
+comp:lebensohl-completion 44 -> 36
+comp:lebensohl-relay 24 -> 20
+comp:lebensohl-transfer 72 -> 68
+comp:multi-penalty 16 -> 24
+comp:multi-takeout 8 -> 12
+comp:multi-values 4 -> 0
+comp:stayman 8 -> 4
+completion 680 -> 676
+rkcb 17604 -> 17832
+smolen 120 -> 112

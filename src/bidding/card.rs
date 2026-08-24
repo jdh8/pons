@@ -152,6 +152,16 @@ const fn not_defined() -> usize {
 // second double as its "reopening double", which is what it is.  Its schema
 // has no row for the later 3♠ stopper ask either.
 //
+// `comp:kk-values` / `comp:kk-minor-transfer` / `comp:kk-two-suiter` /
+// `comp:kk-minors` (the opt-in Kokish–Kraft counter to the same `2♦`,
+// `competition.multi_kokish_kraft`, the fixture's `[kokish-kraft]` section):
+// same record, same reason — the whole subtree is keyed on the opponents'
+// disclosed `2♦`, which EPBot's schema cannot name at all, so a `.bbsa` row
+// would have nowhere to land.  The ceiling is the sharper one recorded for
+// N1j just below: BBA decodes this lane through the *uncontested* scheme our
+// card does disclose, so its reading of our `2NT`/`3♣` is its own business
+// whatever we author.  Accepted 2026-08-25; revisit only if the arm ships.
+//
 // `comp:landy-tko` / `comp:landy-spl` (the N1j BBA-ladder counter's GF
 // both-minors takeout/splinter family, default since 2026-08-15): same
 // record — the same no-schema-name reasoning covers them, and the ceiling

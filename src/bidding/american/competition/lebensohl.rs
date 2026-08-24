@@ -5,17 +5,23 @@
 //! ("Rubensohl") variant is [`super::rubensohl`]; [`LebensohlStyle`] picks
 //! between them.
 
+use super::super::slam;
 use super::penalty_double::{
     DoubleStyle, opener_cooperates_optional, opener_leaves_in_penalty_double, responder_double,
 };
 use super::rubensohl::{
-    clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
-    lm_2d_clubs_major, multi_2d_responder, multi_balance_double, multi_clubs_transfer_completion,
-    multi_fit_search_place, multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer,
-    multi_quant_answer, multi_relay_rebid, multi_responder_rebid, multi_signoff_pass,
-    multi_stopper_answer, multi_stopper_forcing_rebid, multi_stopper_over_four_spades,
-    multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
-    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
+    clubs_transfer_completion, cue_stayman_answer, kokish_kraft_delayed,
+    kokish_kraft_doubler_rebid, kokish_kraft_invite_answer, kokish_kraft_minor_completion,
+    kokish_kraft_minors_answer, kokish_kraft_minors_overcalled, kokish_kraft_minors_place,
+    kokish_kraft_responder, kokish_kraft_second_suits, kokish_kraft_transfer_overcalled,
+    kokish_kraft_transfer_rebid, kokish_kraft_two_suiter_answer, lm_2d_both_majors_advance,
+    lm_2d_clubs_ask, lm_2d_clubs_major, multi_2d_responder, multi_balance_double,
+    multi_clubs_transfer_completion, multi_fit_search_place, multi_fit_search_rebid,
+    multi_pass_answer, multi_penalty_answer, multi_quant_answer, multi_relay_rebid,
+    multi_responder_rebid, multi_signoff_pass, multi_stopper_answer, multi_stopper_forcing_rebid,
+    multi_stopper_over_four_spades, multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid,
+    transfer_completion, transfer_lebensohl_responder, transfer_stayman_2d_responder,
+    transfer_target,
 };
 use super::*;
 
@@ -127,6 +133,15 @@ fn defense_2c_landy(agreements: &Agreements) -> bool {
 fn defense_2d_multi(agreements: &Agreements) -> bool {
     agreements.decision.their.two_diamonds_multi
         && agreements.competition.lebensohl_style == LebensohlStyle::Transfer
+}
+
+/// Whether the Kokish–Kraft variant owns the `(2♦)` Multi lane
+/// ([`CompetitionKnobs::multi_kokish_kraft`][crate::bidding::agreements::CompetitionKnobs::multi_kokish_kraft])
+///
+/// The disclosure *and* the knob, so the knob is inert while their `2♦` is
+/// undeclared, natural, or the Plain Lebensohl style is selected.
+fn kokish_kraft(agreements: &Agreements) -> bool {
+    defense_2d_multi(agreements) && agreements.competition.multi_kokish_kraft
 }
 
 /// Whether the Landy counter carries the N1b minor cues
@@ -1379,6 +1394,279 @@ fn multi_escape_overcalled(major: Suit, over: Option<Bid>, agreements: &Agreemen
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// The Kokish–Kraft registration — responder's table, the double family, the
+/// neutral-pass family, the floorless minor transfers, `3♠` both minors, the
+/// major transfers, Leaping Michaels, the direct `4M` slam try, and the weak
+/// escape
+///
+/// Registered *instead of* the shipped N4 subtree ([`lebensohl_package`]
+/// branches on [`kokish_kraft`]), for [`landy_bba_entries`]'s reason: the two
+/// tables disagree on `2NT`, `3♣`, `3♠` and both delayed doubles, so an overlay
+/// would leave v7's rows shadowing these.  What it *reuses* rather than forks —
+/// [`multi_pass_answer`], [`multi_penalty_answer`], [`multi_takeout_answer`],
+/// [`multi_quant_answer`], [`multi_signoff_pass`], [`transfer_completion`], the
+/// `lm_2d_*` advances, the notrump book's [`slam_try_answer`]/`rkcb_rows`, and
+/// the whole weak-escape family — is the half of the lane K–K does not move.
+///
+/// [`CompetitionKnobs::multi_balance`] composes (a different seat, opener
+/// balancing over responder's pass); [`CompetitionKnobs::multi_stopper_ask`] is
+/// inert, its `3♠` being the both-minors call here.
+fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
+    const NT: &str = "P* 1NT";
+    const OVER: &str = "P* 1NT (2♦)";
+    let sit = multi_signoff_pass();
+    let mut entries = rows_of(
+        Pattern::after(NT, "(2♦)"),
+        kokish_kraft_responder(agreements),
+    );
+
+    // ---- the values double: opener's two answers, then the resolved round.
+    entries.extend(rows_of(Pattern::after(OVER, "X -"), multi_pass_answer()));
+    for major in [Suit::Hearts, Suit::Spades] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("X (2{})", Strain::from(major))),
+            multi_penalty_answer(major),
+        ));
+    }
+    for (path, major, ran) in [
+        ("X (2♥) - (-)", Suit::Hearts, false),
+        ("X (2♥) - (2♠)", Suit::Spades, true),
+        ("X (2♠) - (-)", Suit::Spades, false),
+        ("X (2♥) X (2♠)", Suit::Spades, true),
+    ] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, path),
+            kokish_kraft_doubler_rebid(major, ran),
+        ));
+        // The repeated double is penalty at *every* one of these paths (the
+        // K–K split), so opener sits on it rather than answering a takeout.
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{path} X -")),
+            sit.clone(),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{path} 2NT -")),
+            kokish_kraft_invite_answer(),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{path} 4NT -")),
+            multi_quant_answer(),
+        ));
+    }
+    // Responder, opener having doubled and the advancer sat: sit.  And their
+    // `2NT` over the doubled/undoubled `2♠` is the overcaller's heart relay
+    // (bba-1nt-defense.md) — nothing to say until they place it.
+    for major in [Suit::Hearts, Suit::Spades] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("X (2{}) X -", Strain::from(major))),
+            sit.clone(),
+        ));
+    }
+    for path in ["X (2♠) X (2NT)", "X (2♠) - (2NT)"] {
+        entries.extend(rows_of(Pattern::after(OVER, path), sit.clone()));
+    }
+
+    // ---- the neutral pass: responder's delayed table and its takeout double.
+    for (path, major) in [
+        ("- (2♥) - -", Suit::Hearts),
+        ("- (2♠) - -", Suit::Spades),
+        ("- (2♥) - (2♠)", Suit::Spades),
+    ] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, path),
+            kokish_kraft_delayed(major),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{path} X -")),
+            multi_takeout_answer(major),
+        ));
+        // The delayed `2NT` is natural and **competitive**, not invitational —
+        // and responder's first-turn pass has already denied `hcp 8+`, so the
+        // published reading is `hcp 7` and 3NT would be a 24-point punt.
+        // Opener sits.  (The `3♣`/`3♦` rungs beside it are dead in self-play —
+        // see [`kokish_kraft_delayed`] — so their answers stay the floor's.)
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{path} 2NT -")),
+            sit.clone(),
+        ));
+    }
+
+    // ---- the floorless minor transfers.
+    for (minor, transfer) in [(Suit::Clubs, "2NT"), (Suit::Diamonds, "3♣")] {
+        let done = Bid::new(3, Strain::from(minor));
+        // Their double takes no room: opener completes anyway, and every
+        // deeper `X`-then-bid suffix rebases onto the clean subtree.
+        for suffix in [format!("{transfer} -"), format!("{transfer} (X)")] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &suffix),
+                kokish_kraft_minor_completion(minor, agreements),
+            ));
+        }
+        entries.push(systems_on_over_double(
+            &format!("{OVER} {transfer}"),
+            &done.to_string(),
+        ));
+        let completed = format!("{transfer} - {done}");
+        for suffix in [format!("{completed} -"), format!("{completed} (X)")] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &suffix),
+                kokish_kraft_transfer_rebid(minor),
+            ));
+        }
+        for (second, step) in kokish_kraft_second_suits(minor) {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{completed} - {} -", Bid::new(3, *step))),
+                kokish_kraft_two_suiter_answer(*second),
+            ));
+        }
+        // Their pass-or-correct above the completion: opener sits (the
+        // transfer promised no values), and responder's — if it has any — act
+        // again.  Deeper than that is the floor's.
+        entries.extend(rows_of(
+            Pattern::up_to(&format!("{OVER} {transfer}"), "7♠"),
+            sit.clone(),
+        ));
+        // The same pair one round later, when they let the completion through
+        // and compete over *it* instead.  The shipped relay authors this seat
+        // (`multi_signoff_pass` over every sign-off, over their double of it,
+        // and over their balance); the `continue` above skips that block, so
+        // K–K re-registers its own — and responder's half is not a sit,
+        // because a weak *and* a game-forcing hand both live behind the
+        // floorless transfer and the game-forcing one has not spoken yet.
+        for major in [Suit::Hearts, Suit::Spades] {
+            let their = format!("(3{})", Strain::from(major));
+            for suffix in [
+                format!("{transfer} {their} - -"),
+                format!("{completed} {their}"),
+            ] {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &suffix),
+                    kokish_kraft_transfer_overcalled(major),
+                ));
+                // Opener has already passed once, so responder's values double
+                // there stands as penalty: sit on it rather than let the floor
+                // pull a partscore we chose to defend.
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{suffix} X -")),
+                    sit.clone(),
+                ));
+            }
+        }
+        // And their *balance* after both of us have passed it out — their bid,
+        // and their **double**, which `up_to` cannot see (it admits bids only)
+        // and which is the shape the floor is on record pulling.
+        entries.extend(rows_of(
+            Pattern::up_to(&format!("{OVER} {completed} - -"), "7♠"),
+            sit.clone(),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{completed} - - (X)")),
+            sit.clone(),
+        ));
+    }
+
+    // ---- the major transfers keep the shipped INV+ completions.
+    for (bid, target) in [("3♦", Suit::Hearts), ("3♥", Suit::Spades)] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{bid} -")),
+            transfer_completion(target, Suit::Diamonds, agreements),
+        ));
+    }
+
+    // ---- `3♠` both minors, game-forcing.
+    for suffix in ["3♠ -", "3♠ (X)"] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, suffix),
+            kokish_kraft_minors_answer(),
+        ));
+    }
+    entries.extend(rows_of(
+        Pattern::up_to(&format!("{OVER} 3♠"), "7♠"),
+        kokish_kraft_minors_overcalled(),
+    ));
+    for minor in [Suit::Clubs, Suit::Diamonds] {
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("3♠ - 4{} -", Strain::from(minor))),
+            kokish_kraft_minors_place(minor),
+        ));
+    }
+
+    // ---- Leaping Michaels, unchanged.
+    for (suffix, rules) in [
+        ("4♦ -", lm_2d_both_majors_advance()),
+        ("4♣ -", lm_2d_clubs_ask()),
+        ("4♣ - 4♦ -", lm_2d_clubs_major()),
+    ] {
+        entries.extend(rows_of(Pattern::after(OVER, suffix), rules));
+    }
+
+    // ---- the direct `4M` slam try: the uncontested tier and its RKCB ladder.
+    for major in [Suit::Hearts, Suit::Spades] {
+        let prefix = format!("{OVER} {} -", Bid::new(4, Strain::from(major)));
+        entries.extend(rows_of(Pattern::node(&prefix), slam_try_answer()));
+        entries.extend(slam::rkcb_rows(&prefix, major));
+    }
+
+    // ---- the weak natural escape, verbatim from the shipped lane: opener's
+    // sign-off raise fed the reading's own floor, plus the interfered tail.
+    let weak_escape = agreements.competition.multi_weak_escape;
+    if natural_floor_on(agreements) || weak_escape.is_some() {
+        let resp_floor = if weak_escape.is_some() {
+            0
+        } else {
+            natural_floor_hcp(agreements)
+        };
+        for signoff in [Suit::Hearts, Suit::Spades] {
+            let escape = Bid::new(2, Strain::from(signoff));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{escape} -")),
+                lebensohl_signoff_raise(signoff, resp_floor),
+            ));
+            if weak_escape.is_none() {
+                continue;
+            }
+            let overs = [
+                Bid::new(2, Strain::Spades),
+                Bid::new(2, Strain::Notrump),
+                Bid::new(3, Strain::Clubs),
+                Bid::new(3, Strain::Diamonds),
+                Bid::new(3, Strain::Hearts),
+                Bid::new(3, Strain::Spades),
+            ];
+            let theirs =
+                std::iter::once(None).chain(overs.into_iter().filter(|b| *b > escape).map(Some));
+            for bid in theirs {
+                let call = bid.map_or_else(|| "X".to_string(), |b| b.to_string());
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{escape} ({call})")),
+                    multi_escape_overcalled(signoff, bid, agreements),
+                ));
+            }
+        }
+    }
+
+    // ---- opener's balancing double over the neutral pass, when armed.
+    if agreements.competition.multi_balance {
+        for major in [Suit::Hearts, Suit::Spades] {
+            let advance = format!("- (2{})", Strain::from(major));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &advance),
+                multi_balance_double(major),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{advance} X -")),
+                sit.clone(),
+            ));
+            entries.extend(rows_of(
+                Pattern::up_to(&format!("{OVER} {advance} X"), "7♠"),
+                sit.clone(),
+            ));
+        }
+    }
+
+    entries
+}
+
 /// Sections 5 / 5b / 5c as a row package: Lebensohl after our `1NT` is
 /// overcalled at the 2 level (`agreements.competition.lebensohl_style`)
 ///
@@ -1682,6 +1970,12 @@ pub(super) fn lebensohl_package() -> Package {
             for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o = Strain::from(over);
                 let their = format!("(2{o})");
+
+                if over == Suit::Diamonds && kokish_kraft(agreements) {
+                    // N4-KK: the whole table swaps — see `kokish_kraft_entries`.
+                    entries.extend(kokish_kraft_entries(agreements));
+                    continue;
+                }
 
                 // Responder's first action: the uncovered suffix is exactly
                 // their overcall.
