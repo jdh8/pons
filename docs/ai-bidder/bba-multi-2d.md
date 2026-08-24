@@ -7,6 +7,10 @@ returns, summarise every bucket in DSL vocabulary. Multi-Landy is forced on all
 seats (`--conv "Multi-Landy=1"`, `Cappelletti=0`) so BBA both *bids* and
 *interprets* the 2♦ as a Multi.
 
+Published human counter-defenses to this exact `1NT (2♦)` object, including
+values/penalty, replacement-Stayman, and transfer families, are compared in
+[multi-landy-2d-counter-defense-research.md](multi-landy-2d-counter-defense-research.md).
+
 ```text
 cargo run --release --example probe-bba-constraints -- --mode multi
 cargo run --release --example probe-bba-constraints -- --mode advance

@@ -14,6 +14,10 @@ the WJ teacher net share a system.  Not to be confused with
 (Woolsey Multi-Landy) — a different call with a different meaning (that one is
 an intermediate 12-15; this one is weak).
 
+Independent defenses to this opening — the ACBL split-takeout and Dixon
+families, expert transfer variants, and their competitive tails — are surveyed
+in [multi-2d-opening-defense-research.md](multi-2d-opening-defense-research.md).
+
 ## How it was read
 
 ```sh

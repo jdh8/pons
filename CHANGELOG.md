@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Source surveys for both Multi `2♦` defense problems.** New research notes
+  compare defenses to a Multi opening and counter-defenses after `1NT (2♦)`,
+  keeping official methods, partnership methods, and incomplete source gaps
+  distinct. This is documentation only; bidding behavior is unchanged.
+
 - **Dutch's Multi `2♦`, in two variants (Phase 3's Multi slice).**
   [`opening.multi_two_diamonds`](src/bidding/agreements.rs) replaces all three
   of Dutch's natural weak twos with one artificial `2♦!` — 4–10 HCP, exactly one
