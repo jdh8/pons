@@ -204,6 +204,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Docs: current `1NT (2♦ Multi)` double meanings.** No code change. The
+  system map still called default-on Kokish–Kraft opt-in, while the BBA book and
+  source survey described retired v7 as pons's current table. They now agree
+  that repeated doubles after the initial values `X` are penalty, doubles after
+  an initial neutral pass are takeout, and v7 is the optional fallback.
+
 - **Completed the RKCB ladder after opponents double a minor-transfer `4m`
   slam try.** Constructive Puppet, Landy, and Kokish–Kraft now register the
   answer and full keycard tree after either pass or `X`, with end-to-end tests.

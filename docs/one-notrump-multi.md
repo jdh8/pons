@@ -22,12 +22,12 @@ below that key is authored at all.
 ## Regenerate
 
 ```bash
-# The tree: 89 sections, the whole lane, rules with their own English
+# The current default: the Kokish–Kraft tree, rules with their own English
 cargo run --release --example render-book -- --their-2d-multi --prefix "1NT 2♦"
 
-# ...and the opt-in Kokish–Kraft variant of the same lane (§N4-KK)
+# The retired v7 fallback
 cargo run --release --example render-book -- --their-2d-multi \
-    --prefix "1NT 2♦"
+    --no-ns-multi-kokish-kraft --prefix "1NT 2♦"
 cargo run --release --example probe-call-reading -- --their-2d-multi \
     "1N (2D) X -" "1N (2D) 2N -" "1N (2D) - (2H) - - X -"
 
@@ -371,7 +371,7 @@ points 0..`; `3♠` → `♣ 4..5, ♦ 4..5, points 10..`; `2♠` → `♠ 5.., 
 ### The delayed-double split
 
 The one structural idea every exact-object source in the survey shares, and the
-shipped lane's table does not have:
+retired v7 table did not have:
 
 | after | second `X` means | opener answers with |
 | --- | --- | --- |
@@ -407,7 +407,7 @@ Leaping Michaels**, so that route does not exist and the 16+ hand falls back on
 the `3♦`/`3♥` transfer, reaching `4M` through `transfer_completion` with its
 slam try left to the floor.
 
-That is *not* a K–K regression — the shipped v7 lane routes the identical hand
+That is *not* a K–K regression — the retired v7 lane routes the identical hand
 the identical way, and K–K only adds the exactly-15 direct rung on top. It is
 recorded because the fix is one token (`15..=18`, i.e. ignore
 `texas_slam_drive` in this lane, where Texas is not available) and it is a
@@ -439,8 +439,8 @@ knob changes nothing at all.
 ## See also
 
 - [one-notrump-competitive.md](one-notrump-competitive.md) — the campaign, the
-  census, the ledger; §N4/§N4e own this lane's verdicts, §N4-KK the opt-in
-  Kokish–Kraft variant.
+  census, the ledger; §N4/§N4e own the retired v7 verdicts, §N4-KK the
+  default-on Kokish–Kraft replacement.
 - [ai-bidder/multi-landy-2d-counter-defense-research.md](ai-bidder/multi-landy-2d-counter-defense-research.md)
   — the six published counter-defense families and their sources.
 - [authored-reading-handoff.md](authored-reading-handoff.md) — why a

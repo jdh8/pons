@@ -402,54 +402,29 @@ double after a run to spades is another empirical BBA tail
 
 ### What pons currently does
 
-The shipped pons table is another deliberate hybrid: `X` shows values; `2M`
-are weak natural escapes; `2NT` is a weak relay to `3♣`; `3♣` is Stayman with
-Smolen; `3♦`/`3♥` transfer to hearts/spades; `3♠` shows long clubs; `3NT`
-requires both major stoppers; and `4♣`/`4♦` show club-plus-major/both-majors
-hands respectively
-([current `1NT (2♦)` tree](../one-notrump-multi.md)).
+Pons now ships an adapted Kokish–Kraft table default-on against a declared
+Multi. It preserves the source's defining split: after the initial values `X`,
+a repeated double is cooperative penalty; after an initial neutral pass, the
+delayed double is takeout. Its exact thresholds, transfer adaptations,
+interfered tails, A/B verdict, and remaining differences from the source live
+in the [current `1NT (2♦)` tree](../one-notrump-multi.md) and
+[campaign §N4-KK](../one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
-After pons's first `X`, opener may double the pass-or-correct `2M` with four or
-more trumps. If opener sits, responder can later make a takeout double with the
-other major and shortness in the resolved suit; a run from hearts to spades
-switches the later double to penalty
-([current `1NT (2♦)` tree](../one-notrump-multi.md)).
-
-Closest external relatives, without claiming identity:
-
-- Kokish–Kraft is the closest **complete published direct table**: invite+
-  negative/Stayman-like `X`, natural `2M`, a club relay, major transfers, both-minor calls,
-  explicit jumps, and an explicit direct-versus-delayed double distinction. It
-  still differs materially in `X` strength/shape, subsequent-double meanings,
-  `2NT`, `3♣`, `3♠`, `3NT`, and every four-level call
-  ([Kokish–Kraft](https://bridgewithdan.com/wp-content/uploads/2019/07/WEAK-NOTRUMP-SYSTEM-Kokish-Kraft-Jan-2008.pdf);
-  [current pons tree](../one-notrump-multi.md)).
-- The **major-showing/penalty-process double** is documented most clearly by
-  Gilles–Roupoil and *Jean Christophe*, but pons's direct `X` is values rather
-  than a guaranteed four-card major
-  ([Gilles–Roupoil](https://www.normalesup.org/~glafon/bridge/gilles.pdf);
-  [*Jean Christophe*](https://www.clairebridge.com/textes/jean_christophe.pdf);
-  [current pons tree](../one-notrump-multi.md)).
-- The **compressed transfer ladder** is documented by Khandelwal–Khandelwal,
-  but it uses `X` as a heart transfer and `2NT` as both minors rather than
-  pons's values double and weak relay
-  ([Khandelwal–Khandelwal](https://www.bridgewebs.com/bfame/INDIA%20MIX%201%20HIMANIRAJEEV%202.pdf);
-  [current pons tree](../one-notrump-multi.md)).
-- The **cards/negative double plus natural `2M` and Lebensohl** is documented
-  by Cohen and appears generically on the official Serbia card; neither source
-  supplies pons's exact unknown-major stopper and four-level structure
-  ([Cohen](https://www.larryco.com/bridge-articles/notrump-interference-advanced);
-  [Serbia card](https://championships.eurobridge.org/2026EOWT/CC/Serbia1_Djordjevic_Gorana.pdf);
-  [current pons tree](../one-notrump-multi.md)).
+The retired v7 fallback (`--no-ns-multi-kokish-kraft`) is the BBA-like hybrid
+described above: values `X` at 6+ HCP, a delayed takeout double after the major
+is resolved, and a penalty double after a heart-to-spade run.
 
 ## Candidate packages that the evidence actually supports
 
-These are research candidates, not recommendations to ship:
+This was the pre-implementation candidate list. Candidate 1 shipped in adapted
+form on 2026-08-25; the others remain research alternatives, not
+recommendations to ship:
 
-1. **Kokish–Kraft four-suit-transfer package:** neutral pass with delayed
-   takeout, invite+ negative/Stayman-like `X` with later cooperative penalty
-   doubles, natural `2M`, four-suit transfers, `3♠` both minors GF, and explicit
-   game-level calls. This is the most complete exact-object package found
+1. **Kokish–Kraft four-suit-transfer package (shipped in adapted form):**
+   neutral pass with delayed takeout, invite+ negative/Stayman-like `X` with
+   later cooperative penalty doubles, natural `2M`, four-suit transfers, `3♠`
+   both minors GF, and explicit game-level calls. This is the most complete
+   exact-object package found
    ([Kokish–Kraft](https://bridgewithdan.com/wp-content/uploads/2019/07/WEAK-NOTRUMP-SYSTEM-Kokish-Kraft-Jan-2008.pdf)).
 2. **Gilles/Jean-Christophe penalty process:** `X` guarantees a four-card major
    and invite-or-better values; `2M` natural; transfer/Rubensohl calls above;

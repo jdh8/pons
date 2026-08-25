@@ -586,7 +586,7 @@ authors, all under the same gate —
 
 | seat | table |
 | --- | --- |
-| responder after `X (2♥) - -`, `X (2♥) - (2♠)`, `X (2♠) - -`, `X (2♥) X (2♠)` | `multi_responder_rebid(M, ran)` on the *resolved* major — **v7 (shipped)**: `4NT` = `hcp(16..)`; `2♠` = five spades `hcp ≤8` (hearts resolved); `X` = **takeout**, four of the other major and ≤2 of theirs (`comp:multi-takeout`) — in the `ran` shape (`X (2♥) - (2♠)`, `X (2♥) X (2♠)`) four spades and 7+ (`comp:multi-penalty`); `3NT` = `points(10..) & stopper_in(M)`; else pass. (v4: `3NT` stopper / `X` = `len(M, 4..)` penalty / pass.) |
+| responder after `X (2♥) - -`, `X (2♥) - (2♠)`, `X (2♠) - -`, `X (2♥) X (2♠)` | `multi_responder_rebid(M, ran)` on the *resolved* major — **v7 (then default)**: `4NT` = `hcp(16..)`; `2♠` = five spades `hcp ≤8` (hearts resolved); `X` = **takeout**, four of the other major and ≤2 of theirs (`comp:multi-takeout`) — in the `ran` shape (`X (2♥) - (2♠)`, `X (2♥) X (2♠)`) four spades and 7+ (`comp:multi-penalty`); `3NT` = `points(10..) & stopper_in(M)`; else pass. (v4: `3NT` stopper / `X` = `len(M, 4..)` penalty / pass.) |
 | responder after `X (2M) X -` | sit |
 | opener after responder's takeout double (`X (2M) - - X -`) | `multi_takeout_answer(M)`: sit with four of theirs, bid the 4-4 fit (`2♠`/`3♥`), else a four-card minor, else `2NT` |
 | opener after responder's `ran`-shape penalty double, `2♠`, `4NT` | sit / sit / `6NT` with 17 else pass (`multi_quant_answer`) |
@@ -1476,9 +1476,9 @@ forensic, candidates and pre-registered decision rule:
 
 ## N4-KK — the Kokish–Kraft counter, a whole-table variant (**SHIPPED DEFAULT-ON 2026-08-25**)
 
-The one bucket that reopens N4 (see the queue note above): not another rung of
-the shipped lane but a **different published table** for the same object, so it
-is a new variant rather than a new seed.
+The one bucket that reopened N4 (see the queue note above): not another rung of
+the then-default v7 lane but a **different published table** for the same
+object, so it was a new variant rather than a new seed.
 
 `docs/ai-bidder/multi-landy-2d-counter-defense-research.md` surveyed the
 counter-defenses to a `1NT (2♦ = one unknown 6+ major)` overcall and found no
@@ -1496,7 +1496,7 @@ This is a whole-table swap, registered *instead of* the v7 subtree for
 [`landy_bba_entries`][n1j]'s reason: the two disagree on `2NT`, `3♣`, `3♠` and
 both delayed doubles, so an overlay would leave v7's rows shadowing these.
 
-| call | v7 (shipped) | K–K (this arm) |
+| call | v7 (previous default) | K–K (this arm) |
 | --- | --- | --- |
 | `X` | values, `hcp 6+` (BBA's own band, the 41% workhorse) | invitational-plus values, `hcp 8+`, **no shape promise**; the 6–7 band takes a *designed* neutral pass |
 | `-` | nothing authored past opener's floor seat | a **neutral pass with its own delayed table** once they name the major: takeout `X`, natural `2NT`, competitive `3m` |
@@ -1515,7 +1515,7 @@ Michaels `4♣`/`4♦`, and every answer of the double family
 both-minors call here.
 
 The **delayed-double split** is the one structural idea every exact-object
-source in the survey agrees on, and the shipped lane does not have: after an
+source in the survey agrees on, and the retired v7 table did not have: after an
 initial `X`, a second double is cooperative penalty; after an initial *pass*, it
 is takeout. v7 has one takeout double and no pass table at all, so the two arms
 differ on both halves at once.

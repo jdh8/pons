@@ -546,15 +546,15 @@ corpus, not an absent reading. Both walks retain `3♣` as `transfer completed`
 after `2NT -`; the natural corpus completed it 2/2, while the interpreter still
 exposes alternatives.
 
-**Mimic verdict: nothing to author.** Our `multi_2d_responder`
-(`rubensohl.rs:499-534`) already contains the behavioral backbone: `X` = values
-at weight 130 with 6+ HCP, followed by the same takeout-versus-penalty double
-split once they name the major. It also has the structure BBA's table lacks —
-`3♦`/`3♥` transfers, `3♣` Stayman into Smolen, `4♣`/`4♦` Leaping Michaels, the
-`2NT` scramble relay, and the N4e weak escapes. The full authored tree and its
-measured verdict are in [one-notrump-multi.md](../one-notrump-multi.md). N4
-stays closed; the remaining BBA differences are observations, not a knob or a
-new A/B.
+**Pons verdict (updated 2026-08-26): no BBA mimic.** The then-default v7
+`multi_2d_responder` contained BBA's behavioral backbone: `X` = values at 6+
+HCP, a delayed takeout double after they named the major, and a penalty double
+after they ran from hearts to spades. Kokish–Kraft replaced that table
+default-on the next day: after the initial `X`, the repeated double is penalty;
+after an initial neutral pass, the delayed double is takeout. The retired v7
+table remains behind `--no-ns-multi-kokish-kraft`. The current tree and A/B
+verdict are in [one-notrump-multi.md](../one-notrump-multi.md) and
+[one-notrump-competitive.md §N4-KK](../one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
 ### 5.6 The book/floor partition
 
