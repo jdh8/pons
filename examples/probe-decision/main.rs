@@ -4,7 +4,7 @@
 //! `Partnership::explain_call`.
 //!
 //! ```text
-//! cargo run --release --example probe-decision -- "Q93.K43.AKJT.Q42" "1NT 2♠ 2NT - 3♣ - 3♦ -" [none|both|we|they]
+//! cargo run --release --example probe-decision -- "Q93.K43.AKJT.Q42" "1NT (2♠) 2NT - 3♣ - 3♦ -" [none|both|we|they]
 //! ```
 //!
 //! `PROBE_FLOOR=instinct` swaps the shipped net floor for the deterministic one,
@@ -31,7 +31,7 @@ fn main() {
         .next()
         .expect("auction")
         .split_whitespace()
-        .map(|c| match c {
+        .map(|c| match c.trim_matches(['(', ')']) {
             "-" | "P" => Call::Pass,
             "X" => Call::Double,
             "XX" => Call::Redouble,

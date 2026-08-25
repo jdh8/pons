@@ -468,7 +468,7 @@ belongs in its ship row. The removed BBA arm used
 
 ### Flagged, not fixed (floor defects; reversible defaults proposed)
 
-- `1NT (4♥) X - 5♦ - 5♥ X - - -` — responder's third call is a five-level cue
+- `1NT (4♥) X - 5♦ - 5♥ (X) - - -` — responder's third call is a five-level cue
   the floor then passes (2 bd, −34). Out of the book's line; the proposed
   repair is a floor rail "no cue above game unless slam-forcing", for the floor
   campaign.

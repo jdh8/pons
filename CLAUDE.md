@@ -140,7 +140,8 @@ two docs above hold the full story; the rules survive summarizing:
   every pass as `-`, parenthesize only opponents' non-pass calls, and expand
   implied passes (`1NT - 2♦ - 2♥`).  `P*` remains the row grammar's
   leading-pass fan; use `P`/`(P)` only when discussing legacy input or quoting
-  an external format.
+  an external format.  Probe/render binaries ignore parentheses in auction
+  input; only the row grammar (`rows.rs`) seat-checks them.
 - Never alias `ddss_sys` (`use ddss_sys as dds;` collides with `dds-bridge`).
 - The distributed data-gen fleet is called the **fleet** (`scripts/fleet/` on
   its machines), never a "botnet".

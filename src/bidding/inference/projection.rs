@@ -555,7 +555,7 @@ fn authored_effect<'a>(
     // A `hcp(0..)` catch-all projects ⊤ and hands its call to the walk; the
     // fold then makes `⊤ ∩ ¬(heavier siblings)` informative, and substituting
     // it wholesale threw the walk's *lengths* away with its strength guess —
-    // `1♥ (2♥) - 2♠` read ♠0+, and the keycard ladder keyed a void.  Such a
+    // `(1♥) 2♥ - 2♠` read ♠0+, and the keycard ladder keyed a void.  Such a
     // call is natural (`artificial_calls_are_alerted`), so the walk reads its
     // shape and the fold keeps the strength it alone knows.
     let walk_shape = informative && positive_top && !alerted;

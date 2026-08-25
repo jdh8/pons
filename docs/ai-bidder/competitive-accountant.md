@@ -536,7 +536,7 @@ does not say the five-level ones are worth more.
 Not one of the three the design recorded: **the gate prices *their* live bid as
 a contract even when it is artificial.** Refreshing `bba-decompose`'s stale
 `ben-v5-shard` fixture turned up the shipped gate's one behaviour change over
-those 8 deals, and it is this — `1♥ - (P) - 2♥ - (3♠) - P - (4♥)`, where their
+those 8 deals, and it is this — `1♥ - 2♥ (3♠) - (4♥)`, where their
 `4♥` is a cue agreeing spades, and we now double it. BEN duly bid `4♠` over the
 double; nobody was ever going to play `4♥`.
 

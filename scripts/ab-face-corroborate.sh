@@ -14,7 +14,7 @@
 # after a `5♥` step answer was sat in a 4-1 "fit" for −20).  The face rung —
 # the hand-free fallback — never carried that bar, and it reads the auction
 # BELOW the ask, so it cannot see that the suit it keys is the suit the answer
-# happens to name.  `1♥ (2♥) - 2♠ - 3♣ - 3♦ - 4NT - 5♦ -` keyed diamonds off
+# happens to name.  `(1♥) 2♥ - 2♠ - 3♣ - 3♦ - 4NT - 5♦ -` keyed diamonds off
 # our own `3♦` and the asker passed the "minor answer" holding a singleton
 # (−16).  This arm extends `corroborated` to that rung, one `.filter`.
 #

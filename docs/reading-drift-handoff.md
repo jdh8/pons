@@ -1041,7 +1041,7 @@ tail**, and the head carried nearly all the mass:
 | family | exemplars (excluded/readings) | wrong claim |
 | --- | --- | --- |
 | takeout double outside the direct seat | `1♠ - - X` 26/87, `1♥ - - X` 16/75, `1♦ - - X` 15/57, `1♣ - - X` 14/47, `1♠ - 2♠ - - X` 7/12, `2♣ X` 8/14 | `points 11..` — opening values |
-| own-suit rebid after partner spoke | `(2♥) 2♠ - 3♥ - 3♠` 8/8, `(2♠) 3♥ - 3♠ - 4♥` 11/17, `1♥ (1♠) X - 4♥` 10/16, `1♦ (2♠) X - 3♦`, `1♣ (1♠) X (1NT) - 2♠` 6/6 | the suit `6..` |
+| own-suit rebid after partner spoke | `(2♥) 2♠ - 3♥ - 3♠` 8/8, `(2♠) 3♥ - 3♠ - 4♥` 11/17, `1♥ (1♠) X - 4♥` 10/16, `1♦ (2♠) X - 3♦`, `1♣ (1♠) X (1NT) - (2♠)` 6/6 | the suit `6..` |
 | Ogust answers | `2♥ - 2NT - 3♣` 19/20, `2♠ - 2NT - 3♣` 17/22, `2♦ - 2NT - 3♣` 12/14 | the answer's face suit `4..` |
 
 #### Triage, per the program's step 3
@@ -1194,7 +1194,7 @@ Also newly filed by the sweep, on the worklist rather than in a queue:
 
 - **The remaining `i_bid_it` sixth card**, where partner spoke but neither cued
   nor doubled: the overcaller's rebid over a `1NT` advance
-  (`1♣ (1♠) X (1NT) - 2♠`, 96 % excluded in replay, 6/6 live) and responder's
+  (`1♣ (1♠) X (1NT) - (2♠)`, 96 % excluded in replay, 6/6 live) and responder's
   balancing rebid (`1♣ - 1♦ (1♠) - - 2♦`, 64 %). Deliberately not folded in:
   two shipped pins defend the six in the neighbouring shapes —
   `competitive_opener_rebid_shows_sixth_card` (`1♦ (1♥) - (2♥) 3♦`, partner

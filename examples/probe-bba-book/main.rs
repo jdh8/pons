@@ -354,7 +354,8 @@ fn parse_auction(text: &str) -> anyhow::Result<Auction> {
     Ok(auction)
 }
 
-/// The house rendering: pass as `-`, the non-opening side's calls parenthesized
+/// Opener-anchored rendering: pass as `-`, the non-opening side parenthesized.
+/// It is house form only when the probed side opened.
 fn house(auction: &[Call]) -> String {
     use core::fmt::Write;
     let opener = auction.iter().position(|&call| call != Call::Pass);

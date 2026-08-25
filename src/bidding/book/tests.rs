@@ -1004,7 +1004,7 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
 
 /// Rows Phase 2b: the opponents' calls read off *their* books
 ///
-/// `1♣ - - 2♦`, seen from the 4th seat: both opponents' calls are theirs to
+/// `(1♣) - (2♦)`, seen from the 4th seat: both opponents' calls are theirs to
 /// disclose.  American reads the 2♦ response as its own jump shift (6+♦, no
 /// strength floor); the Dutch book that actually bid it shows 5+♦, no 4-card
 /// major, game-forcing.  Declaring the opponent must move the reading of RHO

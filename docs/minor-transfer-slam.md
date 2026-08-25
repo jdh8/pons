@@ -106,7 +106,10 @@ Two reasons, one of them structural:
   competitive lane**. K–K, Landy, N3 and Rubensohl are all disturbed by
   construction. The doctrine's premise cannot hold in any of them.
 - Even uncontested, the ask carries `combined_points(29)` against `own +
-  partner's shown floor`, so a `13` floor lets only a 16-17 opener ask.
+  partner's shown floor`, so a `13` floor lets only a 16-17 opener ask — and if
+  the `4m` is *unauthored*, partner's shown floor is **zero**, which no opener
+  can make up. Probed uncontested 2026-08-25: the ask is not merely rationed
+  there, it is absent. See §"The constructive lane is worse, not milder".
 
 **So the rule gains a second half:** a `4m` slam try owes an authored answer.
 `american::slam::rkcb_rows(prefix, trump)` is already reachable from
@@ -149,12 +152,15 @@ the same treatment, which ship together.
    copy: `landy_bba_transfer_rebid`'s `4m` is shipped default-on today with **no
    authored answer**, which is the same floored seat this campaign found, one
    lane over. Owed its own seed.
-3. **Constructive Puppet and European minors.** Both decline slam by design and
-   say so — "the lane places games, it is not a slam try", and
+3. **Constructive Puppet and European minors — PROBED 2026-08-25, and the
+   defect is real.** Both lanes decline slam by design and say so — "the lane
+   places games, it is not a slam try", and
    [`club_no_shortness`](../src/bidding/american/notrump/minor_transfers.rs) is
-   named "game-going, slamless". Re-open after (1) and (2) measure, with a probe
-   first. The "cost is smallest here" argument is **withdrawn** — see the
-   corrected escape-hatch note above.
+   named "game-going, slamless". The probe that item asked for has now been run;
+   see §"The constructive lane is worse, not milder" below. The "cost is
+   smallest here" argument is **withdrawn** — see the corrected escape-hatch note
+   above — and so is "probe first": the probe is done, what is owed now is the
+   design and its A/B.
 4. **N3 and Rubensohl.** A different defect (floored, not shadowed). Out of
    scope for this campaign; recorded so nobody folds them in.
 
@@ -252,6 +258,59 @@ The two tables differ exactly where the payload was made a payload — Landy's
 rung is skimmed by stopper cues at w150/149 that K–K does not have — so the
 number does not transplant back by symmetry. Queue item 2 owns it, on its own
 seed.
+
+## The constructive lane is worse, not milder — probed 2026-08-25
+
+The campaign opened on the assumption that the constructive lanes were the mild
+case: uncontested, `Context::undisturbed` holds, so `instinct`'s `4NT` keycard
+ask is *available*, and N1's "leave the `4m` to the floor" doctrine ought to
+work there even though it does not in a competitive lane. **Both halves of that
+are false.** Two probes, both on `american()` at its shipped defaults:
+
+**1. Responder's seat is fully shadowed — there is no slam try to leave to
+anyone.** At `1NT - 2♠ - 3♣ -` (Puppet transfer to clubs, completed), holding
+`32.K42.A2.AKQJ32` — 17 HCP, six clubs to the AKQJ, facing a 16–17 notrump, so
+**33–34 combined** — the whole vocabulary is:
+
+```
+3NT  0.900  rule #4: (exactly 8 HCP, and balanced), or (6+ ♣, 8+ HCP, 2+ ♦, 2+ ♥, and 2+ ♠)
+```
+
+One call, from a book node whose gate is `8+ HCP`. A 17-count and an 8-count
+take the same bid, and the floor is never consulted — `provenance` reads
+`fallback: None`. This is the same shadowing the K–K lane had, one layer
+deeper: there the ladder at least offered two-suiter steps.
+
+**2. The floor would not rescue it even if the node were widened.** At
+`1NT - 2♠ - 3♣ - 4♣ -`, opener holding `AQ32.KQ54.A4.K32`, the floor's entire
+vocabulary is:
+
+```
+4♥  1.500
+P   0.000
+```
+
+No `4NT`. It takes `4♥` on a balanced 16 facing a club slam try — the *same
+wrong answer* the disturbed K–K lane gave, though `undisturbed()` is satisfied
+here and the keycard ask is nominally available.
+
+**So `undisturbed` was necessary but not sufficient — and the two gates in
+§"The doctrine, and where it breaks" turn out to be one gate.** Uncontested,
+partner's read at that seat is `hcp 0..37`: the `4♣` reads as **nothing**,
+because no book node authors it. The ask carries `combined_points(29)` against
+`own + partner's shown floor`, and an unread call shows a floor of **zero**, so
+a 16-count sums to 16 and the ask is suppressed — not rationed, *absent*. The
+reading gate and the points gate are the same gate, reached through the shown
+floor. (The disturbed lane at least read `hcp 6..8` off the K–K transfer, and
+still answered `4♥`, because `undisturbed` fails there independently.) This is
+the "a call reads as nothing" failure of
+[sampled-projection.md](ai-bidder/sampled-projection.md), reached from the
+opposite direction.
+
+The consequence for the rule this campaign proposes: **an unauthored `4m` is
+not a slam try anywhere, contested or not.** The rung and its answer have to be
+authored together in every lane — which is what the N4-KK build did, and what
+the Landy port and the constructive design both still owe.
 
 ## Decided — do not re-litigate
 

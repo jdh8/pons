@@ -1429,9 +1429,9 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
         ));
     }
     for (path, major, ran) in [
-        ("X (2♥) - (-)", Suit::Hearts, false),
+        ("X (2♥) - -", Suit::Hearts, false),
         ("X (2♥) - (2♠)", Suit::Spades, true),
-        ("X (2♠) - (-)", Suit::Spades, false),
+        ("X (2♠) - -", Suit::Spades, false),
         ("X (2♥) X (2♠)", Suit::Spades, true),
     ] {
         entries.extend(rows_of(
@@ -2096,9 +2096,9 @@ pub(super) fn lebensohl_package() -> Package {
                     // 3NT with a stopper, 4NT, the weak 2♠ — and opener's
                     // answers to each, so no seat of the family is floored.
                     let resolved = [
-                        ("X (2♥) - (-)", Suit::Hearts, false),
+                        ("X (2♥) - -", Suit::Hearts, false),
                         ("X (2♥) - (2♠)", Suit::Spades, true),
-                        ("X (2♠) - (-)", Suit::Spades, false),
+                        ("X (2♠) - -", Suit::Spades, false),
                         ("X (2♥) X (2♠)", Suit::Spades, true),
                     ];
                     for (path, major, ran) in resolved {
@@ -2148,7 +2148,7 @@ pub(super) fn lebensohl_package() -> Package {
                                 sit.clone(),
                             ));
                             entries.extend(rows_of(
-                                Pattern::after(NT, &format!("{ask} (4♠) - (-)")),
+                                Pattern::after(NT, &format!("{ask} (4♠) - -")),
                                 multi_stopper_forcing_rebid(),
                             ));
                             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
@@ -2157,7 +2157,7 @@ pub(super) fn lebensohl_package() -> Package {
                                     entries.extend(rows_of(
                                         Pattern::after(
                                             NT,
-                                            &format!("{ask} (4♠) - (-) {game} {their_call}"),
+                                            &format!("{ask} (4♠) - - {game} {their_call}"),
                                         ),
                                         sit.clone(),
                                     ));
@@ -2233,7 +2233,7 @@ pub(super) fn lebensohl_package() -> Package {
                         }
                     }
                     entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (2♥) - (-) 2♠ -")),
+                        Pattern::after(NT, &format!("{their} X (2♥) - - 2♠ -")),
                         sit.clone(),
                     ));
                     // Responder, opener having doubled and the advancer sat: sit.

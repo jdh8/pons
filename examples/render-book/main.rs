@@ -20,7 +20,7 @@
 //! Unlabeled guards are counted the same way.
 //!
 //! Run with `cargo run --example render-book` (pipe to a pager — it is long).
-//! `--prefix "1NT 2♦"` cuts it to one lane's subtree, `--no-ns-multi-kokish-kraft`
+//! `--prefix "1NT (2♦)"` cuts it to one lane's subtree, `--no-ns-multi-kokish-kraft`
 //! swaps that lane back from the shipped §N4-KK table to v7, and `--their-2d-multi`
 //! declares their `2♦` a Multi first, so the N4 tables are in the book at all
 //! ([docs/one-notrump-multi.md](../../docs/one-notrump-multi.md)).
@@ -36,7 +36,7 @@ use std::sync::Arc;
 
 #[derive(Parser)]
 struct Args {
-    /// Only print nodes whose auction starts with this, e.g. `"1NT 2♦"`
+    /// Only print nodes whose auction starts with this, e.g. `"1NT (2♦)"`
     #[arg(long, default_value = "")]
     prefix: String,
 
@@ -83,7 +83,8 @@ fn print_rules(rules: &Rules, opaque: &mut usize) {
 }
 
 fn main() {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    args.prefix.retain(|c| !matches!(c, '(' | ')'));
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;

@@ -420,13 +420,13 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     seat: c_int,
 
-    /// `--mode custom`: the replayed auction, space-delimited (`1NT 2♦ X 2♥ - -`),
-    /// `-`/`P` = pass, `X`, `XX`
+    /// `--mode custom`: the replayed auction, space-delimited
+    /// (`1NT (2♦) X (2♥) - -`); parentheses are ignored, `-`/`P` = pass
     #[arg(long, default_value = "")]
     calls: String,
 
     /// `--mode custom`: keep only actor hands BBA makes this call with over
-    /// `--filter-prefix` (e.g. `--filter-call X --filter-prefix "1NT 2♦"`)
+    /// `--filter-prefix` (e.g. `--filter-call X --filter-prefix "1NT (2♦)"`)
     #[arg(long)]
     filter_call: Option<String>,
 
@@ -442,6 +442,7 @@ struct Args {
 /// EPBot bid code for one auction token: `-`/`P` = 0, `X` = 1, `XX` = 2, else
 /// `5 + (level-1)*5 + strain` (♣ ♦ ♥ ♠ NT).
 fn parse_call(token: &str) -> Result<c_int> {
+    let token = token.trim_matches(['(', ')']);
     match token {
         "-" | "P" => return Ok(PASS),
         "X" => return Ok(DOUBLE),

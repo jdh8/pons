@@ -6,7 +6,7 @@
 # A `hcp(0..)` catch-all projects ⊤ and hands its call to the natural walk.
 # Under `bid_exclusion` the fold makes `⊤ ∩ ¬(heavier siblings)` informative,
 # `substitutes_natural` fires, and the walk is suppressed — taking its *length
-# floors* with it.  `1♥ (2♥) - 2♠` read the Michaels advance ♠ 0..13 instead of
+# floors* with it.  `(1♥) 2♥ - 2♠` read the Michaels advance ♠ 0..13 instead of
 # ♠ 3..13, `answer_trump`'s provable-eight rung then failed, and the keycard
 # ladder keyed a suit the asker was void in (the two −16/−17 RKCB boards Phase
 # 4's own A/B census filed).

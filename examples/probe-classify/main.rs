@@ -18,7 +18,7 @@ struct Args {
     #[arg(long)]
     hand: String,
 
-    /// Space-separated calls from the dealer (e.g. "- 1H - 3H -")
+    /// Space-separated calls from the dealer; parentheses are ignored
     #[arg(long)]
     auction: String,
 
@@ -42,7 +42,7 @@ fn main() {
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
-        let call: Call = token.parse().expect("valid call");
+        let call: Call = token.trim_matches(['(', ')']).parse().expect("valid call");
         auction.push(call);
     }
 

@@ -68,6 +68,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Parentheses are theirs-only in house auction notation.** Corrected the live
+  mis-sided examples and comments, and canonicalized seven row-grammar `(-)`
+  passes to `-`. `render-book`, `probe-bba-constraints`, `probe-classify`, and
+  `probe-decision` now accept house-form input by ignoring parentheses; only
+  the row grammar seat-checks them. No bidding change: the 20,000-board,
+  seed-1 `smoke-default` dump is byte-identical before and after
+  (`81c92bd4f6d1…`).
+
 - **Docs: three stale or wrong claims about minor transfers.** No code change.
   `docs/one-notrump-multi.md` still headed the Kokish–Kraft section "opt-in …
   stays off" after it shipped default-on; `docs/one-notrump-constructive.md`
@@ -1357,7 +1365,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its projection is ⊤ — it promises *nothing* — and the natural walk supplied
   the reading; `bid_exclusion` then made `⊤ ∩ ¬(heavier siblings)` informative,
   `substitutes_natural` fired, and the walk was suppressed. What the fold knows
-  is **strength**, so the call's lengths went out with the walk: `1♥ (2♥) - 2♠`
+  is **strength**, so the call's lengths went out with the walk: `(1♥) 2♥ - 2♠`
   read the Michaels advance `♠ 0..13` instead of `♠ 3..13`, `answer_trump`'s
   provable-eight rung failed, and the keycard ladder keyed a suit the asker
   held 0–1 of (the two RKCB decodes Phase 4's own census filed at −31/−33).
@@ -1368,7 +1376,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   along the way is rolled back at the top of the next iteration. The fold's
   band — the half it alone knows — stays in the overlay. So `1♥ - 2NT - 4♥`
   still discards the walk's `points 16..21` guess (Phase 4's whole payoff,
-  pinned by `bid_exclusion_admits_the_jacoby_sign_off`) while `1♥ (2♥) - 2♠`
+  pinned by `bid_exclusion_admits_the_jacoby_sign_off`) while `(1♥) 2♥ - 2♠`
   gets its `♠ 3+` back. With `bid_exclusion` off the bit is structurally
   unreachable, so that path is byte-identical by construction.
 
@@ -1385,7 +1393,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Cost, stated: `probe-reading-sound -s 20260816 -c 40000` partner exclusions
   **1.180% → 1.238%**. The walk's `♠ 3+` is genuinely wrong at
-  `1♥ (2♥) - 2♠` (17/27) — that advance is a *preference* to partner's shown
+  `(1♥) 2♥ - 2♠` (17/27) — that advance is a *preference* to partner's shown
   five-card suit and is routinely made on a doubleton. Its authored reading
   is now repaired above; the probe falls to 1.212%, not all the way back to
   1.180%, so other `walk_shape` families account for the residual.
