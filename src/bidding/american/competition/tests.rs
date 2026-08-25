@@ -151,12 +151,18 @@ fn kokish_kraft_package_invariants() {
         (Some(6), true),
         (None, true),
     ] {
-        let mut arm = Agreements::default();
-        arm.decision.their.two_diamonds_multi = true;
-        arm.competition.multi_kokish_kraft = true;
-        arm.competition.multi_weak_escape = weak;
-        arm.competition.multi_balance = balance;
-        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        // The `4m` slam try adds rows at four seats and a whole RKCB ladder, so
+        // it sweeps as its own axis: `None` is the shipped table, and both A/B
+        // floors must leave every guarded continuation total.
+        for slam in [None, Some(13), Some(15)] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_diamonds_multi = true;
+            arm.competition.multi_kokish_kraft = true;
+            arm.competition.multi_weak_escape = weak;
+            arm.competition.multi_balance = balance;
+            arm.competition.multi_minor_slam_try = slam;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
     }
 }
 

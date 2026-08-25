@@ -50,6 +50,18 @@ struct Args {
     /// to do anything (§N4-KK)
     #[arg(long, default_value_t = false)]
     no_ns_multi_kokish_kraft: bool,
+
+    /// The `points` floor of the `4m` slam try above a completed Kokish–Kraft
+    /// minor transfer: `off` (default), or a floor — `13` is
+    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm
+    ///
+    /// Also authors opener's answer (`4NT` RKCB on a maximum, else `5m`) and,
+    /// on the same switch, the shortness `4m` when they compete over the
+    /// completion (§N4-KK residues 3 and 6, `docs/minor-transfer-slam.md`).
+    /// Needs the Kokish–Kraft counter and their declared `(2♦)` Multi to do
+    /// anything.
+    #[arg(long, default_value = "off", value_name = "off|13|15")]
+    ns_multi_minor_slam_try: String,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -75,6 +87,13 @@ fn main() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
+    agreements.competition.multi_minor_slam_try = match args.ns_multi_minor_slam_try.as_str() {
+        "off" => None,
+        n => Some(
+            n.parse()
+                .expect("--ns-multi-minor-slam-try must be off or a points floor"),
+        ),
+    };
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

@@ -1397,6 +1397,123 @@ fn kk_is_inert_without_the_disclosure() {
 /// What the new alerts publish, since a reading is the only thing the floor
 /// and opener ever see of an artificial call
 ///
+/// The arm helper for the `4m` slam try: [`kk_arm`] plus a `points` floor
+fn kk_slam_arm(floor: u8) -> crate::bidding::agreements::Agreements {
+    let mut arm = kk_arm();
+    arm.competition.multi_minor_slam_try = Some(floor);
+    arm
+}
+
+/// [`kk`] on the slam-try arm at `floor`
+fn kk_slam(floor: u8, auction: &str, hand: &str) -> (Call, bool) {
+    let calls: Vec<Call> = auction
+        .split_whitespace()
+        .map(|token| {
+            let token = token
+                .strip_prefix('(')
+                .and_then(|t| t.strip_suffix(')'))
+                .unwrap_or(token);
+            if token == "-" {
+                Call::Pass
+            } else {
+                token.parse().expect("a legal call")
+            }
+        })
+        .collect();
+    best_call_with(&kk_slam_arm(floor), &calls, hand)
+}
+
+/// The `4m` slam try, its authored answer and ladder, and the shortness `4m`
+/// one round later (`competition.multi_minor_slam_try`, §N4-KK residues 3/6)
+///
+/// Four claims, one per thing the rung could get wrong:
+///
+/// - it fires above the completion and the knob's payload is the *only*
+///   difference between the two arms — a hand between the floors takes `4♣` at
+///   `13` and `3NT` at `15`;
+/// - opener **answers** it from the book rather than the floor, which probed
+///   offers `{6NT, 4♥, Pass}` and takes `4♥` — their Multi's own suit;
+/// - the RKCB ladder behind opener's `4NT` is book all the way to the answer;
+/// - the contested rung is a placement that opener sits on, and every one of
+///   these seats is unchanged with the knob off.
+#[test]
+fn kk_minor_slam_try_is_authored_end_to_end() {
+    let completed = "1NT 2♦ 2NT - 3♣ -";
+    // Three witnesses: fires at both floors, fires at 13 only, fires at neither.
+    let both = "32.K42.A2.AKQJ32";
+    let low = "32.K42.32.AKQJ32";
+    let neither = "32.432.32.AKQJ32";
+
+    for floor in [13, 15] {
+        let (c, floored) = kk_slam(floor, completed, both);
+        assert_eq!(c, call(4, Strain::Clubs), "floor {floor}: the try fires");
+        assert!(!floored, "floor {floor}: the try must come from the book");
+        assert_eq!(
+            kk_slam(floor, completed, neither).0,
+            call(3, Strain::Notrump),
+            "floor {floor}: below both floors the ladder still ends at 3NT"
+        );
+    }
+    assert_eq!(
+        kk_slam(13, completed, low).0,
+        call(4, Strain::Clubs),
+        "the 13 arm takes it"
+    );
+    assert_eq!(
+        kk_slam(15, completed, low).0,
+        call(3, Strain::Notrump),
+        "the 15 arm leaves it in 3NT — the payload is the whole difference"
+    );
+    // Knob off: every one of them is the shipped `3NT`.
+    for hand in [both, low, neither] {
+        assert_eq!(
+            kk(completed, hand).0,
+            call(3, Strain::Notrump),
+            "{hand}: inert without the knob"
+        );
+    }
+
+    // Opener answers, and is not the floor: max asks, minimum declines.
+    let asked = format!("{completed} 4♣ -");
+    let (c, floored) = kk_slam(13, &asked, "AQ32.KQ54.A4.K32");
+    assert_eq!(c, call(4, Strain::Notrump), "a maximum asks keycard");
+    assert!(!floored, "opener's answer must come from the book");
+    let (c, floored) = kk_slam(13, &asked, "A32.KQ2.KQ43.J43");
+    assert_eq!(c, call(5, Strain::Clubs), "a minimum declines to game");
+    assert!(!floored, "the decline must come from the book");
+    // Their double of the try takes no room: answered verbatim.
+    assert_eq!(
+        kk_slam(13, &format!("{completed} 4♣ X"), "AQ32.KQ54.A4.K32").0,
+        call(4, Strain::Notrump),
+        "the doubled try answers verbatim"
+    );
+
+    // The ladder: responder answers the keycard ask from the book.  `both`
+    // holds ♣A, ♣K and ♦A — three keycards with clubs trump.
+    let (c, floored) = kk_slam(13, &format!("{asked} 4NT -"), both);
+    assert_eq!(c, call(5, Strain::Diamonds), "0-or-3 keycards");
+    assert!(!floored, "the RKCB ladder must be book");
+
+    // Residue 6: the shortness hand places, and opener sits on it.
+    let contested = "1NT 2♦ 2NT - 3♣ 3♥";
+    let short = "K32.4.A32.KQJ765";
+    assert_eq!(
+        kk(contested, short).0,
+        Call::Double,
+        "today the shortness hand can only double"
+    );
+    let (c, floored) = kk_slam(13, contested, short);
+    assert_eq!(
+        c,
+        call(4, Strain::Clubs),
+        "the placement outranks the double"
+    );
+    assert!(!floored, "the placement must come from the book");
+    let (c, floored) = kk_slam(13, &format!("{contested} 4♣ -"), "AQ32.KQ54.KQ4.32");
+    assert_eq!(c, Call::Pass, "opener sits: a placement, not a try");
+    assert!(!floored, "the sit must come from the book");
+}
+
 /// Three claims that a missing `.alert(...)` or a mis-ordered rule would break,
 /// each of which the design turns on:
 ///

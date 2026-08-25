@@ -1199,7 +1199,23 @@ pub(crate) fn kokish_kraft_minor_completion(minor: Suit, agreements: &Agreements
 /// after `3♦`: `3♥` = +♠, `3♠` = +♥) and `3NT` as the plain six-card-minor
 /// choice of games.  Every rung above Pass is game-forcing, so the transfer is
 /// two-way and opener's completion never strands one.
-pub(crate) fn kokish_kraft_transfer_rebid(minor: Suit) -> Rules {
+///
+/// Under [`CompetitionKnobs::multi_minor_slam_try`][crate::bidding::agreements::CompetitionKnobs::multi_minor_slam_try]
+/// a `4m` slam try sits between the lowest two-suiter step and `3NT` — the
+/// rung [`landy_bba_transfer_rebid`][crate::bidding::american::competition::lebensohl::landy_bba_transfer_rebid]
+/// already carries one lane over, whose own floor is `13`.  Without it the
+/// ladder ends at `3NT` and a 21-count that transferred has nowhere left to say
+/// so.  There is no room under `3NT`, so the rung buys its information by
+/// giving `3NT` up — which is the trade the arm prices, and why the floor is
+/// the knob's payload rather than a constant.
+///
+/// Opener's answer **is** authored ([`kokish_kraft_slam_answer`]), against the
+/// N1 slam-exploration doctrine that leaves a `4m` suit contract to the floor.
+/// Probed at this seat with the rung live, the floor's whole vocabulary is
+/// `{6NT, 4♥, Pass}` — `4♥` being a bid in the suit their Multi showed — and it
+/// can never keycard here, since `instinct`'s `4NT` ask is gated on
+/// `Context::undisturbed` and this lane is disturbed by construction.
+pub(crate) fn kokish_kraft_transfer_rebid(minor: Suit, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
     let mut weight = 160;
     for (second, step) in kokish_kraft_second_suits(minor) {
@@ -1207,6 +1223,13 @@ pub(crate) fn kokish_kraft_transfer_rebid(minor: Suit) -> Rules {
             .rule(Bid::new(3, *step), weight, len(*second, 4..) & points(10..))
             .alert(KK_TWO_SUITER);
         weight -= 4;
+    }
+    if let Some(floor) = agreements.competition.multi_minor_slam_try {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(minor)),
+            151,
+            points(floor..) & len(minor, 6..),
+        );
     }
     rules
         .rule(Bid::new(3, Strain::Notrump), 150, points(10..))
@@ -1269,15 +1292,59 @@ pub(crate) fn kokish_kraft_two_suiter_answer(second: Suit) -> Rules {
 /// ([`multi_signoff_pass`] answers it).  Unalerted: a double is penalty by
 /// default in this book, and it claims no shape — so the natural walk's reading
 /// is the true one and there is nothing an alert would add.
-pub(crate) fn kokish_kraft_transfer_overcalled(major: Suit) -> Rules {
-    Rules::new()
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            150,
-            points(10..) & stopper_in(major),
-        )
+///
+/// Under [`CompetitionKnobs::multi_minor_slam_try`][crate::bidding::agreements::CompetitionKnobs::multi_minor_slam_try]
+/// a third call joins them: `4m` on shortness in their now-named major, ranked
+/// between the two.  That is the hand the two-call table has no home for — 10+
+/// with a singleton or void in their suit, which wants to play our minor and
+/// should not be doubling with a void.  It is [`kokish_kraft_transfer_rebid`]'s
+/// rung one round later and one level below the `5m` the residue first
+/// proposed: eleven tricks become ten, and the floor still carries on from a
+/// suit contract.
+pub(crate) fn kokish_kraft_transfer_overcalled(
+    minor: Suit,
+    major: Suit,
+    agreements: &Agreements,
+) -> Rules {
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        150,
+        points(10..) & stopper_in(major),
+    );
+    if agreements.competition.multi_minor_slam_try.is_some() {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(minor)),
+            145,
+            len(major, ..=1) & len(minor, 6..) & points(10..),
+        );
+    }
+    rules
         .rule(Call::Double, 140, hcp(10..))
         .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Kokish–Kraft `4m` slam try
+/// ([`CompetitionKnobs::multi_minor_slam_try`][crate::bidding::agreements::CompetitionKnobs::multi_minor_slam_try])
+///
+/// Responder holds six-plus of the minor and enough not to want `3NT`; opener
+/// opened a balanced 15-17, so it holds two-plus and the fit is assured.  A
+/// **maximum asks** — `4NT` is RKCB for the minor, `american::slam::rkcb_rows`
+/// supplying the whole ladder including the cramped minor sign-offs — and
+/// anything else declines to `5m`.  Total, so the seat is never the floor's.
+///
+/// The `hcp(16..)` gate is deliberately a **constant across both arms** of the
+/// knob: the arms differ in responder's floor and nowhere else, or the A/B
+/// prices two changes at once.
+///
+/// Why authored at all, when N1's doctrine leaves a `4m` suit contract to the
+/// floor to cue-bid on from: measured, it does not.  At this seat the floor
+/// offers `{6NT, 4♥, Pass}` and takes `4♥` — their Multi's own suit — on a
+/// minimum, and it cannot reach for keycard at all, `instinct`'s `4NT` ask
+/// being gated on `Context::undisturbed`.
+pub(crate) fn kokish_kraft_slam_answer(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 160, hcp(16..))
+        .rule(Bid::new(5, Strain::from(minor)), 100, hcp(0..))
 }
 
 /// Opener's answer to the Kokish–Kraft `3♠` (both minors, game-forcing)

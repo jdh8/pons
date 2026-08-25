@@ -128,6 +128,16 @@ fn main() {
     if std::env::var("PROBE_MULTI_KOKISH_KRAFT").is_ok_and(|v| v == "0") {
         agreements.competition.multi_kokish_kraft = false;
     }
+    // The `4m` slam try above a completed K–K minor transfer
+    // (`competition.multi_minor_slam_try`, default off): `PROBE_MULTI_MINOR_SLAM=1`
+    // arms it, and it needs both of the two above to do anything.
+    match std::env::var("PROBE_MULTI_MINOR_SLAM").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.multi_minor_slam_try = None,
+        Ok(n) => {
+            agreements.competition.multi_minor_slam_try = Some(n.parse().expect("a points floor"));
+        }
+        Err(_) => {}
+    }
     // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
     // needs the same floor: under the shipped net floor a `floor#N` row prints

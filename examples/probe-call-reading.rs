@@ -80,6 +80,18 @@ struct Args {
     /// `1N (2D) - (2H) - - X` can be compared against it
     #[arg(long, default_value_t = false)]
     no_ns_multi_kokish_kraft: bool,
+
+    /// The `points` floor of the `4m` slam try above a completed Kokish–Kraft
+    /// minor transfer: `off` (default), or a floor — `13` is
+    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm
+    ///
+    /// Also authors opener's answer (`4NT` RKCB on a maximum, else `5m`) and,
+    /// on the same switch, the shortness `4m` when they compete over the
+    /// completion (§N4-KK residues 3 and 6, `docs/minor-transfer-slam.md`).
+    /// Needs the Kokish–Kraft counter and their declared `(2♦)` Multi to do
+    /// anything.
+    #[arg(long, default_value = "off", value_name = "off|13|15")]
+    ns_multi_minor_slam_try: String,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -106,6 +118,13 @@ fn main() {
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
+    agreements.competition.multi_minor_slam_try = match args.ns_multi_minor_slam_try.as_str() {
+        "off" => None,
+        n => Some(
+            n.parse()
+                .expect("--ns-multi-minor-slam-try must be off or a points floor"),
+        ),
+    };
     if let Some(n) = args.ns_multi_weak_escape {
         agreements.competition.multi_weak_escape = (n > 0).then_some(n);
     }

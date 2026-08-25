@@ -7,7 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`competition.multi_minor_slam_try` — a `4m` slam try above a completed
+  Kokish–Kraft minor transfer.** Off by default and unmeasured, so **no user
+  impact**: it is inert without the knob, inert without
+  `competition.multi_kokish_kraft`, and inert while their `(2♦)` is undeclared
+  or natural. The default system is byte-identical.
+
+  The knob is a `points` **floor**, not a bool, so its A/B carries three arms
+  (`off` / `13` / `15` — `scripts/ab-2d-multi-slam.sh`). What it authors:
+
+  - responder's `4m` over the completion, `points(N..) & len(minor, 6..)` at
+    w151 — between the lowest two-suiter step (152) and `3NT` (150);
+  - opener's answer: `4NT` RKCB on `hcp(16..)` with the full `slam::rkcb_rows`
+    ladder, else `5m`. The `16` is constant across both arms;
+  - the shortness `4m` when they compete over the completion,
+    `len(major, ..=1) & len(minor, 6..) & points(10..)` at w145, with an
+    authored sit over it (§N4-KK residue 6, in place of the `5m` first
+    proposed).
+
+  Why it exists: **every** minor transfer in the engine tops out at `3NT` or a
+  placed `5m`, and the one slam channel that exists anywhere — the Landy
+  counter's `4m` — has no authored answer. Cross-lane census, doctrine and queue
+  in `docs/minor-transfer-slam.md`. On the shipped K–K table a 21-count with six
+  clubs transfers, opener completes unconditionally and the ladder ends at
+  `3NT`; with the knob armed the same pair reaches `6♣` through the authored
+  ladder.
+
+  Opener's answer is authored **against** N1's slam-exploration doctrine
+  ("a `4m` suit contract lets the floor cue-bid on to slam"), on a probe: at that
+  seat the floor's whole vocabulary is `{6NT, 4♥, Pass}` and a minimum takes
+  `4♥` — a contract in the suit their Multi showed. It cannot keycard there at
+  all, `instinct`'s `4NT` ask being gated on `Context::undisturbed`.
+
 ### Fixed
+
+- **Docs: three stale or wrong claims about minor transfers.** No code change.
+  `docs/one-notrump-multi.md` still headed the Kokish–Kraft section "opt-in …
+  stays off" after it shipped default-on; `docs/one-notrump-constructive.md`
+  (and the new campaign doc) claimed a strong long-minor hand could escape the
+  transfer via the direct quantitative `4NT`, which is weight 120 against the
+  transfers' 130 — probed, `A32.32.AKQ876.K2` bids `2NT`.
 
 - **The mirror-read leak — their calls no longer decode against the
   *opponents'* disclosures.** No user impact on the shipped default system,

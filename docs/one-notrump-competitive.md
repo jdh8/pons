@@ -266,6 +266,20 @@ literal. The old stack remains wired behind
 `--defense-2c-landy-bba false`. See the
 [closed N1 history](archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14) for its tables, measurement, and exploration trail.
 
+N1j's wide minor transfers carry the engine's **only** slam channel above a
+completed minor transfer — `4m` on `points(13..) & len(minor, 6..)` in
+[`landy_bba_transfer_rebid`](../src/bidding/american/competition/lebensohl.rs),
+opener's continuation deliberately the floor's. Every other lane tops out at
+`3NT` or a placed `5m`, so this one is the template the rest are measured
+against: [minor-transfer-slam.md](minor-transfer-slam.md).
+
+**Owed here, whatever N4-KK's arm reads:** that `4m` has *no authored answer*,
+and the seat it creates is the one the N4-KK build probed and found the floor
+answering `4♥` — a contract in the opponents' suit — with no keycard reachable
+at all (`instinct`'s `4NT` ask is gated on `Context::undisturbed`). jdh8's call
+is to port the winning shape back here; it is a fix, not a copy, and it owes its
+own seed.
+
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
 Knob `competition.nt_high_overcall_responses` (the table, **default on since
@@ -1608,6 +1622,12 @@ was fixed rather than priced; **3, 4 and 6 are the follow-up queue**, each owed
 its own seed and its own rung — the A/B above prices the table as built, and
 folding a rung into it would spend the one clean signal it bought.
 
+**Triaged by jdh8 2026-08-25.** All three queue items keep their place, but two
+of the three named alternatives are withdrawn and residue 3 is no longer this
+lane's: it is every minor transfer's, and the campaign for it is
+[minor-transfer-slam.md](minor-transfer-slam.md). Each item below carries its
+ruling.
+
 1. **The mirror lane widens.** ~~The competitive book is keyed by call
    *shape* with no seat gate on the reader side.~~ **FIXED 2026-08-25 — see
    [the mirror book](#the-mirror-book--why-the-leak-was-not-a-seat-gate) below.**
@@ -1629,12 +1649,52 @@ folding a rung into it would spend the one clean signal it bought.
    access to `kokish_kraft_doubler_rebid`. K–K's own transfers are
    invitational-plus; floorless was the design's deliberate change, and putting
    a ceiling on them (transfer below, `X` above) is the reversible alternative.
+
+   **Generalized 2026-08-25 → [minor-transfer-slam.md](minor-transfer-slam.md).**
+   jdh8's ruling: this residue is not N4-KK's. *Every* minor transfer in the
+   engine tops out at `3NT` or a placed `5m`, the counter to Landy included, and
+   the one slam channel that exists anywhere — N1j's `4m` on
+   `points(13..) & len(minor, 6..)`, opener's continuation deliberately the
+   floor's — is the shape to copy here. **The ceiling alternative is withdrawn**:
+   it pushes the strong long minor into the values double (whose reading is
+   already the looser one, residue 2) and runs the measured N1h/N1i right-siding
+   trade (`3♣ ← 2NT`, −2.19 PD) backwards. The rung is `4m` at weight 151,
+   between the lowest two-suiter step and `3NT`.
+
+   **BUILT 2026-08-25 as `competition.multi_minor_slam_try`** — a `points` floor,
+   not a bool, so the A/B carries three arms (`off` / `13` / `15`);
+   `scripts/ab-2d-multi-slam.sh`. Opener's answer is authored against the N1
+   doctrine, on a probe: floored, that seat offers `{6NT, 4♥, Pass}` and takes
+   `4♥`. Measurement owed.
 4. **The doubler has no takeout.** v7's second `X` is takeout showing four of
    the other major, and it is the one BBA rung that measured positive on *both*
    scorers (+2.4 plain / +1.6 PD per fired NV). K–K's is penalty, so a 12-count
    with four of the *other* major and a doubleton in theirs now passes their
    partscore. This is the delayed-double split, the arm's single biggest known
    risk, and the first thing to trace if the A/B reads a loss.
+
+   **jdh8 rejected this residue 2026-08-25 — it is to be repaired, not priced.**
+   Tracing it sharpens the diagnosis: the missing call is not the takeout double,
+   it is the **natural other major**. K–K's `X` is "negative and *Stayman-like*",
+   and opener already answers it Stayman-style when the advancer passes
+   ([`multi_pass_answer`](../src/bidding/american/competition/rubensohl.rs) shows
+   a four-card major). When they *bid* instead,
+   [`kokish_kraft_doubler_rebid`](../src/bidding/american/competition/rubensohl.rs)
+   offers `4NT` / penalty `X` / `3NT` / `2NT` / Pass and **no natural major at
+   all** — so a 12-count with four of the other major and no stopper in theirs
+   fails every gate and takes the weight-0 Pass. The source lists only the
+   non-obvious meanings of a call, so authoring the natural rebid is
+   transcription, not deviation.
+
+   Proposed repair, one rung, one A/B, one seed: over their `(2♥)`, `2♠` on
+   `len(♠, 4..) & len(♥, ..=2) & hcp(8..)` — the cheap seat; over their `(2♠)`,
+   `3♥` on `len(♥, 4..) & len(♠, ..=2) & points(10..)` — a level dearer, so a
+   level stronger. In the two `ran` shapes opener has already doubled `(2♥)` on
+   four-plus hearts ([`multi_penalty_answer`]), so `3♥` there lands in a known
+   4-4 fit and is the strongest of the four. This **keeps** K–K's delayed-double
+   split, which every exact-object source in the survey agrees on. Reverting the
+   second `X` to v7's takeout is the alternative and contradicts all of them; it
+   is not the recommended default.
 5. **Two rungs of the delayed table are dead in self-play.** Responder reached
    that seat by passing, and under K–K a weak six-card minor does not pass — it
    transfers. So the source's competitive `3♣`/`3♦` fire only opposite a partner
@@ -1655,6 +1715,23 @@ folding a rung into it would spend the one clean signal it bought.
    candidate is a `5m` rung gated on `len(major, ..=1)`; it is not in this
    build because five of a minor needs eleven tricks and the A/B should price
    the two-call table first.
+
+   **jdh8's ruling 2026-08-25: reroute, do not build a `5m`.** The shortness hand
+   already took the transfer to reach this seat, so it wants the transfer
+   machinery one round on, not a bespoke rung — the same `4m` residue 3 owes,
+   one round later and one level lower than the `5m` proposed. Gated
+   `len(major, ..=1) & points(10..)` at weight 145 it slots cleanly between the
+   two calls that are there: `3NT` (150) with their major stopped, `4m` (145)
+   short in it, `X` (140) with neither, Pass. Eleven tricks become ten, and the
+   hand that should never double with a void stops having to.
+
+   **BUILT 2026-08-25, on residue 3's knob and in its arm** — reversing the
+   earlier plan to give it a separate seed. This seat is residue 3's *interfered
+   tail*, and the iron rule is that a convention ships with its tails; splitting
+   them would have measured half a treatment. Opener sits on the placement
+   (probed: floored, it answers `4♥`). Their **jump** over the completion,
+   `{completed} (4M)`, stays unauthored and is recorded in
+   [minor-transfer-slam.md](minor-transfer-slam.md).
 
 ### The mirror book — why the leak was not a seat gate
 

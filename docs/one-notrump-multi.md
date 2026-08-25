@@ -319,17 +319,29 @@ trigger-gated — and responder's natural minor single-suiter stays unbuilt at
    `hcp 7–18`, the strength-showing catch-all).
 4. `docs/ai-bidder/bba-1nt-defense.md` documents no four-level advance at all.
 
-## The Kokish–Kraft variant — `competition.multi_kokish_kraft` (opt-in, measured 2026-08-25 — stays off)
+## The Kokish–Kraft variant — `competition.multi_kokish_kraft` (**SHIPPED DEFAULT-ON 2026-08-25**)
 
-Everything above maps the **shipped** v7 lane. One knob replaces most of it with
-a different published table for the same object: the Eric Kokish–Beverly Kraft
-notes, the most complete exact-object package in
+Everything above maps the **retired** v7 lane, still reachable behind
+`--no-ns-multi-kokish-kraft`. One knob replaces most of it with a different
+published table for the same object: the Eric Kokish–Beverly Kraft notes, the
+most complete exact-object package in
 [the survey](ai-bidder/multi-landy-2d-counter-defense-research.md). Built and
-measured 2026-08-25 — the owned lane reads plain-wash / PD-win (the shippable
-shape) but the mirror-read leak fails the isolation gate, so it **stays off**
-pending an ownership gate; the numbers, the leak forensic, the design-sketch
-repairs and what is owed live in
+measured 2026-08-25. The first run failed the isolation gate on the mirror-read
+leak; that leak was fixed (`29f93561`, the mirror book), the re-measure gated
+**0 foreign of 1165** and read the decision table's `win | win` row at both-vul,
+and K–K shipped default-on. The numbers, the leak forensic, the design-sketch
+repairs and what is still owed live in
 [§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
+
+*(This heading read "opt-in … stays off" until 2026-08-25 — stale text from
+before the mirror fix, corrected against `agreements.rs` and the CHANGELOG.)*
+
+A second knob rides on top, **off by default and unmeasured**:
+`competition.multi_minor_slam_try` adds the `4m` slam try above a completed
+minor transfer, opener's `4NT`/`5m` answer with its RKCB ladder, and the
+shortness `4m` when they compete over the completion — the tree map below shows
+the lane **without** it. See
+[minor-transfer-slam.md](minor-transfer-slam.md).
 
 Registered *instead of* the v7 subtree, never over it (`kokish_kraft_entries`,
 `lebensohl.rs`) — the two tables disagree on `2NT`, `3♣`, `3♠` and both delayed

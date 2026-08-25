@@ -13,15 +13,15 @@ use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, kokish_kraft_delayed,
     kokish_kraft_doubler_rebid, kokish_kraft_invite_answer, kokish_kraft_minor_completion,
     kokish_kraft_minors_answer, kokish_kraft_minors_overcalled, kokish_kraft_minors_place,
-    kokish_kraft_responder, kokish_kraft_second_suits, kokish_kraft_transfer_overcalled,
-    kokish_kraft_transfer_rebid, kokish_kraft_two_suiter_answer, lm_2d_both_majors_advance,
-    lm_2d_clubs_ask, lm_2d_clubs_major, multi_2d_responder, multi_balance_double,
-    multi_clubs_transfer_completion, multi_fit_search_place, multi_fit_search_rebid,
-    multi_pass_answer, multi_penalty_answer, multi_quant_answer, multi_relay_rebid,
-    multi_responder_rebid, multi_signoff_pass, multi_stopper_answer, multi_stopper_forcing_rebid,
-    multi_stopper_over_four_spades, multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid,
-    transfer_completion, transfer_lebensohl_responder, transfer_stayman_2d_responder,
-    transfer_target,
+    kokish_kraft_responder, kokish_kraft_second_suits, kokish_kraft_slam_answer,
+    kokish_kraft_transfer_overcalled, kokish_kraft_transfer_rebid, kokish_kraft_two_suiter_answer,
+    lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, multi_2d_responder,
+    multi_balance_double, multi_clubs_transfer_completion, multi_fit_search_place,
+    multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer, multi_quant_answer,
+    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, multi_stopper_answer,
+    multi_stopper_forcing_rebid, multi_stopper_over_four_spades, multi_takeout_answer,
+    stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
+    transfer_stayman_2d_responder, transfer_target,
 };
 use super::*;
 
@@ -1510,13 +1510,30 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
         for suffix in [format!("{completed} -"), format!("{completed} (X)")] {
             entries.extend(rows_of(
                 Pattern::after(OVER, &suffix),
-                kokish_kraft_transfer_rebid(minor),
+                kokish_kraft_transfer_rebid(minor, agreements),
             ));
         }
         for (second, step) in kokish_kraft_second_suits(minor) {
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{completed} - {} -", Bid::new(3, *step))),
                 kokish_kraft_two_suiter_answer(*second),
+            ));
+        }
+        // The `4m` slam try and its RKCB ladder.  Opener's answer is authored
+        // rather than left to the floor — see `kokish_kraft_slam_answer` for
+        // the probe that killed the doctrine at this seat.  Their double takes
+        // no room, so it answers verbatim.
+        let four = Bid::new(4, Strain::from(minor));
+        if agreements.competition.multi_minor_slam_try.is_some() {
+            for tail in ["-", "(X)"] {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{completed} - {four} {tail}")),
+                    kokish_kraft_slam_answer(minor),
+                ));
+            }
+            entries.extend(slam::rkcb_rows(
+                &format!("{OVER} {completed} - {four} -"),
+                minor,
             ));
         }
         // Their pass-or-correct above the completion: opener sits (the
@@ -1541,7 +1558,7 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
             ] {
                 entries.extend(rows_of(
                     Pattern::after(OVER, &suffix),
-                    kokish_kraft_transfer_overcalled(major),
+                    kokish_kraft_transfer_overcalled(minor, major, agreements),
                 ));
                 // Opener has already passed once, so responder's values double
                 // there stands as penalty: sit on it rather than let the floor
@@ -1550,6 +1567,15 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
                     Pattern::after(OVER, &format!("{suffix} X -")),
                     sit.clone(),
                 ));
+                // And the same for the contested `4m`, which is a *placement*
+                // on shortness in their major, not a try: probed, the floor
+                // answers it `4♥` — a contract in the suit they just named.
+                if agreements.competition.multi_minor_slam_try.is_some() {
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{suffix} {four} -")),
+                        sit.clone(),
+                    ));
+                }
             }
         }
         // And their *balance* after both of us have passed it out — their bid,

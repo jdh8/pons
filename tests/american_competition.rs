@@ -404,9 +404,21 @@ fn test_slam_zone_control_bid_does_not_hijack_the_trump_suit() {
 /// `expected` is our call at each of our turns, alternating opener/responder
 /// from the `1NT` opening.
 fn walk_kokish_kraft(opener: &str, responder: &str, theirs: &[Call], expected: &[Call]) {
+    walk_kokish_kraft_with(None, opener, responder, theirs, expected)
+}
+
+/// [`walk_kokish_kraft`] with the `4m` slam try armed at a `points` floor
+fn walk_kokish_kraft_with(
+    slam: Option<u8>,
+    opener: &str,
+    responder: &str,
+    theirs: &[Call],
+    expected: &[Call],
+) {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_diamonds_multi = true;
     agreements.competition.multi_kokish_kraft = true;
+    agreements.competition.multi_minor_slam_try = slam;
     let system = american(&agreements).bind();
 
     let mut auction = vec![call(1, Strain::Notrump)];
@@ -443,6 +455,36 @@ fn kokish_kraft_transfers_a_long_minor_and_finds_the_major_game() {
             call(3, Strain::Clubs),    // opener: the forced completion
             call(3, Strain::Diamonds), // responder: clubs + hearts, game-forcing
             call(4, Strain::Hearts),   // opener: the 4-4 heart game
+        ],
+    );
+}
+
+#[test]
+fn kokish_kraft_minor_slam_try_reaches_the_minor_slam() {
+    // 1NT (2♦) 2NT - 3♣ - 4♣ - 4NT - 5♦ - 6♣: the whole point of the rung.
+    // On the shipped table this auction ends in `3NT` — the ladder has nothing
+    // above it — and 33 combined points with a solid six-card suit stay there.
+    // Every seat here is book: the try, opener's ask, the keycard answer and
+    // the placement.
+    walk_kokish_kraft_with(
+        Some(13),
+        "AQ32.KQ4.A43.J32", // 16 balanced, three small clubs
+        "32.K42.A2.AKQJ32", // 17, a solid six-card club suit and two aces
+        &[
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            call(2, Strain::Notrump),  // responder: transfer to clubs
+            call(3, Strain::Clubs),    // opener: the forced completion
+            call(4, Strain::Clubs),    // responder: the slam try, giving 3NT up
+            call(4, Strain::Notrump),  // opener: a maximum asks keycard
+            call(5, Strain::Diamonds), // responder: three keycards
+            call(6, Strain::Clubs),    // opener: places the slam
         ],
     );
 }

@@ -195,6 +195,14 @@ Commit `93352b9` shipped the Puppet/minor scheme:
 - `2♠` shows clubs or a balanced bare-eight invite; opener's 2NT/3♣ step is the
   min/max size answer and remains pass-or-correct for the weak club hand.
 
+Both minor transfers **place games and never ask for slam** — the game boundary
+is a hardcoded `8` at every site and opener's splinter answer picks `3NT` or
+`5m`, total. The direct quantitative `4NT` is *not* an escape for the strong
+long-minor hand: it is weight 120 against the transfers' 130 and the classes
+overlap, so `A32.32.AKQ876.K2` bids `2NT`, not `4NT`. The counter-tables
+inherited the same gap one level up — the cross-lane census and its queue are in
+[minor-transfer-slam.md](minor-transfer-slam.md).
+
 The original scheme beat the natural baseline +0.76/+1.15
 IMPs/divergent NV/vulnerable (+0.0072/+0.0109 per board, 60k). The later isolated
 Puppet-vs-European comparison stayed positive across four DD cells and the

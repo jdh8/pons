@@ -882,6 +882,49 @@ pub struct CompetitionKnobs {
     /// byte-identical; the flag chooses K–K over the v7 subtree only once the
     /// disclosure engages the counter.
     pub multi_kokish_kraft: bool,
+    /// The `4m` slam try above a completed Kokish–Kraft minor transfer
+    ///
+    /// Gated on [`Self::multi_kokish_kraft`]: it authors two rungs of that
+    /// table and nothing else.  Without it a completed minor transfer tops out
+    /// at `3NT`, and those transfers are floorless *and* uncapped — a 21-count
+    /// with six clubs transfers, opener completes unconditionally, the ladder
+    /// ends at `3NT`, and the quantitative `4NT` behind the values double is
+    /// out of reach because the transfer out-ranked the double (`docs/minor-transfer-slam.md`).
+    ///
+    /// Two rungs, one arm, because the second is the first's interfered tail:
+    ///
+    /// - `competition::rubensohl::kokish_kraft_transfer_rebid` gains `4m` on
+    ///   `points(N..) & len(minor, 6..)` at weight 151, between the lowest
+    ///   two-suiter step and `3NT`, where `N` is this knob's payload.  `13` is
+    ///   `competition::lebensohl::landy_bba_transfer_rebid`'s rung verbatim —
+    ///   the engine's one existing slam channel above a minor transfer.  It is
+    ///   a *payload*, not a constant, because Landy's rung is shadowed by
+    ///   stopper cues at weight 150/149 that this table does not have, so the
+    ///   same number fires on a materially wider class here; `15` is the
+    ///   narrow arm.  There is no room below `3NT`, so every rung above it
+    ///   gives `3NT` up — which is what the floor is choosing.
+    /// - `competition::rubensohl::kokish_kraft_transfer_overcalled` gains `4m`
+    ///   on `len(major, ..=1) & len(minor, 6..) & points(10..)` at weight 145,
+    ///   between its `3NT` and its penalty `X`: the shortness hand that wants
+    ///   to play our minor and should not be doubling with a void (§N4-KK
+    ///   residue 6, where jdh8 chose this over the `5m` first proposed —
+    ///   eleven tricks become ten).
+    ///
+    /// Opener's answer over the slam try **is** authored, against the N1
+    /// slam-exploration doctrine ("a `4m` suit contract lets the floor cue-bid
+    /// on to slam").  That doctrine does not survive probing here: at
+    /// `1NT (2♦) 2NT - 3♣ - 4♣ -` with the rung live, the floor's whole
+    /// vocabulary is `{6NT, 4♥, Pass}` — `4♥` being a bid in the suit their
+    /// Multi showed — and it can never keycard, because `instinct`'s `4NT` ask
+    /// is gated on `Context::undisturbed` and this lane is disturbed by
+    /// construction.  So opener asks (`4NT`, RKCB via `american::slam::rkcb_rows`)
+    /// on a maximum and declines to `5m` otherwise.  The **contested** `4m` of
+    /// the second rung is a placement, not a try, and opener sits on it.
+    ///
+    /// **Off by default, unmeasured.**  Inert while their `2♦` is undeclared or
+    /// natural and inert without [`Self::multi_kokish_kraft`], so the default
+    /// system is byte-identical.
+    pub multi_minor_slam_try: Option<u8>,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1014,6 +1057,7 @@ impl Default for CompetitionKnobs {
             multi_weak_escape: Some(6),
             multi_balance: false,
             multi_kokish_kraft: true,
+            multi_minor_slam_try: None,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,
