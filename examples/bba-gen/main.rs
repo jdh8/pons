@@ -778,6 +778,10 @@ struct Args {
     #[arg(long, default_value = "13", value_name = "off|POINTS")]
     ns_minor_transfer_slam_try: String,
 
+    /// Restore the six-card-only `4♦` slam-try gate after Puppet `2NT - 3♦`
+    #[arg(long, default_value_t = false)]
+    no_ns_minor_transfer_slam_fit: bool,
+
     /// Leave opener's N1j Landy `4m` slam try to the floor instead of using
     /// the shipped authored answer (`1NT (2♣) 2NT - 3♣ - 4♣ -`)
     ///
@@ -2237,6 +2241,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             anyhow::anyhow!("--ns-minor-transfer-slam-try must be off|POINTS, got {n:?}")
         })?),
     };
+    agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;

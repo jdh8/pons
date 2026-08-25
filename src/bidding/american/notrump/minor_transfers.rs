@@ -15,7 +15,9 @@
 //!   [`minor_transfer_slam_try`][crate::bidding::agreements::NotrumpKnobs::minor_transfer_slam_try]:
 //!   off, the lane places games and nothing else, and a 17-count takes the same
 //!   `3NT` an 8-count takes; on, [`minor_slam_try`] gives the top of the class
-//!   a `4m` rung and [`minor_slam_answer`] answers it.
+//!   a `4m` rung and [`minor_slam_answer`] answers it.  The default-on
+//!   [`minor_transfer_slam_fit`][crate::bidding::agreements::NotrumpKnobs::minor_transfer_slam_fit]
+//!   extends that rung to the exactly-5♦, 4+♣ member after opener's `3♦`.
 //! * The splinter is only offered where the fit is assured.  Clubs: responder's own
 //!   six-card suit.  Diamonds: opener's `3♦` (three-card support) or, over the
 //!   `3♣` denial, responder's own six.  A 5♦4♣ hand opposite the denial has no fit
@@ -145,10 +147,21 @@ fn diamond_splinter_rows(
 ///
 /// Opener's `3♦` promises three-card support, so *both* members of the `2NT` class
 /// hold an eight-card fit: with `splinter` on, a game-forcing hand short in a major
-/// bids it and lets opener place the game.
-pub(super) fn diamond_transfer_game(threshold: u8, splinter: bool, slam_try: Option<u8>) -> Rules {
+/// bids it and lets opener place the game. With `slam_fit` on, the same assured
+/// fit lets the whole class use the `4♦` slam try.
+pub(super) fn diamond_transfer_game(
+    threshold: u8,
+    splinter: bool,
+    slam_try: Option<u8>,
+    slam_fit: bool,
+) -> Rules {
+    let slam = if slam_fit {
+        minor_slam_try(Suit::Diamonds, two_notrump_class(), slam_try)
+    } else {
+        minor_slam_try(Suit::Diamonds, len(Suit::Diamonds, 6..), slam_try)
+    };
     diamond_splinter_rows(two_notrump_class(), threshold, splinter)
-        .chain(minor_slam_try(Suit::Diamonds, slam_try))
+        .chain(slam)
         .rule(Bid::new(3, Strain::Notrump), 90, hcp(threshold..))
         .rule(Call::Pass, 0, hcp(..threshold))
 }
@@ -162,7 +175,11 @@ pub(super) fn diamond_transfer_game(threshold: u8, splinter: bool, slam_try: Opt
 /// six-card suit — the 5♦4♣ hand has no fit to splinter into and bids `3NT`.
 fn diamond_transfer_correct(threshold: u8, splinter: bool, slam_try: Option<u8>) -> Rules {
     diamond_splinter_rows(len(Suit::Diamonds, 6..), threshold, splinter)
-        .chain(minor_slam_try(Suit::Diamonds, slam_try))
+        .chain(minor_slam_try(
+            Suit::Diamonds,
+            len(Suit::Diamonds, 6..),
+            slam_try,
+        ))
         .rule(Bid::new(3, Strain::Notrump), 90, hcp(threshold..))
         .rule(
             Bid::new(3, Strain::Diamonds),
@@ -179,16 +196,22 @@ fn diamond_transfer_correct(threshold: u8, splinter: bool, slam_try: Option<u8>)
 /// **above** `3NT` (90): a slam hand holding a shortness still splinters, which
 /// is the more informative call, so only the flat slam hand gives `3NT` up.
 ///
-/// The six-card requirement is the fit: opener is balanced and has promised
-/// nothing in the minor at three of the four sites this is installed at.
-fn minor_slam_try(minor: Suit, floor: Option<u8>) -> Rules {
+/// `shape` supplies the fit: opener has promised nothing in the minor at three
+/// of the four sites this is installed at, but completing the diamond transfer
+/// promises support for the whole `2NT` class when `minor_transfer_slam_fit` is
+/// armed.
+fn minor_slam_try(
+    minor: Suit,
+    shape: Cons<impl Constraint + Clone + 'static>,
+    floor: Option<u8>,
+) -> Rules {
     let Some(floor) = floor else {
         return Rules::new();
     };
     Rules::new().rule(
         Bid::new(4, Strain::from(minor)),
         95,
-        len(minor, 6..) & points(floor..),
+        shape & points(floor..),
     )
 }
 
@@ -277,7 +300,7 @@ fn two_spade_over_min(slam_try: Option<u8>) -> Rules {
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
-        .chain(minor_slam_try(Suit::Clubs, slam_try))
+        .chain(minor_slam_try(Suit::Clubs, len(Suit::Clubs, 6..), slam_try))
         // Game-going clubs without a singleton: 3NT.
         .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
         .alert(PUPPET)
@@ -307,7 +330,7 @@ fn two_spade_over_max(slam_try: Option<u8>) -> Rules {
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
-        .chain(minor_slam_try(Suit::Clubs, slam_try))
+        .chain(minor_slam_try(Suit::Clubs, len(Suit::Clubs, 6..), slam_try))
         // Balanced invite (opener maximum → accept game) or game clubs without a
         // singleton: 3NT.
         .rule(
@@ -341,6 +364,7 @@ pub(crate) fn diamond_transfer() -> Package {
         entries: |agreements| {
             let splinter = agreements.notrump.diamond_splinter;
             let slam_try = agreements.notrump.minor_transfer_slam_try;
+            let slam_fit = agreements.notrump.minor_transfer_slam_fit;
             let accept_floor = agreements.notrump.size_ask_accept_floor;
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2NT -"),
@@ -348,7 +372,7 @@ pub(crate) fn diamond_transfer() -> Package {
             );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♦ -"),
-                diamond_transfer_game(8, splinter, slam_try),
+                diamond_transfer_game(8, splinter, slam_try, slam_fit),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♣ -"),

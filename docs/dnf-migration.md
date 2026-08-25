@@ -229,6 +229,8 @@ is an authoring defect owed a row below, not migration debt.
 | Diamond splinter (2026-08-13, `3d0f376`) | 20/9 | **65**/0 | 9/0 | 115/0 | 18/0 |
 | Michaels preference (2026-08-18) | 20/9 | **67**/0 | **11**/0 | 115/0 | 18/0 |
 | N3 `1NT (3x)` table (2026-08-18) | 20/9 | **75**/0 | 11/0 | 115/0 | 18/0 |
+| N3 opener answers (2026-08-19) | 20/9 | **85**/0 | 11/0 | 115/0 | 18/0 |
+| Supported minor-transfer 5♦4♣ slam try (2026-08-26) | 20/9 | **88**/0 | 11/0 | 115/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
@@ -268,6 +270,12 @@ of american constructive/defensive and dutch — they gate on the `2NT`
 transfer's shape class, whose `6+ ♦ | 5+ ♦ & 4+ ♣` disjunction the legacy
 hull cannot pin on the length axis. Knob-on stays **0**: the envelope union
 projects the disjunction exactly, which is the whole point of the migration.
+
+The `Supported minor-transfer 5♦4♣ slam try` row widens the existing
+`4♦` rule after opener's `3♦` support from `6+ ♦` to the transfer's full
+`6+ ♦ | (5+ ♦ & 4+ ♣)` class.  The same rule is installed in american
+constructive/defensive and dutch, adding three legacy-hull length leaks;
+envelope union keeps the disjunction exact, so the knob-on pin stays **0**.
 
 The `Michaels preference` row authors the cheap `2♠`/`3♥` advance as
 the exact complement of its `10+ points & 3+ trumps` game raise.  The two

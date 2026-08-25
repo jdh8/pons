@@ -132,7 +132,7 @@ pub(crate) fn european_three_club() -> Package {
                 Pattern::node("P* 1NT - 3♣ - 3♦ -"),
                 // `None`: this arm is an *opponent model* (see the module doc), so our
                 // `4m` slam try must not leak into it.
-                diamond_transfer_game(8, false, None),
+                diamond_transfer_game(8, false, None, false),
             ));
             entries
         },

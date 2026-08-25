@@ -14,8 +14,14 @@ their complete RKCB continuations after both a clean pass and `(X)`. Their A/Bs
 ran from code base `4eb925c2` plus the then-uncommitted
 campaign worktree. jdh8's ruling on the constructive lanes — *"slamless looks
 wrong"* — opened queue item 3; his ruling on the wider residues — *"the blast
-radius looks large for constructive bidding, document them instead"* — keeps
-those residues open below without holding this ship.
+radius looks large for constructive bidding, document them instead"* — kept
+them open at the 2026-08-25 boundary. C1 closed the next day; the others remain
+open below.
+
+**C1 shipped 2026-08-26.** `notrump.minor_transfer_slam_fit = true` now lets
+the exactly-5♦, 4+♣ member of the Puppet `2NT` class use the existing `4♦`
+slam try after opener's `3♦`; the `3♣` denial remains six-card-only. Two fresh
+same-floor 8M-board rounds won every plain-DD and perfect-defense cell.
 
 **Ship-tail audit.** Completing the previously missing RKCB rows after their
 double does not change the preserved A/B samples. The constructive harness
@@ -261,6 +267,10 @@ the same treatment, which ship together.
    both the answer and the complete `slam::rkcb_rows` ladder are registered
    after a clean pass and after `(X)`.
 
+   C1 later widened only the supported `3♦` seat to `two_notrump_class() &
+   points(floor..)`. The other three gates remain `len(minor, 6..)`, and the
+   answer tree above is unchanged.
+
    The European arm passes `None` — it is an opponent model, see above.
 
    Harness: `ab-nt-splinter --minor-slam N`, a third mode on the lane's own
@@ -382,8 +392,9 @@ separate future question.
 `ab-nt-splinter --minor-slam N --sd`, **8 000 000 boards per cell**, floors
 `13`/`15` × vulnerability none/both, `ab-results/nt-minor-slam/`. Opponents
 silenced (the harness's constructive mode), so this prices constructive value
-only and no doubling artifact is reachable. Wall clock ~25 minutes for all four
-cells including the single-dummy pass — the lane is uncontested, so it needs no
+only. Perfect defense still adds synthetic doubles of failing contracts; plain
+DD remains the shipping gate. Wall clock ~25 minutes for all four cells
+including the single-dummy pass — the lane is uncontested, so it needs no
 opponent to cooperate and the run is cheap in a way the K–K experiment was not.
 Run code was base `4eb925c2` plus the campaign worktree.
 
@@ -475,6 +486,55 @@ the other side.
 **Shipped default-on at `Some(13)` on 2026-08-25.** The exact aggregate sums and
 all eight positive `13`-versus-`15` slice signs select the floor; the missing
 per-board dumps limit the precision claim, not the KR1 ship decision.
+
+## C1 supported 54 extension — measured 2026-08-26 — SHIPPED
+
+`ab-nt-splinter --minor-slam 13 --minor-slam-fit`, 8M boards per cell,
+opponents silenced, two fresh seeds. Both arms kept the shipped 13-point slam
+floor; control required six diamonds and treatment admitted the whole
+`two_notrump_class()` only after opener's supported `3♦`. Run code was HEAD
+`0b60dcaf` plus this worktree; results are in
+`ab-results/nt-minor-slam-fit/`.
+
+| seed | vul | fired | plain IMPs / fired (95% CI) | PD IMPs / fired (95% CI) |
+| --- | --- | ---: | ---: | ---: |
+| `1787678038` | none | 493 | +488 / **+0.99 ±0.71** | +492 / **+1.00 ±0.74** |
+| `1787678038` | both | 493 | +688 / **+1.40 ±0.85** | +690 / **+1.40 ±0.89** |
+| `1787678117` | none | 526 | +736 / **+1.40 ±0.69** | +705 / **+1.34 ±0.71** |
+| `1787678117` | both | 526 | +991 / **+1.88 ±0.83** | +960 / **+1.83 ±0.85** |
+
+All eight readings are positive and every conditional CI excludes zero: the
+decision table's win/win row on both seeds and vulnerabilities. Each seed's
+two vulnerability cells share deals and are read separately. The exact-new-fire
+predicate excludes every pre-existing six-card `4m` try; fired and divergent
+counts are equal in all four cells. Fired rates were **0.0061625%** in round 1
+and **0.0065750%** in round 2. All-board plain/PD means and 95% CIs, in table
+order, were **+0.000061 ± 0.000044 / +0.000062 ± 0.000046**,
+**+0.000086 ± 0.000053 / +0.000086 ± 0.000055**,
+**+0.000092 ± 0.000046 / +0.000088 ± 0.000047**, and
+**+0.000124 ± 0.000056 / +0.000120 ± 0.000057 IMPs/board**.
+
+The full divergent dumps also clear the slam-optimism gate. Applying the
+maximal Pavlicek shave—6% of every positive small-slam IMP and 20% of every
+positive grand-slam IMP—leaves the four plain/PD pairs at
+**+379.5/+382.6**, **+555.8/+556.6**, **+605.5/+574.3**, and
+**+832.0/+800.7 IMPs**, in table order. This is deliberately conservative:
+it discounts every positive slam swing whether or not that board carried the
+full DD-play bias.
+
+The worst-board trace found the expected cost—minimum opener sometimes signs
+off in `5♦` when `3NT` was better. The `5♦` bucket lost in all four cells
+(plain/PD **−340/−311**, **−349/−315**, **−477/−485**, and
+**−515/−521 IMPs**); gains from `6♦`, `6NT`, and `7NT` dominate those
+signoff losses. No new continuation was authored: the existing
+`4♦ -` / `4♦ (X)` answer and full RKCB ladder are keyed on the auction, not
+responder's shape. The natural `4♦` rule's authored projection admits the
+5♦4+♣ bidder, pinned by the end-to-end test. Dutch and the systems-on natural
+1NT-overcall graft inherit the same constructive package; the explicit false
+arm remains available.
+
+**Verdict: default on.** `notrump.minor_transfer_slam_fit = true`; false
+restores the measured six-card control.
 
 ## Landy round 1 — measured 2026-08-25, seed `1787662790` — WIN, thin — SHIPPED
 
@@ -697,13 +757,14 @@ jdh8 left both unstarted for this ship. **Neither is started.**
 
 **Session boundary, 2026-08-25.** jdh8 stopped authoring here — *"the blast
 radius looks large for constructive bidding; document them instead of dealing
-with them in this session."* The still-open rows below are **documented, not
-started**. C3 and P1 are retained as closed ship-decision history; every other
-row remains an open residue with its proposed reversible default unchanged.
+with them in this session."* C1 was resumed and shipped the next day. The
+still-open rows below are **documented, not started**. C1, C3 and P1 are
+retained as closed ship-decision history; every other row remains open with its
+proposed reversible default unchanged.
 
 | # | item | lane | blast radius | proposed default |
 | --- | --- | --- | --- | --- |
-| C1 | the `2NT` class's 5♦4♣ member cannot slam-try | constructive | one rule's shape gate, one node | leave at six, measure as a third arm if resumed |
+| C1 | **CLOSED — the supported `2NT` class's exactly-5♦, 4+♣ member can slam-try** | constructive | one rule's shape gate, one node | **SHIPPED `minor_transfer_slam_fit = true`** |
 | C2 | the splinter branch is still slamless | constructive | a new rung **plus** a size channel through the shipped splinter lane | leave |
 | C3 | **CLOSED — ship `minor_transfer_slam_try`** | constructive | **moves the default constructive system** | **SHIPPED `Some(13)`** |
 | C4 | `two_spade_over_min`/`two_spade_over_max` have no finite catch-all | constructive | invariant break, benign today, propagates by copy-paste | leave, record |
@@ -731,26 +792,10 @@ when *they* compete — which is untouched by this campaign.
   total IMPs in all eight exact DD+PD slice aggregates across the two seeds.
   The missing per-board dumps prevent an exact conditional `t`, as recorded
   above, but do not change those sums.
-- **The `2NT` class's 5♦4♣ member cannot slam-try.** `minor_slam_try` gates on
-  `len(minor, 6..)`, so the *other* half of
-  [`two_notrump_class`](../src/bidding/american/notrump/minor_transfers.rs) —
-  five diamonds with four clubs — is excluded even at the `3♦` node, where
-  opener has promised three-card support and the fit is an assured eight.
-  Probed: `K2.A3.AKQ32.AQ32` (19 HCP, 5-4-2-2) at `1NT - 2NT - 3♦ -` has one
-  call, `3NT 0.900` — **34-36 combined taking the same bid an 8-count takes**,
-  which is the defect this whole campaign is about, one class member over.
-  A hand with a shortness escapes through the splinter (`3♠` on the same
-  shape with a stiff); the flat one does not.
-
-  The repair is in-house and already spelled one line up:
-  [`diamond_splinter_rows`](../src/bidding/american/notrump/minor_transfers.rs)
-  takes its shape gate *per node* — `two_notrump_class()` after the `3♦`
-  completion, `len(♦, 6..)` after the `3♣` denial — because that is exactly
-  where the fit is and is not assured. `minor_slam_try` should take the same
-  parameter instead of hardcoding six. *Proposed default: leave the shipped
-  gate at six and record, because widening it changes the arm that rounds 1
-  and 2 measured. It is a cheap third arm on the same harness (~25 min) and
-  should be measured, not assumed.*
+- **C1 — the `2NT` class's supported exactly-5♦, 4+♣ member now slam-tries.** The
+  pre-change witness `K2.A3.AKQ32.AQ32` had only `3NT 0.900` at
+  `1NT - 2NT - 3♦ -`; with the measured default it bids `4♦ 0.950`. The same
+  hand still bids `3NT` after opener's `3♣` denial. See the C1 round above.
 - **The splinter branch is still slamless, in both constructive lanes.** The
   `4m` rung sits *under* the splinters by design, so a slam-values hand holding
   a shortness splinters — and then

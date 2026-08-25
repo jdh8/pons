@@ -18,9 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weight 120 against the transfers' 130 and the classes overlap, so the
   long-minor hand transfers.
 
-  On, responder's `4m` (`points(N..) & len(minor, 6..)`, weight **95**) sits
-  below the splinters (100) and above `3NT` (90) in all four Puppet seats —
-  `1NT - 2♠ - 2NT/3♣ -` and `1NT - 2NT - 3♦/3♣ -` — so a slam hand with a
+  On, responder's `4m` (weight **95**) sits below the splinters (100) and above
+  `3NT` (90) in all four Puppet seats — `1NT - 2♠ - 2NT/3♣ -` and
+  `1NT - 2NT - 3♦/3♣ -`. Three seats require `points(N..) &
+  len(minor, 6..)`. The supported `3♦` seat also admits exactly five diamonds
+  with 4+ clubs under the default-on extension below. A slam hand with a
   shortness still splinters and only the flat one gives `3NT` up. Opener
   answers `4NT` RKCB on `size_ask_accept_floor`, else `5m`, with the full
   `slam::rkcb_rows` ladder after either their pass or double. The opt-in
@@ -64,17 +66,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package; the result is transferred from the identical constructive lane,
   not a separate Dutch-vs-BBA run.
 
-  **Deliberately not widened.** Four residues inside the same lanes were found
-  and left documented rather than fixed, on jdh8's call that the constructive
-  blast radius was too large for one session: the `2NT` class's 5♦4♣ member
-  cannot slam-try (the gate hardcodes six where `diamond_splinter_rows` takes
-  the shape per node); the splinter branch is still slamless; the two `2♠`
-  rebid tables have no finite catch-all; and `size_ask_accept_floor` is 16
-  uncontested against a hardcoded 17 contested. Each has a proposed reversible
-  default in `docs/minor-transfer-slam.md` §"Open, and flagged". Checked and
-  clear: the rung **and** its answer both ride the `nt_overcall_systems_on`
-  graft into `(1x) 1NT` (`depth: 7` / `depth: 9`, `fallback: None`), so no new
-  floored seat is manufactured there.
+  **Supported 5♦4+♣ extension, default on.** After opener's `3♦` completion
+  promises three-card support, `notrump.minor_transfer_slam_fit` now lets the
+  whole `2NT` class use the same `4♦` rung; opener's `3♣` denial and both club
+  nodes remain six-card-only. Two fresh 8M-board seeds per vulnerability,
+  narrow and wide at the same 13-point floor (`1787678038`, `1787678117`),
+  made all eight plain-DD/perfect-defense cells positive: plain
+  **+0.99/+1.40**, then **+1.40/+1.88 IMPs/fired** none/both vulnerable; PD
+  **+1.00/+1.40**, then **+1.34/+1.83**. Each conditional 95% CI excludes zero
+  (493/526 fires per cell). The six-card control remains available through
+  `bba-gen --no-ns-minor-transfer-slam-fit` and the same-floor
+  `ab-nt-splinter --minor-slam 13 --minor-slam-fit` control.
+
+  Full divergent dumps clear the slam-optimism gate: shaving every positive
+  small-slam swing by 6% and every positive grand by 20% leaves all eight
+  cells positive, with the weakest still +379.5 plain / +382.6 PD IMPs.
+
+  The remaining residues are unchanged: the splinter branch is still
+  slamless; the two `2♠` rebid tables have no finite catch-all; and
+  `size_ask_accept_floor` is 16 uncontested against a hardcoded 17 contested.
+  The shared package also carries the measured extension into Dutch and the
+  systems-on natural-1NT-overcall graft; the rung and its existing answer move
+  together there.
 
 - **`competition.landy_minor_slam_answer` — opener's answer to the N1j Landy
   `4m` slam try. Shipped default-on.**

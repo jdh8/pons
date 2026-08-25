@@ -234,6 +234,14 @@ perfect-defense cells; SD-lead corroborates their sign. At Pavlicek's maximal
 +1089.04 IMPs; that proves the on/off ship, not the exact `13`-versus-`15`
 slice.
 
+**The exactly-5♦, 4+♣ member joined the same rung on 2026-08-26.** After opener's
+`3♦` completion promises three diamonds, `notrump.minor_transfer_slam_fit`
+widens `4♦` from six diamonds to the whole `2NT` class. The `3♣` denial remains
+six-card-only. Two independent 8M-board seeds per vulnerability at the same
+13-point floor won all eight DD/PD cells: plain +0.99/+1.40 then +1.40/+1.88
+IMPs/fired none/both vulnerable, with PD +1.00/+1.40 then +1.34/+1.83
+([C1 measurement](minor-transfer-slam.md#c1-supported-54-extension--measured-2026-08-26--shipped)).
+
 The original scheme beat the natural baseline +0.76/+1.15
 IMPs/divergent NV/vulnerable (+0.0072/+0.0109 per board, 60k). The later isolated
 Puppet-vs-European comparison stayed positive across four DD cells and the

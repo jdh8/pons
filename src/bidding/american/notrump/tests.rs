@@ -188,3 +188,58 @@ fn minor_transfer_slam_try_is_authored_end_to_end() {
         bid(3, Strain::Notrump)
     );
 }
+
+#[test]
+fn supported_five_diamonds_can_slam_try() {
+    let supported = [
+        bid(1, Strain::Notrump),
+        P,
+        bid(2, Strain::Notrump),
+        P,
+        bid(3, Strain::Diamonds),
+        P,
+    ];
+    let responder = "K2.A3.AKQ32.AQ32";
+    let mut narrow = crate::bidding::agreements::Agreements::default();
+    narrow.notrump.minor_transfer_slam_fit = false;
+    assert_eq!(
+        best_with(&narrow, &supported, responder),
+        bid(3, Strain::Notrump)
+    );
+
+    let mut wide = narrow;
+    wide.notrump.minor_transfer_slam_fit = true;
+    assert_eq!(
+        best_with(&wide, &supported, responder),
+        bid(4, Strain::Diamonds)
+    );
+
+    let mut shown = supported.to_vec();
+    shown.extend([bid(4, Strain::Diamonds), P]);
+    let partnership = american(&wide).bind();
+    let read = crate::bidding::Inferences::read(
+        &partnership.prefixed_context(RelativeVulnerability::NONE, &shown),
+    );
+    assert!(read.admits(
+        crate::bidding::inference::Relative::Partner,
+        responder.parse().expect("a hand")
+    ));
+
+    let denied = [
+        bid(1, Strain::Notrump),
+        P,
+        bid(2, Strain::Notrump),
+        P,
+        bid(3, Strain::Clubs),
+        P,
+    ];
+    assert_eq!(
+        best_with(&wide, &denied, responder),
+        bid(3, Strain::Notrump)
+    );
+
+    assert_eq!(
+        best_with(&wide, &shown, "AQ32.KJ54.A43.Q2"),
+        bid(4, Strain::Notrump)
+    );
+}

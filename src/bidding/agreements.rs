@@ -2424,8 +2424,10 @@ pub struct NotrumpKnobs {
     pub diamond_splinter: bool,
     /// The `4m` slam try above a completed Puppet minor transfer
     ///
-    /// `Some(N)` authors the rung on `points(N..) & len(minor, 6..)`.  The
-    /// shipped default is `Some(13)`; `None` restores the former slamless lane.
+    /// `Some(N)` authors the rung on `points(N..) & len(minor, 6..)`. The
+    /// supported diamond completion instead uses the full `2NT` class when
+    /// [`Self::minor_transfer_slam_fit`] is on. The shipped default is
+    /// `Some(13)`; `None` restores the former slamless lane.
     ///
     /// Without it **every** Puppet minor lane tops out at `3NT` or a `5m`
     /// opener places unasked, and the transfer is uncapped at the top: the
@@ -2436,8 +2438,8 @@ pub struct NotrumpKnobs {
     /// is weight 120 against the transfers' 130 and the classes overlap, so the
     /// long-minor hand transfers (`docs/minor-transfer-slam.md`).
     ///
-    /// Four rungs, one arm, because they are one treatment — the same call in
-    /// the four seats a Puppet minor transfer can reach
+    /// Four rungs, one base treatment — the same call in the four seats a
+    /// Puppet minor transfer can reach
     /// (`notrump::minor_transfers::minor_slam_try`, weight 95):
     ///
     /// - `1NT - 2♠ - 2NT -` and `1NT - 2♠ - 3♣ -`, the club lane over opener's
@@ -2469,6 +2471,18 @@ pub struct NotrumpKnobs {
     /// every DD, PD, and sd-lead cell positive, and the nested 13–14 slice was
     /// positive in all eight DD/PD cells (`docs/minor-transfer-slam.md`).
     pub minor_transfer_slam_try: Option<u8>,
+    /// Let the exactly-5♦, 4+♣ member of the `2NT` transfer class use the
+    /// `4♦` slam try after opener completes to `3♦`
+    ///
+    /// This changes only the supported completion: after opener's `3♣`
+    /// pass-or-correct denial, responder still needs six diamonds.
+    ///
+    /// **On by default.** Two independent 8M-board seeds made all eight
+    /// plain-DD/perfect-defense cells positive at the shipped 13-point floor:
+    /// +0.99/+1.40 then +1.40/+1.88 IMPs/fired plain (none/both vulnerable),
+    /// with perfect defense +1.00/+1.40 then +1.34/+1.83. See
+    /// `docs/minor-transfer-slam.md`.
+    pub minor_transfer_slam_fit: bool,
 }
 
 impl Default for NotrumpKnobs {
@@ -2493,6 +2507,7 @@ impl Default for NotrumpKnobs {
             long_minor_force: false,
             diamond_splinter: true,
             minor_transfer_slam_try: Some(13),
+            minor_transfer_slam_fit: true,
         }
     }
 }

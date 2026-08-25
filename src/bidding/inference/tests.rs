@@ -1614,7 +1614,11 @@ fn authored_calls_read_what_they_gate() {
         // rival major, so a 5-4 answers in its five-carder instead of losing
         // the cross-call weight tie to the call encoding.  Same staircase, same
         // blind spot, knob-on still 0.
-        ("length", 85, 0),
+        // 85 → 88 when the supported minor-transfer slam try admitted the
+        // `5+ ♦ & 4+ ♣` arm already promised by `2NT`: the same `4♦`
+        // rule appears in american constructive/defensive and dutch.  The
+        // legacy hull loses the disjunction; envelope union keeps it exact.
+        ("length", 88, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

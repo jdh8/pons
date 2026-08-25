@@ -47,6 +47,9 @@
 //! zero (`docs/minor-transfer-slam.md`).  Every `4m` here gives `3NT` up, so
 //! the floor is the payload the arms sweep.
 //!
+//! `--minor-slam-fit` keeps that floor armed in both arms and prices only the
+//! exactly-5♦, 4+♣ extension after opener's `3♦` completion.
+//!
 //! `--diamond` measures a different empty slot with the same harness: responder's
 //! `3♥`/`3♠` splinter one round later, after the `2NT` diamond transfer
 //! ([`diamond_splinter`][field@pons::bidding::agreements::NotrumpKnobs::diamond_splinter]).
@@ -76,7 +79,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, report_sd_brackets, seat_to_act};
+use common::{bid_uncontested, mean_with_ci, report_sd_brackets, seat_to_act};
 
 /// 1NT - 3M splinter A/B: the Polish Club treatment vs the shipped empty slot
 #[derive(Parser)]
@@ -108,6 +111,15 @@ struct Args {
     /// `0` to stay on the splinter slots.  Supersedes `--diamond`/`--floor`.
     #[arg(long, default_value_t = 0)]
     minor_slam: u8,
+
+    /// Compare the six-card control with the whole supported transfer class at
+    /// the same `--minor-slam` floor; the delta is exactly 5♦ with 4+♣
+    #[arg(long, default_value_t = false, requires = "minor_slam")]
+    minor_slam_fit: bool,
+
+    /// Print the N worst plain-DD divergent boards for the treatment
+    #[arg(long, default_value_t = 0)]
+    dump_worst: usize,
 
     /// Also price the opening lead single-dummy on divergent boards (slower):
     /// the blind-lead scorer that sits between plain DD and perfect defense
@@ -219,6 +231,10 @@ fn lead_inputs(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
+    assert!(
+        !args.minor_slam_fit || args.minor_slam > 0,
+        "--minor-slam-fit requires a nonzero --minor-slam floor"
+    );
     let mut rng = StdRng::seed_from_u64(args.seed);
     // arm 0 = off, arm 1 = on (the shipped minor-slam floor is 13).
     // Both keep every other shipped default. The knob is read at book-
@@ -227,10 +243,19 @@ fn main() {
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
     let mut armed = pons::bidding::agreements::Agreements::default();
     if args.minor_slam > 0 {
-        // Both arms keep the shipped splinter lanes; the only difference is the
-        // `4m` rung and opener's answer to it.
-        off_agreements.notrump.minor_transfer_slam_try = None;
-        armed.notrump.minor_transfer_slam_try = Some(args.minor_slam);
+        if args.minor_slam_fit {
+            // Same-floor nested arm: price only the exactly-5♦, 4+♣ slice.
+            off_agreements.notrump.minor_transfer_slam_try = Some(args.minor_slam);
+            off_agreements.notrump.minor_transfer_slam_fit = false;
+            armed.notrump.minor_transfer_slam_try = Some(args.minor_slam);
+            armed.notrump.minor_transfer_slam_fit = true;
+        } else {
+            // Historical on/off arm: preserve the measured six-card treatment.
+            off_agreements.notrump.minor_transfer_slam_try = None;
+            off_agreements.notrump.minor_transfer_slam_fit = false;
+            armed.notrump.minor_transfer_slam_try = Some(args.minor_slam);
+            armed.notrump.minor_transfer_slam_fit = false;
+        }
     } else if args.diamond {
         off_agreements.notrump.diamond_splinter = false;
         armed.notrump.diamond_splinter = true;
@@ -268,16 +293,18 @@ fn main() {
     // Boards where the convention actually fired — the denominator that matters
     // for a slot this thin. A fired board need not diverge (opener may land in
     // the same 3NT), and a divergent board is always a fired one here.
-    let fired = bids
+    let fired: Vec<usize> = bids
         .iter()
-        .filter(|b| {
+        .enumerate()
+        .filter_map(|(i, b)| {
             if args.minor_slam > 0 {
-                minor_slam_fired(&b[1].0)
+                (minor_slam_fired(&b[1].0) && (!args.minor_slam_fit || !minor_slam_fired(&b[0].0)))
+                    .then_some(i)
             } else {
-                splinter_fired(&b[1].0, args.diamond)
+                splinter_fired(&b[1].0, args.diamond).then_some(i)
             }
         })
-        .count();
+        .collect();
 
     // Only boards whose arms diverge can swing; solve those once.
     let divergent: Vec<usize> = (0..args.count)
@@ -287,22 +314,27 @@ fn main() {
     let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut points = 0i64;
-    let mut total_imps = 0i64;
-    let mut pd_imps = 0i64;
+    let mut plain_imps = vec![0i64; args.count];
+    let mut pd_imps = vec![0i64; args.count];
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
         let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += adj - base;
-        total_imps += imps(adj - base);
-        // Perfect-defense read from the same tables — opponents are silenced, so
-        // this only ever adds a double to a contract that fails DD (no doubling
-        // artifact possible here); plain-DD stays the gate, PD is confirmation.
+        plain_imps[i] = imps(adj - base);
+        // Perfect-defense read from the same tables. With opponents silenced,
+        // its only extra mechanism is synthetic doubles of contracts that fail
+        // DD; plain-DD stays the gate and PD is confirmation.
         let pd_base = ns_score_pd(contracts[i][0], table, args.vulnerability);
         let pd_adj = ns_score_pd(contracts[i][1], table, args.vulnerability);
-        pd_imps += imps(pd_adj - pd_base);
+        pd_imps[i] = imps(pd_adj - pd_base);
     }
 
-    let slot = if args.minor_slam > 0 {
+    let slot = if args.minor_slam_fit {
+        format!(
+            "1NT - 2NT - 3♦ - 4♦ supported-fit extension (floor {})",
+            args.minor_slam
+        )
+    } else if args.minor_slam > 0 {
         format!("1NT - 2♠/2NT - … - 4m slam try (floor {})", args.minor_slam)
     } else if args.diamond {
         "1NT - 2NT - 3m - 3M".to_owned()
@@ -315,22 +347,42 @@ fn main() {
     );
     println!("(opponents silenced — constructive value only)");
     println!(
-        "Fired: {fired} of {} ({:.3}%)   Divergent: {} ({:.3}%)",
+        "Fired: {} of {} ({:.3}%)   Divergent: {} ({:.3}%)",
+        fired.len(),
         args.count,
-        100.0 * fired as f64 / args.count.max(1) as f64,
+        100.0 * fired.len() as f64 / args.count.max(1) as f64,
         divergent.len(),
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    println!(
-        "Armed (vs off):           {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board plain, {:+.2} IMPs/fired)",
-        total_imps as f64 / args.count.max(1) as f64,
-        total_imps as f64 / fired.max(1) as f64,
-    );
-    println!(
-        "                          {pd_imps:+} IMPs ({:+.4} IMPs/board PD, {:+.2} IMPs/fired)",
-        pd_imps as f64 / args.count.max(1) as f64,
-        pd_imps as f64 / fired.max(1) as f64,
-    );
+    for (label, swings) in [("plain", &plain_imps), ("PD", &pd_imps)] {
+        let fired_swings: Vec<i64> = fired.iter().map(|&i| swings[i]).collect();
+        let (board_mean, board_ci) = mean_with_ci(swings);
+        let (fired_mean, fired_ci) = mean_with_ci(&fired_swings);
+        println!(
+            "{label:>5}: {:+} IMPs ({board_mean:+.6} ± {board_ci:.6} IMPs/board, \
+             {fired_mean:+.2} ± {fired_ci:.2} IMPs/fired)",
+            swings.iter().sum::<i64>(),
+        );
+    }
+    println!("raw points: {points:+}");
+
+    if args.dump_worst > 0 {
+        let mut worst: Vec<_> = divergent.iter().map(|&i| (plain_imps[i], i)).collect();
+        worst.sort_unstable();
+        println!("\n--- {} worst plain-DD boards ---", args.dump_worst);
+        for &(swing, i) in worst.iter().take(args.dump_worst) {
+            println!(
+                "board {i}: {swing:+} plain / {:+} PD IMPs\n  N {}  E {}  S {}  W {}\n  control:   {}\n  treatment: {}",
+                pd_imps[i],
+                deals[i][Seat::North],
+                deals[i][Seat::East],
+                deals[i][Seat::South],
+                deals[i][Seat::West],
+                bids[i][0].0,
+                bids[i][1].0,
+            );
+        }
+    }
 
     if args.sd {
         // Blind-lead pass: on each divergent board both arms' auctions are read
