@@ -43,6 +43,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Narrowing `common::mirror_agreements` to `two_diamonds_multi` alone is the
   one-line reversal.
 
+  **Priced (2026-08-25):** the re-anchor this owed ran at `c5fbee11` and the
+  mirror book is **below anchor resolution** — `Competitive / book / round-1`,
+  the bucket owning every N4/Landy row, is flat (−34,664 → −34,729 plain,
+  −38,259 → −38,304 PD). No recorded verdict is restated, and the one-line
+  reversal has no measured reason to be taken.
+
+### Measured
+
+- **BBA anchor re-run at `c5fbee11`** (`docs/bba-gap-campaign.md`; persistent
+  seed `1783375064`, 204,800 boards per vulnerability per arm, all four arms
+  replay 100.00% / 0 mismatched). Gap vs BBA, pooled IMPs/board: **−0.526 plain
+  / −0.526 PD** for what ships (`american()`, from −0.528 / −0.533) and
+  **−0.994 / −1.121** for the deterministic side (from −0.997 / −1.131). The
+  net floor's paired worth is level at +0.246 / +0.307.
+
+  No user impact — this is a measurement, not a change. Its finding is that a
+  55-commit window moved **one bucket**: `Defensive / book / round-1` at +1,464
+  plain / +3,958 PD, which is the `(1NT) 2x` M1+M2 overcall ship and accounts
+  for the whole headline delta. The window's 1NT-competitive ships (N3 and its
+  `X` answers, N4e, N4-KK) each won their own isolated fresh-seed A/B but leave
+  their anchor bucket flat — those lanes fire on a fraction of a percent of
+  deals, well inside the bucket's ±1.5k-IMP CI. The anchor cannot arbitrate a
+  per-fired win; only the isolated harness can.
+
 ### Added
 
 - **Kokish–Kraft counter-defense to their `(2♦)` Multi, shipped default-on**

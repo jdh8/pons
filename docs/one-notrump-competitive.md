@@ -1894,18 +1894,25 @@ Every row here is **closed**. Open work is the [queue](#package-queue--open-work
 the full measurement trails are in the archive, linked per row. Numbers are the
 final pooled verdict, IMPs per board unless marked per fired.
 
-**Measured through the leak (2026-08-25).** Every number below was taken before
+**Measured through the leak (2026-08-25) — and the base barely moved.** Every
+number below was taken before
 [the mirror book](#the-mirror-book--why-the-leak-was-not-a-seat-gate)
 (`29f93561`), so every arm that declared a disclosure — which is every N1 and N4
 row, both vuls — read their calls off our own counter-table. The verdicts are
 not withdrawn: each was a paired diff whose *two* arms shared the same leak, and
-the N1g row's isolation gate read 0 foreign. But the **base** they sit on moved,
-and the Landy rows moved with it, because the fix clears the whole `their`
-struct rather than `two_diamonds_multi` alone. Re-anchoring is owed
-(`scripts/anchor.sh`, then the bucket ranking in
-[bba-gap-campaign.md](bba-gap-campaign.md)); narrowing
-`common::mirror_agreements` to `two_diamonds_multi` is the one-line reversal if
-the Landy move turns out to be the wrong trade.
+the N1g row's isolation gate read 0 foreign.
+
+The re-anchor that was owed here **ran at `c5fbee11`** and answers the base
+question: the mirror book is **below anchor resolution**. The whole 55-commit
+window moved the instinct arm −0.997 → −0.994 plain / −1.131 → −1.121 PD, and
+one bucket accounts for all of it — `Defensive / book / round-1`, the M1+M2
+overcall ship, at +1,464 plain / +3,958 PD (= +0.0036 / +0.0097 per board,
+against headline deltas of +0.0026 / +0.0101; every other bucket nets to noise). `Competitive / book / round-1`, which owns
+these rows, did **not** move (−34,664 → −34,729 plain, −38,259 → −38,304 PD).
+So the Landy rows moved with the fix in principle, but by less than the anchor
+can see; nothing below is restated. Narrowing `common::mirror_agreements` to
+`two_diamonds_multi` remains the one-line reversal, and there is now no measured
+reason to take it.
 
 | Package | Knob (default) | Status | Final pooled verdict | Trail |
 | --- | --- | --- | --- | --- |

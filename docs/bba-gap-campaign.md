@@ -1,7 +1,7 @@
 # The BBA gap campaign — the pons↔BBA anchor and its bucket ranking
 
-**Standing at `53a3c254` (2026-08-18): −0.528 plain / −0.533 PD IMPs/board for
-what ships (`american()`), −0.997 / −1.131 for the deterministic side
+**Standing at `c5fbee11` (2026-08-25): −0.526 plain / −0.526 PD IMPs/board for
+what ships (`american()`), −0.994 / −1.121 for the deterministic side
 (`american_instinct()`) whose buckets the series decomposes.** Persistent seed
 `1783375064`, 204,800 boards per vulnerability per arm, all four arms replay
 100%.
@@ -165,42 +165,42 @@ guarded fallback at depth d, `floor` (shipping arm) the net's off-book call.
 `boards.jsonl`'s `board` is an index within its shard, paired with that shard's
 `seed`; the emitted actor `hand` (S.H.D.C) is canonical.
 
-## Current ranking (`53a3c254`, 2026-08-18)
+## Current ranking (`c5fbee11`, 2026-08-25)
 
 **Instinct arm** — the decompose series (`boards` = auction-divergent):
 
 | # | bucket | boards | plain | /div | PD | /div | lane |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Defensive / book / round-1 | 48,700 | −69,501 | −1.43 | −85,825 | −1.76 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
-| 2 | Constructive / book / opening | 53,336 | −61,879 | −1.16 | −44,425 | −0.83 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
-| 3 | Constructive / book / round-2 | 35,664 | −34,784 | −0.98 | −40,213 | −1.13 | mined: extras ladder + major jump-rebid shipped; residual is RKCB slam accuracy |
-| 4 | Competitive / book / round-1 | 15,334 | −34,664 | −2.26 | −38,259 | −2.50 | [one-notrump-competitive.md](one-notrump-competitive.md) — worst per divergent board, moved least (+0.06/div) |
-| 5 | Constructive / book / round-1 | 24,996 | −27,267 | −1.09 | −34,112 | −1.36 | mined: `1♥ → 1♠` compression is a measured null; splinter-slam residual |
-| 6 | Defensive / floor#3 / round-2 | 8,166 | −20,364 | −2.49 | −17,165 | −2.10 | open — floor pass discipline (never worked) |
-| 7 | Competitive / book / round-2 | 7,344 | −14,538 | −1.98 | −17,993 | −2.45 | [competitive-book.md](competitive-book.md) |
-| 8 | Defensive / floor#3 / round-1 | 6,185 | −14,211 | −2.30 | −7,934 | −1.28 | as 6 |
+| 1 | Defensive / book / round-1 | 47,782 | −68,037 | −1.42 | −81,867 | −1.71 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
+| 2 | Constructive / book / opening | 53,308 | −61,721 | −1.16 | −43,765 | −0.82 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
+| 3 | Constructive / book / round-2 | 35,832 | −34,776 | −0.97 | −40,200 | −1.12 | mined: extras ladder + major jump-rebid shipped; residual is RKCB slam accuracy |
+| 4 | Competitive / book / round-1 | 15,339 | −34,729 | −2.26 | −38,304 | −2.50 | [one-notrump-competitive.md](one-notrump-competitive.md) — worst per divergent board, and the 1NT packages in this window did not move it |
+| 5 | Constructive / book / round-1 | 25,204 | −27,319 | −1.08 | −34,144 | −1.35 | mined: `1♥ → 1♠` compression is a measured null; splinter-slam residual |
+| 6 | Defensive / floor#3 / round-2 | 8,162 | −20,393 | −2.50 | −17,075 | −2.09 | open — floor pass discipline (never worked) |
+| 7 | Competitive / book / round-2 | 7,351 | −14,562 | −1.98 | −18,017 | −2.45 | [competitive-book.md](competitive-book.md) |
+| 8 | Defensive / floor#3 / round-1 | 6,195 | −14,288 | −2.31 | −7,889 | −1.27 | as 6 |
 
-By phase: Defensive −166,051 (102,306 bd) > Constructive −131,096 (128,185) >
-Competitive −111,021 (50,073). By provenance: `book` −249,628, `floor#3` −55,694,
-nothing else below −15k. The top three have held their order since the first
-anchor.
+By phase: Defensive −165,019 (101,495 bd) > Constructive −130,800 (128,632) >
+Competitive −111,286 (50,116). By provenance: `book` −247,937, `floor#3` −55,692,
+`floor#382` −15,213, nothing else below −8k. The top three have held their order
+since the first anchor.
 
 **Shipping arm** (`american()`):
 
 | # | bucket | boards | plain | /div | PD | /div |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Constructive / book / round-2 | 38,784 | −36,936 | −0.95 | −41,603 | −1.07 |
-| 2 | Constructive / book / opening | 53,059 | −36,482 | −0.69 | −19,043 | −0.36 |
-| 3 | Defensive / book / round-1 | 48,555 | −36,401 | −0.75 | −52,540 | −1.08 |
-| 4 | Constructive / book / round-1 | 24,778 | −19,695 | −0.79 | −22,911 | −0.92 |
-| 5 | Competitive / book / round-1 | 14,651 | −17,617 | −1.20 | −16,238 | −1.11 |
-| 6 | Defensive / floor / round-2 | 13,260 | −11,940 | −0.90 | −10,024 | −0.76 |
-| 7 | Competitive / floor / round-2 | 10,285 | −11,741 | −1.14 | −11,898 | −1.16 |
-| 8 | Competitive / book / round-2 | 7,013 | −7,862 | −1.12 | −8,357 | −1.19 |
+| 1 | Constructive / book / round-2 | 38,979 | −36,967 | −0.95 | −41,691 | −1.07 |
+| 2 | Constructive / book / opening | 53,042 | −36,374 | −0.69 | −18,478 | −0.35 |
+| 3 | Defensive / book / round-1 | 47,771 | −36,033 | −0.75 | −51,246 | −1.07 |
+| 4 | Constructive / book / round-1 | 24,995 | −19,651 | −0.79 | −22,790 | −0.91 |
+| 5 | Competitive / book / round-1 | 14,640 | −17,634 | −1.20 | −16,251 | −1.11 |
+| 6 | Defensive / floor / round-2 | 13,187 | −12,065 | −0.91 | −10,133 | −0.77 |
+| 7 | Competitive / floor / round-2 | 10,348 | −11,812 | −1.14 | −11,695 | −1.13 |
+| 8 | Competitive / book / round-2 | 7,010 | −7,926 | −1.13 | −8,474 | −1.21 |
 
-By phase: Constructive −99,951 > Defensive −64,383 > Competitive −52,096; by
-provenance `book` −160,992, `floor` −42,700. The net floor halves def-r1
-(−69.5k → −36.4k plain) so the shipped head is constructive by plain DD — but
+By phase: Constructive −99,589 > Defensive −63,987 > Competitive −51,973; by
+provenance `book` −160,417, `floor` −42,648. The net floor halves def-r1
+(−68.0k → −36.0k plain) so the shipped head is constructive by plain DD — but
 def-r1 is still #1 by PD on both arms, and the def-r1 redesign stays aimed at
 the right place. Auction divergence vs BBA: 89% (instinct) / 85–84% (shipping).
 
@@ -213,9 +213,13 @@ the right place. Auction divergence vs BBA: 89% (instinct) / 85–84% (shipping)
 | v4 | `e650a86` (paired A/B on the anchor seed) | paired | +0.200 | +0.317 |
 | v5 | `ea2cde9` | paired | +0.235 | +0.316 |
 | v6 | `53a3c254` | paired | +0.247 | +0.309 |
+| v6 | `c5fbee11` | paired | +0.246 | +0.307 |
 
-v6 cells: +0.2219 ±0.0130 / +0.2519 ±0.0157 NV, +0.2718 ±0.0164 / +0.3655
-±0.0195 vul, ~25–27% fired. Level from v5 for the reason in rule 7.
+v6 cells at `c5fbee11`: +0.2214 ±0.0130 / +0.2501 ±0.0157 NV (26.39% fired),
++0.2705 ±0.0163 / +0.3638 ±0.0194 vul (24.44% fired) — matching the
+`53a3c254` cells (+0.2219 / +0.2519, +0.2718 / +0.3655) to within a
+thousandth on all four. The floor's worth is the most stable quantity in the
+series; level from v5 for the reason in rule 7.
 
 ## Series (headline trail)
 
@@ -243,6 +247,7 @@ at `62cf5c5`); replay 100% unless noted.
 | 08-11 | `782f09e` | −1.059 / −1.200 | — | direct weak jump overcall shipped; def-r1 52.5k → 49.1k boards |
 | 08-12 | `ea2cde9-dirty` | −1.056 / −1.198 | −0.604 / −0.579 | competitive accountant; first four-arm snapshot |
 | 08-18 | `53a3c254` | −0.997 / −1.131 | −0.528 / −0.533 | authored-reading campaign + the 1NT competitive package; largest window move on record |
+| 08-25 | `c5fbee11` | −0.994 / −1.121 | −0.526 / −0.526 | 55 commits, and **one bucket** accounts for all of it: def-r1 +1,464 plain / +3,958 PD (+0.0036 / +0.0097 per board vs headline deltas +0.0026 / +0.0101), which is the `(1NT) 2x` M1+M2 overcall ship. N3, N4e, N4-KK, the reading repairs and the mirror book are all below anchor resolution |
 
 ## Worked buckets (verdicts; the prose is in the archive)
 
@@ -260,6 +265,8 @@ at `62cf5c5`); replay 100% unless noted.
 | Comp / fallback@1,@2 / r1 | Fix 1: Modern negative doubles + forcing free bids + `answer_free_bid` | shipped; ~26k cashed | [competitive-book.md](competitive-book.md) |
 | Comp / fallback / r1 | school tournament (Modern / Cachalot / Sputnik; Forcing / NFB / transfers) | Modern + Forcing keep the defaults; Cachalot, Sputnik opt-in | competitive-book.md |
 | Comp / book / r1 | 1NT contested: N1c–N1j, N4 v7, N4b | shipped in the `53a3c254` window | [one-notrump-competitive.md](one-notrump-competitive.md) |
+| Comp / book / r1 | 1NT contested, `c5fbee11` window: N3 + its `X` answers, N4e, N4-KK | all shipped on their own fresh-seed A/Bs; **the bucket is flat** (−34,664 → −34,729 plain). Not a contradiction — the bucket's own CI is ±0.10/div ≈ ±1.5k IMPs, and these lanes fire on a fraction of a percent of deals, so their combined effect sits well inside it. The anchor cannot arbitrate a per-fired win; only the isolated harness can | [one-notrump-competitive.md](one-notrump-competitive.md) |
+| Def / book / r1 | `(1NT) 2x` mirror panel: M1 HCP floor + M2 the unauthored advance | shipped — and it is the **whole** `c5fbee11` window move, +1,464 plain / +3,958 PD | [defensive-overcalls.md](defensive-overcalls.md) |
 | Const / book / r1 | `1♥ → 1♠` compression (`longer_major_response`) | measured null | bidding-options.md |
 | `floor#N` "regressions" (`ea2cde9` → `53a3c254`) | B2.4 `1♦` length floor / B2.5 weak-reading bounds / B2.6 strong-reading bound / B2.7 `net_collar` | rejected / retrain-gated / sound, no repair / rejected | [archive/bba-gap-floor-forensic.md](archive/bba-gap-floor-forensic.md) |
 
@@ -279,7 +286,7 @@ In bucket order; each item is its own fresh-seed A/B per
 2. **Const / book / opening, round-2, round-1** — mined to residuals (light-open
    wall refuted; RKCB slam accuracy; splinter-slam). Work only with a new lever.
 3. **Comp / book / round-1** — the [one-notrump-competitive.md](one-notrump-competitive.md)
-   queue; re-derive N2c/N2d's price tags from `53a3c254`'s `boards.jsonl`
+   queue; re-derive N2c/N2d's price tags from `c5fbee11`'s `boards.jsonl`
    before authoring either.
 4. **Def / floor#3 round-2, round-1, balancing** (−39k plain across the three;
    `Defensive / floor / …` −11.9k / −6.7k / −3.2k on the shipping arm) — floor
