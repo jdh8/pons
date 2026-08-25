@@ -249,9 +249,17 @@ fn transfer_lebensohl_top_step_opener_completes_at_game() {
 
 // ---- N4: their (2♦) as a Multi (`their.two_diamonds_multi`) ----
 
+/// The v7 Multi lane: their `2♦` declared, Kokish–Kraft explicitly off
+///
+/// K–K ships default-on (2026-08-25), so every case below that pins the v7
+/// subtree — the `2NT` relay, the stopper ask, the `hcp 6+` values double —
+/// has to say so.  The table is still reachable
+/// (`--no-ns-multi-kokish-kraft`), so these stay live regression tests rather
+/// than history; [`kk_arm`] turns the flag back on for the K–K cases.
 fn multi_arm() -> crate::bidding::agreements::Agreements {
     let mut arm = crate::bidding::agreements::Agreements::default();
     arm.decision.their.two_diamonds_multi = true;
+    arm.competition.multi_kokish_kraft = false;
     arm
 }
 
@@ -951,8 +959,13 @@ fn multi_balance_doubles_on_five_trumps_only() {
     }
 }
 
-// ---- N4-KK: the opt-in Kokish–Kraft counter (`competition.multi_kokish_kraft`) ----
+// ---- N4-KK: the shipped Kokish–Kraft counter (`competition.multi_kokish_kraft`) ----
 
+/// The shipped K–K lane — [`multi_arm`] with the flag put back on
+///
+/// Written when K–K was opt-in and kept explicit after it shipped: the two
+/// helpers then read as the pair of tables they are, and neither case moves if
+/// the default flips again.
 fn kk_arm() -> crate::bidding::agreements::Agreements {
     let mut arm = multi_arm();
     arm.competition.multi_kokish_kraft = true;

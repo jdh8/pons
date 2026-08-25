@@ -223,16 +223,19 @@ usually `3NT`. **N4-mirror**, the biggest number the lane produced, left for
 the defensive campaign and shipped there as M1+M2. Both rows have moved to the
 [ledger](#ledger); reopening N4 needs a new bucket, not a new seed.
 
-**And one arrived (2026-08-25).** **N4-KK** is not another rung of the shipped
-table but a *different published table* for the same object — the
+**And one arrived, and shipped (2026-08-25).** **N4-KK** is not another rung of
+the shipped table but a *different published table* for the same object — the
 Kokish–Kraft notes, the most complete exact-object package the
-[survey](ai-bidder/multi-landy-2d-counter-defense-research.md) found. It is
-built, default-off, and **measured 2026-08-25**: the owned lane is the shippable shape, but the mirror-read leak failed the isolation gate; the **mirror book landed 2026-08-25** and closed it, so a re-measure on a fresh seed is what stands between it and a verdict
-([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)).
+[survey](ai-bidder/multi-landy-2d-counter-defense-research.md) found. Its first
+A/B failed the isolation gate on the mirror-read leak; the **mirror book**
+closed that, and the fresh-seed re-measure gated **0 foreign at both vuls** and
+read `win | win` at both-vulnerable over a `wash | wash` NV, so K–K is now the
+**default** table against a declared Multi. Residues 3, 4 and 6 are its
+follow-up queue ([§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25)).
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **measured 2026-08-25** — owned lane is the shippable shape (plain wash, PD +0.29/+0.77 per fired none/both, SD-PD agreeing) but the residue-1 mirror leak prices at −1.6/−2.5 PD per foreign board (55% of divergence) and fails the isolation gate; **stays off pending the re-measure** — the leak's fix (the mirror book, `System::opponents`) landed 2026-08-25 and the acceptance probes pass; a fresh-seed A/B is owed. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)) |
+| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** — re-measured on a fresh seed after the mirror book fixed the residue-1 leak (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** (0/683 and 0/482, against a 55% prior rate), both-vul is the decision table's `win | win` row — plain **+0.0019 ±0.0013** / PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired) — over a `wash | wash` NV (+0.0002 ±0.0012 / +0.0012 ±0.0015), sd-lead agreeing in all four cells and **no negative reading in eight**. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm; residues 3/4/6 are the follow-up queue ([§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25)) |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -1457,7 +1460,7 @@ admits through distribution points, plus the unauthored advance.  Full
 forensic, candidates and pre-registered decision rule:
 [defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23).
 
-## N4-KK — the Kokish–Kraft counter, as an opt-in whole-table variant (**MEASURED 2026-08-25; STAYS OFF**)
+## N4-KK — the Kokish–Kraft counter, a whole-table variant (**SHIPPED DEFAULT-ON 2026-08-25**)
 
 The one bucket that reopens N4 (see the queue note above): not another rung of
 the shipped lane but a **different published table** for the same object, so it
@@ -1470,7 +1473,8 @@ immediate `X` values, a major, or a transfer?) and on whether a *later* double
 is takeout or penalty. The **Eric Kokish–Beverly Kraft** notes (January 2008,
 printed p. 163) carry a table for exactly this object and are the most complete
 exact-object package in the survey. `competition.multi_kokish_kraft`
-(`--ns-multi-kokish-kraft`, default **off**) plays it.
+(default **on** since 2026-08-25; `--no-ns-multi-kokish-kraft` falls back to
+the v7 table) plays it.
 
 ### What moves — five changes at once, deliberately
 
@@ -1519,7 +1523,7 @@ and are one-line reversible:
    above the transfers) say nothing about this pair.
 2. **`3NT` keeps its both-majors stopper gate**, unchanged from v4–v7. Measured
    bare, it confines the values double to `points 8..9` —
-   `probe-call-reading --their-2d-multi --ns-multi-kokish-kraft "1N (2D) X -"`
+   `probe-call-reading --their-2d-multi "1N (2D) X -"`
    reads exactly that — which contradicts the *same source's* "`X` =
    invitational **or better**" and re-runs at maximum frequency the stopperless
    blast perfect defense priced at **−3.7/−4.3 a board** in N4 v2/v3. Ranking
@@ -1559,11 +1563,50 @@ and are one-line reversible:
 - Byte-identity: inert while their `2♦` is undeclared or natural, so the
   default system is unchanged.
 
+### The measurement
+
+Two runs. The first (SHA `78ad4c02`, `SEED_BASE 1787606986`,
+`ab-results/2d-multi-kk/`) read the owned lane as the shippable shape but
+**failed the isolation gate** at 55% foreign divergence, so no headline could
+be quoted from it; that leak was the mirror-read bug, fixed at `29f93561`
+([below](#the-mirror-book--why-the-leak-was-not-a-seat-gate)). Its dumps are
+dead — the fix moved the v7 control arm, so they no longer pair.
+
+The re-measure is the verdict: `scripts/ab-2d-multi-kk.sh`, SHA `f2ecb3c6`,
+**fresh `SEED_BASE 1787615025`**, `ab-results/2d-multi-kk-gated/`, 230 400
+boards per arm per vul, both arms `--their-2d-multi` so the table is the only
+difference.
+
+**The gate first.** `probe-divergence --gate-opener ours` reads **0 of 683
+divergent boards foreign** at none and **0 of 482** at both — 0 of 1165 against
+a 55% prior rate. The mirror book holds.
+
+| vul | plain DD | PD | sd-lead plain | sd-lead PD |
+| --- | --- | --- | --- | --- |
+| none | +0.0002 ±0.0012 | +0.0012 ±0.0015 | +0.0000 ±0.0013 | +0.0009 ±0.0016 |
+| **both** | **+0.0019 ±0.0013** | **+0.0023 ±0.0017** | +0.0014 ±0.0014 | +0.0017 ±0.0017 |
+
+IMPs per board, 95% CIs. Per *fired*: plain +0.067 / +0.907 and PD +0.395 /
++1.102 (none/both).
+
+**Verdict — ships default-on.** Both-vul is the decision table's `win | win`
+row on the two arbitrating scorers, NV is a clean `wash | wash`, the sd-lead
+tie-breaker agrees in sign in all four cells, and **no reading of the eight is
+negative**. The first run's owned-lane figures (PD +0.285/+0.772 per fired)
+reproduced in the *raw* totals at +0.395/+1.102, which is exactly what the
+handoff predicted would happen once the foreign boards stopped being counted.
+`smoke-default` stays byte-identical at 20 000 boards / seed 1: the knob is
+inert until an opponent's Multi is disclosed, so the default system does not
+move.
+
 ### Known residues — priced by the A/B, not fixed in the build
 
 Six consequences of the design, each traced with `probe-decision` /
-`probe-call-reading` during the build review. None is a bug; all five are what
-the arm is actually testing, and each names its reversible alternative.
+`probe-call-reading` during the build review. None is a bug; all are what the
+arm was actually testing, and each names its reversible alternative. Residue 1
+was fixed rather than priced; **3, 4 and 6 are the follow-up queue**, each owed
+its own seed and its own rung — the A/B above prices the table as built, and
+folding a rung into it would spend the one clean signal it bought.
 
 1. **The mirror lane widens.** ~~The competitive book is keyed by call
    *shape* with no seat gate on the reader side.~~ **FIXED 2026-08-25 — see
@@ -1851,6 +1894,19 @@ Every row here is **closed**. Open work is the [queue](#package-queue--open-work
 the full measurement trails are in the archive, linked per row. Numbers are the
 final pooled verdict, IMPs per board unless marked per fired.
 
+**Measured through the leak (2026-08-25).** Every number below was taken before
+[the mirror book](#the-mirror-book--why-the-leak-was-not-a-seat-gate)
+(`29f93561`), so every arm that declared a disclosure — which is every N1 and N4
+row, both vuls — read their calls off our own counter-table. The verdicts are
+not withdrawn: each was a paired diff whose *two* arms shared the same leak, and
+the N1g row's isolation gate read 0 foreign. But the **base** they sit on moved,
+and the Landy rows moved with it, because the fix clears the whole `their`
+struct rather than `two_diamonds_multi` alone. Re-anchoring is owed
+(`scripts/anchor.sh`, then the bucket ranking in
+[bba-gap-campaign.md](bba-gap-campaign.md)); narrowing
+`common::mirror_agreements` to `two_diamonds_multi` is the one-line reversal if
+the Landy move turns out to be the wrong trade.
+
 | Package | Knob (default) | Status | Final pooled verdict | Trail |
 | --- | --- | --- | --- | --- |
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess | [§census](#the-census--what-each-interference-call-actually-costs) |
@@ -1863,6 +1919,7 @@ final pooled verdict, IMPs per board unless marked per fired.
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
+| **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |
 | N4e floorless weak escape over their Multi | `competition.multi_weak_escape` (**`Some(6)`**) | **SHIPPED DEFAULT-ON 2026-08-22 at `Some(6)`; `Some(5)` REFUTED as a default** | `plain wash \| PD win` ×2 seeds, 921,600 bd per cell-set: pooled DD plain +0.00028 ±0.00039, **PD +0.00063 ±0.00049**, sd plain +0.00013 ±0.00041, **SD-PD +0.00052 ±0.00049** — all four PD and all four SD-PD cells non-negative, one negative reading in sixteen (−0.0003, inside CI). `five` is the doubling-artifact row (pooled plain **+0.00085 ±0.00051**, PD **−0.00030 ±0.00069**, vulnerable PD CI-clear negative on **both** seeds) and paired vs `six` is CI-clear worse on PD (**−0.00095 ±0.00048**). Two rounds were lost to the systems-on strip leaking the Multi table into the 1NT-overcall lane (26/260, 27/267 foreign); after the 2026-08-22 fix, 8 of 12 pair-cells gated **0 foreign** and 4 carried exactly **1** board of the campaign's mirror-read leak | [§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted) |
 | N4b `(2♦)` diamond penalty double | `competition.two_diamond_double` (**`None`**) | **measured 2026-08-15 — sweep NULL, opt-in** | all 28 raw cells CI-clear positive and **all of it a leak** (84.9% foreign); owned subset has no CI-clear cell in 28. Two findings kept: the **alert is what makes a gate a reading**, and the "they sit 43%" claim was retracted (0 of 141 on our-opened boards) | [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
 | N4f opener's balancing seat + the two Multi reading knobs | `competition.multi_balance`, `reading.their_multi_advance_reading`, `reading.their_multi_double_reading` (**all off**) | **measured ×2 rounds 2026-08-22 — nothing ships; all three opt-in** | 4 seed-sets, 24 pairs, **0 foreign on every one**. `balance` is **below this harness's resolution** — ~18 bd of reach per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants reach (a sub-lane harness or sd), not another seed. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim — probed false, removed; suppression-only then diverged on **6 boards in 1.84 m**, so the false read is **inert**. Its correctness-only default flip was **withdrawn**: a trigger, not a default | [§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-measured-2-rounds-2026-08-22-nothing-ships-all-three-stay-opt-in) |

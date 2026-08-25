@@ -27,9 +27,9 @@ cargo run --release --example render-book -- --their-2d-multi --prefix "1NT 2♦
 
 # ...and the opt-in Kokish–Kraft variant of the same lane (§N4-KK)
 cargo run --release --example render-book -- --their-2d-multi \
-    --ns-multi-kokish-kraft --prefix "1NT 2♦"
+    --prefix "1NT 2♦"
 cargo run --release --example probe-call-reading -- --their-2d-multi \
-    --ns-multi-kokish-kraft "1N (2D) X -" "1N (2D) 2N -" "1N (2D) - (2H) - - X -"
+    "1N (2D) X -" "1N (2D) 2N -" "1N (2D) - (2H) - - X -"
 
 # What one call reads as, from the seat about to act
 cargo run --release --example probe-call-reading -- --their-2d-multi "1N (2D) X -"
@@ -329,7 +329,7 @@ measured 2026-08-25 — the owned lane reads plain-wash / PD-win (the shippable
 shape) but the mirror-read leak fails the isolation gate, so it **stays off**
 pending an ownership gate; the numbers, the leak forensic, the design-sketch
 repairs and what is owed live in
-[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off).
+[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
 Registered *instead of* the v7 subtree, never over it (`kokish_kraft_entries`,
 `lebensohl.rs`) — the two tables disagree on `2NT`, `3♣`, `3♠` and both delayed
@@ -351,7 +351,7 @@ doubles.
 | `X` | 130 | **`hcp 8+`, no shape promise** | **changed** — invitational-plus (v7: `hcp 6+`) |
 | `P` | 0 | catch-all — and now a **designed** action | **new** — the 6–7 band, with its own delayed table |
 
-Reads (`probe-call-reading --their-2d-multi --ns-multi-kokish-kraft`): `X` →
+Reads (`probe-call-reading --their-2d-multi`): `X` →
 `points 8..` unbounded; `2NT` → `♣ 6..13, points 0..`; `3♣` → `♦ 6..13,
 points 0..`; `3♠` → `♣ 4..5, ♦ 4..5, points 10..`; `2♠` → `♠ 5.., points 0..8`.
 

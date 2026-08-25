@@ -6,10 +6,9 @@
 #       scripts/ab-2d-multi-kk.sh ab-results/2d-multi-kk \
 #       >ab-results/2d-multi-kk.log 2>&1 < /dev/null &
 #
-# What is being tested.  `competition.multi_kokish_kraft`
-# (`--ns-multi-kokish-kraft`) swaps responder's whole `1NT (2♦)` subtree for the
-# Eric Kokish–Beverly Kraft table, the most complete published package for this
-# exact object (`docs/ai-bidder/multi-landy-2d-counter-defense-research.md` §1).
+# What is being tested.  `competition.multi_kokish_kraft` swaps responder's
+# whole `1NT (2♦)` subtree for the Eric Kokish–Beverly Kraft table, the most
+# complete published package for this exact object (`docs/ai-bidder/multi-landy-2d-counter-defense-research.md` §1).
 # Five things move at once — this is a whole-table arm, not a rung:
 #
 #   X          `hcp 8+`, no shape promise (v7: BBA's mimic `hcp 6+`), so the
@@ -39,8 +38,8 @@
 # Two arms, one seed set, `--their-2d-multi` on both so the only difference is
 # the table:
 #
-#   base   the shipped v7 lane
-#   kk     the Kokish–Kraft swap
+#   base   the v7 lane (`--no-ns-multi-kokish-kraft`), shipped up to 2026-08-25
+#   kk     the Kokish–Kraft swap, the shipped default since 2026-08-25
 #
 # `--filter-1nt` (balanced 15-17 somewhere, a raw-hand test applied BEFORE any
 # bidding) rides both arms so they deal the same board set and stay seed-aligned
@@ -53,13 +52,13 @@
 # mirror-read leak makes a counter knob a reading knob, and the gate must read
 # **0 foreign**.
 #
-# Read the gate first, and know why.  The competitive book is keyed by call
-# shape with no seat gate on the reader side, so when *they* open 1NT and *we*
-# overcall a natural `2♦`, their `2NT`/`3♣` decode off this table.  The shipped
-# lane leaks a strength claim there; K–K's floorless transfers leak a hard
-# **six-card suit** — the campaign's mirror-read leak one notch louder.  Every
-# raw headline in this bucket has historically been 60-70% foreign, so
-# `probe-divergence --gate-opener ours` is not a formality here.
+# Read the gate first, and know why.  Before the mirror book (`29f93561`), when
+# *they* opened 1NT and *we* overcalled a natural `2♦`, their `2NT`/`3♣` decoded
+# off this table — 55% of this A/B's first run was foreign at −1.6/−2.5 PD per
+# foreign board.  The fix routes their calls through `System::opponents` and the
+# 2026-08-25 re-measure gated **0 foreign of 1165** divergent boards across both
+# vuls.  The gate stays in the script because it is what proves that; a
+# non-zero reading here means the mirror regressed, not that the table did.
 #
 # Interpretation caveat.  The floorless minor transfers are partly *obstructive*
 # — they take away their advancer's whole pass-or-correct room — and DD play
@@ -69,11 +68,11 @@
 # the worst divergent boards: unauthored continuation and over-broad trigger
 # first.
 #
-# Trace list if this reads a loss, in order (docs §N4-KK "Known residues"):
-# the doubler's second `X` is *penalty* here, so v7's takeout rung — the one
-# BBA rung that measured positive on both scorers, +2.4 plain / +1.6 PD per
-# fired NV — is gone; then the uncapped floorless transfers, which take every
-# strong long-minor hand off the double.
+# Measured 2026-08-25 (`SEED_BASE 1787615025`, 230 400 bd/arm/vul): both-vul is
+# the decision table's `win | win` row — plain +0.0019 ±0.0013, PD +0.0023
+# ±0.0017 — over a `wash | wash` NV, all eight readings non-negative, both
+# sd-lead columns agreeing.  K–K shipped default-on; this script now measures
+# the shipped table against the retired v7 one.
 #
 # Follow-ups already recorded, each owed its own seed: the `3♠` 5-5 fallback
 # (tighten `len(m,5..)` in both minors), a bare stopperless `3NT`, a ceiling on
@@ -99,8 +98,8 @@ SEED_BASE=$(seed_for 2d-multi-kk)
 log "=== 2d-multi-kk SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base "$v" --their-2d-multi --filter-1nt
-    arm kk   "$v" --their-2d-multi --ns-multi-kokish-kraft --filter-1nt
+    arm base "$v" --their-2d-multi --no-ns-multi-kokish-kraft --filter-1nt
+    arm kk   "$v" --their-2d-multi --filter-1nt
 
     gatepair kk base "$v"
     diffpair kk base "$v"

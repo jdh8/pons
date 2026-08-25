@@ -74,12 +74,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_their_multi_double_read: bool,
 
-    /// Play the Kokish–Kraft counter to their Multi
-    /// (`competition.multi_kokish_kraft`), so its `X`, its floorless minor
-    /// transfers and its delayed takeout double can be read off
-    /// `1N (2D) X`, `1N (2D) 2N` and `1N (2D) - (2H) - - X`
+    /// Fall back to the v7 subtree against their Multi, disabling the
+    /// shipped Kokish–Kraft counter (`competition.multi_kokish_kraft`) — so
+    /// the pre-N4-KK readings of `1N (2D) X`, `1N (2D) 2N` and
+    /// `1N (2D) - (2H) - - X` can be compared against it
     #[arg(long, default_value_t = false)]
-    ns_multi_kokish_kraft: bool,
+    no_ns_multi_kokish_kraft: bool,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -105,7 +105,7 @@ fn main() {
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
-    agreements.competition.multi_kokish_kraft = args.ns_multi_kokish_kraft;
+    agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
     if let Some(n) = args.ns_multi_weak_escape {
         agreements.competition.multi_weak_escape = (n > 0).then_some(n);
     }

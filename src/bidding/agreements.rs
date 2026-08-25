@@ -873,8 +873,14 @@ pub struct CompetitionKnobs {
     /// [`Self::multi_stopper_ask`] inert — the `3♠` that carried the ask is the
     /// both-minors call here.
     ///
-    /// **Off by default, unmeasured.**  Inert while their `2♦` is undeclared or
-    /// natural, so the default system is byte-identical.
+    /// **On by default, measured 2026-08-25** (`SEED_BASE 1787615025`, 230 400
+    /// boards per arm per vul, isolation gate 0 foreign at both vuls): the
+    /// decision table's `win | win` row at both-vul — plain **+0.0019 ±0.0013**,
+    /// PD **+0.0023 ±0.0017** — over a `wash | wash` NV, with all eight
+    /// readings non-negative and both sd-lead columns agreeing.  Still inert
+    /// while their `2♦` is undeclared or natural, so the default system stays
+    /// byte-identical; the flag chooses K–K over the v7 subtree only once the
+    /// disclosure engages the counter.
     pub multi_kokish_kraft: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
@@ -1007,7 +1013,7 @@ impl Default for CompetitionKnobs {
             multi_stopper_ask: MultiStopperAsk::Off,
             multi_weak_escape: Some(6),
             multi_balance: false,
-            multi_kokish_kraft: false,
+            multi_kokish_kraft: true,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

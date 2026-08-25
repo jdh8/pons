@@ -1118,8 +1118,10 @@ fn completion_readings_admit_the_bidder() {
 /// whose count moves under that gate, so the fielded system's disclosure
 /// surface is what the tripwire actually watches.  `[multi-stopper]` is the
 /// default-off stopper-ask delta; both continuation modes must expose the
-/// same artificial ask sites.  `[kokish-kraft]` is the opt-in whole-table
-/// counter-defense delta over the same anchor gate.
+/// same artificial ask sites.  `[kokish-kraft]` is the shipped whole-table
+/// counter-defense delta.  Both variant sections are measured from the **v7**
+/// table rather than from the anchor, because K–K ships default-on and the
+/// anchor therefore already plays it — see the comment at the base.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::agreements::Agreements;
@@ -1154,15 +1156,22 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     anchor.decision.their.two_clubs_landy = true;
     anchor.decision.their.two_diamonds_multi = true;
     let anchor_counts = alert_site_counts(&anchor);
-    let mut search = anchor;
+    // The two variant sections below are deltas over **v7**, not over the
+    // anchor.  K–K ships default-on, so the anchor already plays it: measured
+    // from there, `[kokish-kraft]` would be empty and `[multi-stopper]` too
+    // (the ask goes inert under K–K, by design), and two tripwires would
+    // silently stop watching anything.  From v7 each still describes the
+    // change its name claims, and `[their-landy]` above stays the *fielded*
+    // anchor delta — which now includes K–K, as it should.
+    let mut v7 = anchor;
+    v7.competition.multi_kokish_kraft = false;
+    let v7_counts = alert_site_counts(&v7);
+    let mut search = v7;
     search.competition.multi_stopper_ask = crate::bidding::american::MultiStopperAsk::FitSearch;
     let search_counts = alert_site_counts(&search);
-    let mut place = anchor;
+    let mut place = v7;
     place.competition.multi_stopper_ask = crate::bidding::american::MultiStopperAsk::OpenerPlaces;
     let place_counts = alert_site_counts(&place);
-    let mut kk = anchor;
-    kk.competition.multi_kokish_kraft = true;
-    let kk_counts = alert_site_counts(&kk);
     assert_eq!(
         search_counts, place_counts,
         "both stopper continuations must expose the same artificial calls"
@@ -1186,27 +1195,27 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
         }
     }
     found.push_str("\n[multi-stopper]\n");
-    let slugs: BTreeSet<&str> = anchor_counts
+    let slugs: BTreeSet<&str> = v7_counts
         .keys()
         .chain(search_counts.keys())
         .copied()
         .collect();
     for slug in slugs {
-        let before = anchor_counts.get(slug).copied().unwrap_or_default();
+        let before = v7_counts.get(slug).copied().unwrap_or_default();
         let after = search_counts.get(slug).copied().unwrap_or_default();
         if before != after {
             found.push_str(&format!("{slug} {before} -> {after}\n"));
         }
     }
     found.push_str("\n[kokish-kraft]\n");
-    let slugs: BTreeSet<&str> = anchor_counts
+    let slugs: BTreeSet<&str> = v7_counts
         .keys()
-        .chain(kk_counts.keys())
+        .chain(anchor_counts.keys())
         .copied()
         .collect();
     for slug in slugs {
-        let before = anchor_counts.get(slug).copied().unwrap_or_default();
-        let after = kk_counts.get(slug).copied().unwrap_or_default();
+        let before = v7_counts.get(slug).copied().unwrap_or_default();
+        let after = anchor_counts.get(slug).copied().unwrap_or_default();
         if before != after {
             found.push_str(&format!("{slug} {before} -> {after}\n"));
         }
@@ -2071,10 +2080,17 @@ fn multi_advance_ladder_suppresses_the_whole_ladder() {
 
 /// Our values double of their declared Multi is authored `hcp(6..)`, but the
 /// generic `DoubleStyle` reader publishes the flat 8+ for every `1NT (2X) X`.
+///
+/// Pinned to the **v7** table: shipped K–K authors that double at `hcp 8+`,
+/// which coincides with the `DoubleStyle` floor, so under the default the two
+/// readings agree and the case cannot tell them apart.  v7 is the lane where
+/// the authored floor and the generic one differ, so it is the lane that
+/// proves the knob reads the authored one.
 #[test]
 fn multi_values_double_reads_its_own_floor() {
     let mut base = crate::bidding::agreements::Agreements::default();
     base.decision.their.two_diamonds_multi = true;
+    base.competition.multi_kokish_kraft = false;
     base.decision.reading.their_multi_reading = true;
     let mut armed = base;
     armed.decision.reading.their_multi_double_reading = true;

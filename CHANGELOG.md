@@ -45,11 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Kokish–Kraft counter-defense to their `(2♦)` Multi, as an opt-in
-  whole-table variant** (`competition.multi_kokish_kraft`,
-  `--ns-multi-kokish-kraft`, default **off**; no user impact until it is armed,
-  and inert while their `2♦` is undeclared or natural, so the default system is
-  byte-identical). The
+- **Kokish–Kraft counter-defense to their `(2♦)` Multi, shipped default-on**
+  (`competition.multi_kokish_kraft`; `--no-ns-multi-kokish-kraft` falls back to
+  the v7 table). Inert while their `2♦` is undeclared or natural, so the
+  default system is byte-identical and there is no user impact until an
+  opponent's Multi is disclosed; against a declared Multi it replaces the v7
+  subtree wholesale. The
   [survey](docs/ai-bidder/multi-landy-2d-counter-defense-research.md) of
   published counters to a `1NT (2♦ = one unknown 6+ major)` overcall found no
   consensus — six families disagreeing on the most basic question — and the
@@ -86,27 +87,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v2/v3, so `3NT` keeps its both-majors stopper gate. Dropping that gate is a
   recorded sub-arm.
 
-  Five residues are recorded rather than fixed, because they are what the arm
-  is testing: the mirror-read leak widens from a strength claim to a hard
-  six-card suit (so the isolation gate is load-bearing here); the values
-  double's reading loses its `♥ ≤4 / ♠ ≤4` caps (looser, not false); an
-  uncapped floorless transfer takes every strong long-minor hand off the
-  double; the penalty repeated double gives up v7's takeout rung, the one BBA
-  rung that measured positive on both scorers; and two rungs of the delayed
-  table are dead in self-play as a consequence of the floorless transfers.
+  Four residues are recorded rather than fixed, and each names its reversible
+  alternative: the values double's reading loses its `♥ ≤4 / ♠ ≤4` caps
+  (looser, not false); an uncapped floorless transfer takes every strong
+  long-minor hand off the double; the penalty repeated double gives up v7's
+  takeout rung, the one BBA rung that measured positive on both scorers; and
+  two rungs of the delayed table are dead in self-play as a consequence of the
+  floorless transfers. A fifth — the mirror-read leak — was fixed instead (see
+  **Fixed** above).
 
-  **Measured 2026-08-25** (`scripts/ab-2d-multi-kk.sh`, SHA `78ad4c02`,
-  `SEED_BASE 1787606986`, 230 400 bd/arm/vul): the **owned lane is the
-  shippable shape** — plain-DD wash at both vulnerabilities, PD **+0.285 /
-  +0.772** IMPs per fired (none/both), SD-PD agreeing (+0.205 / +0.699), the
-  win driven by the designed neutral pass — but the **isolation gate failed**
-  (55% of divergent boards foreign): the mirror-read leak makes *their*
-  negative double of *our* natural `2♦` overcall read as our K–K `X` (`hcp 8+`,
-  minors ≤5, majors unlimited), flipping advancer's floor from pass to a `2♥`
-  that cascades into doubled partials, priced at −1.6 / −2.5 PD per foreign
-  board. Raw totals are therefore a net loss and the knob **stays default-off**
-  pending an ownership gate on the table + readings, then a re-measure. Full
-  numbers and the leak forensic in the campaign row in
+  **Measured twice.** The first run (SHA `78ad4c02`, `SEED_BASE 1787606986`)
+  showed the owned lane as the shippable shape but **failed the isolation
+  gate** at 55% foreign divergence, so it could not be read as a headline; that
+  leak was the mirror-read bug, fixed at `29f93561`.
+
+  **Re-measured 2026-08-25 on a fresh seed** (`scripts/ab-2d-multi-kk.sh`, SHA
+  `f2ecb3c6`, `SEED_BASE 1787615025`, 230 400 bd/arm/vul, both vuls). The
+  **isolation gate passes at both vulnerabilities — 0 foreign of 683 and 0 of
+  482 divergent boards**, against a 55% prior rate. Headline, IMPs/board with
+  95% CIs:
+  - **both vulnerable — the decision table's `win | win` row**: plain DD
+    **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017**, i.e. **+0.907 / +1.102** IMPs
+    per fired.
+  - **none vulnerable — `wash | wash`**: plain +0.0002 ±0.0012, PD +0.0012
+    ±0.0015 (+0.067 / +0.395 per fired).
+  - **sd-lead tie-breaker agrees and adds no negative cell**: NV +0.0000 /
+    +0.0009, vul +0.0014 / +0.0017.
+
+  All eight readings are non-negative and the owned-lane figures from the first
+  run reproduced in the raw totals, as predicted once the leak was gone. Ships
+  default-on. Full numbers in
   [docs/one-notrump-competitive.md §N4-KK](docs/one-notrump-competitive.md),
   variant map in [docs/one-notrump-multi.md](docs/one-notrump-multi.md).
 
