@@ -123,9 +123,10 @@ the same treatment, which ship together.
 
 ## Queue
 
-1. **N4-KK — BUILT 2026-08-25, A/B pending.**
+1. **N4-KK — SHIPPED default-on 2026-08-25 at `Some(15)`.** ✅ Two rounds
+   below; queue item closed.
    `competition.multi_minor_slam_try`, a `points` floor rather than a bool
-   (`None` = off). It authors residues 3 and 6 together, because the second is
+   (`None` = off), default `Some(15)`. It authors residues 3 and 6 together, because the second is
    the first's interfered tail:
    - [`kokish_kraft_transfer_rebid`](../src/bidding/american/competition/rubensohl.rs)
      gains `4m` on `points(N..) & len(minor, 6..)` at w151, between the lowest
@@ -156,6 +157,101 @@ the same treatment, which ship together.
    corrected escape-hatch note above.
 4. **N3 and Rubensohl.** A different defect (floored, not shadowed). Out of
    scope for this campaign; recorded so nobody folds them in.
+
+## Round 1 — measured 2026-08-25, `SEED_BASE 1787641731`
+
+`scripts/ab-2d-multi-slam.sh`, SHA `8f1303e4`, `ab-results/2d-multi-slam/`,
+230 400 boards per arm per vul, three arms.
+
+**The gate first.** `probe-divergence --gate-opener ours` reads **0 foreign** in
+all four cells — 13/6 divergent boards for `s13` (none/both) and 9/4 for `s15`,
+100% "ours opened" in every one. The mirror book holds.
+
+| arm | vul | fired | plain DD | PD | sd-lead | per fired |
+| --- | --- | --- | --- | --- | --- | --- |
+| s13 vs base | none | 13 | **+0.0004 ±0.0003** | **+0.0004 ±0.0003** | agrees | +7.54 |
+| s13 vs base | both | 6 | +0.0002 ±0.0002 | +0.0002 ±0.0002 | agrees | +8.83 |
+| s15 vs base | none | 9 | **+0.0003 ±0.0002** | **+0.0003 ±0.0002** | agrees | +8.89 |
+| s15 vs base | both | 4 | +0.0001 ±0.0002 | +0.0001 ±0.0002 | agrees | +7.25 |
+| s15 vs s13 | none | 4 | −0.0001 ±0.0002 | −0.0001 | agrees | −4.50 |
+| s15 vs s13 | both | 2 | −0.0001 ±0.0001 | −0.0001 | agrees | −12.00 |
+
+IMPs per board, 95% CIs. **No negative cell in eight** against `base`; NV is the
+decision table's `win | win` row on both arbitrating scorers and both-vul is a
+clean `wash | wash` — the same shape K–K itself shipped on, mirrored across the
+vulnerabilities.
+
+**"The floor is `13`, not `15`" — WITHDRAWN by round 2.** Round 1 read
+`s15 vs s13` negative at both vuls on 6 fired boards and this section concluded
+that Landy's number survived the transplant. Round 2 reads the *same comparison
+positive* at both vuls. Neither reading is significant (round 2: `t` +0.70
+plain / +0.43 PD). The head-to-head was never measured; it was 6 boards of
+noise given a story. Left standing as the worked example of what `n = 19` buys.
+
+**The mechanism is visible in the tail.** `2NT - 3♣ - 4♣ - 4NT - 5♦ - 6♣`
+making where `base` stopped in `3NT` (+9); `3♣ - 3♦ - 4♦ - 5♦ - 6♣` (+10); and
+the contested rung earning its keep at `3♣ 3♥ 4♣ - - 4♥ - - X`, doubling them
+into the `4♥` the shipped table had to pass (+3). The one loss is a `6♦` reached
+off `4♦ - 4NT - 5♠` that fails (−11).
+
+**Not shippable on this alone: `n = 19`.** The rung fires on 19 of 460 800
+boards for `s13` — **0.004%**, some 35× rarer than the K–K arm that contains
+it — so all eight readings rest on nineteen boards, and a 95% CI computed over
+230 400 boards of which 230 381 are exactly zero is a normal approximation with
+almost nothing to approximate. The direction is consistent and the effect is
+large where it fires; the *precision* is not there. Round 2 is the same three
+arms at 10× the boards on a fresh seed (`ab-results/2d-multi-slam-x10/`,
+`SEED_BASE 1787642695`), which costs about two hours and multiplies the fired
+count by ten.
+
+## Round 2 — measured 2026-08-25, `SEED_BASE 1787642695` — SHIPPED `15`
+
+`scripts/ab-2d-multi-slam.sh`, SHA `8f1303e4`, `ab-results/2d-multi-slam-x10/`,
+**2 304 000 boards per arm per vul** (10× round 1), same three arms, fresh seed.
+Wall clock 2h15m.
+
+**The gate first.** 0 foreign in all four cells again — 130/54 divergent for
+`s13` (none/both), 95/40 for `s15`.
+
+Per-board means are all `+0.0000`–`+0.0001 IMPs/board` with CIs at the printed
+precision, which is the wrong frame for a rung that fires on 0.004% of boards.
+The right frame is the fired boards, so these are sums and a one-sample `t` on
+the fired deltas:
+
+| arm | vul | fired | ΣIMP plain | per fired | `t` | ΣIMP PD | `t` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `13` | none | 130 | +140 | +1.08 | +1.61 | +135 | +1.45 |
+| `13` | both | 54 | +121 | +2.24 | +1.85 | +92 | +1.33 |
+| **`15`** | none | 95 | **+162** | **+1.71** | **+2.25** | +150 | +1.92 |
+| **`15`** | both | 40 | **+147** | **+3.67** | **+2.61** | +111 | +1.83 |
+
+sd-lead (16 worlds) agrees in sign in all four base cells. **All eight cells
+positive**, `15` the stronger arm on every one of its four.
+
+**Read one cell at a time — the vuls are not independent.** `base-none` and
+`base-both` are generated from the same `SEED_BASE` and hold *identical deals*
+(verified: `shard-0.json` board 0 matches); only the pricing and the bidding
+differ. Pooling the two vuls would treat one set of deals as two samples and
+inflate every `t` by about √2. Nothing here is pooled.
+
+**The two floors are still not separated, and this is the real finding.**
+`15 ⊂ 13`, so `s15 vs s13` *is* the 13–14 slice in isolation: 55 fired boards,
++42 IMPs plain (`t` +0.70) and +27 PD (`t` +0.43) — after round 1 read the
+opposite sign at `t` ≈ −0.5. Per-fired standard deviation is ~8 IMPs and the
+slice's per-fired mean is under 1, so separating the floors at 2σ would need
+roughly 250 fired boards in the *slice*, i.e. another 10× on top of round 2.
+Not worth buying: the slice is a wash whichever way it points.
+
+**So `15` ships on its own merits, not on beating `13`** — the narrower trigger,
+the cleaner win on all four of its cells, and 27% fewer fires for more total
+IMPs. `13` is a legitimate alternative and stays one keystroke away
+(`--ns-multi-minor-slam-try 13`, `PROBE_MULTI_MINOR_SLAM=13`).
+
+**What this does *not* settle:** whether Landy's `13` should also become `15`.
+The two tables differ exactly where the payload was made a payload — Landy's
+rung is skimmed by stopper cues at w150/149 that K–K does not have — so the
+number does not transplant back by symmetry. Queue item 2 owns it, on its own
+seed.
 
 ## Decided — do not re-litigate
 

@@ -1661,11 +1661,18 @@ ruling.
    trade (`3♣ ← 2NT`, −2.19 PD) backwards. The rung is `4m` at weight 151,
    between the lowest two-suiter step and `3NT`.
 
-   **BUILT 2026-08-25 as `competition.multi_minor_slam_try`** — a `points` floor,
-   not a bool, so the A/B carries three arms (`off` / `13` / `15`);
-   `scripts/ab-2d-multi-slam.sh`. Opener's answer is authored against the N1
-   doctrine, on a probe: floored, that seat offers `{6NT, 4♥, Pass}` and takes
-   `4♥`. Measurement owed.
+   **SHIPPED default-on 2026-08-25 as `competition.multi_minor_slam_try =
+   Some(15)`.** A `points` floor, not a bool, so the A/B carried three arms
+   (`off` / `13` / `15`; `scripts/ab-2d-multi-slam.sh`). Two rounds, gate 0
+   foreign in every cell; round 2 is 2.3M bd/arm/vul (`SEED_BASE` 1787642695).
+   Both floors beat `off` on all eight cells; `15` reads `t` +2.25/+2.61 plain
+   and +1.92/+1.83 PD (NV/both), `13` +1.61/+1.85 and +1.45/+1.33. The two
+   floors are **not** separated — the head-to-head is the 13–14 slice and reads
+   `t` +0.70 plain over 55 fired after reading the *other* sign in round 1 — so
+   `15` ships on the narrower trigger, not on beating `13`. Opener's answer is
+   authored against the N1 doctrine, on a probe: floored, that seat offers
+   `{6NT, 4♥, Pass}` and takes `4♥`. Full write-up in
+   [minor-transfer-slam.md](minor-transfer-slam.md).
 4. **The doubler has no takeout.** v7's second `X` is takeout showing four of
    the other major, and it is the one BBA rung that measured positive on *both*
    scorers (+2.4 plain / +1.6 PD per fired NV). K–K's is penalty, so a 12-count

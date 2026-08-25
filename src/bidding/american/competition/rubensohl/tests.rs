@@ -969,6 +969,9 @@ fn multi_balance_doubles_on_five_trumps_only() {
 fn kk_arm() -> crate::bidding::agreements::Agreements {
     let mut arm = multi_arm();
     arm.competition.multi_kokish_kraft = true;
+    // Pinned for the same reason, one knob later: this is the K–K table
+    // *without* the `4m` slam try, which [`kk_slam_arm`] adds back at a floor.
+    arm.competition.multi_minor_slam_try = None;
     arm
 }
 

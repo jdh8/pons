@@ -10,13 +10,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`competition.multi_minor_slam_try` — a `4m` slam try above a completed
-  Kokish–Kraft minor transfer.** Off by default and unmeasured, so **no user
-  impact**: it is inert without the knob, inert without
-  `competition.multi_kokish_kraft`, and inert while their `(2♦)` is undeclared
-  or natural. The default system is byte-identical.
+  Kokish–Kraft minor transfer. Shipped default-on at `Some(15)`.** It is inert
+  without `competition.multi_kokish_kraft` and inert while their `(2♦)` is
+  undeclared or natural, so the default system is unmoved on a board where they
+  do not open a declared Multi; where it does fire it is worth roughly
+  **+1.7 IMPs/fired NV and +3.7 both-vul** (plain DD; +1.6/+2.8 PD), on 0.004%
+  of boards.
 
-  The knob is a `points` **floor**, not a bool, so its A/B carries three arms
-  (`off` / `13` / `15` — `scripts/ab-2d-multi-slam.sh`). What it authors:
+  Measured over two rounds of a three-arm A/B (`off` / `13` / `15`,
+  `scripts/ab-2d-multi-slam.sh`); round 2 is 2.3M boards per arm per
+  vulnerability, `SEED_BASE` 1787642695, `ab-results/2d-multi-slam-x10/`. The
+  `probe-divergence --gate-opener ours` isolation gate reads **0 foreign in all
+  four cells**. Both floors beat `off` on all eight cells and the sd-lead
+  scorer agrees in sign on all four:
+
+  | arm | vul | fired | ΣIMP plain (t) | ΣIMP PD (t) |
+  | --- | --- | --- | --- | --- |
+  | `13` | none | 130 | +140 (+1.61) | +135 (+1.45) |
+  | `13` | both | 54 | +121 (+1.85) | +92 (+1.33) |
+  | `15` | none | 95 | +162 (+2.25) | +150 (+1.92) |
+  | `15` | both | 40 | +147 (+2.61) | +111 (+1.83) |
+
+  The deals are identical across the two vulnerabilities, so the cells are
+  correlated and are read one at a time — no pooling. The **two floors are not
+  separated**: `15 ⊂ 13`, so the head-to-head *is* the 13–14 slice, and it reads
+  `t` +0.70 plain / +0.43 PD over 55 fired after reading the other sign in
+  round 1 (where the whole arm fired 19 boards). `15` ships on the narrower
+  trigger and the cleaner per-cell win, not on beating `13`; re-floor with
+  `--ns-multi-minor-slam-try 13` (`PROBE_MULTI_MINOR_SLAM=13`), disarm with
+  `off`.
+
+  The knob is a `points` **floor**, not a bool, which is what let the A/B carry
+  three arms. What it authors:
 
   - responder's `4m` over the completion, `points(N..) & len(minor, 6..)` at
     w151 — between the lowest two-suiter step (152) and `3NT` (150);

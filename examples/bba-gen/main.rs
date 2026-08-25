@@ -757,7 +757,7 @@ struct Args {
     no_ns_multi_kokish_kraft: bool,
 
     /// The `points` floor of the `4m` slam try above a completed Kokish–Kraft
-    /// minor transfer: `off` (default), or a floor — `13` is
+    /// minor transfer: a `points` floor (default `15`), or `off` — `13` is
     /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm
     ///
     /// Also authors opener's answer (`4NT` RKCB on a maximum, else `5m`) and,
@@ -765,7 +765,7 @@ struct Args {
     /// completion (§N4-KK residues 3 and 6, `docs/minor-transfer-slam.md`).
     /// Needs the Kokish–Kraft counter and their declared `(2♦)` Multi to do
     /// anything.
-    #[arg(long, default_value = "off", value_name = "off|13|15")]
+    #[arg(long, default_value = "15", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =

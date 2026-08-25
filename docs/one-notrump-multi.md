@@ -336,11 +336,12 @@ repairs and what is still owed live in
 *(This heading read "opt-in … stays off" until 2026-08-25 — stale text from
 before the mirror fix, corrected against `agreements.rs` and the CHANGELOG.)*
 
-A second knob rides on top, **off by default and unmeasured**:
+A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed
 minor transfer, opener's `4NT`/`5m` answer with its RKCB ladder, and the
-shortness `4m` when they compete over the completion — the tree map below shows
-the lane **without** it. See
+shortness `4m` when they compete over the completion. The tree map below shows
+the lane **without** it, so regenerate with `--ns-multi-minor-slam-try off` to
+match it, or expect the three extra rungs. See
 [minor-transfer-slam.md](minor-transfer-slam.md).
 
 Registered *instead of* the v7 subtree, never over it (`kokish_kraft_entries`,

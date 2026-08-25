@@ -129,8 +129,9 @@ fn main() {
         agreements.competition.multi_kokish_kraft = false;
     }
     // The `4m` slam try above a completed K–K minor transfer
-    // (`competition.multi_minor_slam_try`, default off): `PROBE_MULTI_MINOR_SLAM=1`
-    // arms it, and it needs both of the two above to do anything.
+    // (`competition.multi_minor_slam_try`, default `15`): `PROBE_MULTI_MINOR_SLAM=off`
+    // disarms it, a number re-floors it, and it needs both of the two above to
+    // do anything.
     match std::env::var("PROBE_MULTI_MINOR_SLAM").as_deref() {
         Ok("0") | Ok("off") => agreements.competition.multi_minor_slam_try = None,
         Ok(n) => {
