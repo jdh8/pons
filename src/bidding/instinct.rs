@@ -4030,7 +4030,11 @@ fn penalty_latched(context: &Context<'_>) -> bool {
         return false;
     }
     let auction = context.auction();
-    let Some(double_index) = super::inference::penalty_x_reading(auction) else {
+    // The pinned profile, not the default: a partnership playing DONT, Meckwell or
+    // Woolsey has no natural 15+ double of their 1NT to latch on.
+    let Some(double_index) =
+        super::inference::penalty_x_reading_with_profile(auction, context.reading_profile())
+    else {
         return false;
     };
     // The doubler shares the player-to-act's parity (our side).

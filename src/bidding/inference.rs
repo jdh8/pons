@@ -61,7 +61,7 @@ pub use read::Inferences;
 
 pub(crate) use envelope::relative_of;
 pub(crate) use projection::{AuthoredProjection, AuthoringStepCache};
-pub(in crate::bidding) use readers::penalty_x_reading;
+pub(in crate::bidding) use readers::{penalty_x_reading, penalty_x_reading_with_profile};
 
 #[cfg(test)]
 pub(crate) use projection::{

@@ -204,6 +204,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The penalty latch now reads the *pinned* notrump-defense profile.**
+  `penalty_latched` resolved its `(1NT) X` detector against
+  `ReadingProfile::default()`, so a partnership pinned to DONT, Meckwell or
+  Woolsey — whose double of their 1NT is a convention, not the natural 15+
+  penalty double — still latched into the "once penalty, always penalty"
+  stance. It now passes `context.reading_profile()`, matching the reader side
+  (`penalty_latch_double_reading`), which always did. The shipped default
+  defense is Natural, so the default build is unaffected: `smoke-default
+  --count 20000 --seed 1` is byte-identical.
+
 - **Docs: current `1NT (2♦ Multi)` double meanings.** No code change. The
   system map still called default-on Kokish–Kraft opt-in, while the BBA book and
   source survey described retired v7 as pons's current table. They now agree

@@ -547,7 +547,10 @@ pub(in crate::bidding) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     penalty_x_reading_with_profile(auction, ReadingProfile::default())
 }
 
-fn penalty_x_reading_with_profile(auction: &[Call], profile: ReadingProfile) -> Option<usize> {
+pub(in crate::bidding) fn penalty_x_reading_with_profile(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Option<usize> {
     // One `Cell<NotrumpDefense>` holds one system, so "Natural is active" is the
     // whole test: the four "…but not DONT/Meckwell/direct-Landy/Woolsey"
     // disjuncts this used to carry were the pre-fold precedence cascade, and
