@@ -148,6 +148,14 @@ pub struct Inferences {
     /// (serialization skips it).
     #[cfg_attr(feature = "serde", serde(skip))]
     control_bid: Option<(u8, Suit)>,
+    /// Our side has pulled a **pass/double-inversion** trigger: a penalty-oriented
+    /// double ([`Rule::penalty_oriented`][crate::bidding::rules::Rule::penalty_oriented])
+    /// or a pass that converted partner's double to penalty.  Derived from the
+    /// auction alone, relative to the side to act — like `control_bid` it is a
+    /// fact about the *calls*, not part of the shown-range payload, so
+    /// serialization skips it.  See `docs/pdi.md`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pdi_latched: bool,
     /// The reading settings this reading was produced under — the gauges and
     /// membership rule [`admits`][Self::admits] tests on.  Carried on the value
     /// so the sampler's acceptance test runs on the partnership's pinned settings
@@ -244,6 +252,9 @@ impl Inferences {
             announced_unions,
             players,
             control_bid,
+            // Stamped by the caller that has the auction (see `Inferences::read`);
+            // the trigger-free early returns leave it false.
+            pdi_latched: false,
             profile,
         };
         if profile.blind_opponents {
@@ -514,6 +525,11 @@ impl Inferences {
         // walk; an alerted top stays suppressed as artificial.
         let projection = project_authored(context);
         let masks = projection.masks;
+        // Pass/double-inversion triggers, by auction index: the penalty-oriented
+        // doubles the authored rules tag, plus the structural conversion passes,
+        // which need no rule at all.  One mask, so the floor gate and the reading
+        // below cannot disagree about when the inversion is in force.
+        let pdi_triggers = masks.penalty_trigger | conversion_passes(auction);
         let suppressed = masks.suppressed;
         overlay_unions = projection.unions;
         agreement_unions = projection.announced_unions;
@@ -1315,6 +1331,46 @@ impl Inferences {
             profile,
         );
 
+        // Pass/double inversion (`docs/pdi.md`): once our side pulled a trigger,
+        // our later double of *their* contract is penalty — four-plus in the
+        // doubled suit, the claim that stops the sampler reading it as takeout
+        // and partner pulling into a phantom suit.  "More vague" is the point,
+        // so no points claim goes with it.  Deliberately the same narrowing
+        // `penalty_latch_double_reading` makes in the legacy 1NT lane, which is
+        // why the overlap needs no skip list: intersecting a range with itself
+        // is a no-op.  A bid of our own does not un-latch; it only updates the
+        // suit a later penalty double refers to.
+        //
+        // Authored doubles are skipped: their own rule already says what they
+        // promise, and a book that keeps a *takeout* double alive after a
+        // trigger (the Kokish–Kraft delayed double is exactly that) would
+        // otherwise be intersected with a contradictory four-plus and stop
+        // admitting its own bidder.
+        if profile.pdi_latch
+            && let Some(first) = earliest_pdi_trigger(pdi_triggers, len)
+        {
+            let our_parity = len % 2;
+            let mut last_suit_bid: Option<(Suit, usize)> = None;
+            for (index, &call) in auction.iter().enumerate() {
+                match call {
+                    Call::Bid(bid) => {
+                        last_suit_bid = bid.strain.suit().map(|suit| (suit, index % 2));
+                    }
+                    Call::Double if index > first && index % 2 == our_parity => {
+                        let authored = index < 64 && masks.authored >> index & 1 != 0;
+                        if let Some((suit, bidder_parity)) = last_suit_bid
+                            && bidder_parity != our_parity
+                            && !authored
+                        {
+                            let who = relative_of(len, index) as usize;
+                            players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         // The vacuous-scoped probed overlay (`ReadingProfile::probed_vacuous`):
         // own-side calls in *contested* prefixes only, folded onto axes every
         // symbolic source above — walk stamps, projections, and hand
@@ -1370,13 +1426,15 @@ impl Inferences {
             }
         }
 
-        Self::assemble(
+        let mut this = Self::assemble(
             players,
             &overlay_unions,
             &agreement_unions,
             control_bid,
             profile,
-        )
+        );
+        this.pdi_latched = earliest_pdi_trigger(pdi_triggers, len).is_some();
+        this
     }
 
     /// The last call the M6.4 classifier read as a control bid: its auction
@@ -1385,6 +1443,57 @@ impl Inferences {
     pub(in crate::bidding) fn control_bid(&self) -> Option<(u8, Suit)> {
         self.control_bid
     }
+
+    /// Whether the side to act has pulled a pass/double-inversion trigger
+    ///
+    /// See the field of the same name; `docs/pdi.md` holds the semantics.  The
+    /// caller does **not** supply a length: the answer is already collapsed
+    /// against the auction this reading was taken on, which is what keeps the
+    /// systems-on overcall strip (a *shortened* auction) honest.
+    #[must_use]
+    pub(in crate::bidding) const fn pdi_latched(&self) -> bool {
+        self.pdi_latched
+    }
+}
+
+/// Positions at which a pass **converts partner's double to penalty**
+///
+/// The rules-free half of the PDI trigger set: partner doubled at `i - 2`, RHO
+/// passed at `i - 1`, and we pass at `i`, leaving their double in.  That is an
+/// election to defend however the double started life — takeout, negative,
+/// responsive — so it needs no tag and covers the floor-made passes that have no
+/// rule to tag.  Structurally impossible for a DOPI/ROPI keycard answer, whose
+/// double sits over *their* call at `i - 1`.
+///
+/// Depends only on `auction[i - 2 ..= i]`, so an incrementally grown auction
+/// rescans it by construction.  Positions past 63 carry no bit, the shared
+/// [`CallMasks`][super::projection::CallMasks] limitation.
+fn conversion_passes(auction: &[Call]) -> u64 {
+    let mut bits = 0u64;
+    for index in 2..auction.len().min(64) {
+        if auction[index] == Call::Pass
+            && auction[index - 1] == Call::Pass
+            && auction[index - 2] == Call::Double
+        {
+            bits |= 1 << index;
+        }
+    }
+    bits
+}
+
+/// The earliest trigger belonging to the **side to act** in an auction of `len`
+/// calls, if it pulled one
+///
+/// Even indices act on an even-length auction, odd on odd, so one parity mask
+/// scopes the whole trigger set to our side.
+fn earliest_pdi_trigger(triggers: u64, len: usize) -> Option<usize> {
+    let ours: u64 = if len.is_multiple_of(2) {
+        0x5555_5555_5555_5555
+    } else {
+        0xAAAA_AAAA_AAAA_AAAA
+    };
+    let ours = triggers & ours;
+    (ours != 0).then(|| ours.trailing_zeros() as usize)
 }
 
 /// Project the authored rule of every artificial prior call into [`Inferences`]
@@ -1414,6 +1523,7 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
         unions,
         announced_unions,
         control_bid: None,
+        pdi_latched: false,
         profile: context.reading_profile(),
     }
 }

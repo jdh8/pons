@@ -34,6 +34,7 @@ fn weak_two_overcalled_responder(our: Suit) -> Rules {
         )
         .alert(CONTESTED_OGUST)
         .rule(Call::Double, 160, hcp(11..))
+        .penalty()
         .rule(
             Bid::new(3, trump),
             130,
@@ -68,6 +69,7 @@ fn strong_two_overcalled_responder() -> Rules {
             min_level_is(3, Strain::Notrump) & hcp(8..) & balanced() & stopper_in_their_suits(),
         )
         .rule(Call::Double, 120, hcp(6..))
+        .penalty()
         .rule(Call::Pass, 50, hcp(0..));
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(x);
@@ -99,7 +101,8 @@ fn strong_two_reopening() -> Rules {
             120,
             min_level_is(3, Strain::Notrump) & balanced() & stopper_in_their_suits(),
         )
-        .rule(Call::Double, 40, hcp(0..));
+        .rule(Call::Double, 40, hcp(0..))
+        .penalty();
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(x);
         for level in 2..=3u8 {

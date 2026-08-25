@@ -291,6 +291,15 @@ pub(super) struct CallMasks {
     /// the strength it guesses on the way is rolled back afterwards, leaving
     /// the fold — which knows what the heavier siblings deny — to say it.
     pub(super) walk_shape: u64,
+    /// Calls a live authored rule tags **penalty-oriented** ([`Rule::penalty_oriented`]
+    /// [crate::bidding::rules::Rule::penalty_oriented]) — the pass/double-inversion
+    /// triggers this side of the mechanism can see from the rules.  Recorded
+    /// *outside* [`authored_effect`], because the shipped `Alerted` reading scope
+    /// early-returns before recording anything for an unalerted call and the
+    /// natural `(1NT) X` is unalerted.  The structural half of the trigger set
+    /// (a pass that converts partner's double) is rules-free and lives in
+    /// [`Inferences::read`][super::Inferences::read].  See `docs/pdi.md`.
+    pub(super) penalty_trigger: u64,
 }
 
 impl CallMasks {
@@ -329,6 +338,7 @@ impl CallMasks {
         self.substituted |= other.substituted;
         self.artificial |= other.artificial;
         self.walk_shape |= other.walk_shape;
+        self.penalty_trigger |= other.penalty_trigger;
         for (mine, theirs) in self.length_floor.iter_mut().zip(other.length_floor) {
             for (mine, theirs) in mine.iter_mut().zip(theirs) {
                 *mine |= theirs;
@@ -393,6 +403,35 @@ impl AuthoredEffect<'_> {
             .unwrap_or(&self.projection)
             .as_union()
     }
+}
+
+/// Whether any live authored rule for `made` tags it **penalty-oriented**
+///
+/// The sibling of the `alerted` ANY inside [`authored_effect`], deliberately kept
+/// *outside* it: that function's compiled skip fast-paths and its decode gate both
+/// early-return before recording anything, and under the shipped `Alerted` reading
+/// scope an unalerted call never gets that far — which would silently drop the
+/// natural `(1NT) X`, the very trigger the latch was built on.
+///
+/// Positions past 63 carry no bit (the shared [`CallMasks`] limitation).  A plain
+/// per-table scan: `CompiledRules::alerted_rule_indices` has a penalty-tagged mirror
+/// waiting to be written if a bench ever regresses — read
+/// `docs/bidding-performance-handoff.md` before touching the compiled path.
+fn penalty_trigger_live(
+    made: Call,
+    ctx: &Context<'_>,
+    classifier: &dyn crate::bidding::trie::Classifier,
+    decode_pass: bool,
+) -> bool {
+    if made == Call::Pass && !decode_pass {
+        return false;
+    }
+    classifier.as_rules().is_some_and(|rules| {
+        rules
+            .rules()
+            .iter()
+            .any(|rule| rule.call() == made && rule.penalty_oriented() && rule.face_live(ctx))
+    })
 }
 
 #[inline(always)]
@@ -592,6 +631,14 @@ impl AbsoluteProjection {
         self.unions[seat].intersect_assign(effect.projection.as_union(), profile);
         self.announced_unions[seat].intersect_assign(effect.agreement(), profile);
         self.masks.record(index, &effect);
+    }
+
+    /// Record a PDI trigger — the step-cache twin of the one-shot driver's OR
+    /// into `masks.penalty_trigger` (see [`penalty_trigger_live`])
+    fn mark_penalty_trigger(&mut self, index: usize) {
+        if index < 64 {
+            self.masks.penalty_trigger |= 1 << index;
+        }
     }
 }
 
@@ -1070,6 +1117,9 @@ impl AuthoringStepCache {
             if (profile.scope != ReadingScope::All || own_side)
                 && let Some(answer) = pending.own
             {
+                if penalty_trigger_live(made, &at_time, answer.classifier, false) {
+                    self.own.mark_penalty_trigger(index);
+                }
                 if let Some(effect) = authored_effect(
                     made,
                     &at_time,
@@ -1083,51 +1133,59 @@ impl AuthoringStepCache {
             } else if (profile.scope != ReadingScope::All || own_side)
                 && !fallback_projection
                 && let Some(classifier) = pending.own_exact
-                && let Some(effect) = authored_effect(
+            {
+                if penalty_trigger_live(made, &at_time, classifier, false) {
+                    self.own.mark_penalty_trigger(index);
+                }
+                if let Some(effect) = authored_effect(
                     made,
                     &at_time,
                     classifier,
                     pending.own_compiled,
                     false,
                     announce_split,
-                )
-            {
-                self.own.push(index, effect, profile);
+                ) {
+                    self.own.push(index, effect, profile);
+                }
             }
 
             let opponent = index % 2 != reader_parity;
             let routed_answer = pending.routed;
             if let Some(answer) = routed_answer {
-                if table_alerts
-                    && opponent
-                    && let Some(effect) = authored_effect(
+                if table_alerts && opponent {
+                    let disclosed = at_time.clone().with_profile({
+                        let mut decision = partnership.profile();
+                        decision.reading.scope = ReadingScope::Alerted;
+                        decision
+                    });
+                    if penalty_trigger_live(made, &disclosed, answer.classifier, false) {
+                        self.opponents.mark_penalty_trigger(index);
+                    }
+                    if let Some(effect) = authored_effect(
                         made,
-                        &at_time.clone().with_profile({
-                            let mut decision = partnership.profile();
-                            decision.reading.scope = ReadingScope::Alerted;
-                            decision
-                        }),
+                        &disclosed,
                         answer.classifier,
                         pending.routed_compiled,
                         false,
                         announce_split,
-                    )
-                {
-                    self.opponents.push(index, effect, profile);
+                    ) {
+                        self.opponents.push(index, effect, profile);
+                    }
                 }
-                if read_passes
-                    && made == Call::Pass
-                    && (!opponent || table_alerts)
-                    && let Some(effect) = authored_effect(
+                if read_passes && made == Call::Pass && (!opponent || table_alerts) {
+                    if penalty_trigger_live(made, &at_time, answer.classifier, true) {
+                        self.passes.mark_penalty_trigger(index);
+                    }
+                    if let Some(effect) = authored_effect(
                         made,
                         &at_time,
                         answer.classifier,
                         pending.routed_compiled,
                         true,
                         announce_split,
-                    )
-                {
-                    self.passes.push(index, effect, profile);
+                    ) {
+                        self.passes.push(index, effect, profile);
+                    }
                 }
             }
 
@@ -1356,6 +1414,9 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
             authored_effect(made, ctx, classifier, compiled, decode_pass, announce_split)
         {
             projection.apply(len, index, effect, profile);
+        }
+        if index < 64 && penalty_trigger_live(made, ctx, classifier, decode_pass) {
+            projection.masks.penalty_trigger |= 1 << index;
         }
     };
 

@@ -472,7 +472,8 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
                     & suit_hcp(Suit::Diamonds, min_suit_hcp..)
                     & hcp(floor..),
             )
-            .alert(TWO_DIAMOND_PENALTY),
+            .alert(TWO_DIAMOND_PENALTY)
+            .penalty(),
         None => responder_double(rules, Suit::Diamonds, agreements),
     };
     rules = natural_major_escapes(rules, agreements, None);
@@ -817,6 +818,7 @@ pub(crate) fn multi_penalty_answer(major: Suit) -> Rules {
     Rules::new()
         .rule(Call::Double, 150, len(major, 4..))
         .alert(MULTI_PENALTY)
+        .penalty()
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -1071,6 +1073,7 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
     rules
         .rule(Call::Double, 130, hcp(8..))
         .alert(KK_VALUES)
+        .penalty()
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -1101,7 +1104,8 @@ pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool) -> Rules {
     } else {
         rules.rule(Call::Double, 155, len(major, 4..))
     }
-    .alert(MULTI_PENALTY);
+    .alert(MULTI_PENALTY)
+    .penalty();
     rules
         .rule(
             Bid::new(3, Strain::Notrump),
@@ -1320,6 +1324,7 @@ pub(crate) fn kokish_kraft_transfer_overcalled(
     }
     rules
         .rule(Call::Double, 140, hcp(10..))
+        .penalty()
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -1389,7 +1394,7 @@ pub(crate) fn kokish_kraft_minors_place(minor: Suit) -> Rules {
 // and we are already at the four level; if the A/B shows the doubles costing,
 // the fix is a length-gated pull, not a Pass.
 pub(crate) fn kokish_kraft_minors_overcalled() -> Rules {
-    Rules::new().rule(Call::Double, 100, hcp(0..))
+    Rules::new().rule(Call::Double, 100, hcp(0..)).penalty()
 }
 
 #[cfg(test)]

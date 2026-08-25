@@ -166,6 +166,64 @@ fn kokish_kraft_package_invariants() {
     }
 }
 
+/// Kokish–Kraft is the PDI negative control: its penalty/takeout split is
+/// **trie geometry** — the repeated double and the delayed double sit at
+/// different nodes — so a book node shadows the floor at every seat the
+/// generalized latch could otherwise reach.  Arming `pdi_latch` must move
+/// nothing here.  `docs/pdi.md`.
+#[test]
+fn kokish_kraft_unchanged_under_pdi() {
+    let mut off = crate::bidding::agreements::Agreements::default();
+    off.decision.their.two_diamonds_multi = true;
+    off.competition.multi_kokish_kraft = true;
+    let mut on = off;
+    on.decision.reading.pdi_latch = true;
+
+    let nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    let auctions = [
+        // `1NT (2♦) X (2♥)` — back to opener over their pass-or-correct major.
+        vec![
+            nt,
+            Call::Bid(Bid::new(2, Strain::Diamonds)),
+            Call::Double,
+            Call::Bid(Bid::new(2, Strain::Hearts)),
+        ],
+        // `1NT (2♦) X (2♥) - (2♠)` — they correct, opener acts again.
+        vec![
+            nt,
+            Call::Bid(Bid::new(2, Strain::Diamonds)),
+            Call::Double,
+            Call::Bid(Bid::new(2, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(2, Strain::Spades)),
+        ],
+        // `1NT (2♦) X (2♥) X -` — back to the values doubler over partner's
+        // penalty double of their major.
+        vec![
+            nt,
+            Call::Bid(Bid::new(2, Strain::Diamonds)),
+            Call::Double,
+            Call::Bid(Bid::new(2, Strain::Hearts)),
+            Call::Double,
+            Call::Pass,
+        ],
+    ];
+    for auction in &auctions {
+        for hand in [
+            "AQ74.KQT.A82.K63",
+            "AQ7.KQT9.A82.K63",
+            "AQJT.65.AK82.Q63",
+            "AK.QJT9.KQ82.A63",
+        ] {
+            assert_eq!(
+                best_call_with(&on, auction, hand),
+                best_call_with(&off, auction, hand),
+                "pdi_latch moved {hand} at {auction:?}"
+            );
+        }
+    }
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {

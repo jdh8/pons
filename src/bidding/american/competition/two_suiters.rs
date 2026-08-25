@@ -59,6 +59,7 @@ fn uvu_major_responder(major: Suit) -> Rules {
                     | len(Suit::Diamonds, 4..)
                     | suit_hcp(Suit::Diamonds, 4..)),
         )
+        .penalty()
         .rule(Bid::new(3, m), 130, len(major, 3..) & points(6..=9))
         .rule(Bid::new(4, m), 125, len(major, 4..) & points(..=9))
         .rule(Call::Pass, 0, hcp(0..))
@@ -85,6 +86,7 @@ fn michaels_cue_responder(major: Suit) -> Rules {
         .rule(om_cue, 200, len(major, 3..) & points(10..))
         .alert(UVU_MAJOR_RAISE)
         .rule(Call::Double, 160, hcp(10..))
+        .penalty()
         .rule(Bid::new(3, m), 130, len(major, 3..) & points(6..=9))
         .rule(Bid::new(4, m), 125, len(major, 4..) & points(..=9))
         .rule(
@@ -165,6 +167,7 @@ fn uvu_minor_responder(minor: Suit) -> Rules {
                     | len(Suit::Spades, 4..)
                     | suit_hcp(Suit::Spades, 4..)),
         )
+        .penalty()
         .rule(Bid::new(3, m), 130, len(minor, 5..) & points(6..=9));
 
     rules = if minor == Suit::Clubs {

@@ -48,6 +48,7 @@ fn diamond_overcalled_low() -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 3..))
         .rule(Call::Double, 60, len(Suit::Clubs, 4..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 
@@ -64,6 +65,7 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
             hcp(17..) & stopper_in(over),
         )
         .rule(Call::Double, 60, len(over, 4..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 

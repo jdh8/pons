@@ -74,15 +74,17 @@ pub(super) fn uvu_responder(agreements: &Agreements) -> Rules {
     // HCP (AJ/KJ/KQ/AQ) of honors. (Length alone is rare when they hold the
     // minors — honors carry it.) The A/B sweep knob; the suit-specific chase of
     // their actual runout is the encircling follow-up.
-    rules = rules.rule(
-        Call::Double,
-        140,
-        hcp(x_floor..)
-            & (len(Suit::Clubs, 4..)
-                | suit_hcp(Suit::Clubs, 4..)
-                | len(Suit::Diamonds, 4..)
-                | suit_hcp(Suit::Diamonds, 4..)),
-    );
+    rules = rules
+        .rule(
+            Call::Double,
+            140,
+            hcp(x_floor..)
+                & (len(Suit::Clubs, 4..)
+                    | suit_hcp(Suit::Clubs, 4..)
+                    | len(Suit::Diamonds, 4..)
+                    | suit_hcp(Suit::Diamonds, 4..)),
+        )
+        .penalty();
 
     // Weak natural sign-offs: a long major below INV values, to play. The length
     // floor (default 6) drops to 5 to let a five-card major escape when defending

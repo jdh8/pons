@@ -354,7 +354,10 @@ fn landy_responder(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
 
     // X = values, willing to defend whatever they run to.
-    rules = rules.rule(Call::Double, 145, hcp(8..)).alert(LANDY_VALUES);
+    rules = rules
+        .rule(Call::Double, 145, hcp(8..))
+        .alert(LANDY_VALUES)
+        .penalty();
 
     // The minor one-suiters, split by the N1b overlay (`defense_2c_landy_cues`):
     //
@@ -998,7 +1001,10 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // byte-identical — except the 2♦ band under the cap arm, the N1i
     // `2♦ → Pass` lead isolated (the dropped 7-9 point hands pass).
     rules = rules.rule(Bid::new(3, Strain::Notrump), 168, points(10..));
-    rules = rules.rule(Call::Double, 145, hcp(8..)).alert(LANDY_VALUES);
+    rules = rules
+        .rule(Call::Double, 145, hcp(8..))
+        .alert(LANDY_VALUES)
+        .penalty();
     let escape = Bid::new(2, Strain::Diamonds);
     let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
     rules = if agreements.competition.defense_2c_landy_weak_2d_cap {
@@ -1424,7 +1430,7 @@ fn multi_escape_overcalled(major: Suit, over: Option<Bid>, agreements: &Agreemen
         if raise <= Bid::new(3, Strain::from(major)) {
             rules = rules.rule(raise, 100, len(major, 3..) & hcp(max..));
         }
-        rules = rules.rule(Call::Double, 90, hcp(max..));
+        rules = rules.rule(Call::Double, 90, hcp(max..)).penalty();
     }
     rules.rule(Call::Pass, 0, hcp(0..))
 }

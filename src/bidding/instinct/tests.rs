@@ -3640,3 +3640,81 @@ fn expected_score_sums_the_trick_distribution() {
         "the upper tail folds into thirteen tricks, got {folded}"
     );
 }
+
+/// The generalized PDI latch, default off, inverts the floor's later double
+/// once our pass converted partner's takeout double to penalty
+/// (`(1♥) X - - (2♥)`, back to the doubler).  `docs/pdi.md`.
+#[test]
+fn converted_double_inverts_later_floor_double() {
+    let auction = [
+        call(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        call(2, Strain::Hearts),
+    ];
+    let mut off = Agreements::default();
+    off.decision.reading.pdi_latch = false;
+    let mut on = Agreements::default();
+    on.decision.reading.pdi_latch = true;
+
+    // A heart stack sitting over their suit: off, the floor has no penalty
+    // double to offer and bids notrump; on, it doubles them.
+    let stack = "AQ74.KQT9.A82.63";
+    assert_eq!(best_with(&off, &auction, stack), call(2, Strain::Notrump));
+    assert_eq!(best_with(&on, &auction, stack), Call::Double);
+
+    // Classic takeout shape, short in their suit: off, it doubles again for
+    // takeout; on, the inversion says a double would be penalty, so it passes.
+    let takeout = "AQ74.6.KQ82.K632";
+    assert_eq!(best_with(&off, &auction, takeout), Call::Double);
+    assert_eq!(best_with(&on, &auction, takeout), Call::Pass);
+}
+
+/// Partner's double on the converted side is penalty: sit for it rather than
+/// advancing it (`(1♥) X - - (2♥) X -`).
+#[test]
+fn partner_sits_converted_side_double() {
+    let auction = [
+        call(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut off = Agreements::default();
+    off.decision.reading.pdi_latch = false;
+    let mut on = Agreements::default();
+    on.decision.reading.pdi_latch = true;
+    // Off, the takeout advance jumps to a dubious 4♠ on a four-card suit.
+    let hand = "AQ74.65.K982.K63";
+    assert_eq!(best_with(&off, &auction, hand), call(4, Strain::Spades));
+    assert_eq!(best_with(&on, &auction, hand), Call::Pass);
+}
+
+/// Knob off is today's floor exactly — including the auctions the trigger set
+/// would otherwise latch.
+#[test]
+fn pdi_latch_off_is_inert() {
+    let mut off = Agreements::default();
+    off.decision.reading.pdi_latch = false;
+    assert!(!Agreements::default().decision.reading.pdi_latch);
+    // A plain takeout auction, untouched either way.
+    let takeout = [call(2, Strain::Clubs)];
+    assert_eq!(best_with(&off, &takeout, "AQ95.KJ73.K842.6"), Call::Double);
+    // Their conversion does not latch us: `1♥ (X) - -` and we act again.
+    let theirs = [
+        call(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+    ];
+    let mut on = Agreements::default();
+    on.decision.reading.pdi_latch = true;
+    assert_eq!(
+        best_with(&on, &theirs, "AQ74.KQT9.A82.63"),
+        best_with(&off, &theirs, "AQ74.KQT9.A82.63")
+    );
+}

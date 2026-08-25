@@ -987,6 +987,7 @@ knob!(set_nt_overcall_gladiator, nt_overcall_gladiator, decision.reading.nt_over
 knob!(set_rubens_advances, rubens_advances, decision.reading.rubens_advances: bool);
 knob!(set_floor_rkcb, floor_rkcb, decision.reading.floor_rkcb: bool);
 knob!(set_penalty_latch, penalty_latch, decision.reading.penalty_latch: bool);
+knob!(set_pdi_latch, pdi_latch, decision.reading.pdi_latch: bool);
 knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
@@ -1549,6 +1550,7 @@ static SETTINGS: &[Setting] = &[
     gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),
     gated("penalty_latch", FLOOR, "", true, set_penalty_latch, penalty_latch, "notrump_defense=natural"),
     gated("penalty_no_pull", FLOOR, "", true, set_penalty_no_pull, penalty_no_pull, "penalty_latch"),
+    toggle("pdi_latch", FLOOR, "Pass/double inversion", false, set_pdi_latch, pdi_latch),
     toggle("advancer_xx_runout", FLOOR, "", true, set_advancer_xx_runout, advancer_xx_runout),
     toggle("forcing_ceiling_read", FLOOR, "", true, set_forcing_ceiling_read, forcing_ceiling_read),
     toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),

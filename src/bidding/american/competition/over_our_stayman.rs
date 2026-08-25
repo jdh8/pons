@@ -76,6 +76,7 @@ fn stayman_overcalled_opener(over: Suit) -> Rules {
     }
     rules
         .rule(Call::Double, 60, len(over, 4..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 

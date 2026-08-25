@@ -1504,6 +1504,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_penalty_latch: bool,
 
+    /// Arm the **generalized** pass/double-inversion latch (default off): any
+    /// penalty-oriented double we made, or any pass of ours that left partner's
+    /// double in, makes our later doubles read and bid as penalty.  The treatment
+    /// arm of the PDI A/B (docs/pdi.md).
+    #[arg(long, default_value_t = false)]
+    ns_pdi_latch: bool,
+
     /// Restore the doubler's constructive pulls of its own penalty X of BBA's 1NT
     /// (default off = pulls suppressed): with this set, a latched doubler may again
     /// "compete" to 2NT/3NT/a major over the opponents' escape instead of defending.
@@ -2055,6 +2062,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
     agreements.decision.reading.penalty_latch = !args.no_ns_penalty_latch;
+    agreements.decision.reading.pdi_latch = args.ns_pdi_latch;
     agreements.decision.reading.rubens_advances = args.ns_rubens;
     agreements.decision.reading.floor_rkcb = !args.no_ns_floor_rkcb;
     agreements.decision.reading.rkcb_variant = args.ns_rkcb.into();

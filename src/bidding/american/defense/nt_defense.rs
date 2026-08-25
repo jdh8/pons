@@ -246,11 +246,13 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             let floor = agreements.decision.reading.natural_double_floor;
             let w = agreements.defense.natural_double_weight;
             let rules = match agreements.defense.natural_double_shape {
-                DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
-                DoubleShape::SemiBalanced => {
-                    rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
-                }
-                DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
+                DoubleShape::Balanced => rules
+                    .rule(Call::Double, w, hcp(floor..) & balanced())
+                    .penalty(),
+                DoubleShape::SemiBalanced => rules
+                    .rule(Call::Double, w, hcp(floor..) & semi_balanced())
+                    .penalty(),
+                DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)).penalty(),
             };
             chain_natural_overcalls(
                 rules.rule(Call::Pass, 0, hcp(0..)),

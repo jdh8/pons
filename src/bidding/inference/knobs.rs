@@ -635,6 +635,23 @@ pub struct ReadingProfile {
     /// disagree about when a later double is penalty rather than takeout.
     pub penalty_latch: bool,
 
+    /// The **generalized** pass/double-inversion latch (`docs/pdi.md`)
+    ///
+    /// **Default off**, pending its A/B.  The sibling of `penalty_latch`, keyed
+    /// off the whole PDI trigger set rather than the one `(1NT) X` lane: any
+    /// penalty-oriented double our side made (a rule tagged
+    /// [`Rules::penalty`][crate::bidding::rules::Rules::penalty]) *or* any pass
+    /// of ours that left partner's double in.  On, our later doubles read and
+    /// bid as penalty — a trump stack rather than takeout shortness — and
+    /// partner sits.
+    ///
+    /// One field, and one mask behind it (`Inferences::pdi_latched`): the floor
+    /// gate and the matching reading consume the same answer, so they cannot
+    /// disagree about when a later double is penalty.  The legacy
+    /// `penalty_latch` lane still runs beside this; re-keying it through the
+    /// tag is follow-on (1) in `docs/pdi.md`.
+    pub pdi_latch: bool,
+
     /// Run **systems-on** advances after our natural `1NT` overcall
     ///
     /// **Default on** (measured a clean single-dummy-lead win over both minor
@@ -1110,6 +1127,7 @@ impl ReadingProfile {
             strength_dial: 1,
             rubens_advances: true,
             penalty_latch: false,
+            pdi_latch: false,
             nt_overcall_systems_on: false,
             nt_overcall_gladiator: true,
             nt_splinter: false,
@@ -1175,6 +1193,7 @@ impl Default for ReadingProfile {
             strength_dial: 0,
             rubens_advances: false,
             penalty_latch: true,
+            pdi_latch: false,
             nt_overcall_systems_on: true,
             nt_overcall_gladiator: false,
             nt_splinter: true,

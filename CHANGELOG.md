@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`decision.reading.pdi_latch` — the generalized pass/double-inversion latch.
+  Opt-in, default off pending its A/B.** On, our side's PDI triggers (above)
+  invert the meaning of our later calls: `X` suggests penalty and is more vague,
+  so the floor doubles their runout on a trump stack instead of doubling again
+  for takeout, and partner sits rather than advancing. The gate is
+  `penalty_latched(context) || (pdi_latch && inferences().pdi_latched())`, swapped
+  into the three existing latch wrappers, so knob-off is today's expression
+  exactly — `smoke-default --count 20000 --seed 1` is byte-identical. The
+  matching reading narrows the doubler to 4+ in the doubled suit, the same claim
+  the legacy `(1NT) X` reader makes.
+
+  Measured lane: `(1♥) X - - (2♥)` back to the doubler — a heart stack now
+  doubles (was `2NT`), a takeout shape now passes (was a second takeout double),
+  and over `... X -` partner sits (was a `4♠` jump). Kokish–Kraft is the
+  zero-delta control: its penalty/takeout split is trie geometry, so a book node
+  shadows the floor there.
+
+  The v1 pass half reads nothing — "I cannot punish them" is the negation of a
+  conjunction and is not expressible in the interval envelope. Arm 2 (partner
+  reads our post-trigger `P` as takeout) and the re-key of the legacy 1NT latch
+  through the tag are the follow-on queue in [docs/pdi.md](docs/pdi.md).
+  `bba-gen --ns-pdi-latch` is the treatment arm.
+
+- **Pass/double-inversion (PDI) triggers — mechanism only, no consumer.** A new
+  `Rules::penalty()` / `Rules::penalty_if()` builder tags a rule as
+  *penalty-oriented* (`Rule::penalty_oriented()`), mirroring `.alert(...)` /
+  `.alert_if(...)`. The reading walk records two things: those tags, in
+  `CallMasks::penalty_trigger` (both projection drivers, pinned by the existing
+  step-cache masks parity assert), and — rules-free — every **conversion pass**,
+  a pass that leaves partner's double in (`X - -`). `Inferences` collapses the
+  two into `pdi_latched`, side-scoped to the player to act.
+
+  Tagged across the shipped and BBA-active penalty-double census: the natural
+  `(1NT) X`, responder's non-takeout `1NT (2x) X`, UvU, the two-suiter values
+  doubles, the strong-2♣ cards doubles, the doubles over our Stayman and minor
+  and diamond transfers, the Landy and Kokish–Kraft values doubles and their
+  penalty continuations, and the Dutch Multi's 14+ double. `grep '.penalty()'`
+  is the live inventory (docs/pdi.md).
+
+  Alerts could not carry this: alert is disclosure, not the reading switch, the
+  natural `(1NT) X` is unalerted, and conversion passes have no rule at all.
+
+  **Nothing consumes it yet** — `smoke-default --count 20000 --seed 1` is
+  byte-identical. Design, testbeds and the follow-on queue in
+  [docs/pdi.md](docs/pdi.md).
+
 - **`notrump.minor_transfer_slam_try` — a `4m` slam try above a completed
   Puppet minor transfer. Shipped default-on at `Some(13)`.** The Puppet minor
   lanes have

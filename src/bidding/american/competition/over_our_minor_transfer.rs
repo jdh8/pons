@@ -58,6 +58,7 @@ fn minor_overcalled_high() -> Rules {
             hcp(17..) & stopper_in(Suit::Spades),
         )
         .rule(Call::Double, 70, hcp(17..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 
@@ -70,6 +71,7 @@ fn minor_overcalled_high() -> Rules {
 fn minor_overcalled_low(over: Suit) -> Rules {
     Rules::new()
         .rule(Call::Double, 60, len(over, 4..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 

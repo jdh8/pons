@@ -68,6 +68,7 @@ fn transfer_overcalled_opener(
         )
         .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
         .rule(Call::Double, 60, len(over_suit, 4..))
+        .penalty()
         .rule(Call::Pass, 20, hcp(0..))
 }
 

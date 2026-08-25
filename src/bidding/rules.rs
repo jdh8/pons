@@ -93,6 +93,7 @@ pub struct Rule {
     when: Arc<dyn Constraint>,
     label: &'static str,
     alert: Option<Alert>,
+    penalty: bool,
     face: Option<FaceGate>,
     face_id: Option<FaceId>,
     origin: &'static Location<'static>,
@@ -147,6 +148,21 @@ impl Rule {
     #[must_use]
     pub const fn alert(&self) -> Option<Alert> {
         self.alert
+    }
+
+    /// Whether this rule's call is **penalty-oriented** — a pass/double-inversion
+    /// trigger
+    ///
+    /// Set with [`Rules::penalty`].  Marks a double that starts or continues a
+    /// penalty process (a natural penalty double, a cards/values double whose
+    /// point is to punish their runout), as opposed to a takeout, negative,
+    /// responsive, support or lead-directing double.  Orthogonal to
+    /// [`alert`][Self::alert]: alerting is *disclosure*, this is the reading
+    /// switch, and the shipped natural `(1NT) X` is a penalty trigger that is
+    /// not alerted.  See `docs/pdi.md`.
+    #[must_use]
+    pub const fn penalty_oriented(&self) -> bool {
+        self.penalty
     }
 
     /// Whether this rule is live on the current face of the auction
@@ -332,6 +348,7 @@ impl Rules {
             when: Arc::new(when),
             label: "",
             alert: None,
+            penalty: false,
             face: None,
             face_id: None,
             origin: Location::caller(),
@@ -393,6 +410,41 @@ impl Rules {
     #[must_use]
     pub fn alert_if(self, on: bool, alert: Alert) -> Self {
         if on { self.alert(alert) } else { self }
+    }
+
+    /// Tag the most recently added rule as **penalty-oriented** — a
+    /// pass/double-inversion trigger (see [`Rule::penalty_oriented`])
+    ///
+    /// Chains after [`rule`][Self::rule], mirroring [`alert`][Self::alert]:
+    /// `….rule(Call::Double, w, when).penalty()`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn penalty(mut self) -> Self {
+        self.rules
+            .last_mut()
+            .expect("penalty() requires a preceding rule()")
+            .penalty = true;
+        self
+    }
+
+    /// [`penalty`][Self::penalty] the most recently added rule when `on`
+    ///
+    /// Unlike [`alert_if`][Self::alert_if], whose tag must be *absent* rather
+    /// than merely inert, an inert penalty tag is harmless: it gates nothing,
+    /// weighs nothing, and never reaches describe or the projection fold — it
+    /// only sets a bit the PDI mask reads.  This exists for authoring clarity
+    /// at the knob-conditional sites (a `DoubleStyle` arm that is penalty in
+    /// one style and takeout in another).
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn penalty_if(self, on: bool) -> Self {
+        if on { self.penalty() } else { self }
     }
 
     /// Gate the most recently added rule on a face-of-auction predicate

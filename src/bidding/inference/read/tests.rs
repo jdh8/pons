@@ -1575,3 +1575,166 @@ proptest! {
         }
     }
 }
+
+// --- Pass/double inversion triggers (docs/pdi.md) -------------------------
+
+/// A `.penalty()`-tagged rule sets its call's trigger bit: our UvU double of
+/// their both-minors `2NT` latches our side once it is our turn again.
+#[test]
+fn penalty_tag_sets_trigger_mask() {
+    let auction = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Notrump),
+        Call::Double,
+        bid(3, Strain::Clubs),
+    ];
+    // At `1NT (2NT) X` it is *their* turn, so our trigger is not the actor's.
+    assert!(!read_booked(&auction[..3]).pdi_latched);
+    assert!(read_booked(&auction).pdi_latched);
+}
+
+/// A pass that leaves partner's double in is a trigger with no rule of its
+/// own: `(1♥) X - -` elects to defend, whatever the double started life as.
+#[test]
+fn conversion_pass_sets_trigger_mask() {
+    let auction = [
+        bid(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        bid(2, Strain::Hearts),
+    ];
+    // The conversion is at index 3; at `len == 4` the actor is the other side.
+    assert!(!read_booked(&auction[..4]).pdi_latched);
+    assert!(read_booked(&auction).pdi_latched);
+}
+
+/// Their conversion does not latch us: `1♥ (X) - -` is the opponents electing
+/// to defend our contract.
+#[test]
+fn pdi_trigger_is_side_scoped() {
+    let auction = [bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass];
+    // Our 1♥ opening, their takeout double, our pass, their pass — the
+    // conversion bit is theirs, and it is our turn.
+    assert!(!read_booked(&auction).pdi_latched);
+}
+
+/// A DOPI/ROPI pass answers *their* double at `i - 1`, so the conversion
+/// pattern (partner's double at `i - 2`, their pass at `i - 1`) cannot match.
+#[test]
+fn keycard_pass_answers_do_not_convert() {
+    let auction = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(4, Strain::Notrump),
+        Call::Double,
+        Call::Pass,
+    ];
+    assert_eq!(conversion_passes(&auction), 0);
+}
+
+/// Positions past 63 carry no bit — the shared `CallMasks` limitation.
+#[test]
+fn trigger_mask_ignores_positions_past_63() {
+    let mut auction = vec![Call::Pass; 70];
+    // A conversion inside the window, and one past it.
+    auction[3] = Call::Double;
+    auction[64] = Call::Double;
+    let bits = conversion_passes(&auction);
+    assert_eq!(
+        bits & (1 << 5),
+        1 << 5,
+        "the in-window conversion is recorded"
+    );
+    assert_eq!(auction.len(), 70);
+    // Index 66 would be the out-of-window conversion; only 64 bits exist.
+    assert_eq!(bits, 1 << 5);
+}
+
+/// The trigger tag records identically through the step cache and the one-shot
+/// driver — the `masks` `assert_eq` inside the parity helper is what pins it.
+#[test]
+fn step_cache_penalty_trigger_parity() {
+    use crate::bidding::inference::{AuthoringStepCache, assert_step_cache_projection_parity};
+
+    let partnership = crate::american(&Agreements::default()).bind();
+    let auction = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Notrump),
+        Call::Double,
+        bid(3, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut cache = AuthoringStepCache::new();
+    for depth in 0..=auction.len() {
+        let vul = if (auction.len() - depth).is_multiple_of(2) {
+            RelativeVulnerability::NONE
+        } else {
+            crate::bidding::context::flipped(RelativeVulnerability::NONE)
+        };
+        assert_step_cache_projection_parity(&partnership, vul, &auction[..depth], &mut cache);
+    }
+}
+
+/// Knob on, our double after a conversion reads as penalty — four-plus in the
+/// suit it doubles; knob off it claims nothing.  `docs/pdi.md`.
+#[test]
+fn post_conversion_double_reads_four_plus() {
+    // `(1♥) X - - (2♥) X -`: their opening, our takeout double, partner's
+    // converting pass, their runout, our penalty double, their pass.
+    let auction = [
+        bid(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        bid(2, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut off = Agreements::default();
+    off.decision.reading.pdi_latch = false;
+    let mut on = off;
+    on.decision.reading.pdi_latch = true;
+
+    assert_eq!(
+        read_booked_with(&off, &auction)
+            .get(Relative::Partner)
+            .length(Suit::Hearts)
+            .min,
+        0
+    );
+    assert_eq!(
+        read_booked_with(&on, &auction)
+            .get(Relative::Partner)
+            .length(Suit::Hearts)
+            .min,
+        4
+    );
+}
+
+/// The legacy `(1NT) X` latch and the generalized one make the *same* claim, so
+/// the lane they share reads identically whether one or both are armed —
+/// intersecting a range with itself is a no-op, which is why the PDI reading
+/// needs no skip list.
+#[test]
+fn pdi_does_not_double_apply_in_the_notrump_latch_lane() {
+    // `(1NT) X (2♦) X -`: the latch's later penalty double of their runout.
+    let auction = [
+        bid(1, Strain::Notrump),
+        Call::Double,
+        bid(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    let legacy = Agreements::default();
+    let mut both = legacy;
+    both.decision.reading.pdi_latch = true;
+    let length = |agreements: &Agreements| {
+        read_booked_with(agreements, &auction)
+            .get(Relative::Partner)
+            .length(Suit::Diamonds)
+    };
+    assert_eq!(length(&legacy).min, 4);
+    assert_eq!(length(&both), length(&legacy));
+}

@@ -530,6 +530,7 @@ fn responses_overcalled(their: Suit) -> Rules {
             )
             // Penalty double, short in the major opener is assumed to hold.
             .rule(Call::Double, 115, hcp(14..) & len(Suit::Spades, ..=1))
+            .penalty()
             // The cheap support rung — the one `(2♠)` does not have.
             .rule(
                 Bid::new(2, Strain::Spades),
@@ -545,6 +546,7 @@ fn responses_overcalled(their: Suit) -> Rules {
                 len(Suit::Hearts, 4..) & hcp(20..),
             )
             .rule(Call::Double, 115, hcp(14..) & len(Suit::Hearts, ..=1))
+            .penalty()
             .rule(
                 Bid::new(4, Strain::Hearts),
                 112,
