@@ -130,7 +130,9 @@ pub(crate) fn european_three_club() -> Package {
             // docs/ai-bidder/bba-1nt-minors.md.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ -"),
-                diamond_transfer_game(8, false),
+                // `None`: this arm is an *opponent model* (see the module doc), so our
+                // `4m` slam try must not leak into it.
+                diamond_transfer_game(8, false, None),
             ));
             entries
         },

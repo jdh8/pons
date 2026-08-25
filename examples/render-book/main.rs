@@ -62,6 +62,25 @@ struct Args {
     /// anything.
     #[arg(long, default_value = "15", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
+
+    /// The `4m` slam try above a completed **Puppet** minor transfer
+    /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
+    ///
+    /// The shipped constructive twin of
+    /// `--ns-multi-minor-slam-try`.  Authors the rung in all four Puppet seats
+    /// plus opener's answer (`4NT` RKCB on `size_ask_accept_floor`, else `5m`).
+    /// The European arm is an opponent model and never carries it.
+    #[arg(long, default_value = "13", value_name = "off|POINTS")]
+    ns_minor_transfer_slam_try: String,
+
+    /// Leave opener's N1j Landy `4m` slam try to the floor instead of using
+    /// the shipped authored answer (`1NT (2♣) 2NT - 3♣ - 4♣ -`)
+    ///
+    /// The rung itself has shipped since N1; this restores the former
+    /// floor-owned seat above it — and the floor can never keycard in a
+    /// disturbed auction (`docs/minor-transfer-slam.md`).
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_minor_slam_answer: bool,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -95,6 +114,14 @@ fn main() {
                 .expect("--ns-multi-minor-slam-try must be off or a points floor"),
         ),
     };
+    agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
+        "off" => None,
+        n => Some(
+            n.parse()
+                .expect("--ns-minor-transfer-slam-try must be off or a points floor"),
+        ),
+    };
+    agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

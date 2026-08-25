@@ -333,17 +333,17 @@ fn after_denied_transfer() -> Vec<Call> {
 }
 
 #[test]
-fn diamond_game_force_bids_blind_3nt_without_the_lane() {
+fn diamond_game_force_uses_the_slam_try_without_the_splinter() {
     let system = partnership_no_diamond_splinter();
-    // 6-4-2-1 game force with a stiff spade: with the knob off there is no way to
-    // show the shortness, so it guesses 3NT at both continuations.
+    // With the splinter knob off, this 6-4-2-1 cannot show short spades; the
+    // shipped 4♦ slam try now outranks the old blind 3NT at both continuations.
     assert_eq!(
         best_call(&system, &after_completed_transfer(), "x.Kxxx.AQxxxx.Kx"),
-        call(3, Strain::Notrump),
+        call(4, Strain::Diamonds),
     );
     assert_eq!(
         best_call(&system, &after_denied_transfer(), "x.Kxxx.AQxxxx.Kx"),
-        call(3, Strain::Notrump),
+        call(4, Strain::Diamonds),
     );
 }
 
@@ -382,10 +382,10 @@ fn five_four_splinters_only_on_the_assured_fit() {
 fn singleton_ace_is_not_a_splinter() {
     let system = partnership();
     // A stiff ace is a working honor, not shortness to advertise (`splinter_short`):
-    // this hand belongs in 3NT, not 5♦.
+    // the natural 4♦ slam try wins, not a 3M splinter or direct 5♦ placement.
     assert_eq!(
         best_call(&system, &after_completed_transfer(), "A.Kxxx.KQxxxx.Kx"),
-        call(3, Strain::Notrump),
+        call(4, Strain::Diamonds),
     );
 }
 

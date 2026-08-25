@@ -139,6 +139,33 @@ fn main() {
         }
         Err(_) => {}
     }
+    // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
+    // 2026-08-25 this probe had no channel for one, so every N1j forensic
+    // silently read the natural `(2♣)` leg: the whole Landy table sat inert and
+    // the seat printed `fallback: Some(0)`.  Same class of hole as
+    // `PROBE_THEIR_2D_MULTI` above.
+    match std::env::var("PROBE_THEIR_2C_LANDY").as_deref() {
+        Ok("0") => agreements.decision.their.two_clubs_landy = false,
+        Ok(_) => agreements.decision.their.two_clubs_landy = true,
+        Err(_) => {}
+    }
+    // Opener's answer to the N1j Landy `4m` slam try
+    // (`competition.landy_minor_slam_answer`, default on).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything.
+    match std::env::var("PROBE_LANDY_SLAM_ANSWER").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_minor_slam_answer = false,
+        Ok(_) => agreements.competition.landy_minor_slam_answer = true,
+        Err(_) => {}
+    }
+    // The `4m` slam try above a completed *Puppet* minor transfer
+    // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
+    match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {
+        Ok("0") | Ok("off") => agreements.notrump.minor_transfer_slam_try = None,
+        Ok(n) => {
+            agreements.notrump.minor_transfer_slam_try = Some(n.parse().expect("a points floor"));
+        }
+        Err(_) => {}
+    }
     // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
     // needs the same floor: under the shipped net floor a `floor#N` row prints

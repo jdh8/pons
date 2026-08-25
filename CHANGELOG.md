@@ -9,6 +9,129 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`notrump.minor_transfer_slam_try` — a `4m` slam try above a completed
+  Puppet minor transfer. Shipped default-on at `Some(13)`.** The Puppet minor
+  lanes have
+  a hardcoded game boundary of `8` and no boundary above it, so a 17-count with
+  six clubs to the AKQJ facing a 16-17 notrump — 33-34 combined — took the same
+  `3NT` an 8-count takes. The direct quantitative `4NT` is not an escape: it is
+  weight 120 against the transfers' 130 and the classes overlap, so the
+  long-minor hand transfers.
+
+  On, responder's `4m` (`points(N..) & len(minor, 6..)`, weight **95**) sits
+  below the splinters (100) and above `3NT` (90) in all four Puppet seats —
+  `1NT - 2♠ - 2NT/3♣ -` and `1NT - 2NT - 3♦/3♣ -` — so a slam hand with a
+  shortness still splinters and only the flat one gives `3NT` up. Opener
+  answers `4NT` RKCB on `size_ask_accept_floor`, else `5m`, with the full
+  `slam::rkcb_rows` ladder after either their pass or double. The opt-in
+  **European arm does not get it**: that
+  arm is an opponent model pinned to EPBot's buckets, so its missing `5m` is
+  fidelity rather than a gap.
+
+  Measured with `ab-nt-splinter --minor-slam N --sd` (uncontested self-play,
+  opponents silenced), **8M boards per cell**, floors `13`/`15` × vul
+  none/both, two independent seeds — `1787661918`
+  (`ab-results/nt-minor-slam/`) and `1787662387`
+  (`ab-results/nt-minor-slam-r2/`), from base HEAD `4eb925c2` plus the campaign
+  worktree:
+
+  | arm | vul | fired | r1 plain /fired | r1 PD | r2 plain /fired | r2 PD |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `13` | none | 2184 / 2142 | +2.02 | +1.94 | +2.22 | +2.16 |
+  | `13` | both | 2184 / 2142 | +2.66 | +2.59 | +2.91 | +2.85 |
+  | `15` | none | 834 / 830 | +5.05 | +4.92 | +5.13 | +5.07 |
+  | `15` | both | 834 / 830 | +6.29 | +6.18 | +6.41 | +6.35 |
+
+  **16/16 DD/PD cells positive; the two SD scorers add another 16/16
+  (32/32 total).** The sd-lead bracket agrees in sign on every cell (95% CI
+  ±0.0001 per board against +0.0006 to +0.0010). The arms are
+  nested, so their difference is the 13-14 points slice alone: positive in all
+  eight of its readings, pooling to **+0.26 IMPs/fired NV and +0.55 both-vul**
+  over n = 2662 — which is why `13` is recommended here even though the K–K
+  sibling shipped `15`. That lane is contested and every rung is bought with a
+  contested `3NT`; this one is quiet, opener can decline to `5m` safely, and
+  the 13-14 band opposite 15-17 is a minor-suit game hand often enough to pay.
+  At Pavlicek's maximal `q = 3%`, an intentionally impossible worst-case bound
+  (every fired board a +24 making-small-slam swing) still leaves the weakest
+  shipped-`13` DD/PD on/off cell at **+1089.04 IMPs**. The preserved summaries
+  do not support the same post-hoc shave for the thin `13`-against-`15` slice;
+  that limits the exact-floor precision, not the on/off verdict. The SD scorer
+  is corroboration, not slam-optimism insurance.
+
+  The old behavior remains available with `--ns-minor-transfer-slam-try off`
+  (`bba-gen`, `render-book`, `probe-call-reading`) or
+  `PROBE_NT_MINOR_SLAM=off` (`probe-decision`). Dutch inherits the same Puppet
+  package; the result is transferred from the identical constructive lane,
+  not a separate Dutch-vs-BBA run.
+
+  **Deliberately not widened.** Four residues inside the same lanes were found
+  and left documented rather than fixed, on jdh8's call that the constructive
+  blast radius was too large for one session: the `2NT` class's 5♦4♣ member
+  cannot slam-try (the gate hardcodes six where `diamond_splinter_rows` takes
+  the shape per node); the splinter branch is still slamless; the two `2♠`
+  rebid tables have no finite catch-all; and `size_ask_accept_floor` is 16
+  uncontested against a hardcoded 17 contested. Each has a proposed reversible
+  default in `docs/minor-transfer-slam.md` §"Open, and flagged". Checked and
+  clear: the rung **and** its answer both ride the `nt_overcall_systems_on`
+  graft into `(1x) 1NT` (`depth: 7` / `depth: 9`, `fallback: None`), so no new
+  floored seat is manufactured there.
+
+- **`competition.landy_minor_slam_answer` — opener's answer to the N1j Landy
+  `4m` slam try. Shipped default-on.**
+  The rung itself
+  (`landy_bba_transfer_rebid`'s `4m`, `points(13..) & len(minor, 6..)`) has
+  shipped default-on since N1 and is unchanged; what was missing for its whole
+  life is the seat above it, `1NT (2♣) 2NT - 3♣ - 4♣ -`, which no registration
+  covered.
+
+  N1's doctrine was that opener's continuation there is "deliberately the
+  floor's — a `4m` suit contract lets the floor cue-bid on to slam". It cannot
+  be, for a reason N1 could not have known: `instinct`'s `4NT` keycard ask is
+  gated on `Context::undisturbed`, so **the floor can never keycard in any lane
+  the opponents have bid in**, and the unauthored `4m` reads as nothing, which
+  zeroes partner's shown floor and buries the ask's `combined_points(29)`
+  independently. Probed (`PROBE_THEIR_2C_LANDY=1 probe-decision
+  "AQ32.KQ54.A4.K32" "1NT (2♣) 2NT - 3♣ - 4♣ -"`): opener's whole vocabulary is
+  `{6NT 1.600, 4♥ 1.500, Pass 0.000}` and a balanced 16 takes the `4♥` — a
+  contract in a major their Landy `2♣` advertised. With the arm on, `4NT`.
+
+  On, `landy_slam_answer` asks keycard on `hcp(16..)` (RKCB via
+  `american::slam::rkcb_rows`), else declines to `5m`, at the quiet seat and at
+  their double of the try. Landy's responder floor stays `13` and the `16` is a
+  constant across arms — this experiment prices the *answer*, and K–K's shipped
+  `15` does not transplant back by symmetry because Landy's rung is skimmed
+  from above by stopper cues at weight 150/149 that K–K does not have. The
+  answer and full RKCB ladder are authored after either their pass or double.
+  Runner: `scripts/ab-landy-minor-slam.sh`; its `base` arm now names the former
+  behavior with `--no-ns-landy-minor-slam-answer`. Dutch inherits this shared
+  contested package as well.
+
+  **Measured** at `SEED_BASE 1787662790`, 2.304M accepted
+  boards/arm/vulnerability, from base HEAD `4eb925c2` plus the campaign
+  worktree.
+  Isolation gate `probe-divergence --gate-opener ours` reads **0 foreign** in
+  both cells. Eight readings, eight positive:
+
+  | vul | n | plain | PD | sd-lead n | sd plain | sd PD |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | none | 18 | +5.56/fired | +7.11/fired | 28 | +3.50 | +4.04 |
+  | both | 9 | +10.11/fired | +11.44/fired | 18 | +5.83 | +6.22 |
+
+  The enriched filter accepted 18.958% of raw draws. On raw-deal equivalents,
+  the DD/PD gains are +0.00000823/+0.00001053 NV and
+  +0.00000749/+0.00000848 both-vul; rarity explains the small unconditional
+  means, while the fired-board tests clear 95% in all four DD/PD cells
+  (`t = 2.676`–`5.483`). The exact maximal-`q = 3%` small-slam haircut leaves
+  +96.16/+123.98 IMPs NV and +88.48/+100.42 both-vul (plain/PD), so it cannot
+  reverse any on/off cell; the SD scorer is corroboration, not that insurance.
+  Both-vul has no losing board; NV has three, all −11 and all one mechanism:
+  opener holds a 15-count
+  with two aces, the `hcp(16..)` gate declines to `5♣`, and the floor left alone
+  would have cue-bid `4♥` to a making `6♣`. That says the accept gate wants
+  **controls, not points** — a design question for the whole `4m`-answer family
+  (K–K's `16`, this `16`, the constructive `size_ask_accept_floor`), filed in
+  docs/minor-transfer-slam.md §"Open, and flagged" row P6, not started.
+
 - **`competition.multi_minor_slam_try` — a `4m` slam try above a completed
   Kokish–Kraft minor transfer. Shipped default-on at `Some(15)`.** It is inert
   without `competition.multi_kokish_kraft` and inert while their `(2♦)` is
@@ -52,13 +175,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     authored sit over it (§N4-KK residue 6, in place of the `5m` first
     proposed).
 
-  Why it exists: **every** minor transfer in the engine tops out at `3NT` or a
-  placed `5m`, and the one slam channel that exists anywhere — the Landy
-  counter's `4m` — has no authored answer. Cross-lane census, doctrine and queue
-  in `docs/minor-transfer-slam.md`. On the shipped K–K table a 21-count with six
-  clubs transfers, opener completes unconditionally and the ladder ends at
-  `3NT`; with the knob armed the same pair reaches `6♣` through the authored
-  ladder.
+  Why it exists: at campaign opening, **every** minor transfer in the engine
+  topped out at `3NT` or a placed `5m`, and the one slam channel anywhere — the
+  Landy counter's `4m` — had no authored answer. Cross-lane census, doctrine and
+  queue in `docs/minor-transfer-slam.md`. Before this subknob, a 21-count with
+  six clubs transferred through the K–K table, opener completed unconditionally
+  and the ladder ended at `3NT`; now the same pair reaches `6♣` through the
+  authored ladder.
 
   Opener's answer is authored **against** N1's slam-exploration doctrine
   ("a `4m` suit contract lets the floor cue-bid on to slam"), on a probe: at that
@@ -67,6 +190,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all, `instinct`'s `4NT` ask being gated on `Context::undisturbed`.
 
 ### Fixed
+
+- **Completed the RKCB ladder after opponents double a minor-transfer `4m`
+  slam try.** Constructive Puppet, Landy, and Kokish–Kraft now register the
+  answer and full keycard tree after either pass or `X`, with end-to-end tests.
+  This structural repair leaves the preserved A/B samples unchanged: the
+  constructive harness forced every opponent call to Pass, and full candidate
+  scans found zero doubled tries in either Landy cell or either K–K round (all
+  27 Landy and 351 K–K divergent candidate auctions were also inspected).
+
+- **`probe-decision` gained `PROBE_THEIR_2C_LANDY`.** Their `(2♣)` Landy is a
+  *disclosure* (`decision.their.two_clubs_landy`) and this probe had no channel
+  for one, so every N1j forensic silently read their `2♣` as **natural**: the
+  whole Landy table sat inert and the seat printed `fallback: Some(0)`, which
+  reads exactly like "the floor owns this" and is not. Same class of hole as the
+  `PROBE_THEIR_2D_MULTI` one the N4 campaign found. N1j probe results recorded
+  before this fix are suspect unless they named the disclosure.
 
 - **Parentheses are theirs-only in house auction notation.** Corrected the live
   mis-sided examples and comments, and canonicalized seven row-grammar `(-)`

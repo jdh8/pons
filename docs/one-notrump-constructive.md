@@ -195,13 +195,44 @@ Commit `93352b9` shipped the Puppet/minor scheme:
 - `2♠` shows clubs or a balanced bare-eight invite; opener's 2NT/3♣ step is the
   min/max size answer and remains pass-or-correct for the weak club hand.
 
-Both minor transfers **place games and never ask for slam** — the game boundary
-is a hardcoded `8` at every site and opener's splinter answer picks `3NT` or
-`5m`, total. The direct quantitative `4NT` is *not* an escape for the strong
-long-minor hand: it is weight 120 against the transfers' 130 and the classes
-overlap, so `A32.32.AKQ876.K2` bids `2NT`, not `4NT`. The counter-tables
-inherited the same gap one level up — the cross-lane census and its queue are in
+Before 2026-08-25 both minor transfers **placed games and never asked for
+slam** — the game boundary was a hardcoded `8` at every site and opener's
+splinter answer picked `3NT` or `5m`, total. The direct quantitative `4NT` was
+*not* an escape for the strong long-minor hand: it is weight 120 against the
+transfers' 130 and the classes overlap, so `A32.32.AKQ876.K2` bids `2NT`, not
+`4NT`. The counter-tables inherited the same gap one level up; the cross-lane
+census and full campaign history are in
 [minor-transfer-slam.md](minor-transfer-slam.md).
+
+**Shipped default-on 2026-08-25:
+`notrump.minor_transfer_slam_try = Some(13)`.** jdh8's ruling on the probe was
+that "slamless looks wrong". The `points` floor adds one call — `4m`, weight 95,
+under the splinters and over `3NT` — in all four Puppet seats. Opener answers
+`4NT` RKCB on `size_ask_accept_floor`, else `5m`; both that answer and the
+complete RKCB ladder are authored after a clean pass and after `(X)` at all
+four seats. The A/B harness forced every opponent call to Pass, so the doubled
+tail was structurally unreachable in both measured seeds; an end-to-end test
+pins it instead. The answer has to be authored: probed with the rung live but the
+seat left to the floor, opener at `1NT - 2♠ - 3♣ - 4♣ -` sees `{4♥ 1.500, Pass
+0.000}` and a balanced 16 takes the `4♥`. `undisturbed()` holds there, so the
+keycard ask is nominally available — but an unauthored `4♣` reads as *nothing*,
+which zeroes partner's shown floor and buries the ask's
+`combined_points(29)`. The European arm does **not** get the rung: it is an
+opponent model, and its missing `5m` is fidelity, not a gap.
+
+The A/Bs ran from base `4eb925c2` plus the campaign worktree, with two
+independent 8M-board seeds: **16/16 DD+PD cells were positive, and 32/32 were
+positive including SD-lead**. The exact `13`-versus-`15` slice took more total
+IMPs at `13` in all eight seed/vulnerability/scorer aggregates. The harness did
+not preserve per-board dumps, so an exact conditional variance or `t` statistic
+for that slice cannot be reconstructed. SD-lead is not slam insurance: it fixes
+the opening lead while leaving declarer double-dummy perfect, an optimistic
+upper bound at slam. The ship verdict rests on the plain-DD and
+perfect-defense cells; SD-lead corroborates their sign. At Pavlicek's maximal
+`q = 3%`, even the deliberately impossible bound that every fired board is a
++24 making-small-slam swing leaves the weakest shipped-`13` on/off cell at
++1089.04 IMPs; that proves the on/off ship, not the exact `13`-versus-`15`
+slice.
 
 The original scheme beat the natural baseline +0.76/+1.15
 IMPs/divergent NV/vulnerable (+0.0072/+0.0109 per board, 60k). The later isolated

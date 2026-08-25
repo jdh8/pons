@@ -558,8 +558,11 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "1X-(Y)-2Z forcing" => 1,
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,
         // RKCB 1430 into the agreed suit; no Crosswood, no Exclusion, and none of
-        // the other two keycard orderings.  Whether the ask is *relocated* is a
-        // separate row that rides `rkcb_variant` — see "Kickback 1430" below.
+        // the other two keycard orderings.  The minor-transfer slam campaign only
+        // extends existing transfer schemes with a natural 4m and this same ask;
+        // EPBot has no continuation-specific row, so its three knobs move no value.
+        // Whether the ask is *relocated* is a separate row that rides
+        // `rkcb_variant` — see "Kickback 1430" below.
         "Blackwood 1430" => 1,
         "Blackwood 0123"
         | "Blackwood 0314"

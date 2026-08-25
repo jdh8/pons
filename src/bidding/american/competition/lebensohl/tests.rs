@@ -774,6 +774,36 @@ fn landy_bba_wide_transfers_carry_every_one_suiter() {
 }
 
 #[test]
+fn landy_minor_slam_answer_is_authored_through_a_double() {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_bba = true;
+    arm.competition.landy_minor_slam_answer = true;
+    let responder = "32.K42.A2.AKQJ32";
+
+    for tail in [Call::Pass, Call::Double] {
+        let mut asked = vec![
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            call(2, Strain::Notrump),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(4, Strain::Clubs),
+            tail,
+        ];
+        let (c, floored) = best_call_with(&arm, &asked, "AQ32.KQ54.A4.K32");
+        assert_eq!(c, call(4, Strain::Notrump));
+        assert!(!floored, "the slam try's answer must come from the book");
+
+        asked.extend([call(4, Strain::Notrump), Call::Pass]);
+        let (c, floored) = best_call_with(&arm, &asked, responder);
+        assert_eq!(c, call(5, Strain::Diamonds), "0-or-3 keycards");
+        assert!(!floored, "the RKCB ladder must survive {tail:?}");
+    }
+}
+
+#[test]
 fn landy_bba_keeps_the_values_double_and_sweeps_the_escape() {
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
     // The values X is byte-identical to the stack's row.

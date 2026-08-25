@@ -1063,6 +1063,29 @@ fn landy_bba_transfer_rebid(minor: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Opener's answer to the N1j `4m` slam try (`1NT (2♣) 2NT - 3♣ - 4♣ -`)
+///
+/// Empty unless [`CompetitionKnobs::landy_minor_slam_answer`][crate::bidding::agreements::CompetitionKnobs::landy_minor_slam_answer]
+/// is on.  The `4m` above has shipped default-on since N1 with **no answer at
+/// all** — the doctrine of the day was that "opener's continuation is
+/// deliberately the floor's, a `4m` suit contract lets the floor cue-bid on to
+/// slam", and it is wrong here for a reason the doctrine could not have known:
+/// `instinct`'s `4NT` keycard ask is gated on `Context::undisturbed`, and this
+/// lane is disturbed by construction, so the floor can never ask.  It also
+/// never *reads* the `4m`, which shows a floor of zero and buries the ask's
+/// `combined_points(29)` a second time (`docs/minor-transfer-slam.md`).
+///
+/// The shape is [`competition::rubensohl::kokish_kraft_slam_answer`][crate::bidding::american::competition::rubensohl::kokish_kraft_slam_answer]'s:
+/// a maximum asks keycard, anything else declines to game in the minor.  The
+/// `16` is a constant, not a payload — the arm prices the *answer*, and this
+/// lane's responder floor (`13`) is not in question.
+fn landy_slam_answer(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 160, hcp(16..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(5, Strain::from(minor)), 100, hcp(..16))
+}
+
 /// Opener's answer to an N1j takeout or splinter (`1NT (2♣) 2M/3M -`)
 ///
 /// Notrump = the bid (short) major stopped **or** no four-card minor:
@@ -1220,6 +1243,18 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 ),
                 landy_recue_answer(minor, asked),
             ));
+        }
+        // The `4m` slam try's answer and its RKCB ladder.  The rung itself has
+        // shipped since N1; only this seat is new, and without it the seat is
+        // the floor's — which cannot keycard in a disturbed auction.  Their
+        // double takes no room, so it answers verbatim.
+        if agreements.competition.landy_minor_slam_answer {
+            let four = Bid::new(4, Strain::from(minor));
+            for tail in ["-", "(X)"] {
+                let path = format!("{OVER} {completed} {four} {tail}");
+                entries.extend(rows_of(Pattern::node(&path), landy_slam_answer(minor)));
+                entries.extend(slam::rkcb_rows(&path, minor));
+            }
         }
     }
 
@@ -1526,15 +1561,13 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
         let four = Bid::new(4, Strain::from(minor));
         if agreements.competition.multi_minor_slam_try.is_some() {
             for tail in ["-", "(X)"] {
+                let path = format!("{OVER} {completed} - {four} {tail}");
                 entries.extend(rows_of(
-                    Pattern::after(OVER, &format!("{completed} - {four} {tail}")),
+                    Pattern::node(&path),
                     kokish_kraft_slam_answer(minor),
                 ));
+                entries.extend(slam::rkcb_rows(&path, minor));
             }
-            entries.extend(slam::rkcb_rows(
-                &format!("{OVER} {completed} - {four} -"),
-                minor,
-            ));
         }
         // Their pass-or-correct above the completion: opener sits (the
         // transfer promised no values), and responder's — if it has any — act

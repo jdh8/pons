@@ -149,3 +149,42 @@ fn notrump_responses_transfer_and_stayman() {
     // Four-four in the majors takes Stayman; a 4-3 hand would Puppet (3♣).
     assert_eq!(best(&a, "KJ54.KQ32.43.Q92"), bid(2, Strain::Clubs));
 }
+
+#[test]
+fn minor_transfer_slam_try_is_authored_end_to_end() {
+    let completed = [
+        bid(1, Strain::Notrump),
+        P,
+        bid(2, Strain::Spades),
+        P,
+        bid(3, Strain::Clubs),
+        P,
+    ];
+    let responder = "32.K42.A2.AKQJ32";
+    assert_eq!(best(&completed, responder), bid(4, Strain::Clubs));
+
+    let mut shown = completed.to_vec();
+    shown.extend([bid(4, Strain::Clubs), P]);
+    let partnership = american(&crate::bidding::agreements::Agreements::default()).bind();
+    let read = crate::bidding::Inferences::read(
+        &partnership.prefixed_context(RelativeVulnerability::NONE, &shown),
+    );
+    let partner = read.get(crate::bidding::inference::Relative::Partner);
+    assert!(partner.length(contract_bridge::Suit::Clubs).min >= 6);
+    assert!(partner.strength.points.min >= 13);
+
+    for tail in [P, Call::Double] {
+        let mut asked = completed.to_vec();
+        asked.extend([bid(4, Strain::Clubs), tail]);
+        assert_eq!(best(&asked, "AQ32.KQ54.A4.K32"), bid(4, Strain::Notrump));
+        asked.extend([bid(4, Strain::Notrump), P]);
+        assert_eq!(best(&asked, responder), bid(5, Strain::Diamonds));
+    }
+
+    let mut off = crate::bidding::agreements::Agreements::default();
+    off.notrump.minor_transfer_slam_try = None;
+    assert_eq!(
+        best_with(&off, &completed, responder),
+        bid(3, Strain::Notrump)
+    );
+}

@@ -33,6 +33,20 @@
 //! cargo run --release --example ab-nt-splinter -- --count 200000 --seed "$SEED_BASE"
 //! ```
 //!
+//! `--minor-slam N` measures a third thing with the same harness, and it is not
+//! an empty slot but a *ceiling*: the Puppet minor transfers have a hardcoded
+//! game boundary at `8` and no boundary above it, so a 17-count with six clubs
+//! takes the same `3NT` an 8-count takes
+//! ([`minor_transfer_slam_try`][field@pons::bidding::agreements::NotrumpKnobs::minor_transfer_slam_try]).
+//! On, responder's `4m` (weight 95, under the splinters and over `3NT`) says so
+//! and opener answers — `4NT` keycard on a maximum, else `5m`.  Self-play for
+//! the same reason as the splinters, and with a sharper edge: **an unauthored
+//! `4m` is not a slam try at all**.  Probed with the rung live but the answer
+//! left to the floor, opener's whole vocabulary at `1NT - 2♠ - 3♣ - 4♣ -` is
+//! `{4♥, Pass}` — the ask is suppressed because an unread call shows a floor of
+//! zero (`docs/minor-transfer-slam.md`).  Every `4m` here gives `3NT` up, so
+//! the floor is the payload the arms sweep.
+//!
 //! `--diamond` measures a different empty slot with the same harness: responder's
 //! `3♥`/`3♠` splinter one round later, after the `2NT` diamond transfer
 //! ([`diamond_splinter`][field@pons::bidding::agreements::NotrumpKnobs::diamond_splinter]).
@@ -88,6 +102,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     diamond: bool,
 
+    /// Measure the Puppet minor-transfer `4m` slam try instead of a splinter:
+    /// the `points` floor for
+    /// [`minor_transfer_slam_try`][field@pons::bidding::agreements::NotrumpKnobs::minor_transfer_slam_try],
+    /// `0` to stay on the splinter slots.  Supersedes `--diamond`/`--floor`.
+    #[arg(long, default_value_t = 0)]
+    minor_slam: u8,
+
     /// Also price the opening lead single-dummy on divergent boards (slower):
     /// the blind-lead scorer that sits between plain DD and perfect defense
     #[arg(long, default_value_t = false)]
@@ -142,6 +163,39 @@ fn splinter_fired(auction: &Auction, diamond: bool) -> bool {
     transferred && is_three_major(auction, open + 6)
 }
 
+/// Whether this uncontested auction contains the Puppet minor `4m` slam try
+///
+/// Same silenced-opponents geometry as [`splinter_fired`]: the opening sits at
+/// `open`, responder's transfer two calls on, opener's answer two after that,
+/// and responder's rebid — the slam try — two after *that*.  The transfer is
+/// `2♠` (clubs) or `2NT` (diamonds), and the rung is four of the matching
+/// minor.
+fn minor_slam_fired(auction: &Auction) -> bool {
+    let Some(open) = auction.iter().position(|call| *call != Call::Pass) else {
+        return false;
+    };
+    let is_one_nt = matches!(
+        auction.get(open),
+        Some(Call::Bid(bid)) if bid.level.get() == 1 && bid.strain == Strain::Notrump
+    );
+    if !is_one_nt {
+        return false;
+    }
+    let minor = match auction.get(open + 2) {
+        Some(Call::Bid(bid)) if bid.level.get() == 2 && bid.strain == Strain::Spades => {
+            Strain::Clubs
+        }
+        Some(Call::Bid(bid)) if bid.level.get() == 2 && bid.strain == Strain::Notrump => {
+            Strain::Diamonds
+        }
+        _ => return false,
+    };
+    matches!(
+        auction.get(open + 6),
+        Some(Call::Bid(bid)) if bid.level.get() == 4 && bid.strain == minor
+    )
+}
+
 /// The (contract, declarer, leader-view inferences) of one auction, read through
 /// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
 fn lead_inputs(
@@ -166,13 +220,18 @@ fn lead_inputs(
 fn main() {
     let args = Args::parse();
     let mut rng = StdRng::seed_from_u64(args.seed);
-    // arm 0 = off (the shipped system, slot empty), arm 1 = on (the splinter).
+    // arm 0 = off, arm 1 = on (the shipped minor-slam floor is 13).
     // Both keep every other shipped default. The knob is read at book-
     // construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
     let mut armed = pons::bidding::agreements::Agreements::default();
-    if args.diamond {
+    if args.minor_slam > 0 {
+        // Both arms keep the shipped splinter lanes; the only difference is the
+        // `4m` rung and opener's answer to it.
+        off_agreements.notrump.minor_transfer_slam_try = None;
+        armed.notrump.minor_transfer_slam_try = Some(args.minor_slam);
+    } else if args.diamond {
         off_agreements.notrump.diamond_splinter = false;
         armed.notrump.diamond_splinter = true;
     } else {
@@ -211,7 +270,13 @@ fn main() {
     // the same 3NT), and a divergent board is always a fired one here.
     let fired = bids
         .iter()
-        .filter(|b| splinter_fired(&b[1].0, args.diamond))
+        .filter(|b| {
+            if args.minor_slam > 0 {
+                minor_slam_fired(&b[1].0)
+            } else {
+                splinter_fired(&b[1].0, args.diamond)
+            }
+        })
         .count();
 
     // Only boards whose arms diverge can swing; solve those once.
@@ -237,13 +302,15 @@ fn main() {
         pd_imps += imps(pd_adj - pd_base);
     }
 
-    let slot = if args.diamond {
+    let slot = if args.minor_slam > 0 {
+        format!("1NT - 2♠/2NT - … - 4m slam try (floor {})", args.minor_slam)
+    } else if args.diamond {
         "1NT - 2NT - 3m - 3M".to_owned()
     } else {
         format!("1NT - 3M (floor {})", args.floor)
     };
     println!(
-        "=== {slot} splinter A/B: {} boards, vulnerability {}, seed {} ===",
+        "=== {slot} A/B: {} boards, vulnerability {}, seed {} ===",
         args.count, args.vulnerability, args.seed,
     );
     println!("(opponents silenced — constructive value only)");
@@ -255,7 +322,7 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "Splinter (vs empty slot): {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board plain, {:+.2} IMPs/fired)",
+        "Armed (vs off):           {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board plain, {:+.2} IMPs/fired)",
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / fired.max(1) as f64,
     );

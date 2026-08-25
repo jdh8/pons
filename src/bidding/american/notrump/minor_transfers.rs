@@ -11,7 +11,11 @@
 //!
 //! * The game/partscore boundary is a hardcoded `8` at every site — one below the
 //!   `9` a balanced hand needs, since these are all long-suit hands.  It is *not*
-//!   a knob; the lane places games, it is not a slam try.
+//!   a knob.  A *second* boundary above it is
+//!   [`minor_transfer_slam_try`][crate::bidding::agreements::NotrumpKnobs::minor_transfer_slam_try]:
+//!   off, the lane places games and nothing else, and a 17-count takes the same
+//!   `3NT` an 8-count takes; on, [`minor_slam_try`] gives the top of the class
+//!   a `4m` rung and [`minor_slam_answer`] answers it.
 //! * The splinter is only offered where the fit is assured.  Clubs: responder's own
 //!   six-card suit.  Diamonds: opener's `3♦` (three-card support) or, over the
 //!   `3♣` denial, responder's own six.  A 5♦4♣ hand opposite the denial has no fit
@@ -142,8 +146,9 @@ fn diamond_splinter_rows(
 /// Opener's `3♦` promises three-card support, so *both* members of the `2NT` class
 /// hold an eight-card fit: with `splinter` on, a game-forcing hand short in a major
 /// bids it and lets opener place the game.
-pub(super) fn diamond_transfer_game(threshold: u8, splinter: bool) -> Rules {
+pub(super) fn diamond_transfer_game(threshold: u8, splinter: bool, slam_try: Option<u8>) -> Rules {
     diamond_splinter_rows(two_notrump_class(), threshold, splinter)
+        .chain(minor_slam_try(Suit::Diamonds, slam_try))
         .rule(Bid::new(3, Strain::Notrump), 90, hcp(threshold..))
         .rule(Call::Pass, 0, hcp(..threshold))
 }
@@ -155,8 +160,9 @@ pub(super) fn diamond_transfer_game(threshold: u8, splinter: bool) -> Rules {
 ///
 /// Opener denied diamond support here, so the `splinter` arm needs a self-sufficient
 /// six-card suit — the 5♦4♣ hand has no fit to splinter into and bids `3NT`.
-fn diamond_transfer_correct(threshold: u8, splinter: bool) -> Rules {
+fn diamond_transfer_correct(threshold: u8, splinter: bool, slam_try: Option<u8>) -> Rules {
     diamond_splinter_rows(len(Suit::Diamonds, 6..), threshold, splinter)
+        .chain(minor_slam_try(Suit::Diamonds, slam_try))
         .rule(Bid::new(3, Strain::Notrump), 90, hcp(threshold..))
         .rule(
             Bid::new(3, Strain::Diamonds),
@@ -164,6 +170,48 @@ fn diamond_transfer_correct(threshold: u8, splinter: bool) -> Rules {
             len(Suit::Diamonds, 6..) & hcp(..threshold),
         )
         .rule(Call::Pass, 0, len(Suit::Diamonds, ..6) & hcp(..threshold))
+}
+
+/// Responder's `4m` slam try above a completed minor transfer
+///
+/// Empty unless [`minor_transfer_slam_try`][crate::bidding::agreements::NotrumpKnobs::minor_transfer_slam_try]
+/// carries a floor.  Weight 95 puts it **below** the splinters (100) and
+/// **above** `3NT` (90): a slam hand holding a shortness still splinters, which
+/// is the more informative call, so only the flat slam hand gives `3NT` up.
+///
+/// The six-card requirement is the fit: opener is balanced and has promised
+/// nothing in the minor at three of the four sites this is installed at.
+fn minor_slam_try(minor: Suit, floor: Option<u8>) -> Rules {
+    let Some(floor) = floor else {
+        return Rules::new();
+    };
+    Rules::new().rule(
+        Bid::new(4, Strain::from(minor)),
+        95,
+        len(minor, 6..) & points(floor..),
+    )
+}
+
+/// Opener's answer to responder's `4m` slam try: `4NT` keycard, else `5m`
+///
+/// Authored rather than left to the floor, and this lane is where that turned
+/// out to be necessary rather than tidy.  Probed at `1NT - 2♠ - 3♣ - 4♣ -` with
+/// the rung unauthored, opener's whole vocabulary is `{4♥ 1.500, Pass 0.000}`
+/// and a balanced 16 facing a club slam try takes the `4♥`.  `undisturbed()`
+/// holds here, so `instinct`'s keycard ask is nominally available — but an
+/// unauthored `4♣` reads as *nothing*, partner's shown floor is zero, and the
+/// ask's `combined_points(29)` sums a 16-count to 16.  The reading gate and the
+/// points gate are one gate (`docs/minor-transfer-slam.md`).
+///
+/// `accept_floor` is [`size_ask_accept_floor`][crate::bidding::agreements::NotrumpKnobs::size_ask_accept_floor],
+/// the same 16 the two-way `2♠` already splits opener's range on — so in the
+/// club lane the auction has usually settled the question before this table is
+/// consulted, and the rule that fires is the one opener's earlier call implied.
+fn minor_slam_answer(minor: Suit, accept_floor: u8) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(accept_floor..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(5, Strain::from(minor)), 90, hcp(..accept_floor))
 }
 
 /// A six-card club one-suiter short in `short` with game values — a splinter shape
@@ -200,7 +248,7 @@ fn two_spade_answer(agreements: &Agreements) -> Rules {
 }
 
 /// Responder's pass-or-correct after opener's minimum `2NT` over the two-way 2♠
-fn two_spade_over_min() -> Rules {
+fn two_spade_over_min(slam_try: Option<u8>) -> Rules {
     Rules::new()
         // Balanced invite: opener is minimum, settle in 2NT.
         .rule(Call::Pass, 0, hcp(8..=8) & balanced())
@@ -229,13 +277,14 @@ fn two_spade_over_min() -> Rules {
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
+        .chain(minor_slam_try(Suit::Clubs, slam_try))
         // Game-going clubs without a singleton: 3NT.
         .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
         .alert(PUPPET)
 }
 
 /// Responder's action after opener's maximum `3♣` over the two-way 2♠
-fn two_spade_over_max() -> Rules {
+fn two_spade_over_max(slam_try: Option<u8>) -> Rules {
     Rules::new()
         // Weak club one-suiter: pass the club partscore.
         .rule(Call::Pass, 0, len(Suit::Clubs, 6..) & hcp(..8))
@@ -258,6 +307,7 @@ fn two_spade_over_max() -> Rules {
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
+        .chain(minor_slam_try(Suit::Clubs, slam_try))
         // Balanced invite (opener maximum → accept game) or game clubs without a
         // singleton: 3NT.
         .rule(
@@ -290,22 +340,36 @@ pub(crate) fn diamond_transfer() -> Package {
         gate: |agreements| puppet_scheme(agreements),
         entries: |agreements| {
             let splinter = agreements.notrump.diamond_splinter;
+            let slam_try = agreements.notrump.minor_transfer_slam_try;
+            let accept_floor = agreements.notrump.size_ask_accept_floor;
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2NT -"),
                 diamond_transfer_answer(agreements),
             );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♦ -"),
-                diamond_transfer_game(8, splinter),
+                diamond_transfer_game(8, splinter, slam_try),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♣ -"),
-                diamond_transfer_correct(8, splinter),
+                diamond_transfer_correct(8, splinter, slam_try),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♣ - 3♦ -"),
                 pass_out(),
             ));
+            if slam_try.is_some() {
+                for completion in ["3♦", "3♣"] {
+                    for tail in ["-", "(X)"] {
+                        let path = format!("P* 1NT - 2NT - {completion} - 4♦ {tail}");
+                        entries.extend(rows_of(
+                            Pattern::node(&path),
+                            minor_slam_answer(Suit::Diamonds, accept_floor),
+                        ));
+                        entries.extend(slam::rkcb_rows(&path, Suit::Diamonds));
+                    }
+                }
+            }
             if splinter {
                 let major = |b: &Bindings| matches!(b.suit('x'), Suit::Hearts | Suit::Spades);
                 entries.extend(expand("P* 1NT - 2NT - 3♦ - 3x -", major, |b| {
@@ -326,15 +390,29 @@ pub(crate) fn two_spade_two_way() -> Package {
         name: "two-spade-two-way",
         gate: |agreements| puppet_scheme(agreements),
         entries: |agreements| {
+            let slam_try = agreements.notrump.minor_transfer_slam_try;
+            let accept_floor = agreements.notrump.size_ask_accept_floor;
             let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), two_spade_answer(agreements));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 2NT -"),
-                two_spade_over_min(),
+                two_spade_over_min(slam_try),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 3♣ -"),
-                two_spade_over_max(),
+                two_spade_over_max(slam_try),
             ));
+            if slam_try.is_some() {
+                for answer in ["2NT", "3♣"] {
+                    for tail in ["-", "(X)"] {
+                        let path = format!("P* 1NT - 2♠ - {answer} - 4♣ {tail}");
+                        entries.extend(rows_of(
+                            Pattern::node(&path),
+                            minor_slam_answer(Suit::Clubs, accept_floor),
+                        ));
+                        entries.extend(slam::rkcb_rows(&path, Suit::Clubs));
+                    }
+                }
+            }
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 2NT - 3♣ -"),
                 pass_out(),

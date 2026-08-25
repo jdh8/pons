@@ -1496,6 +1496,9 @@ fn kk_minor_slam_try_is_authored_end_to_end() {
     let (c, floored) = kk_slam(13, &format!("{asked} 4NT -"), both);
     assert_eq!(c, call(5, Strain::Diamonds), "0-or-3 keycards");
     assert!(!floored, "the RKCB ladder must be book");
+    let (c, floored) = kk_slam(13, &format!("{completed} 4♣ X 4NT -"), both);
+    assert_eq!(c, call(5, Strain::Diamonds), "0-or-3 keycards");
+    assert!(!floored, "the doubled RKCB ladder must be book");
 
     // Residue 6: the shortness hand places, and opener sits on it.
     let contested = "1NT 2♦ 2NT - 3♣ 3♥";

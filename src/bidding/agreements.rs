@@ -933,6 +933,34 @@ pub struct CompetitionKnobs {
     /// comparison.  Inert while their `2♦` is undeclared or natural and inert
     /// without [`Self::multi_kokish_kraft`].
     pub multi_minor_slam_try: Option<u8>,
+    /// Author opener's answer to the N1j Landy `4m` slam try
+    ///
+    /// The rung itself (`competition::lebensohl::landy_bba_transfer_rebid`,
+    /// `4m` on `points(13..) & len(minor, 6..)`) has shipped default-on since
+    /// N1 and is **not** what this switches; only the seat above it is.  That
+    /// seat has been the floor's for the rung's whole life, on the N1 doctrine
+    /// that "opener's continuation is deliberately the floor's — a `4m` suit
+    /// contract lets the floor cue-bid on to slam".
+    ///
+    /// The doctrine does not survive probing, for a reason it could not have
+    /// known: `instinct`'s `4NT` keycard ask is gated on
+    /// `Context::undisturbed`, so **the floor can never keycard in any lane the
+    /// opponents have bid in** — and this one is disturbed by construction.
+    /// The unauthored `4m` also reads as nothing, which zeroes partner's shown
+    /// floor and buries the ask's `combined_points(29)` independently.  Two
+    /// gates, one cause (`docs/minor-transfer-slam.md`).
+    ///
+    /// On, `competition::lebensohl::landy_slam_answer` asks keycard (`4NT`,
+    /// RKCB via `american::slam::rkcb_rows`) on `hcp(16..)` and declines to
+    /// `5m` otherwise, at both the quiet seat and their double of the try.  The
+    /// `16` is a constant, not a payload: the arm prices the answer, and the
+    /// responder floor is not in question here.
+    ///
+    /// **On by default since 2026-08-25.** `scripts/ab-landy-minor-slam.sh`
+    /// measured eight positive plain/PD/sd-lead cells at seed `1787662790`;
+    /// the isolation gate found zero foreign boards.  The off state preserves
+    /// the former floor-owned answer for comparison.
+    pub landy_minor_slam_answer: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1066,6 +1094,7 @@ impl Default for CompetitionKnobs {
             multi_balance: false,
             multi_kokish_kraft: true,
             multi_minor_slam_try: Some(15),
+            landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,
@@ -2393,6 +2422,53 @@ pub struct NotrumpKnobs {
     /// has no counterpart toggle, so a measurement against it would price
     /// misinformation rather than the treatment.
     pub diamond_splinter: bool,
+    /// The `4m` slam try above a completed Puppet minor transfer
+    ///
+    /// `Some(N)` authors the rung on `points(N..) & len(minor, 6..)`.  The
+    /// shipped default is `Some(13)`; `None` restores the former slamless lane.
+    ///
+    /// Without it **every** Puppet minor lane tops out at `3NT` or a `5m`
+    /// opener places unasked, and the transfer is uncapped at the top: the
+    /// game/partscore boundary is a hardcoded `8` at every site and there is no
+    /// boundary above it, so a 17-count with six clubs to the AKQJ facing a
+    /// 16-17 notrump — 33-34 combined — takes the same `3NT` an 8-count takes.
+    /// The direct quantitative `4NT` is not the escape hatch it looks like: it
+    /// is weight 120 against the transfers' 130 and the classes overlap, so the
+    /// long-minor hand transfers (`docs/minor-transfer-slam.md`).
+    ///
+    /// Four rungs, one arm, because they are one treatment — the same call in
+    /// the four seats a Puppet minor transfer can reach
+    /// (`notrump::minor_transfers::minor_slam_try`, weight 95):
+    ///
+    /// - `1NT - 2♠ - 2NT -` and `1NT - 2♠ - 3♣ -`, the club lane over opener's
+    ///   minimum and maximum;
+    /// - `1NT - 2NT - 3♦ -` and `1NT - 2NT - 3♣ -`, the diamond lane over the
+    ///   completion and over the pass-or-correct denial.
+    ///
+    /// Weight 95 is **below** the splinters (100) and **above** `3NT` (90), so
+    /// a slam hand holding a shortness still splinters — the more informative
+    /// call — and only the flat slam hand gives `3NT` up.  That is the trade
+    /// the arm prices: there is no room under `3NT`, so every rung above it is
+    /// bought with the notrump game.
+    ///
+    /// Opener's answer **is** authored
+    /// (`notrump::minor_transfers::minor_slam_answer`) — asking keycard
+    /// (`4NT`, RKCB via `american::slam::rkcb_rows`) on
+    /// [`Self::size_ask_accept_floor`], else declining to `5m`.  Leaving it to
+    /// the floor does not work, and this lane is where that was proved:
+    /// probed at `1NT - 2♠ - 3♣ - 4♣ -` with the rung unauthored, opener's
+    /// whole vocabulary is `{4♥ 1.500, Pass 0.000}` and a balanced 16 takes the
+    /// `4♥`.  `Context::undisturbed` holds here, so the keycard ask is
+    /// nominally available — but an unauthored `4♣` reads as nothing, partner's
+    /// *shown* floor is zero, and the ask's `combined_points(29)` sums a
+    /// 16-count to 16.  The reading gate and the points gate are one gate.
+    ///
+    /// Mirrors [`CompetitionKnobs::multi_minor_slam_try`], which is the same
+    /// treatment in the contested `(2♦)` Multi lane and shipped `Some(15)`.
+    /// This quiet lane ships `Some(13)`: two independent 8M-board seeds made
+    /// every DD, PD, and sd-lead cell positive, and the nested 13–14 slice was
+    /// positive in all eight DD/PD cells (`docs/minor-transfer-slam.md`).
+    pub minor_transfer_slam_try: Option<u8>,
 }
 
 impl Default for NotrumpKnobs {
@@ -2416,6 +2492,7 @@ impl Default for NotrumpKnobs {
             stayman_minor_slam_try: true,
             long_minor_force: false,
             diamond_splinter: true,
+            minor_transfer_slam_try: Some(13),
         }
     }
 }
