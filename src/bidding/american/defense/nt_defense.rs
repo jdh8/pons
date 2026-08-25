@@ -115,7 +115,7 @@ fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool, agreements: &Agre
     rules
 }
 
-/// Advancing partner's natural two-level overcall of their `1NT` (`(1NT) 2t (P) ?`)
+/// Advancing partner's natural two-level overcall of their `1NT` (`(1NT) 2t - ?`)
 ///
 /// Everything here is natural, unalerted and non-forcing, so no reading is owed —
 /// the node exists to stop the instinct floor, whose `2NT` rung is the lane's worst

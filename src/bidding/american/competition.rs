@@ -132,7 +132,7 @@ const MULTI_VALUES: Alert = Alert("comp:multi-values");
 /// round later (`competition.multi_kokish_kraft`).
 const MULTI_PENALTY: Alert = Alert("comp:multi-penalty");
 /// Multi takeout double — responder's second `X` once their pass-or-correct
-/// has resolved the major (`1NT (2♦) X (2M) - (-) X`): four of the *other*
+/// has resolved the major (`1NT (2♦) X (2M) - - X`): four of the *other*
 /// major and 1–2 of theirs, BBA's "reopening double".  Alerted so opener
 /// reads the other major, not a penalty holding.  Under the Kokish–Kraft
 /// variant the same claim moves one branch over, to the double that follows

@@ -586,9 +586,9 @@ authors, all under the same gate —
 
 | seat | table |
 | --- | --- |
-| responder after `X (2♥) - (-)`, `X (2♥) - (2♠)`, `X (2♠) - (-)`, `X (2♥) X (2♠)` | `multi_responder_rebid(M, ran)` on the *resolved* major — **v7 (shipped)**: `4NT` = `hcp(16..)`; `2♠` = five spades `hcp ≤8` (hearts resolved); `X` = **takeout**, four of the other major and ≤2 of theirs (`comp:multi-takeout`) — in the `ran` shape (`X (2♥) - (2♠)`, `X (2♥) X (2♠)`) four spades and 7+ (`comp:multi-penalty`); `3NT` = `points(10..) & stopper_in(M)`; else pass. (v4: `3NT` stopper / `X` = `len(M, 4..)` penalty / pass.) |
+| responder after `X (2♥) - -`, `X (2♥) - (2♠)`, `X (2♠) - -`, `X (2♥) X (2♠)` | `multi_responder_rebid(M, ran)` on the *resolved* major — **v7 (shipped)**: `4NT` = `hcp(16..)`; `2♠` = five spades `hcp ≤8` (hearts resolved); `X` = **takeout**, four of the other major and ≤2 of theirs (`comp:multi-takeout`) — in the `ran` shape (`X (2♥) - (2♠)`, `X (2♥) X (2♠)`) four spades and 7+ (`comp:multi-penalty`); `3NT` = `points(10..) & stopper_in(M)`; else pass. (v4: `3NT` stopper / `X` = `len(M, 4..)` penalty / pass.) |
 | responder after `X (2M) X -` | sit |
-| opener after responder's takeout double (`X (2M) - (-) X -`) | `multi_takeout_answer(M)`: sit with four of theirs, bid the 4-4 fit (`2♠`/`3♥`), else a four-card minor, else `2NT` |
+| opener after responder's takeout double (`X (2M) - - X -`) | `multi_takeout_answer(M)`: sit with four of theirs, bid the 4-4 fit (`2♠`/`3♥`), else a four-card minor, else `2NT` |
 | opener after responder's `ran`-shape penalty double, `2♠`, `4NT` | sit / sit / `6NT` with 17 else pass (`multi_quant_answer`) |
 | both after the overcaller's `2NT` heart relay over `2♠` (`X (2♠) X/- (2NT)`) | pass |
 | the doubled relay: `2NT (X)`, `2NT (X) 3♣ -`, `2NT - 3♣ (X)` | completion / `multi_relay_rebid` |
@@ -660,7 +660,7 @@ no spade stopper and fewer than four spades, still passing; BBA's blind
 `3NT` there was the one blind blast PD tolerated (+0.09 NV, −1.79 vul, plain
 +3.9/+3.1). The honest stopper-ask cue (`3♠`) is measured in the residue
 round below.
-The `X (2♥) - (-) -` sell-out itself is now plain −2.05 / PD **+2.02** NV
+The `X (2♥) - - -` sell-out itself is now plain −2.05 / PD **+2.02** NV
 and +0.32 / **+5.01** vul — perfect defense wants us defending BBA's `2♥`,
 and the takeout X takes the hands that should not.
 
@@ -838,7 +838,7 @@ bottom row is PD-positive, i.e. mostly the DD-declarer artifact.
 
 | continuation | bd | plain/bd | PD/bd | plain | PD |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `X (2♥) - (-) -` sell-out | 48 | −1.94 | **+1.02** | −93 | +49 |
+| `X (2♥) - - -` sell-out | 48 | −1.94 | **+1.02** | −93 | +49 |
 | `X (2♥) - (2♠) -` | 22 | −2.00 | +1.18 | −44 | +26 |
 | **`X (2♥) X (2♠) -`** | 35 | **−2.40** | **−0.80** | −84 | −28 |
 | `X (2♠) …` (whole leg) | 45 | +0.82 | +2.13 | +37 | +96 |

@@ -460,7 +460,7 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
     // Same weight, so nothing else in the table re-ranks.
     //
     // Alerted: `project_authored` decodes alerted calls only, and measured on
-    // `probe-call-reading "1N (2D) X (P)"` the unalerted rule read as `points 8..`
+    // `probe-call-reading "1N (2D) X -"` the unalerted rule read as `points 8..`
     // with every suit ⊤ — the length and quality never reached opener.  The alert
     // is what turns the gate into a reading.
     rules = match agreements.competition.two_diamond_double {
@@ -589,7 +589,7 @@ pub(crate) fn multi_signoff_pass() -> Rules {
 }
 
 /// Responder's second call once their pass-or-correct has resolved the major
-/// (`1NT (2♦) X (2♥) - (-)`, `… X (2♥) - (2♠)`, `… X (2♠) - (-)`, `… X (2♥) X (2♠)`)
+/// (`1NT (2♦) X (2♥) - -`, `… X (2♥) - (2♠)`, `… X (2♠) - -`, `… X (2♥) X (2♠)`)
 ///
 /// `major` is their resolved suit; `ran` is the `X (2♥) - (2♠)` shape — the
 /// weak advancer's pass-or-correct corrected to spades.  v7: BBA's own
@@ -763,7 +763,7 @@ pub(crate) fn multi_stopper_forcing_rebid() -> Rules {
 }
 
 /// Opener's answer to responder's takeout double of the resolved major
-/// (`1NT (2♦) X (2♥) - (-) X -`, `… X (2♠) - (-) X -`)
+/// (`1NT (2♦) X (2♥) - - X -`, `… X (2♠) - - X -`)
 ///
 /// BBA's own answers here are opaque (`2NT` 34% even holding four of the
 /// other major, `3m` with four, a penalty pass with 4+ of theirs), so this is
@@ -1075,7 +1075,7 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
 }
 
 /// The Kokish–Kraft doubler's rebid once their pass-or-correct has resolved the
-/// major (`1NT (2♦) X (2♥) - (-)` and its three siblings)
+/// major (`1NT (2♦) X (2♥) - -` and its three siblings)
 ///
 /// [`multi_responder_rebid`]'s fork.  The one structural difference is the
 /// **repeated double**: K–K (like every other exact-object source surveyed)

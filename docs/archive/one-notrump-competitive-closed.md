@@ -535,7 +535,7 @@ Two mechanisms, both **unauthored seats**, not the calls themselves
 1. **`3NT` → `X`** (55/33 boards, plain **−3.8/−5.3 per board**, PD +0.9/+0.2):
    the game hand with one major open doubled to wait, and then *responder's
    second call* — the floor's — **sold out at the two level with 10+**
-   (`1NT (2♦) X (2♥) - (-) -`, `… X (2♥) X (2♠) -`: 42 of 62 ended in `2♠`/`2♥`
+   (`1NT (2♦) X (2♥) - - -`, `… X (2♥) X (2♠) -`: 42 of 62 ended in `2♠`/`2♥`
    undoubled). The waiting double is only as good as the seat that has to
    act on the answer, and that seat reads their `2♦` as diamonds.
 2. **pass → `2NT` relay** (77/58 boards, plain −0.2/−2.3, PD **−3.4/−6.1**):
@@ -571,15 +571,15 @@ relay is wash-to-positive (`- 2♥ → 2NT` +0.5/+0.8 plain, −0.8/+0.4 PD),
 and opener's trump-double node is the package's engine vul (`X 2♥ → X 2♥`
 **+3.7 plain / +4.5 PD per board**, n=35). What is left, all NV, is again
 seats the floor still owns after the double: **the floor pulls the penalty
-doubles it cannot read** — `X (2♠) X (P) 3♥` (responder pulling opener's
-double of 2♠ to 3♥, opener raising to 4♥), `X (2♠) - (-) X (P) 4♥` (opener
+doubles it cannot read** — `X (2♠) X - 3♥` (responder pulling opener's
+double of 2♠ to 3♥, opener raising to 4♥), `X (2♠) - - X - 4♥` (opener
 pulling responder's double), the overcaller's `2NT` heart relay cued as `3♠`;
 `X 2♠` boards −59 plain / −114 PD on 14 boards. And after the relay
 sign-off, their competition: `3♦ - - (3♠) 4♣ - 4♥` — responder correcting a
 weak sign-off to a four-level phantom.
 
 **v3 (built, running):** the double family's continuations authored — responder
-after `X (2♥) - (-)` / `X (2♥) - (2♠)` / `X (2♠) - (-)` doubles with four of the
+after `X (2♥) - -` / `X (2♥) - (2♠)` / `X (2♠) - -` doubles with four of the
 *resolved* major else passes (`multi_penalty_answer` again), sits over opener's
 double, doubles the correction over it; opener sits for every responder
 penalty double; the heart-relay `2NT` nodes and every relay sign-off's
@@ -684,12 +684,12 @@ pass-or-correct**, v4's `3NT (stopper) / X (four trumps) / pass`:
 
 | seat | responder hand | n (NV) | plain | PD |
 | --- | --- | ---: | ---: | ---: |
-| `X (2♥) - (-) ?` passes | 8–9, 4–5 spades, no ♥ stopper | 109 | **−2.9** | −0.4 |
+| `X (2♥) - - ?` passes | 8–9, 4–5 spades, no ♥ stopper | 109 | **−2.9** | −0.4 |
 | same | 10–12, 2–3 spades, no ♥ stopper | 63 | **−3.2** | +0.8 |
 | same | 8–9, ♥ stopper | 53 | +0.8 | +2.0 |
 | `X (2♥) - (2♠) ?` / `X (2♥) X (2♠) ?` passes | 10–12, 2–3 hearts, no ♠ stopper | 68 | **−3.8** | 0.0 |
 | same | 8–9, 2–3 hearts, no ♠ stopper | 33 | **−3.0** | **−1.7** |
-| `X (2♠) - (-) ?` passes | 8–9 | 28 | −0.4 | +1.3 |
+| `X (2♠) - - ?` passes | 8–9 | 28 | −0.4 | +1.3 |
 
 Two holes: no natural spade bid once hearts are resolved (opener's pass over
 `2♥` already denied four hearts), and 10–12 without a stopper in the resolved
@@ -712,7 +712,7 @@ counter-d-x2h2s|counter-d-x2s`, plus the new `--mode custom --seat/--calls/
   (`2NT` with a 17-count 6%, `2♠` with five 2%; it never doubles `2M`) and
   **the doubler describes at its second turn**:
 
-  | after `X (2♥) - (-)` | share | BBA's hand |
+  | after `X (2♥) - -` | share | BBA's hand |
   | --- | ---: | --- |
   | `3NT` | 29.5% | `hcp 9–15`, **no stopper gate** (3–4 hearts, 2–4 spades) |
   | Pass | 26.8% | `hcp 5–9` |
@@ -723,7 +723,7 @@ counter-d-x2h2s|counter-d-x2s`, plus the new `--mode custom --seat/--calls/
   | `3♠` | 5.2% | four spades, 2–3 hearts, `hcp 9–13` |
   | `3♣`/`3♦` | 1.5% each | 5+, `hcp 7–13` (median 8) |
 
-  After `X (2♠) - (-)` the mirror (X = 4–5 hearts, 1–2 spades; no `3♥`/`2♥`
+  After `X (2♠) - -` the mirror (X = 4–5 hearts, 1–2 spades; no `3♥`/`2♥`
   analogue above 1%). After `X (2♥) - (2♠)` — the weak advancer's
   pass-or-correct corrected to spades — the double is **penalty** (spades
   3–5, median 4, `hcp 5–16`, 33%), `3NT` 9–15, `2NT` 8–10, the rest as above.
@@ -769,9 +769,9 @@ Per rung, v6 vs v4 (plain / PD per fired, NV then vul):
 
 | rung | n | NV | vul | verdict |
 | --- | ---: | --- | --- | --- |
-| takeout `X` after `X (2♥) - (-)` | 116 / 82 | **+2.44 / +1.58** | **+2.22 / +0.62** | the real gain — both scorers, both vuls |
-| takeout `X` after `X (2♠) - (-)` | 41 / 42 | +1.83 / +0.29 | +0.33 / −1.12 | wash |
-| blind `3NT` after `X (2♥) - (-)` | 166 / 99 | +1.83 / **−2.45** | +0.16 / **−4.64** | artifact |
+| takeout `X` after `X (2♥) - -` | 116 / 82 | **+2.44 / +1.58** | **+2.22 / +0.62** | the real gain — both scorers, both vuls |
+| takeout `X` after `X (2♠) - -` | 41 / 42 | +1.83 / +0.29 | +0.33 / −1.12 | wash |
+| blind `3NT` after `X (2♥) - -` | 166 / 99 | +1.83 / **−2.45** | +0.16 / **−4.64** | artifact |
 | blind `3NT` after `X (2♥) X (2♠)` | 100 / 67 | +2.20 / **−2.46** | +0.73 / **−4.15** | artifact |
 | blind `3NT` after `X (2♥) - (2♠)` | 116 / 73 | +3.95 / +0.09 | +3.08 / −1.79 | artifact-leaning |
 | `2NT` invite (all seats) | 128 / 84 | +0.3 / **−3.2** | −1.9 / **−6.3** | v5's refutation, again |
@@ -817,7 +817,7 @@ becomes `len(♦, min..) & suit_hcp(♦, q..) & hcp(floor..)` and opener sits
 
 The first build left the double **unalerted**, on the theory that a natural call
 needs no alert and the rule's own projection would carry the length. Measured on
-`probe-call-reading "1N (2D) X (P)"`, it read **`points 8..` with every suit ⊤,
+`probe-call-reading "1N (2D) X -"`, it read **`points 8..` with every suit ⊤,
 armed and unarmed identically** — `project_authored` decodes *alerted calls only*.
 Opener would have competed over their runout blind to the suit it was just told
 about, which is exactly the phantom the N1g wiring existed to kill. With
@@ -1309,7 +1309,7 @@ both vulnerabilities pooled, boards / plain / PD):
 
 | cell | bd | plain | PD | mechanism |
 | --- | ---: | ---: | ---: | --- |
-| `(3♠) X (P) 3NT` | 20 | **−94** | **−123** | opener bids `3NT` on one stopper facing a *seven*-card suit — and does it **holding four hearts**, the suit responder's takeout double promised |
+| `(3♠) X - 3NT` | 20 | **−94** | **−123** | opener bids `3NT` on one stopper facing a *seven*-card suit — and does it **holding four hearts**, the suit responder's takeout double promised |
 | `(3♣) 3♠` | 16 | **−54** | **−57** | the force is answered `4♠` and dies: slam missed on a 5-5 11-count (`4♠+3`, BBA bid `6♠`), or `4♠` on a 5-3 where `3NT` was the make |
 | `(3♣)` Pass | 43 | −67 | −14 | responder has no call; PD nearly recovers it |
 | `(3♣) X` | 29 | −30 | −51 | |
@@ -1317,7 +1317,7 @@ both vulnerabilities pooled, boards / plain / PD):
 | `(3♣) 3♦` | 18 | +9 | +6 | |
 | `(3♠) 4♥` | 18 | +37 | +38 | the authored four-level rung, and the lane's best cell |
 
-The `(3♠) X (P) 3NT` cell is the largest single loss in N3 and has a one-row
+The `(3♠) X - 3NT` cell is the largest single loss in N3 and has a one-row
 cause. Over `(3♠)` the cheap `3M@140` rung does not exist — hearts are *below*
 their suit — so `nt_answer_double`'s ladder runs `4♥@150` (four hearts **and**
 17+ points), `3NT@130` (one stopper), `4♥@25` (three-card tolerance). Opener
@@ -1360,7 +1360,7 @@ over `(3♠)`, `4♥` at 140 with four hearts — the fit responder's takeout do
 promised, which the ladder previously buried under `3NT@130` because hearts sit
 *below* their suit and the cheap `3M` rung does not exist there.
 
-The census cell it targets (`(3♠) X (P) 3NT`, 20 bd / −94 plain / −123 PD) is
+The census cell it targets (`(3♠) X - 3NT`, 20 bd / −94 plain / −123 PD) is
 the one the "BBA-style double continuation" arm also touched and lost on. The
 difference is the un-bundling: that arm replaced `3NT` with `3♦`/`4♦` when
 opener had *no* four-card major, and its own decomposition put the whole loss on

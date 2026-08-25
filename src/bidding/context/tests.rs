@@ -371,7 +371,7 @@ fn threads_use_their_explicit_profiles() {
 /// `6..=8`, which is now also the one reading the retrained nets consume.
 #[test]
 fn nets_share_the_honest_ceiling_reading() {
-    // `1NT (2♠) 2NT (P)` — the seat two back (`Relative::Partner`) relayed.
+    // `1NT (2♠) 2NT -` — the seat two back (`Relative::Partner`) relayed.
     let auction = [
         bid(1, Strain::Notrump),
         bid(2, Strain::Spades),

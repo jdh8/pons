@@ -99,7 +99,7 @@ fi
 # of its accepted boards against 0.60%, so an arm buys ~25x the owned sample for
 # 33x the (bidding-free) scan.  Arms under it pair only with each other.
 #   fit   opener answers their `(3♠)` double `4♥` with four hearts — the rung
-#         the default ladder has no room for, and the `(3♠) X (P) 3NT` cell it
+#         the default ladder has no room for, and the `(3♠) X - 3NT` cell it
 #         targets is 20 bd / -94 plain / -123 PD on the fresh-seed anchor.
 #   pass  opener may leave the double in with at most one of A/K/Q in their
 #         seven-card suit.  BBA's advancer sits for it on 88% (minor) / ~50%

@@ -70,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Parentheses are theirs-only in house auction notation.** Corrected the live
   mis-sided examples and comments, and canonicalized seven row-grammar `(-)`
-  passes to `-`. `render-book`, `probe-bba-constraints`, `probe-classify`, and
+  passes to `-`, and normalized the remaining human-authored pass spellings.
+  `render-book`, `probe-bba-constraints`, `probe-classify`, and
   `probe-decision` now accept house-form input by ignoring parentheses; only
   the row grammar seat-checks them. No bidding change: the 20,000-board,
   seed-1 `smoke-default` dump is byte-identical before and after
@@ -522,7 +523,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     profile's `(9, 13)`.
 
   - **`defense.natural_overcall_advance_enabled: bool`** (**true**) authors
-    `(1NT) 2x (P) ?`, previously the instinct floor: `4M` game raise, `3t`
+    `(1NT) 2x - ?`, previously the instinct floor: `4M` game raise, `3t`
     raise, natural non-forcing new suit at the two level on a misfit, `Pass` as
     the finite catch-all.  **No notrump rung** — their opener holds 15–17 and
     partner is capped, so our side is capped near 25 HCP with the strength
@@ -706,7 +707,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discount.  The gateable leak is the **≤7-HCP tail** that `points(8..=14)`
   admits through distribution points (264 bd, **−120 plain / −158 PD**, negative
   on both scorers at both vulnerabilities; HCP is monotone through the band),
-  plus the **unauthored advance**: `(1NT) 2♦ (P)` has no book node, and the
+  plus the **unauthored advance**: `(1NT) 2♦ -` has no book node, and the
   floor's `2NT` fires on 33 bd at **−4.09 plain / −8.64 PD per board**, failing
   26 times.  Two candidates (M1 HCP floor, M2 authored advance) with a
   pre-registered `[plain DD, SD-PD]` decision rule; nothing shipped, no default
@@ -996,7 +997,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stopper — burying the 4-4 fit responder's double promised, against a seven-card
   suit. On the worst census board opener held `K5.QJ84.A92.KQ92` opposite
   `Q6.A972.K8643.63` and `3NT` went three down while hearts were worth nine
-  tricks; the `(3♠) X (P) 3NT` cell is 20 boards for −94 plain / −123 PD on the
+  tricks; the `(3♠) X - 3NT` cell is 20 boards for −94 plain / −123 PD on the
   fresh-seed anchor, N3's largest single loss.
 
   **A/B (seed `1787145997`, 716,800 bd/arm/vul against BBA under
@@ -1203,7 +1204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`competition.nt_high_overcall_x_leave_in` re-gated on length and SHIPPED
-  DEFAULT-ON.**  Over `1NT (3x) X (P)`, opener now converts partner's takeout
+  DEFAULT-ON.**  Over `1NT (3x) X -`, opener now converts partner's takeout
   double to penalty holding **four cards** in the suit they have shown seven
   of.  v1's `top_honors(their suit, ..=1)` — pass on at most one of A/K/Q, i.e.
   on essentially every no-major hand — was measured and refuted 2026-08-19

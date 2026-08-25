@@ -1399,7 +1399,7 @@ struct Args {
     #[arg(long, default_value_t = 8)]
     ns_nt_overcall_hcp_floor: u8,
 
-    /// Leave `(1NT) 2x (P) ?` to the instinct floor instead of the authored advance
+    /// Leave `(1NT) 2x - ?` to the instinct floor instead of the authored advance
     /// (M2; the advance is **shipped on**, so this is the control arm's flag).
     #[arg(long, default_value_t = false)]
     no_ns_nt_overcall_advance: bool,

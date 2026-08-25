@@ -174,7 +174,7 @@ pub struct CompetitionKnobs {
     /// runs `4♥` (four hearts **and** 17+ points), `3NT` on one stopper, then
     /// the three-card tolerance.  Opener with four hearts and 15–16 therefore
     /// answers `3NT` and buries the 4-4 fit responder's double promised — the
-    /// `(3♠) X (P) 3NT` cell is 20 boards and −94 plain / −123 PD on the
+    /// `(3♠) X - 3NT` cell is 20 boards and −94 plain / −123 PD on the
     /// fresh-seed anchor, N3's largest single loss
     /// (`docs/one-notrump-competitive.md` §N3).  This knob adds the one missing
     /// rung, `4♥` at 140 with four hearts, above `3NT`.  Rides on
@@ -1464,7 +1464,7 @@ pub struct DefenseKnobs {
     pub natural_overcall_hcp_floor: u8,
     /// Author the advance of our natural two-level overcall of their `1NT`
     ///
-    /// **M2** of the same forensic: `(1NT) 2x (P) ?` has no authored node, so
+    /// **M2** of the same forensic: `(1NT) 2x - ?` has no authored node, so
     /// the advance is the instinct floor — whose `2NT` rung fired on 33 boards
     /// of the `2♦` lane at −4.09 IMPs/board plain, failing 26 times (the worst
     /// board bids `2NT` into a 15–17 opener on 17 combined HCP and plays it

@@ -696,7 +696,7 @@ fn main() -> Result<()> {
             2,
             &[ONE_NT, TWO_D, DOUBLE, TWO_H, PASS, PASS],
             Some(DOUBLE),
-            "BBA responder over 1NT (2♦) X (2♥) - (-) — hearts resolved, opener passed",
+            "BBA responder over 1NT (2♦) X (2♥) - - — hearts resolved, opener passed",
         ),
         "counter-d-x2h2s" => (
             2,
@@ -708,13 +708,13 @@ fn main() -> Result<()> {
             2,
             &[ONE_NT, TWO_D, DOUBLE, TWO_S, PASS, PASS],
             Some(DOUBLE),
-            "BBA responder over 1NT (2♦) X (2♠) - (-) — the invitational pass-or-correct sat, opener passed",
+            "BBA responder over 1NT (2♦) X (2♠) - - — the invitational pass-or-correct sat, opener passed",
         ),
         "counter-d-x2h-2s" => (
             2,
             &[ONE_NT, TWO_D, DOUBLE, TWO_H, TWO_S, PASS],
             Some(DOUBLE),
-            "BBA responder over 1NT (2♦) X (2♥) 2♠ (-) — opener answered the double with four spades",
+            "BBA responder over 1NT (2♦) X (2♥) 2♠ - — opener answered the double with four spades",
         ),
         "opener-h-2nt" => (
             0,

@@ -118,12 +118,12 @@ struct Args {
     /// Read the OFF arm's natural two-level overcall of their 1NT with this raw-HCP floor.
     #[arg(long, default_value_t = 8)]
     off_ns_nt_overcall_hcp_floor: u8,
-    /// Read the ON arm with `(1NT) 2x (P) ?` left to the instinct floor
+    /// Read the ON arm with `(1NT) 2x - ?` left to the instinct floor
     /// (`defense.natural_overcall_advance_enabled`; the advance is shipped on, so
     /// this is the control arm's flag).
     #[arg(long, default_value_t = false)]
     on_no_ns_nt_overcall_advance: bool,
-    /// Read the OFF arm with `(1NT) 2x (P) ?` left to the instinct floor.
+    /// Read the OFF arm with `(1NT) 2x - ?` left to the instinct floor.
     #[arg(long, default_value_t = false)]
     off_no_ns_nt_overcall_advance: bool,
     /// Read the ON arm with the takeout double barred on a six-card unbid minor

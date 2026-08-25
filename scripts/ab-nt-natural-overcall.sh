@@ -17,7 +17,7 @@
 #       both vulnerabilities (264 bd, −120 plain / −158 PD; nv −43/−66, vul
 #       −77/−92).  Two candidate floors, `k = 8` and `k = 9`.
 #
-#   M2  `defense.natural_overcall_advance_enabled` — the `(1NT) 2x (P) ?` advance,
+#   M2  `defense.natural_overcall_advance_enabled` — the `(1NT) 2x - ?` advance,
 #       today the instinct floor, whose `2NT` rung fires on 33 boards of the `2♦`
 #       lane at −4.09/bd plain and fails 26 of 33.  Its own size across all four
 #       suits is ≈ −0.0013 IMPs/bd of an arm — BELOW this A/B's resolution.  It

@@ -558,7 +558,7 @@ buy, the same call is authored **three points looser**.
 
 ### The unauthored advance is the worst per-board cell
 
-`(1NT) 2♦ (P)` has no authored node, so our advance is the instinct floor:
+`(1NT) 2♦ -` has no authored node, so our advance is the instinct floor:
 
 | our advance | bd | plain | PD | plain/bd | PD/bd |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -588,7 +588,7 @@ rides a package, **not** something an A/B can resolve alone.
   ([nt_dont.rs](../src/bidding/american/defense/nt_dont.rs),
   [nt_meckwell.rs](../src/bidding/american/defense/nt_meckwell.rs)) and with the
   Dutch profile's `(9, 13)`.  Arms `k ∈ {8, 9}` against the shipped default.
-- **M2 — author the `(1NT) 2x (P)` advance.**  Pass as the finite catch-all,
+- **M2 — author the `(1NT) 2x -` advance.**  Pass as the finite catch-all,
   raise on support, new suit natural and non-forcing.  Completes the convention
   so M1 is measured against a live continuation, per the iron rule.
 

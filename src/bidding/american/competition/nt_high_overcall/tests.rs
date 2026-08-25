@@ -73,7 +73,7 @@ fn the_double_answer_picks_the_longer_major() {
 /// `(3♠)` the shown major's cheapest level is four, and the pre-ship ladder had
 /// no rung there.
 ///
-/// The hand is the census board — `1NT (3♠) X (P)` with `3NT` three down while
+/// The hand is the census board — `1NT (3♠) X -` with `3NT` three down while
 /// hearts were worth nine tricks (`docs/one-notrump-competitive.md` §N3).
 #[test]
 fn the_four_level_major_rung_bids_the_fit() {

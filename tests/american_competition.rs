@@ -491,7 +491,7 @@ fn kokish_kraft_minor_slam_try_reaches_the_minor_slam() {
 
 #[test]
 fn kokish_kraft_doubles_then_penalizes_their_resolved_major() {
-    // 1NT (2♦) X (2♥) - (-) X: the values double waits for the pass-or-correct
+    // 1NT (2♦) X (2♥) - - X: the values double waits for the pass-or-correct
     // to name the suit, and the *repeated* double is penalty under K–K's
     // delayed-double split — where shipped v7 makes it takeout.  Opener, having
     // sat the first time on three trumps, sits again.

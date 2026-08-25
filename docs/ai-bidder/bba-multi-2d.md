@@ -107,7 +107,7 @@ BBA's own first-turn double), and `--mode custom --seat N --calls "…"
 over `X (2♠)` Pass 93.0% / `2NT` 7.0%. It never doubles `2M`. The double's
 work is done by the doubler:
 
-| after `X (2♥) - (-)` | share | band | reading |
+| after `X (2♥) - -` | share | band | reading |
 | --- | ---: | --- | --- |
 | `3NT` | 29.5% | `hcp 9–15` (med 12), hearts 3–4, spades 2–4 | to play — **no stopper gate**, the length in their suit is what correlates |
 | Pass | 26.8% | `hcp 5–9` (med 6) | — |
@@ -118,7 +118,7 @@ work is done by the doubler:
 | `3♠` | 5.2% | four spades, hearts 2–3, `hcp 9–13` | a spade game try |
 | `3♦` / `3♣` | 1.6% / 1.5% | 5–6 cards, `hcp 7–13` (med 8) | natural |
 
-After `X (2♠) - (-)`: Pass 34.4%, `3NT` 28.9% (9–15), `X` 13.4% (**hearts
+After `X (2♠) - -`: Pass 34.4%, `3NT` 28.9% (9–15), `X` 13.4% (**hearts
 4–5, spades 1–2** — the mirror takeout), `2NT` 8.8% (8–9), `4NT` 7.4%, `3♣`
 2.9%, `3♦` 2.8%; no `3♥`/`2♥` analogue above 1%. After `X (2♥) - (2♠)` (the
 weak pass-or-correct corrected to spades): **`X` 32.6%** (`hcp 5–16`, spades
@@ -126,7 +126,7 @@ weak pass-or-correct corrected to spades): **`X` 32.6%** (`hcp 5–16`, spades
 21.4% (5–10), `2NT` 7.2% (8–10), `4NT` 6.1%, `3♦`/`3♣` 4%/3.6%. Vulnerability
 moves nothing beyond a point of pass/2NT.
 
-**Opener over the reopening double** (`1NT (2♦) X (2♥) - (-) X -`, `custom`,
+**Opener over the reopening double** (`1NT (2♦) X (2♥) - - X -`, `custom`,
 `--meanings`) is opaque: `2NT` 33.7% (balanced, spades 2–5 med 4), `3♣` 26.3%
 (4+), `3♦` 23.5% (4+), Pass 16.4% (hearts 3–5 med 4 — the penalty pass),
 `3NT` 5.8% vul with 16–17; **never `2♠`**, even though its partner's double

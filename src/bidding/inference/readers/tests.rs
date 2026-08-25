@@ -1434,7 +1434,7 @@ fn their_disclosed_landy_suppresses_the_advances() {
 
 #[test]
 fn their_landy_reading_is_seat_gated() {
-    // The mirror image — (1NT) 2♣ (P), OUR 2♣ overcall of THEIR 1NT — must
+    // Mirror image: (1NT) 2♣ -; OUR 2♣ overcall of THEIR 1NT must
     // stay the natural walk's club overcall even with the disclosure + wiring
     // on: the disclosure is a fact about the *reader's* opponents.  This is
     // the seat-correctness the cue-constraint arms' mirror leak lacked.
