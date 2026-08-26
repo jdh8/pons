@@ -41,21 +41,22 @@
 #      `X (2♥) - (2♠)` stays excluded either way: the mechanism there is
 #      opener's *pass* denying four hearts, which no responder-side split can
 #      change;
-#   4  two answer tables move.  The pass branch's delayed `2NT` stops being a
+#   4  one answer table moves.  The pass branch's delayed `2NT` stops being a
 #      `hcp == 7` relic and opener accepts on `hcp 16+`
-#      (`kokish_kraft_invite_answer`); and opener's answer to the natural other
-#      major gains a **`3NT`@135** on `hcp(16..) & stopper_in(major)`.
+#      (`kokish_kraft_invite_answer`).
 #
-# Mechanism 4's second half is a **repair of a measured hole**, not a flourish.
-# `ab-results/2d-multi-doubler` (2026-08-26) shipped the rung on a
-# `+1.927 plain / −1.737 PD` both-vul cell, and its five worst PD boards are
-# `2♠` played in a 4-2 or 4-3 — a 15-17 balanced hand with a stopper in their
-# major and two or three cards in ours had no call in that answer table at all.
-# Re-weighting to 148 sends *more* traffic there (the 8–9 doublers with a
-# stopper, who used to bid `2NT`), so the split must carry the repair or it
-# inherits the loss amplified.  The unconditional version of that rung — for
-# the shipped `multi_doubler_major` at weight 100 — is a separate owed arm,
-# `docs/multi-doubler-answer-handoff.md`.
+# **Mechanism 4 used to have a second half, and no longer does.**  Opener's
+# `3NT`@135 answer to the natural other major was part of this split until
+# `competition.multi_doubler_notrump` shipped default-on 2026-08-27 (a win in
+# all four cells, `docs/multi-doubler-answer-handoff.md`).  It is now in the
+# `base` arm too, so this A/B measures the P/X information split *alone* —
+# which is the cleaner isolation, and the reason the arms were left as they
+# are.  The old reasoning still holds mechanically: re-weighting to 148 sends
+# more traffic to that answer table (the 8–9 doublers with a stopper, who used
+# to bid `2NT`), so the split needs the repair under it — it just inherits it
+# from the default now instead of carrying it.  Both knobs still emit one rung
+# (`multi_px_split || multi_doubler_notrump`), so disarming the default with
+# `--no-ns-multi-doubler-notrump` would put it back in the `px` arm only.
 #
 # Two arms, one seed set, `--their-2d-multi --filter-1nt` on both.  There is no
 # `dm` arm any more: `multi_doubler_major` shipped default-on 2026-08-26, so it
