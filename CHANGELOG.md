@@ -29,6 +29,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.multi_doubler_minimum_notrump` — the 15-count's notrump out
+  over the K–K doubler's natural other major. Default off, A/B owed.**
+  `multi_doubler_notrump` (shipped default-on the same day) floors at
+  `hcp(16..)`, so a **15**-count with their major stopped and fewer than four of
+  ours still passes `2♠` into a 4-2 or 4-3 — board 1 of that A/B's worst tail,
+  `A82.A53.KJ75.K74`, is exactly that hand. On, opener's answer table gains
+  `2NT`@120 on `hcp(15..) & stopper_in(major)`, below the `3♠`@130 invite so
+  four-card support still raises, plus responder's acceptance (`3NT`@140 on
+  `hcp(10..)`, the 25 opposite a known 15). **One leg only:** `2NT` outranks
+  spades at the same level, so the rung exists over `2♠`; the `3♥` leg has
+  nothing below `3NT` and its 15-count keeps passing — the asymmetry is why
+  this is its own knob rather than a one-point relaxation of the floor.
+  Enable with `--ns-multi-doubler-minimum-notrump` /
+  `PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP=1`; measure with
+  `scripts/ab-2d-multi-doubler-min-nt.sh`. No user impact until measured —
+  `smoke-default --count 20000 --seed 1` is byte-identical. The smoke says the
+  surface is **thicker** than its parent's: 120 000 both-vulnerable boards
+  diverge on 5 (1 in 24 000 against the parent's 1 in 43 000), 100% "bid where
+  the baseline passed", isolation gate 0 foreign, 3 of 5 reaching a game the
+  baseline never bid ([handoff item 2](docs/multi-doubler-answer-handoff.md)).
+
 - **`competition.multi_doubler_notrump` — opener's notrump out over the K–K
   doubler's natural other major. Shipped default-on 2026-08-27: a win in all
   four cells.** The shipped `competition.multi_doubler_major` (default-on

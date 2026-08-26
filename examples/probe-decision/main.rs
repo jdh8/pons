@@ -163,6 +163,12 @@ fn main() {
         Ok(_) => agreements.competition.multi_doubler_notrump = true,
         Err(_) => {}
     }
+    // That notrump out extended down to the 15-count as `2NT` on the `2♠` leg
+    // (`competition.multi_doubler_minimum_notrump`, default off, A/B owed):
+    // `PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP=1` arms it.
+    if std::env::var("PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP").is_ok_and(|v| v == "1") {
+        agreements.competition.multi_doubler_minimum_notrump = true;
+    }
     // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
     // 2026-08-25 this probe had no channel for one, so every N1j forensic
     // silently read the natural `(2♣)` leg: the whole Landy table sat inert and

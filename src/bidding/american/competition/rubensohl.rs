@@ -1256,8 +1256,17 @@ fn other_major_bid(major: Suit) -> Bid {
 /// arm measured a win in all four cells on 2026-08-27
 /// (`docs/multi-doubler-answer-handoff.md`).  It stays knob-gated so the
 /// 2026-08-26 behaviour, the one that measured the hole, remains reachable.
-/// Total.
-pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, notrump_out: bool) -> Rules {
+///
+/// `minimum_notrump`
+/// ([`CompetitionKnobs::multi_doubler_minimum_notrump`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_minimum_notrump],
+/// default **off**) extends that ladder down one point to the `2NT`@120 rung,
+/// which exists only on the `2♠` leg — see the rule for why the two legs are
+/// not one treatment.  Total.
+pub(crate) fn kokish_kraft_doubler_major_answer(
+    major: Suit,
+    notrump_out: bool,
+    minimum_notrump: bool,
+) -> Rules {
     let other = other_major(major);
     let mut rules = Rules::new().rule(
         Bid::new(4, Strain::from(other)),
@@ -1278,6 +1287,18 @@ pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, notrump_out: bool) 
     // already at the three level, so its minimum simply passes.
     if other == Suit::Spades {
         rules = rules.rule(Bid::new(3, Strain::Spades), 130, len(Suit::Spades, 4..));
+        // The *minimum's* notrump out, one point and one level below the one
+        // above.  `2NT` outranks spades at the same level, so the 15-count with
+        // their suit stopped and short support has a rung of its own; ordering
+        // confines it again, since `hcp 16+` took 140 or 135 and a 15 with four
+        // spades took the 130 invite.
+        if minimum_notrump {
+            rules = rules.rule(
+                Bid::new(2, Strain::Notrump),
+                120,
+                hcp(15..) & stopper_in(major),
+            );
+        }
     }
     rules.rule(Call::Pass, 0, hcp(0..))
 }
@@ -1294,6 +1315,24 @@ pub(crate) fn kokish_kraft_doubler_major_invite(major: Suit) -> Rules {
     let other = other_major(major);
     Rules::new()
         .rule(Bid::new(4, Strain::from(other)), 140, points(11..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder over opener's *minimum* notrump out
+/// (`1NT (2♦) X (2♥) - - 2♠ - 2NT -`)
+///
+/// Opener's `2NT` is the 15-count with their major stopped and fewer than four
+/// of ours — `hcp 16+` would have bid `3NT`@135 or `4♠`@140, and four spades
+/// would have invited at 130.  So the arithmetic is fixed on opener's side:
+/// responder doubled on `hcp 8+`, and `hcp 10+` opposite a known 15 is the 25
+/// that bids the game.  Total.
+///
+/// ponytail: no `3♠` rebid for the long-suit minority — opener is balanced
+/// with a stopper, so `3NT` is the strain; author one if a forensic finds the
+/// 6-2s.
+pub(crate) fn kokish_kraft_minimum_notrump_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 140, hcp(10..))
         .rule(Call::Pass, 0, hcp(0..))
 }
 

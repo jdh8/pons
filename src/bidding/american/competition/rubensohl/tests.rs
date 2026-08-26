@@ -983,20 +983,7 @@ fn kk_arm() -> crate::bidding::agreements::Agreements {
 /// Walk `auction` (house notation, `-` for either side's pass) and return the
 /// call the Kokish–Kraft arm makes plus whether it came from the floor.
 fn kk(auction: &str, hand: &str) -> (Call, bool) {
-    let calls: Vec<Call> = auction
-        .split_whitespace()
-        .map(|token| {
-            let token = token
-                .strip_prefix('(')
-                .and_then(|t| t.strip_suffix(')'))
-                .unwrap_or(token);
-            if token == "-" {
-                Call::Pass
-            } else {
-                token.parse().expect("a legal call")
-            }
-        })
-        .collect();
+    let calls = kk_calls(auction);
     best_call_with(&kk_arm(), &calls, hand)
 }
 
@@ -1414,20 +1401,7 @@ fn kk_slam_arm(floor: u8) -> crate::bidding::agreements::Agreements {
 
 /// [`kk`] on the slam-try arm at `floor`
 fn kk_slam(floor: u8, auction: &str, hand: &str) -> (Call, bool) {
-    let calls: Vec<Call> = auction
-        .split_whitespace()
-        .map(|token| {
-            let token = token
-                .strip_prefix('(')
-                .and_then(|t| t.strip_suffix(')'))
-                .unwrap_or(token);
-            if token == "-" {
-                Call::Pass
-            } else {
-                token.parse().expect("a legal call")
-            }
-        })
-        .collect();
+    let calls = kk_calls(auction);
     best_call_with(&kk_slam_arm(floor), &calls, hand)
 }
 
@@ -1610,9 +1584,10 @@ fn kk_major_arm() -> crate::bidding::agreements::Agreements {
     arm
 }
 
-/// [`kk`] on the natural-other-major arm
-fn kk_major(auction: &str, hand: &str) -> (Call, bool) {
-    let calls: Vec<Call> = auction
+/// The house auction grammar for these helpers: `-` is a pass, parentheses are
+/// decoration.
+fn kk_calls(auction: &str) -> Vec<Call> {
+    auction
         .split_whitespace()
         .map(|token| {
             let token = token
@@ -1625,7 +1600,12 @@ fn kk_major(auction: &str, hand: &str) -> (Call, bool) {
                 token.parse().expect("a legal call")
             }
         })
-        .collect();
+        .collect()
+}
+
+/// [`kk`] on the natural-other-major arm
+fn kk_major(auction: &str, hand: &str) -> (Call, bool) {
+    let calls = kk_calls(auction);
     best_call_with(&kk_major_arm(), &calls, hand)
 }
 
@@ -1787,20 +1767,7 @@ fn kk_px_arm() -> crate::bidding::agreements::Agreements {
 
 /// [`kk`] on the P/X-split arm
 fn kk_px(auction: &str, hand: &str) -> (Call, bool) {
-    let calls: Vec<Call> = auction
-        .split_whitespace()
-        .map(|token| {
-            let token = token
-                .strip_prefix('(')
-                .and_then(|t| t.strip_suffix(')'))
-                .unwrap_or(token);
-            if token == "-" {
-                Call::Pass
-            } else {
-                token.parse().expect("a legal call")
-            }
-        })
-        .collect();
+    let calls = kk_calls(auction);
     best_call_with(&kk_px_arm(), &calls, hand)
 }
 
@@ -1999,20 +1966,7 @@ fn kk_px_is_inert_without_the_disclosure() {
 fn kk_nt(auction: &str, hand: &str) -> (Call, bool) {
     let mut arm = kk_major_arm();
     arm.competition.multi_doubler_notrump = true;
-    let calls: Vec<Call> = auction
-        .split_whitespace()
-        .map(|token| {
-            let token = token
-                .strip_prefix('(')
-                .and_then(|t| t.strip_suffix(')'))
-                .unwrap_or(token);
-            if token == "-" {
-                Call::Pass
-            } else {
-                token.parse().expect("a legal call")
-            }
-        })
-        .collect();
+    let calls = kk_calls(auction);
     best_call_with(&arm, &calls, hand)
 }
 
@@ -2047,7 +2001,8 @@ fn kk_doubler_notrump_repairs_the_answer_table() {
         ("AKQT.842.AQ7.852", "a minimum still invites"),
         (
             "A82.A53.KJ75.K74",
-            "15 with a stopper still passes — the owed arm",
+            "15 with a stopper still passes — that is \
+             `multi_doubler_minimum_notrump`'s rung, not this one",
         ),
     ] {
         assert_eq!(
@@ -2077,6 +2032,106 @@ fn kk_doubler_notrump_repairs_the_answer_table() {
     knob_only.competition.multi_doubler_notrump = true;
     let auction = one_nt_two_diamonds();
     for hand in ["AQ.KQ9.QJ975.Q82", "K32.Q32.AQ32.K32"] {
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            best_call_with(
+                &crate::bidding::agreements::Agreements::default(),
+                &auction,
+                hand,
+            ),
+            "{hand}: the knob is inert while their 2♦ is natural"
+        );
+    }
+}
+
+/// [`kk_nt`] with the minimum's own rung
+/// (`competition.multi_doubler_minimum_notrump`) — the `2NT`@120 one point and
+/// one level below the shipped notrump out
+fn kk_min_nt(auction: &str, hand: &str) -> (Call, bool) {
+    let mut arm = kk_major_arm();
+    arm.competition.multi_doubler_notrump = true;
+    arm.competition.multi_doubler_minimum_notrump = true;
+    best_call_with(&arm, &kk_calls(auction), hand)
+}
+
+/// The minimum's `2NT` picks up the 15-count the notrump out left behind, and
+/// takes nothing from the rungs around it
+///
+/// Handoff item 2: `kk_doubler_notrump_repairs_the_answer_table` pins
+/// `A82.A53.KJ75.K74` — 15, hearts stopped, three spades — as *unrepaired*, so
+/// it still passes `2♠` into a 4-3.  This knob is that hand's rung, and it
+/// exists on the `2♠` leg only.
+#[test]
+fn kk_doubler_minimum_notrump_bids_the_fifteen_count() {
+    let over = "1NT 2♦";
+    let answer = format!("{over} X 2♥ - - 2♠ -");
+
+    // ---- the unrepaired board, verbatim.
+    assert_eq!(
+        kk_min_nt(&answer, "A82.A53.KJ75.K74"),
+        (call(2, Strain::Notrump), false),
+        "15 with their major stopped and three spades now has a call"
+    );
+    assert_eq!(
+        kk_nt(&answer, "A82.A53.KJ75.K74").0,
+        Call::Pass,
+        "where the shipped notrump out still passes 2♠"
+    );
+
+    // ---- 120 steals nothing above it: the whole `hcp 16+` ladder and the
+    // 15-count's own invitational raise are untouched.
+    for (hand, why) in [
+        ("AJ74.A6.Q53.AJ65", "4♠@140 in the known 4-4"),
+        ("AQ.KQ9.QJ975.Q82", "3NT@135, the 16-count's notrump out"),
+        (
+            "AKQT.842.AQ7.852",
+            "3♠@130, four-card support with a minimum",
+        ),
+        (
+            "A82.J53.KJ75.K74",
+            "and a 15 without a stopper still passes",
+        ),
+    ] {
+        assert_eq!(
+            kk_min_nt(&answer, hand),
+            kk_nt(&answer, hand),
+            "{hand}: {why}"
+        );
+    }
+
+    // ---- responder answers it: `hcp 10+` is the 25 opposite a known 15.
+    let raised = format!("{answer} 2NT -");
+    assert_eq!(
+        kk_min_nt(&raised, "KQT2.95.AT92.983").0,
+        Call::Pass,
+        "the 8-9 doubler leaves the invitation"
+    );
+    assert_eq!(
+        kk_min_nt(&raised, "KQT2.95.AT92.J83"),
+        (call(3, Strain::Notrump), false),
+        "the 10-count accepts"
+    );
+
+    // ---- the `3♥` leg has no room below `3NT`, so its 15-count is unmoved.
+    let hearts = format!("{over} X 2♥ X 2♠ 3♥ -");
+    assert_eq!(
+        kk_nt(&hearts, "AJ74.AQ76.KQ3.65"),
+        (call(4, Strain::Hearts), false),
+        "the leg is the answer table's, not the floor's"
+    );
+    for hand in ["KQ2.A53.KJ75.Q74", "A82.A53.KJ75.K74"] {
+        assert_eq!(
+            kk_min_nt(&hearts, hand),
+            kk_nt(&hearts, hand),
+            "{hand}: one leg only"
+        );
+    }
+
+    // ---- and it is inert while their `2♦` is natural.
+    let mut knob_only = crate::bidding::agreements::Agreements::default();
+    knob_only.competition.multi_doubler_minimum_notrump = true;
+    let auction = one_nt_two_diamonds();
+    for hand in ["A82.A53.KJ75.K74", "K32.Q32.AQ32.K32"] {
         assert_eq!(
             best_call_with(&knob_only, &auction, hand),
             best_call_with(

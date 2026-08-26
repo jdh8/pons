@@ -823,6 +823,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_multi_doubler_notrump: bool,
 
+    /// Extend that notrump out down to the **15-count**, as `2NT` on the `2♠`
+    /// leg
+    ///
+    /// `--no-ns-multi-doubler-notrump`'s rung floors at `hcp(16..)`; this adds
+    /// `2NT`@120 on `hcp(15..) & stopper_in(major)` below the `3♠`@130 invite,
+    /// plus responder's `3NT`@140 acceptance on `hcp(10..)`.  One leg only —
+    /// the `3♥` leg has no room below `3NT`.  This is the test arm of
+    /// `scripts/ab-2d-multi-doubler-min-nt.sh`.  Needs the notrump out, the
+    /// doubler's natural other major, and their declared `(2♦)` Multi.
+    #[arg(long, default_value_t = false)]
+    ns_multi_doubler_minimum_notrump: bool,
+
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
     ///
@@ -2310,6 +2322,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.competition.multi_doubler_notrump = !args.no_ns_multi_doubler_notrump;
+    agreements.competition.multi_doubler_minimum_notrump = args.ns_multi_doubler_minimum_notrump;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(n.parse().map_err(|_| {

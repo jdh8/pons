@@ -6,7 +6,9 @@ with a **negative both-vulnerable perfect-defense cell**. The traced repair,
 winning all four cells (§ *The repair, measured*) — but it recovers only
 **~20%** of the parent's both-vulnerable deficit, so that cell is improved,
 not retired. This document is why the cell exists, why it is not the rung's
-fault, what the repair bought, and what is still owed.
+fault, what the repair bought, and what is still owed. The next rung down —
+`competition.multi_doubler_minimum_notrump`, the 15-count's `2NT` — is **built
+2026-08-27, default off, A/B owed** (item 2).
 
 ## What shipped, and what it measured
 
@@ -152,23 +154,51 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
    2.304M would have reached ~40 boards. Both smoke divergences are "bid where
    the baseline passed" with **0 foreign** on `--gate-opener ours`. Results in
    `ab-results/2d-multi-doubler-nt/`, `SEED_BASE=1787749549`.
-2. **The 15-count — the case got stronger on 2026-08-27.** The repair floors
-   at `hcp(16..)`. A 15-count with a stopper and short support still passes
-   `2♠` — board 1 of the worst tail (`A82.A53.KJ75.K74`, 15 HCP, three spades)
-   is exactly that, is *not* repaired, and is pinned as unrepaired by
-   `kk_doubler_notrump_repairs_the_answer_table`. Over the `2♠` leg `2NT` is
-   legal (notrump outranks spades at the same level) and would be the natural
-   rung; over the `3♥` leg there is no room below `3NT`, so the two legs would
-   be asymmetric — which this table already is, for the `3♠` invite.
+2. **The 15-count — BUILT 2026-08-27, `competition.multi_doubler_minimum_notrump`,
+   default off, A/B owed.** `multi_doubler_notrump` floors at `hcp(16..)`, so a
+   15-count with a stopper and short support still passed `2♠` — board 1 of the
+   worst tail (`A82.A53.KJ75.K74`, 15 HCP, three spades) is exactly that hand,
+   and `kk_doubler_notrump_repairs_the_answer_table` pins it as unrepaired.
 
-   It was deferred on "no measurement demands it yet, and it should ride arm
-   1's forensic rather than pre-empt it". **Arm 1 has now run**, and it is the
-   same rung one point higher: it won all four cells by 3–4 SE, with 270 of
-   273 divergences reaching a game the baseline never bid and no cell even
-   near negative. That is evidence *for* extending the floor down, not
-   against. Still unbuilt, now on merit rather than on sequencing — and it
-   wants its own seed, because the leg asymmetry (`2NT` over `2♠`, nothing
-   over `3♥`) means the two legs are not one treatment.
+   The knob adds, on the `2♠` leg only:
+
+   ```
+   2NT @120  hcp(15..) & stopper_in(major)     opener, below the 3♠@130 invite
+   3NT @140  hcp(10..)                         responder accepts — 25 opposite a known 15
+   ```
+
+   `2NT` outranks spades at the same level, so the rung exists over `2♠`; over
+   the `3♥` leg there is nothing below `3NT` and its 15-count keeps passing.
+   That asymmetry is why this is **its own knob with its own seed**, not a
+   one-point relaxation of the `hcp(16..)` floor. Ordering does the gating, the
+   same idiom as the rest of the package: `hcp 16+` already took `4♠`@140 or
+   `3NT`@135, and a 15 with four spades took the `3♠`@130 invite, so 120 sees
+   only the 15-count with fewer than four. `minimum_notrump` is `and`-ed with
+   `notrump_out` at the call site — a rung *below* the notrump out is
+   incoherent without it (15 would bid and 16 would pass).
+
+   Pinned by `kk_doubler_minimum_notrump_bids_the_fifteen_count`, which asserts
+   the losing board bids `2NT` under the knob and passes without it, that 120
+   steals nothing from 140/135/130, that responder passes on 8–9 and accepts on
+   10, and that the `3♥` leg is unmoved. `smoke-default` byte-identical when
+   off.
+
+   **Run it with `scripts/ab-2d-multi-doubler-min-nt.sh`** at the notrump out's
+   own scale (4.608M bd/arm/vul, `JOBS=12 PER_SHARD=384000`). The smoke says
+   the surface is *thicker* than the parent's — 120 000 both-vul boards diverge
+   on **5**, 1 in 24 000 against the parent's 1 in 43 000, so that scale reaches
+   ~190 fired boards per cell. All five are "bid where the baseline passed",
+   `--gate-opener ours` reads **0 foreign**, and three of the five reach a game
+   the baseline never bid, i.e. responder's `hcp(10..)` acceptance firing.
+
+   The case *for*: the same rung one point higher won all four cells by 3–4 SE,
+   with 270 of 273 divergences reaching a game the baseline never bid. The case
+   *against*, and the reason this is not a default: 15 opposite `hcp 8+` is 23
+   combined, so the invitation can be wrong in **both** directions — accepted
+   into a bad `3NT`, or declined into a `2NT` that plays worse than defending
+   their partscore. A negative cell here is evidence the ladder should stop at
+   16, not evidence of a further missing rung.
+
 3. **The rest of the both-vul cell — NOW THE HEAD OF THE QUEUE.** Item 1
    answered its own half: the pass-outs were worth ~20% of the deficit, so
    ~80% is still unexplained and the `win | loss` row is **not** retired. The

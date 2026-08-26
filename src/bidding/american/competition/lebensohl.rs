@@ -12,17 +12,17 @@ use super::penalty_double::{
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, kokish_kraft_delayed,
     kokish_kraft_doubler_major_answer, kokish_kraft_doubler_major_invite,
-    kokish_kraft_doubler_rebid, kokish_kraft_invite_answer, kokish_kraft_minor_completion,
-    kokish_kraft_minors_answer, kokish_kraft_minors_overcalled, kokish_kraft_minors_place,
-    kokish_kraft_responder, kokish_kraft_second_suits, kokish_kraft_slam_answer,
-    kokish_kraft_transfer_overcalled, kokish_kraft_transfer_rebid, kokish_kraft_two_suiter_answer,
-    lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, multi_2d_responder,
-    multi_balance_double, multi_clubs_transfer_completion, multi_fit_search_place,
-    multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer, multi_quant_answer,
-    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, multi_stopper_answer,
-    multi_stopper_forcing_rebid, multi_stopper_over_four_spades, multi_takeout_answer,
-    stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
-    transfer_stayman_2d_responder, transfer_target,
+    kokish_kraft_doubler_rebid, kokish_kraft_invite_answer, kokish_kraft_minimum_notrump_answer,
+    kokish_kraft_minor_completion, kokish_kraft_minors_answer, kokish_kraft_minors_overcalled,
+    kokish_kraft_minors_place, kokish_kraft_responder, kokish_kraft_second_suits,
+    kokish_kraft_slam_answer, kokish_kraft_transfer_overcalled, kokish_kraft_transfer_rebid,
+    kokish_kraft_two_suiter_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major,
+    multi_2d_responder, multi_balance_double, multi_clubs_transfer_completion,
+    multi_fit_search_place, multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer,
+    multi_quant_answer, multi_relay_rebid, multi_responder_rebid, multi_signoff_pass,
+    multi_stopper_answer, multi_stopper_forcing_rebid, multi_stopper_over_four_spades,
+    multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
+    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
 };
 use super::*;
 
@@ -1527,19 +1527,27 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
                 if other == Suit::Spades { 2 } else { 3 },
                 Strain::from(other),
             );
+            let notrump_out = agreements.competition.multi_px_split
+                || agreements.competition.multi_doubler_notrump;
+            // The minimum's `2NT` is a rung *below* the notrump out, so it is
+            // incoherent without it: 15 would bid and 16 would pass.
+            let minimum_notrump =
+                notrump_out && agreements.competition.multi_doubler_minimum_notrump;
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{path} {bid} -")),
-                kokish_kraft_doubler_major_answer(
-                    major,
-                    agreements.competition.multi_px_split
-                        || agreements.competition.multi_doubler_notrump,
-                ),
+                kokish_kraft_doubler_major_answer(major, notrump_out, minimum_notrump),
             ));
             if other == Suit::Spades {
                 entries.extend(rows_of(
                     Pattern::after(OVER, &format!("{path} {bid} - 3♠ -")),
                     kokish_kraft_doubler_major_invite(major),
                 ));
+                if minimum_notrump {
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{path} {bid} - 2NT -")),
+                        kokish_kraft_minimum_notrump_answer(),
+                    ));
+                }
             }
         }
         // The repeated double is penalty at *every* one of these paths (the

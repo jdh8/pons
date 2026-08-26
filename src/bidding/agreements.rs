@@ -1081,6 +1081,35 @@ pub struct CompetitionKnobs {
     /// Inert without [`Self::multi_doubler_major`] and inert while their `2♦`
     /// is undeclared or natural.
     pub multi_doubler_notrump: bool,
+    /// Extend opener's notrump out over the K–K doubler's natural other major
+    /// down to the **15-count**, as `2NT` on the `2♠` leg
+    ///
+    /// [`Self::multi_doubler_notrump`] floors at `hcp(16..)`, so a 15-count
+    /// with their major stopped and fewer than four of ours still passes `2♠`
+    /// into a 4-2 or 4-3 — board 1 of that A/B's worst tail
+    /// (`A82.A53.KJ75.K74`) is exactly that hand, and
+    /// `kk_doubler_notrump_repairs_the_answer_table` pins it as *unrepaired*.
+    ///
+    /// On, `competition::rubensohl::kokish_kraft_doubler_major_answer` gains
+    /// `2NT`@120 on `hcp(15..) & stopper_in(major)`, below the `3♠`@130 invite
+    /// so four-card support still raises, plus responder's acceptance
+    /// (`3NT`@140 on `hcp(10..)`, the 25 opposite a known 15).
+    ///
+    /// **It is one leg only.**  `2NT` outranks spades at the same level, so
+    /// the rung exists over `2♠`; over the `3♥` leg there is nothing below
+    /// `3NT`, and its 15-count keeps passing.  That asymmetry is why this is
+    /// not a one-point relaxation of [`Self::multi_doubler_notrump`]'s floor
+    /// but its own knob with its own seed.
+    ///
+    /// Default **off**, A/B owed.  The case for it is that the same rung one
+    /// point higher won all four cells by 3–4 SE on 2026-08-27, with 270 of
+    /// 273 divergences reaching a game the baseline never bid.  The case
+    /// against is that a 15-count opposite `hcp 8+` is 23 combined, so the
+    /// invitation can be wrong in both directions.  Inert without
+    /// [`Self::multi_doubler_notrump`] (or [`Self::multi_px_split`]) and
+    /// [`Self::multi_doubler_major`], and inert while their `2♦` is undeclared
+    /// or natural.
+    pub multi_doubler_minimum_notrump: bool,
     /// Author opener's answer to the N1j Landy `4m` slam try
     ///
     /// The rung itself (`competition::lebensohl::landy_bba_transfer_rebid`,
@@ -1245,6 +1274,7 @@ impl Default for CompetitionKnobs {
             multi_doubler_major: true,
             multi_px_split: false,
             multi_doubler_notrump: true,
+            multi_doubler_minimum_notrump: false,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,
