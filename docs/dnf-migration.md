@@ -18,6 +18,18 @@ verdict. Design lives in the docs above and the code.
 
 ## The migration rules
 
+- **A union whose terms span an axis is invisible to the shipped bidder.**
+  `Inferences::assemble` recomputes `announced_players` from the unions but
+  leaves `players` alone, so a post-walk union reaches only the nets' per-seat
+  inference block (18 floats a seat) — every deterministic gate reads `players`,
+  and `admits`, the sole
+  consumer of the box structure, is called only from `sampler.rs`, which the
+  default bidder never reaches. A union therefore shows through *only* where
+  the rest of the walk empties one term and it collapses to a single box.
+  Measured end to end on 409,600 boards in [pdi.md](pdi.md) ("Why the reading
+  is inert"), at table A: 2,343 latched-pass decisions → 621 collapses → 462
+  hull moves → **2 boards whose call changed** (10 counting table B). Pre-count any new union reading with a bid-only two-dump diff before
+  budgeting a solver ([measurement.md](measurement.md), checklist item 6).
 - New projection precision that changes a **knob-off hull** sits behind
   `dnf_reading()` (precedent: `AnyLen::project`). Multi-box values are born
   via `Dnf::disjoin` (knob-gated), never raw `union` — `Dnf::intersect` does

@@ -482,6 +482,14 @@ impl Inferences {
         } else {
             their_profile
         };
+        // The natural 1NT penalty double belongs to the *defending* side.
+        // Mixed tables must read its latch under that side's pin, not under
+        // whichever partnership happens to be making the current decision.
+        let penalty_profile = if opener_lane % 2 == len % 2 {
+            their_profile
+        } else {
+            profile
+        };
         // SAFETY: at most three passes precede the opening, so the cast is safe.
         #[allow(clippy::cast_possible_truncation)]
         let opener_seat = opening_index as u8 + 1;
@@ -516,7 +524,13 @@ impl Inferences {
         // Every hand-written convention reader, run once over the auction: which
         // calls name a suit their bidder need not hold, and what each really
         // showed (recorded post-walk).  `docs/reader-retirement.md` is the ledger.
-        let readings = Readings::read(auction, len, profile, context.decision_profile().their);
+        let readings = Readings::read(
+            auction,
+            len,
+            profile,
+            penalty_profile,
+            context.decision_profile().their,
+        );
 
         // Authored calls with an informative projection own their reading.  The
         // projection supplies both the post-walk overlay and the per-call masks
@@ -527,8 +541,9 @@ impl Inferences {
         let masks = projection.masks;
         // Pass/double-inversion triggers, by auction index: the penalty-oriented
         // doubles the authored rules tag, plus the structural conversion passes,
-        // which need no rule at all.  One mask, so the floor gate and the reading
-        // below cannot disagree about when the inversion is in force.
+        // which need no rule at all.  One mask, read directly by the post-walk
+        // block below; `Inferences::pdi_latched` collapses the same mask for
+        // callers outside the walk, so the two cannot disagree.
         let pdi_triggers = masks.penalty_trigger | conversion_passes(auction);
         let suppressed = masks.suppressed;
         overlay_unions = projection.unions;
@@ -1331,43 +1346,52 @@ impl Inferences {
             profile,
         );
 
-        // Pass/double inversion (`docs/pdi.md`): once our side pulled a trigger,
-        // our later double of *their* contract is penalty — four-plus in the
-        // doubled suit, the claim that stops the sampler reading it as takeout
-        // and partner pulling into a phantom suit.  "More vague" is the point,
-        // so no points claim goes with it.  Deliberately the same narrowing
-        // `penalty_latch_double_reading` makes in the legacy 1NT lane, which is
-        // why the overlap needs no skip list: intersecting a range with itself
-        // is a no-op.  A bid of our own does not un-latch; it only updates the
-        // suit a later penalty double refers to.
+        // Pass/double inversion (`docs/pdi.md`).  Once our side pulled a trigger,
+        // our pass over RHO's live suit bid **denies the trap** — the hand that is
+        // long in their suit *and* strong enough to punish it, because that hand
+        // now doubles.  That is the negation of a conjunction, so it is a two-term
+        // union rather than an envelope: `[their-suit ≤ ceiling] ∪ [points ≤ cap]`.
         //
-        // Authored doubles are skipped: their own rule already says what they
-        // promise, and a book that keeps a *takeout* double alive after a
-        // trigger (the Kokish–Kraft delayed double is exactly that) would
-        // otherwise be intersected with a contradictory four-plus and stop
-        // admitting its own bidder.
+        // The thresholds are the probe's, not a priori
+        // (`examples/probe-pdi-population.rs`, over 409,600 vs-BBA boards): at
+        // 4/11 the claim contradicts 20 of 2343 real post-trigger passes — 0.85%,
+        // below the shipped ambient partner-exclusion rate — while the doubler
+        // population it separates is 8.7% of post-trigger doubles.
+        //
+        // **The union's hull is vacuous by construction**, so this narrows nothing
+        // on its own: `announced_players` is `announced_unions[i].hull()`, and a
+        // union of "short" with "weak" spans both axes.  It bites exactly where the
+        // rest of the walk already contradicts one term — a seat our own prior calls
+        // put at 12+ points must be short in their suit — and that collapse is what
+        // reaches the floor's feature block.  Measured on the same boards: the
+        // strength term is already dead on 26.5% of latched passes.
+        //
+        // The conversion pass is exempt structurally, not by a skip list: it sits
+        // over RHO's *pass*, so `auction[index - 1]` is never their bid.  Authored
+        // passes need no exemption either — a pass names no suit, so no rule's own
+        // reading can contradict this one.
         if profile.pdi_latch
             && let Some(first) = earliest_pdi_trigger(pdi_triggers, len)
         {
             let our_parity = len % 2;
-            let mut last_suit_bid: Option<(Suit, usize)> = None;
-            for (index, &call) in auction.iter().enumerate() {
-                match call {
-                    Call::Bid(bid) => {
-                        last_suit_bid = bid.strain.suit().map(|suit| (suit, index % 2));
-                    }
-                    Call::Double if index > first && index % 2 == our_parity => {
-                        let authored = index < 64 && masks.authored >> index & 1 != 0;
-                        if let Some((suit, bidder_parity)) = last_suit_bid
-                            && bidder_parity != our_parity
-                            && !authored
-                        {
-                            let who = relative_of(len, index) as usize;
-                            players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
-                        }
-                    }
-                    _ => {}
+            for index in (first + 1)..len {
+                if index % 2 != our_parity || auction[index] != Call::Pass {
+                    continue;
                 }
+                let Some(Call::Bid(bid)) = index.checked_sub(1).map(|i| auction[i]) else {
+                    continue;
+                };
+                let Some(suit) = bid.strain.suit() else {
+                    continue;
+                };
+                let mut short = Envelope::unknown();
+                short.narrow_length(suit, Range::new(0, PDI_PASS_LENGTH_CEILING));
+                let mut weak = Envelope::unknown();
+                weak.narrow_points(Range::new(0, PDI_PASS_POINT_CAP));
+                let denied = EnvelopeUnion::from(short).union(EnvelopeUnion::from(weak));
+                let who = relative_of(len, index) as usize;
+                overlay_unions[who].intersect_assign(&denied, profile);
+                agreement_unions[who].intersect_assign(&denied, profile);
             }
         }
 
@@ -1451,7 +1475,7 @@ impl Inferences {
     /// against the auction this reading was taken on, which is what keeps the
     /// systems-on overcall strip (a *shortened* auction) honest.
     #[must_use]
-    pub(in crate::bidding) const fn pdi_latched(&self) -> bool {
+    pub const fn pdi_latched(&self) -> bool {
         self.pdi_latched
     }
 }
@@ -1480,6 +1504,14 @@ fn conversion_passes(auction: &[Call]) -> u64 {
     }
     bits
 }
+
+/// Their-suit length a post-trigger pass denies holding more than, when the walk
+/// already shows the passer strong enough to punish (`docs/pdi.md`)
+const PDI_PASS_LENGTH_CEILING: u8 = 4;
+
+/// Points a post-trigger pass denies holding more than, when the walk already
+/// shows the passer long in their suit
+const PDI_PASS_POINT_CAP: u8 = 11;
 
 /// The earliest trigger belonging to the **side to act** in an auction of `len`
 /// calls, if it pulled one

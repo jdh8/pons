@@ -23,7 +23,7 @@ Make `pons` the best open-source bridge engine. Key results, in order:
 KR1 is the objective's direct proxy and outranks the rest: a KR2 or KR3 win
 ships only with a KR1 **non-inferiority proof** — a seeded `smoke-default`
 byte-identity of the default system, or an A/B that is a non-loss on both
-scorers (measurement.md, checklist item 11).
+scorers (measurement.md, checklist item 12).
 
 ## Read before working
 

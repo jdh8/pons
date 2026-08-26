@@ -4041,41 +4041,28 @@ fn penalty_latched(context: &Context<'_>) -> bool {
     double_index % 2 == auction.len() % 2
 }
 
-/// Our side has latched into a penalty stance by **any** pass/double-inversion
-/// trigger: the legacy `(1NT) X` lane above, or — under
-/// [`pdi_latch`][field@crate::bidding::inference::ReadingProfile::pdi_latch] —
-/// any penalty-oriented double we made or any pass of ours that left partner's
-/// double in
+/// [`penalty_latched`] as a hand-ignoring [`Constraint`] for the ladder
 ///
-/// Knob-off this is [`penalty_latched`] exactly, so the shipped default build is
-/// unchanged.  Consumed through [`Context::inferences`], which is memoized on
-/// every path — never the raw authored-projection attachment, which is absent
-/// below depth 8 and on a plain classify.  The tag half of the trigger set is
-/// empty without a full [`Partnership`][crate::bidding::Partnership] (a bare
-/// context carries no trie prefixes), so this fires through the book, not a
-/// bare instinct call.  `docs/pdi.md`.
-fn pdi_latched(context: &Context<'_>) -> bool {
-    penalty_latched(context)
-        || (context.reading_profile().pdi_latch && context.inferences().pdi_latched())
-}
-
-/// [`pdi_latched`] as a hand-ignoring [`Constraint`] for the ladder
+/// The generalized PDI trigger set deliberately does **not** widen this.  The
+/// shipped floor is distilled from BBA, which already plays expert post-trigger
+/// methods, so gating its action on the latch was a *second* inversion — the
+/// P2 A/B's measured loss.  `pdi_latch` is a reading knob; `docs/pdi.md`.
 fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| pdi_latched(context))
+    pred(|_: Hand, context: &Context<'_>| penalty_latched(context))
 }
 
 /// The doubler may make a constructive overcall: either the no-pull knob is off,
-/// or we are not in the penalty stance ([`pdi_latched`]).  Gates the
+/// or we are not in the penalty stance ([`penalty_latched`]).  Gates the
 /// overcall-shaped rules that fire off [`we_have_not_bid`] (a double is not a bid).
 fn may_pull_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        !(pinned(context).penalty_no_pull && pdi_latched(context))
+        !(pinned(context).penalty_no_pull && penalty_latched(context))
     })
 }
 
 /// The penalty latch is *not* in force (the takeout-double default applies)
 fn not_penalty_latched() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| !pdi_latched(context))
+    pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
 }
 
 /// The latched double is the cooperative *optional* style (see [`LatchStyle`])
@@ -4091,15 +4078,18 @@ fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
 /// Their redoubled penalty double is back to a weak advancer (`(1NT) X (XX)`) and
 /// the runout is enabled — the defensive mirror of [`responder_one_nt_runout_now`]
 ///
-/// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading]: our side
-/// penalty-doubled their 1NT, their next call was the redouble, and it is now the
-/// doubler's partner (the advancer) to act for the first time.
+/// Keyed off
+/// [`penalty_x_reading_with_profile`][super::inference::penalty_x_reading_with_profile]:
+/// our side penalty-doubled their 1NT, their next call was the redouble, and it is
+/// now the doubler's partner (the advancer) to act for the first time.
 fn advancer_xx_runout_now(context: &Context<'_>) -> bool {
     if !pinned(context).advancer_xx_runout {
         return false;
     }
     let auction = context.auction();
-    let Some(x_index) = super::inference::penalty_x_reading(auction) else {
+    let Some(x_index) =
+        super::inference::penalty_x_reading_with_profile(auction, context.reading_profile())
+    else {
         return false;
     };
     auction.len() == x_index + 2
@@ -4114,13 +4104,17 @@ fn advancer_xx_runout() -> Cons<impl Constraint + Clone> {
 
 /// Their redoubled penalty double has run back to the doubler (`(1NT) X (XX) - -`)
 ///
-/// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading] like
-/// [`advancer_xx_runout_now`], but two calls later: the business redouble, then the
-/// advancer's and opener's passes, leaving the doubler to act for the first time
-/// since the double.  Pure on the auction (the flag gates the rule at construction).
+/// Keyed off
+/// [`penalty_x_reading_with_profile`][super::inference::penalty_x_reading_with_profile]
+/// like [`advancer_xx_runout_now`], but two calls later: the business redouble,
+/// then the advancer's and opener's passes, leaving the doubler to act for the
+/// first time since the double. The runout flag still gates the rule at
+/// construction; this predicate reads the pinned defense profile at classification.
 fn doubler_xx_runout_now(context: &Context<'_>) -> bool {
     let auction = context.auction();
-    let Some(x_index) = super::inference::penalty_x_reading(auction) else {
+    let Some(x_index) =
+        super::inference::penalty_x_reading_with_profile(auction, context.reading_profile())
+    else {
         return false;
     };
     auction.len() == x_index + 4

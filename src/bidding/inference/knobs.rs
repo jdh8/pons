@@ -635,21 +635,31 @@ pub struct ReadingProfile {
     /// disagree about when a later double is penalty rather than takeout.
     pub penalty_latch: bool,
 
-    /// The **generalized** pass/double-inversion latch (`docs/pdi.md`)
+    /// The **generalized** pass/double-inversion reading (`docs/pdi.md`)
     ///
-    /// **Default off**, pending its A/B.  The sibling of `penalty_latch`, keyed
+    /// **Default off.**  Arm 1 is authored and its bid-only pre-count read it
+    /// **inert** — 10 divergent boards in 409,600 — so no double-dummy arms were
+    /// run; `docs/pdi.md` has the funnel.  The sibling of `penalty_latch`, keyed
     /// off the whole PDI trigger set rather than the one `(1NT) X` lane: any
     /// penalty-oriented double our side made (a rule tagged
     /// [`Rules::penalty`][crate::bidding::rules::Rules::penalty]) *or* any pass
-    /// of ours that left partner's double in.  On, our later doubles read and
-    /// bid as penalty — a trump stack rather than takeout shortness — and
-    /// partner sits.
+    /// of ours that left partner's double in
+    /// ([`Inferences::pdi_latched`][crate::bidding::Inferences::pdi_latched]).
     ///
-    /// One field, and one mask behind it (`Inferences::pdi_latched`): the floor
-    /// gate and the matching reading consume the same answer, so they cannot
-    /// disagree about when a later double is penalty.  The legacy
-    /// `penalty_latch` lane still runs beside this; re-keying it through the
-    /// tag is follow-on (1) in `docs/pdi.md`.
+    /// On, our later **pass over RHO's live suit bid** denies the trap — long in
+    /// their suit *and* strong enough to punish it, since that hand now doubles.
+    /// The negation of a conjunction is a union, not an envelope, so the reading
+    /// is a two-term `EnvelopeUnion` whose hull is vacuous by construction: it
+    /// narrows what the floor sees only where the walk already contradicts one
+    /// term.  See `docs/pdi.md` for the collapse table and the probe that set
+    /// the two thresholds.
+    ///
+    /// **Reading-only by measurement, not by design.**  Gating the floor's
+    /// *action* on the same latch — the deterministic wrappers and a served-logit
+    /// swap — lost on all four scorer x vulnerability cells (P2), because the
+    /// shipped floor distils BBA, which already plays post-trigger methods.  The
+    /// legacy `penalty_latch` lane runs untouched beside this; re-keying it
+    /// through the tag is follow-on (2) in `docs/pdi.md`.
     pub pdi_latch: bool,
 
     /// Run **systems-on** advances after our natural `1NT` overcall
@@ -1127,7 +1137,7 @@ impl ReadingProfile {
             strength_dial: 1,
             rubens_advances: true,
             penalty_latch: false,
-            pdi_latch: false,
+            pdi_latch: true,
             nt_overcall_systems_on: false,
             nt_overcall_gladiator: true,
             nt_splinter: false,

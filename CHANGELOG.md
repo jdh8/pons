@@ -9,28 +9,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`decision.reading.pdi_latch` — the generalized pass/double-inversion latch.
-  Opt-in, default off pending its A/B.** On, our side's PDI triggers (above)
-  invert the meaning of our later calls: `X` suggests penalty and is more vague,
-  so the floor doubles their runout on a trump stack instead of doubling again
-  for takeout, and partner sits rather than advancing. The gate is
-  `penalty_latched(context) || (pdi_latch && inferences().pdi_latched())`, swapped
-  into the three existing latch wrappers, so knob-off is today's expression
-  exactly — `smoke-default --count 20000 --seed 1` is byte-identical. The
-  matching reading narrows the doubler to 4+ in the doubled suit, the same claim
-  the legacy `(1NT) X` reader makes.
+- **`decision.reading.pdi_latch` — generalized pass/double inversion, now a pure
+  *reading* knob. Opt-in, default off pending its A/B.** On, our pass over RHO's
+  live suit bid after our side pulled a PDI trigger denies the **trap** — long in
+  their suit *and* strong enough to punish it, because that hand now doubles.
+  Being the negation of a conjunction it is a two-term `envelope_union`,
+  `[their-suit ≤ 4] ∪ [points ≤ 11]`, with thresholds taken from the population
+  rather than a priori: at 4/11 the claim contradicts 20 of 2343 real
+  post-trigger passes (0.85%, below the shipped 0.974% ambient
+  partner-exclusion rate) while separating 8.7% of post-trigger doubles. The
+  conversion pass is exempt structurally — it sits over RHO's *pass*, so their
+  bid never precedes it. `smoke-default --count 20000 --seed 1` is
+  byte-identical at the default.
 
-  Measured lane: `(1♥) X - - (2♥)` back to the doubler — a heart stack now
-  doubles (was `2NT`), a takeout shape now passes (was a second takeout double),
-  and over `... X -` partner sits (was a `4♠` jump). Kokish–Kraft is the
-  zero-delta control: its penalty/takeout split is trie geometry, so a book node
-  shadows the floor there.
+  A union of "short" with "weak" has a **vacuous hull**, and everything on the
+  shipped bidding path reads a hull, so the claim shows through exactly where
+  the walk already contradicts one term — a seat its own takeout double floors
+  at 12+ points must be short in their suit. `Inferences::assemble` recomputes
+  `announced_players` from the unions but leaves `players` alone, so even then
+  the only consumer is the nets' per-seat inference block (18 floats a seat);
+  every deterministic gate reads `players` and never sees it.
 
-  The v1 pass half reads nothing — "I cannot punish them" is the negation of a
-  conjunction and is not expressible in the interval envelope. Arm 2 (partner
-  reads our post-trigger `P` as takeout) and the re-key of the legacy 1NT latch
-  through the tag are the follow-on queue in [docs/pdi.md](docs/pdi.md).
-  `bba-gen --ns-pdi-latch` is the treatment arm.
+  **A bid-only pre-count (both arms bid at 204,800 bd/vul, auctions diffed with
+  no solver) measured the knob INERT: 10 divergent boards in 409,600 (0.0024%).**
+  No double-dummy time was spent. A reach-maximal negative control — the same
+  union at `[len ≤ 2] ∪ [points ≤ 5]`, deliberately too strong to be true —
+  reaches only 132 boards (0.032%), so that is the ceiling on the mechanism
+  rather than on the thresholds. The knob stays default off and the reading
+  stays authored: it is correct, and it goes live for free if `players` is ever
+  recomputed from the unions. `docs/pdi.md` has the funnel and the two traps it
+  contains for anyone authoring another post-walk union.
+
+- **The two `pdi_latch` action gates were measured and deleted.** Widening the
+  deterministic latch wrappers (`penalty_latched_c`, `may_pull_penalty`,
+  `not_penalty_latched`) to the whole trigger set, plus a configured-floor shell
+  that swapped the served Pass and Double logits, **lost on all four cells**
+  against BBA at 204,800 bd/arm/vul: plain DD −0.0045 ±0.0015 (none) / −0.0055
+  ±0.0019 (both), PD −0.0054 / −0.0066, 898/409,600 divergent (0.22%), ≈ −2.0 to
+  −3.2 IMPs/fired. The v6 floor distils BBA, which already plays expert
+  post-trigger methods, so both gates were a *second* inversion on an
+  already-inverted policy — and a distillation retrain would anti-teach it.
+  `instinct::penalty_latched` is back to the legacy `(1NT) X` lane alone.
+
+- **`probe-pdi-population` — what our side actually holds after a PDI trigger.**
+  Replays an existing `bba-gen` dump's own auctions (no bidding, no solver) and,
+  wherever our side is latched over RHO's live suit bid, cross-tabulates the
+  call we made against their-suit length and a choosable strength axis
+  (`--strength points|hcp|suit-hcp`), against a same-shape **unlatched control**
+  that prices how much prior mass a candidate claim would remove. Reports the
+  trigger's freshness and what the walk had already shown, so the union's
+  branch-collapse rate is measurable; carries a per-lane tag-hygiene census and
+  an optional `--csv` row dump. The instrument that set the thresholds above.
+
+- **`bba-gen --declare-books-mutually` — an honest mixed-card self-play table.**
+  The reciprocal of `--declare-their-book`: both pons partnerships read the
+  other's books and pinned profile, so a treated-vs-untreated self-play arm no
+  longer has one side reading the other blind. Requires `--their-floor`
+  (external bots have no pons book to attach) and conflicts with the one-way
+  flag; the run label gains `[mutual books]`.
+
+- **`probe-pdi-population` — what our side actually holds after a PDI trigger.**
+  Replays an existing `bba-gen` dump's own auctions (no bidding, no solver) and,
+  wherever our side is latched over RHO's live suit bid, cross-tabulates the
+  call we made against their-suit length and a choosable strength axis
+  (`--strength points|hcp|suit-hcp`), with a per-lane tag-hygiene census and an
+  optional `--csv` row dump. The instrument that refuted the PDI pass reading.
 
 - **Pass/double-inversion (PDI) triggers — mechanism only, no consumer.** A new
   `Rules::penalty()` / `Rules::penalty_if()` builder tags a rule as
@@ -249,6 +292,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all, `instinct`'s `4NT` ask being gated on `Context::undisturbed`.
 
 ### Fixed
+
+- **Redoubled-1NT runouts now read the pinned notrump-defense profile.** The
+  advancer and doubler runout detectors for `(1NT) X (XX)` still resolved the
+  double through `ReadingProfile::default()`, so they fired under DONT,
+  Meckwell, Woolsey and other profiles where `X` is not the natural 15+ penalty
+  double. Both now use the partnership's pinned profile; the obsolete
+  default-profile wrapper was removed. The shipped default remains
+  byte-identical (`smoke-default --count 20000 --seed 1`).
 
 - **The penalty latch now reads the *pinned* notrump-defense profile.**
   `penalty_latched` resolved its `(1NT) X` detector against

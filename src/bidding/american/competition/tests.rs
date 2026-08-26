@@ -224,6 +224,33 @@ fn kokish_kraft_unchanged_under_pdi() {
     }
 }
 
+/// An opponent's double and conversion cannot latch PDI for our side.
+#[test]
+fn pdi_does_not_move_an_untriggered_side() {
+    let auction = vec![
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Bid(Bid::new(2, Strain::Spades)),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+    ];
+    let off = Agreements::default();
+    let mut on = off;
+    on.decision.reading.pdi_latch = true;
+
+    let system = american(&on).bind();
+    assert!(
+        !system
+            .infer(RelativeVulnerability::NONE, &auction)
+            .pdi_latched()
+    );
+    assert_eq!(
+        best_call_with(&on, &auction, "K93.KJT32.AT.KQ4"),
+        best_call_with(&off, &auction, "K93.KJT32.AT.KQ4")
+    );
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {

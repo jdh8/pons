@@ -1677,10 +1677,11 @@ fn step_cache_penalty_trigger_parity() {
     }
 }
 
-/// Knob on, our double after a conversion reads as penalty — four-plus in the
-/// suit it doubles; knob off it claims nothing.  `docs/pdi.md`.
+/// Arming `pdi_latch` adds nothing on the **X** side: the trigger already showed
+/// the process's values, and the honest post-trigger doubler envelope is not the
+/// legacy 4+ stack — it is its own measured arm (`docs/pdi.md`, arm 2).
 #[test]
-fn post_conversion_double_reads_four_plus() {
+fn post_conversion_double_adds_no_shape_claim() {
     // `(1♥) X - - (2♥) X -`: their opening, our takeout double, partner's
     // converting pass, their runout, our penalty double, their pass.
     let auction = [
@@ -1709,16 +1710,14 @@ fn post_conversion_double_reads_four_plus() {
             .get(Relative::Partner)
             .length(Suit::Hearts)
             .min,
-        4
+        0
     );
 }
 
-/// The legacy `(1NT) X` latch and the generalized one make the *same* claim, so
-/// the lane they share reads identically whether one or both are armed —
-/// intersecting a range with itself is a no-op, which is why the PDI reading
-/// needs no skip list.
+/// The generalized latch leaves the legacy `(1NT) X` stack reader alone — the two
+/// lanes overlap, and PDI makes no X-side claim to disagree with.
 #[test]
-fn pdi_does_not_double_apply_in_the_notrump_latch_lane() {
+fn pdi_leaves_the_legacy_stack_reading_alone() {
     // `(1NT) X (2♦) X -`: the latch's later penalty double of their runout.
     let auction = [
         bid(1, Strain::Notrump),
@@ -1737,4 +1736,183 @@ fn pdi_does_not_double_apply_in_the_notrump_latch_lane() {
     };
     assert_eq!(length(&legacy).min, 4);
     assert_eq!(length(&both), length(&legacy));
+}
+
+/// A mixed table reads the natural-1NT penalty double — its points floor *and* the
+/// stack reader for the doubles that follow — from the **defending** side's pin, not
+/// from whichever partnership happens to be making the current decision.
+#[test]
+fn the_natural_1nt_latch_reads_the_declared_defenders() {
+    let auction = [
+        bid(1, Strain::Notrump),
+        Call::Double,
+        bid(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+    ];
+    let plain = Agreements::default();
+    let mut quiet = plain;
+    quiet.decision.reading.penalty_latch = false;
+    quiet.decision.reading.natural_double_floor = 20;
+    let plain = crate::bidding::american::american(&plain).bind();
+    let quiet = crate::bidding::american::american(&quiet).bind();
+    let doubler = relative_of(auction.len(), 1);
+
+    let plain_reads_quiet = plain
+        .clone()
+        .with_opponents(&quiet)
+        .infer(RelativeVulnerability::NONE, &auction);
+    assert_eq!(plain_reads_quiet.get(doubler).strength.points.min, 20);
+    assert_eq!(
+        plain_reads_quiet
+            .get(relative_of(auction.len(), 3))
+            .length(Suit::Diamonds)
+            .min,
+        0
+    );
+
+    let quiet_reads_plain = quiet
+        .with_opponents(&plain)
+        .infer(RelativeVulnerability::NONE, &auction);
+    assert_eq!(quiet_reads_plain.get(doubler).strength.points.min, 15);
+    assert_eq!(
+        quiet_reads_plain
+            .get(relative_of(auction.len(), 3))
+            .length(Suit::Diamonds)
+            .min,
+        4
+    );
+}
+
+/// Knob on, our post-trigger pass over RHO's live suit bid denies the **trap** —
+/// long in their suit *and* strong enough to punish.  The claim is a two-term
+/// union: each term alone is admitted, their conjunction is not.  `docs/pdi.md`.
+#[test]
+fn post_trigger_pass_denies_the_trap() {
+    // `(1NT) X (2♦) -`: their notrump, our natural penalty double (the tagged
+    // trigger), their runout, and partner's pass over it.  Partner has said
+    // nothing else, so both terms of the union are live.
+    let auction = [
+        bid(1, Strain::Notrump),
+        Call::Double,
+        bid(2, Strain::Diamonds),
+        Call::Pass,
+        bid(2, Strain::Hearts),
+    ];
+    let off = Agreements::default();
+    let mut on = off;
+    on.decision.reading.pdi_latch = true;
+
+    let read_off = read_booked_with(&off, &auction);
+    let read_on = read_booked_with(&on, &auction);
+    let passer = relative_of(auction.len(), 3);
+
+    let trap: Hand = "A4.K83.KQJ982.62".parse().expect("valid hand");
+    let long_weak: Hand = "743.J83.T98642.6".parse().expect("valid hand");
+    let short_strong: Hand = "AQ74.KQ82.6.K632".parse().expect("valid hand");
+    for hand in [trap, long_weak, short_strong] {
+        assert!(
+            read_off.admits(passer, hand),
+            "knob-off reads the pass as nothing"
+        );
+    }
+    assert!(
+        !read_on.admits(passer, trap),
+        "the trap hand doubles instead"
+    );
+    for hand in [long_weak, short_strong] {
+        assert!(
+            read_on.admits(passer, hand),
+            "{hand} satisfies a term of the union"
+        );
+    }
+}
+
+/// The union's hull is vacuous, so it reaches the floor's feature block — which
+/// reads `announced`, a hull — only where the walk already contradicts one term.
+/// Partner's own takeout double floors them above the point cap, which kills the
+/// weak term and lets the length ceiling show through.  `docs/pdi.md`.
+#[test]
+fn post_trigger_pass_narrows_the_hull_only_on_collapse() {
+    // `(1♥) X - - (2♥) - -`: partner doubled for takeout, we converted (the
+    // trigger), they ran, partner passed over their bid.
+    let collapsed = [
+        bid(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        bid(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+    // The same trigger, but the passer is the seat that has said nothing.
+    let live = [
+        bid(1, Strain::Notrump),
+        Call::Double,
+        bid(2, Strain::Diamonds),
+        Call::Pass,
+        bid(2, Strain::Hearts),
+    ];
+    let off = Agreements::default();
+    let mut on = off;
+    on.decision.reading.pdi_latch = true;
+
+    let shown = |agreements: &Agreements, auction: &[Call], index: usize| {
+        let read = read_booked_with(agreements, auction);
+        let who = relative_of(auction.len(), index);
+        let hull = *read.announced(who);
+        (
+            hull.length(Suit::Hearts),
+            hull.length(Suit::Diamonds),
+            hull.strength.points,
+        )
+    };
+
+    let (_, _, points) = shown(&off, &collapsed, 5);
+    assert!(
+        points.min > PDI_PASS_POINT_CAP,
+        "the takeout double floors the passer"
+    );
+    assert_eq!(
+        shown(&on, &collapsed, 5).0.max,
+        PDI_PASS_LENGTH_CEILING,
+        "the weak term is empty, so the hull caps their suit"
+    );
+    assert_eq!(
+        shown(&on, &collapsed, 5).2,
+        points,
+        "the union never floors points"
+    );
+
+    assert_eq!(
+        shown(&on, &live, 3).1,
+        shown(&off, &live, 3).1,
+        "both terms live — the hull is the union's, which is vacuous"
+    );
+}
+
+/// The conversion pass is exempt structurally, not by a skip list: it sits over
+/// RHO's *pass*, so no bid of theirs precedes it.
+#[test]
+fn the_conversion_pass_itself_is_unread() {
+    // `(1♥) X - -` read from the doubler's partner: the pass at index 3 is the
+    // trigger, and it must claim nothing.
+    let auction = [
+        bid(1, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+        Call::Pass,
+        bid(2, Strain::Hearts),
+    ];
+    let mut on = Agreements::default();
+    on.decision.reading.pdi_latch = true;
+    let read = read_booked_with(&on, &auction);
+    // The converting passer is our partner at this length.
+    let converter = relative_of(auction.len(), 3);
+    assert_eq!(read.get(converter).length(Suit::Hearts), Range::FULL_LENGTH);
+    assert_eq!(
+        read.get(converter).strength.points.max,
+        Range::FULL_POINTS.max
+    );
 }

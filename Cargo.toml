@@ -128,6 +128,14 @@ name = "probe-bba-sensitivity"
 path = "examples/probe-bba-sensitivity.rs"
 required-features = ["serde"]
 
+# The PDI post-trigger populations (docs/pdi.md, Task 3): replays an A/B dump's
+# own auctions to see what our side actually holds when it passes or doubles
+# after a trigger.  Reads shard dumps through `common::load_dump`.
+[[example]]
+name = "probe-pdi-population"
+path = "examples/probe-pdi-population.rs"
+required-features = ["serde"]
+
 # Main-thread-only: EPBot's NativeAOT library is unsafe under the libtest
 # worker threads.  This runner is the paired latency/reference harness, not a
 # bidding-behaviour A/B.

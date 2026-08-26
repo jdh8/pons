@@ -543,10 +543,6 @@ pub(super) fn gladiator_reading(
 /// *passed* doubler cannot hold 15+, so their double is the both-majors passed-hand
 /// call, not penalty; an unpassed doubler is identified by lane (a seat that passed
 /// before the opening occupies a lane below `opening_index`).
-pub(in crate::bidding) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
-    penalty_x_reading_with_profile(auction, ReadingProfile::default())
-}
-
 pub(in crate::bidding) fn penalty_x_reading_with_profile(
     auction: &[Call],
     profile: ReadingProfile,
@@ -632,8 +628,9 @@ pub(super) fn responder_overcall_double_reading(
 /// makes these via the trump-stack rule, so each promises four-plus cards in the
 /// doubled suit.  Recording that length stops the sampler reading the double as
 /// takeout — without it the advancer pulls a penalty double thinking partner is
-/// short, the phantom-suit leak the [`penalty_x_reading`] doc names.  Empty unless
-/// the latch is on, so it agrees with the floor on when a later double is penalty.
+/// short, the phantom-suit leak the [`penalty_x_reading_with_profile`] doc names.
+/// Empty unless the latch is on, so it agrees with the floor on when a later double
+/// is penalty.
 ///
 /// Once we penalty-double their 1NT the penalty stance holds for the rest of the
 /// auction (mirrors `penalty_latched`) — a bid of our own does *not* un-latch it,
@@ -818,7 +815,7 @@ pub(super) struct Readings {
     landy_relay: Option<usize>,
     their_landy: Option<TheirLandyReading>,
     their_multi: Option<TheirMultiReading>,
-    penalty_x: Option<usize>,
+    penalty_x: Option<(usize, u8)>,
     penalty_latch_doubles: Vec<(usize, Suit)>,
     overcall_double: Option<(usize, u8)>,
     gladiator: Option<GladiatorReading>,
@@ -830,6 +827,7 @@ impl Readings {
         auction: &[Call],
         len: usize,
         profile: ReadingProfile,
+        penalty_profile: ReadingProfile,
         their: TheirDisclosures,
     ) -> Self {
         // Rubens advances name relay suits; identify them so the natural reading
@@ -853,10 +851,11 @@ impl Readings {
             their_multi: their_multi_reading(auction, len, profile, their),
             // Our natural penalty double of their 1NT (15+): a double names no suit, so the
             // generic walk reads it as nothing — the points floor is recorded post-walk.
-            penalty_x: penalty_x_reading_with_profile(auction, profile),
+            penalty_x: penalty_x_reading_with_profile(auction, penalty_profile)
+                .map(|index| (index, penalty_profile.natural_double_floor)),
             // The latch's subsequent penalty doubles: each promises four-plus in the suit
             // it doubles, recorded post-walk so the sampler does not read them as takeout.
-            penalty_latch_doubles: penalty_latch_double_reading(auction, profile),
+            penalty_latch_doubles: penalty_latch_double_reading(auction, penalty_profile),
             // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
             // recorded post-walk so opener does not undercount the partnership's strength.
             overcall_double: responder_overcall_double_reading(auction, len, profile, their),
@@ -1028,9 +1027,8 @@ impl Readings {
         // 15+ hands double, so only the points floor is a sound per-call fact; recording
         // it stops the floor sampling the doubler as a random weak hand and the advancer
         // pulling a phantom suit (cf. the Woolsey double, which records points alone too).
-        if let Some(double_index) = self.penalty_x {
+        if let Some((double_index, floor)) = self.penalty_x {
             let who = relative_of(len, double_index) as usize;
-            let floor = profile.natural_double_floor;
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 

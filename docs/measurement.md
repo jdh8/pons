@@ -56,22 +56,35 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    → 1.76%/1.75% fired (the trigger had widened) and plain DD flipped
    +0.0015 → −0.0102 ±0.0021 NV; a fired-rate drift means the two runs never
    covered the same hands, so the "reversal" was a different experiment.
-6. **Run politely and sequentially.** Wrap heavy runs in
+6. **Pre-count the divergence before spending a solver on a rare feature.**
+   Bidding is cheap (~2 min/arm/vul); double-dummy is not. Bid both arms on the
+   shared `SEED_BASE`, diff the dumps' `table_a` / `table_b` auctions in plain
+   Python — no solver — and count boards whose final contract moved. Below
+   roughly 30–50 divergent boards per vulnerability there is no verdict to read
+   and the DD arms are wasted; the house remedy for a genuinely rare lane is
+   **enrichment** (`--filter-1nt`, `--filter-landy`, `--filter-preempt`), not a
+   bigger random draw. This costs minutes and can save a night: the PDI pass
+   reading pre-counted at **10 divergent boards in 409,600** and never went to
+   DD ([pdi.md](pdi.md), "Why the reading is inert"). Pair it with a
+   **reach-maximal negative control** — the same mechanism at deliberately
+   over-strong thresholds — to separate "these thresholds are too tight" from
+   "this mechanism cannot move the bidder".
+7. **Run politely and sequentially.** Wrap heavy runs in
    `scripts/idle-run.sh`; run arms one after another, never in parallel (each
    run already saturates the box); **never `cargo build` while an A/B is
    running** (later shards exec the new binary and die on renamed flags).
-7. **Score with both scorers** — plain DD (`ns_score_contract`) *and* perfect
+8. **Score with both scorers** — plain DD (`ns_score_contract`) *and* perfect
    defense (`ns_score_pd`) — and report: IMPs/board, IMPs/fired (or /divergent),
    the fired rate, and vulnerability split (none/both). Two seeds or a
    bootstrap CI before trusting a small edge.
-8. **Read the verdict from the [decision table](#the-decision-table).**
-9. **Before declaring a loss dead, trace the worst divergent boards.** The
+9. **Read the verdict from the [decision table](#the-decision-table).**
+10. **Before declaring a loss dead, trace the worst divergent boards.** The
    cause is often an unauthored continuation, an over-broad trigger firing
    outside its intended hand class, or a shared node leaking into a context
    where the treatment doesn't apply — all fixable, none "the idea is bad."
-10. **Ship per the [ship rules](#ship-rules)**; record the result in
+11. **Ship per the [ship rules](#ship-rules)**; record the result in
     `CHANGELOG.md` (and the relevant `docs/ai-bidder/*ledger*` if applicable).
-11. **A refactor claimed inert must be *proven* inert** — a seeded
+12. **A refactor claimed inert must be *proven* inert** — a seeded
     byte-identity diff of the default system across the two commits
     (`smoke-default`), never an argument from knob defaults: the RKCB knob
     cull's `announced()` overlay was inert only because an unrelated global

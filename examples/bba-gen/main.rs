@@ -121,6 +121,14 @@ struct Args {
     #[arg(long)]
     declare_their_book: bool,
 
+    /// Let both pons partnerships read the other's books and pinned profile
+    ///
+    /// The reciprocal form of `--declare-their-book`, for an honest mixed-card
+    /// self-play table. Requires `--their-floor`; external bots have no pons
+    /// book to attach.
+    #[arg(long, requires = "their_floor", conflicts_with = "declare_their_book")]
+    declare_books_mutually: bool,
+
     /// Seat a **pons** book as the opponents instead of EPBot — the deviation
     /// panel's B/C axes (docs/deviation-panel.md).  Takes the same names as
     /// `--our-floor`; the `--their-dial` / `--their-overcall-four-card` /
@@ -2687,16 +2695,25 @@ fn main() -> anyhow::Result<()> {
     // been applied and reset.  Probing above ran on our own books, which is
     // right: the probe measures what we bid, and our bidding table is what
     // this leaves alone.
-    let our_floor = if args.declare_their_book {
+    let (our_floor, their_floor) = if args.declare_books_mutually {
+        let Some(them) = their_floor else {
+            anyhow::bail!("--declare-books-mutually needs --their-floor");
+        };
+        let ours = our_floor;
+        (
+            ours.clone().with_opponents(&them),
+            Some(them.with_opponents(&ours)),
+        )
+    } else if args.declare_their_book {
         let Some(them) = their_floor.as_ref() else {
             anyhow::bail!(
                 "--declare-their-book reads their calls off their books, so it \
                  needs a pons --their-floor to read"
             );
         };
-        our_floor.with_opponents(them)
+        (our_floor.with_opponents(them), their_floor)
     } else {
-        our_floor
+        (our_floor, their_floor)
     };
     // Blind arm of the deviation panel: our side reads with the two opponent
     // seats' readings blanked.  The setting is pinned into a partnership, so this is
@@ -2737,6 +2754,9 @@ fn main() -> anyhow::Result<()> {
             }
             if args.declare_their_book {
                 label += " [their books]";
+            }
+            if args.declare_books_mutually {
+                label += " [mutual books]";
             }
             if let Some(spec) = &args.declare_as {
                 label += &format!(" [declared as {spec}]");
