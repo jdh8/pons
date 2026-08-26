@@ -1529,7 +1529,11 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
             );
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{path} {bid} -")),
-                kokish_kraft_doubler_major_answer(major, agreements.competition.multi_px_split),
+                kokish_kraft_doubler_major_answer(
+                    major,
+                    agreements.competition.multi_px_split
+                        || agreements.competition.multi_doubler_notrump,
+                ),
             ));
             if other == Suit::Spades {
                 entries.extend(rows_of(

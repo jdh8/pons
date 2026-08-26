@@ -153,6 +153,13 @@ fn main() {
     if std::env::var("PROBE_MULTI_PX_SPLIT").is_ok_and(|v| v == "1") {
         agreements.competition.multi_px_split = true;
     }
+    // Opener's notrump out over the doubler's natural other major
+    // (`competition.multi_doubler_notrump`, default off):
+    // `PROBE_MULTI_DOUBLER_NOTRUMP=1` arms it.  The `px_split` rung unbundled;
+    // needs the natural other major to have a seat at all.
+    if std::env::var("PROBE_MULTI_DOUBLER_NOTRUMP").is_ok_and(|v| v == "1") {
+        agreements.competition.multi_doubler_notrump = true;
+    }
     // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
     // 2026-08-25 this probe had no channel for one, so every N1j forensic
     // silently read the natural `(2♣)` leg: the whole Landy table sat inert and

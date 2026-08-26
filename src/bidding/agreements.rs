@@ -1050,6 +1050,28 @@ pub struct CompetitionKnobs {
     /// Inert while their `2♦` is undeclared or natural and inert without
     /// [`Self::multi_kokish_kraft`].
     pub multi_px_split: bool,
+    /// Opener's **notrump out** over the K–K doubler's natural other major
+    /// (`1NT (2♦) X (2♥) - - 2♠ -` and its siblings)
+    ///
+    /// [`Self::multi_doubler_major`] shipped default-on 2026-08-26 with a
+    /// negative both-vulnerable perfect-defense cell (−1.737 IMPs/fired), and
+    /// the trace says the rung is not at fault: four of the five worst boards
+    /// are `2♠` played in a **4-2 or 4-3** because
+    /// `competition::rubensohl::kokish_kraft_doubler_major_answer` has no
+    /// notrump rung and no escape, so a maximum with a stopper in *their*
+    /// major and two or three cards in *ours* must pass.
+    ///
+    /// On, that table gains `3NT`@135 on `hcp(16..) & stopper_in(major)` —
+    /// below the `4M`@140 game in a known 4-4 and above the `3♠`@130 invite,
+    /// so it fires on exactly the hands that pass today.  It is the same rung
+    /// [`Self::multi_px_split`] already carries, unbundled from the split so
+    /// it can be priced against the shipped default; the two emit one rung.
+    ///
+    /// **Off by default**, pending its A/B
+    /// (`scripts/ab-2d-multi-doubler-nt.sh`, `docs/multi-doubler-answer-handoff.md`).
+    /// Inert without [`Self::multi_doubler_major`] and inert while their `2♦`
+    /// is undeclared or natural.
+    pub multi_doubler_notrump: bool,
     /// Author opener's answer to the N1j Landy `4m` slam try
     ///
     /// The rung itself (`competition::lebensohl::landy_bba_transfer_rebid`,
@@ -1213,6 +1235,7 @@ impl Default for CompetitionKnobs {
             multi_minor_slam_try: Some(15),
             multi_doubler_major: true,
             multi_px_split: false,
+            multi_doubler_notrump: false,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,

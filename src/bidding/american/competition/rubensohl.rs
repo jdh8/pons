@@ -1245,15 +1245,18 @@ fn other_major_bid(major: Suit) -> Bid {
 /// it; at 148 the 8–9 doublers *with* a stopper arrive too, and the old route
 /// to `3NT` — responder's natural `2NT`@145 — is exactly what 148 outranks.
 ///
-/// So under
+/// So when `notrump_out` is set a maximum with their suit stopped bids
+/// **`3NT`@135**: below the `4M`@140 game in a known 4-4 fit, above the
+/// `3♠`@130 invitational raise, so it fires on exactly the hands that used to
+/// pass.  Both
 /// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
-/// a maximum with their suit stopped bids **`3NT`@135**: below the `4M`@140
-/// game in a known 4-4 fit, above the `3♠`@130 invitational raise, so it fires
-/// on exactly the hands that used to pass.  It is knob-gated rather than
-/// unconditional because the unconditional version changes behaviour the
-/// 2026-08-26 A/B just measured; that arm is owed
-/// (`docs/multi-doubler-answer-handoff.md`).  Total.
-pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, px_split: bool) -> Rules {
+/// and
+/// [`CompetitionKnobs::multi_doubler_notrump`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_notrump]
+/// set it; the latter is the unbundled arm that prices it against the shipped
+/// default (`docs/multi-doubler-answer-handoff.md`).  It stays knob-gated
+/// because unconditionally it would change the behaviour the 2026-08-26 A/B
+/// measured.  Total.
+pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, notrump_out: bool) -> Rules {
     let other = other_major(major);
     let mut rules = Rules::new().rule(
         Bid::new(4, Strain::from(other)),
@@ -1263,7 +1266,7 @@ pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, px_split: bool) -> 
     // The notrump out.  No length cap is needed: four of the other major with
     // `hcp 16+` already took the game at 140, so the ordering confines this to
     // the short hands, the same idiom the rest of the package uses.
-    if px_split {
+    if notrump_out {
         rules = rules.rule(
             Bid::new(3, Strain::Notrump),
             135,

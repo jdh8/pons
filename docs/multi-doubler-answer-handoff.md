@@ -71,6 +71,14 @@ with perfect defense at unfavourable vulnerability.
 
 ## What is already built
 
+`competition.multi_doubler_notrump` (default off, **A/B in flight**) is the
+unbundled arm 1 below: the same rung, gated on its own knob so it can be priced
+against the *shipped* default rather than against the split's re-weighted (148)
+natural major. Flag `--ns-multi-doubler-notrump` on `bba-gen`,
+`PROBE_MULTI_DOUBLER_NOTRUMP=1` on `probe-decision`, script
+`scripts/ab-2d-multi-doubler-nt.sh`, pinned by
+`kk_doubler_notrump_repairs_the_answer_table`.
+
 Under `competition.multi_px_split` (default off, unmeasured) the answer table
 gains
 
@@ -90,14 +98,22 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
 
 ## Owed, in priority order
 
-1. **The unconditional arm.** Move the `3NT`@135 rung out from behind
-   `multi_px_split` and measure it against the now-shipped default. One knob,
-   two arms, `--their-2d-multi --filter-1nt`, isolation gate first. The
-   hypothesis is specific and falsifiable: *the both-vul PD cell is the 4-2/4-3
-   pass-outs, so authoring the notrump out should move that cell to non-negative
-   without touching the no-vul win.* Size it at the doubler run's own scale
-   (2.304M bd/arm/vul) — the seat is inside the rung's already-thin 0.03%
-   divergence surface, so a smaller arm cannot resolve it.
+1. **The unconditional arm — BUILT, RUNNING 2026-08-26.**
+   `competition.multi_doubler_notrump`, two arms (`base` = shipped default,
+   `nt` = plus the rung), `--their-2d-multi --filter-1nt`, isolation gate
+   first. The hypothesis is specific and falsifiable: *the both-vul PD cell is
+   the 4-2/4-3 pass-outs, so authoring the notrump out should move that cell to
+   non-negative without touching the no-vul win.*
+
+   Sized at **4.608M bd/arm/vul** (`JOBS=12 PER_SHARD=384000`), double the
+   doubler run's, on the smoke's own reading: 120 000 boards at both-vulnerable
+   diverge on **2**, i.e. ~1 in 60 000 against the parent rung's 1 in 4 500.
+   The seat is a subset of the parent's pass-outs (`hcp 16+`, a stopper, and
+   fewer than four of ours — the rest take `4M`@140 or `3♠`@130), so the
+   surface is roughly an order of magnitude thinner and the handoff's original
+   2.304M would have reached ~40 boards. Both smoke divergences are "bid where
+   the baseline passed" with **0 foreign** on `--gate-opener ours`. Results in
+   `ab-results/2d-multi-doubler-nt/`, `SEED_BASE=1787749549`.
 2. **The 15-count.** The repair floors at `hcp(16..)`. A 15-count with a
    stopper and short support still passes `2♠` — board 1 of the worst tail
    (`A82.A53.KJ75.K74`, 15 HCP, three spades) is exactly that and is *not*

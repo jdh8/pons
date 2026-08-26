@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.multi_doubler_notrump` — opener's notrump out over the K–K
+  doubler's natural other major. Opt-in, default off, A/B in flight.** The
+  shipped `competition.multi_doubler_major` (default-on 2026-08-26) carries a
+  negative both-vulnerable perfect-defense cell (**−1.737 IMPs/fired** on 510
+  boards); the trace says the rung is not at fault. Four of the five worst
+  boards are not failing games — they are `2♠` played in a **4-2 or 4-3**,
+  because `kokish_kraft_doubler_major_answer` had no notrump rung and no
+  escape, so a 15-17 balanced maximum with a stopper in *their* major and two
+  or three cards in *ours* had to pass. Vulnerable that is −200 where `3NT` was
+  cold and defending was +100.
+
+  On, that answer table gains `3NT`@135 on `hcp(16..) & stopper_in(major)` —
+  below the `4M`@140 game in a known 4-4 and above the `3♠`@130 invitational
+  raise, so it fires on exactly the hands that pass today. No length cap is
+  needed: four of the other major with `hcp 16+` already took the game at 140.
+  It is the same rung `competition.multi_px_split` already carried, **unbundled
+  from the split** so it can be priced against the shipped default instead of
+  against the split's re-weighted (148) natural major; the two knobs emit one
+  rung.
+
+  Default system byte-identical — the knob is off, and the lane is gated on
+  their declared `(2♦)` Multi and on `multi_doubler_major` having a seat at
+  all. Measure with `scripts/ab-2d-multi-doubler-nt.sh` at the doubler run's
+  own scale or above: a 120 000-board smoke reads the divergence surface at
+  **2 boards, both "bid where the baseline passed", 0 foreign on
+  `--gate-opener ours`**, i.e. roughly an order of magnitude thinner than the
+  parent rung's own 0.03%. Design and hypothesis in
+  [docs/multi-doubler-answer-handoff.md](docs/multi-doubler-answer-handoff.md).
+
 - **`competition.multi_px_split` — responder's `P`/`X` over their `(2♦)` Multi
   split by *information*. Opt-in, default off, A/B owed.** Kokish–Kraft's values
   double is a flat `hcp 8+` with no shape promise, which leaves the doubler's

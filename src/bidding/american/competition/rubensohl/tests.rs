@@ -1988,3 +1988,100 @@ fn kk_px_is_inert_without_the_disclosure() {
         );
     }
 }
+
+/// [`kk_major`] with opener's notrump out
+/// (`competition.multi_doubler_notrump`) — the same `3NT`@135 rung
+/// [`kk_px`] carries, unbundled from the split so it can be priced against the
+/// shipped default (`docs/multi-doubler-answer-handoff.md`)
+fn kk_nt(auction: &str, hand: &str) -> (Call, bool) {
+    let mut arm = kk_major_arm();
+    arm.competition.multi_doubler_notrump = true;
+    let calls: Vec<Call> = auction
+        .split_whitespace()
+        .map(|token| {
+            let token = token
+                .strip_prefix('(')
+                .and_then(|t| t.strip_suffix(')'))
+                .unwrap_or(token);
+            if token == "-" {
+                Call::Pass
+            } else {
+                token.parse().expect("a legal call")
+            }
+        })
+        .collect();
+    best_call_with(&arm, &calls, hand)
+}
+
+/// The notrump out repairs the measured hole and moves nothing else
+///
+/// `ab-results/2d-multi-doubler` reads −1.737 IMPs/fired on both-vulnerable
+/// perfect defense, and four of its five worst boards are `2♠` played in a 4-2
+/// or 4-3 because opener's answer table has no notrump rung.  This knob is
+/// that rung alone: the divergence surface must be the pass-outs of
+/// [`super::kokish_kraft_doubler_major_answer`] and nothing above them.
+#[test]
+fn kk_doubler_notrump_repairs_the_answer_table() {
+    let over = "1NT 2♦";
+    let answer = format!("{over} X 2♥ - - 2♠ -");
+
+    // ---- the losing board, verbatim: 16 with hearts stopped and two spades.
+    assert_eq!(
+        kk_nt(&answer, "AQ.KQ9.QJ975.Q82"),
+        (call(3, Strain::Notrump), false),
+        "the split's repair, without the split"
+    );
+    assert_eq!(
+        kk_major(&answer, "AQ.KQ9.QJ975.Q82").0,
+        Call::Pass,
+        "where the shipped default still passes 2♠"
+    );
+
+    // ---- 135 steals nothing above or below it, and the 15-count is
+    // deliberately not repaired (handoff item 2).
+    for (hand, why) in [
+        ("AJ74.A6.Q53.AJ65", "4♠@140 still outranks it"),
+        ("AKQT.842.AQ7.852", "a minimum still invites"),
+        (
+            "A82.A53.KJ75.K74",
+            "15 with a stopper still passes — the owed arm",
+        ),
+    ] {
+        assert_eq!(
+            kk_nt(&answer, hand),
+            kk_major(&answer, hand),
+            "{hand}: {why}"
+        );
+    }
+
+    // ---- responder's side does not move: this is an opener-side rung, so the
+    // double, the natural major itself, and the withheld leg are all untouched.
+    for (auction, hand) in [
+        (over.to_string(), "KQT2.95.AT92.983"),
+        (format!("{over} X 2♥ - -"), "KQT2.95.AT92.983"),
+        (format!("{over} X 2♠ - -"), "T6.6532.AT95.KQ3"),
+        (format!("{over} X 2♥ - - 2♠ - 3♠ -"), "KQT2.95.AT92.983"),
+    ] {
+        assert_eq!(
+            kk_nt(&auction, hand),
+            kk_major(&auction, hand),
+            "{auction} / {hand}: responder's half is unchanged"
+        );
+    }
+
+    // ---- and it is inert without the rung it answers.
+    let mut knob_only = crate::bidding::agreements::Agreements::default();
+    knob_only.competition.multi_doubler_notrump = true;
+    let auction = one_nt_two_diamonds();
+    for hand in ["AQ.KQ9.QJ975.Q82", "K32.Q32.AQ32.K32"] {
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            best_call_with(
+                &crate::bidding::agreements::Agreements::default(),
+                &auction,
+                hand,
+            ),
+            "{hand}: the knob is inert while their 2♦ is natural"
+        );
+    }
+}

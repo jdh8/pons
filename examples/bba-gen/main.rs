@@ -804,6 +804,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_multi_px_split: bool,
 
+    /// Give opener a **notrump out** over the K–K doubler's natural other
+    /// major (`1NT (2♦) X (2♥) - - 2♠ -`)
+    ///
+    /// `3NT`@135 on `hcp(16..) & stopper_in(major)`, below the `4M`@140 game
+    /// in a known 4-4 and above the `3♠`@130 invite, so it fires on exactly
+    /// the hands that pass today — which is where the shipped
+    /// `--ns-multi-doubler-major` bleeds at both-vulnerable perfect defense
+    /// (a 4-2 or 4-3 `2♠` instead of a cold `3NT`).  The same rung
+    /// `--ns-multi-px-split` carries, unbundled so it can be priced against
+    /// the shipped default.  This is the test arm of
+    /// `scripts/ab-2d-multi-doubler-nt.sh`.  Needs the doubler's natural other
+    /// major and their declared `(2♦)` Multi to do anything.
+    #[arg(long, default_value_t = false)]
+    ns_multi_doubler_notrump: bool,
+
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
     ///
@@ -2290,6 +2305,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
+    agreements.competition.multi_doubler_notrump = args.ns_multi_doubler_notrump;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(n.parse().map_err(|_| {

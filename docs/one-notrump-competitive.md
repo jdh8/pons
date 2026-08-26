@@ -1868,7 +1868,13 @@ ruling.
    [`kokish_kraft_doubler_major_answer`](../src/bidding/american/competition/rubensohl.rs)
    offers only `4M`/`3♠`/Pass and a 15-17 balanced hand with a stopper in their
    major and short support must pass. The repair (a `3NT`@135) is built under
-   `multi_px_split`; extending it to the shipped default is an owed arm —
+   `multi_px_split`, and **unbundled 2026-08-26** as
+   `competition.multi_doubler_notrump` (default off) so it can be priced
+   against the shipped default: `scripts/ab-2d-multi-doubler-nt.sh`,
+   `SEED_BASE=1787749549`, **4.608M bd/arm/vul** — double this run's, because
+   the seat is a subset of its pass-outs (`hcp 16+`, a stopper, short support)
+   and a 120 000-board smoke reads its divergence surface at ~1 in 60 000
+   against this rung's 1 in 4 500. A/B in flight —
    [multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md).
 
    - **"The two `ran` shapes" is true of one of them.** `multi_penalty_answer`
