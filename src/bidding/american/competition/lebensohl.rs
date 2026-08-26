@@ -1488,18 +1488,34 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
     //   spade stopper is missing, i.e. on the misfits.  §N4-KK residue 4 named
     //   this leg (at `points(10..)`) and the review argued it out again; it is
     //   **withheld pending a ruling**, on 25 boards NV+both worth −30 IMPs
-    //   plain and +8 PD — no measured loss to repair.  Flip the `false` to
+    //   plain and +8 PD — no measured loss to repair.  Flip the `dm` column to
     //   re-arm it.
-    for (path, major, ran, natural_leg) in [
-        ("X (2♥) - -", Suit::Hearts, false, true),
-        ("X (2♥) - (2♠)", Suit::Spades, true, false),
-        ("X (2♠) - -", Suit::Spades, false, false),
-        ("X (2♥) X (2♠)", Suit::Spades, true, true),
+    //
+    // The `px` column is [`CompetitionKnobs::multi_px_split`]'s answer to the
+    // same question, and it differs on exactly that leg.  Under the split the
+    // 8–9 doubler is *guaranteed* a four-card major, so a hearts-only hand at
+    // `X (2♠) - -` is no longer the misfit tail — it is the population that
+    // used to sell out, and the withholding ruling was priced under the wider
+    // `hcp 8+` double.  `X (2♥) - (2♠)` stays excluded on both columns: the
+    // mechanism there is opener's *pass* denying four hearts, which no
+    // responder-side split can change.
+    for (path, major, ran, dm_leg, px_leg) in [
+        ("X (2♥) - -", Suit::Hearts, false, true, true),
+        ("X (2♥) - (2♠)", Suit::Spades, true, false, false),
+        ("X (2♠) - -", Suit::Spades, false, false, true),
+        ("X (2♥) X (2♠)", Suit::Spades, true, true, true),
     ] {
-        let natural_other = agreements.competition.multi_doubler_major && natural_leg;
+        // One rung when both knobs are on; `px_split` owns the weight.
+        let natural_other = (agreements.competition.multi_doubler_major && dm_leg)
+            || (agreements.competition.multi_px_split && px_leg);
         entries.extend(rows_of(
             Pattern::after(OVER, path),
-            kokish_kraft_doubler_rebid(major, ran, natural_other),
+            kokish_kraft_doubler_rebid(
+                major,
+                ran,
+                natural_other,
+                agreements.competition.multi_px_split,
+            ),
         ));
         if natural_other {
             let other = if major == Suit::Hearts {
@@ -1513,7 +1529,7 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
             );
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{path} {bid} -")),
-                kokish_kraft_doubler_major_answer(major),
+                kokish_kraft_doubler_major_answer(major, agreements.competition.multi_px_split),
             ));
             if other == Suit::Spades {
                 entries.extend(rows_of(
@@ -1569,9 +1585,20 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
         // published reading is `hcp 7` and 3NT would be a 24-point punt.
         // Opener sits.  (The `3♣`/`3♦` rungs beside it are dead in self-play —
         // see [`kokish_kraft_delayed`] — so their answers stay the floor's.)
+        //
+        // [`CompetitionKnobs::multi_px_split`] is what makes it an invitation:
+        // the split's first-turn pass denies 8–9 only *with* a four-card major,
+        // so the 8–9-no-major band arrives here and opener accepts from the top
+        // of the range.  The band still reaches down to `hcp 7`, so accepting
+        // on 16 can reach `3NT` on 23 combined — a known cost of the swap, and
+        // one of the two cells the split's forensic watches.
         entries.extend(rows_of(
             Pattern::after(OVER, &format!("{path} 2NT -")),
-            sit.clone(),
+            if agreements.competition.multi_px_split {
+                kokish_kraft_invite_answer()
+            } else {
+                sit.clone()
+            },
         ));
     }
 

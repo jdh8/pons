@@ -156,8 +156,14 @@ fn kokish_kraft_package_invariants() {
         // floors must leave every guarded continuation total.
         for slam in [None, Some(13), Some(15)] {
             // And the doubler's natural other major, which adds two answer
-            // tables on the `2♠` leg and one on each `3♥` leg.
-            for doubler_major in [false, true] {
+            // tables on the `2♠` leg and one on each `3♥` leg — crossed with
+            // the P/X split, which arms a *third* leg, re-weights the rung to
+            // 148 and swaps the delayed-`2NT` answer.  The two knobs overlap
+            // on two legs and must still emit one rung apiece, which is
+            // exactly the same-call weight tie this sweep exists to catch.
+            for (doubler_major, px_split) in
+                [(false, false), (true, false), (false, true), (true, true)]
+            {
                 let mut arm = Agreements::default();
                 arm.decision.their.two_diamonds_multi = true;
                 arm.competition.multi_kokish_kraft = true;
@@ -165,6 +171,7 @@ fn kokish_kraft_package_invariants() {
                 arm.competition.multi_balance = balance;
                 arm.competition.multi_minor_slam_try = slam;
                 arm.competition.multi_doubler_major = doubler_major;
+                arm.competition.multi_px_split = px_split;
                 crate::bidding::rows::assert_package_invariants(
                     &arm,
                     &[super::lebensohl_package()],

@@ -150,6 +150,13 @@ const MULTI_STOPPER_ASK: Alert = Alert("comp:multi-stopper-ask");
 /// and the cooperative diamond double it replaces is what opener would
 /// otherwise believe was bid); a separate slug because the band differs — the
 /// 6–7 hands this one refuses take the designed neutral pass instead.
+///
+/// Under
+/// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
+/// the "no shape promise at all" stops being true of the whole band: the call
+/// is then game values *or* an invitation with a four-card major, so the 8–9
+/// half promises one.  Same slug — the hull an opponent has to be told is still
+/// `hcp 8+`, and the split is a matter of what our own partner infers.
 const KK_VALUES: Alert = Alert("comp:kk-values");
 /// Kokish–Kraft minor transfer — `2NT`→♣ and `3♣`→♦ over their `(2♦)` Multi:
 /// a six-card minor with **no point floor**, so it is both the preempt of

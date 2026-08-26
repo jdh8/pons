@@ -1070,8 +1070,30 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
     // The weak natural escapes, shared with the shipped leg (and with its
     // floorless `multi_weak_escape` rung, which composes).
     rules = natural_major_escapes(rules, agreements, agreements.competition.multi_weak_escape);
+    // The values double.  Under
+    // [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
+    // it is split by *information* rather than by strength alone: game values,
+    // or an invitation that carries a four-card major.  The 8–9 hands with no
+    // major take the neutral pass instead, where the delayed table is the
+    // branch that measures positive.  The fork is on `Rules`, not on the
+    // constraint, because `hcp(8..)` and the disjunction are different opaque
+    // types — the same shape the `ran` fork in
+    // [`kokish_kraft_doubler_rebid`] uses.
+    //
+    // Everything else about the call is deliberately untouched: weight `130`,
+    // the `KK_VALUES` alert, and the `.penalty()` PDI tag, so the trigger set
+    // (`docs/pdi.md`) does not move and `kokish_kraft_unchanged_under_pdi`
+    // stays a valid negative control.
+    let rules = if agreements.competition.multi_px_split {
+        rules.rule(
+            Call::Double,
+            130,
+            hcp(10..) | (hcp(8..=9) & (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))),
+        )
+    } else {
+        rules.rule(Call::Double, 130, hcp(8..))
+    };
     rules
-        .rule(Call::Double, 130, hcp(8..))
         .alert(KK_VALUES)
         .penalty()
         .rule(Call::Pass, 0, hcp(0..))
@@ -1098,6 +1120,14 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
 /// long major unstopped in both hands.  The weak `2♠` signoff of v7 dies — a
 /// weak five-card spade hand bids `2♠` directly instead of doubling.
 ///
+/// Under `px_split` that `2NT` is nearly dead by construction, and deliberately
+/// kept: an 8–9 doubler holds a four-card major, so it bids `X`@155 with four
+/// of *theirs* or the natural other major@148 with four of the other one.  The
+/// one leg where it survives is `X (2♥) - (2♠)` — four hearts opposite a pass
+/// that denied four hearts, which is the leg the natural rung is excluded from
+/// on a mechanism.  The rung stays per house style: deleting it would hand that
+/// seat to the floor.
+///
 /// `natural_other` adds the **natural other major** at weight 100
 /// ([`CompetitionKnobs::multi_doubler_major`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_major],
 /// §N4-KK residue 4).  Without it this table has nothing natural at all, and
@@ -1108,7 +1138,20 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
 /// exactly on today's pass-outs.  The caller decides which paths get it — see
 /// `kokish_kraft_entries`, which withholds it from `X (2♥) - (2♠)` because
 /// opener's pass there has already denied four hearts.
-pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool, natural_other: bool) -> Rules {
+///
+/// `px_split`
+/// ([`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split])
+/// re-prices that same rung at **148**, between `3NT` and `2NT`.  Under the
+/// split responder's `X` promises a four-card major whenever it is 8–9, so the
+/// natural bid is no longer a last resort for hands that would otherwise pass —
+/// it is the message.  The two knobs emit **one** rung: `px_split` wins the
+/// weight when both are on.
+pub(crate) fn kokish_kraft_doubler_rebid(
+    major: Suit,
+    ran: bool,
+    natural_other: bool,
+    px_split: bool,
+) -> Rules {
     let mut rules = Rules::new().rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
     rules = if ran {
         rules.rule(Call::Double, 155, len(Suit::Spades, 4..) & hcp(7..))
@@ -1128,15 +1171,31 @@ pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool, natural_other: 
             145,
             hcp(8..=9) & stopper_in(major),
         );
-    // The natural other major, under `competition.multi_doubler_major`.  Weight
-    // 100 is the whole design: below every rung above and above the catch-all,
-    // so it fires exactly on the hands that pass today and cannot move a call
-    // the shipped table already makes.  Four of *their* major doubles at 155,
-    // which is where the "at most a doubleton in theirs" cap comes from — the
-    // ordering supplies it, so the gate does not have to.
+    // The natural other major.  Four of *their* major doubles at 155, which is
+    // where the "at most a doubleton in theirs" cap comes from — the ordering
+    // supplies it, so the gate does not have to.  The weight is the design and
+    // the two knobs want different ones:
+    //
+    // - `competition.multi_doubler_major` puts it at **100**, below every rung
+    //   above and above the catch-all, so it fires on exactly the hands that
+    //   pass today and cannot move a call the shipped table already makes.
+    // - `competition.multi_px_split` puts it at **148**, uniquely between
+    //   `3NT`@150 and `2NT`@145.  It *does* move a call, deliberately: the
+    //   split's 8–9 doubler holds a four-card major, so the natural bid is the
+    //   message and the `2NT` invitation is left with only the leg the split
+    //   does not arm (`X (2♥) - (2♠)`, four hearts opposite a pass that denied
+    //   them).
+    //
+    // The weight is also a **reading** literal, not only a routing one
+    // (`docs/reading-drift-handoff.md`): `bid_exclusion` is on by default, so
+    // at 100 this call denies `hcp(8..=9) & stopper_in(major)` — the `2NT` it
+    // declined — and at 148 it stops denying it.  That is part of what the
+    // split's A/B prices, and it is why the two knobs do not compose into one
+    // weight.
     if natural_other {
         let other = other_major(major);
-        rules = rules.rule(other_major_bid(major), 100, len(other, 4..));
+        let weight = if px_split { 148 } else { 100 };
+        rules = rules.rule(other_major_bid(major), weight, len(other, 4..));
     }
     rules.rule(Call::Pass, 0, hcp(0..))
 }
@@ -1165,20 +1224,52 @@ fn other_major_bid(major: Suit) -> Bid {
 /// [`CompetitionKnobs::multi_doubler_major`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_major]
 ///
 /// Responder promised four of the other major and, by the weight ordering that
-/// put it below `3NT` and `2NT`, no stopper in theirs.  Opposite our 15-17
-/// that is 23+ combined with at least a 4-4 fit whenever opener has four, so
+/// put it below `3NT`, no stopper *and* game values, or 8–9 with or without one
+/// — the rung sits below `2NT`@145 at weight 100 and above it at 148, so under
+/// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
+/// the stopperless inference goes away and the 8–9 traffic goes up.  Opposite
+/// our 15-17 it is 23+ combined either way (the double is `hcp 8+` on both
+/// knobs) with at least a 4-4 fit whenever opener has four, so
 /// the only question is partscore or game: game from the top of the range, the
 /// invitational raise when there is room below it, and a pass on three or
-/// fewer — where the 4-3 at the two level still beats selling out to their
-/// resolved partscore, which is what this seat did before the rung existed.
-/// Total.
-pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit) -> Rules {
+/// fewer.
+///
+/// **That pass is the table's measured hole, and `px_split` repairs it.**  The
+/// shipped `multi_doubler_major` A/B (`ab-results/2d-multi-doubler`) reads
+/// `−1.737 IMPs/fired` on perfect defense at both-vulnerable, and its five
+/// worst boards are not failing games — they are `2♠` played in a **4-2 or
+/// 4-3** because a 15-17 balanced hand with a stopper in *their* major and two
+/// or three cards in *ours* has no call here at all.  The table's original
+/// justification ("the 4-3 at the two level still beats selling out") was
+/// written when the rung sat at weight 100 and only stopperless hands reached
+/// it; at 148 the 8–9 doublers *with* a stopper arrive too, and the old route
+/// to `3NT` — responder's natural `2NT`@145 — is exactly what 148 outranks.
+///
+/// So under
+/// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
+/// a maximum with their suit stopped bids **`3NT`@135**: below the `4M`@140
+/// game in a known 4-4 fit, above the `3♠`@130 invitational raise, so it fires
+/// on exactly the hands that used to pass.  It is knob-gated rather than
+/// unconditional because the unconditional version changes behaviour the
+/// 2026-08-26 A/B just measured; that arm is owed
+/// (`docs/multi-doubler-answer-handoff.md`).  Total.
+pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, px_split: bool) -> Rules {
     let other = other_major(major);
     let mut rules = Rules::new().rule(
         Bid::new(4, Strain::from(other)),
         140,
         len(other, 4..) & hcp(16..),
     );
+    // The notrump out.  No length cap is needed: four of the other major with
+    // `hcp 16+` already took the game at 140, so the ordering confines this to
+    // the short hands, the same idiom the rest of the package uses.
+    if px_split {
+        rules = rules.rule(
+            Bid::new(3, Strain::Notrump),
+            135,
+            hcp(16..) & stopper_in(major),
+        );
+    }
     // Only the `2♠` leg has a rung between the bid and game; the `3♥` leg is
     // already at the three level, so its minimum simply passes.
     if other == Suit::Spades {
@@ -1191,8 +1282,10 @@ pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit) -> Rules {
 /// (`1NT (2♦) X (2♥) - - 2♠ - 3♠ -`)
 ///
 /// Opener showed four-card support and a minimum; responder doubled on `hcp
-/// 8+` and bid the suit without a stopper.  Accept from the top of that band.
-/// Total.
+/// 8+` and bid the suit — without a stopper in theirs at weight 100, with or
+/// without one at 148 under
+/// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split].
+/// Accept from the top of that band.  Total.
 pub(crate) fn kokish_kraft_doubler_major_invite(major: Suit) -> Rules {
     let other = other_major(major);
     Rules::new()
@@ -1233,6 +1326,17 @@ pub(crate) fn kokish_kraft_invite_answer() -> Rules {
 /// alternative is a floor on the transfers, which is a different arm.  The
 /// rungs stay because they cost nothing, they are the source's, and deleting
 /// them would silently hand those seats to the floor.
+///
+/// **Under
+/// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
+/// the `2NT` band is real.** The split's first-turn pass denies `hcp 10+` and
+/// denies 8–9 *with a four-card major*, so the 8–9-no-major hands land here and
+/// the rule's `7..=9` is reachable across its whole width — which is why the
+/// split also swaps opener's answer at this seat from a sit to
+/// [`kokish_kraft_invite_answer`] (`kokish_kraft_entries`).  The takeout `X`
+/// above it narrows the other way for the same reason: it wants four of the
+/// other major, and an 8–9 hand holding that doubled on the first round, so the
+/// `X` here is `hcp 6..=7` in practice.  The `3♣`/`3♦` rungs stay dead.
 pub(crate) fn kokish_kraft_delayed(major: Suit) -> Rules {
     let other = if major == Suit::Hearts {
         Suit::Spades

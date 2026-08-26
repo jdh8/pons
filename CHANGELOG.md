@@ -9,8 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.multi_px_split` — responder's `P`/`X` over their `(2♦)` Multi
+  split by *information*. Opt-in, default off, A/B owed.** Kokish–Kraft's values
+  double is a flat `hcp 8+` with no shape promise, which leaves the doubler's
+  own rebid table with nothing to say on a large slice of its population. §N4-KK's
+  census cut the shipped arms one call deeper and found where the branch bleeds:
+  responder passes the resolved partscore on **293 of ~560 `X` boards for −824
+  IMPs plain**, while the pass branch's own pass-outs read **+1230 PD on 987
+  boards**. The split routes the majorless invitations into the winning branch
+  and gives the doubler's major calls guaranteed freight.
+
+  On, the double is
+  `hcp(10..) | (hcp(8..=9) & (len(♥, 4..) | len(♠, 4..)))` — game values, or an
+  invitation carrying a four-card major. The hands that actually **move** are
+  the complement: `hcp 8..=9` with **no** four-card major, which take the
+  neutral pass instead. The slice is narrower still, because every other 8–9
+  hand already outranks the double at 130 — a five-card major escapes at 140 or
+  transfers at 180, a six-card minor takes the floorless transfer at 176/178,
+  and 8–9 HCP with 10+ *points* on distribution takes `3NT`@150 or `3♠`@152. Weight 130,
+  the `comp:kk-values` alert and the `.penalty()` PDI tag are all unchanged, so
+  the trigger set does not move.
+
+  Two things follow structurally and ride the same knob. The doubler's natural
+  other major (`competition.multi_doubler_major`'s rung) becomes **required**
+  and is re-weighted 100 → **148**, uniquely between `3NT`@150 and `2NT`@145: an
+  8–9 doubler now always holds a four-card major, so showing it is the message
+  rather than a last resort, and the natural `2NT` invitation is left with only
+  the one leg the split does not arm. The `X (2♠) - -` leg, withheld under
+  `multi_doubler_major` on a 25-board census cell, is **re-armed** — under the
+  split a hearts-only hand there is the population that used to sell out, not
+  the misfit tail. `X (2♥) - (2♠)` stays excluded on both knobs: the mechanism
+  there is opener's *pass* denying four hearts, which no responder-side split
+  can change. And the pass branch's delayed natural `2NT` stops being a
+  `hcp == 7` relic — the split's pass no longer denies 8–9 — so opener answers
+  it with `kokish_kraft_invite_answer` (game on `hcp 16+`) instead of sitting.
+
+  The 148 is a **reading** literal as well as a routing one
+  ([docs/reading-drift-handoff.md](docs/reading-drift-handoff.md)): with
+  `bid_exclusion` on by default, the rung at 100 denies the `2NT` it declined
+  (`hcp(8..=9) & stopper_in(major)`) and at 148 stops denying it. Two mechanisms
+  ride one knob. Four mechanisms do, in fact: the constraint, the re-weight, the
+  `X (2♠) - -` leg re-arm, and the two answer tables (the delayed-`2NT`
+  acceptance and the `3NT`@135 out). `px` vs `base` confounds all four.
+
+  Default system byte-identical (`smoke-default`, 20 000 boards, seed 1): the
+  knob is off and the lane is gated on their undeclared `(2♦)` Multi. Measure
+  with `scripts/ab-2d-multi-px.sh` — three arms (`base` / `dm` / `px`) so the
+  split can be read against the rung it subsumes as well as against the shipped
+  table, at N4-KK scale (230 400 bd/arm/vul), since the divergence surface here
+  is the whole 8–9 X/P frontier rather than one 0.9% rung.
+
 - **`competition.multi_doubler_major` — the Kokish–Kraft doubler's natural
-  other major. Opt-in, default off, A/B owed.** After `1NT (2♦) X` and their
+  other major. SHIPPED DEFAULT-ON 2026-08-26.** After `1NT (2♦) X` and their
   pass-or-correct, `kokish_kraft_doubler_rebid` offered `4NT` / a trump-length
   penalty `X` / `3NT` / `2NT` / Pass and **nothing natural**, so a hand with
   four of the other major and no stopper in theirs failed every gate and passed
@@ -41,13 +91,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them. `X (2♠) - -` is withheld pending a ruling (25 boards, −30 plain / +8 PD;
   one token re-arms it).
 
-  Default system byte-identical (`smoke-default`, 20 000 boards, seed 1): the
-  knob is off and the lane is gated on their undeclared `(2♦)` Multi. Measure
-  with `scripts/ab-2d-multi-doubler.sh` — **size it at ~2.3M bd/arm/vul and read
-  the per-fired diff**, since the rung reaches ~130 boards at 230 400 and the
-  K–K A/B's own residual (5.39 IMPs sd per divergent board) puts that below
-  resolution. The PD column on the pass-outs is a wash, not a loss, so this is a
-  plain-DD repair with a PD non-inferiority requirement.
+  **Measured** (`ab-results/2d-multi-doubler`, `SEED_BASE=1787740671`, sha
+  `96ecfd9a`, 2.304M bd/arm/vul, isolation gate **0 foreign** at both
+  vulnerabilities), IMPs per fired board:
+
+  | vul | fired | plain DD | PD | sd plain | sd PD |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | none | 787 | +3.344 | +0.610 | +4.412 | +2.168 |
+  | both | 510 | +1.927 | **−1.737** | +3.399 | +0.243 |
+
+  The design claim holds exactly: **100%** of the 1 297 divergent boards are
+  "bid where the baseline passed" and **0%** the other way, so the weight-100
+  placement never moved a call the shipped table already made; 336 of the 787
+  no-vul divergences became games the baseline never reached.
+
+  **Shipped on jdh8's ruling with one negative cell open.** Both-vulnerable
+  perfect defense is the decision table's `win | loss` row — "suspect; don't
+  ship on this evidence" — and the sd-lead tie-breaker rescues it only to a
+  wash (+0.243/fired, t≈1.0). The worst boards were traced per measurement.md
+  step 10 and the cause is **not** the rung: `kokish_kraft_doubler_major_answer`
+  has no notrump rung and no escape, so a 15-17 balanced hand with a stopper in
+  their major and two or three cards in ours must **pass** `2♠` and play a 4-2.
+  Four of the five worst both-vul PD boards are exactly that. The repair is
+  built and knob-gated under `competition.multi_px_split` (a `3NT`@135 on
+  `hcp(16..) & stopper_in(major)`); extending it to the shipped default is an
+  owed arm — [docs/multi-doubler-answer-handoff.md](docs/multi-doubler-answer-handoff.md).
+
+  Default *system* still byte-identical (`smoke-default`, 20 000 boards,
+  seed 1): the lane is gated on their undeclared `(2♦)` Multi, so flipping this
+  default changes nothing until an opponent is disclosed as playing Multi. The
+  CLI flag inverted to `--no-ns-multi-doubler-major` and
+  `PROBE_MULTI_DOUBLER_MAJOR=0`, per the K–K ship precedent.
 
 - **`decision.reading.union_hull` — recompute each seat's sound hull from its
   union after the walk. Opt-in, default off; measured INERT.** `Inferences`'s

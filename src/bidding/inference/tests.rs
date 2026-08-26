@@ -905,6 +905,13 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.multi_doubler_major = true;
         profiles.push(("their-multi-doubler-major", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_diamonds_multi = true;
+        a.competition.multi_kokish_kraft = true;
+        a.competition.multi_px_split = true;
+        profiles.push(("their-multi-px-split", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

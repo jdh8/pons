@@ -63,18 +63,33 @@ struct Args {
     #[arg(long, default_value = "15", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
 
-    /// Give the Kokish–Kraft doubler a **natural bid of the other major** once
-    /// their pass-or-correct resolves theirs (§N4-KK residue 4)
+    /// Withhold the Kokish–Kraft doubler's **natural bid of the other major**
+    /// once their pass-or-correct resolves theirs
     ///
-    /// `2♠` over their `(2♥)`, `3♥` over their `(2♠)`, on four-plus of the
-    /// other major at weight 100 — below every existing rung, so it fires only
-    /// on the hands that pass today.  Withheld from `X (2♥) - (2♠)`, where
-    /// opener's pass has already denied four hearts.  Opener answers with game
-    /// from the top of the range, the invitational raise where there is room,
-    /// else a pass.  Needs the Kokish–Kraft counter and their declared `(2♦)`
-    /// Multi to do anything.
+    /// Turns *off* the rung shipped default-on 2026-08-26
+    /// (`competition.multi_doubler_major`): `2♠` over their `(2♥)`, `3♥` over
+    /// their `(2♠)`, on four-plus of the other major at weight 100 — below
+    /// every existing rung, so it fires only on the hands that would otherwise
+    /// pass out their resolved partscore.  Withheld from `X (2♥) - (2♠)`,
+    /// where opener's pass has already denied four hearts.  Opener answers with
+    /// game from the top of the range, the invitational raise where there is
+    /// room, else a pass.  This is the control arm of
+    /// `scripts/ab-2d-multi-doubler.sh`.
     #[arg(long, default_value_t = false)]
-    ns_multi_doubler_major: bool,
+    no_ns_multi_doubler_major: bool,
+    /// Split responder's `P`/`X` over their `(2♦)` Multi by **information**:
+    /// `X` = game values, or an invitation with a four-card major
+    ///
+    /// `hcp(10..) | (hcp(8..=9) & (len(♥, 4..) | len(♠, 4..)))` in place of
+    /// Kokish–Kraft's flat `hcp 8+`.  The 8–9-no-major hands take the neutral
+    /// pass instead, where the delayed `2NT` becomes a live invitation (opener
+    /// accepts on `hcp 16+`), and the doubler's natural other major becomes
+    /// required at weight 148 — above the natural `2NT` — on three of the four
+    /// resolved paths.  Implies `--ns-multi-doubler-major`'s rung and
+    /// re-weights it; the two emit one rung.  Needs the Kokish–Kraft counter
+    /// and their declared `(2♦)` Multi to do anything.
+    #[arg(long, default_value_t = false)]
+    ns_multi_px_split: bool,
 
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
@@ -127,7 +142,8 @@ fn main() {
                 .expect("--ns-multi-minor-slam-try must be off or a points floor"),
         ),
     };
-    agreements.competition.multi_doubler_major = args.ns_multi_doubler_major;
+    agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
+    agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(

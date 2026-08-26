@@ -404,12 +404,14 @@ fn test_slam_zone_control_bid_does_not_hijack_the_trump_suit() {
 /// `expected` is our call at each of our turns, alternating opener/responder
 /// from the `1NT` opening.
 fn walk_kokish_kraft(opener: &str, responder: &str, theirs: &[Call], expected: &[Call]) {
-    walk_kokish_kraft_with(None, opener, responder, theirs, expected)
+    walk_kokish_kraft_with(None, false, opener, responder, theirs, expected)
 }
 
-/// [`walk_kokish_kraft`] with the `4m` slam try armed at a `points` floor
+/// [`walk_kokish_kraft`] with the `4m` slam try armed at a `points` floor and
+/// the `P`/`X` information split (`competition.multi_px_split`) armed or not
 fn walk_kokish_kraft_with(
     slam: Option<u8>,
+    px_split: bool,
     opener: &str,
     responder: &str,
     theirs: &[Call],
@@ -419,6 +421,7 @@ fn walk_kokish_kraft_with(
     agreements.decision.their.two_diamonds_multi = true;
     agreements.competition.multi_kokish_kraft = true;
     agreements.competition.multi_minor_slam_try = slam;
+    agreements.competition.multi_px_split = px_split;
     let system = american(&agreements).bind();
 
     let mut auction = vec![call(1, Strain::Notrump)];
@@ -468,6 +471,7 @@ fn kokish_kraft_minor_slam_try_reaches_the_minor_slam() {
     // the placement.
     walk_kokish_kraft_with(
         Some(13),
+        false,
         "AQ32.KQ4.A43.J32", // 16 balanced, three small clubs
         "32.K42.A2.AKQJ32", // 17, a solid six-card club suit and two aces
         &[
@@ -509,6 +513,35 @@ fn kokish_kraft_doubles_then_penalizes_their_resolved_major() {
             Call::Pass,   // opener: three trumps is not a trump stack
             Call::Double, // responder: penalty, on the now-known suit
             Call::Pass,   // opener: sits for the penalty, it is not takeout
+        ],
+    );
+}
+
+#[test]
+fn kokish_kraft_px_split_doubles_on_a_major_and_bids_it() {
+    // 1NT (2♦) X (2♥) - - 2♠ - 4♠: the whole point of the information split.
+    // Eight points and a four-card major is an *invitation with freight* under
+    // `competition.multi_px_split`, so responder doubles; opener's pass over
+    // (2♥) denies four hearts but says nothing about spades; responder names
+    // them at weight 148 — above the natural `2NT` it bids on every other arm —
+    // and opener, four-four and at the top of the range, takes the game.
+    // Twenty-four combined with a 4-4 fit, which is the trade the arm prices.
+    walk_kokish_kraft_with(
+        None,
+        true,
+        "AQ54.Q32.AK32.J2", // 16, four spades, only three hearts: it waits
+        "KJ32.A32.432.432", // 8, four spades, a heart stopper it does not use
+        &[
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double,            // responder: 8-9 *with* a four-card major
+            Call::Pass,              // opener: three hearts is not a trump stack
+            call(2, Strain::Spades), // responder: the freight the double promised
+            call(4, Strain::Spades), // opener: 4-4 opposite a maximum is the game
         ],
     );
 }

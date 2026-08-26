@@ -140,10 +140,18 @@ fn main() {
         Err(_) => {}
     }
     // The doubler's natural other major (`competition.multi_doubler_major`,
-    // default off, §N4-KK residue 4): `PROBE_MULTI_DOUBLER_MAJOR=1` arms it.
+    // shipped default-on 2026-08-26, §N4-KK residue 4): `=0` withholds it.
     // Needs both of the two above to do anything.
-    if std::env::var("PROBE_MULTI_DOUBLER_MAJOR").is_ok_and(|v| v == "1") {
-        agreements.competition.multi_doubler_major = true;
+    if std::env::var("PROBE_MULTI_DOUBLER_MAJOR").is_ok_and(|v| v == "0") {
+        agreements.competition.multi_doubler_major = false;
+    }
+    // Responder's P/X information split over their Multi
+    // (`competition.multi_px_split`, default off): `PROBE_MULTI_PX_SPLIT=1`
+    // arms it.  Implies the natural other major at weight 148 and swaps the
+    // delayed `2NT` answer to an acceptance.  Needs the two above it to do
+    // anything.
+    if std::env::var("PROBE_MULTI_PX_SPLIT").is_ok_and(|v| v == "1") {
+        agreements.competition.multi_px_split = true;
     }
     // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
     // 2026-08-25 this probe had no channel for one, so every N1j forensic

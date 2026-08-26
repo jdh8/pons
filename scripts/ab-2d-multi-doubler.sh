@@ -98,8 +98,8 @@ SEED_BASE=$(seed_for 2d-multi-doubler)
 log "=== 2d-multi-doubler SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base "$v" --their-2d-multi --filter-1nt
-    arm dm   "$v" --their-2d-multi --ns-multi-doubler-major --filter-1nt
+    arm base "$v" --their-2d-multi --no-ns-multi-doubler-major --filter-1nt
+    arm dm   "$v" --their-2d-multi --filter-1nt
 
     gatepair dm base "$v"
     diffpair dm base "$v"

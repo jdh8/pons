@@ -1844,10 +1844,32 @@ ruling.
    second `X` to v7's takeout is the alternative and contradicts all of them; it
    is not the recommended default.
 
-   **BUILT 2026-08-26 behind `competition.multi_doubler_major`, default off,
-   A/B owed** (`scripts/ab-2d-multi-doubler.sh`). The census below found this
-   is not a rare rung but the branch's largest single hole, and it corrected
-   the proposal in two places.
+   **SHIPPED DEFAULT-ON 2026-08-26** (`competition.multi_doubler_major`,
+   `scripts/ab-2d-multi-doubler.sh`, `SEED_BASE=1787740671`, 2.304M bd/arm/vul,
+   isolation gate 0 foreign at both vuls). The census below found this is not a
+   rare rung but the branch's largest single hole, and it corrected the
+   proposal in two places.
+
+   | vul | fired | plain DD | PD | sd plain | sd PD |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | none | 787 | +3.344 | +0.610 | +4.412 | +2.168 |
+   | both | 510 | +1.927 | **−1.737** | +3.399 | +0.243 |
+
+   The design claim is confirmed exactly: **100% of the 1 297 divergent boards
+   are "bid where the baseline passed", 0% the other way** — weight 100 never
+   moved a call the shipped table already made — and 336 of the 787 no-vul
+   divergences are games the baseline never reached.
+
+   **Shipped on jdh8's ruling with the both-vul PD cell open.** That cell is
+   the decision table's `win | loss` row, and the sd-lead tie-breaker rescues
+   it only to a wash. Traced per measurement.md step 10, the cause is opener's
+   *answer* table, not the rung: four of the five worst both-vul PD boards are
+   `2♠` played in a **4-2 or 4-3**, because
+   [`kokish_kraft_doubler_major_answer`](../src/bidding/american/competition/rubensohl.rs)
+   offers only `4M`/`3♠`/Pass and a 15-17 balanced hand with a stopper in their
+   major and short support must pass. The repair (a `3NT`@135) is built under
+   `multi_px_split`; extending it to the shipped default is an owed arm —
+   [multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md).
 
    - **"The two `ran` shapes" is true of one of them.** `multi_penalty_answer`
      doubles their `(2M)` on `len(major, 4..)` at weight 150 against a weight-0
@@ -1909,6 +1931,83 @@ ruling.
    (probed: floored, it answers `4♥`). Their **jump** over the completion,
    `{completed} (4M)`, stays unauthored and is recorded in
    [minor-transfer-slam.md](minor-transfer-slam.md).
+
+### The `P`/`X` information split — `competition.multi_px_split` (BUILT 2026-08-26, default off, A/B owed)
+
+The census above is two numbers about one decision: the `X` branch's pass-outs
+read **−824 plain on 293 boards** and the `-` branch's pass-outs read **+1230
+PD on 987**. K–K's double is a flat `hcp 8+` with no shape promise, so the two
+branches are split by strength alone and the doubler's own rebid table is left
+with nothing to say on a large slice of its population. jdh8's proposal, built
+here, splits them by **information** instead:
+
+| call | `multi_kokish_kraft` | `+ multi_px_split` |
+| --- | --- | --- |
+| `X` | `hcp(8..)` | `hcp(10..) \| (hcp(8..=9) & (len(♥, 4..) \| len(♠, 4..)))` |
+| `-` | everything else | everything else — now including 8–9 with no four-card major |
+
+**The hands that move are the complement of the new disjunct, not the
+disjunct.** The constraint *retains* 8–9 with a four-card major; what it sheds
+— and what therefore changes branch — is **`hcp 8..=9` with no four-card
+major**. That slice is narrower still, because every other 8–9 hand already
+outranks the double at 130: a five-card major escapes at 140 or transfers at
+180, a six-card minor takes the floorless transfer at 176/178, and an 8–9-HCP
+hand with 10+ *points* on distribution takes `3NT`@150 or `3♠`@152. No weight
+surgery was needed on any shipped rung.
+
+Two things follow structurally, and both ride the same knob:
+
+1. **The doubler's natural other major becomes required, at weight 148.**
+   §N4-KK residue 4's rung (`competition.multi_doubler_major`) sits at 100 —
+   below everything, so it fires only on today's pass-outs. Under the split the
+   8–9 doubler *is* a four-card major, so the rung is re-priced to **148**,
+   uniquely between `3NT`@150 and `2NT`@145. The two knobs emit one rung;
+   `px_split` owns the weight.
+   - **`X (2♠) - -` is re-armed.** The withholding ruling (25 bd, −30 plain /
+     +8 PD, "the misfits") was priced under the *wide* `hcp 8+` double. Under
+     the split a hearts-only hand at that node is the population that used to
+     sell out, so the leg is armed — reversible by its column in
+     `kokish_kraft_entries`.
+   - **`X (2♥) - (2♠)` stays excluded on both knobs.** The mechanism there is
+     opener's *pass* over `(2♥)` denying four hearts (`multi_penalty_answer`
+     doubles on `len(major, 4..)`@150 against a weight-0 catch-all), and no
+     responder-side split can change what opener said.
+   - **The natural `2NT`@145 does not go fully dead** — it survives on exactly
+     the excluded leg, where responder holds strictly four hearts, a spade
+     stopper and ≤9 points opposite a pass that denied hearts. The rung stays
+     per house style; deleting it would hand that seat to the floor.
+2. **The delayed `2NT` stops being a `hcp == 7` relic.** Residue 5 above records
+   that rung as unreachable across most of its `7..=9` band, because the
+   first-turn pass denied `hcp 8+`. Under the split the pass denies 8–9 only
+   *with* a four-card major, so the band is real, and opener answers it with
+   `kokish_kraft_invite_answer` (game on `hcp 16+`) instead of sitting. The band
+   still reaches down to `hcp 7`, so accepting on 16 can reach `3NT` on 23
+   combined — a known cost, and one of the two cells the forensic watches.
+
+**The 148 is a reading literal, not only a routing one.** `bid_exclusion` is on
+by default, so at weight 100 the natural-major bid denied the `2NT` it declined
+(`hcp(8..=9) & stopper_in(major)`) and at 148 it stops denying it — a reading
+move riding a weight, exactly the class
+[reading-drift-handoff.md](reading-drift-handoff.md) is about.
+
+**Four mechanisms ride this one knob**, and `px` vs `base` confounds all four:
+(1) the double's constraint, (2) the 100→148 re-weight, (3) the `X (2♠) - -`
+leg re-arm, (4) the two answer tables — the delayed `2NT` acceptance and the
+`3NT`@135 out. No arm here separates them; isolating any one is a follow-up
+arm, and the ordering above is the order to try if the package measures a loss.
+
+**Deliberately not done.** Opener's takeout `X` at `- (2M)` — the pass branch's
+mirror of this split — is **skipped on jdh8's ruling**: BBA passes that seat
+94.2% / 92.7% and its only action is a trump-length penalty double,
+`multi_balance` is twice below resolution, and responder's own delayed takeout
+`X` already covers the function. Readings do not move either:
+`responder_overcall_double_reading` publishes a flat `points 8..`, which is
+still the exact hull of the disjunction.
+
+**Measured**: not yet. Sized at N4-KK scale (230 400 bd/arm/vul) rather than
+residue 4's 2.3M, because the divergence surface is the whole 8–9 X/P frontier
+rather than one 0.9% rung. Isolation gate first (`probe-divergence
+--gate-opener ours`, 0 foreign), both scorers, `sddiff` tie-breaker.
 
 ### The mirror book — why the leak was not a seat gate
 

@@ -982,10 +982,74 @@ pub struct CompetitionKnobs {
     /// from the top of the range, the invitational raise when there is room
     /// below game, else pass.
     ///
-    /// **Off by default**, pending its A/B (`scripts/ab-2d-multi-doubler.sh`).
+    /// **SHIPPED DEFAULT-ON 2026-08-26** on jdh8's ruling.  Measured
+    /// (`ab-results/2d-multi-doubler`, `SEED_BASE=1787740671`, 2.304M
+    /// bd/arm/vul, isolation gate **0 foreign** at both vulnerabilities), IMPs
+    /// per fired board:
+    ///
+    /// | vul | fired | plain DD | PD | sd plain | sd PD |
+    /// | --- | ---: | ---: | ---: | ---: | ---: |
+    /// | none | 787 | +3.344 | +0.610 | +4.412 | +2.168 |
+    /// | both | 510 | +1.927 | **−1.737** | +3.399 | +0.243 |
+    ///
+    /// The divergence profile is the design claim, confirmed: **100%** of the
+    /// 1 297 divergent boards are "bid where the baseline passed" and 0% the
+    /// other way, so the rung never moved a call the shipped table already
+    /// made; 336 of 787 no-vul pass-outs became games the baseline never
+    /// reached.
+    ///
+    /// **The both-vulnerable PD cell is a known negative and is owed a
+    /// follow-up** — the decision table's `win | loss` row, shipped anyway on
+    /// the ruling.  The worst boards trace to opener's answer table, not to
+    /// the rung: `competition::rubensohl::kokish_kraft_doubler_major_answer`
+    /// has no notrump rung and no escape, so a 15-17 balanced hand with a
+    /// stopper and two or three cards in responder's major must **pass** `2♠`
+    /// and play a 4-2.  See `docs/multi-doubler-answer-handoff.md`.
+    ///
+    /// Inert while their `2♦` is undeclared or natural and inert without
+    /// [`Self::multi_kokish_kraft`], so the default *system* is unchanged.
+    pub multi_doubler_major: bool,
+    /// Split responder's `P`/`X` over their `(2♦)` Multi by *information*, not
+    /// by strength alone
+    ///
+    /// [`Self::multi_kokish_kraft`]'s values double is `hcp 8+` with no shape
+    /// promise, which leaves the doubler's rebid table
+    /// (`competition::rubensohl::kokish_kraft_doubler_rebid`) with nothing to
+    /// say on a large slice of its own population — and §N4-KK's census says
+    /// that is where the branch bleeds: responder passes the resolved
+    /// partscore on 293 of ~560 `X` boards for **−824 IMPs plain**, while the
+    /// pass branch's own pass-outs read **+1230 PD** on 987 boards.
+    ///
+    /// On, the double becomes
+    /// `hcp(10..) | (hcp(8..=9) & (len(♥, 4..) | len(♠, 4..)))` — forcing-to-game
+    /// values, *or* an invitation that carries a four-card major.  The hands
+    /// that actually **move** are the complement of that: `hcp 8..=9` with
+    /// **no** four-card major, which now take the **neutral pass** and its
+    /// delayed table (`competition::rubensohl::kokish_kraft_delayed`), the
+    /// branch the census measures positive.  The slice is narrower still,
+    /// because every other 8–9 hand already outranks the double at 130 — a
+    /// five-card major escapes at 140 or transfers at 180, a six-card minor
+    /// takes the floorless transfer at 176/178, and an 8–9-HCP hand with 10+
+    /// *points* on distribution takes `3NT`@150 or `3♠`@152.
+    ///
+    /// Two things follow structurally, and both ride this knob:
+    ///
+    /// - The doubler's natural other major becomes **required** rather than
+    ///   optional ([`Self::multi_doubler_major`]'s rung) and is re-weighted
+    ///   from `100` to **`148`**, above the natural invitational `2NT` — an
+    ///   8–9 doubler now always holds a four-card major, so showing it is the
+    ///   whole point of having doubled.  The `X (2♠) - -` leg, withheld under
+    ///   [`Self::multi_doubler_major`], is **re-armed**: under the split a
+    ///   hearts-only hand at that node is exactly the population that used to
+    ///   sell out.  The two knobs emit one rung, not two.
+    /// - The delayed `2NT` in the pass branch stops being a `hcp == 7` relic —
+    ///   the 8–9-no-major band lands there — so opener answers it with
+    ///   `kokish_kraft_invite_answer` (game on `hcp 16+`) instead of sitting.
+    ///
+    /// **Off by default**, pending its A/B (`scripts/ab-2d-multi-px.sh`).
     /// Inert while their `2♦` is undeclared or natural and inert without
     /// [`Self::multi_kokish_kraft`].
-    pub multi_doubler_major: bool,
+    pub multi_px_split: bool,
     /// Author opener's answer to the N1j Landy `4m` slam try
     ///
     /// The rung itself (`competition::lebensohl::landy_bba_transfer_rebid`,
@@ -1147,7 +1211,8 @@ impl Default for CompetitionKnobs {
             multi_balance: false,
             multi_kokish_kraft: true,
             multi_minor_slam_try: Some(15),
-            multi_doubler_major: false,
+            multi_doubler_major: true,
+            multi_px_split: false,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,

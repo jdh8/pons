@@ -972,6 +972,11 @@ fn kk_arm() -> crate::bidding::agreements::Agreements {
     // Pinned for the same reason, one knob later: this is the K–K table
     // *without* the `4m` slam try, which [`kk_slam_arm`] adds back at a floor.
     arm.competition.multi_minor_slam_try = None;
+    // And without the doubler's natural other major, which shipped default-on
+    // 2026-08-26.  Pinned rather than inherited so [`kk`] keeps meaning "the
+    // table this rung was measured against" and [`kk_major_arm`] keeps being
+    // the contrast — the same move `multi_arm` made when K–K itself shipped.
+    arm.competition.multi_doubler_major = false;
     arm
 }
 
@@ -1767,5 +1772,219 @@ fn kk_doubler_major_is_authored_end_to_end() {
                 }
             }
         }
+    }
+}
+
+/// The arm helper for the P/X information split: [`kk_arm`] plus the switch
+fn kk_px_arm() -> crate::bidding::agreements::Agreements {
+    let mut arm = kk_arm();
+    arm.competition.multi_px_split = true;
+    arm
+}
+
+/// [`kk`] on the P/X-split arm
+fn kk_px(auction: &str, hand: &str) -> (Call, bool) {
+    let calls: Vec<Call> = auction
+        .split_whitespace()
+        .map(|token| {
+            let token = token
+                .strip_prefix('(')
+                .and_then(|t| t.strip_suffix(')'))
+                .unwrap_or(token);
+            if token == "-" {
+                Call::Pass
+            } else {
+                token.parse().expect("a legal call")
+            }
+        })
+        .collect();
+    best_call_with(&kk_px_arm(), &calls, hand)
+}
+
+/// The `P`/`X` information split (`competition.multi_px_split`)
+///
+/// Six claims, one per thing the split has to get right:
+///
+/// - the 8–9-no-major hands leave the double and take the neutral pass, which
+///   is the branch the census measures positive;
+/// - they then have something to say in the delayed table, and opener treats
+///   it as the invitation it now is;
+/// - 8–9 *with* a four-card major still doubles, and the doubler's natural
+///   other major at weight 148 outranks the natural `2NT` it used to bid —
+///   the whole point of guaranteeing the doubler freight;
+/// - game values with no shape at all are unaffected;
+/// - the `X (2♠) - -` leg, withheld under
+///   [`super::super::super::agreements::CompetitionKnobs::multi_doubler_major`],
+///   is re-armed — on the very hand the withholding ruling was written about;
+/// - and the calls above the double (the transfers, the escapes) do not move,
+///   so the split's divergence surface really is the 8–9 band alone.
+#[test]
+fn kk_px_splits_the_double_by_information() {
+    let over = "1NT 2♦";
+
+    // ---- 9 flat with no four-card major: the double under K–K, the pass here.
+    let flat = "432.K32.KQ2.J432";
+    assert_eq!(kk(over, flat).0, Call::Double, "K–K doubles 9 flat");
+    assert_eq!(
+        kk_px(over, flat),
+        (Call::Pass, false),
+        "the split routes it to the neutral pass instead"
+    );
+    // ---- and it is not silent there: the delayed natural `2NT`, now a real
+    // invitation rather than the `hcp == 7` relic.
+    assert_eq!(
+        kk_px(&format!("{over} - 2♥ - -"), flat),
+        (call(2, Strain::Notrump), false),
+        "the delayed table gives it a natural invitation"
+    );
+    for (opener, expected, why) in [
+        (
+            "AQ2.K32.AQ32.J32",
+            call(3, Strain::Notrump),
+            "sixteen accepts",
+        ),
+        ("AQ2.K32.AQ32.432", Call::Pass, "fifteen declines"),
+    ] {
+        assert_eq!(
+            kk_px(&format!("{over} - 2♥ - - 2NT -"), opener).0,
+            expected,
+            "{opener}: {why}"
+        );
+        assert_eq!(
+            kk(&format!("{over} - 2♥ - - 2NT -"), opener).0,
+            Call::Pass,
+            "{opener}: and K–K sits on it, invitation or not"
+        );
+    }
+
+    // ---- 8–9 *with* a four-card major: still a double, and the natural other
+    // major at 148 now beats the `2NT` both other arms bid.
+    let four_spades = "KJ32.A32.432.432";
+    assert_eq!(
+        kk_px(over, four_spades),
+        (Call::Double, false),
+        "eight with four spades is the invitational half of the split"
+    );
+    assert_eq!(
+        kk_px(&format!("{over} X 2♥ - -"), four_spades),
+        (call(2, Strain::Spades), false),
+        "and it shows them — 148 outranks the natural 2NT"
+    );
+    assert_eq!(
+        kk(&format!("{over} X 2♥ - -"), four_spades).0,
+        call(2, Strain::Notrump),
+        "where K–K with no natural rung at all leaves it bidding 2NT"
+    );
+    assert_eq!(
+        kk_major(&format!("{over} X 2♥ - -"), four_spades).0,
+        call(2, Strain::Notrump),
+        "and weight 100 sits below that 2NT, which is the difference"
+    );
+
+    // ---- game values with no shape: unchanged, the split is a floor not a gate.
+    let shapeless = "K32.Q32.AQ32.K32";
+    for auction in [over.to_string(), format!("{over} X 2♥ - -")] {
+        assert_eq!(
+            kk_px(&auction, shapeless),
+            kk(&auction, shapeless),
+            "{auction}: 14 with no four-card major is untouched"
+        );
+    }
+
+    // ---- the re-armed `X (2♠) - -` leg, on the ruling's own hand.
+    let hearts_only = "T6.6532.AT95.KQ3";
+    assert_eq!(
+        kk_px(over, hearts_only),
+        (Call::Double, false),
+        "nine with four hearts doubles under the split"
+    );
+    assert_eq!(
+        kk_px(&format!("{over} X 2♠ - -"), hearts_only),
+        (call(3, Strain::Hearts), false),
+        "and the split re-arms the leg the doubler-major ruling withheld"
+    );
+    assert_eq!(
+        kk_major(&format!("{over} X 2♠ - -"), hearts_only).0,
+        Call::Pass,
+        "which is still withheld on the doubler-major arm alone"
+    );
+
+    // ---- opener's answer to the natural major has a notrump out under the
+    // split, which is the repair of the shipped sibling's measured hole: the
+    // five worst both-vul PD boards of `ab-results/2d-multi-doubler` are `2♠`
+    // played in a 4-2 or 4-3 because a maximum with their suit stopped and
+    // short support had no call here at all.  `AQ.KQ9.QJ975.Q82` is one of
+    // them, verbatim.
+    let answer = format!("{over} X 2♥ - - 2♠ -");
+    assert_eq!(
+        kk_px(&answer, "AQ.KQ9.QJ975.Q82"),
+        (call(3, Strain::Notrump), false),
+        "sixteen with hearts stopped and two spades bids notrump, not a 4-2"
+    );
+    assert_eq!(
+        kk_major(&answer, "AQ.KQ9.QJ975.Q82").0,
+        Call::Pass,
+        "where the shipped rung leaves it passing 2♠ — the measured hole"
+    );
+    // And 135 steals nothing from the game in a known 4-4, nor from the invite.
+    for (hand, expected, why) in [
+        (
+            "AJ74.A6.Q53.AJ65",
+            call(4, Strain::Spades),
+            "4♠@140 still outranks it",
+        ),
+        (
+            "AKQT.842.AQ7.852",
+            call(3, Strain::Spades),
+            "a minimum still invites",
+        ),
+    ] {
+        assert_eq!(kk_px(&answer, hand).0, expected, "{hand}: {why}");
+        assert_eq!(
+            kk_px(&answer, hand),
+            kk_major(&answer, hand),
+            "{hand}: {why}, so the two arms agree here"
+        );
+    }
+
+    // ---- nothing above the double moves: the divergence surface is the 8–9
+    // band, not the whole table.
+    for hand in [
+        "32.32.432.AKQJ32", // the floorless club transfer
+        "3.32.AQ765.KJ765", // the floorless diamond transfer
+        "AQ32.9432.AQ2.32", // 12 with both majors: still the double
+        "K9832.32.Q32.432", // the weak spade escape
+        "KQ932.32.KQ2.432", // the spade transfer
+    ] {
+        assert_eq!(
+            kk_px(over, hand),
+            kk(over, hand),
+            "{hand}: only the 8–9 band moves"
+        );
+    }
+}
+
+/// The split is inert without their disclosed `(2♦)` — the twin of
+/// [`kk_is_inert_without_the_disclosure`], one knob later
+#[test]
+fn kk_px_is_inert_without_the_disclosure() {
+    let mut knob_only = crate::bidding::agreements::Agreements::default();
+    knob_only.competition.multi_px_split = true;
+    let auction = one_nt_two_diamonds();
+    for hand in [
+        "432.K32.KQ2.J432",
+        "KJ32.A32.432.432",
+        "T6.6532.AT95.KQ3",
+        "K32.Q32.AQ32.K32",
+    ] {
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            best_call_with(
+                &crate::bidding::agreements::Agreements::default(),
+                &auction,
+                hand,
+            ),
+            "{hand}: the knob is inert while their 2♦ is natural"
+        );
     }
 }

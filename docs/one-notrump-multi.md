@@ -336,16 +336,32 @@ repairs and what is still owed live in
 *(This heading read "opt-in … stays off" until 2026-08-25 — stale text from
 before the mirror fix, corrected against `agreements.rs` and the CHANGELOG.)*
 
-A third knob is **built and unmeasured**: `competition.multi_doubler_major`
-(default off, `--ns-multi-doubler-major`) gives the doubler a **natural bid of
+A third knob **shipped default-on 2026-08-26**: `competition.multi_doubler_major`
+(withhold it with `--no-ns-multi-doubler-major`) gives the doubler a **natural bid of
 the other major** once their pass-or-correct resolves theirs — `2♠` at
 `1NT (2♦) X (2♥) - -`, `3♥` at `1NT (2♦) X (2♥) X (2♠)`, both on
 `len(other, 4..)` at weight 100, plus opener's answer and responder's
 acceptance. The other two resolved paths do not carry it: `X (2♥) - (2♠)` is
 excluded because opener's pass denied four hearts, and `X (2♠) - -` is withheld
-pending a ruling. A/B owed — `scripts/ab-2d-multi-doubler.sh`, and the census
-that motivated it is in
+pending a ruling. Measured at 2.304M bd/arm/vul (gate 0 foreign both vuls):
+**+3.344 plain / +0.610 PD per fired** no-vul, **+1.927 plain / −1.737 PD**
+both-vul, sd-lead positive in all four columns. Shipped on jdh8's ruling with
+that one negative cell open; the traced cause is opener's answer table, not the
+rung ([multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md)). The
+census that motivated it is in
 [§N4-KK](one-notrump-competitive.md#inside-the-two-big-branches--where-x-and--actually-bleed-2026-08-26).
+
+A fourth knob is **built and unmeasured**, and it re-prices the third:
+`competition.multi_px_split` (default off, `--ns-multi-px-split`) splits
+responder's first call by **information** — `X` becomes
+`hcp(10..) | (hcp(8..=9) & (len(♥, 4..) | len(♠, 4..)))` where K–K plays a flat
+`hcp 8+`, so 8–9 with no four-card major takes the neutral pass instead. On top
+of that the `multi_doubler_major` rung becomes required and moves from weight
+100 to **148** (above the natural `2NT`@145), the `X (2♠) - -` leg is re-armed,
+and the pass branch's delayed `2NT` becomes a live invitation opener accepts on
+`hcp 16+`. A/B owed — `scripts/ab-2d-multi-px.sh`, three arms, and the design
+is in
+[§N4-KK](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-built-2026-08-26-default-off-ab-owed).
 
 A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed
