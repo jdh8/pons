@@ -1869,12 +1869,18 @@ ruling.
    offers only `4M`/`3♠`/Pass and a 15-17 balanced hand with a stopper in their
    major and short support must pass. The repair (a `3NT`@135) is built under
    `multi_px_split`, and **unbundled 2026-08-26** as
-   `competition.multi_doubler_notrump` (default off) so it can be priced
-   against the shipped default: `scripts/ab-2d-multi-doubler-nt.sh`,
+   `competition.multi_doubler_notrump` so it could be priced against the
+   shipped default: `scripts/ab-2d-multi-doubler-nt.sh`,
    `SEED_BASE=1787749549`, **4.608M bd/arm/vul** — double this run's, because
    the seat is a subset of its pass-outs (`hcp 16+`, a stopper, short support)
-   and a 120 000-board smoke reads its divergence surface at ~1 in 60 000
-   against this rung's 1 in 4 500. A/B in flight —
+   and its surface measured ~1 in 43 000 against this rung's 1 in 4 500.
+
+   **That repair SHIPPED DEFAULT-ON 2026-08-27, winning all four cells** —
+   NV +2.910 plain / +2.096 PD per fired over 167, both-vul **+4.264 /
+   +3.264** over 106, 0 foreign on both gates. The hypothesis holds in
+   direction (both-vul is the larger cell) but recovers only ~20% of this
+   row's deficit in per-board terms, so **this `win | loss` row stays open**
+   and the next suspect is the `3♥` leg's gapless `hcp 16+` game answer —
    [multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md).
 
    - **"The two `ran` shapes" is true of one of them.** `multi_penalty_answer`

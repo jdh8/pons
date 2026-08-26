@@ -1,9 +1,12 @@
 # Opener's answer to the K–K doubler's natural major — the measured hole
 
-**Status 2026-08-26:** `competition.multi_doubler_major` shipped default-on
-with a **negative both-vulnerable perfect-defense cell**. This document is why
-that cell exists, why it is not the rung's fault, what is already built, and
-what is owed. It is the follow-up the ship deferred.
+**Status 2026-08-27:** `competition.multi_doubler_major` shipped default-on
+with a **negative both-vulnerable perfect-defense cell**. The traced repair,
+`competition.multi_doubler_notrump`, **shipped default-on 2026-08-27** after
+winning all four cells (§ *The repair, measured*) — but it recovers only
+**~20%** of the parent's both-vulnerable deficit, so that cell is improved,
+not retired. This document is why the cell exists, why it is not the rung's
+fault, what the repair bought, and what is still owed.
 
 ## What shipped, and what it measured
 
@@ -71,13 +74,43 @@ with perfect defense at unfavourable vulnerability.
 
 ## What is already built
 
-`competition.multi_doubler_notrump` (default off, **A/B in flight**) is the
-unbundled arm 1 below: the same rung, gated on its own knob so it can be priced
-against the *shipped* default rather than against the split's re-weighted (148)
-natural major. Flag `--ns-multi-doubler-notrump` on `bba-gen`,
-`PROBE_MULTI_DOUBLER_NOTRUMP=1` on `probe-decision`, script
-`scripts/ab-2d-multi-doubler-nt.sh`, pinned by
-`kk_doubler_notrump_repairs_the_answer_table`.
+`competition.multi_doubler_notrump` (**default on since 2026-08-27**) is the
+unbundled arm 1 below: the same rung, gated on its own knob so it could be
+priced against the *shipped* default rather than against the split's
+re-weighted (148) natural major. Flag `--ns-multi-doubler-notrump` on
+`bba-gen`, `PROBE_MULTI_DOUBLER_NOTRUMP=0` on `probe-decision` (the disarming
+direction, now that it ships on), script `scripts/ab-2d-multi-doubler-nt.sh`,
+pinned by `kk_doubler_notrump_repairs_the_answer_table`.
+
+## The repair, measured
+
+`ab-results/2d-multi-doubler-nt/`, `SEED_BASE=1787749549`, sha `4810aa6e`,
+`PER_SHARD=384000` × 12 = **4.608M bd/arm/vul** (double the parent run's),
+`--their-2d-multi --filter-1nt`, arms `base` (shipped default) vs `nt` (plus
+opener's notrump out).
+
+| vul | fired | plain DD | PD | sd plain | sd PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| none | 167 | +2.910 | +2.096 | +3.508 | +2.933 |
+| both | 106 | **+4.264** | **+3.264** | +5.477 | +4.729 |
+
+IMPs per fired board. SE ≈ 5.39/√n = 0.417 (NV) and 0.523 (both), so every
+cell clears resolution by 3–4×: `win | win` at both vulnerabilities, with the
+16-world single-dummy tie-breaker agreeing in the same direction.
+
+Both isolation gates read **0 foreign**. Of 273 divergent boards, **100% are
+"bid where the baseline passed"** and **270 reach a game the baseline never
+bid** (164/167 and 106/106) — the design claim, confirmed as exactly as the
+parent's was.
+
+**The hypothesis was right, and it was not the whole cell.** The both-vul cell
+is the *larger* of the two, which is what "the negative cell is these
+pass-outs" predicts. But the surfaces are not the same size: the rung fires on
+1 board in 43 000 at both-vul against the parent's 1 in 4 500, so in per-board
+terms it returns +75 µIMP/bd against the parent's −384 µIMP/bd — about **20%**
+of the deficit, leaving an estimated −309 µIMP/bd standing. (Different seeds
+and board counts, same generator and filter, so this composition is an
+estimate, not a measured cell.)
 
 Under `competition.multi_px_split` (default off, unmeasured) the answer table
 gains
@@ -98,7 +131,12 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
 
 ## Owed, in priority order
 
-1. **The unconditional arm — BUILT, RUNNING 2026-08-26.**
+1. **The unconditional arm — SHIPPED 2026-08-27, default-on.** Won all four
+   cells; see § *The repair, measured*. Original sizing note kept below,
+   because its reasoning was validated: predicted ~1 in 60 000 at both-vul,
+   measured 1 in 43 000.
+
+   *(historical)*
    `competition.multi_doubler_notrump`, two arms (`base` = shipped default,
    `nt` = plus the rung), `--their-2d-multi --filter-1nt`, isolation gate
    first. The hypothesis is specific and falsifiable: *the both-vul PD cell is
@@ -122,10 +160,14 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
    room below `3NT`, so the two legs would be asymmetric — which this table
    already is, for the `3♠` invite. Deliberately **not** built: no measurement
    demands it yet, and it should ride arm 1's forensic rather than pre-empt it.
-3. **Re-read the both-vul cell after 1 and 2.** If it goes non-negative, the
-   `win | loss` row is retired and the ship is clean. If it does not, the next
-   suspect is the `3♥` leg's `hcp 16+` game answer, which has no invitational
-   rung under it and so bids game on 24 combined at the four level.
+3. **The rest of the both-vul cell — NOW THE HEAD OF THE QUEUE.** Item 1
+   answered its own half: the pass-outs were worth ~20% of the deficit, so
+   ~80% is still unexplained and the `win | loss` row is **not** retired. The
+   next suspect is the one this document already named: the `3♥` leg's
+   `hcp 16+` game answer, which has no invitational rung under it and so bids
+   game on 24 combined at the four level. Trace it the way the pass-outs were
+   traced — worst boards of `ab-results/2d-multi-doubler/` both-vul PD, minus
+   the 4-2/4-3 pass-outs item 1 has now removed.
 
 ## Do not re-derive
 

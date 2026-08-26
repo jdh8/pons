@@ -1604,6 +1604,9 @@ fn kk_alerts_publish_what_the_calls_promise() {
 fn kk_major_arm() -> crate::bidding::agreements::Agreements {
     let mut arm = kk_arm();
     arm.competition.multi_doubler_major = true;
+    // The notrump out ships on top of this arm; hold it off here so `kk_major`
+    // keeps meaning "the natural other major, without opener's notrump rung".
+    arm.competition.multi_doubler_notrump = false;
     arm
 }
 
@@ -2034,7 +2037,7 @@ fn kk_doubler_notrump_repairs_the_answer_table() {
     assert_eq!(
         kk_major(&answer, "AQ.KQ9.QJ975.Q82").0,
         Call::Pass,
-        "where the shipped default still passes 2♠"
+        "where the answer table without it still passes 2♠"
     );
 
     // ---- 135 steals nothing above or below it, and the 15-count is

@@ -10,33 +10,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`competition.multi_doubler_notrump` — opener's notrump out over the K–K
-  doubler's natural other major. Opt-in, default off, A/B in flight.** The
-  shipped `competition.multi_doubler_major` (default-on 2026-08-26) carries a
-  negative both-vulnerable perfect-defense cell (**−1.737 IMPs/fired** on 510
-  boards); the trace says the rung is not at fault. Four of the five worst
-  boards are not failing games — they are `2♠` played in a **4-2 or 4-3**,
-  because `kokish_kraft_doubler_major_answer` had no notrump rung and no
-  escape, so a 15-17 balanced maximum with a stopper in *their* major and two
-  or three cards in *ours* had to pass. Vulnerable that is −200 where `3NT` was
-  cold and defending was +100.
+  doubler's natural other major. Shipped default-on 2026-08-27: a win in all
+  four cells.** The shipped `competition.multi_doubler_major` (default-on
+  2026-08-26) carries a negative both-vulnerable perfect-defense cell
+  (**−1.737 IMPs/fired** on 510 boards); the trace said the rung was not at
+  fault. Four of the five worst boards were not failing games — they were `2♠`
+  played in a **4-2 or 4-3**, because `kokish_kraft_doubler_major_answer` had
+  no notrump rung and no escape, so a 15-17 balanced maximum with a stopper in
+  *their* major and two or three cards in *ours* had to pass. Vulnerable that
+  is −200 where `3NT` was cold and defending was +100.
 
-  On, that answer table gains `3NT`@135 on `hcp(16..) & stopper_in(major)` —
+  The answer table now gains `3NT`@135 on `hcp(16..) & stopper_in(major)` —
   below the `4M`@140 game in a known 4-4 and above the `3♠`@130 invitational
-  raise, so it fires on exactly the hands that pass today. No length cap is
+  raise, so it fires on exactly the hands that used to pass. No length cap is
   needed: four of the other major with `hcp 16+` already took the game at 140.
   It is the same rung `competition.multi_px_split` already carried, **unbundled
-  from the split** so it can be priced against the shipped default instead of
+  from the split** so it could be priced against the shipped default instead of
   against the split's re-weighted (148) natural major; the two knobs emit one
   rung.
 
-  Default system byte-identical — the knob is off, and the lane is gated on
-  their declared `(2♦)` Multi and on `multi_doubler_major` having a seat at
-  all. Measure with `scripts/ab-2d-multi-doubler-nt.sh` at the doubler run's
-  own scale or above: a 120 000-board smoke reads the divergence surface at
-  **2 boards, both "bid where the baseline passed", 0 foreign on
-  `--gate-opener ours`**, i.e. roughly an order of magnitude thinner than the
-  parent rung's own 0.03%. Design and hypothesis in
+  Measured by `scripts/ab-2d-multi-doubler-nt.sh` at **4.608M boards per arm
+  per vulnerability**, double the parent run's, because the surface is ~10×
+  thinner (it fires on 1 board in 43 000 at both-vulnerable against the parent
+  rung's 1 in 4 500):
+
+  | vul | fired | plain DD | PD | sd plain | sd PD |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | none | 167 | +2.910 | +2.096 | +3.508 | +2.933 |
+  | both | 106 | **+4.264** | **+3.264** | +5.477 | +4.729 |
+
+  IMPs per fired board; SE ≈ 5.39/√n is 0.417 and 0.523, so every cell clears
+  resolution by 3–4× and the 16-world single-dummy tie-breaker agrees. Both
+  isolation gates read **0 foreign**; all 273 divergences are "bid where the
+  baseline passed" and 270 of them reach a game the baseline never bid.
+
+  The hypothesis — *the negative cell is these pass-outs* — is confirmed in
+  direction (the both-vulnerable cell is the larger one) but **not in
+  magnitude**: in per-board terms the repair returns +75 µIMP/bd against the
+  parent's −384 µIMP/bd, so it recovers about **20%** of that deficit and the
+  parent's `win | loss` row is improved, not retired. The next suspect, the
+  `3♥` leg's `hcp 16+` game answer with no invitational rung under it, is now
+  the head of the queue in
   [docs/multi-doubler-answer-handoff.md](docs/multi-doubler-answer-handoff.md).
+
+  `--no-ns-multi-doubler-notrump` on `bba-gen` and
+  `PROBE_MULTI_DOUBLER_NOTRUMP=0` on `probe-decision` restore the previous
+  answer table.
 
 - **`competition.multi_px_split` — responder's `P`/`X` over their `(2♦)` Multi
   split by *information*. Opt-in, default off, A/B owed.** Kokish–Kraft's values

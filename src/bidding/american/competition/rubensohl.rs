@@ -1252,10 +1252,11 @@ fn other_major_bid(major: Suit) -> Bid {
 /// [`CompetitionKnobs::multi_px_split`][crate::bidding::agreements::CompetitionKnobs::multi_px_split]
 /// and
 /// [`CompetitionKnobs::multi_doubler_notrump`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_notrump]
-/// set it; the latter is the unbundled arm that prices it against the shipped
-/// default (`docs/multi-doubler-answer-handoff.md`).  It stays knob-gated
-/// because unconditionally it would change the behaviour the 2026-08-26 A/B
-/// measured.  Total.
+/// set it, and `multi_doubler_notrump` is **on by default** — the unbundled
+/// arm measured a win in all four cells on 2026-08-27
+/// (`docs/multi-doubler-answer-handoff.md`).  It stays knob-gated so the
+/// 2026-08-26 behaviour, the one that measured the hole, remains reachable.
+/// Total.
 pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit, notrump_out: bool) -> Rules {
     let other = other_major(major);
     let mut rules = Rules::new().rule(

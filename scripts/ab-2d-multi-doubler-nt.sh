@@ -34,8 +34,14 @@
 #
 # Two arms, one seed set, `--their-2d-multi --filter-1nt` on both:
 #
-#   base   the shipped default — the natural other major, no notrump out
-#   nt     plus `3NT`@135
+#   base   the natural other major, no notrump out (the pre-2026-08-27 default)
+#   nt     plus `3NT`@135 — the shipped default since 2026-08-27
+#
+# The rung SHIPPED default-on 2026-08-27 on this script's own run: a win in all
+# four cells (none +2.910 plain / +2.096 PD over 167 fired; both +4.264 /
+# +3.264 over 106), 0 foreign on both gates.  The arms are therefore inverted
+# relative to that run — `base` now carries the disarming flag — so a re-run
+# measures the same delta in the same direction.
 #
 # SIZE THIS ARM BIG, at the doubler run's own scale (2.304M bd/arm/vul).  This
 # seat is *inside* that rung's already-thin 0.03% divergence surface — the
@@ -75,8 +81,8 @@ SEED_BASE=$(seed_for 2d-multi-doubler-nt)
 log "=== 2d-multi-doubler-nt SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base "$v" --their-2d-multi --filter-1nt
-    arm nt   "$v" --their-2d-multi --filter-1nt --ns-multi-doubler-notrump
+    arm base "$v" --their-2d-multi --filter-1nt --no-ns-multi-doubler-notrump
+    arm nt   "$v" --their-2d-multi --filter-1nt
 
     gatepair nt base "$v"
     diffpair nt base "$v"

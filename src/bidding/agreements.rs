@@ -1067,8 +1067,17 @@ pub struct CompetitionKnobs {
     /// [`Self::multi_px_split`] already carries, unbundled from the split so
     /// it can be priced against the shipped default; the two emit one rung.
     ///
-    /// **Off by default**, pending its A/B
-    /// (`scripts/ab-2d-multi-doubler-nt.sh`, `docs/multi-doubler-answer-handoff.md`).
+    /// **On by default** since 2026-08-27: its A/B
+    /// (`scripts/ab-2d-multi-doubler-nt.sh`, 4.608M boards per cell) reads a
+    /// win in every cell on every scorer — no vulnerability +2.910 plain /
+    /// +2.096 perfect-defense IMPs per fired board over 167, both vulnerable
+    /// +4.264 / +3.264 over 106, and the 16-world single-dummy tie-breaker
+    /// agrees (+3.508 / +2.933 and +5.477 / +4.729).  Both isolation gates
+    /// passed with zero foreign boards, every divergence is a bid where the
+    /// baseline passed, and 270 of the 273 reach a game the baseline never
+    /// bid.  That the both-vulnerable cell is the *larger* one is the point:
+    /// [`Self::multi_doubler_major`]'s negative there was this missing rung,
+    /// not the rung it shipped.  Turn it off to recover that behaviour.
     /// Inert without [`Self::multi_doubler_major`] and inert while their `2♦`
     /// is undeclared or natural.
     pub multi_doubler_notrump: bool,
@@ -1235,7 +1244,7 @@ impl Default for CompetitionKnobs {
             multi_minor_slam_try: Some(15),
             multi_doubler_major: true,
             multi_px_split: false,
-            multi_doubler_notrump: false,
+            multi_doubler_notrump: true,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,
