@@ -155,13 +155,21 @@ fn kokish_kraft_package_invariants() {
         // it sweeps as its own axis: `None` is the shipped table, and both A/B
         // floors must leave every guarded continuation total.
         for slam in [None, Some(13), Some(15)] {
-            let mut arm = Agreements::default();
-            arm.decision.their.two_diamonds_multi = true;
-            arm.competition.multi_kokish_kraft = true;
-            arm.competition.multi_weak_escape = weak;
-            arm.competition.multi_balance = balance;
-            arm.competition.multi_minor_slam_try = slam;
-            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+            // And the doubler's natural other major, which adds two answer
+            // tables on the `2♠` leg and one on each `3♥` leg.
+            for doubler_major in [false, true] {
+                let mut arm = Agreements::default();
+                arm.decision.their.two_diamonds_multi = true;
+                arm.competition.multi_kokish_kraft = true;
+                arm.competition.multi_weak_escape = weak;
+                arm.competition.multi_balance = balance;
+                arm.competition.multi_minor_slam_try = slam;
+                arm.competition.multi_doubler_major = doubler_major;
+                crate::bidding::rows::assert_package_invariants(
+                    &arm,
+                    &[super::lebensohl_package()],
+                );
+            }
         }
     }
 }

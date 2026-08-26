@@ -11,6 +11,7 @@ use super::penalty_double::{
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, kokish_kraft_delayed,
+    kokish_kraft_doubler_major_answer, kokish_kraft_doubler_major_invite,
     kokish_kraft_doubler_rebid, kokish_kraft_invite_answer, kokish_kraft_minor_completion,
     kokish_kraft_minors_answer, kokish_kraft_minors_overcalled, kokish_kraft_minors_place,
     kokish_kraft_responder, kokish_kraft_second_suits, kokish_kraft_slam_answer,
@@ -1469,16 +1470,58 @@ fn kokish_kraft_entries(agreements: &Agreements) -> Vec<Entry> {
             multi_penalty_answer(major),
         ));
     }
-    for (path, major, ran) in [
-        ("X (2♥) - -", Suit::Hearts, false),
-        ("X (2♥) - (2♠)", Suit::Spades, true),
-        ("X (2♠) - -", Suit::Spades, false),
-        ("X (2♥) X (2♠)", Suit::Spades, true),
+    // Which paths carry `competition.multi_doubler_major`'s natural rung.  The
+    // deciding fact is what opener's own action said about the *other* major,
+    // and `multi_penalty_answer` makes that a hard fact: it doubles their
+    // `(2M)` on `len(M, 4..)` at weight 150 against a weight-0 catch-all, so a
+    // pass over `(2♥)` **denies** four hearts and a double of it **shows**
+    // four.
+    //
+    // - `X (2♥) - -` — opener said nothing about spades, and `2♠` is the cheap
+    //   rung.  This is the census's biggest single hole.
+    // - `X (2♥) X (2♠)` — opener showed four-plus hearts, so `3♥` is a *known*
+    //   4-4 at the three level with 23+ combined.  The strongest of the three.
+    // - `X (2♥) - (2♠)` — opener's pass denied four hearts, so `3♥` could only
+    //   ever find a 4-3.  Excluded.
+    // - `X (2♠) - -` — opener said nothing about hearts, so `3♥` is a four-card
+    //   suit at the three level opposite unknown support, firing only when the
+    //   spade stopper is missing, i.e. on the misfits.  §N4-KK residue 4 named
+    //   this leg (at `points(10..)`) and the review argued it out again; it is
+    //   **withheld pending a ruling**, on 25 boards NV+both worth −30 IMPs
+    //   plain and +8 PD — no measured loss to repair.  Flip the `false` to
+    //   re-arm it.
+    for (path, major, ran, natural_leg) in [
+        ("X (2♥) - -", Suit::Hearts, false, true),
+        ("X (2♥) - (2♠)", Suit::Spades, true, false),
+        ("X (2♠) - -", Suit::Spades, false, false),
+        ("X (2♥) X (2♠)", Suit::Spades, true, true),
     ] {
+        let natural_other = agreements.competition.multi_doubler_major && natural_leg;
         entries.extend(rows_of(
             Pattern::after(OVER, path),
-            kokish_kraft_doubler_rebid(major, ran),
+            kokish_kraft_doubler_rebid(major, ran, natural_other),
         ));
+        if natural_other {
+            let other = if major == Suit::Hearts {
+                Suit::Spades
+            } else {
+                Suit::Hearts
+            };
+            let bid = Bid::new(
+                if other == Suit::Spades { 2 } else { 3 },
+                Strain::from(other),
+            );
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} {bid} -")),
+                kokish_kraft_doubler_major_answer(major),
+            ));
+            if other == Suit::Spades {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{path} {bid} - 3♠ -")),
+                    kokish_kraft_doubler_major_invite(major),
+                ));
+            }
+        }
         // The repeated double is penalty at *every* one of these paths (the
         // K–K split), so opener sits on it rather than answering a takeout.
         entries.extend(rows_of(

@@ -933,6 +933,59 @@ pub struct CompetitionKnobs {
     /// comparison.  Inert while their `2♦` is undeclared or natural and inert
     /// without [`Self::multi_kokish_kraft`].
     pub multi_minor_slam_try: Option<u8>,
+    /// Give the Kokish–Kraft doubler a **natural bid of the other major**
+    /// once their pass-or-correct has resolved theirs
+    ///
+    /// §N4-KK residue 4, and the largest single hole the lane's census found.
+    /// [`Self::multi_kokish_kraft`]'s values `X` is `hcp 8+` with no shape
+    /// promise, and
+    /// `competition::rubensohl::kokish_kraft_doubler_rebid` answers the
+    /// resolution with `4NT` / a trump-length penalty `X` / `3NT` / `2NT` and
+    /// nothing natural.  So a hand with four of the *other* major and no
+    /// stopper in theirs fails every gate and takes the weight-0 Pass — and
+    /// measured on the shipped arms (`ab-results/2d-multi-kk-gated`,
+    /// 230 400 bd/vul), that pass is where the branch bleeds: responder passes
+    /// the resolved partscore on 293 of ~560 boards for **−824 IMPs plain**,
+    /// while the boards where responder *does* act read +182.  Dumped, five of
+    /// the sixteen worst `X (2♥) - -` boards and seven of the twelve worst
+    /// `X (2♥) X (2♠)` boards are a 4-4 major fit we never find while BBA bids
+    /// and makes `4M`.
+    ///
+    /// The rung is the cheapest bid of the other major — `2♠` over their
+    /// `(2♥)`, `3♥` over their `(2♠)` — on `len(other, 4..)` at **weight 100**,
+    /// below every existing rung and above the catch-all.  The low weight is
+    /// the design: it fires *only* on hands that pass today, so the arm cannot
+    /// move a call the shipped table already makes.  No shortness conjunct is
+    /// needed either — four of *their* major already doubles at weight 155, so
+    /// the ordering supplies the cap.
+    ///
+    /// **Two of the four resolved paths.**  What decides a path is what
+    /// opener's own action said about the *other* major, and
+    /// `multi_penalty_answer` makes that a hard fact — it doubles their `(2M)`
+    /// on `len(major, 4..)` at weight 150 against a weight-0 catch-all, so a
+    /// pass over `(2♥)` **denies** four hearts and a double of it **shows**
+    /// four.  So `X (2♥) X (2♠)` gets `3♥` as a *known* 4-4 and is the
+    /// strongest rung of the package, while `X (2♥) - (2♠)` is excluded
+    /// because `3♥` there could only ever find a 4-3.  §N4-KK residue 4's own
+    /// text says "the two `ran` shapes" have the 4-4; that is true of exactly
+    /// one of them.
+    ///
+    /// `X (2♠) - -` is **withheld pending a ruling** rather than excluded on a
+    /// mechanism: opener said nothing about hearts there, so `3♥` is a
+    /// four-card suit at the three level opposite unknown support, firing only
+    /// when the spade stopper is missing — the misfits.  Residue 4 named the
+    /// leg at `points(10..)`; the census gives it 25 boards NV+both worth −30
+    /// IMPs plain and +8 PD, i.e. no measured loss to repair.  One token in
+    /// `kokish_kraft_entries` re-arms it.
+    ///
+    /// Opener answers (`kokish_kraft_doubler_major_answer`): game in the fit
+    /// from the top of the range, the invitational raise when there is room
+    /// below game, else pass.
+    ///
+    /// **Off by default**, pending its A/B (`scripts/ab-2d-multi-doubler.sh`).
+    /// Inert while their `2♦` is undeclared or natural and inert without
+    /// [`Self::multi_kokish_kraft`].
+    pub multi_doubler_major: bool,
     /// Author opener's answer to the N1j Landy `4m` slam try
     ///
     /// The rung itself (`competition::lebensohl::landy_bba_transfer_rebid`,
@@ -1094,6 +1147,7 @@ impl Default for CompetitionKnobs {
             multi_balance: false,
             multi_kokish_kraft: true,
             multi_minor_slam_try: Some(15),
+            multi_doubler_major: false,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,

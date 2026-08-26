@@ -336,6 +336,17 @@ repairs and what is still owed live in
 *(This heading read "opt-in … stays off" until 2026-08-25 — stale text from
 before the mirror fix, corrected against `agreements.rs` and the CHANGELOG.)*
 
+A third knob is **built and unmeasured**: `competition.multi_doubler_major`
+(default off, `--ns-multi-doubler-major`) gives the doubler a **natural bid of
+the other major** once their pass-or-correct resolves theirs — `2♠` at
+`1NT (2♦) X (2♥) - -`, `3♥` at `1NT (2♦) X (2♥) X (2♠)`, both on
+`len(other, 4..)` at weight 100, plus opener's answer and responder's
+acceptance. The other two resolved paths do not carry it: `X (2♥) - (2♠)` is
+excluded because opener's pass denied four hearts, and `X (2♠) - -` is withheld
+pending a ruling. A/B owed — `scripts/ab-2d-multi-doubler.sh`, and the census
+that motivated it is in
+[§N4-KK](one-notrump-competitive.md#inside-the-two-big-branches--where-x-and--actually-bleed-2026-08-26).
+
 A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed
 minor transfer, opener's `4NT`/`5m` answer with its RKCB ladder, and the

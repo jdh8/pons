@@ -71,7 +71,9 @@ struct Args {
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
-    /// The anchor's deal-keyed DD table cache; read-only here
+    /// A deal-keyed DD table cache, created if absent and written back with
+    /// every new solve — the artifact that makes the second cut of an arm cost
+    /// seconds instead of its whole DD fan-out
     #[arg(long)]
     dd_cache: Option<String>,
     /// Dump this many worst plain-DD boards from `--bucket`
@@ -280,11 +282,11 @@ fn main() {
         .collect();
 
     let mut cache: HashMap<String, TrickCountTable> = match args.dd_cache.as_deref() {
-        Some(path) => serde_json::from_reader(std::io::BufReader::new(
-            std::fs::File::open(path).expect("open dd cache"),
-        ))
+        Some(path) if std::path::Path::new(path).exists() => serde_json::from_reader(
+            std::io::BufReader::new(std::fs::File::open(path).expect("open dd cache")),
+        )
         .expect("parse dd cache"),
-        None => HashMap::new(),
+        _ => HashMap::new(),
     };
     let hits = divergent
         .iter()
@@ -673,5 +675,14 @@ fn main() {
             p.iter().sum::<i64>(),
             d.iter().sum::<i64>()
         );
+    }
+
+    if let Some(path) = args.dd_cache.as_deref() {
+        serde_json::to_writer(
+            std::io::BufWriter::new(std::fs::File::create(path).expect("create dd cache")),
+            &cache,
+        )
+        .expect("write dd cache");
+        eprintln!("dd cache {path} now holds {} tables", cache.len());
     }
 }

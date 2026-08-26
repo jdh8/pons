@@ -1593,3 +1593,179 @@ fn kk_alerts_publish_what_the_calls_promise() {
         "and 6+, the pass having denied 8"
     );
 }
+
+/// The arm helper for the doubler's natural other major: [`kk_arm`] plus the
+/// switch
+fn kk_major_arm() -> crate::bidding::agreements::Agreements {
+    let mut arm = kk_arm();
+    arm.competition.multi_doubler_major = true;
+    arm
+}
+
+/// [`kk`] on the natural-other-major arm
+fn kk_major(auction: &str, hand: &str) -> (Call, bool) {
+    let calls: Vec<Call> = auction
+        .split_whitespace()
+        .map(|token| {
+            let token = token
+                .strip_prefix('(')
+                .and_then(|t| t.strip_suffix(')'))
+                .unwrap_or(token);
+            if token == "-" {
+                Call::Pass
+            } else {
+                token.parse().expect("a legal call")
+            }
+        })
+        .collect();
+    best_call_with(&kk_major_arm(), &calls, hand)
+}
+
+/// The doubler's natural other major, its answers, and the one path that must
+/// **not** get it (`competition.multi_doubler_major`, §N4-KK residue 4)
+///
+/// Five claims, one per thing the rung could get wrong:
+///
+/// - it fires on the shape that used to pass, at the cheapest level, on all
+///   three sound paths — every hand here is a real board from the census dump
+///   that sold out to their resolved partscore;
+/// - it is **withheld** from `X (2♥) - (2♠)`, where opener's pass has already
+///   denied four hearts, so the rung could only ever find a 4-3;
+/// - it does not move a hand the shipped table already had a call for — the
+///   weight-100 placement is below every rung, so the trump-length penalty
+///   double, `3NT`, `2NT` and `4NT` all still win;
+/// - opener answers it from the book: game from the top of the range, the
+///   invitational raise where there is room, else a pass;
+/// - every one of these seats is unchanged with the knob off.
+#[test]
+fn kk_doubler_major_is_authored_end_to_end() {
+    let spades = "1NT 2♦ X 2♥ - -";
+    let hearts = "1NT 2♦ X 2♠ - -";
+    // Opener doubled `(2♥)` on four-plus hearts and they ran: a *known* 4-4.
+    let known = "1NT 2♦ X 2♥ X 2♠";
+    // Opener passed `(2♥)` — which denies four hearts — and they ran.
+    let denied = "1NT 2♦ X 2♥ - 2♠";
+
+    // ---- it fires, on real losing boards, at the cheapest level.
+    for hand in ["KQT2.95.AT92.983", "J532.54.J6.AQT32", "JT52.3.AQJT.J763"] {
+        assert_eq!(
+            kk_major(spades, hand),
+            (call(2, Strain::Spades), false),
+            "{hand}: four spades and no heart stopper bids them"
+        );
+        assert_eq!(
+            kk(spades, hand).0,
+            Call::Pass,
+            "{hand}: and sold out to their partscore before the knob"
+        );
+    }
+    for hand in ["6.AJT6.643.QJT96", "Q8.KT95.JT982.AT", "43.AJ87.QJ94.Q52"] {
+        assert_eq!(
+            kk_major(known, hand),
+            (call(3, Strain::Hearts), false),
+            "{hand}: opener showed four hearts, so this is a known 4-4"
+        );
+        // ---- and the same hand must NOT bid `3♥` where opener denied them.
+        assert_eq!(
+            kk_major(denied, hand).0,
+            Call::Pass,
+            "{hand}: opener's pass over (2♥) denied four hearts — no 4-3 hunt"
+        );
+    }
+    // The `X (2♠) - -` leg is withheld: opener said nothing about hearts there,
+    // so `3♥` would be a four-card suit at the three level opposite unknown
+    // support.  See `kokish_kraft_entries` for the ruling and how to re-arm it.
+    assert_eq!(
+        kk_major(hearts, "T6.6532.AT95.KQ3").0,
+        Call::Pass,
+        "the spade leg is withheld — no 3♥ on unknown support"
+    );
+
+    // ---- weight 100 is below every rung: nothing the table already did moves.
+    for (auction, hand, expected, why) in [
+        // Four of *their* major still doubles — the ordering is the shortness cap.
+        (
+            spades,
+            "KQT2.AJ95.A92.83",
+            Call::Double,
+            "trump length is still penalty",
+        ),
+        // A stopper and game values still blast, with four of the other major.
+        (
+            spades,
+            "KQT2.KQ5.AT92.98",
+            call(3, Strain::Notrump),
+            "3NT still outranks it",
+        ),
+        // 16+ still asks.
+        (
+            spades,
+            "KQT2.95.AKQ2.AJ8",
+            call(4, Strain::Notrump),
+            "4NT still outranks it",
+        ),
+    ] {
+        assert_eq!(kk_major(auction, hand).0, expected, "{hand}: {why}");
+        assert_eq!(
+            kk_major(auction, hand),
+            kk(auction, hand),
+            "{hand}: {why}, so the two arms agree"
+        );
+    }
+
+    // ---- opener answers from the book, and responder answers the invitation.
+    for (hand, expected, why) in [
+        (
+            "AJ74.A6.Q53.AJ65",
+            call(4, Strain::Spades),
+            "a maximum takes the game",
+        ),
+        (
+            "AKQT.842.AQ7.852",
+            call(3, Strain::Spades),
+            "a minimum invites",
+        ),
+        (
+            "A6.KJ74.Q532.AJ6",
+            Call::Pass,
+            "three or fewer passes the 4-3",
+        ),
+    ] {
+        assert_eq!(
+            kk_major(&format!("{spades} 2♠ -"), hand),
+            (expected, false),
+            "{hand}: {why}"
+        );
+    }
+    assert_eq!(
+        kk_major(&format!("{spades} 2♠ - 3♠ -"), "KQT2.95.AT92.K83"),
+        (call(4, Strain::Spades), false),
+        "eleven points opposite a known fifteen is twenty-six"
+    );
+    assert_eq!(
+        kk_major(&format!("{spades} 2♠ - 3♠ -"), "J942.9.AQJT8.T75").0,
+        Call::Pass,
+        "nine does not accept"
+    );
+    assert_eq!(
+        kk_major(&format!("{known} 3♥ -"), "AJ74.AQ96.Q53.A6"),
+        (call(4, Strain::Hearts), false),
+        "the 3♥ leg has no room to invite, so a maximum bids game"
+    );
+
+    // ---- and the whole package is inert with the knob off.
+    for auction in [spades, hearts, known, denied] {
+        for hand in ["KQT2.95.AT92.983", "6.AJT6.643.QJT96", "T6.6532.AT95.KQ3"] {
+            let (shipped, _) = kk(auction, hand);
+            for level in 2..4 {
+                for strain in [Strain::Hearts, Strain::Spades] {
+                    assert_ne!(
+                        shipped,
+                        call(level, strain),
+                        "{auction} / {hand}: the shipped table has no natural major here"
+                    );
+                }
+            }
+        }
+    }
+}

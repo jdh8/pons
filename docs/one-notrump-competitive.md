@@ -1603,6 +1603,147 @@ a 55% prior rate. The mirror book holds.
 IMPs per board, 95% CIs. Per *fired*: plain +0.067 / +0.907 and PD +0.395 /
 +1.102 (none/both).
 
+#### By K–K's first countering call
+
+The same clean paired dumps, replayed with `probe-divergence --imps`, attribute
+the K–K-minus-v7 swing to K–K's immediate call after `1NT (2♦)`. `reach` is
+every board taking that K–K call; `div` is the subset whose final contract
+moved. The pooled columns are total IMPs / IMPs per reached call ± 95% CI,
+with the zero-swing boards included. They sum exactly to the headline above:
+plain **+46 / +437** and PD **+270 / +531** IMPs (none/both).
+
+| K–K call | reach none/both | div none/both | plain total none/both | PD total none/both | pooled plain/reach | pooled PD/reach |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `-` | 884 / 740 | 253 / 185 | −64 / +216 | +187 / +375 | +0.094 ±0.129 | **+0.346 ±0.200** |
+| `X` | 335 / 225 | 182 / 125 | −141 / +43 | −19 / +50 | −0.175 ±0.414 | +0.055 ±0.457 |
+| `2♥` | 157 / 123 | 20 / 22 | −38 / −2 | −31 / 0 | −0.143 ±0.359 | −0.111 ±0.383 |
+| `2♠` | 135 / 105 | 22 / 17 | −2 / +28 | −12 / +32 | +0.108 ±0.311 | +0.083 ±0.320 |
+| `2NT` | 143 / 109 | 55 / 34 | +60 / +23 | +60 / +27 | +0.329 ±0.521 | +0.345 ±0.702 |
+| `3♣` | 116 / 88 | 99 / 74 | +114 / +92 | +54 / +34 | **+1.010 ±0.798** | +0.431 ±0.937 |
+| `3♦` | 90 / 61 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| `3♥` | 92 / 55 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| `3♠` | 43 / 17 | 39 / 15 | +125 / +45 | +42 / +25 | **+2.833 ±1.795** | +1.117 ±2.079 |
+| `3NT` | 38 / 28 | 13 / 10 | −8 / −8 | −11 / −12 | −0.242 ±0.736 | −0.348 ±0.856 |
+| `4♣` | 11 / 8 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| `4♦` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | — | — |
+| `4♥` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | — | — |
+| `4♠` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | — | — |
+
+This is **causal accounting for the whole table swap, not fourteen call
+ablations**: a same-call row can move on a later K–K continuation or reading,
+and a changed-call row inherits its actual v7→K–K counterfactual. The largest
+transitions make that selection visible: `X→3♣` gains +195/+144 plain/PD,
+`X→3♠` +170/+67 and `-→-` +184/+488, while `3♣→X` loses −309
+plain but gains +26 PD and `X→-` loses −79/−219. One seed makes the small
+rows descriptive, not separate ship verdicts. These arms predate the separately
+measured `multi_minor_slam_try`, so they isolate K–K rather than today's stacked
+minor-slam continuation.
+
+#### Against BBA by first call — ranking, not causality
+
+`probe-1nt-interference --bucket "2♦" --responses 1` on the same K–K arms
+prices the whole duplicate board against BBA, grouped by our first response.
+That is the direct answer to "which calls gained or lost IMPs?", but it carries
+the mirror table and every later call, so it **ranks calls rather than isolating
+their EV** (the paired table above is the causal package evidence).
+
+| our call | boards none/both | plain IMPs/bd none/both | PD IMPs/bd none/both | plain total none/both | PD total none/both |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `-` | 884 / 740 | −0.603 ±0.229 / +0.053 ±0.339 | +0.615 ±0.350 / **+1.622 ±0.503** | −533 / +39 | +544 / +1200 |
+| `X` | 335 / 225 | **−1.663 ±0.571** / −0.231 ±0.911 | −0.096 ±0.652 / **+1.676 ±0.995** | −557 / −52 | −32 / +377 |
+| `2♥` | 157 / 123 | −0.096 ±0.814 / +0.431 ±1.150 | +1.159 ±0.991 / +1.780 ±1.422 | −15 / +53 | +182 / +219 |
+| `2♠` | 135 / 105 | −0.593 ±0.876 / −0.857 ±1.247 | +0.022 ±1.008 / +0.114 ±1.439 | −80 / −90 | +3 / +12 |
+| `2NT` | 143 / 109 | **−1.042 ±0.863** / −0.670 ±1.327 | −0.622 ±1.093 / −0.413 ±1.614 | −149 / −73 | −89 / −45 |
+| `3♣` | 116 / 88 | +0.172 ±1.056 / −0.091 ±1.586 | +0.871 ±1.268 / +0.693 ±1.826 | +20 / −8 | +101 / +61 |
+| `3♦` | 90 / 61 | **+1.700 ±0.945** / **+1.607 ±1.437** | **+1.744 ±1.064** / **+1.672 ±1.528** | +153 / +98 | +157 / +102 |
+| `3♥` | 92 / 55 | +0.641 ±0.973 / +0.455 ±1.141 | +0.663 ±1.081 / +0.582 ±1.350 | +59 / +25 | +61 / +32 |
+| `3♠` | 43 / 17 | +0.209 ±1.818 / −1.000 ±3.762 | +0.256 ±2.063 / −0.647 ±4.541 | +9 / −17 | +11 / −11 |
+| `3NT` | 38 / 28 | +0.763 ±1.211 / +1.036 ±1.874 | +0.474 ±1.273 / +0.357 ±1.984 | +29 / +29 | +18 / +10 |
+| `4♣` | 11 / 8 | −0.727 ±3.238 / +2.750 ±5.699 | −0.727 ±3.238 / +2.750 ±5.699 | −8 / +22 | −8 / +22 |
+| `4♦`, `4♥`, `4♠` | 0 / 0 | — | — | — | — |
+
+The stable positive row is the heart transfer `3♦`; the large absolute
+losses sit in `X`, pass and `2NT`, with pass and `X` reversing sharply under
+perfect defense. Those reversals are exactly why the plain and PD columns stay
+separate. The tiny four-level rows have no verdict. As above, this snapshot
+isolates K–K before `multi_minor_slam_try`; strong `2NT`/`3♣` continuations
+in today's stack are measured in [minor-transfer-slam.md](minor-transfer-slam.md).
+
+#### Inside the two big branches — where `X` and `-` actually bleed (2026-08-26)
+
+The two rows above are the lane's largest absolute movers, so the same arms
+were cut one call deeper: `probe-1nt-interference <arm> --dd-cache … --bucket
+"2♦" --responses 4`, both vulnerabilities, split by our first call, their
+advance, opener's answer and responder's rebid. (The probe now writes its
+`--dd-cache` back, so the second cut of an arm costs seconds instead of a
+132 774-board DD fan-out.) Board counts are NV+both pooled.
+
+**The `X` branch — the loss is responder having nothing to say.**
+
+| responder's rebid, auction resolved | bd | plain | PD |
+| --- | ---: | ---: | ---: |
+| **passes** — `X 2♥ P P P`, `X 2♥ X 2♠ P`, `X 2♥ P 2♠ P` | 293 | **−824** | +65 |
+| **doubles** — `X 2♥ P P X`, `X 2♥ P 2♠ X` | 44 | **+182** | +191 |
+| notrump — `2NT` and `3NT` rungs, all four paths | 96 | −34 | −85 |
+
+`probe-1nt-interference --show … --next "X 2♥ P"` and `--next "X 2♥ X"` say why
+the pass-outs bleed, and it is the same shape twice: **five of the sixteen
+worst `X (2♥) - -` boards and seven of the twelve worst `X (2♥) X (2♠)` boards
+are a 4-4 major fit we never find.** We pass out their resolved partscore for
+−110 while BBA, holding our cards, doubles for takeout, hears partner's suit
+and makes `4M` — eleven IMPs a board, repeated. That is §N4-KK residue 4, and
+it is the branch's largest single hole rather than the rare rung the residue
+described. Built 2026-08-26 as `competition.multi_doubler_major`, A/B owed.
+
+**Read the PD column before sizing the repair.** Pooled over the three
+pass-out rows PD is +65 — a wash, not a loss — because the `4M` games BBA
+reaches on 23-25 points often fail against perfect defense. So this is a
+plain-DD repair with a PD non-inferiority requirement, not a both-scorer bet,
+and the arm's answer table is deliberately more conservative than BBA's: only a
+16-count bids game directly, a 15 invites.
+
+**The `-` branch is a net winner and is not the same problem.** Its four cells
+are −533 / +39 plain and +544 / +1200 PD (NV/both) — three of four positive,
+**+1250 IMPs net** — so the −0.603 NV-plain cell is one half of a
+plain-loss/PD-win pair, the signature the campaign already flags as a doubling
+artifact. Inside it the two *authored* action rungs of
+[`kokish_kraft_delayed`](../src/bidding/american/competition/rubensohl.rs) are
+the negative part and passing is the positive part:
+
+| pass-branch rung | bd | plain | PD |
+| --- | ---: | ---: | ---: |
+| delayed natural `2NT` (`hcp 7..=9` + stopper, reachable band `hcp == 7`) | 49 | −41 | **−166** |
+| delayed takeout `X` | 145 | −96 | −110 |
+| responder passes | 987 | −286 | **+1230** |
+
+Nothing was changed there. The `2NT` rung is the sharper candidate — −3.4 PD
+per board, with a mechanism (a 7-count bidding notrump at 22-24 combined with
+their known six-card major live) that residue 5 already predicted — but at 49
+boards it is below this harness's resolution, and any pass-branch arm risks
++1200 both-vul PD IMPs to chase a −533 NV-plain cell. **Recorded, not built.**
+
+**Two more residues the review priced, neither built.**
+
+- **The delayed takeout `X` requires four of the other major; the only two
+  sources that qualify the shape both *deny* it** (Gilles–Roupoil "sans 4AM";
+  Système Jean Christophe "without a four-card major"). K–K itself prints
+  "takeout" unqualified, so the shipped gate does not violate its letter, but
+  it is on the opposite side of every source that specifies one. Not recorded
+  anywhere before now. Against re-gating: `multi_takeout_answer` answers the
+  double by *bidding* the other major on four, so denying four would land the
+  pair in a 4-3 by construction — the two halves would have to move together.
+- **Opener's penalty double at `X (2♥)`** (`multi_penalty_answer`) is the
+  worst-scoring opener action in the branch: `X 2♥ X` reads −227 plain / +74 PD
+  over 160 boards against `X 2♥ P`'s −386 / +222 over 353, and its tail
+  `X 2♥ X 2♠ P` is the single worst row in the census (−4.19 plain per board
+  NV). The review argued a seat mechanism — opener sits under the six-card suit
+  and is the finesse victim, responder sits over it — plus anti-selection (the
+  overcaller's pass rate collapses from 55% to 10% once opener doubles, so the
+  double mostly drives them to their real suit undoubled). **The comparison is
+  confounded**: opener holding four of their six-card suit *selects* misfits,
+  which would score worse with or without the double. It needs its own arm, not
+  this census.
+
 **Verdict — ships default-on.** Both-vul is the decision table's `win | win`
 row on the two arbitrating scorers, NV is a clean `wash | wash`, the sd-lead
 tie-breaker agrees in sign in all four cells, and **no reading of the eight is
@@ -1702,6 +1843,35 @@ ruling.
    split, which every exact-object source in the survey agrees on. Reverting the
    second `X` to v7's takeout is the alternative and contradicts all of them; it
    is not the recommended default.
+
+   **BUILT 2026-08-26 behind `competition.multi_doubler_major`, default off,
+   A/B owed** (`scripts/ab-2d-multi-doubler.sh`). The census below found this
+   is not a rare rung but the branch's largest single hole, and it corrected
+   the proposal in two places.
+
+   - **"The two `ran` shapes" is true of one of them.** `multi_penalty_answer`
+     doubles their `(2M)` on `len(major, 4..)` at weight 150 against a weight-0
+     catch-all, so opener's *pass* over `(2♥)` **denies** four hearts as surely
+     as its double **shows** four. `X (2♥) X (2♠)` is the known 4-4 and is
+     built; `X (2♥) - (2♠)` is excluded, because `3♥` there finds a 4-3 at
+     best.
+   - **No shortness conjunct and no separate point floor.** Four of *their*
+     major already doubles at weight 155, so the ordering supplies the
+     `len(major, ..=2)` cap; and the rung sits at **weight 100**, below every
+     existing rung, so it fires on exactly today's pass-outs and cannot move a
+     call the shipped table already makes. Residue 4's `points(10..)` on the
+     `3♥` leg would have killed four of the seven measured 4-4 heart fits
+     (their doublers hold 8–9).
+   - **`X (2♠) - -` is withheld pending a ruling.** Opener said nothing about
+     hearts there, so `3♥` is a four-card suit at the three level opposite
+     unknown support, firing only when the spade stopper is missing — the
+     misfits. The census gives that leg 25 boards NV+both worth −30 plain and
+     +8 PD: no measured loss to repair. One token in `kokish_kraft_entries`
+     re-arms it.
+
+   Opener answers with game in the fit from the top of the range (`hcp 16+`),
+   the invitational raise where there is room below game, else a pass;
+   responder accepts on `points 11+`.
 5. **Two rungs of the delayed table are dead in self-play.** Responder reached
    that seat by passing, and under K–K a weak six-card minor does not pass — it
    transfers. So the source's competitive `3♣`/`3♦` fire only opposite a partner

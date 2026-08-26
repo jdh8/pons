@@ -93,6 +93,19 @@ struct Args {
     #[arg(long, default_value = "15", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
 
+    /// Give the Kokish–Kraft doubler a **natural bid of the other major** once
+    /// their pass-or-correct resolves theirs (§N4-KK residue 4)
+    ///
+    /// `2♠` over their `(2♥)`, `3♥` over their `(2♠)`, on four-plus of the
+    /// other major at weight 100 — below every existing rung, so it fires only
+    /// on the hands that pass today.  Withheld from `X (2♥) - (2♠)`, where
+    /// opener's pass has already denied four hearts.  Opener answers with game
+    /// from the top of the range, the invitational raise where there is room,
+    /// else a pass.  Needs the Kokish–Kraft counter and their declared `(2♦)`
+    /// Multi to do anything.
+    #[arg(long, default_value_t = false)]
+    ns_multi_doubler_major: bool,
+
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
     ///
@@ -144,6 +157,7 @@ fn main() {
                 .expect("--ns-multi-minor-slam-try must be off or a points floor"),
         ),
     };
+    agreements.competition.multi_doubler_major = args.ns_multi_doubler_major;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(

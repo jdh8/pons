@@ -139,6 +139,12 @@ fn main() {
         }
         Err(_) => {}
     }
+    // The doubler's natural other major (`competition.multi_doubler_major`,
+    // default off, §N4-KK residue 4): `PROBE_MULTI_DOUBLER_MAJOR=1` arms it.
+    // Needs both of the two above to do anything.
+    if std::env::var("PROBE_MULTI_DOUBLER_MAJOR").is_ok_and(|v| v == "1") {
+        agreements.competition.multi_doubler_major = true;
+    }
     // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
     // 2026-08-25 this probe had no channel for one, so every N1j forensic
     // silently read the natural `(2♣)` leg: the whole Landy table sat inert and

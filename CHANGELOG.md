@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.multi_doubler_major` — the Kokish–Kraft doubler's natural
+  other major. Opt-in, default off, A/B owed.** After `1NT (2♦) X` and their
+  pass-or-correct, `kokish_kraft_doubler_rebid` offered `4NT` / a trump-length
+  penalty `X` / `3NT` / `2NT` / Pass and **nothing natural**, so a hand with
+  four of the other major and no stopper in theirs failed every gate and passed
+  out their partscore (§N4-KK residue 4).
+
+  Cutting the shipped K–K arms one call deeper
+  (`probe-1nt-interference --bucket "2♦" --responses 4`, 230 400 bd/vul, both
+  vulnerabilities) shows that pass is where the branch bleeds: responder passes
+  the resolved contract on **293 boards for −824 IMPs plain** (PD +65) against
+  **+182 plain / +191 PD on the 44 where it doubles**. Dumped, five of the
+  sixteen worst `X (2♥) - -` boards and seven of the twelve worst
+  `X (2♥) X (2♠)` boards are a 4-4 major fit we never find — passed out at −110
+  while BBA doubles for takeout, hears partner's suit and makes `4M`.
+
+  On, responder bids `2♠` at `1NT (2♦) X (2♥) - -` and `3♥` at
+  `1NT (2♦) X (2♥) X (2♠)`, on `len(other, 4..)` at **weight 100** — below every
+  existing rung, so it fires on exactly today's pass-outs and cannot move a call
+  the shipped table already makes; four of *their* major still doubles at 155,
+  which is where the shortness cap comes from. Opener answers with game from the
+  top of the range, the invitational raise where there is room, else a pass;
+  responder accepts on `points 11+`.
+
+  Two of the four resolved paths carry it. `multi_penalty_answer` doubles their
+  `(2M)` on `len(major, 4..)` at weight 150 against a weight-0 catch-all, so
+  opener's pass over `(2♥)` **denies** four hearts and its double **shows**
+  four: `X (2♥) X (2♠)` is a known 4-4, `X (2♥) - (2♠)` is excluded as a 4-3
+  hunt — correcting residue 4's "the two `ran` shapes", which is true of one of
+  them. `X (2♠) - -` is withheld pending a ruling (25 boards, −30 plain / +8 PD;
+  one token re-arms it).
+
+  Default system byte-identical (`smoke-default`, 20 000 boards, seed 1): the
+  knob is off and the lane is gated on their undeclared `(2♦)` Multi. Measure
+  with `scripts/ab-2d-multi-doubler.sh` — **size it at ~2.3M bd/arm/vul and read
+  the per-fired diff**, since the rung reaches ~130 boards at 230 400 and the
+  K–K A/B's own residual (5.39 IMPs sd per divergent board) puts that below
+  resolution. The PD column on the pass-outs is a wash, not a loss, so this is a
+  plain-DD repair with a PD non-inferiority requirement.
+
 - **`decision.reading.union_hull` — recompute each seat's sound hull from its
   union after the walk. Opt-in, default off; measured INERT.** `Inferences`'s
   `players` was documented as a redundant cache of `unions[i].hull()`, but the
@@ -39,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diff.
 
 ### Fixed
+
+- **`probe-1nt-interference --dd-cache` is now read-write**, created if absent
+  and written back with every new solve, matching `bba-decompose`. The census
+  solves the whole arm's contract-divergent set, so cutting an arm a second way
+  used to repeat a 132 774-board DD fan-out; arms outside the anchor series had
+  no cache to pass at all.
 
 - **`Inferences::players` / `announced_players` field docs were stale by 51% of
   decisions.** Both claimed the two fields are equal with the `announced` knob

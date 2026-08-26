@@ -1097,7 +1097,18 @@ pub(crate) fn kokish_kraft_responder(agreements: &Agreements) -> Rules {
 /// without the gate an 8-count and a 16-count reach `3NT` with the opponents'
 /// long major unstopped in both hands.  The weak `2♠` signoff of v7 dies — a
 /// weak five-card spade hand bids `2♠` directly instead of doubling.
-pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool) -> Rules {
+///
+/// `natural_other` adds the **natural other major** at weight 100
+/// ([`CompetitionKnobs::multi_doubler_major`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_major],
+/// §N4-KK residue 4).  Without it this table has nothing natural at all, and
+/// the lane's census says that is where the branch bleeds: responder passes
+/// the resolved partscore on 293 of ~560 `X` boards for −824 IMPs plain, and
+/// the dumped boards are 4-4 major fits BBA bids to `4M` and makes.  Weight
+/// 100 sits below every rung above and above the catch-all, so the rung fires
+/// exactly on today's pass-outs.  The caller decides which paths get it — see
+/// `kokish_kraft_entries`, which withholds it from `X (2♥) - (2♠)` because
+/// opener's pass there has already denied four hearts.
+pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool, natural_other: bool) -> Rules {
     let mut rules = Rules::new().rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
     rules = if ran {
         rules.rule(Call::Double, 155, len(Suit::Spades, 4..) & hcp(7..))
@@ -1106,7 +1117,7 @@ pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool) -> Rules {
     }
     .alert(MULTI_PENALTY)
     .penalty();
-    rules
+    rules = rules
         .rule(
             Bid::new(3, Strain::Notrump),
             150,
@@ -1116,7 +1127,76 @@ pub(crate) fn kokish_kraft_doubler_rebid(major: Suit, ran: bool) -> Rules {
             Bid::new(2, Strain::Notrump),
             145,
             hcp(8..=9) & stopper_in(major),
-        )
+        );
+    // The natural other major, under `competition.multi_doubler_major`.  Weight
+    // 100 is the whole design: below every rung above and above the catch-all,
+    // so it fires exactly on the hands that pass today and cannot move a call
+    // the shipped table already makes.  Four of *their* major doubles at 155,
+    // which is where the "at most a doubleton in theirs" cap comes from — the
+    // ordering supplies it, so the gate does not have to.
+    if natural_other {
+        let other = other_major(major);
+        rules = rules.rule(other_major_bid(major), 100, len(other, 4..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The major that is not `major`
+fn other_major(major: Suit) -> Suit {
+    if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    }
+}
+
+/// The cheapest natural bid of the other major over their resolved `2{major}`
+/// — `2♠` over `(2♥)`, `3♥` over `(2♠)`
+fn other_major_bid(major: Suit) -> Bid {
+    let other = other_major(major);
+    Bid::new(
+        if other == Suit::Spades { 2 } else { 3 },
+        Strain::from(other),
+    )
+}
+
+/// Opener's answer to the Kokish–Kraft doubler's natural other major
+/// (`1NT (2♦) X (2♥) - - 2♠ -` and its two siblings), under
+/// [`CompetitionKnobs::multi_doubler_major`][crate::bidding::agreements::CompetitionKnobs::multi_doubler_major]
+///
+/// Responder promised four of the other major and, by the weight ordering that
+/// put it below `3NT` and `2NT`, no stopper in theirs.  Opposite our 15-17
+/// that is 23+ combined with at least a 4-4 fit whenever opener has four, so
+/// the only question is partscore or game: game from the top of the range, the
+/// invitational raise when there is room below it, and a pass on three or
+/// fewer — where the 4-3 at the two level still beats selling out to their
+/// resolved partscore, which is what this seat did before the rung existed.
+/// Total.
+pub(crate) fn kokish_kraft_doubler_major_answer(major: Suit) -> Rules {
+    let other = other_major(major);
+    let mut rules = Rules::new().rule(
+        Bid::new(4, Strain::from(other)),
+        140,
+        len(other, 4..) & hcp(16..),
+    );
+    // Only the `2♠` leg has a rung between the bid and game; the `3♥` leg is
+    // already at the three level, so its minimum simply passes.
+    if other == Suit::Spades {
+        rules = rules.rule(Bid::new(3, Strain::Spades), 130, len(Suit::Spades, 4..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder over opener's invitational raise of the natural other major
+/// (`1NT (2♦) X (2♥) - - 2♠ - 3♠ -`)
+///
+/// Opener showed four-card support and a minimum; responder doubled on `hcp
+/// 8+` and bid the suit without a stopper.  Accept from the top of that band.
+/// Total.
+pub(crate) fn kokish_kraft_doubler_major_invite(major: Suit) -> Rules {
+    let other = other_major(major);
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(other)), 140, points(11..))
         .rule(Call::Pass, 0, hcp(0..))
 }
 
