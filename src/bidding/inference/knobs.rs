@@ -1008,6 +1008,24 @@ pub struct ReadingProfile {
     /// census's verdict there is "no new work". **Off by default, unmeasured**,
     /// and isolable from the shipped [`Self::their_multi_reading`] rather than
     /// riding it.
+    ///
+    /// # ⚠ Stale since 2026-08-25 — this knob now *creates* a false assertion
+    ///
+    /// Everything above describes the pre-K–K lane. `multi_kokish_kraft`
+    /// shipped default-on 2026-08-25 and **replaced that subtree**: the
+    /// double there is authored `hcp(8..)`
+    /// (`competition::rubensohl::kokish_kraft_responder`), not the
+    /// `multi_2d_responder` `hcp(6..)` this knob was written for.  Against
+    /// the shipped system the flat `DoubleStyle` 8 is therefore *correct* and
+    /// arming this knob publishes `points 6..` two points **below** the live
+    /// rule — the same class of defect, pointing the other way.  Recorded
+    /// 2026-08-27, deliberately not fixed: the repair is a one-line floor
+    /// (6 → 8, or read the K–K rule directly), but it is still a reading knob
+    /// and so still a bidding knob, and it is still unmeasured.
+    ///
+    /// It is off by default, so the shipped system is unaffected — **but
+    /// `examples/dump-teacher` forces it on for every vs-BBA corpus**, which
+    /// is where this actually bites (`docs/pdd-bank-ledger.md`).
     pub their_multi_double_reading: bool,
 
     /// Alert every forced completion, transfer completion and conventional

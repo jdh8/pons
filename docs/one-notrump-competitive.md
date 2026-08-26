@@ -2002,11 +2002,23 @@ by default, so at weight 100 the natural-major bid denied the `2NT` it declined
 move riding a weight, exactly the class
 [reading-drift-handoff.md](reading-drift-handoff.md) is about.
 
-**Four mechanisms ride this one knob**, and `px` vs `base` confounds all four:
-(1) the double's constraint, (2) the 100→148 re-weight, (3) the `X (2♠) - -`
-leg re-arm, (4) the two answer tables — the delayed `2NT` acceptance and the
-`3NT`@135 out. No arm here separates them; isolating any one is a follow-up
-arm, and the ordering above is the order to try if the package measures a loss.
+**Three mechanisms ride this one knob** — it was four until 2026-08-27 —
+and `px` vs `base` confounds all three: (1) the double's constraint, (2) the
+100→148 re-weight, (3) the `X (2♠) - -` leg re-arm, (4) the delayed `2NT`
+acceptance. No arm here separates them; isolating any one is a follow-up arm,
+and the ordering above is the order to try if the package measures a loss.
+
+**The fourth was the `3NT`@135 out, and it left this package by winning.**
+`competition.multi_doubler_notrump` shipped default-on 2026-08-27, so the rung
+is in the `base` arm too and this A/B now isolates the information split
+alone — a cleaner experiment than the one designed, and the arms of
+`scripts/ab-2d-multi-px.sh` were deliberately left unchanged to keep it.
+The old coupling argument still holds mechanically: re-weighting to 148 sends
+*more* traffic to that answer table (the 8–9 doublers with a stopper, who used
+to bid `2NT`), so the split needs the repair under it — it now inherits it
+from the default instead of carrying it. Both knobs still emit one rung
+(`multi_px_split || multi_doubler_notrump`), so disarming the default with
+`--no-ns-multi-doubler-notrump` would put it back in the `px` arm only.
 
 **Deliberately not done.** Opener's takeout `X` at `- (2M)` — the pass branch's
 mirror of this split — is **skipped on jdh8's ruling**: BBA passes that seat

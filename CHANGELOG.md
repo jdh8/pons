@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Three flagged discrepancies written down, none silently resolved.**
+  (1) `examples/dump-teacher` forces
+  `decision.reading.their_multi_double_reading` on for every vs-BBA teacher
+  corpus; that knob lowers the `1NT (2♦) X` reading floor from 8 to 6 for a
+  lane whose double `competition.multi_kokish_kraft` re-authored at `hcp(8..)`
+  on 2026-08-25, so it now publishes two points **below** the live rule — the
+  inverse of the defect it was built to cure. Scope, repair and the reason it
+  is not applied are in
+  [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) and on the knob.
+  (2) Every arm of every `scripts/ab-*.sh` rebuilds the harness before it
+  generates (`ab-lib.sh:45` → `bba-gen-parallel.sh:39`), so a mid-run `src/`
+  edit makes later arms measure different code with nothing in the log to say
+  so; `SKIP_BUILD=1` is the opt-out, and making it the default is flagged
+  undecided ([docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md)).
+  (3) `competition.multi_px_split` lost a mechanism to the ship above and now
+  isolates the P/X information split alone — arms deliberately unchanged
+  ([§N4-KK](docs/one-notrump-competitive.md), `scripts/ab-2d-multi-px.sh`).
+
 ### Added
 
 - **`competition.multi_doubler_notrump` — opener's notrump out over the K–K

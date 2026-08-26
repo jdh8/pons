@@ -152,14 +152,23 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
    2.304M would have reached ~40 boards. Both smoke divergences are "bid where
    the baseline passed" with **0 foreign** on `--gate-opener ours`. Results in
    `ab-results/2d-multi-doubler-nt/`, `SEED_BASE=1787749549`.
-2. **The 15-count.** The repair floors at `hcp(16..)`. A 15-count with a
-   stopper and short support still passes `2♠` — board 1 of the worst tail
-   (`A82.A53.KJ75.K74`, 15 HCP, three spades) is exactly that and is *not*
-   repaired. Over the `2♠` leg `2NT` is legal (notrump outranks spades at the
-   same level) and would be the natural rung; over the `3♥` leg there is no
-   room below `3NT`, so the two legs would be asymmetric — which this table
-   already is, for the `3♠` invite. Deliberately **not** built: no measurement
-   demands it yet, and it should ride arm 1's forensic rather than pre-empt it.
+2. **The 15-count — the case got stronger on 2026-08-27.** The repair floors
+   at `hcp(16..)`. A 15-count with a stopper and short support still passes
+   `2♠` — board 1 of the worst tail (`A82.A53.KJ75.K74`, 15 HCP, three spades)
+   is exactly that, is *not* repaired, and is pinned as unrepaired by
+   `kk_doubler_notrump_repairs_the_answer_table`. Over the `2♠` leg `2NT` is
+   legal (notrump outranks spades at the same level) and would be the natural
+   rung; over the `3♥` leg there is no room below `3NT`, so the two legs would
+   be asymmetric — which this table already is, for the `3♠` invite.
+
+   It was deferred on "no measurement demands it yet, and it should ride arm
+   1's forensic rather than pre-empt it". **Arm 1 has now run**, and it is the
+   same rung one point higher: it won all four cells by 3–4 SE, with 270 of
+   273 divergences reaching a game the baseline never bid and no cell even
+   near negative. That is evidence *for* extending the floor down, not
+   against. Still unbuilt, now on merit rather than on sequencing — and it
+   wants its own seed, because the leg asymmetry (`2NT` over `2♠`, nothing
+   over `3♥`) means the two legs are not one treatment.
 3. **The rest of the both-vul cell — NOW THE HEAD OF THE QUEUE.** Item 1
    answered its own half: the pass-outs were worth ~20% of the deficit, so
    ~80% is still unexplained and the `win | loss` row is **not** retired. The

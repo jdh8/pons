@@ -100,8 +100,26 @@ If an A/B is live, do not rebuild or edit its source until it finishes. Match
 the actual runner/script names: the binary is `bba-gen` (hyphenated), and BEN
 `gameapi.py` servers can also sit below `idle-run.sh`, so `idle-run` alone is
 not evidence of a bidding A/B. This check caught a parallel session running
-`ab-completion-alerts` on 2026-08-14; a resumed runner can rebuild through
-`ab-lib.sh`, so even a source-only edit can poison its later arm.
+`ab-completion-alerts` on 2026-08-14.
+
+**Why a source-only edit is enough to poison a run** (surfaced 2026-08-26,
+recorded 2026-08-27). `ab-lib.sh`'s `arm` calls
+[`scripts/bba-gen-parallel.sh`](../scripts/bba-gen-parallel.sh) once per arm
+(`ab-lib.sh:45`), and that script runs `cargo build --release ... --example
+bba-gen` at its head unless `SKIP_BUILD=1` (`bba-gen-parallel.sh:39`). So
+**every arm of every `ab-*.sh` rebuilds the harness before it generates** —
+not just a resumed runner. Edit `src/` while a four-arm run is on arm 2 and
+arms 3–4 silently measure different code from arms 1–2, with nothing in the
+log to say so. The seed is shared, the gates still pass, and the result is a
+comparison across two systems.
+
+Two ways to be safe, in order of preference: don't edit `src/` while a run is
+live (the iron rule, and the reason this section exists), or export
+`SKIP_BUILD=1` for the whole run after building once — the script then hard
+fails if the binary is missing rather than quietly building a new one. Neither
+is wired in by default, and making `SKIP_BUILD=1` the default is a **flagged,
+undecided change**: it would trade this hazard for a staler one (a run that
+silently measures a binary older than its own commit).
 
 ## The poker worker on this box
 

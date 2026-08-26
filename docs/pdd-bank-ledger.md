@@ -52,6 +52,38 @@ So training draws do not advance the cursor, but they do have to be recorded,
 which is what the register below is for. Evaluating on freshly generated deals
 sidesteps this entirely, which is the other reason the standing rule says to.
 
+## ⚠ A known defect in every vs-BBA teacher corpus
+
+Recorded 2026-08-27, **not fixed**, because the fix is a reading knob and a
+reading knob is a bidding knob.
+
+[`examples/dump-teacher`](../examples/dump-teacher/main.rs) (`feature_agreements`,
+~line 450) forces `decision.reading.their_multi_double_reading = true` for
+**every** `vs_bba` corpus, alongside `their_multi_advance_reading`. That knob
+is off in the shipped system, and it was written when `1NT (2♦) X` over a
+declared Multi was `multi_2d_responder`'s `hcp(6..)` call: it lowers the
+reader's flat `DoubleStyle` floor from 8 to 6 so the reading stops asserting
+two points responder never promised.
+
+`competition.multi_kokish_kraft` shipped default-on **2026-08-25** and replaced
+that whole subtree. The K–K double is authored `hcp(8..)`, so against the
+shipped system the flat 8 is now the *correct* hull and the knob publishes
+`points 6..` two points **below** the live rule. The defect it was written to
+cure has inverted, and the teacher corpora carry the inverted version.
+
+Scope, so this is not over-read: it is confined to `1NT (2♦) X` rows with the
+opponents' `2♦` **declared** Multi — a thin slice of any corpus, and absent
+entirely from undeclared-opponent draws. Nets trained before 2026-08-25 saw
+the knob doing what it was designed to do; nets trained after see it
+under-describing the double.
+
+The repair is one line (floor 6 → 8, or read the K–K rule directly, in
+`inference::readers::responder_overcall_double_reading`) and is **flagged
+rather than applied**: the knob remains unmeasured, its lane measures
+`−1.02 plain / +0.67 PD`, and changing what a corpus says about a call changes
+what a net trained on it bids. Decide it with an A/B or a deliberate ruling,
+not as a drive-by.
+
 ## Capacity
 
 | bank | rows (deals) | size |
