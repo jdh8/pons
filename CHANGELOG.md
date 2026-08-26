@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`decision.reading.union_hull` — recompute each seat's sound hull from its
+  union after the walk. Opt-in, default off; measured INERT.** `Inferences`'s
+  `players` was documented as a redundant cache of `unions[i].hull()`, but the
+  walk folds the overlay *hulled* before it starts, so a box a multi-box union
+  loses to the finished walk narrows `unions` alone. On, `assemble` narrows
+  `players[i]` to that hull — narrow-only, because `Range::intersect` spans
+  rather than inverts on a contradicted axis and the all-boxes-contradict
+  fallback can otherwise widen.
+
+  Bid-only pre-count vs BBA (`scripts/precount-union-hull.sh`,
+  `SEED_BASE=1787700673`, 204,800 bd/arm/vul, both vulnerabilities): a seat's
+  hull moves on **50.9% / 49.2%** of our decisions — and the bidder's call flips
+  **0 times in 4.26M decisions**, so the arms are byte-identical (0 of 819,200
+  tables). The drift is on `hcp` and `support_points`, the axes the nets gauge;
+  `points` moves on 0.2% of decisions and `lengths` on 1.2%, which is why no
+  argmax turns. Arming `pdi_latch` on both sides first — so a post-walk union is
+  present for the knob to expose — still flips 0. **This closes
+  [docs/pdi.md](docs/pdi.md) follow-on 1 negative:** making a union-shaped
+  reading visible to the deterministic path is not what was blocking it.
+  No user impact at the default.
+
+- **`examples/probe-union-hull.rs`** — replays a `bba-gen` dump's own auctions
+  and asks two pinned partnerships for the call at every one of our turns, so a
+  reading change's *reach* is counted at decision level without generating a
+  second arm. `--announced-gap` compares `get()` against `announced()` inside one
+  arm instead. `scripts/precount-union-hull.sh` and
+  `scripts/precount-contract-diff.py` are the runner and the no-solver contract
+  diff.
+
+### Fixed
+
+- **`Inferences::players` / `announced_players` field docs were stale by 51% of
+  decisions.** Both claimed the two fields are equal with the `announced` knob
+  off; that stopped being true when `envelope_union` shipped default-on (chop
+  F2b). Measured on the shipped default over 204,800 boards vs BBA, `get()` and
+  `announced()` disagree on **51.0%** of our decisions and 89.4% of boards — the
+  nets have always read the union-tightened hull while the book gates read the
+  walk's looser one. Documentation only; no behaviour change. Two consequences
+  are **flagged, not resolved**: the announced side has no narrow-only guard (so
+  1,264 of 2.14M decisions hand the nets a hull *wider* than the walk's box), and
+  the alignment itself is available behind `union_hull`.
+
 - **`decision.reading.pdi_latch` — generalized pass/double inversion, now a pure
   *reading* knob. Opt-in, default off pending its A/B.** On, our pass over RHO's
   live suit bid after our side pulled a PDI trigger denies the **trap** — long in

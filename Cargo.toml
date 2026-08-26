@@ -136,6 +136,11 @@ name = "probe-pdi-population"
 path = "examples/probe-pdi-population.rs"
 required-features = ["serde"]
 
+[[example]]
+name = "probe-union-hull"
+path = "examples/probe-union-hull.rs"
+required-features = ["serde"]
+
 # Main-thread-only: EPBot's NativeAOT library is unsafe under the libtest
 # worker threads.  This runner is the paired latency/reference harness, not a
 # bidding-behaviour A/B.

@@ -988,6 +988,7 @@ knob!(set_rubens_advances, rubens_advances, decision.reading.rubens_advances: bo
 knob!(set_floor_rkcb, floor_rkcb, decision.reading.floor_rkcb: bool);
 knob!(set_penalty_latch, penalty_latch, decision.reading.penalty_latch: bool);
 knob!(set_pdi_latch, pdi_latch, decision.reading.pdi_latch: bool);
+knob!(set_union_hull, union_hull, decision.reading.union_hull: bool);
 knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
@@ -1557,6 +1558,7 @@ static SETTINGS: &[Setting] = &[
     gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "opponent:notrump_defense=woolsey"),
     toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),
     toggle("pdi_latch", INFERENCE, "Pass/double inversion: our post-trigger pass denies a trump stack", false, set_pdi_latch, pdi_latch),
+    toggle("union_hull", INFERENCE, "Recompute each seat's hull from its union after the walk", false, set_union_hull, union_hull),
     gated("rubens_transfer_reading", INFERENCE, "", true, set_rubens_transfer, rubens_transfer, "rubens_advances"),
     toggle("fallback_projection", INFERENCE, "", true, set_fallback_projection, fallback_projection),
     toggle("control_bid_reading", INFERENCE, "", true, set_control_bid, control_bid),

@@ -1519,6 +1519,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_pdi_latch: bool,
 
+    /// Recompute each seat's sound hull from its union after the walk (default
+    /// off): a post-walk union that the finished walk collapses then narrows what
+    /// the book, `instinct()` and the floor's feature block read, not just the
+    /// sampler.  The treatment arm of the union-hull pre-count (docs/pdi.md,
+    /// follow-on 1).
+    #[arg(long, default_value_t = false)]
+    ns_union_hull: bool,
+
     /// Restore the doubler's constructive pulls of its own penalty X of BBA's 1NT
     /// (default off = pulls suppressed): with this set, a latched doubler may again
     /// "compete" to 2NT/3NT/a major over the opponents' escape instead of defending.
@@ -2071,6 +2079,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // the card cannot describe a system the run then reconfigures.
     agreements.decision.reading.penalty_latch = !args.no_ns_penalty_latch;
     agreements.decision.reading.pdi_latch = args.ns_pdi_latch;
+    agreements.decision.reading.union_hull = args.ns_union_hull;
     agreements.decision.reading.rubens_advances = args.ns_rubens;
     agreements.decision.reading.floor_rkcb = !args.no_ns_floor_rkcb;
     agreements.decision.reading.rkcb_variant = args.ns_rkcb.into();

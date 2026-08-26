@@ -250,8 +250,9 @@ Two traps for the next reader:
   construction. Authoring one and expecting the floor to see it is the mistake;
   it is seen only where the rest of the walk kills a term.
 
-If `players` is ever recomputed from the unions, this reading goes live for free
-and the pre-count should be re-run. Until then the knob stays default off.
+**It does not go live if `players` is recomputed from the unions** — that was the
+standing hypothesis, and `union_hull` (2026-08-26) refuted it. See "The union-hull
+answer" below. The knob stays default off.
 
 ### Testbeds
 
@@ -383,16 +384,83 @@ measured rate, not a selected zero. It also **holds out of sample**: split by
 vulnerability arm it reads 11/1215 = 0.91% (none) and 9/1128 = 0.80% (both),
 with collapse rates 26.9% and 26.1% and prior mass 1.48% and 1.40%.
 
+## The union-hull answer (2026-08-26) — follow-on 1, closed negative
+
+Follow-on 1 asked whether recomputing `players` from `unions` would make arm 1
+live. `decision.reading.union_hull` (`--ns-union-hull`, default off) does exactly
+that, narrow-only, and the answer is **no, and not for arm 1's reasons**.
+
+### What the knob does
+
+`Inferences::assemble` sets `players[i] = unions[i].hull()` when the hull is
+inside the walk's box. The guard is not ceremony: [`Range::intersect`] *spans*
+instead of inverting on a contradicted axis, so `intersect_owned`'s
+all-boxes-contradict fallback can leave `unions[i]` **wider** than the box it was
+cut from — 8 seats in 21,151 replayed decisions, and 1,264 in 2.14M on the
+`announced` twin, which has no such guard (see "What this exposed").
+
+### The numbers
+
+`scripts/precount-union-hull.sh`, `SEED_BASE=1787700673` (the arm-1 pre-count's
+seed, so the two are board-for-board comparable), 204,800 bd/arm/vul vs BBA,
+results in `/mnt/hdd-data/jdh8/pons-ab-results/union-hull-precount`.
+
+| | none | both |
+| --- | --- | --- |
+| our decisions replayed | 2,139,817 | 2,115,663 |
+| a seat's hull moves | 1,090,132 (50.9%) | 1,041,405 (49.2%) |
+| …on axis `hcp` / `support_points` | 1,435,394 / 1,398,104 | 1,369,457 / 1,339,277 |
+| …on axis `lengths` / `points` | 25,647 / 4,963 | 24,026 / 5,269 |
+| **the call the bidder makes flips** | **0** | **0** |
+
+Contract diff of the generated arms: **0 boards moved in 819,200 tables** (both
+vulnerabilities, both tables) — the two arms are byte-identical. Arming
+`pdi_latch` on *both* sides first, so arm 1's union is present for `union_hull` to
+expose, adds 588 + 511 drifted decisions and 676 + 601 more `lengths` narrowings
+— the PDI union reaching `players` exactly as designed — and **still flips zero
+calls**.
+
+### Why
+
+The drift is real and enormous, and it is on the wrong axes. Exclusion folds
+(`bid_exclusion`, shipped on) disjoin on strength, so each box canonicalizes its
+own `hcp` and `support_points` from its own `points` slice and the union's hull
+beats the walk's single canonicalize. But the deterministic book gates and
+`instinct()` gauge on `points` and `lengths` — which move on 0.2% and 1.2% of
+decisions — and the v6 floor's argmax does not turn on eighteen floats a seat.
+That is the same lesson as arm 1's funnel, one layer up: **the last step is the
+one nobody predicts.**
+
+Generalisation for any future union-shaped reading: making it visible to the
+deterministic path is *not* the blocker. Either the claim lands on `points` or
+`lengths`, or it will not move a call no matter which field it reaches.
+
+### What this exposed
+
+Two doc/code discrepancies, flagged rather than resolved:
+
+1. **`Inferences::players` is not "a redundant cache of `unions[i].hull()`"**, and
+   **`announced_players` is not "equal to `players`" with the `announced` knob
+   off.** Both were true until `envelope_union` shipped default-on (chop F2b,
+   `docs/dnf-migration.md`) and neither comment was updated. Measured on the
+   shipped default: `get()` and `announced()` disagree on **51.0%** of our
+   decisions, on 89.4% of boards. The **nets have always read the union-tightened
+   hull** (`features_v6`/`features_eval_v5` take `announced(who)`) while the book
+   gates read the walk's looser one. Field docs corrected in `read.rs`; the
+   behaviour is untouched.
+2. **The announced side has no narrow-only guard**, so 1,264 of 2.14M decisions
+   hand the nets a hull *wider* than the walk's own box. Applying the guard there
+   is a change to the nets' inputs, so it needs its own proof — filed, not
+   shipped.
+
 ## Follow-on queue
 
-1. **Make a reading visible to the deterministic path**, or stop authoring
-   post-walk unions for the floor. Arm 1 is correct and inert because
-   `Inferences::assemble` never recomputes `players` from the unions. Deciding
-   whether it should — and what that costs the shipped readings' byte-identity —
-   is the prerequisite for arm 1, arm 2 and every other union-shaped reading.
-   If it changes, re-run the pre-count
-   (`/mnt/hdd-data/jdh8/pons-ab-results/pdi-pass-union-precount`, `SEED_BASE=1787700673`)
-   before spending any DD time.
+1. ~~**Make a reading visible to the deterministic path.**~~ **Closed negative
+   2026-08-26** — see "The union-hull answer" above. The knob exists
+   (`union_hull`, default off) and moves zero calls in 4.26M decisions, PDI armed
+   or not. Its live value is the other direction: flipping it aligns the book
+   gates with what the nets already see, so it becomes a candidate again only
+   behind a floor retrained on the tighter hulls.
 2. **Re-key the legacy 1NT latch through the tag** (user-mandated). Independent
    of everything else; needs its own `smoke-default` byte-identity proof.
    Unblocks retiring `penalty_latch_double_reading` — see

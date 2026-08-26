@@ -1916,3 +1916,57 @@ fn the_conversion_pass_itself_is_unread() {
         Range::FULL_POINTS.max
     );
 }
+
+/// `union_hull` makes the sound reading agree with the agreement reading
+///
+/// `announced_players` has always been `announced_unions[i].hull()`, and with the
+/// `announced` knob off `announced_unions == unions` — so the knob's whole effect
+/// is to give `players` the same hull.  Off, the two drift on half the shipped
+/// system's decisions (`docs/pdi.md`, "The union-hull answer"); on, they cannot.
+#[test]
+fn union_hull_aligns_the_sound_reading_with_the_announced_one() {
+    // A contested auction whose exclusion folds are disjunctive: their opening,
+    // our overcall, their raise, partner's competitive raise.
+    let auction = [
+        bid(1, Strain::Diamonds),
+        bid(1, Strain::Spades),
+        bid(2, Strain::Diamonds),
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let off = Agreements::default();
+    let mut on = off;
+    on.decision.reading.union_hull = true;
+
+    let (read_off, read_on) = (
+        read_booked_with(&off, &auction),
+        read_booked_with(&on, &auction),
+    );
+    let seats = [
+        Relative::Me,
+        Relative::Partner,
+        Relative::Lho,
+        Relative::Rho,
+    ];
+    for who in seats {
+        assert_eq!(
+            read_on.get(who),
+            read_on.announced(who),
+            "{who:?} still drifts from its own agreement twin"
+        );
+        // Narrowing only, never a widening: the guard in `assemble` exists
+        // because a contradicted axis makes `Range::intersect` span.
+        assert_eq!(
+            read_on.get(who).intersect(read_off.get(who)),
+            *read_on.get(who),
+            "{who:?} widened"
+        );
+    }
+    // …and it is not a no-op on this auction: at least one seat really moved.
+    assert!(
+        seats
+            .iter()
+            .any(|&who| read_off.get(who) != read_on.get(who)),
+        "the testbed auction no longer exercises the knob"
+    );
+}

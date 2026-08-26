@@ -122,10 +122,20 @@ pub(super) fn systems_on_overcall_strip(
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
-    /// Per-seat bounding-box hull of `unions` — the single-[`Envelope`] reading the
-    /// American engine consumes via [`get`][Self::get].  A redundant cache of
-    /// `unions[i].hull()` (`ponytail: keeps get()->&Envelope and all readers
-    /// unchanged; collapse to get-by-value if the two ever drift`).
+    /// Per-seat bounding box — the single-[`Envelope`] reading the American engine
+    /// consumes via [`get`][Self::get].
+    ///
+    /// The natural walk's own box, **not** a cache of `unions[i].hull()`.  It was
+    /// that until [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union]
+    /// shipped on (chop F2b, `docs/dnf-migration.md`): the walk folds the overlay
+    /// *hulled* before it starts, so any box a multi-box union loses to the
+    /// finished walk narrows `unions` alone and this one keeps the wider claim.
+    /// Measured on the shipped default, 204,800 boards vs BBA: the two disagree on
+    /// **51.0%** of our decisions, almost all of it on `hcp` and `support_points`
+    /// (`points` on 0.3%, `lengths` on 1.3%).  So the book gates and `instinct()`
+    /// read a looser hull here than [`announced`][Self::announced] hands the nets.
+    /// [`union_hull`][field@crate::bidding::ReadingProfile::union_hull] closes the
+    /// gap and moves **zero** calls in 4.26M replayed decisions.
     players: [Envelope; 4],
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
     /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union].
@@ -134,10 +144,15 @@ pub struct Inferences {
     /// their Multi.
     unions: [EnvelopeUnion; 4],
     /// Per-seat hull of `announced_unions` — the *agreement* twin of `players`, and
-    /// what [`features`][crate::bidding::features] hands the nets.  Equal to `players`
-    /// unless [`announced`][field@crate::bidding::ReadingProfile::announced]
-    /// is on and some rule split the two with
-    /// [`announced`][crate::bidding::constraint::announced].
+    /// what [`features`][crate::bidding::features] hands the nets.
+    ///
+    /// `announced_unions` equals `unions` unless
+    /// [`announced`][field@crate::bidding::ReadingProfile::announced] is on and some
+    /// rule split the two with [`announced`][crate::bidding::constraint::announced]
+    /// — but this field is that union's **hull**, so it is tighter than `players`
+    /// on half the decisions of the shipped default even with the knob off (see
+    /// `players`).  The nets have therefore always read the union-tightened hull
+    /// while the deterministic gates read the walk's.
     announced_players: [Envelope; 4],
     /// Per-seat agreement boxes; the twin of `unions` (see `announced_players`).
     announced_unions: [EnvelopeUnion; 4],
@@ -246,8 +261,30 @@ impl Inferences {
         profile: ReadingProfile,
     ) -> Self {
         let announced_unions = intersect_overlay(&players, agreement, profile);
+        let unions = intersect_overlay(&players, overlay, profile);
+        // `players` is a redundant cache of `unions[i].hull()` — except where a
+        // *post-walk* union collapses, which the pre-walk fold at the head of the
+        // walk cannot see (`union_hull`; `docs/pdi.md`).
+        //
+        // Narrowing only, and the guard is not ceremony: a contradicted axis makes
+        // [`Range::intersect`] *span* rather than invert, so `intersect_owned`'s
+        // all-boxes-contradict fallback can leave `unions[i]` wider than the box it
+        // was cut from.  Measured at 8 seats in 21,151 replayed decisions — rare,
+        // but a widening is exactly what this must never do.
+        let players: [Envelope; 4] = if profile.union_hull {
+            std::array::from_fn(|i| {
+                let hull = unions[i].hull();
+                if hull.intersect(&players[i]) == hull {
+                    hull
+                } else {
+                    players[i]
+                }
+            })
+        } else {
+            players
+        };
         let mut this = Self {
-            unions: intersect_overlay(&players, overlay, profile),
+            unions,
             announced_players: std::array::from_fn(|i| announced_unions[i].hull()),
             announced_unions,
             players,
@@ -1750,7 +1787,10 @@ fn classify_high_bid(
 /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union]
 /// off each overlay is one box,
 /// so the result is the single box `players[i]` and
-/// `unions[i].hull() == players[i]` (byte-identical).
+/// `unions[i].hull() == players[i]` (byte-identical).  **On — the shipped default
+/// since chop F2b — that equality is gone**: a box the walk contradicts is dropped
+/// here and nowhere else, so `unions[i].hull() ⊆ players[i]` with the containment
+/// strict on 51% of decisions.  See the `players` field.
 fn intersect_overlay(
     players: &[Envelope; 4],
     overlay: &[EnvelopeUnion; 4],

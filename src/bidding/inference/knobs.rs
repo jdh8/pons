@@ -143,6 +143,30 @@ pub struct ReadingProfile {
     /// those consumers' inputs move with it.
     pub envelope_union: bool,
 
+    /// Recompute each seat's sound hull from its **union** after the walk
+    ///
+    /// **Default off** — an unmeasured reading change.
+    /// [`Inferences`][super::Inferences]'s `players` is documented as a redundant
+    /// cache of `unions[i].hull()`, and off the two agree for every reading the
+    /// *pre-walk* overlay supplies: the walk folds `overlay[i].hull()` into
+    /// `players[i]` before it starts.  A **post-walk** union breaks that.  It
+    /// reaches `unions` alone, so a box the finished walk contradicts is dropped
+    /// there while `players` — what every book gate, `instinct()` and the floor's
+    /// feature block read — keeps the wider hull.  That is precisely why the PDI
+    /// pass reading measured inert (`docs/pdi.md`, "Why the reading is inert").
+    ///
+    /// On, [`Inferences`][super::Inferences] narrows `players[i]` to
+    /// `unions[i].hull()`, which is what `announced_players` has always done with
+    /// its own union.  Sound unconditionally: every box of the union is `⊆
+    /// players[i]`, and the all-contradict fallback is
+    /// `players[i] ∩ overlay[i].hull()`, so this can only tighten.
+    ///
+    /// **Not PDI-scoped.**  With [`envelope_union`][field@Self::envelope_union]
+    /// and [`bid_exclusion`][field@Self::bid_exclusion] both shipped on, exclusion
+    /// folds put multi-box unions on ordinary constructive auctions too, so this
+    /// moves the default system wherever *any* union collapses.
+    pub union_hull: bool,
+
     /// Blank what the *opponents* have shown (**default off**, measurement
     /// only)
     ///
@@ -1117,6 +1141,7 @@ impl ReadingProfile {
             scope: ReadingScope::Alerted,
             fallback_projection: false,
             envelope_union: false,
+            union_hull: true,
             blind_opponents: true,
             gauge_membership: true,
             sum_closure: true,
@@ -1183,6 +1208,7 @@ impl Default for ReadingProfile {
             scope: ReadingScope::All,
             fallback_projection: true,
             envelope_union: true,
+            union_hull: false,
             blind_opponents: false,
             gauge_membership: false,
             sum_closure: false,
