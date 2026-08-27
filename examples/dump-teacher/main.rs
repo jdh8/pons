@@ -447,7 +447,11 @@ fn feature_agreements(flips: u16, vs_bba: bool) -> Agreements {
     if vs_bba {
         agreements = common::vs_bba_agreements(agreements);
         agreements.decision.reading.their_multi_advance_reading = true;
-        agreements.decision.reading.their_multi_double_reading = true;
+        // `their_multi_double_reading` is deliberately left **off**: it lowers the
+        // `1NT (2♦) X` floor to 6 for the pre-K–K lane, and `multi_kokish_kraft`
+        // (default-on since 2026-08-25, no axis here flips it) authors that double
+        // `hcp(8..)`.  On, the corpus would publish a hull two points below the live
+        // rule.  See `docs/pdd-bank-ledger.md`.
     }
     agreements
 }

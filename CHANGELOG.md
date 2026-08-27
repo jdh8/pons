@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **Three flagged discrepancies written down, none silently resolved.**
-  (1) `examples/dump-teacher` forces
+- **Three flagged discrepancies written down, none silently resolved; (1) has
+  since been ruled on and fixed below.**
+  (1) `examples/dump-teacher` forced
   `decision.reading.their_multi_double_reading` on for every vs-BBA teacher
   corpus; that knob lowers the `1NT (2♦) X` reading floor from 8 to 6 for a
   lane whose double `competition.multi_kokish_kraft` re-authored at `hcp(8..)`
-  on 2026-08-25, so it now publishes two points **below** the live rule — the
-  inverse of the defect it was built to cure. Scope, repair and the reason it
-  is not applied are in
+  on 2026-08-25, so it published two points **below** the live rule — the
+  inverse of the defect it was built to cure. Scope and repair are in
   [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) and on the knob.
   (2) Every arm of every `scripts/ab-*.sh` rebuilds the harness before it
   generates (`ab-lib.sh:45` → `bba-gen-parallel.sh:39`), so a mid-run `src/`
@@ -26,6 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (3) `competition.multi_px_split` lost a mechanism to the ship above and now
   isolates the P/X information split alone — arms deliberately unchanged
   ([§N4-KK](docs/one-notrump-competitive.md), `scripts/ab-2d-multi-px.sh`).
+
+### Fixed
+
+- **vs-BBA teacher corpora no longer mis-describe our own `1NT (2♦) X`.**
+  `examples/dump-teacher` no longer forces
+  `decision.reading.their_multi_double_reading` on for `vs_bba` arms. That knob
+  lowers the double's reading floor from 8 to 6, which was right for the pre-K–K
+  `multi_2d_responder` lane (`hcp(6..)`) and is two points too low against
+  `competition.multi_kokish_kraft`'s `hcp(8..)` double — default-on since
+  2026-08-25, and no `dump-teacher` axis flips it. Knob-off is now exactly the
+  live hull. **No shipped reading moved:** the reader keeps its flat 8 for the
+  default system and its 6 for a pre-K–K arm that asks, so the default system is
+  byte-identical and no A/B was owed (jdh8's ruling, 2026-08-27). User impact is
+  on corpora only — teacher draws before 2026-08-27 carry the under-described
+  rows on that thin declared-Multi slice, so redraw before attributing net
+  behaviour there ([docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md)).
 
 ### Added
 

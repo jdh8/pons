@@ -52,14 +52,21 @@ So training draws do not advance the cursor, but they do have to be recorded,
 which is what the register below is for. Evaluating on freshly generated deals
 sidesteps this entirely, which is the other reason the standing rule says to.
 
-## ⚠ A known defect in every vs-BBA teacher corpus
+## ⚠ A defect in every vs-BBA teacher corpus drawn before 2026-08-27
 
-Recorded 2026-08-27, **not fixed**, because the fix is a reading knob and a
-reading knob is a bidding knob.
+Recorded 2026-08-27, **fixed the same day** by jdh8's ruling (option 1: match
+the live rule, no A/B — the corpus was mis-describing our own authored call, and
+the slice is too thin for an A/B to resolve above noise).  The repair landed in
+`examples/dump-teacher` rather than in the reader, so no shipped reading moved:
+the forced `their_multi_double_reading = true` is simply gone from
+`feature_agreements`, and the knob keeps its pre-K–K meaning for the arms that
+want it.  **Corpora drawn before 2026-08-27 still carry the inverted rows** —
+the register below says which.
 
 [`examples/dump-teacher`](../examples/dump-teacher/main.rs) (`feature_agreements`,
-~line 450) forces `decision.reading.their_multi_double_reading = true` for
-**every** `vs_bba` corpus, alongside `their_multi_advance_reading`. That knob
+~line 450) **forced**, until 2026-08-27,
+`decision.reading.their_multi_double_reading = true` for **every** `vs_bba`
+corpus, alongside `their_multi_advance_reading`. That knob
 is off in the shipped system, and it was written when `1NT (2♦) X` over a
 declared Multi was `multi_2d_responder`'s `hcp(6..)` call: it lowers the
 reader's flat `DoubleStyle` floor from 8 to 6 so the reading stops asserting
@@ -77,12 +84,19 @@ entirely from undeclared-opponent draws. Nets trained before 2026-08-25 saw
 the knob doing what it was designed to do; nets trained after see it
 under-describing the double.
 
-The repair is one line (floor 6 → 8, or read the K–K rule directly, in
-`inference::readers::responder_overcall_double_reading`) and is **flagged
-rather than applied**: the knob remains unmeasured, its lane measures
-`−1.02 plain / +0.67 PD`, and changing what a corpus says about a call changes
-what a net trained on it bids. Decide it with an A/B or a deliberate ruling,
-not as a drive-by.
+**The repair, as shipped 2026-08-27:** drop the forced
+`their_multi_double_reading = true` from `dump-teacher`'s `feature_agreements`.
+No axis in that binary flips `multi_kokish_kraft`, so every teacher arm runs
+K–K on, and knob-off is exactly the live hull.  The reader
+(`inference::readers::responder_overcall_double_reading`) is **unchanged** —
+its flat 8 was already right for the shipped system, and its `6` is still right
+for a pre-K–K arm that asks for it.  So this is a corpus-truthfulness fix, not
+a bidding change: the default system is byte-identical and no A/B is owed.
+
+What is *not* decided by this: the knob's own lane remains unmeasured
+(`−1.02 plain / +0.67 PD`), and nets trained on pre-2026-08-27 corpora saw the
+under-described double.  Retrain on a fresh draw before attributing anything to
+that slice.
 
 ## Capacity
 

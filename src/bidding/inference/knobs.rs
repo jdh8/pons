@@ -1018,14 +1018,19 @@ pub struct ReadingProfile {
     /// `multi_2d_responder` `hcp(6..)` this knob was written for.  Against
     /// the shipped system the flat `DoubleStyle` 8 is therefore *correct* and
     /// arming this knob publishes `points 6..` two points **below** the live
-    /// rule — the same class of defect, pointing the other way.  Recorded
-    /// 2026-08-27, deliberately not fixed: the repair is a one-line floor
-    /// (6 → 8, or read the K–K rule directly), but it is still a reading knob
-    /// and so still a bidding knob, and it is still unmeasured.
+    /// rule — the same class of defect, pointing the other way.
     ///
-    /// It is off by default, so the shipped system is unaffected — **but
-    /// `examples/dump-teacher` forces it on for every vs-BBA corpus**, which
-    /// is where this actually bites (`docs/pdd-bank-ledger.md`).
+    /// The reader is deliberately **left as it is**: its flat 8 is right for
+    /// the shipped system and its 6 is right for a pre-K–K arm that arms this
+    /// knob, so moving it would just re-point the defect a third time.  What
+    /// was wrong was the *caller*: `examples/dump-teacher` forced this knob on
+    /// for every vs-BBA corpus, and no axis there flips `multi_kokish_kraft`.
+    /// That force is gone as of 2026-08-27 (jdh8's ruling), so teacher corpora
+    /// now publish the live hull; draws from before that date still carry the
+    /// under-described rows (`docs/pdd-bank-ledger.md`).
+    ///
+    /// Arm this knob only for a genuinely pre-K–K arm.  It remains off by
+    /// default and unmeasured.
     pub their_multi_double_reading: bool,
 
     /// Alert every forced completion, transfer completion and conventional
