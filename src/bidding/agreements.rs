@@ -3302,10 +3302,21 @@ pub struct TheirDisclosures {
     /// Their `2♣` overcall of our `1NT` shows **both majors** (the
     /// Landy / Multi-Landy family)
     ///
-    /// Routes `1NT (2♣)` to the counter-defense — `X` = values, everything
-    /// else natural in the suits they have not shown, opener answering each
-    /// by book (`landy_natural_answers`) — instead of the systems-on rebase,
-    /// and reads their `2♣` as 5-4+ in the majors.  Undeclared (`false`)
+    /// Routes `1NT (2♣)` to the counter-defense instead of the systems-on
+    /// rebase, and reads their `2♣` as **4-4+ in the majors with no strength
+    /// claim** — which is what the live reader publishes
+    /// (`probe-decision … "1NT (2♣) X (2♥) - -"` prints `♥ 4..13 ♠ 4..13,
+    /// hcp 0..37`).
+    ///
+    /// *Which* counter it routes to is a separate question, answered by the
+    /// `defense_2c_landy_*` knobs and settled at build time in
+    /// `competition::lebensohl::lebensohl_package`: the shipped default since
+    /// 2026-08-15 is the N1j BBA-ladder hybrid
+    /// ([`CompetitionKnobs::defense_2c_landy_bba`]), with the legacy
+    /// cue/transfer stack (that knob off, plus its own sub-knobs) as the other
+    /// arm.  The values `X` and the weak natural `2♦` are common to both;
+    /// nothing else is, so this comment deliberately does not describe a
+    /// table.  Undeclared (`false`)
     /// keeps systems-on, which is right over a *natural* `2♣`: it steals no
     /// room, so every transfer and relay still sits above it, while against
     /// a both-majors overcall it would keep the one useless call (Stayman,
