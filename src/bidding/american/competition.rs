@@ -193,6 +193,46 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
+/// Landy penalty double — the doubler's **second** `X`, once their advance has
+/// named the major (`1NT (2♣) X (2♥) - - X` and its siblings), under
+/// `competition.landy_doubler_rebids`: four-plus of *that* major.
+///
+/// The polarity is this lane's house rule and it is the whole reason the alert
+/// exists.  A double after our own double is penalty; a double after our
+/// *pass* is takeout and stays the floor's.  An unalerted second double is
+/// read as the takeout it is not, which is a phantom four-card holding in the
+/// major nobody has left — so the alert has to carry **length in their suit**,
+/// not values.  [`MULTI_PENALTY`] is the same claim one lane over, but their
+/// `2♦` resolves to a major the overcaller may still correct; here the
+/// preference is final, so this double never becomes a correction hint.
+const LANDY_PENALTY: Alert = Alert("comp:landy-penalty");
+/// Landy Kokish–Kraft both minors — `2♥`/`2♠` over their `(2♣)` Landy under
+/// `competition.defense_2c_landy_kk`: at least 4-4 in the minors, split by
+/// strength rather than by shape (`2♥` competitive, `2♠` invitational-or-
+/// better, stoppers shown next).  Their `2♣` names both majors, so a cue of
+/// either one is a suit *nobody* is claiming — the alert is what stops it
+/// reading as length.  [`LANDY_TKO`] is the shipped lane's version of the same
+/// pair of calls, and it means something different: there the bid major names
+/// a **doubleton** and the call is game-forcing.
+const LANDY_KK_MINORS: Alert = Alert("comp:landy-kk-minors");
+/// Landy Kokish–Kraft escape relay — `2NT` over their `(2♣)` Landy under
+/// `competition.defense_2c_landy_kk`: a six-card minor, *either* one, with at
+/// most seven points.  Opener is forced to `3♣`; responder passes with clubs
+/// and corrects to `3♦` with diamonds.  Escape only — the shipped lane spends
+/// `2NT` on a wide club transfer instead, and the two cannot be overlaid.
+const LANDY_KK_RELAY: Alert = Alert("comp:landy-kk-relay");
+/// Landy Kokish–Kraft cross-transfer — `3♣` = diamonds, `3♦` = clubs, both
+/// game-forcing with a six-card suit, under `competition.defense_2c_landy_kk`.
+/// The suits are crossed so the six-carder is declared from the `1NT` side
+/// wherever the auction ends in notrump; the alert is what stops each call
+/// reading as the suit it names.
+const LANDY_KK_TRANSFER: Alert = Alert("comp:landy-kk-transfer");
+/// Landy Kokish–Kraft stopper show — opener's `3♥`/`3♠` over the `3♦`
+/// game-forcing club transfer: that major guarded, nothing about its length.
+/// Asymmetric by necessity — the `3♦` transfer's own completion would be `4♣`,
+/// which overshoots `3NT`, so this leg shows stoppers below game instead of
+/// completing.
+const LANDY_KK_STOPPER: Alert = Alert("comp:landy-kk-stopper");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not

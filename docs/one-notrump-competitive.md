@@ -371,6 +371,356 @@ wants its own seed *after* that verdict, not beside it. Separately, the `3♣`
 signature, and its worst lines are `3♣ (3♠) 5♦` — an **unauthored interfered
 tail** where the floor blasts five of a minor (6 bd, +1 plain / −38 PD).
 
+#### Measured 2026-08-27 — **REFUTED as a default; stays opt-in**
+
+`scripts/ab-landy-doubler-nt.sh`, `SEED_BASE=1787834269`, sha `99460a98`,
+2 304 000 bd/arm/vul, `--filter-landy`.  **Isolation gate 0 foreign in both
+cells** (0/18 487 and 0/14 242), so every number below is ours.
+
+| vul | fired | plain DD | PD | plain SD | SD-PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| none | 18 487 (0.80%) | **+0.0190** ±0.0007 | **−0.0149** ±0.0009 | +0.0343 ±0.0008 | **+0.0068** ±0.0008 |
+| both | 14 242 (0.62%) | **+0.0103** ±0.0008 | **−0.0226** ±0.0010 | +0.0271 ±0.0009 | **−0.0014** ±0.0009 |
+
+Per fired: +2.365 / −1.860 / +4.132 / +0.822 at none, +1.665 / −3.654 / +4.229 /
+−0.211 at both.  Every one of the eight readings is CI-clear.
+
+**Both DD cells are the decision table's `win | loss` row** — the
+doubling-artifact signature — and this is a **bid-more** knob, so the standard
+row applies unmodified (the domain addendum's plain-DD arbitration is for knobs
+that *add doubles*; this one adds a contract).  The SD bracket does not rescue
+it: SD-PD **collapses** out of plain SD in both cells (+0.0343 → +0.0068 keeps a
+fifth; +0.0271 → **−0.0014** sign-flips), which is the middle row of
+[measurement.md's SD-pair reading](measurement.md#scorers-srcscoringrs) — *the win
+was the missing doubling*, the `set_forcing_nt_two_suiter` shape.  The most
+generous honest pair, `[plain DD, SD-PD]`, reads `win | win` at none and
+`win | small loss` at both; a split is not a ship.  **Default stays off.**
+
+**The two axes separate cleanly, and identically at both vulnerabilities** —
+which is what makes the reading safe rather than a scorer accident:
+
+| | at none | at both |
+| --- | ---: | ---: |
+| doubling cost (PD − plain DD) | −0.0339 | −0.0329 |
+| doubling cost (SD-PD − plain SD) | −0.0275 | −0.0285 |
+| lead-model gain (plain SD − plain DD) | +0.0153 | +0.0168 |
+| lead-model gain (SD-PD − PD) | +0.0217 | +0.0212 |
+
+So the node is worth about **+0.017 to +0.021 of DD lead pessimism** — the known
+~+0.3-tricks-to-1NT-declarers bias, exactly the case measurement.md says to
+re-score — against about **−0.03 of doubling**.  The doubling term is the larger
+one at both vulnerabilities, and it is not a scoring artifact in the dismissible
+sense: our `3NT` really does fail on these hands.  Vulnerability moves only the
+plain-DD base (+0.0190 → +0.0103), which is the vulnerable undertrick tariff on
+the same gamble.
+
+**Neither named falsifier was the mechanism — a third one was.**  The script
+named the shadowed floor `3♦` and a possible `(2♠)`-leg split.  Across the
+twenty worst boards printed (5 per cell per scorer) the `3♦` appears in none,
+and both major legs appear in both cells' worst five — so neither is carrying
+the loss, though only a full split by advanced major would price the `(2♠)` leg
+on its own, and that forensic was not run.  What the traces show instead, on 3
+of the 5 worst plain-DD boards at **each** vulnerability:
+
+```
+on:   - 1NT 2♣ X 2♥ 3NT - - -
+off:  - 1NT 2♣ X 2♥ -  -  X - - -
+```
+
+The OFF arm's floor, left alone, finds a **delayed penalty double at our
+doubler's own rebid seat** — and that call is §N1l's `X`@155 (`len(their major,
+4..)`, `.penalty()`), arrived at emergently.  N1k's `3NT` is bid one seat
+earlier and **shadows it**.  On perfect defense the same boards read
+`off: … 2♥ - - -` — passing out beats our `3NT` outright.
+
+**What actually fails, hand-traced.**  All six distinct boards in the two
+perfect-defense worst-fives were walked by hand.  In **6 of 6** the overcaller
+holds a **five- to eight-card major** and opener's holding in it is a nominal
+`stopper_in` that cannot hold up:
+
+| their long major | opener there | advanced major | `stopper_in` advanced | `stopper_in` other |
+| --- | --- | :-: | :-: | :-: |
+| ♥ 8 (`AQJ97632`) | `♥K5` | ♠ | ✓ `K62` | ✓ `K5` |
+| ♥ 7 (`AKQ9654`) | `♥JT7` | ♠ | ✓ `A7` | ✗ `JT7` |
+| ♠ 8 (`KJ765432`) | `♠A9` | ♥ | ✓ `KQ97` | ✓ `A9` |
+| ♠ 7 (`AKJ8652`) | `♠Q7` | ♥ | ✓ `KQ8` | ✗ `Q7` |
+| ♠ 5 (`KQJ92`) | `♠A3` | ♥ | ✓ `KQJ93` | ✓ `A3` |
+| ♠ 6 (`KQJ532`) | `♠A87` | ♥ | ✓ `K53` | ✓ `A87` |
+
+`has_stopper` (`src/bidding/constraint.rs`) is a **holding** test —
+`A` at any length, `K` with two, `Q` with three, `J` with four — and is blind to
+*their* suit length, so a bare ace scores as a stopper against eight cards.  On
+a 1NT-overcall population that is a fair approximation.  Against a **Landy**
+overcaller it is not: their `2♣` promises 4-4+, which routinely means 4-7 or
+4-8, and the advance is a *preference*, so the suit opener stopped is frequently
+not the suit that runs.  This is why the rung reaches game and the game fails —
+not a taste question about 16 opposite 8-9.
+
+**The narrower re-arm, named and not built.**  Requiring both majors stopped
+(`hcp(16..) & stopper_in(Hearts) & stopper_in(Spades)`) blocks rows 2 and 4
+above and **not** the other four, where a bare ace or `Ax` passes the test
+anyway; it would also cost most of the fires.  It is a candidate re-measure, not
+a repair, and the repair it points at is a length-aware stopper — which opener
+cannot have here, because nothing in the auction distinguishes their 4-4 from
+their 4-8.  **Proposed reversible default: leave the knob off and do not re-arm
+it standalone.**  The seat's honest options are the authored penalty double
+§N1l gives it, or passing.
+
+**Consequence: the plan's sequencing was backwards, and the measurement says so.**
+§N1k was written as the gate on §N1l; in fact the two contend for the same
+boards one call apart, and the arm that loses them is the one that bids first.
+§N1l is therefore measured **against today's `main`** (opener passing), not
+against a shipped N1k, and any re-measure of N1k belongs *on top of* a shipped
+N1l — where its `3NT` would be competing with an authored penalty double rather
+than pre-empting a floor that already found one.  Recorded, not run.
+
+### N1l — the doubler's own rebid (`landy_doubler_rebids`, **built 2026-08-27, A/B owed**)
+
+§N1k's finding 2 named the seat *one call earlier* — opener over their advance.
+This is the seat after it: our doubler's own rebid, `1NT (2♣) X (2♥) - -` and
+its siblings.  Same 67-board, −75-plain `X` branch; the other half of "the
+auction dies".
+
+**Phase 0 — probing the seat before authoring it.**  Every exact-object source
+in [the counter-defense research](ai-bidder/landy-2c-counter-defense-research.md)
+prices our *first* call; none prices what the opponents do next, which is what
+decides whether a rebid ladder is ever reached.  Two probes, both new, both
+recorded in that document:
+
+- **The advancer** (`--mode custom --seat 3`, 4,000 hands/vul).  Over our `X`
+  they take a `2♥`/`2♠` preference **58.5%**, bid a strong `2NT` (12–19, 3-5 in
+  *both* majors) **12.8/15.9%**, run to an artificial `2♦` **9.9%**, jump to
+  `4M` **10.7%**, raise to `3♥` 4.5%, and pass with six clubs 2.8%.  The
+  distribution is nearly identical over our *pass*, so our double buys about
+  nine points of preemption and does not change which calls we must answer.
+- **The overcaller** (`--mode custom --seat 1 --filter-call 2♣`, 20,000 hands —
+  unfiltered this probe is meaningless, only ~10% of random hands are Landy
+  hands).  It **passes the preference 94.5%/96.7%**, **never passes the `2♦`**
+  (pulling it to a major 79.4%, relaying `2NT` 19.9%), and over their `2NT`
+  jumps to `4M` 54.3% and to slam 13.5%.
+
+Three of those numbers moved the design away from a literal port of
+`kokish_kraft_doubler_rebid`:
+
+1. **There is no correction leg.**  The Multi twin forks on `ran` because their
+   advancer's pass-or-correct is provisional; here the preference is final.
+   `X (2♥) - -` and `X (2♠) - -` carry essentially all the preference traffic.
+2. **The escape legs are real seats.**  `X (2♦) - (2♥)` and `X (2♦) - (2♠)`
+   together are ~7.9% of the `X` branch — more than the invitational raise.
+   They take the same table, and because BBA labels their `2♦` **`artificial`**
+   on 200/200 hands (a "pick a major" relay, not diamonds), a natural `3♦` rung
+   is safe on them.
+3. **`X (2NT)` stays the floor's.**  Nothing invitational survives a seat where
+   the opponents jump to game or slam two thirds of the time.
+
+**The seat is the floor's today, and the floor is wrong in four places.**
+`probe-decision … "1NT (2♣) X (2♥) - -"` prints `fallback: Some(0)` on every
+hand in the band.  It bids `3NT` holding `KJ98` of *their* major (`X` is not in
+its top six), and passes the 8–9 invitation, the 8–9 five-card club suit and the
+8–9 five-card diamond suit alike.
+
+**The table** (`landy_doubler_rebid`, both preference legs and both escape
+legs):
+
+| call | w | gate | note |
+| --- | ---: | --- | --- |
+| `4NT` | 160 | `hcp(16..)` | quantitative; answer = `multi_quant_answer` (`6NT` on 17+) |
+| `X` | 155 | `len(their major, 4..)` | **penalty**, `LANDY_PENALTY` + `.penalty()`; opener sits (`multi_signoff_pass`) |
+| `3NT` | 150 | `points(10..) & stopper_in(major)` | |
+| `2NT` | 145 | `hcp(8..=9) & stopper_in(major)` | invite; answer = `kokish_kraft_invite_answer` (`3NT` on 16+) |
+| `3♣`/`3♦` | 100/99 | `len(minor, 5..)` | natural — replaces the twin's other-major rung, which this opponent's shape makes impossible |
+| `P` | 0 | catch-all | |
+
+**The top two rungs are dead in self-play, and are kept anyway.**  Unlike the
+Multi twin — whose `3NT`@150 needs *both* major stoppers, so a one-stopper game
+hand really does double first — `landy_bba_responder` carries an **ungated**
+`3NT`@168 on `points(10..)`.  Every 10-plus-point hand therefore bids `3NT`
+directly and never doubles, capping the double at nine points
+(`probe-call-reading` reads it back as `points 8..9`).  So `4NT`@160 and
+`3NT`@150 can only fire opposite a partner not bidding this table.  They stay
+because the table is **total**: deleted, a strong hand arriving here would take
+the `Pass`@0 catch-all, which is strictly worse than the floor this node
+shadows.  What fires in self-play is `X` / `2NT` / `3♣` / `3♦` / `Pass`.
+
+The published readings are decodable — the penalty `X` reads `♥ 4..13` and the
+`2NT` below it reads `♥ 0..3`, denying the double it declined.  Note the
+polarity is *already* half-mechanised: `landy_bba_responder`'s first-round `X`
+is `.penalty()`-tagged and `reading.penalty_latch` is **default on**, so the
+repeated double was going to latch to penalty regardless; the alert and the tag
+make that the authored meaning rather than an emergent one.
+
+**A/B owed, and §N1k's verdict re-pointed it.**  The two knobs own the same two
+legs one call apart, so measuring them together would price a package rather
+than a rung — that much held.  What did not is the direction: §N1k **refuted**,
+and its worst boards show the OFF arm's floor already finding this table's
+penalty `X` emergently, which N1k's `3NT` was shadowing.  So the control is
+**today's `main`** (opener passes at the seat above), and this measurement is now
+the lane's first, not its second.  It also sets a sharper expectation than the
+branch cost does: part of what this table authors, the floor already does, so
+the measurable delta is the *difference* between the authored ladder and the
+floor's improvisation — not the whole 67 bd / −75 plain.  Fresh `SEED_BASE`,
+`--filter-landy`, both scorers.  Runner:
+`scripts/ab-landy-doubler-rebids.sh`.
+
+### N1m — the splinter regrade and the three unfinished tails (**built 2026-08-27, A/Bs owed**)
+
+Two knobs, from §N1k's finding 3 and from the 2026-08-25 four-level survey.
+
+**`landy_splinter_hcp` — and what it actually does.**  The `3♥`/`3♠`
+both-minor splinters are gated `points(10..)`, a floor that counts the very
+shortness the call is announcing, so a 4=1=4=4 nine-count grades to ten and
+splinters.  On, both rungs take `hcp(10..)`; the `2♥`/`2♠` takeouts beside them
+keep `points(10..)`.
+
+Finding 3 predicted the demoted hands would "double instead, and land in the
+seat above".  **They do not.**  The rung directly below the splinters is
+`landy_bba_responder`'s *ungated* `3NT`@168, and it is `points(10..)` too, so
+it catches exactly the same hand — verified on `AJ54.3.KJ54.9542`, which bids
+`3♥` shipped and `3NT` armed, never `X`.  The knob therefore does not remove the
+failing game.  It **right-sides** it:
+
+| arm | auction | who declares `3NT` |
+| --- | --- | --- |
+| shipped | `1NT (2♣) 3♥ - 3NT` (14 of the 17 `3♥` boards) | **opener** — responder's singleton in dummy, the lead running up to it |
+| armed | `1NT (2♣) 3NT` | **responder** — the lead comes into the 15-17 |
+
+That is a real, double-dummy-visible change and a coherent hypothesis (hide the
+strong hand, lead up to it).  It is simply a *different* hypothesis from the one
+the finding wrote down, and the two must not be confused when the verdict is
+read: a flat result refutes the right-siding claim, not the strength claim.
+The reversible alternative if the strength claim is still wanted — regrade the
+`3NT`@168 blast rung on high cards as well, sending the whole nine-count band to
+the values double — moves every shape, not just splinter shapes, so it is a
+wider arm and a separate decision.  **Flagged, not taken.**
+
+**`landy_tail_completion` — three repairs, one A/B**, because the pools are far
+too thin to carry solo verdicts:
+
+1. **Their overcall of our minor transfer.**  The transfers are completed
+   doubled and undoubled; `2NT (3♥)` / `3♣ (3♠)` and siblings were never
+   registered at all.  The bucket cut prices the `3♣ (3♠)` leg at 6 bd,
+   +1 plain / **−38 PD**, its worst lines the floor blasting `5♦` over a
+   transfer that promised no values.  `landy_transfer_overcalled` is
+   [`landy_cue_overcalled`]'s doctrine one seat over and opposite a weaker
+   partner: Pass is the default and it is safe, and above it sit only the three
+   calls Pass cannot make — the game with their suit stopped and a maximum, the
+   fit at the cheapest level a maximum can afford, and the values double.
+2. **Five floored four-level seats** — the N1j share of the 2026-08-25 survey
+   ([`minor-transfer-slam.md`](minor-transfer-slam.md)).  Each is a `4m` that
+   invites a continuation at a node with `fallback: Some(0)`, and the floor
+   cannot keycard there because `instinct`'s `4NT` ask is gated on
+   `Context::undisturbed`, which this lane fails by construction.  Opener's two
+   seats reuse `landy_slam_answer`; responder's three take the new
+   `landy_four_minor_place`, the same table from the other side of the table
+   (`4NT`@160 on `points(14..)`, else `5m`).  Both carry `slam::rkcb_rows` —
+   the half the floor cannot supply.  Measured before/after on
+   `1NT (2♣) 3♥ - 4♣ -` with `AK54.3.KQ54.KJ54`: the floor bids a phantom
+   **`4♠`**; armed, responder asks keycard.
+3. **The manufactured `4♣`** (research-doc discrepancy #2).
+   `landy_bba_ask_answer`'s catch-all names clubs on `hcp(0..)`, so on the
+   `no_minor` branch opener can bid it holding a singleton — `9432.AKQ32.K43.A`
+   bids `4♣` on one club today.  On, the last resort is the longer *three*-card
+   minor instead (clubs first when equal), and that hand bids `4♦`.  Responder
+   is 4-4 or better in the minors, so a three-card preference is a known 4-3 and
+   naming the right one is the whole repair; the `hcp(0..)` row stays underneath
+   because 2-2 minors are reachable on nine major cards.
+
+Runners: `scripts/ab-landy-splinter-hcp.sh` and `scripts/ab-landy-tails.sh`.
+Both knobs are **off by default and want their own seeds**, after §N1k's and
+§N1l's verdicts — the splinter regrade's demoted hands and both doubler knobs
+touch overlapping populations, so measured together they price a package rather
+than a rung.
+
+### N1n — the full Kokish–Kraft minor core (`defense_2c_landy_kk`, **built 2026-08-27, A/B owed**)
+
+The `(2♦)` lane's variant ported whole.  Kokish–Kraft is the only located
+source that assigns **every** direct call from `2♦` through `4♠`
+([research §3](ai-bidder/landy-2c-counter-defense-research.md)), and this is its
+minor core.  Five rungs of `landy_bba_responder` move; everything else is
+carried over verbatim, so the two tables differ exactly where the source does.
+
+| call | Kokish–Kraft | the shipped N1j ladder |
+| --- | --- | --- |
+| `2♥` | both minors, **competitive** (`hcp ..=7`) | GF takeout, exactly a doubleton in hearts |
+| `2♠` | both minors, **INV+** (`hcp 8..`), stoppers next | GF takeout, exactly a doubleton in spades |
+| `2NT` | weak escape, **either** six-card minor (`hcp ..=7`) | wide transfer to clubs, any strength |
+| `3♣` | **diamonds**, GF, unbalanced | transfer to diamonds, any strength |
+| `3♦` | **clubs**, GF, unbalanced (new) | — |
+| `3♥`/`3♠`, `3NT`×2, `X`, `2♦`, `P` | unchanged | unchanged |
+
+Two orderings carry the design rather than gates.  The **splinters outrank the
+two-suiters** here (the reverse of the shipped lane): there `2♥`/`2♠` name an
+exact doubleton, which leaves the 0-1 hands to `3♥`/`3♠`, but here they are a
+pure strength split, so unless the splinters sit above them they would never
+fire.  And the **two-suiters outrank the cross-transfers**, which is what makes
+those transfers mean "unbalanced" — `2♠` catches every 8-plus hand with four
+cards in both minors, so `3♣`/`3♦` fire only with three or fewer in the other.
+
+**The bands are `hcp`, not `points` — a deliberate departure from the plan's
+sketch.**  The governing rule for this lane is a clear cut between `P` and `X`
+at 0-7 / 8+, and the values `X` is `hcp(8..)`; grading the shape rows on
+`points` would break the complement on exactly the hands they are for, because
+a call that *shows* four-four in the minors (or a six-card suit) is graded up by
+the shape it is announcing.  Measured: `points(..=7)` on the escape relay leaves
+a seven-count with a six-card minor **passing** — the precise hand the relay
+exists to rescue — because a six-card suit is worth two points on its own.
+
+**What the A/B prices, stated as trades.**  We give up the shipped lane's
+doubleton encoding (real right-siding information, spent here on a strength
+split) and its *wide* transfers (escape-only and game-forcing here).  We gain a
+weak escape into either minor, a `2♠` that distinguishes invitational from
+competitive, and a `3♦` rung that does not exist today at all.
+
+**The `3♦` leg is asymmetric, by necessity.**  Its sibling `3♣` completes at
+`3♦` with room under `3NT`; completing `3♦` would mean `4♣`, overshooting the
+game the pair most often plays.  So opener shows stoppers below game instead —
+`3NT` with both majors guarded, the cheaper single stopper as a cue, and `4♣`
+(the completion) only when neither is held, which is exactly the hand that
+cannot play notrump from either side.
+
+**Flagged: the plan's "8-9 one-suiters double and rebid `3m`" routing is only
+true up to nine *high-card* points.**  Both `3NT` rows carry over verbatim as
+specified, and the ungated `3NT`@168 is `points(10..)`, which sits **above** the
+values `X`@145.  So an eight-count with a six-card minor — points 10 or 11 once
+the suit is counted — blasts `3NT` rather than doubling.  This is the same
+mechanism that falsified §N1m's stated hypothesis, and it has the same one-line
+reversible alternative: re-gate `3NT`@168 to `hcp(10..)` **in this variant
+only**, which would make the table's own routing (P/X at 8, GF at 10) coherent
+end to end.  Not taken — the plan says verbatim, and the row is shared doctrine.
+
+**Prerequisite, not sibling.**  `landy_doubler_rebids` (§N1l) is where this
+table's 8-9 one-suited minors are supposed to go, so the two want measuring in
+that order.  **Off by default; the A/B is owed against post-Phase-1 `main`,
+fresh seed, `--filter-landy`, both scorers** — `scripts/ab-landy-kk.sh`.
+On a loss, trace the worst divergent boards **by row** before parking — the doubleton encoding and the
+wide transfer bands are the two named suspects, and they fail differently.
+
+### Flagged, not fixed (§N1 — reversible defaults proposed)
+
+1. **The deterministic floor makes a takeout double at `1NT (2♣) X (2M)`.**
+   Under `PROBE_FLOOR=instinct` every 15-17 hand without four of their named
+   major doubles there (`rule #382`: "at most three cards in each of their
+   suits, 12+ HCP").  With `penalty_latch` on and our first `X` tagged
+   `.penalty()`, partner reads that double as **penalty** — the opposite of
+   what the floor meant.  The net floor the A/Bs measure passes instead
+   (`P` 11.9 vs `X` 3.0), so this bites only `--our-floor american-instinct`
+   arms (anchor rows).  Proposed reversible default: leave it.  The escape
+   route first written here — "if §N1k ships, its node shadows the floor at
+   that seat" — **closed on 2026-08-27**: §N1k was refuted, so the floor keeps
+   that seat, and the collision keeps needing either a floor change or §N1l's
+   authored table above it.
+2. **`landy_bba_takeout_answer`'s formal catch-all is unreachable *and* widens
+   a reading.**  `stopper_in(short) | no_minor` plus the two four-card-minor
+   branches are already total, so `notrump`@20 `hcp(0..)` never routes — but it
+   is a second row for a call that already has one at 150, so it is not
+   obviously reading-neutral either.  (Research doc discrepancy #7 calls it a
+   byte-identity cleanup; whether it *is* one has not been verified.)
+   Proposed reversible default: leave both the row and the claim alone until a
+   `probe-call-reading` before/after says which it is.
+3. **`landy_bba_ask_answer` can manufacture `4♣` without four clubs**
+   (discrepancy #2), on the branch where opener's notrump answer came from
+   `no_minor`.  Queued into the §N1 tail-completion batch, unbuilt.
+
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
 Knob `competition.nt_high_overcall_responses` (the table, **default on since
@@ -2432,7 +2782,11 @@ reason to take it.
 | N1g Landy read-side wiring | `reading.their_landy_reading` (**on**) | **SHIPPED DEFAULT-ON 2026-08-14** | `plain wash \| PD win` ×3 seeds: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**. **Isolation gate 0 foreign — the campaign's first** | [closed §N1g](archive/one-notrump-competitive-closed.md#n1g--the-read-side-wiring-shipped-default-on-2026-08-14) |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
-| N1k opener's notrump out over the doubler's major | `competition.landy_doubler_notrump` (**off**) | **built 2026-08-27, A/B owed** | no verdict. The bucket cut that named it: `X (2♥)` passed out is 22 bd at −47 plain / −44 PD, all of it the `hcp 16+`-with-a-stopper cell (11 bd, −45/−46) against +10/+12 for the 15-counts. Ported from `multi_doubler_notrump`, which won 4/4 cells one lane over | [§N1k](#n1k--the-2026-08-27-bucket-cut-and-the-seat-it-names); `scripts/ab-landy-doubler-nt.sh` |
+| N1k opener's notrump out over the doubler's major | `competition.landy_doubler_notrump` (**off**) | **REFUTED as a default 2026-08-27; stays opt-in** | `SEED_BASE 1787834269`, 2.304M bd/arm/vul, **0 foreign both cells**. Both DD cells are the `win \| loss` artifact row — none **+0.0190 ±0.0007 \| −0.0149 ±0.0009**, both **+0.0103 ±0.0008 \| −0.0226 ±0.0010** — and SD-PD collapses out of plain SD rather than rescuing it (+0.0343 → **+0.0068**; +0.0271 → **−0.0014**, sign-flip). The axes separate identically at both vuls: **+0.017…+0.021 of DD lead pessimism against −0.028…−0.034 of doubling**. Neither named falsifier fired; the mechanism is that the OFF arm's floor finds a **delayed penalty double at §N1l's seat** (3 of 5 worst plain boards per cell) which this `3NT` shadows one call earlier — so the plan's N1k-gates-N1l sequencing is **backwards** | [§N1k](#measured-2026-08-27--refuted-as-a-default-stays-opt-in); `scripts/ab-landy-doubler-nt.sh` |
+| N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **built 2026-08-27, A/B owed** | no verdict; gated on N1k's. The other half of the same 67 bd / −75 plain `X` branch: the seat after opener's. `kokish_kraft_doubler_rebid` ported with no correction leg (their overcaller passes the preference 94.5%/96.7%) and a natural `3m` where the twin has the other major. Two escape legs added on the probe (`X (2♦) - (2M)`, ~7.9% of the branch) | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-built-2026-08-27-ab-owed); `scripts/ab-landy-doubler-rebids.sh` |
+| N1m splinter regrade on high cards | `competition.landy_splinter_hcp` (**off**) | **built 2026-08-27, A/B owed** | no verdict. The only branch of the lane negative on both scorers (23 bd, −18 plain / −32 PD); the `hcp 8..=9` sub-cell is −33/−39 against +8/+1 for `hcp 10+`. **Mechanism corrected on build**: the demoted hands take the ungated `3NT`@168, not the double, so the arm prices *right-siding* the game, not avoiding it | [§N1m](#n1m--the-splinter-regrade-and-the-three-unfinished-tails-built-2026-08-27-abs-owed); `scripts/ab-landy-splinter-hcp.sh` |
+| N1m the three unfinished tails | `competition.landy_tail_completion` (**off**) | **built 2026-08-27, A/B owed** | no verdict. Their overcall of our minor transfer (`3♣ (3♠)`, 6 bd at −38 PD, the floor blasts `5♦`); the five floored four-level seats of the 2026-08-25 survey plus their RKCB ladders (the floor bids a phantom `4♠` at one of them); the manufactured-`4♣` repair | [§N1m](#n1m--the-splinter-regrade-and-the-three-unfinished-tails-built-2026-08-27-abs-owed); `scripts/ab-landy-tails.sh` |
+| N1n the full Kokish–Kraft minor core | `competition.defense_2c_landy_kk` (**off**) | **built 2026-08-27, A/B owed** | no verdict; wants §N1l shipped under it. Five rungs of responder's table swap for the source's: `2♥`/`2♠` both minors split by strength, `2NT` a weak either-minor escape, `3♣`/`3♦` GF cross-transfers. Bands are `hcp` not `points` — the sketch's `points` cap leaves the escape unreachable. Trades the doubleton encoding and the wide transfer bands | [§N1n](#n1n--the-full-kokishkraft-minor-core-defense_2c_landy_kk-built-2026-08-27-ab-owed); `scripts/ab-landy-kk.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

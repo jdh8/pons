@@ -110,14 +110,51 @@ fn landy_counter_package_invariants() {
         arm.competition.defense_2c_landy_bba = false;
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
+    // N1n: the Kokish–Kraft variant, which swaps five rungs of responder's
+    // table and the continuations under them.  It outranks the shipped ladder
+    // rather than composing, so it sweeps as its own block — crossed with the
+    // splinter regrade (it carries those two rows) and the doubler ladder (its
+    // 8-9 one-suiters are routed into it by design).
+    for splinter in [false, true] {
+        for rebids in [false, true] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_clubs_landy = true;
+            arm.competition.defense_2c_landy_kk = true;
+            arm.competition.landy_splinter_hcp = splinter;
+            arm.competition.landy_doubler_rebids = rebids;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
+    }
     // N1j: the BBA ladder alone, and with its weak-2♦ cap arm.  The stack
-    // knobs are inert under it, so two arms cover the whole surface.
+    // knobs are inert under it, so two arms cover the whole surface.  Crossed
+    // with the two default-off doubler knobs (N1k's notrump out and the
+    // doubler's own rebid ladder), which share the `X (2♥)`/`X (2♠)` legs one
+    // call apart: `landy_doubler_notrump` answers their advance and
+    // `landy_doubler_rebids` answers opener's pass over it, so a table total
+    // on one arm can be holed on the other.
     for cap in [false, true] {
-        let mut arm = Agreements::default();
-        arm.decision.their.two_clubs_landy = true;
-        arm.competition.defense_2c_landy_bba = true;
-        arm.competition.defense_2c_landy_weak_2d_cap = cap;
-        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        for doubler_notrump in [false, true] {
+            for doubler_rebids in [false, true] {
+                let mut arm = Agreements::default();
+                arm.decision.their.two_clubs_landy = true;
+                arm.competition.defense_2c_landy_bba = true;
+                arm.competition.defense_2c_landy_weak_2d_cap = cap;
+                arm.competition.landy_doubler_notrump = doubler_notrump;
+                arm.competition.landy_doubler_rebids = doubler_rebids;
+                // The splinter regrade is a gate swap on two rows of the
+                // responder table, so it rides the same sweep rather than
+                // doubling its width: on with both doubler knobs, off without.
+                arm.competition.landy_splinter_hcp = doubler_rebids;
+                // The tail batch adds nodes at eleven new seats plus two RKCB
+                // ladders, so it sweeps as its own axis rather than riding
+                // another knob's column.
+                arm.competition.landy_tail_completion = cap;
+                crate::bidding::rows::assert_package_invariants(
+                    &arm,
+                    &[super::lebensohl_package()],
+                );
+            }
+        }
     }
 }
 

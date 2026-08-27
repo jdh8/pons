@@ -912,6 +912,36 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.multi_px_split = true;
         profiles.push(("their-multi-px-split", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_notrump = true;
+        profiles.push(("their-landy-doubler-notrump", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_rebids = true;
+        profiles.push(("their-landy-doubler-rebids", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_splinter_hcp = true;
+        profiles.push(("their-landy-splinter-hcp", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_tail_completion = true;
+        profiles.push(("their-landy-tail-completion", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.defense_2c_landy_kk = true;
+        profiles.push(("their-landy-kk", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

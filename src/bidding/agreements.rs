@@ -1195,6 +1195,135 @@ pub struct CompetitionKnobs {
     /// cell as +0/+30 over 7 boards; the arm prices both.  Inert while their
     /// `2♣` is undeclared or natural.
     pub landy_doubler_notrump: bool,
+    /// The Landy doubler's own rebid once their advance has named the major
+    ///
+    /// `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and the two legs where their
+    /// artificial `2♦` escape was pulled to a major.  The seat is the floor's
+    /// today on every hand (`probe-decision` prints `fallback: Some(0)` across
+    /// the band), and the 2026-08-27 census says it is where the `X` branch
+    /// bleeds: 67 bd, −75 IMPs plain, the auction dying after our values
+    /// double.
+    ///
+    /// On, `competition::lebensohl::landy_doubler_rebid` claims it with
+    /// [`Self::multi_kokish_kraft`]'s ladder ported one suit down — `4NT`@160
+    /// quantitative, the penalty `X`@155 on four of their major, `3NT`@150,
+    /// the `2NT`@145 invitation, natural `3♣`/`3♦`@100/99 on a five-card
+    /// minor, `Pass`@0 — plus opener's three answers (sit over the repeated
+    /// double, [`Self::multi_kokish_kraft`]'s invite and quantitative tables).
+    /// Two structural differences from the twin, both probe-driven: there is
+    /// **no correction leg**, because the Landy overcaller passes the
+    /// preference 94.5%/96.7% of the time rather than pulling it, and the
+    /// twin's natural other-major rung becomes a natural *minor*, because this
+    /// opponent holds both majors.
+    ///
+    /// `X (2NT)` is left to the floor on purpose: after that advance the
+    /// overcaller jumps to `4M` 54.3% of the time and to slam another 13.5%.
+    ///
+    /// **Off by default — the A/B is owed**, and it wants
+    /// [`Self::landy_doubler_notrump`]'s verdict first: that knob owns the seat
+    /// one call earlier on the same two legs, so measuring both at once would
+    /// price a package rather than a rung.  Inert while their `2♣` is
+    /// undeclared or natural.
+    pub landy_doubler_rebids: bool,
+    /// Grade the N1j Landy both-minor splinters on high cards, not points
+    ///
+    /// `landy_bba_responder`'s `3♥`/`3♠` show 4+/4+ in the minors with 0-1 in
+    /// the bid major, gated `points(10..)` — a floor that counts the very
+    /// shortness the call is showing, so a 4=1=4=4 eight-count grades to ten
+    /// and splinters.  The 2026-08-27 bucket cut makes this the **only branch
+    /// of the lane negative on both scorers** (23 bd, −18 plain / −32 PD), and
+    /// the sub-cell is unambiguous: `hcp 8..=9` is −33/−39 against +8/+1 for
+    /// `hcp 10+`, with 14 of the 17 `3♥` boards ending `3♥ - 3NT - - -`.  A
+    /// singleton in the major they led is the worst dummy `3NT` can have.
+    ///
+    /// On, both rungs take `hcp(10..)` instead; the `2♥`/`2♠` takeouts beside
+    /// them keep `points(10..)`.
+    ///
+    /// **What the demoted hand does is bid `3NT` itself, not double.**  The
+    /// rung below the splinters is the *ungated* `3NT`@168, and it is
+    /// `points(10..)` too, so it catches the same hand.  This knob therefore
+    /// does not remove the failing game — it **right-sides** it, and that is
+    /// the hypothesis its A/B prices.  The census says 14 of the 17 `3♥`
+    /// boards end `3♥ - 3NT - - -`: opener declaring, responder's singleton in
+    /// *dummy*, the opening lead running up to it.  Demoted, responder
+    /// declares the same contract and the lead comes into the 15-17 instead.
+    /// Double-dummy sees that; it is a real arm, but it is **not** the
+    /// "those hands would double instead" hypothesis §N1k finding 3 wrote
+    /// down, and the two should not be confused when the verdict is read.
+    ///
+    /// The reversible alternative, if the right-siding arm reads flat and the
+    /// original hypothesis is still wanted: regrade the `3NT`@168 blast rung on
+    /// high cards as well (`points(10..) & hcp(10..)`), which sends the whole
+    /// nine-count band to the values double at `hcp(8..)`.  That moves every
+    /// shape, not just the splinter ones, so it is a wider arm and a separate
+    /// decision — flagged, not taken.
+    ///
+    /// **Off by default — the A/B is owed**, and it wants its own seed *after*
+    /// [`Self::landy_doubler_notrump`] and [`Self::landy_doubler_rebids`].
+    /// Inert while their `2♣` is undeclared or natural.
+    pub landy_splinter_hcp: bool,
+    /// The N1j Landy lane's three unfinished tails, as one batch
+    ///
+    /// Three repairs whose pools are individually far too thin to carry a
+    /// verdict, so they measure together (`docs/one-notrump-competitive.md`
+    /// §N1m):
+    ///
+    /// 1. **Their overcall of our minor transfer.**  The transfers are
+    ///    completed doubled and undoubled, but `2NT (3♥)` / `3♣ (3♠)` and
+    ///    siblings were never registered.  The bucket cut prices the `3♣ (3♠)`
+    ///    leg at 6 bd, +1 plain / **−38 PD**, its worst lines the floor
+    ///    blasting `5♦` over a transfer that promised no values.
+    ///    `landy_transfer_overcalled` gives opener the three calls Pass cannot
+    ///    make and leaves Pass the default.
+    /// 2. **The five floored four-level seats** of the 2026-08-25 survey that
+    ///    belong to this arm (`docs/minor-transfer-slam.md`).  Each is a `4m`
+    ///    that invites a continuation at a node with no answer, and the floor
+    ///    cannot keycard there — `instinct`'s ask is gated on
+    ///    `Context::undisturbed`.  Opener's two seats reuse
+    ///    `landy_slam_answer`; responder's three take
+    ///    `landy_four_minor_place`, the same table from the other side.  Both
+    ///    carry the RKCB ladder, which is the half the floor cannot supply.
+    /// 3. **The manufactured `4♣`.**  `landy_bba_ask_answer`'s catch-all names
+    ///    clubs on `hcp(0..)`, so on the `no_minor` branch opener can bid it
+    ///    with a doubleton.  On, the last resort is the longer *three*-card
+    ///    minor instead, clubs first when equal.
+    ///
+    /// **Off by default — the A/B is owed.**  Inert while their `2♣` is
+    /// undeclared or natural.
+    pub landy_tail_completion: bool,
+    /// The full Kokish–Kraft minor core over their `(2♣)` Landy
+    ///
+    /// The `(2♦)` lane's variant ported whole (`competition.multi_kokish_kraft`
+    /// is its twin), replacing the shipped N1j ladder's minor structure with
+    /// the only located source that assigns **every** direct call from `2♦`
+    /// through `4♠` (`docs/ai-bidder/landy-2c-counter-defense-research.md` §3):
+    ///
+    /// | call | meaning |
+    /// | --- | --- |
+    /// | `2♥` | both minors, competitive |
+    /// | `2♠` | both minors, invitational-or-better; stoppers shown next |
+    /// | `2NT` | weak six-card minor, *either* one — forced `3♣`, pass or correct |
+    /// | `3♣` | **diamonds**, game-forcing, unbalanced (cross-transfer) |
+    /// | `3♦` | **clubs**, game-forcing, unbalanced |
+    /// | `3♥`/`3♠` | both minors, game-forcing, splinter in the bid major |
+    ///
+    /// What it does **not** move: both `3NT` rows, the values `X`, the weak
+    /// `2♦` and the `Pass` catch-all carry over verbatim, and the splinters
+    /// keep their shipped answers.  The source's fast/slow `3NT` inversion is
+    /// deliberately dropped — it rode a two-way `2NT` this variant does not
+    /// have.
+    ///
+    /// The two structural trades the A/B prices: the shipped lane's `2♥`/`2♠`
+    /// encode a **doubleton** (right-siding information this table spends on a
+    /// strength split instead), and its `2NT`/`3♣` transfers are *wide* where
+    /// these are escape-only and game-forcing.  8–9 one-suited minors have no
+    /// direct call here at all — they go `X` then `3m` through
+    /// [`Self::landy_doubler_rebids`]'s ladder, which is why that knob is a
+    /// prerequisite rather than a sibling.
+    ///
+    /// **Off by default — the A/B is owed**, against post-Phase-1 `main`.
+    /// Inert while their `2♣` is undeclared or natural.
+    pub defense_2c_landy_kk: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1334,6 +1463,10 @@ impl Default for CompetitionKnobs {
             multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
             landy_doubler_notrump: false,
+            landy_doubler_rebids: false,
+            landy_splinter_hcp: false,
+            landy_tail_completion: false,
+            defense_2c_landy_kk: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

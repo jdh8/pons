@@ -745,6 +745,546 @@ fn landy_doubler_notrump_bids_the_stopped_game() {
     assert!(floored, "the default arm keeps the floor-owned seat");
 }
 
+/// The N1j ladder with the doubler's own rebid armed
+///
+/// [`landy_doubler_notrump`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_notrump]
+/// is pinned **off**, the shipped default: it owns the seat one call earlier on
+/// the same two legs, and its A/B is the gate on this one, so the rebid ladder
+/// is measured (and tested) against the table that shipped.
+fn landy_rebids_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_rebids = true;
+    arm.competition.landy_doubler_notrump = false;
+    arm
+}
+
+/// The doubler's rebid once their advance has named the major — the ladder the
+/// dying auction needs
+///
+/// `competition.landy_doubler_rebids`, default off (§N1, A/B owed).  The seat
+/// is the floor's today on every hand, and the floor bids `3NT` holding four of
+/// *their* major rather than doubling, and passes both the 8–9 invitation and
+/// the 8–9 five-card minor.
+#[test]
+fn landy_doubler_rebids_ladders_the_dying_auction() {
+    let arm = landy_rebids_arm();
+    let hearts = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+    // Four of their major is a penalty double against a pair who have shown
+    // 4-4+ in the majors and then chosen this one.
+    let (c, floored) = best_call_with(&arm, &hearts, "A54.KJ98.AQ3.J54");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the ladder must come from the book");
+    // 8-9 with their suit stopped invites; without a stopper it passes.
+    assert_eq!(
+        best_call_with(&arm, &hearts, "KQ5.KJ8.943.T543").0,
+        call(2, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.982.Q83.J954").0,
+        Call::Pass
+    );
+    // The natural minors — the only route for an 8-9 one-suiter, the wide
+    // transfers above being game-forcing.  Clubs first when both.
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.J98.83.KJ954").0,
+        call(3, Strain::Clubs)
+    );
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.982.KQJ54.83").0,
+        call(3, Strain::Diamonds)
+    );
+
+    // The spade leg is the same table one step up.
+    let spades = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Spades),
+        Call::Pass,
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call_with(&arm, &spades, "KJ98.A54.AQ3.J54").0,
+        Call::Double
+    );
+    assert_eq!(
+        best_call_with(&arm, &spades, "KJ8.KQ5.943.T543").0,
+        call(2, Strain::Notrump)
+    );
+
+    // And the escape leg: their artificial `2♦` pulled to a major by the
+    // overcaller, which is what happens to it 79.4% of the time.
+    let escape = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Hearts),
+    ];
+    assert_eq!(
+        best_call_with(&arm, &escape, "A54.KJ98.AQ3.J54").0,
+        Call::Double
+    );
+
+    // Opener's three answers: accept the invitation from the top, the
+    // quantitative slam from the very top, and sit for the penalty double.
+    let invited = [hearts.as_slice(), &[call(2, Strain::Notrump), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &invited, "AQ54.A65.KQ4.Q83").0,
+        call(3, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call_with(&arm, &invited, "AQ54.A65.KQ4.983").0,
+        Call::Pass
+    );
+    let quantitative = [hearts.as_slice(), &[call(4, Strain::Notrump), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &quantitative, "AQ54.AK5.KQ4.J83").0,
+        call(6, Strain::Notrump)
+    );
+    let repeated = [hearts.as_slice(), &[Call::Double, Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &repeated, "AQ54.A65.KQ4.Q83");
+    assert_eq!(c, Call::Pass, "the repeated double is penalty; opener sits");
+    assert!(!floored, "and the sit is authored, not the floor's");
+
+    // Off — the default — leaves the whole seat to the floor.
+    let mut off = Agreements::default();
+    off.decision.their.two_clubs_landy = true;
+    let (c, floored) = best_call_with(&off, &hearts, "A54.KJ98.AQ3.J54");
+    assert!(
+        floored,
+        "the default arm keeps the floor-owned seat (got {c})"
+    );
+}
+
+/// The penalty double is `X`-after-`X`, so its alert has to publish **length**
+/// in their major — an unalerted second double reads as the takeout this lane's
+/// polarity rule gives to the *pass* branch instead (`docs/pdi.md`).
+#[test]
+fn landy_doubler_rebid_alerts_publish_the_trump_length() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let partnership = crate::bidding::american::american(&landy_rebids_arm()).bind();
+    let read = |calls: &[Call]| {
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, calls))
+    };
+    let after = |last: Call| {
+        [
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+            last,
+            Call::Pass,
+        ]
+    };
+
+    let penalty = read(&after(Call::Double));
+    let partner = penalty.get(Relative::Partner);
+    assert_eq!(
+        partner.length(Suit::Hearts).min,
+        4,
+        "the repeated double shows four of their major",
+    );
+
+    // And the invitation below it denies exactly that, by the weight ordering.
+    let invite = read(&after(call(2, Strain::Notrump)));
+    assert!(
+        invite.get(Relative::Partner).length(Suit::Hearts).max <= 3,
+        "the `2NT` invitation denies the double it declined (got {:?})",
+        invite.get(Relative::Partner).length(Suit::Hearts),
+    );
+}
+
+/// The splinters graded on high cards, not on the shortness they are showing
+///
+/// `competition.landy_splinter_hcp`, default off (§N1, A/B owed).  The shipped
+/// `points(10..)` floor counts the singleton the call announces, so a
+/// 4=1=4=4 nine-count grades to ten and splinters; the bucket cut prices that
+/// sub-cell at −33 plain / −39 PD.
+///
+/// **What the demoted hand actually does is bid `3NT` itself**, not double —
+/// [`landy_bba_responder`]'s ungated `3NT`@168 is also `points(10..)` and
+/// catches it one rung lower.  So this knob does not remove the failing game;
+/// it **right-sides** it.  The census says 14 of the 17 `3♥` boards end
+/// `3♥ - 3NT - - -`, which is opener declaring with responder's singleton in
+/// *dummy* and the opening lead running up to it; demoted, responder declares
+/// the same contract and the lead comes into the 15-17.  That is a real,
+/// double-dummy-visible change, and it is the one this arm prices — but it is
+/// a different hypothesis from the one §N1k's finding 3 wrote down, and it is
+/// recorded as such.
+#[test]
+fn landy_splinter_hcp_right_sides_the_game_it_cannot_avoid() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    // 4=1=4=4, nine high-card points — ten or more once the singleton is
+    // counted, which is exactly the grading the knob removes.
+    let inflated = "AJ54.3.KJ54.9542";
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    assert_eq!(
+        best_call_with(&shipped, &auction, inflated).0,
+        call(3, Strain::Hearts),
+        "the shipped gate splinters on shape points",
+    );
+
+    let mut armed = shipped;
+    armed.competition.landy_splinter_hcp = true;
+    assert_eq!(
+        best_call_with(&armed, &auction, inflated).0,
+        call(3, Strain::Notrump),
+        "demoted, it takes the ungated `3NT`@168 — which is also `points(10..)`",
+    );
+
+    // A genuine ten-count with the same shape still splinters on both arms —
+    // the knob narrows the floor, it does not delete the rung.
+    let genuine = "AQ54.3.KJ54.K542";
+    for arm in [&shipped, &armed] {
+        assert_eq!(
+            best_call_with(arm, &auction, genuine).0,
+            call(3, Strain::Hearts)
+        );
+    }
+}
+
+/// The N1j lane's three unfinished tails, as one batch
+///
+/// `competition.landy_tail_completion`, default off (§N1m, A/B owed): their
+/// overcall of our minor transfer, the floored four-level seats of the
+/// 2026-08-25 survey, and the manufactured-`4♣` repair.
+#[test]
+fn landy_tail_completion_closes_the_three_open_tails() {
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    let mut armed = shipped;
+    armed.competition.landy_tail_completion = true;
+
+    // 1. The manufactured `4♣`.  Opener answered `2NT` off the `no_minor`
+    //    branch (seven major cards), responder asked for the spade stopper and
+    //    opener has none — so the catch-all fires.  Shipped it names clubs on a
+    //    singleton; armed it names the three-card minor it actually holds.
+    let ask = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Pass,
+    ];
+    let no_minor = "9432.AKQ32.K43.A";
+    assert_eq!(
+        best_call_with(&shipped, &ask, no_minor).0,
+        call(4, Strain::Clubs),
+        "the shipped catch-all manufactures clubs on a singleton",
+    );
+    assert_eq!(
+        best_call_with(&armed, &ask, no_minor).0,
+        call(4, Strain::Diamonds),
+        "armed, it names the longer three-card minor",
+    );
+
+    // 2. Their overcall of the diamond transfer — the batch's named cost, where
+    //    the floor blasts `5♦` over a transfer that promised no values.
+    let overcalled = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Clubs),
+        call(3, Strain::Spades),
+    ];
+    let (c, floored) = best_call_with(&armed, &overcalled, "KQ5.AJ4.KQ32.A43");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the tail must come from the book, not the floor");
+    // A minimum without their suit stopped has nothing Pass cannot say.
+    assert_eq!(
+        best_call_with(&armed, &overcalled, "9432.AJ4.KQ32.A4").0,
+        Call::Pass,
+    );
+
+    // 3. A floored four-level seat: opener picked a minor over the splinter and
+    //    responder, game-forcing with extras, had no way to keycard — the
+    //    floor bid a phantom `4♠` instead.
+    let four_level = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Hearts),
+        Call::Pass,
+        call(4, Strain::Clubs),
+        Call::Pass,
+    ];
+    let extras = "AK54.3.KQ54.KJ54";
+    let (c, floored) = best_call_with(&shipped, &four_level, extras);
+    assert!(floored, "the seat is the floor's today (it bids {c})");
+    assert_eq!(
+        best_call_with(&armed, &four_level, extras).0,
+        call(4, Strain::Notrump),
+        "armed, extras ask keycard",
+    );
+    // Without extras the game is placed, not probed.
+    assert_eq!(
+        best_call_with(&armed, &four_level, "9854.3.QJ54.QJ54").0,
+        call(5, Strain::Clubs),
+    );
+}
+
+/// The Kokish–Kraft arm: the declared-Landy agreements with the variant on
+fn landy_kk_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_kk = true;
+    // Pinned off, both default-off and both prerequisites of the variant in
+    // *design* but not in *code*: the doubler ladder is where this table's
+    // 8-9 one-suiters are meant to go, and the splinter regrade changes two of
+    // its own rows.  Pinned so the arm keeps meaning "the variant alone".
+    arm.competition.landy_doubler_rebids = false;
+    arm.competition.landy_splinter_hcp = false;
+    arm
+}
+
+/// The Kokish–Kraft minor core replaces five rungs and leaves the rest alone
+///
+/// `competition.defense_2c_landy_kk`, default off (§N1n, A/B owed).
+#[test]
+fn landy_kk_replaces_the_minor_core() {
+    let arm = landy_kk_arm();
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // Both minors, split by strength rather than by shape.
+    assert_eq!(
+        best_call_with(&arm, &auction, "K54.J8.Q543.T543").0,
+        call(2, Strain::Hearts),
+        "4-4 minors under eight is competitive",
+    );
+    assert_eq!(
+        best_call_with(&arm, &auction, "AK4.J8.KQ54.T543").0,
+        call(2, Strain::Spades),
+        "the same shape with values is invitational-plus",
+    );
+
+    // The escape relay takes either minor; the cross-transfers are crossed.
+    for hand in ["543.J8.Q5.KT8543", "543.J8.KT8543.Q5"] {
+        assert_eq!(
+            best_call_with(&arm, &auction, hand).0,
+            call(2, Strain::Notrump),
+            "{hand}: a weak six-card minor escapes through the relay",
+        );
+    }
+    assert_eq!(
+        best_call_with(&arm, &auction, "AK4.J8.KQT854.53").0,
+        call(3, Strain::Clubs),
+        "`3♣` is diamonds",
+    );
+    assert_eq!(
+        best_call_with(&arm, &auction, "AK4.J8.53.KQT854").0,
+        call(3, Strain::Diamonds),
+        "`3♦` is clubs",
+    );
+    // The same hand is a wide club transfer at `2NT` on the shipped ladder —
+    // the trade the A/B prices.
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    assert_eq!(
+        best_call_with(&shipped, &auction, "AK4.J8.53.KQT854").0,
+        call(2, Strain::Notrump),
+    );
+
+    // Carried over verbatim: the splinter, the gated `3NT`, the values double.
+    assert_eq!(
+        best_call_with(&arm, &auction, "AK54.3.KQ54.T543").0,
+        call(3, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call_with(&arm, &auction, "AQ5.KJ9.Q943.T54").0,
+        call(3, Strain::Notrump),
+    );
+    // Nine high cards and no shape call left: the values double, unchanged.
+    // (Ten *points* would take the ungated `3NT`@168 above it instead — the
+    // rung this variant carries over verbatim, and the reason its "8-9
+    // one-suiters double and rebid `3m`" routing is only true up to nine.)
+    assert_eq!(
+        best_call_with(&arm, &auction, "Q54.KJ8.T432.K43").0,
+        Call::Double,
+    );
+}
+
+/// Both sides of the Kokish–Kraft continuations — the relay, the two-suiter
+/// answers, and the asymmetric `3♦` leg
+#[test]
+fn landy_kk_continuations_answer_both_sides() {
+    let arm = landy_kk_arm();
+    let over = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let after = |ours: Call, rest: &[Call]| {
+        let mut a = over.to_vec();
+        a.push(ours);
+        a.extend_from_slice(rest);
+        a
+    };
+
+    // The escape relay: opener is forced to `3♣`, responder passes or corrects.
+    let relayed = after(call(2, Strain::Notrump), &[Call::Pass]);
+    assert_eq!(
+        best_call_with(&arm, &relayed, "AQ5.KJ9.AQ43.T54").0,
+        call(3, Strain::Clubs),
+        "the completion is forced",
+    );
+    let completed = after(
+        call(2, Strain::Notrump),
+        &[Call::Pass, call(3, Strain::Clubs), Call::Pass],
+    );
+    assert_eq!(
+        best_call_with(&arm, &completed, "543.J8.Q5.KT8543").0,
+        Call::Pass,
+        "clubs pass",
+    );
+    assert_eq!(
+        best_call_with(&arm, &completed, "543.J8.KT8543.Q5").0,
+        call(3, Strain::Diamonds),
+        "diamonds correct",
+    );
+
+    // The competitive `2♥` wants a maximum for notrump; the invitational `2♠`
+    // does not, because responder already promised the values.
+    let comp = after(call(2, Strain::Hearts), &[Call::Pass]);
+    let inv = after(call(2, Strain::Spades), &[Call::Pass]);
+    let minimum = "AQ5.KJ9.Q943.T54";
+    assert_eq!(
+        best_call_with(&arm, &comp, minimum).0,
+        call(3, Strain::Clubs)
+    );
+    assert_eq!(
+        best_call_with(&arm, &inv, minimum).0,
+        call(2, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_with(&arm, &comp, "AQ5.KJ9.AQ43.T54").0,
+        call(2, Strain::Notrump),
+        "a maximum bids it on the competitive leg too",
+    );
+
+    // The asymmetric `3♦` leg: stoppers below game, the completion last.
+    let clubs = after(call(3, Strain::Diamonds), &[Call::Pass]);
+    assert_eq!(
+        best_call_with(&arm, &clubs, "AQ5.KJ9.Q432.T5").0,
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_with(&arm, &clubs, "952.KJ9.AQ432.T5").0,
+        call(3, Strain::Hearts),
+        "one stopper is shown below game, not completed",
+    );
+    assert_eq!(
+        best_call_with(&arm, &clubs, "9542.T92.AKQ3.AJ").0,
+        call(4, Strain::Clubs),
+        "neither stopper completes the transfer instead",
+    );
+}
+
+/// The cross-transfers must publish the suit they *mean*, not the one they name
+#[test]
+fn landy_kk_alerts_publish_the_crossed_suit() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let partnership = crate::bidding::american::american(&landy_kk_arm()).bind();
+    let read = |last: Call| {
+        let calls = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            last,
+            Call::Pass,
+        ];
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, &calls))
+    };
+
+    for (bid, meant, named) in [
+        (call(3, Strain::Clubs), Suit::Diamonds, Suit::Clubs),
+        (call(3, Strain::Diamonds), Suit::Clubs, Suit::Diamonds),
+    ] {
+        let inferences = read(bid);
+        let partner = inferences.get(Relative::Partner);
+        assert_eq!(
+            partner.length(meant).min,
+            6,
+            "{bid} shows six {meant}, not {named}",
+        );
+        assert!(
+            partner.length(named).max <= 5,
+            "{bid} must not read as length in {named} (got {:?})",
+            partner.length(named),
+        );
+    }
+
+    // And the strength split reads as the cut it is.
+    let competitive = read(call(2, Strain::Hearts));
+    let comp = competitive.get(Relative::Partner);
+    assert_eq!(comp.length(Suit::Clubs).min, 4);
+    assert_eq!(comp.length(Suit::Diamonds).min, 4);
+    assert!(comp.strength.hcp.max <= 7, "the competitive leg is capped");
+}
+
+/// Off by default and inert without the disclosure: the knob alone must not
+/// move a single call of the shipped natural `(2♣)` leg.
+#[test]
+fn landy_kk_is_inert_without_the_disclosure() {
+    let mut knob_only = Agreements::default();
+    knob_only.competition.defense_2c_landy_kk = true;
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    for hand in [
+        "K54.J8.Q543.T543",
+        "AK4.J8.53.KQT854",
+        "543.J8.Q5.KT8543",
+        "AK54.3.KQ54.T543",
+    ] {
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            best_call_with(&Agreements::default(), &auction, hand),
+            "{hand}: the knob moved a call on the undeclared natural leg",
+        );
+    }
+}
+
+/// Off by default and inert without the disclosure: the knob alone must not
+/// move a single call of the shipped natural `(2♣)` leg.
+#[test]
+fn landy_doubler_rebids_is_inert_without_the_disclosure() {
+    let mut knob_only = Agreements::default();
+    knob_only.competition.landy_doubler_rebids = true;
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+    for hand in [
+        "A54.KJ98.AQ3.J54",
+        "KQ5.KJ8.943.T543",
+        "K54.J98.83.KJ954",
+        "K54.982.Q83.J954",
+    ] {
+        assert_eq!(
+            best_call_with(&knob_only, &auction, hand),
+            best_call_with(&Agreements::default(), &auction, hand),
+            "{hand}: the knob moved a call on the undeclared natural leg",
+        );
+    }
+}
+
 #[test]
 fn landy_bba_ladder_routes_the_both_minor_family() {
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];

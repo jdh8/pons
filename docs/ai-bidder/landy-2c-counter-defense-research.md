@@ -534,6 +534,146 @@ probes, and spends a rare high call on both minors. Its declaration-sensitive
 behavior remains important: when the forced `(2♣)` is not declared Landy,
 BBA treats it as natural and its call distribution changes radically.
 
+### What BBA's advancer does after our action (probed 2026-08-27)
+
+Every source table in this paper prices our *first* call; none of them price
+the seat that decides whether a second call ever gets made.  Item 1e of the
+Kokish-Kraft port therefore probed BBA in **seat 3** — the Landy overcaller's
+partner — over our four live first calls.  4,000 hands per vulnerability,
+`--min-share 0.01`, fixed seed; percentages are of accepted hands, bands are
+the CLI's 5th-95th percentiles.
+
+| advance | over our `X` | over our `-` | band (vul none) |
+| --- | ---: | ---: | --- |
+| `2♠` | 33.1 / 31.1% | 30.2 / 27.7% | hcp 3-14, 3-5 spades, 1-4 hearts, 49% balanced |
+| `2♥` | 25.4 / 23.6% | 19.1 / 17.2% | hcp 3-13, 3-5 hearts, 1-3 spades, 57% balanced |
+| `2NT` | 12.8 / 15.9% | 12.8 / 15.9% | **hcp 12-19**, 3-5 in *both* majors, 60% balanced |
+| `2♦` | 9.9 / 9.9% | 10.0 / 10.0% | hcp 6-17, longest minor 4-6, both majors 2-3, 71% balanced |
+| `4♠` | 5.9 / 6.2% | 8.2 / 9.2% | hcp 7-18, 4+ spades, 14% balanced |
+| `4♥` | 4.8 / 5.0% | 7.1 / 7.7% | hcp 7-18, 4+ hearts, 15% balanced |
+| `3♥` | 4.5 / 4.6% | 8.8 / 8.6% | hcp 7-14, 4+ hearts |
+| `-` | 2.8 / 2.8% | 2.8 / 2.7% | hcp 3-11, **6+ clubs**, 0% balanced |
+
+Four facts an implementation needs, none of them in the source tables.
+
+**The advance is nearly invariant to our first call.**  The `X` column and the
+`-` column agree to within a few points on every row, and the two differ only
+in where the weak preference mass sits: doubled, the advancer takes a quiet
+`2♥`/`2♠` preference more often (58.5% vs 49.3%); undoubled, the same hands are
+more willing to jump (`3♥` + `4♥` + `4♠` is 24.1% undoubled against 15.2%
+doubled).  Our double buys about nine points of preemption, and it does not
+change *which* calls we must answer.  A doubler-rebid ladder can therefore be
+registered on the same path shapes as the pass-side ladder.
+
+**`2NT` is the third-largest advance and it is strong.**  At 12.8-15.9% it
+outranks the `2♦` escape, both game jumps and the invitational raise, and its
+band is `hcp(12..)` with 3-5 cards in each major — a limit-plus raise, not a
+minor-suit relay.  It is also the one advance that is *unaffected* by our
+double (12.8/15.9% in both columns): these hands bid on regardless.  The port
+plan's minimum path set (`X (2♥) - -`, `X (2♠) - -`, plus their raise) does not
+name it, so `1NT (2♣) X (2NT)` and its continuations are an owed seat.
+
+**`2♦` is an escape, not a diamond suit.**  6-17 HCP, 71% balanced, 4-6 in the
+longest minor and 2-3 in *each* major: the advancer has no major tolerance and
+runs.  It is not a natural overcall, and reading it as one would be a
+phantom-suit error in the doubler's rebid.
+
+**Their pass sits for the double with clubs.**  The 2.8% `-` row is a flat
+`len(Clubs, 6..)` at 3-11 HCP, 0% balanced — a genuine conversion of our
+takeout-flavoured double into a penalty situation, at the one shape that can
+stand it.  It is small, but it is the seat where a pass/double-inversion
+mistake costs a number rather than a partscore.
+
+Over the two calls that carry our minor structure, the advancer competes hard
+and doubles our transfer:
+
+| advance | over our `2NT` | over our `3♣` | band (vul none) |
+| --- | ---: | ---: | --- |
+| `-` | 39.4 / 40.7% | 35.8 / 44.7% | hcp 2-14 |
+| `3♥` | 20.2 / 17.7% | 17.2 / 9.3% | hcp 5-14, 4+ hearts |
+| `3♠` | 18.1 / 16.4% | 16.9 / 9.8% | hcp 4-14, 4+ spades |
+| `4♠` | 7.5 / 8.0% | 9.9 / 11.1% | hcp 8-19, 4+ spades |
+| `4♥` | 6.5 / 7.3% | 8.1 / 10.0% | hcp 8-18, 4+ hearts |
+| `X` | — | **5.6 / 6.6%** | hcp 7-15, **5+ clubs** |
+| `3NT` | — | 2.2 / 3.0% | hcp 14-21 |
+| `3♦` | 2.6 / 3.2% | — | hcp 11-19, 5+ diamonds |
+| `3♣` | 2.5 / 2.6% | — | hcp 11-19, 5+ clubs |
+
+Roughly 38% of the time our `2NT` is competed over at the three level or
+higher, and about 6% of the time our `3♣` transfer is **doubled** by a hand
+with 5+ clubs — which is precisely the lie-of-the-land the completion has to
+survive.  Any Kokish-Kraft port that moves one-suited minors through a
+cross-transfer inherits that doubled-completion tail as live traffic, not as an
+edge case.
+
+And the seat that decides whether our double ever gets a second call is the
+**overcaller's**, not the advancer's.  Probed at seat 1 with the actor's hands
+filtered to the ones BBA actually opens `2♣` with
+(`--filter-call 2♣ --filter-prefix 1NT`, 20,000 hands, vul none) — the
+unfiltered version of this probe is meaningless here, because only about a
+tenth of random hands are Landy hands:
+
+| after | overcaller's action |
+| --- | --- |
+| `X (2♥) -` | **Pass 94.5%**, `3♥` 2.9%, `4♥` 1.4% |
+| `X (2♠) -` | **Pass 96.7%**, `4♠` 1.9%, `3♠` 1.2% |
+| `X (2♦) -` | `2♥` 41.2%, `2♠` 38.2%, `2NT` 19.9% — **never passes** |
+| `X (2NT) -` | `4♥` 30.8%, `4♠` 23.5%, `3♠` 16.4%, `3♥` 13.5%, `6♥` 8.0%, `6♠` 5.5% |
+| `X (-)` | Pass 60.0%, `2♥` 18.5%, `2♠` 17.0% |
+
+Three consequences, and each one moves a path.
+
+**The Landy lane has no "ran" leg.**  In the Multi lane the advancer's
+pass-or-correct is provisional and the overcaller pulls it, which is why
+[`kokish_kraft_doubler_rebid`](../../src/bidding/american/competition/rubensohl.rs)
+carries a `ran` parameter and `kokish_kraft_entries` registers
+`X (2♥) - (2♠)`.  Here the preference is **final** at 94.5-96.7%: the
+overcaller has already shown both majors and lets partner choose.  A Landy port
+of that ladder therefore needs no `ran` fork and no correction path — the two
+clean legs `X (2♥) - -` and `X (2♠) - -` carry essentially all of the 58.5%
+preference traffic.
+
+**Their `2♦` is artificial and it is always pulled.**  BBA's own label for it
+is `artificial` on 200/200 hands — it is "pick a major", not diamonds — and the
+overcaller corrects it to a major 79.4% of the time and relays `2NT` the rest.
+It never passes.  So `X (2♦) - -` barely exists, while `X (2♦) - (2♥)` and
+`X (2♦) - (2♠)` between them carry about 7.9% of the whole `X` branch — more
+than the invitational raise, and comparable to the two game jumps combined.
+Those are live doubler-rebid seats, they take the *same* ladder (their major is
+now named), and because the `2♦` carried no diamond claim a natural `3♦` rung
+is safe on them.
+
+**After their `2NT` the auction is theirs.**  54.3% of the time the overcaller
+jumps straight to `4M` and another 13.5% to a small slam; nothing invitational
+survives.  A constructive doubler ladder at that seat would almost never fire,
+which is the measured argument for leaving `X (2NT)` to the floor.
+
+One reading fact from the same run, worth stating because it bounds every
+disclosure argument in this lane: BBA labels our values `X` **`bidable suit`**
+on 200/200 hands.  It does not decode the double as values at all, so no
+pass/double-inversion polarity we author on our own side is visible to it.
+
+Reproduce with:
+
+```text
+for a in '1NT 2♣ X 2♥ -' '1NT 2♣ X 2♠ -' '1NT 2♣ X 2♦ -' '1NT 2♣ X 2NT -'; do
+  cargo run --quiet --release --example probe-bba-constraints -- \
+    --mode custom --seat 1 --calls "$a" --filter-call '2♣' --filter-prefix '1NT' \
+    --vul none --samples 20000 --min-share 0.005
+done
+cargo run --quiet --release --example probe-bba-constraints -- \
+  --mode custom --seat 3 --calls '1NT 2♣ X 2♦' --samples 1 --meanings 200 --min-share 0
+```
+
+Reproduce with:
+
+```text
+for a in '1NT 2♣ X' '1NT 2♣ -' '1NT 2♣ 2NT' '1NT 2♣ 3♣'; do
+  cargo run --quiet --release --example probe-bba-constraints -- \
+    --mode custom --seat 3 --calls "$a" --vul none,both --samples 4000
+done
+```
+
 ### What pons currently does
 
 The shipped `defense_2c_landy_bba` table is a deliberate hybrid, not a literal

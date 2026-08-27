@@ -9,6 +9,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.defense_2c_landy_kk`** (default **off**, A/B owed) — the full
+  Kokish–Kraft minor core over their `(2♣)` Landy, the twin of
+  `competition.multi_kokish_kraft` one suit down. Five rungs of
+  `landy_bba_responder` swap for the only located source that assigns every
+  direct call from `2♦` through `4♠`: `2♥`/`2♠` are **both minors split by
+  strength** (competitive / invitational-plus, stoppers shown next) where the
+  shipped ladder makes them a game-forcing takeout naming a doubleton; `2NT`
+  becomes a **weak escape into either six-card minor** (forced `3♣`, pass or
+  correct) where the ladder spends it on a wide club transfer; and `3♣`/`3♦`
+  become **game-forcing cross-transfers** (`3♣` = diamonds, `3♦` = clubs) where
+  the ladder has a wide diamond transfer and no `3♦` at all. Both `3NT` rows,
+  the values `X`, the weak `2♦`, the splinters and the `Pass` catch-all carry
+  over verbatim; the source's fast/slow `3NT` inversion is deliberately dropped
+  (it rode a two-way `2NT` this variant does not have). The `3♦` leg is
+  asymmetric on purpose — completing it would mean `4♣`, overshooting `3NT`, so
+  opener shows stoppers below game instead. **The strength bands are `hcp`, not
+  the plan's sketched `points`**: the values `X` is `hcp(8..)`, and grading a
+  call that *shows* four-four minors or a six-card suit on points breaks the
+  complement on exactly its own hands — measured, `points(..=7)` on the escape
+  relay leaves a seven-count with a six-card minor passing. No user impact until
+  armed; the default build is byte-identical on 20,000 seeded deals
+  (`smoke-default --count 20000 --seed 1`). `docs/one-notrump-competitive.md`
+  §N1n.
+
+- **`competition.landy_tail_completion`** (default **off**, A/B owed) — the N1j
+  Landy lane's three unfinished tails as one batch, their pools individually too
+  thin for solo verdicts. (1) Their **overcall of our minor transfer**:
+  `1NT (2♣) 2NT (3♥)`, `3♣ (3♠)` and siblings were never registered, and the
+  bucket cut prices the `3♣ (3♠)` leg at 6 bd / +1 plain / **−38 PD**, its worst
+  lines the floor blasting `5♦` over a transfer that promised no values —
+  `landy_transfer_overcalled` leaves Pass the default and adds only the three
+  calls Pass cannot make. (2) The **five floored four-level seats** this arm
+  owns from the 2026-08-25 survey (`docs/minor-transfer-slam.md`), each a `4m`
+  at a node with `fallback: Some(0)` where the floor cannot keycard —
+  `instinct`'s ask is gated on `Context::undisturbed`. Opener's two seats reuse
+  `landy_slam_answer`, responder's three take the new `landy_four_minor_place`,
+  and both carry `slam::rkcb_rows`; at `1NT (2♣) 3♥ - 4♣ -` the floor bids a
+  phantom **`4♠`** where the armed book asks keycard. (3) The **manufactured
+  `4♣`** — `landy_bba_ask_answer`'s catch-all names clubs on `hcp(0..)`, so
+  `9432.AKQ32.K43.A` bids it on a singleton; armed, the last resort is the
+  longer three-card minor and that hand bids `4♦`. No user impact until armed.
+  `docs/one-notrump-competitive.md` §N1m.
+
+- **`competition.landy_splinter_hcp`** (default **off**, A/B owed) — grades the
+  N1j both-minor splinters (`3♥`/`3♠`) on `hcp(10..)` instead of `points(10..)`,
+  a floor that today counts the very shortness the call announces, so a 4=1=4=4
+  nine-count splinters. The only branch of the `(2♣)` lane negative on both
+  scorers (23 bd, −18 plain / −32 PD), with the `hcp 8..=9` sub-cell at −33/−39
+  against +8/+1 for `hcp 10+`. **The mechanism was corrected during the build
+  and the hypothesis changed with it**: the demoted hands do *not* fall to the
+  values double as §N1k finding 3 predicted — the ungated `3NT`@168 below the
+  splinters is `points(10..)` too and catches them — so the knob does not remove
+  the failing game, it **right-sides** it (shipped, `3♥ - 3NT` has opener
+  declaring with the singleton in dummy; armed, responder declares and the lead
+  comes into the 15-17). A flat verdict refutes the right-siding claim, not the
+  strength claim; the wider alternative (regrading the `3NT`@168 blast rung too)
+  is flagged, not taken. `docs/one-notrump-competitive.md` §N1m.
+
+- **`competition.landy_doubler_rebids`** (default **off**, A/B owed, gated on
+  `landy_doubler_notrump`'s verdict) — the N1j Landy doubler's *own* rebid once
+  their advance has named the major: `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and
+  the two legs where their artificial `2♦` escape was pulled to a major.
+  `4NT`@160 quantitative, a **penalty** `X`@155 on four of their major
+  (`comp:landy-penalty` + `.penalty()`), `3NT`@150, a `2NT`@145 invitation and
+  natural `3♣`/`3♦`@100/99 on a five-card minor, `Pass`@0; plus opener's three
+  answers (sit over the repeated double, and the Multi lane's invite and
+  quantitative tables reused). `competition.multi_kokish_kraft`'s doubler
+  ladder ported one suit down, with two probe-driven differences: **no
+  correction leg** (BBA's Landy overcaller passes the advance's preference
+  94.5%/96.7% of the time rather than pulling it, where the Multi overcaller
+  pulls) and a natural **minor** where the twin has the other major (this
+  opponent holds both). The seat is the floor's today and the floor bids `3NT`
+  holding four of their major instead of doubling, then passes the 8–9
+  invitations. No user impact until the knob is armed — the default build
+  registers no node there. `docs/one-notrump-competitive.md` §N1l.
+
+- **Four A/B runners for the owed §N1 Landy verdicts** —
+  `scripts/ab-landy-doubler-rebids.sh` (§N1l), `ab-landy-splinter-hcp.sh` and
+  `ab-landy-tails.sh` (§N1m, one seed each), and `ab-landy-kk.sh` (§N1n). Each
+  carries its named falsifiers in the header, per the house runner idiom, and
+  the sequencing they encode is a real dependency, not taste: §N1l's ladder is
+  where §N1n's 8-9 one-suited minors are supposed to go, and §N1m's demoted
+  splinter hands overlap both doubler knobs' populations, so measured together
+  they would price a package rather than a rung.
+
 - **`competition.landy_doubler_notrump`** (default **off**, A/B owed) — opener's
   notrump out over the N1j Landy doubler's advanced major, `1NT (2♣) X (2♥)` and
   `1NT (2♣) X (2♠)`: `3NT`@135 on `hcp(16..) & stopper_in(major)`, `Pass`@0
@@ -32,6 +117,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `probe-decision` gains `PROBE_LANDY_DOUBLER_NT`.
 
 ### Measured
+
+- **`competition.landy_doubler_notrump` (§N1k) REFUTED as a default; stays
+  opt-in, default unchanged.** `SEED_BASE 1787834269`, sha `99460a98`,
+  2 304 000 bd/arm/vul under `--filter-landy`, **isolation gate 0 foreign in
+  both cells** (0/18 487 and 0/14 242).
+
+  | vul | plain DD | PD | plain SD | SD-PD |
+  | --- | ---: | ---: | ---: | ---: |
+  | none | **+0.0190** ±0.0007 | **−0.0149** ±0.0009 | +0.0343 ±0.0008 | **+0.0068** ±0.0008 |
+  | both | **+0.0103** ±0.0008 | **−0.0226** ±0.0010 | +0.0271 ±0.0009 | **−0.0014** ±0.0009 |
+
+  Both DD cells sit on the decision table's `win | loss` doubling-artifact row,
+  and this is a bid-more knob, so that row applies unmodified. The sd-lead
+  bracket does not rescue it — SD-PD **collapses** out of plain SD in both cells
+  (a fifth retained at none, a sign flip at both), which is the SD pair's *"the
+  win was the missing doubling"* reading. The axes separate identically at both
+  vulnerabilities: about **+0.017…+0.021 of DD lead pessimism** (the known
+  ~+0.3-tricks-to-1NT-declarers bias) against about **−0.03 of doubling**, with
+  vulnerability moving only the plain-DD base. No user impact — the knob was and
+  stays default-off.
+
+  **Neither named falsifier was the mechanism.** Across the twenty worst boards
+  printed the shadowed floor `3♦` appears in none, and both major legs appear in
+  both cells' worst five (a full split by advanced major, which would price the
+  `(2♠)` leg alone, was not run).
+  What the traces show, on 3 of the 5 worst plain-DD boards at *each*
+  vulnerability, is the OFF arm's floor finding a **delayed penalty double at
+  our doubler's own rebid seat** (`1NT (2♣) X (2♥) - - X`) — the call §N1l
+  authors as `X`@155 — which this `3NT` shadows one seat earlier. So the plan's
+  N1k-gates-N1l sequencing is backwards: §N1l is now measured against today's
+  `main`, and any N1k re-measure belongs on top of a shipped §N1l.
+
+  **Why the game fails, hand-traced.** All six distinct boards in the two
+  perfect-defense worst-fives were walked: in **6 of 6** the overcaller holds a
+  five- to eight-card major and opener's holding in it is a nominal stopper that
+  cannot hold up. `has_stopper` is a **holding** test — `A` at any length, `K`
+  with two, `Q` with three, `J` with four — and is blind to *their* suit length,
+  so a bare ace scores as a stopper against eight cards. Against a Landy
+  overcaller (4-4+ promised, routinely 4-7 or 4-8, with the advance only a
+  preference) that approximation breaks, and the suit opener stopped is often
+  not the suit that runs. A both-majors-stopped narrowing blocks 2 of the 6 and
+  would cost most of the fires; the repair it points at — a length-aware stopper
+  — is unavailable, because nothing in the auction separates their 4-4 from
+  their 4-8. **Proposed reversible default: leave the knob off and do not re-arm
+  it standalone.** `docs/one-notrump-competitive.md` §N1k.
+
+- **BBA's `(2♣)` Landy continuations probed at both opposing seats**
+  (`docs/ai-bidder/landy-2c-counter-defense-research.md`; read-only, no
+  generation). Every exact-object source in that paper prices our *first* call
+  and none prices what they do next. The advancer (seat 3, 4,000 hands/vul)
+  takes a `2♥`/`2♠` preference 58.5% over our `X`, bids a **strong** `2NT`
+  (12–19 HCP, 3-5 in both majors) 12.8/15.9%, runs to an artificial `2♦` 9.9%,
+  and passes with six clubs 2.8% — a distribution nearly invariant to whether
+  we doubled or passed. The overcaller (seat 1, 20,000 hands, filtered to hands
+  BBA actually overcalls `2♣` with — unfiltered the probe is meaningless, only
+  ~10% of random hands are Landy hands) **passes the preference 94.5%/96.7%**,
+  **never passes the `2♦`** (pulling it to a major 79.4%), and over their `2NT`
+  jumps to game 54.3% and slam 13.5%. Two structural facts follow: the Landy
+  lane has **no correction leg** (unlike the Multi twin), and `X (2♦) - (2M)`
+  is a live seat worth ~7.9% of the `X` branch. BBA labels their `2♦`
+  `artificial` and our values `X` merely `bidable suit`, both 200/200 hands.
+
 
 - **The `(2♣)` Landy bucket decomposed** (`docs/one-notrump-competitive.md`
   §N1k; read-only, off the anchor's own DD cache — no generation). The

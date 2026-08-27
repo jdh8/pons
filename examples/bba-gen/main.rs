@@ -871,6 +871,45 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_notrump: bool,
 
+    /// Author the N1j Landy doubler's own rebid once their advance has named
+    /// the major (`1NT (2♣) X (2♥) - -` and its three siblings)
+    ///
+    /// `competition.landy_doubler_rebids`, default **off**: the Kokish–Kraft
+    /// doubler ladder ported one suit down — `4NT` quantitative, the penalty
+    /// `X` on four of their major, `3NT`, the `2NT` invitation and natural
+    /// `3♣`/`3♦` — where the seat is the floor's today and the auction dies.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_rebids: bool,
+
+    /// Grade the N1j Landy both-minor splinters on high cards, not points
+    ///
+    /// `competition.landy_splinter_hcp`, default **off**: `3♥`/`3♠` take
+    /// `hcp(10..)` instead of `points(10..)`, so a shortness-inflated 8-9 HCP
+    /// hand doubles rather than splintering.  The only branch of the `(2♣)`
+    /// lane negative on both scorers (23 bd, −18 plain / −32 PD).
+    #[arg(long, default_value_t = false)]
+    ns_landy_splinter_hcp: bool,
+
+    /// Author the N1j Landy lane's three unfinished tails as one batch
+    ///
+    /// `competition.landy_tail_completion`, default **off**: their overcall of
+    /// our minor transfer (`3♣ (3♠)`, 6 bd at −38 PD), the five floored
+    /// four-level seats of the 2026-08-25 survey plus their RKCB ladders, and
+    /// the manufactured-`4♣` repair in `landy_bba_ask_answer`.
+    #[arg(long, default_value_t = false)]
+    ns_landy_tail_completion: bool,
+
+    /// Play the full Kokish–Kraft minor core over their `(2♣)` Landy
+    ///
+    /// `competition.defense_2c_landy_kk`, default **off**: `2♥`/`2♠` both
+    /// minors split by strength, `2NT` a weak either-minor escape relay,
+    /// `3♣`/`3♦` game-forcing cross-transfers.  Replaces the shipped N1j ladder's
+    /// minor structure; `3NT`, the values `X`, the weak `2♦` and the splinters
+    /// carry over verbatim.  Wants `--ns-landy-doubler-rebids` under it — 8-9
+    /// one-suited minors have no direct call in this table.
+    #[arg(long, default_value_t = false)]
+    ns_defense_2c_landy_kk: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2346,6 +2385,10 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     agreements.competition.landy_doubler_notrump = args.ns_landy_doubler_notrump;
+    agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
+    agreements.competition.landy_splinter_hcp = args.ns_landy_splinter_hcp;
+    agreements.competition.landy_tail_completion = args.ns_landy_tail_completion;
+    agreements.competition.defense_2c_landy_kk = args.ns_defense_2c_landy_kk;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

@@ -198,6 +198,39 @@ fn main() {
         Ok(_) => agreements.competition.landy_doubler_notrump = true,
         Err(_) => {}
     }
+    // The Landy doubler's own rebid once their advance names the major
+    // (`competition.landy_doubler_rebids`, default off — A/B owed).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything.
+    match std::env::var("PROBE_LANDY_DOUBLER_REBIDS").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_doubler_rebids = false,
+        Ok(_) => agreements.competition.landy_doubler_rebids = true,
+        Err(_) => {}
+    }
+    // The N1j splinters graded on high cards rather than points
+    // (`competition.landy_splinter_hcp`, default off — A/B owed).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything.
+    match std::env::var("PROBE_LANDY_SPLINTER_HCP").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_splinter_hcp = false,
+        Ok(_) => agreements.competition.landy_splinter_hcp = true,
+        Err(_) => {}
+    }
+    // The N1j lane's three unfinished tails, as one batch
+    // (`competition.landy_tail_completion`, default off — A/B owed).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything.
+    match std::env::var("PROBE_LANDY_TAIL_COMPLETION").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_tail_completion = false,
+        Ok(_) => agreements.competition.landy_tail_completion = true,
+        Err(_) => {}
+    }
+    // The full Kokish–Kraft minor core over their `(2♣)`
+    // (`competition.defense_2c_landy_kk`, default off — A/B owed).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything, and outranks the shipped N1j
+    // ladder rather than composing with it.
+    match std::env::var("PROBE_LANDY_KK").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.defense_2c_landy_kk = false,
+        Ok(_) => agreements.competition.defense_2c_landy_kk = true,
+        Err(_) => {}
+    }
     // The `4m` slam try above a completed *Puppet* minor transfer
     // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
     match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {

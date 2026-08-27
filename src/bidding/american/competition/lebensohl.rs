@@ -201,6 +201,16 @@ fn landy_bba(agreements: &Agreements) -> bool {
     agreements.competition.defense_2c_landy_bba
 }
 
+/// Whether the Kokish–Kraft variant owns the `(2♣)` Landy lane
+///
+/// [`kokish_kraft`]'s twin one suit down.  It **outranks**
+/// [`landy_bba`] rather than composing with it: the two responder tables
+/// disagree on `2♥`, `2♠`, `2NT`, `3♣` and `3♦`, so an overlay would leave the
+/// shipped rows shadowing these.
+fn landy_kk(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_kk
+}
+
 /// The single unbid major when `over` is itself a major (the other major)
 ///
 /// `None` when `over` is a minor (then both majors are unbid) — the stopper-split
@@ -585,6 +595,81 @@ fn landy_doubler_major_answer(major: Suit) -> Rules {
             hcp(16..) & stopper_in(major),
         )
         .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The Landy doubler's rebid once their advance has named the major
+/// (`1NT (2♣) X (2♥) - -`, `X (2♠) - -`, `X (2♦) - (2♥)`, `X (2♦) - (2♠)`),
+/// under
+/// [`CompetitionKnobs::landy_doubler_rebids`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_rebids]
+///
+/// [`kokish_kraft_doubler_rebid`]'s ladder ported one suit down — same four
+/// rungs, same weights, same catch-all — with the two changes this lane forces.
+///
+/// **No `ran` fork.**  The Multi twin carries one because their advancer's
+/// pass-or-correct is provisional and the overcaller pulls it, which is why
+/// `kokish_kraft_entries` registers `X (2♥) - (2♠)`.  Probed at seat 1 with the
+/// actor's hands filtered to the ones BBA actually overcalls `2♣` with, the
+/// Landy overcaller passes the preference **94.5%** of the time over `(2♥)` and
+/// **96.7%** over `(2♠)`: it has already shown both majors and lets partner
+/// choose.  The preference is final, so there is no correction to fork on.
+///
+/// **A natural minor where the twin has the other major.**  The twin's
+/// weight-100 rung is the major partner did not pick.  Here they hold *both*
+/// majors, so there is no other major to bid, and the slot goes to a five-card
+/// minor at the three level.  That rung is also the only route for an 8–9
+/// one-suited minor: [`landy_bba_responder`]'s transfers above it are wide but
+/// its `3NT`@168 outranks the double, so the hand that doubles first is the one
+/// that cannot transfer.  Clubs first when both, the house's cheaper-minor
+/// idiom.
+///
+/// Every rung answers a hole this seat has today, and the seat is the floor's
+/// on every hand — `probe-decision` prints `fallback: Some(0)` across the band.
+/// The floor bids `3NT` holding `KJ98` of *their* major instead of doubling
+/// (`X` is not in its top six), and passes both the 8–9 invitation and the 8–9
+/// five-card minor.  That is the 2026-08-27 census's "the auction dies after
+/// our values double" (67 bd, −75 plain) stated hand by hand.
+///
+/// The escape legs take the same table: their `2♦` is **artificial** — BBA's
+/// own label on 200/200 hands, a "pick a major" relay the overcaller corrects
+/// 79.4% of the time and never passes — so it carries no diamond claim and the
+/// `3♦` rung is as safe there as on the preference legs.
+///
+/// **The top two rungs are dead in self-play, and they are kept anyway.**
+/// Unlike the Multi twin — whose `3NT`@150 needs *both* major stoppers, so a
+/// one-stopper game hand really does double first — this lane's
+/// [`landy_bba_responder`] carries an **ungated** `3NT`@168 on `points(10..)`.
+/// Every 10-plus-point hand therefore bids `3NT` directly and never doubles,
+/// which caps the double at nine points (`probe-call-reading` reads it back as
+/// `points 8..9`, and the ordering says the same thing).  So `4NT`@160
+/// (`hcp(16..)`) and `3NT`@150 (`points(10..)`) can only fire opposite a
+/// partner who is not bidding this table.  They stay because the table is
+/// **total**: with them deleted a strong hand arriving here would take the
+/// `Pass`@0 catch-all, which is strictly worse than the floor this node
+/// shadows.  What actually fires in self-play is `X` / `2NT` / `3♣` / `3♦` /
+/// `Pass` — which is exactly the census's dying auction.
+fn landy_doubler_rebid(major: Suit) -> Rules {
+    let mut rules = Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 160, hcp(16..))
+        .rule(Call::Double, 155, len(major, 4..))
+        .alert(LANDY_PENALTY)
+        .penalty()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(major),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            145,
+            hcp(8..=9) & stopper_in(major),
+        );
+    // Below every rung above and above the catch-all, so the naturals fire on
+    // exactly the hands that pass today and cannot move a call this lane
+    // already makes.
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(Bid::new(3, Strain::from(minor)), weight, len(minor, 5..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to the counter's weak sign-offs — pass, always
@@ -990,19 +1075,49 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
             177,
             both_minors.clone() & len(Suit::Spades, 2..=2) & len(Suit::Hearts, 3..) & points(10..),
         )
-        .alert(LANDY_TKO)
-        .rule(
-            Bid::new(3, Strain::Hearts),
-            176,
-            both_minors.clone() & len(Suit::Hearts, ..=1) & points(10..),
-        )
-        .alert(LANDY_SPL)
-        .rule(
-            Bid::new(3, Strain::Spades),
-            175,
-            both_minors.clone() & len(Suit::Spades, ..=1) & points(10..),
-        )
-        .alert(LANDY_SPL);
+        .alert(LANDY_TKO);
+
+    // The splinters.  `points(10..)` is the shipped gate, and it counts the
+    // shortness the splinter is *showing*: a 4=1=4=4 eight-count grades to ten
+    // and fires.  14 of the 17 `3♥` boards in the 2026-08-27 bucket cut are
+    // exactly that hand — opener signs off in a `3NT` that fails opposite a
+    // singleton in the suit they led (the sub-cell is −33 plain / −39 PD
+    // against +8/+1 for `hcp 10+`).
+    // [`CompetitionKnobs::landy_splinter_hcp`][crate::bidding::agreements::CompetitionKnobs::landy_splinter_hcp]
+    // prices the same rung on high cards only — which **right-sides** the game
+    // rather than avoiding it, the `3NT`@168 below being `points(10..)` too.
+    // The fork is on `Rules`, not on the constraint: `hcp(10..)` and
+    // `points(10..)` are different opaque types, the same shape
+    // `kokish_kraft_doubler_rebid`'s `px_split` fork uses.
+    rules = if agreements.competition.landy_splinter_hcp {
+        rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                176,
+                both_minors.clone() & len(Suit::Hearts, ..=1) & hcp(10..),
+            )
+            .alert(LANDY_SPL)
+            .rule(
+                Bid::new(3, Strain::Spades),
+                175,
+                both_minors.clone() & len(Suit::Spades, ..=1) & hcp(10..),
+            )
+            .alert(LANDY_SPL)
+    } else {
+        rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                176,
+                both_minors.clone() & len(Suit::Hearts, ..=1) & points(10..),
+            )
+            .alert(LANDY_SPL)
+            .rule(
+                Bid::new(3, Strain::Spades),
+                175,
+                both_minors.clone() & len(Suit::Spades, ..=1) & points(10..),
+            )
+            .alert(LANDY_SPL)
+    };
 
     // BBA's wide minor transfers, completed 100%: the whole one-suiter lane,
     // weak sign-off through game force.  The N1c band's ceiling is removed
@@ -1178,10 +1293,26 @@ fn landy_bba_takeout_rebid(other: Suit) -> Rules {
 /// the cheapest four-card minor at the four level.  The game force is
 /// committed, and responder's continuation over a `4m` suit contract is
 /// deliberately the floor's (the slam-exploration doctrine).
-fn landy_bba_ask_answer(asked: Suit) -> Rules {
+fn landy_bba_ask_answer(asked: Suit, tails: bool) -> Rules {
     let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 100, stopper_in(asked));
     for (minor, weight) in [(Suit::Clubs, 60), (Suit::Diamonds, 59)] {
         rules = rules.rule(Bid::new(4, Strain::from(minor)), weight, len(minor, 4..));
+    }
+    // The catch-all fires when opener has neither the stopper nor a four-card
+    // minor — the `no_minor` branch of [`landy_bba_takeout_answer`], which
+    // leaves seven-plus major cards.  Shipped, it names `4♣` on `hcp(0..)`, so
+    // the call can be made on a doubleton and its published reading is the
+    // union of "four clubs" and "anything".  Under
+    // [`CompetitionKnobs::landy_tail_completion`][crate::bidding::agreements::CompetitionKnobs::landy_tail_completion]
+    // the last resort is instead the **longer** three-card minor, clubs first
+    // when they are equal (the house's cheaper-minor idiom): responder is 4-4
+    // or better in the minors, so a three-card preference is a known 4-3 and
+    // naming the right one is the whole of the repair.  The `hcp(0..)` row
+    // stays underneath because 2-2 minors are reachable on nine major cards.
+    if tails {
+        rules = rules
+            .rule(Bid::new(4, Strain::Clubs), 22, len(Suit::Clubs, 3..))
+            .rule(Bid::new(4, Strain::Diamonds), 21, len(Suit::Diamonds, 3..));
     }
     rules.rule(Bid::new(4, Strain::Clubs), 20, hcp(0..))
 }
@@ -1225,6 +1356,308 @@ fn landy_bba_takeout_overcalled(short: Suit, over: Bid) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Responder's first call under the Kokish–Kraft variant of the `(2♣)` Landy
+/// counter, [`CompetitionKnobs::defense_2c_landy_kk`][crate::bidding::agreements::CompetitionKnobs::defense_2c_landy_kk]
+///
+/// The source table (`docs/ai-bidder/landy-2c-counter-defense-research.md` §3)
+/// is the only located object that assigns every direct call from `2♦` through
+/// `4♠`; this is its minor core.  Against [`landy_bba_responder`] the moved
+/// rows are `2♥`, `2♠`, `2NT`, `3♣` and the new `3♦`; **`3NT`@180, `3NT`@168,
+/// the values `X`@145, the weak `2♦`@140 and `Pass`@0 are carried over
+/// verbatim**, cap arm included, so the two tables differ exactly where the
+/// source does.
+///
+/// Two orderings do the work the gates would otherwise have to.
+///
+/// **The splinters outrank the two-suiters** — the reverse of the shipped
+/// lane.  There `2♥`/`2♠` name an exact doubleton, which leaves the 0-1 hands
+/// to `3♥`/`3♠`; here they are a pure strength split with no shape gate, so
+/// unless the splinters sit above them they would never fire at all.
+///
+/// **The two-suiters outrank the cross-transfers**, which is what makes the
+/// transfers mean "unbalanced": `2♠` catches every 8-plus hand with four cards
+/// in *both* minors, so `3♣`/`3♦` fire only with three or fewer in the other
+/// one.  The source says "GF, unbalanced" and does not spell the gate; the
+/// ordering supplies it, the same way [`kokish_kraft_doubler_rebid`]'s
+/// ordering supplies its "at most a doubleton in theirs".
+///
+/// The strength routing this leaves is deliberate and worth stating, because
+/// it is what the A/B trades away: **an 8-9 one-suited minor has no direct
+/// call**.  The transfers are game-forcing and `2NT` is capped at seven, so
+/// those hands double and rebid `3m` through
+/// [`landy_doubler_rebid`]'s ladder — which is why
+/// [`CompetitionKnobs::landy_doubler_rebids`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_rebids]
+/// is a prerequisite for this variant and not a sibling of it.  A 16-plus
+/// balanced hand routes the same way, doubling and then bidding `4NT`.
+fn landy_kk_responder(agreements: &Agreements) -> Rules {
+    let both_minors = len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..);
+
+    // Carried over verbatim from `landy_bba_responder`.
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        180,
+        points(10..)
+            & stopper_in(Suit::Hearts)
+            & stopper_in(Suit::Spades)
+            & len(Suit::Clubs, ..=5)
+            & len(Suit::Diamonds, ..=5),
+    );
+
+    // The splinters, above the two-suiters — see the doc comment.  They carry
+    // `landy_splinter_hcp` exactly as the shipped table does, so the two arms
+    // stay comparable if that knob ships.
+    rules = if agreements.competition.landy_splinter_hcp {
+        rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                179,
+                both_minors.clone() & len(Suit::Hearts, ..=1) & hcp(10..),
+            )
+            .alert(LANDY_SPL)
+            .rule(
+                Bid::new(3, Strain::Spades),
+                178,
+                both_minors.clone() & len(Suit::Spades, ..=1) & hcp(10..),
+            )
+            .alert(LANDY_SPL)
+    } else {
+        rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                179,
+                both_minors.clone() & len(Suit::Hearts, ..=1) & points(10..),
+            )
+            .alert(LANDY_SPL)
+            .rule(
+                Bid::new(3, Strain::Spades),
+                178,
+                both_minors.clone() & len(Suit::Spades, ..=1) & points(10..),
+            )
+            .alert(LANDY_SPL)
+    };
+
+    // Both minors, split by strength rather than by shape.  The cut is on
+    // **high cards**, not points, so that it is exactly complementary to the
+    // values `X`@145 below (`hcp(8..)`): 0-7 without a shape call passes, 8+
+    // doubles, and the shape rows outrank the double.  `points` would break
+    // that on the very hands these rows are for — a call that *shows* four-four
+    // in the minors is graded up by the shape it is announcing, so a six-count
+    // would arrive in the invitational band.
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Spades),
+            177,
+            both_minors.clone() & hcp(8..),
+        )
+        .alert(LANDY_KK_MINORS)
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            176,
+            both_minors.clone() & hcp(..=7),
+        )
+        .alert(LANDY_KK_MINORS);
+
+    // The weak either-minor escape, and the two game-forcing cross-transfers.
+    // The escape's cap is `hcp` for the same reason and more sharply: it
+    // promises a *six-card* suit, which is worth two points on its own, so
+    // `points(..=7)` would admit almost nothing and leave the seven-count with
+    // a six-card minor passing — the exact hand the relay exists to rescue.
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            174,
+            (len(Suit::Clubs, 6..) | len(Suit::Diamonds, 6..)) & hcp(..=7),
+        )
+        .alert(LANDY_KK_RELAY)
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            173,
+            len(Suit::Diamonds, 6..) & points(10..),
+        )
+        .alert(LANDY_KK_TRANSFER)
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            172,
+            len(Suit::Clubs, 6..) & points(10..),
+        )
+        .alert(LANDY_KK_TRANSFER);
+
+    // Carried over verbatim, cap arm included.
+    rules = rules.rule(Bid::new(3, Strain::Notrump), 168, points(10..));
+    rules = rules
+        .rule(Call::Double, 145, hcp(8..))
+        .alert(LANDY_VALUES)
+        .penalty();
+    let escape = Bid::new(2, Strain::Diamonds);
+    let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
+    rules = if agreements.competition.defense_2c_landy_weak_2d_cap {
+        rules.rule(escape, 140, len(Suit::Diamonds, 5..) & hcp(..=6) & floors)
+    } else {
+        rules.rule(
+            escape,
+            140,
+            len(Suit::Diamonds, 5..) & points(..=9) & floors,
+        )
+    };
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Kokish–Kraft both-minor `2♥`/`2♠`
+///
+/// Responder named at least 4-4 in the minors and nothing else, so the only
+/// two questions are which minor and whether notrump is playable — and unlike
+/// [`landy_bba_takeout_answer`] there is no shortness claim to answer, because
+/// this pair of calls is a strength split.
+///
+/// `invitational` is the `2♠` band.  Over the competitive `2♥` notrump needs a
+/// maximum as well as both majors stopped; over `2♠` responder has already
+/// promised the values, so the stoppers alone are enough and responder shows
+/// its own next ([`landy_kk_minors_place`]).  Below that, the minor pick takes
+/// **three** cards rather than four: responder is 4-4 or better, so a
+/// three-card preference is a known 4-3 at worst, and the cheaper suit goes
+/// first.  The notrump catch-all under them is genuinely reachable — 2-2
+/// minors means nine major cards — which is what makes this table total.
+fn landy_kk_minors_answer(over: Bid, invitational: bool, agreements: &Agreements) -> Rules {
+    let notrump = cheapest_above(Strain::Notrump, over);
+    let both = stopper_in(Suit::Hearts) & stopper_in(Suit::Spades);
+    let max = agreements.notrump.size_ask_accept_floor;
+    let mut rules = if invitational {
+        Rules::new().rule(notrump, 150, both)
+    } else {
+        Rules::new().rule(notrump, 150, both & hcp(max..))
+    };
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(
+            cheapest_above(Strain::from(minor), over),
+            weight,
+            len(minor, 3..),
+        );
+    }
+    rules.rule(notrump, 20, hcp(0..))
+}
+
+/// Responder's placement over opener's notrump answer to the invitational-plus
+/// `2♠` (`1NT (2♣) 2♠ - 2NT -`)
+///
+/// The "show stoppers next" half of the source's `2♠`: opener's notrump
+/// promised both majors guarded, so what is left is the size question responder
+/// deliberately left open, plus the slam try a 4-4 minor fit can still carry.
+/// Pass is the invitation declined — safe, because the notrump was not a
+/// maximum claim on this leg.
+fn landy_kk_minors_place() -> Rules {
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 120, points(10..));
+    for (minor, weight) in [(Suit::Clubs, 130), (Suit::Diamonds, 129)] {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(minor)),
+            weight,
+            points(14..) & len(minor, 5..),
+        );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's rebid over the forced `3♣` completion of the Kokish–Kraft
+/// escape relay (`1NT (2♣) 2NT - 3♣ -`)
+///
+/// Pass to play clubs, correct to `3♦` with diamonds — and nothing else, which
+/// is what makes this different from [`lebensohl_relay_rebid`]: the relay
+/// promised a **minor**, so a major rung here would be a suit responder has
+/// already denied.  Opener sits either way ([`multi_signoff_pass`]): the band
+/// tops out at seven points.
+fn landy_kk_relay_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 6..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Kokish–Kraft `3♦` game-forcing club transfer
+///
+/// **Asymmetric by necessity.**  Its sibling `3♣` (diamonds) is completed at
+/// `3♦` and the auction still has room below `3NT`; completing this one would
+/// mean `4♣`, which overshoots the game the pair is most likely to play.  So
+/// this leg shows stoppers below game instead of completing: `3NT` with both
+/// majors guarded, the cheaper single stopper as a cue when only one is held,
+/// and `4♣` — the completion — when neither is.
+///
+/// That last rung is the only one that names clubs, and it is exactly the hand
+/// that cannot play notrump from either side, so the six-card suit becomes
+/// trumps.  Responder is game-forcing throughout, so `Pass` is not in the
+/// table at all; the grammar is [`landy_bba_takeout_answer`]'s, one strain up.
+fn landy_kk_clubs_answer() -> Rules {
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        150,
+        stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+    );
+    for (held, weight) in [(Suit::Hearts, 120), (Suit::Spades, 119)] {
+        rules = rules
+            .rule(Bid::new(3, Strain::from(held)), weight, stopper_in(held))
+            .alert(LANDY_KK_STOPPER);
+    }
+    rules.rule(Bid::new(4, Strain::Clubs), 20, hcp(0..))
+}
+
+/// Opener's answer when they overcall the N1j minor transfer
+/// (`1NT (2♣) 2NT (3♥)`, `1NT (2♣) 3♣ (3♠)` and their siblings), under
+/// [`CompetitionKnobs::landy_tail_completion`][crate::bidding::agreements::CompetitionKnobs::landy_tail_completion]
+///
+/// The transfers are completed doubled and undoubled, but their **overcall**
+/// was never registered, and the 2026-08-27 bucket cut named the cost: the
+/// `3♣ (3♠)` leg is 6 bd at +1 plain / **−38 PD**, and its worst lines are the
+/// floor blasting `5♦` on a transfer that promised no values at all.
+///
+/// [`landy_cue_overcalled`]'s doctrine, one seat over and with a weaker
+/// partner: Pass is the default and it is *safe*, because responder showed a
+/// six-card suit and may hold nothing.  Above it sit only the calls Pass
+/// cannot make — the game with their suit stopped and a maximum, the fit at
+/// the cheapest level a maximum can afford, and the values double when there
+/// is neither.
+fn landy_transfer_overcalled(
+    minor: Suit,
+    their: Suit,
+    over: Bid,
+    agreements: &Agreements,
+) -> Rules {
+    let strain = Strain::from(minor);
+    let max = agreements.notrump.size_ask_accept_floor;
+    let mut rules = Rules::new();
+    let notrump = cheapest_above(Strain::Notrump, over);
+    if notrump <= Bid::new(3, Strain::Notrump) {
+        rules = rules.rule(notrump, 150, stopper_in(their) & hcp(max..));
+    }
+    let raise = cheapest_above(strain, over);
+    if raise <= Bid::new(4, strain) {
+        rules = rules.rule(raise, 100, len(minor, 3..) & hcp(max..));
+    }
+    rules
+        .rule(Call::Double, 90, hcp(max..))
+        .penalty()
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder places the contract over opener's four-level minor, under
+/// [`CompetitionKnobs::landy_tail_completion`][crate::bidding::agreements::CompetitionKnobs::landy_tail_completion]
+///
+/// The five N1j seats of the 2026-08-25 survey where **responder** is left
+/// holding a game force over a `4m` nobody can answer
+/// (`docs/minor-transfer-slam.md`): opener's minor pick after the stopper ask,
+/// its overcalled twin, the splinter's four-level pick, and opener's forced
+/// retreat after a re-cue.  Every one of them prints `fallback: Some(0)`, and
+/// the floor cannot keycard in a disturbed auction — `instinct`'s `4NT` ask is
+/// gated on `Context::undisturbed`, which this lane fails by construction.
+///
+/// [`landy_slam_answer`]'s shape from the other side of the table: extras ask
+/// keycard, everything else places the game in the known 4-3-or-better fit.
+/// The floor is `points(14..)`, the same one [`landy_bba_takeout_rebid`] uses
+/// for its own slam try, so the two sides of the lane agree on what "extras"
+/// means.
+fn landy_four_minor_place(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 160, points(14..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(5, Strain::from(minor)), 100, hcp(0..))
+}
+
 /// The N1j BBA-ladder registration — responder's table, opener's answers, the
 /// transfer completions and rebids, and the interfered tails
 ///
@@ -1240,10 +1673,24 @@ fn landy_bba_takeout_overcalled(short: Suit, over: Bid) -> Rules {
 fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     const OVER: &str = "P* 1NT (2♣)";
     let mut entries = Vec::new();
+    // The 2026-08-27 tail batch: the interfered transfer, the four-level seats
+    // the 2026-08-25 survey left floored, and the manufactured-`4♣` repair.
+    // One knob, because the three pools are far too thin to carry solo
+    // verdicts (`docs/one-notrump-competitive.md` §N1m).
+    let tails = agreements.competition.landy_tail_completion;
+    // The Kokish–Kraft variant swaps five rungs of responder's table and the
+    // continuations that hang off them; everything else in this function is
+    // shared, which is why it forks here rather than in a parallel entries
+    // function (`docs/one-notrump-competitive.md` §N1n).
+    let kk = landy_kk(agreements);
 
     entries.extend(rows_of(
         Pattern::after("P* 1NT", "(2♣)"),
-        landy_bba_responder(agreements),
+        if kk {
+            landy_kk_responder(agreements)
+        } else {
+            landy_bba_responder(agreements)
+        },
     ));
     entries.extend(rows_of(Pattern::after(OVER, "X -"), landy_double_answer()));
     // Their major over the values double.  Unregistered by default, so the
@@ -1262,9 +1709,61 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         landy_signoff_answer(),
     ));
 
-    // The wide transfers: forced completion (doubled or not), responder's
-    // rebid, and opener's answer to the stopper show.
-    for (minor, transfer) in [(Suit::Clubs, "2NT"), (Suit::Diamonds, "3♣")] {
+    // The doubler's own rebid, once their advance has named the major.  Four
+    // paths, no correction leg: the Landy overcaller passes the preference
+    // 94.5%/96.7% of the time (probed at seat 1, filtered to hands it actually
+    // overcalls `2♣` with), so `X (2♥) - -` and `X (2♠) - -` carry essentially
+    // all of the preference traffic — and their artificial `2♦` escape is
+    // pulled to a major 79.4% of the time and passed never, so the two escape
+    // legs are live seats taking the same table with the major now named.
+    //
+    // `X (2NT)` is deliberately absent.  After that strong advance the
+    // overcaller jumps to `4M` 54.3% of the time and to slam another 13.5%;
+    // nothing invitational survives to answer, so the seat stays the floor's.
+    if agreements.competition.landy_doubler_rebids {
+        let sit = multi_signoff_pass();
+        for (path, major) in [
+            ("X (2♥) - -", Suit::Hearts),
+            ("X (2♠) - -", Suit::Spades),
+            ("X (2♦) - (2♥)", Suit::Hearts),
+            ("X (2♦) - (2♠)", Suit::Spades),
+        ] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, path),
+                landy_doubler_rebid(major),
+            ));
+            // The repeated double is penalty by this lane's polarity rule, so
+            // opener sits on it rather than answering a takeout.
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} X -")),
+                sit.clone(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} 2NT -")),
+                kokish_kraft_invite_answer(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} 4NT -")),
+                multi_quant_answer(),
+            ));
+        }
+        // Their `2NT` over the pulled escape is the overcaller's own major
+        // relay (19.9% of the escape branch) — nothing to say until they place
+        // it, the same ruling `kokish_kraft_entries` makes at `X (2♠) - (2NT)`.
+        entries.extend(rows_of(Pattern::after(OVER, "X (2♦) - (2NT)"), sit));
+    }
+
+    // The transfers: forced completion (doubled or not), responder's rebid, and
+    // opener's answer to the stopper show.  Wide on the shipped lane; under
+    // Kokish–Kraft only the `3♣` cross-transfer survives here — its `2NT` is an
+    // escape relay, registered below, and its `3♦` shows *clubs* and is
+    // answered rather than completed.
+    let transfers: &[(Suit, &str)] = if kk {
+        &[(Suit::Diamonds, "3♣")]
+    } else {
+        &[(Suit::Clubs, "2NT"), (Suit::Diamonds, "3♣")]
+    };
+    for &(minor, transfer) in transfers {
         let done = Bid::new(3, Strain::from(minor));
         for suffix in [format!("{transfer} -"), format!("{transfer} (X)")] {
             let completion = if minor == Suit::Clubs {
@@ -1284,13 +1783,33 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             landy_bba_transfer_rebid(minor),
         ));
         for (held, asked) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+            let recue = format!("{completed} {} -", Bid::new(3, Strain::from(held)));
             entries.extend(rows_of(
-                Pattern::after(
-                    OVER,
-                    &format!("{completed} {} -", Bid::new(3, Strain::from(held))),
-                ),
+                Pattern::after(OVER, &recue),
                 landy_recue_answer(minor, asked),
             ));
+            // Opener's forced `4m` retreat over the re-cue answers nothing
+            // today; responder is game-forcing and cannot keycard from the
+            // floor in a disturbed auction.
+            if tails {
+                let path = format!("{OVER} {recue} {} -", Bid::new(4, Strain::from(minor)));
+                entries.extend(rows_of(Pattern::node(&path), landy_four_minor_place(minor)));
+                entries.extend(slam::rkcb_rows(&path, minor));
+            }
+        }
+        // Their overcall of the transfer itself — the completion covers `-`
+        // and `(X)` only, and the `3♣ (3♠)` leg is the batch's named cost.
+        if tails {
+            for their in [Suit::Hearts, Suit::Spades] {
+                let over = Bid::new(3, Strain::from(their));
+                if over <= Bid::new(3, Strain::from(minor)) {
+                    continue;
+                }
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{transfer} ({over})")),
+                    landy_transfer_overcalled(minor, their, over, agreements),
+                ));
+            }
         }
         // The `4m` slam try's answer and its RKCB ladder.  The rung itself has
         // shipped since N1; only this seat is new, and without it the seat is
@@ -1306,8 +1825,10 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         }
     }
 
-    // The GF both-minors family: answers, the doubled call verbatim plus the
-    // rebase, and the compressed ladder over their raises.
+    // The both-minors family: answers, the doubled call verbatim plus the
+    // rebase, and the compressed ladder over their raises.  The three-level
+    // splinters are the same call on both arms; the two-level pair is the
+    // shipped doubleton takeout, or Kokish–Kraft's strength split.
     for (short, level) in [
         (Suit::Hearts, 2),
         (Suit::Spades, 2),
@@ -1315,13 +1836,20 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         (Suit::Spades, 3),
     ] {
         let call = Bid::new(level, Strain::from(short));
+        let answer = || {
+            if kk && level == 2 {
+                landy_kk_minors_answer(call, short == Suit::Spades, agreements)
+            } else {
+                landy_bba_takeout_answer(short, call)
+            }
+        };
         entries.extend(rows_of(
             Pattern::after(OVER, &format!("{call} -")),
-            landy_bba_takeout_answer(short, call),
+            answer(),
         ));
         entries.extend(rows_of(
             Pattern::after(OVER, &format!("{call} (X)")),
-            landy_bba_takeout_answer(short, call),
+            answer(),
         ));
         entries.push(systems_on_over_double(
             &format!("{OVER} {call}"),
@@ -1339,32 +1867,113 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 Pattern::after(OVER, &format!("{call} ({over})")),
                 landy_bba_takeout_overcalled(short, over),
             ));
+            // Its minor pick lands at the four level over a three-level raise.
+            if tails {
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    let pick = cheapest_above(Strain::from(minor), over);
+                    // Over their `(2♠)` the pick is still at the three level
+                    // and the shipped table already answers it.
+                    if pick != Bid::new(4, Strain::from(minor)) {
+                        continue;
+                    }
+                    let path = format!("{OVER} {call} ({over}) {pick} -");
+                    entries.extend(rows_of(Pattern::node(&path), landy_four_minor_place(minor)));
+                    entries.extend(slam::rkcb_rows(&path, minor));
+                }
+            }
+        }
+        // The splinters' own minor picks are already at the four level.
+        if tails && level == 3 {
+            for minor in [Suit::Clubs, Suit::Diamonds] {
+                let pick = cheapest_above(Strain::from(minor), call);
+                let path = format!("{OVER} {call} - {pick} -");
+                entries.extend(rows_of(Pattern::node(&path), landy_four_minor_place(minor)));
+                entries.extend(slam::rkcb_rows(&path, minor));
+            }
         }
     }
 
+    // Kokish–Kraft's own tails: the escape relay, the `3♦` club transfer, and
+    // responder's placement over the invitational-plus `2♠`.
+    if kk {
+        for suffix in ["2NT -", "2NT (X)"] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, suffix),
+                complete_lebensohl_relay(agreements),
+            ));
+        }
+        entries.push(systems_on_over_double(&format!("{OVER} 2NT"), "3♣"));
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2NT - 3♣ -"),
+            landy_kk_relay_rebid(),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2NT - 3♣ - 3♦ -"),
+            multi_signoff_pass(),
+        ));
+        for suffix in ["3♦ -", "3♦ (X)"] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, suffix),
+                landy_kk_clubs_answer(),
+            ));
+        }
+        entries.push(systems_on_over_double(&format!("{OVER} 3♦"), "3NT"));
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2♠ - 2NT -"),
+            landy_kk_minors_place(),
+        ));
+    }
+
     // The two-level takeout's authored placements: over the notrump answer
-    // (with the one remaining stopper ask) and over a minor pick.
+    // (with the one remaining stopper ask) and over a minor pick.  Both belong
+    // to the shipped doubleton takeout; Kokish–Kraft's `2♥`/`2♠` promise no
+    // shortness, so there is no stopper to ask about and the block above owns
+    // that seat instead.
     for (short, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+        if kk {
+            break;
+        }
         let tko = Bid::new(2, Strain::from(short));
         entries.extend(rows_of(
             Pattern::after(OVER, &format!("{tko} - 2NT -")),
             landy_bba_takeout_rebid(other),
         ));
+        let ask = format!("{tko} - 2NT - {} -", Bid::new(3, Strain::from(other)));
         entries.extend(rows_of(
-            Pattern::after(
-                OVER,
-                &format!("{tko} - 2NT - {} -", Bid::new(3, Strain::from(other))),
-            ),
-            landy_bba_ask_answer(other),
+            Pattern::after(OVER, &ask),
+            landy_bba_ask_answer(other, tails),
         ));
         for minor in [Suit::Clubs, Suit::Diamonds] {
+            let three = Bid::new(3, Strain::from(minor));
+            let four = Bid::new(4, Strain::from(minor));
             entries.extend(rows_of(
-                Pattern::after(
-                    OVER,
-                    &format!("{tko} - {} -", Bid::new(3, Strain::from(minor))),
-                ),
+                Pattern::after(OVER, &format!("{tko} - {three} -")),
                 landy_bba_pick_rebid(minor),
             ));
+            if !tails {
+                continue;
+            }
+            // Three of the survey's floored seats, in the order the auction
+            // reaches them.  The first two are **opener's** — responder made
+            // the slam try, so [`landy_slam_answer`] answers verbatim — and
+            // the third is responder's, over opener's own four-level pick.
+            for (path, answer) in [
+                (
+                    format!("{OVER} {tko} - {three} - {four} -"),
+                    landy_slam_answer(minor),
+                ),
+                (
+                    format!("{OVER} {tko} - 2NT - {four} -"),
+                    landy_slam_answer(minor),
+                ),
+                (
+                    format!("{OVER} {ask} {four} -"),
+                    landy_four_minor_place(minor),
+                ),
+            ] {
+                entries.extend(rows_of(Pattern::node(&path), answer));
+                entries.extend(slam::rkcb_rows(&path, minor));
+            }
         }
     }
 
@@ -1873,8 +2482,13 @@ pub(super) fn lebensohl_package() -> Package {
 
             let mut entries = Vec::new();
 
-            if defense_2c_landy(agreements) && landy_bba(agreements) {
-                // N1j: the whole table swaps — see `landy_bba_entries`.
+            if defense_2c_landy(agreements) && (landy_kk(agreements) || landy_bba(agreements)) {
+                // N1j, and N1n's Kokish–Kraft variant of it: the whole table
+                // swaps — see `landy_bba_entries`, which forks internally on
+                // `landy_kk`.  The variant *outranks* the shipped ladder
+                // rather than composing with it, so arming it while
+                // `defense_2c_landy_bba` is on (the default) still builds the
+                // variant.
                 entries.extend(landy_bba_entries(agreements));
             } else if defense_2c_landy(agreements) {
                 // Landy counter: their 2♣ shows both majors, so systems-on is
