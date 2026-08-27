@@ -1,4 +1,5 @@
 use super::Map;
+use super::array::encode_call;
 use super::context::Context;
 use super::fallback::{Fallback, Guard};
 use super::rows::AuthoringLedger;
@@ -104,6 +105,13 @@ pub(crate) struct TrieNode {
     pub(crate) children: Map<Box<Self>>,
     pub(crate) classify: Option<Arc<dyn Classifier>>,
     pub(crate) fallbacks: Vec<(Arc<dyn Guard>, Fallback)>,
+    /// Tombstoned calls at this exact node, one bit per [`encode_call`] index
+    ///
+    /// Node metadata rather than a rule, so it survives table rejection: a veto
+    /// must still bite when the hand falls through to the floor, which is the
+    /// whole point of the state.  Zero — the overwhelmingly common value —
+    /// costs one branch in [`apply_veto`].
+    pub(crate) veto: u64,
 }
 
 // Keep the recursive diagnostic shape of the original recursive `Trie`.
@@ -124,6 +132,7 @@ impl TrieNode {
             children: Map::new(),
             classify: None,
             fallbacks: Vec::new(),
+            veto: 0,
         }
     }
 }
@@ -138,6 +147,42 @@ impl Default for Trie {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// The [`TrieNode::veto`] bit for one call
+const fn veto_bit(call: Call) -> u64 {
+    1 << encode_call(call)
+}
+
+/// Mask every tombstoned call to `-∞`, leaving the rest as the book or floor
+/// set them
+///
+/// The fourth authoring state, one step *below* unauthored: the node holds no
+/// agreement about the call and advises against making it, so whoever answers —
+/// a shallower table or the floor — answers without it.  Shaped after
+/// [`mask_illegal`][super::neural_floor::mask_illegal]: a post-hoc mask, never a
+/// rule, because a veto must survive the very table rejection that hands the
+/// position to the floor.
+///
+/// # Panics
+///
+/// Debug builds assert the masked logits still have mass.  `Pass` can never be
+/// tombstoned ([`Trie::tombstone`]) and the root `Always` floor is total, so a
+/// firing assert means a *partial* table answered a vetoed node with mass on
+/// the vetoed call alone — an authoring bug, not a runtime condition.
+pub(crate) fn apply_veto(logits: &mut super::array::Logits, veto: u64) {
+    if veto == 0 {
+        return;
+    }
+    for (call, slot) in logits.iter_mut() {
+        if veto & veto_bit(call) != 0 {
+            *slot = f32::NEG_INFINITY;
+        }
+    }
+    debug_assert!(
+        logits.has_mass(),
+        "a tombstone masked away the last mass at this node",
+    );
 }
 
 /// Maximum number of rebases during one resolution
@@ -206,6 +251,21 @@ impl Trie {
             .and_then(|node| node.classify.as_deref())
     }
 
+    /// The tombstone mask at the exact auction node — 0 when there is none
+    ///
+    /// Vetoes do not propagate down the subtree (IntoBridge parity, and one
+    /// fewer thing to reason about), so this is a plain walk, not a fold.
+    #[must_use]
+    pub(crate) fn veto_at(&self, auction: &[Call]) -> u64 {
+        self.subtrie(auction).map_or(0, |node| node.veto)
+    }
+
+    /// Whether `call` is tombstoned at the exact auction node
+    #[must_use]
+    pub(crate) fn vetoes(&self, auction: &[Call], call: Call) -> bool {
+        self.veto_at(auction) & veto_bit(call) != 0
+    }
+
     /// Check if the query auction is a prefix in the trie
     #[must_use]
     pub fn is_prefix(&self, auction: &[Call]) -> bool {
@@ -254,6 +314,45 @@ impl Trie {
             node = node.children.entry(call).get_or_insert_with(Box::default);
         }
         node.classify.replace(f)
+    }
+
+    /// Mark `call` as **not advised** at the exact `auction` node
+    ///
+    /// The fourth authoring state, below unauthored: the node keeps no
+    /// agreement about the call — nothing to alert, nothing to read, nothing to
+    /// disclose — and additionally masks it out of whatever answers the
+    /// position.  Use it where the floor picks system nonsense (a no-agreement
+    /// redouble, a dead-auction high punt) and neither authoring the node nor
+    /// smartening the floor is the right fix.
+    ///
+    /// Creates the node if absent; vetoes accumulate, and marking a call twice
+    /// is a no-op.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `call` is [`Call::Pass`] — masking the pass could leave a
+    /// position with no legal answer — or if this node's own rule table already
+    /// authors `call`, which would be an agreement and a prohibition at once.
+    /// The check reaches the node's [`Rules`][super::rules::Rules] only: a
+    /// computed table, or a total re-authoring fallback (the row grammar's
+    /// `Pattern::table`), is opaque to it.
+    pub fn tombstone(&mut self, auction: &[Call], call: Call) {
+        assert!(call != Call::Pass, "the pass can never be tombstoned");
+
+        let mut node = &mut self.root;
+        for &step in auction {
+            node = node.children.entry(step).get_or_insert_with(Box::default);
+        }
+        let authored = node
+            .classify
+            .as_deref()
+            .and_then(|classifier| classifier.as_rules())
+            .is_some_and(|rules| rules.rules().iter().any(|rule| rule.call() == call));
+        assert!(
+            !authored,
+            "{auction:?} authors {call} — a call cannot be both agreed and vetoed",
+        );
+        node.veto |= veto_bit(call);
     }
 
     /// Attach a guarded [`Fallback`] at the node for the auction
@@ -469,6 +568,9 @@ impl TrieNode {
             }
         }
         self.fallbacks.extend(other.fallbacks);
+        // Vetoes are prohibitions, not opinions: the union is the only merge
+        // that cannot resurrect a call one fragment forbade.
+        self.veto |= other.veto;
 
         for (call, child) in other.children {
             path.push(call);
@@ -544,15 +646,22 @@ impl Trie {
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(&dyn Classifier, super::array::Logits, Provenance)> {
+        // Applied after the fall-through decision, never before it: a veto says
+        // "not this call", not "not this node", so it must not change which
+        // classifier answers.
+        let veto = self.veto_at(auction);
         if let Some((classifier, provenance)) = self.resolve(context, auction) {
-            let logits = classifier.classify(hand, context);
+            let mut logits = classifier.classify(hand, context);
             if logits.has_mass() {
+                apply_veto(&mut logits, veto);
                 return Some((classifier, logits, provenance));
             }
         }
         // The exact node rejected this hand — consult the fallback chain.
         let (classifier, provenance) = self.resolve_at(context, auction, 0, true)?;
-        Some((classifier, classifier.classify(hand, context), provenance))
+        let mut logits = classifier.classify(hand, context);
+        apply_veto(&mut logits, veto);
+        Some((classifier, logits, provenance))
     }
 
     /// Resolve only the fallback chain after an exact classifier rejected.

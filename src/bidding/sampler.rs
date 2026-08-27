@@ -246,8 +246,10 @@ fn rules_accept(
 
 /// Whether `policy`, classifying `hand` at `prefix`, ranks the `made` call
 /// within [`MARGIN`] of its best legal call.  A call no rule authors (nothing
-/// to replay) abstains so the range reader handles it, and an off-book node
-/// has no opinion; both accept.  A **pass** replays like any call — the
+/// to replay) abstains so the range reader handles it, an off-book node has no
+/// opinion, and a [tombstoned][Bidder::tombstoned_at] call is one our own
+/// policy forbids — a foreign engine may still make it, and we hold no reading
+/// for it; all three accept.  A **pass** replays like any call — the
 /// negative inference the interval ranges cannot express: a candidate whose
 /// best alternative beats the pass is rejected (hard where the pass gate is
 /// `-∞`, e.g. a 12-count at the opening node; soft within [`MARGIN`] of
@@ -261,6 +263,12 @@ fn made_plausibly(
     prefix: &[Call],
     made: Call,
 ) -> bool {
+    // A tombstoned call is one our policy masks to `-∞`: no candidate hand can
+    // rank it, so enforcing the reading would reject every world and burn the
+    // sampler dry.  Zero information — abstain, exactly as at an off-book node.
+    if policy.tombstoned_at(vul, prefix, made) {
+        return true;
+    }
     if !policy.authored_at(vul, prefix) {
         return true;
     }

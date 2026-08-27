@@ -1517,6 +1517,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing `--their-2d-multi`, and the same class of hole `PROBE_THEIR_2C_LANDY`
   closed for `probe-decision` on 2026-08-25. Salvaged onto `main` from
   `park/landy-kk`, which keeps the parked knobs' arm flags.
+- **Tombstoned calls — "no agreement, and not advised".** A book node could
+  say a call is *authored* or *unauthored*, and nothing else: `-∞` is the
+  identity of the rule table's max-fold, so absence and prohibition are the
+  same value, and fall-through is whole-node — once a node yields no mass the
+  floor picks from every legal call unmasked. There was no way to say "the
+  floor owns this node, except never call X". `Trie::tombstone(auction, call)`
+  (and the row grammar's `tombstone(pattern, &[calls])`) is that fourth state,
+  one step *below* unauthored: node metadata rather than a rule, so it survives
+  the table rejection that hands the position to the floor; keyed at the exact
+  node with no subtree spread; applied as a post-hoc `-∞` mask **after** the
+  fall-through decision, so it never changes which classifier answers.
+  `Bidder::tombstoned_at` is the introspection surface that tells the state
+  from plain unauthored (`authored_at` stays false — a veto carries no
+  classifier), and the replay sampler abstains on such a call rather than
+  rejecting every candidate world when a foreign engine makes it.
+
+  **Mechanism only: zero tombstones are authored, and the default system is
+  byte-identical** — `smoke-default --count 20000 --seed 1` matches `5ac033f3`
+  on all 20 000 auctions, the KR1 non-inferiority proof for this change
+  ([measurement.md](docs/measurement.md) checklist 12). No user impact yet; the
+  point is that the fix menu for a divergence trace showing the floor bidding
+  system nonsense (a no-agreement redouble, a dead-auction high punt) gains a
+  third option beside *author the node* and *improve the floor*. Seed batches
+  are later, per-campaign, knob-gated, A/B'd changes. IntoBridge's book marks
+  ~19% of its enumerated calls this way, which is where the idea comes from.
 
 - **`competition.multi_doubler_minimum_notrump` — the 15-count's notrump out
   over the K–K doubler's natural other major. Shipped default-on 2026-08-27: a

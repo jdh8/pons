@@ -156,6 +156,28 @@ pub trait Bidder {
         true
     }
 
+    /// Whether `call` is **tombstoned** at `auction` — advised against, with no
+    /// agreement behind it
+    ///
+    /// The state one step below unauthored, and the query that tells the two
+    /// apart: an unauthored call is merely uncovered, and the floor bids it
+    /// freely; a tombstoned one is masked to `-∞` before the floor's logits are
+    /// used, while `authored_at` stays false because a veto-only node carries no
+    /// classifier.  The system holds no opinion about the call *except* that we
+    /// do not make it here, so there is nothing to alert, read, or disclose.
+    ///
+    /// The [replay sampler][crate::bidding::sampler::sample_layouts_replay]
+    /// abstains on such a call: when a foreign engine makes it anyway, no
+    /// candidate hand could have chosen it under our policy, so enforcing the
+    /// reading would reject every world.
+    ///
+    /// Defaults to `false` — flat systems tombstone nothing; [`Trie`] and
+    /// [`Partnership`] override it.
+    fn tombstoned_at(&self, vul: RelativeVulnerability, auction: &[Call], call: Call) -> bool {
+        let _ = (vul, auction, call);
+        false
+    }
+
     /// Compose a table where `self`'s partnership is the dealer's side
     ///
     /// `a.vs(b)` dispatches by parity: `a` answers at even auction lengths,
@@ -193,6 +215,10 @@ impl<S: Bidder + ?Sized> Bidder for &S {
 
     fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
         (**self).authored_at(vul, auction)
+    }
+
+    fn tombstoned_at(&self, vul: RelativeVulnerability, auction: &[Call], call: Call) -> bool {
+        (**self).tombstoned_at(vul, auction, call)
     }
 
     fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
@@ -245,5 +271,13 @@ impl Bidder for Trie {
             self.resolve(&context, auction),
             Some((_, prov)) if prov.is_authored()
         )
+    }
+
+    fn tombstoned_at(&self, vul: RelativeVulnerability, auction: &[Call], call: Call) -> bool {
+        // Node metadata, keyed at the exact auction: hand-independent and
+        // vulnerability-independent, so no context is built and no rebase is
+        // followed — unlike `authored_at`, which must resolve.
+        let _ = vul;
+        self.vetoes(auction, call)
     }
 }

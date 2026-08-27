@@ -825,3 +825,54 @@ fn canonical_and_legacy_passes_match_in_either_seat() {
         assert!(book.get(&calls("1♥ - 1♠")).is_some(), "{source}");
     }
 }
+
+/// A `tombstone` entry lowers to node metadata across the whole seat fan,
+/// leaving the package's tables untouched — it is not a rule and never joins
+/// the regrouping.
+#[test]
+fn tombstone_rows_lower_to_node_vetoes() {
+    const THREE_NT: Call = Call::Bid(Bid::new(3, Strain::Notrump));
+
+    let book = compiled(&[Package {
+        name: "test",
+        gate: |_| true,
+        entries: |_| {
+            vec![
+                tombstone(Pattern::node("P* 1♥ (X)"), &[THREE_NT, Call::Redouble]),
+                row(
+                    Pattern::node("P* 1♥ (X)"),
+                    Bid::new(2, Strain::Hearts),
+                    100,
+                    hcp(6..),
+                )
+                .into(),
+            ]
+        },
+    }]);
+
+    for passes in 0..=3 {
+        let key: Vec<Call> = core::iter::repeat_n(Call::Pass, passes)
+            .chain(calls("1♥ X"))
+            .collect();
+        assert!(book.vetoes(&key, THREE_NT), "{passes} leading pass(es)");
+        assert!(
+            book.vetoes(&key, Call::Redouble),
+            "{passes} leading pass(es)"
+        );
+        assert!(
+            !book.vetoes(&key, Bid::new(2, Strain::Hearts).into()),
+            "the authored raise is untouched"
+        );
+        let rules = book
+            .get(&key)
+            .and_then(Classifier::as_rules)
+            .expect("the row still lowers to a table");
+        assert_eq!(rules.rules().len(), 1, "the veto is not a rule");
+    }
+}
+
+#[test]
+#[should_panic(expected = "must be an exact node")]
+fn tombstone_rejects_a_guarded_pattern() {
+    tombstone(Pattern::first("P* 1♥", "X"), &[Call::Redouble]);
+}

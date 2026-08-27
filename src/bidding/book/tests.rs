@@ -1149,3 +1149,64 @@ fn partnership_pins_knobs_across_threads() {
         "a classify-time knob read escaped the pin"
     );
 }
+
+/// The two `resolve_floored` twins — the bare `Trie` table model and the
+/// production `BoundBook` behind a `Partnership` — apply a tombstone
+/// identically.  They are separate code paths over the same trie; nothing but
+/// this test keeps them from drifting.
+#[test]
+fn tombstones_read_the_same_through_a_bound_book() {
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::book::{Competitive, Constructive, Defensive, System};
+    use crate::bidding::constraint::hcp;
+    use crate::bidding::fallback::{Always, Fallback};
+    use crate::bidding::trie::Trie;
+    use crate::bidding::{Bidder, Rules};
+    use contract_bridge::Hand;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let auction = [bid(1, Strain::Clubs), Call::Pass];
+    let three_nt = bid(3, Strain::Notrump);
+    let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+    let vul = RelativeVulnerability::NONE;
+
+    let book = |vetoed| {
+        let mut trie = Trie::new();
+        trie.fallback_at(
+            &[],
+            Always,
+            Fallback::classify(
+                Rules::new()
+                    .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+                    .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
+                    .rule(Call::Pass, 0, hcp(0..)),
+            ),
+        );
+        if vetoed {
+            trie.tombstone(&auction, three_nt);
+        }
+        trie
+    };
+
+    for vetoed in [false, true] {
+        let trie = book(vetoed);
+        let bare = trie
+            .classify(hand, vul, &auction)
+            .expect("the bare trie answers");
+        let bound = System::new(
+            Constructive(trie),
+            Competitive(Trie::new()),
+            Defensive(Trie::new()),
+            Agreements::default(),
+        )
+        .bind()
+        .classify(hand, vul, &auction)
+        .expect("the bound book answers");
+        assert_eq!(bare, bound, "vetoed = {vetoed}");
+        assert_eq!(
+            bound.0[three_nt] == f32::NEG_INFINITY,
+            vetoed,
+            "the veto bites in the bound book too"
+        );
+    }
+}

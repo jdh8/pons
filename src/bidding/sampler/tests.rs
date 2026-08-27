@@ -339,3 +339,58 @@ fn game_backstop_rejects_every_hand_until_deleted() {
         "with no node the floor answers and the gate abstains"
     );
 }
+
+/// A tombstoned call is one *our* policy masks to `-∞`; a foreign engine can
+/// still make it at the table.  Without the abstention every candidate hand
+/// fails the argmax compare and the replay sampler burns to its dry limit;
+/// with it, the call carries zero information and every world stands.
+#[test]
+fn replay_abstains_on_a_tombstoned_call() {
+    use crate::bidding::Rules;
+    use crate::bidding::constraint::hcp;
+    use crate::bidding::fallback::{Always, Fallback};
+    use crate::bidding::trie::Trie;
+
+    let prefix = [bid(1, Strain::Clubs)];
+    let made = Call::Redouble;
+    let vul = RelativeVulnerability::NONE;
+    let mut rng = StdRng::seed_from_u64(7);
+    let hands: Vec<Hand> = (0..16).map(|_| full_deal(&mut rng)[Seat::South]).collect();
+
+    // An authored node that never redoubles: `authored_at` holds, so the gate
+    // enforces the reading rather than abstaining at the floor.
+    let policy = |vetoed| {
+        let mut trie = Trie::new();
+        trie.insert(
+            &prefix,
+            Rules::new()
+                .rule(bid(2, Strain::Clubs), 100, hcp(6..))
+                .rule(Call::Pass, 0, hcp(0..)),
+        );
+        trie.fallback_at(
+            &[],
+            Always,
+            Fallback::classify(Rules::new().rule(Call::Pass, 0, hcp(0..))),
+        );
+        if vetoed {
+            trie.tombstone(&prefix, made);
+        }
+        trie
+    };
+
+    let plain = policy(false);
+    assert!(
+        hands
+            .iter()
+            .all(|&hand| !made_plausibly(hand, &plain, vul, &prefix, made)),
+        "an unauthored call at an authored node rejects every hand"
+    );
+
+    let vetoed = policy(true);
+    assert!(
+        hands
+            .iter()
+            .all(|&hand| made_plausibly(hand, &vetoed, vul, &prefix, made)),
+        "the tombstone makes the call zero-information — accept wholesale"
+    );
+}

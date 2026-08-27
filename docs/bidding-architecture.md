@@ -103,6 +103,42 @@ auction + hand
   twice in one campaign (N1b's doubled ask passed out in `3♥x`; N1c's
   interference hole, −4.68 PD/fired vul —
   [closed N1 history](archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14)).
+- **Tombstones — the fourth state, one step *below* unauthored.** Absence and
+  prohibition are the same value inside a rule table (`-∞` is the identity of
+  the max-fold), and fall-through is whole-node × whole-hand: once a node
+  yields no mass the floor sees every legal call unmasked. `Trie::tombstone`
+  is the way to say "the floor owns this node, except never call X". It is
+  **node metadata, not a rule** — it must survive the very table rejection that
+  hands the position to the floor — keyed at the **exact** node with no subtree
+  propagation, and applied as a post-hoc `-∞` mask *after* the fall-through
+  decision, so a veto never changes which classifier answers.
+
+  | state | `authored_at` | `tombstoned_at` | selection | reading |
+  | --- | --- | --- | --- | --- |
+  | authored, finite mass | true | false | book argmax | authored projection |
+  | authored, hand rejected | true | false | floor, unmasked | rule projection |
+  | unauthored | false | false | floor, unmasked | natural walk / blanket |
+  | **tombstoned** | false | **true** | **floor, call masked to −∞** | same as unauthored |
+
+  Invariants: the pass can never be tombstoned (registration assert), and
+  vetoed ∩ authored = ∅ at the exact node (registration assert against the
+  node's own `Rules`; a computed table or a `Pattern::table` re-authoring
+  fallback is opaque to it). ⚠ Known sharp edge, unreachable while zero
+  tombstones are authored: because the mask is applied to whatever answers,
+  vetoing a call that an *inherited* guarded table authors would suppress the
+  call while `authored_effect` still reads that table's meaning for it — a
+  prohibition with an agreement behind it, which is the one thing the state is
+  not. The assert cannot see that case (guards need a classify-time `Context`
+  the builder does not have). If a seed batch ever wants it, the reversible
+  default is to widen the assert by probing the node's resolution under a
+  neutral context at build time, not to change the mask. The two `resolve_floored` twins — bare `Trie` and
+  `BoundBook` — mask identically; `book/tests.rs` holds the parity test.
+  Because a tombstoned call carries no rule, `authored_effect` returns `None`
+  and the reading is the natural walk: we hold **no agreement** about it, so
+  there is nothing to alert, read, or disclose on the card. The replay sampler
+  abstains on one (`made_plausibly`) — our policy masks it to `-∞`, so a
+  foreign engine that makes it anyway would otherwise reject every candidate
+  hand and burn the sampler to its dry limit.
 
 ### Settle floor and the rejected TTL
 

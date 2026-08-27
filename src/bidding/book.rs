@@ -50,7 +50,7 @@ use super::context::{Context, DecisionProfile};
 use super::decoder::AuthoringDecoder;
 use super::inference::{AuthoringStepCache, Envelope, Inferences, Range, ReadingProfile};
 use super::rules::{CompiledRules, FaceRegistry, ProjectionCache};
-use super::trie::{Classifier, Provenance, Trie};
+use super::trie::{Classifier, Provenance, Trie, apply_veto};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{FullDeal, Hand, Seat, Suit};
 use core::ops::{Deref, DerefMut};
@@ -437,18 +437,20 @@ impl BoundBook {
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(&'a dyn Classifier, Logits, Provenance)> {
+        // The twin of `Trie::resolve_floored`; the tombstone mask applies
+        // identically here, after the fall-through decision.
+        let veto = self.trie.veto_at(auction);
         if let Some((classifier, provenance)) = self.trie.resolve(context, auction) {
-            let logits = self.classify(classifier, hand, context);
+            let mut logits = self.classify(classifier, hand, context);
             if logits.has_mass() {
+                apply_veto(&mut logits, veto);
                 return Some((classifier, logits, provenance));
             }
         }
         let (classifier, provenance) = self.trie.resolve_after_exact_rejection(context, auction)?;
-        Some((
-            classifier,
-            self.classify(classifier, hand, context),
-            provenance,
-        ))
+        let mut logits = self.classify(classifier, hand, context);
+        apply_veto(&mut logits, veto);
+        Some((classifier, logits, provenance))
     }
 
     fn compiled_for(&self, classifier: &dyn Classifier) -> Option<&CompiledRules> {
@@ -1249,6 +1251,10 @@ impl Bidder for Partnership {
     fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
         // Delegate to the phase-routed trie's rebasing-aware check.
         self.trie_for(auction).authored_at(vul, auction)
+    }
+
+    fn tombstoned_at(&self, vul: RelativeVulnerability, auction: &[Call], call: Call) -> bool {
+        self.trie_for(auction).tombstoned_at(vul, auction, call)
     }
 
     fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {

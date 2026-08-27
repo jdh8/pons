@@ -132,3 +132,152 @@ fn fallbacks_enumerate_pass_less_key_first() {
         "the guard rides along"
     );
 }
+
+/// The best call by logit — the argmax the driver takes
+fn best_call(logits: &crate::bidding::array::Logits) -> Call {
+    logits
+        .iter()
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
+        .map(|(call, _)| call)
+        .expect("logits are non-empty")
+}
+
+/// A total floor covering every hand, ranking 3NT over 2NT over the pass
+fn ranked_floor() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// A tombstone at a floor-owned node masks the floor's own choice: the vetoed
+/// call reads exactly `-∞` and the runner-up wins, while the floor still
+/// answers — a veto is a call-level prohibition, not a node.
+#[test]
+fn tombstone_masks_the_floors_top_call() {
+    let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+    let three_nt = Call::Bid(Bid::new(3, Strain::Notrump));
+    let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+
+    let mut control = Trie::new();
+    control.fallback_at(&[], Always, Fallback::classify(ranked_floor()));
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    let (logits, _) = control
+        .classify_floored(hand, &context, &auction)
+        .expect("the floor answers");
+    assert_eq!(best_call(&logits), three_nt, "control: the floor bids 3NT");
+
+    let mut vetoed = Trie::new();
+    vetoed.fallback_at(&[], Always, Fallback::classify(ranked_floor()));
+    vetoed.tombstone(&auction, three_nt);
+    let (logits, provenance) = vetoed
+        .classify_floored(hand, &context, &auction)
+        .expect("the floor still answers");
+    assert_eq!(
+        logits.0[three_nt],
+        f32::NEG_INFINITY,
+        "the vetoed call is masked, not merely demoted"
+    );
+    assert_eq!(
+        best_call(&logits),
+        Call::Bid(Bid::new(2, Strain::Notrump)),
+        "the runner-up wins"
+    );
+    assert_eq!(
+        provenance.depth, 0,
+        "the floor still answers — a veto does not author a node"
+    );
+    assert!(
+        !vetoed.vetoes(&[], three_nt),
+        "vetoes key at the exact node, never the subtree"
+    );
+}
+
+/// A node with a finite catch-all keeps shadowing the floor, and a tombstone
+/// on a call it never authors is inert — the registration assert makes vetoed
+/// and authored disjoint, so the masked slot was already `-∞`.
+#[test]
+fn tombstone_is_inert_beside_a_shadowing_table() {
+    let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+    let table = || {
+        Rules::new()
+            .rule(Bid::new(2, Strain::Clubs), 100, hcp(6..))
+            .rule(Call::Pass, 0, hcp(0..))
+    };
+    let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+
+    let mut control = Trie::new();
+    control.insert(&auction, table());
+    control.fallback_at(&[], Always, Fallback::classify(ranked_floor()));
+    let (before, _) = control
+        .classify_floored(hand, &context, &auction)
+        .expect("the book answers");
+
+    let mut vetoed = Trie::new();
+    vetoed.insert(&auction, table());
+    vetoed.fallback_at(&[], Always, Fallback::classify(ranked_floor()));
+    vetoed.tombstone(&auction, Call::Redouble);
+    let (after, _) = vetoed
+        .classify_floored(hand, &context, &auction)
+        .expect("the book still answers");
+
+    assert_eq!(before, after, "every logit is byte-identical");
+}
+
+/// A veto-only node carries no classifier, so the two predicates disagree —
+/// which is exactly how the fourth state is told from the third.
+#[test]
+fn a_veto_only_node_is_tombstoned_but_not_authored() {
+    use crate::bidding::Bidder;
+
+    let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+    let vul = RelativeVulnerability::NONE;
+    let mut trie = Trie::new();
+    trie.fallback_at(&[], Always, Fallback::classify(ranked_floor()));
+    trie.tombstone(&auction, Call::Redouble);
+
+    assert!(
+        !trie.authored_at(vul, &auction),
+        "a veto authors nothing — the floor still owns the node"
+    );
+    assert!(trie.tombstoned_at(vul, &auction, Call::Redouble));
+    assert!(
+        !trie.tombstoned_at(vul, &auction, Call::Double),
+        "vetoes are per call"
+    );
+    assert!(
+        !trie.tombstoned_at(vul, &[], Call::Redouble),
+        "and per node"
+    );
+}
+
+/// Merging fragments unions their vetoes: no fragment can resurrect a call
+/// another one forbade.
+#[test]
+fn merge_unions_the_veto_masks() {
+    let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+    let mut left = Trie::new();
+    left.tombstone(&auction, Call::Redouble);
+    let mut right = Trie::new();
+    right.tombstone(&auction, Call::Double);
+
+    assert!(left.merge(right).is_empty(), "no classifier collides");
+    assert!(left.vetoes(&auction, Call::Redouble));
+    assert!(left.vetoes(&auction, Call::Double));
+}
+
+#[test]
+#[should_panic(expected = "the pass can never be tombstoned")]
+fn tombstoning_the_pass_panics() {
+    Trie::new().tombstone(&[Call::Bid(Bid::new(1, Strain::Clubs))], Call::Pass);
+}
+
+#[test]
+#[should_panic(expected = "a call cannot be both agreed and vetoed")]
+fn tombstoning_an_authored_call_panics() {
+    let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+    let mut trie = Trie::new();
+    trie.insert(&auction, Rules::new().rule(Call::Redouble, 100, hcp(0..)));
+    trie.tombstone(&auction, Call::Redouble);
+}

@@ -517,6 +517,17 @@ fn check_sides(source: &str, tokens: &[Token], our_index: usize) {
 }
 
 impl Pattern {
+    /// The trie keys this pattern attaches to — one per leading-pass count
+    fn keys(&self) -> Vec<Box<[Call]>> {
+        (0..=self.fan)
+            .map(|passes| {
+                core::iter::repeat_n(Call::Pass, passes)
+                    .chain(self.key.iter().copied())
+                    .collect()
+            })
+            .collect()
+    }
+
     /// Set the maximum number of leading passes this pattern fans across
     ///
     /// `P*` remains the readable shorthand for the ordinary all-seat fan of
@@ -1183,6 +1194,29 @@ pub(crate) fn classified(pattern: Pattern, classifier: impl Classifier + 'static
     Entry::Guarded(pattern, Fallback::classify(classifier))
 }
 
+/// Mark calls as **not advised** at an exact node — the row-grammar twin of
+/// [`Trie::tombstone`]
+///
+/// Carries no rule, no alert and no reading: the package declares only that we
+/// hold no agreement about these calls *and* do not make them here, so whoever
+/// answers the position — a shallower table or the floor — answers without
+/// them.  Being metadata rather than a table, a tombstone entry never reaches
+/// [`group`]'s regrouping or the invariant probes.
+///
+/// # Panics
+///
+/// Panics on a guarded pattern: a veto is keyed at one node, and a guard would
+/// silently spread it over every continuation the guard admits.
+#[allow(dead_code)] // the grammar lands one commit before its first consumer
+pub(crate) fn tombstone(pattern: Pattern, calls: &[Call]) -> Entry {
+    assert!(
+        pattern.guard.is_none(),
+        "tombstone pattern {:?} must be an exact node, not a guarded one",
+        pattern.source,
+    );
+    Entry::Tombstone(pattern, calls.to_vec())
+}
+
 /// One line of a package: a rule row, or a guarded fallback carried verbatim
 pub(crate) enum Entry {
     /// One rule at one pattern
@@ -1190,6 +1224,9 @@ pub(crate) enum Entry {
     /// A guarded auction rewrite ([`rebase`]) or computed table
     /// ([`classified`])
     Guarded(Pattern, Fallback),
+    /// Calls vetoed at an exact node ([`tombstone`]) — node metadata, not a rule
+    #[allow(dead_code)] // the grammar lands one commit before its first consumer
+    Tombstone(Pattern, Vec<Call>),
 }
 
 impl From<Row> for Entry {
@@ -1240,6 +1277,10 @@ fn group(name: &str, entries: Vec<Entry>) -> Vec<(Pattern, Lowered)> {
                 );
                 groups.push((pattern, Lowered::Fallback(fallback)));
             }
+            // Metadata, not a table: nothing to regroup, and nothing for the
+            // weight-tie census or the totality probe to look at.
+            // `compile_entries` lowers these straight onto the trie.
+            Entry::Tombstone(..) => {}
             Entry::Row(row) => match groups.last_mut() {
                 Some((pattern, Lowered::Table(rules))) if *pattern == row.pattern => {
                     *rules = std::mem::replace(rules, Rules::new()).chain(row.rules);
@@ -1290,14 +1331,17 @@ pub(crate) fn compile_into(book: &mut Trie, agreements: &Agreements, packages: &
 /// See [`group`].
 pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) {
     let package: Arc<str> = Arc::from(name);
+    for entry in &entries {
+        if let Entry::Tombstone(pattern, calls) = entry {
+            for key in pattern.keys() {
+                for &call in calls {
+                    book.tombstone(&key, call);
+                }
+            }
+        }
+    }
     for (pattern, lowered) in group(name, entries) {
-        let keys: Vec<Box<[Call]>> = (0..=pattern.fan)
-            .map(|passes| {
-                core::iter::repeat_n(Call::Pass, passes)
-                    .chain(pattern.key.iter().copied())
-                    .collect()
-            })
-            .collect();
+        let keys = pattern.keys();
         let source: Arc<str> = Arc::from(pattern.source.as_str());
         let grammar = pattern
             .guard
