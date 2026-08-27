@@ -139,6 +139,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`landy_bba_takeout_answer`'s formal notrump catch-all removed** — the two
+  branches above it (`stopper_in(short) | no_minor`, then the four-card minor
+  picks) are already total, so the `notrump`@20 `hcp(0..)` row could never
+  route. The research doc filed this as a byte-identity cleanup *pending
+  verification*; it is now verified rather than argued: removing the row is
+  byte-identical on `smoke-default --count 20000 --seed 1` and does not move
+  the published reading at `1N (2C) 2H - 2N -`. No bidding change.
+
+- **`TheirDisclosures::two_clubs_landy` rustdoc drift** (research-doc
+  discrepancy #5) — it still described the pre-N1j counter (`X` = values,
+  "everything else natural in the suits they have not shown", opener answering
+  through `landy_natural_answers`) and read their `2♣` as **5-4+** in the
+  majors. The live reader publishes **4-4+ with no strength claim**, and which
+  counter the disclosure routes to is settled by the `defense_2c_landy_*` knobs
+  — three arms now, not one. Documentation only.
+
 - **A/B arms can no longer measure two different builds.**
   `scripts/bba-gen-parallel.sh` runs `cargo build --release` at its head unless
   `SKIP_BUILD=1`, and `ab-lib.sh` calls it once *per arm* — so editing `src/`

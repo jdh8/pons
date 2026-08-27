@@ -1136,9 +1136,14 @@ fn landy_bba_takeout_answer(short: Suit, over: Bid) -> Rules {
             len(minor, 4..),
         );
     }
-    // The two branches above are already total; the formal catch-all restates
-    // the union.
-    rules.rule(notrump, 20, hcp(0..))
+    // No catch-all: the two branches above are already **total**, and the
+    // formal `notrump`@20 that used to restate their union was deleted
+    // 2026-08-27 (research-doc discrepancy #7).  If `no_minor` is false then
+    // some minor is four-plus, so a pick fires; if it is true the notrump rung
+    // does.  Verified rather than argued: removing the row is byte-identical
+    // on `smoke-default --count 20000 --seed 1` and does not move the
+    // published reading at `1N (2C) 2H - 2N -`.
+    rules
 }
 
 /// Responder's placement over opener's notrump answer (`1NT (2♣) 2M - 2NT -`)
