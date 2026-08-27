@@ -73,6 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolates the P/X information split alone — arms deliberately unchanged
   ([§N4-KK](docs/one-notrump-competitive.md), `scripts/ab-2d-multi-px.sh`).
 
+- **`gatepair` moved into `scripts/ab-lib.sh`** — the isolation gate
+  (`probe-divergence --gate-opener ours`, which must read 0 foreign before any
+  headline) had been copy-pasted verbatim into eleven runners. The shared
+  definition sits beside `arm`/`diffpair`/`sddiff`; the existing runners keep
+  their local copies and shadow it with an identical body, so nothing changes
+  for them. `PROBE` is now set by the lib too.
+
 ### Fixed
 
 - **A/B arms can no longer measure two different builds.**
