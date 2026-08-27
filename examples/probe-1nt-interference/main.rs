@@ -38,13 +38,6 @@
 //! carries both contracts with their plain and PD scores, so the gap between
 //! the two columns reads off directly as perfect defense's synthetic double.
 //!
-//! `--table b` re-aims `--show`/`--next` at the **mirror** lane — *they* open
-//! 1NT and we overcall — cut like the B panel to boards where our own 1NT was
-//! uncontested or absent, with the acting hand printed as our overcaller;
-//! `--show-score pd` ranks by the perfect-defense swing.  Each dumped board
-//! carries both contracts with their plain and PD scores, so the gap between
-//! the two columns reads off directly as perfect defense's synthetic double.
-//!
 //! **What this can and cannot say.**  The swing is the *board's* IMPs, not the
 //! interference decision's: the same deal may also have BBA opening 1NT at
 //! table B with us defending, and every later call is in there too.  So the

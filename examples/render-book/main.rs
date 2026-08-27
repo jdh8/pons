@@ -23,7 +23,10 @@
 //! `--prefix "1NT (2♦)"` cuts it to one lane's subtree, `--no-ns-multi-kokish-kraft`
 //! swaps that lane back from the shipped §N4-KK table to v7, and `--their-2d-multi`
 //! declares their `2♦` a Multi first, so the N4 tables are in the book at all
-//! ([docs/one-notrump-multi.md](../../docs/one-notrump-multi.md)).
+//! ([docs/one-notrump-multi.md](../../docs/one-notrump-multi.md)).  The `(2♣)`
+//! lane is the same shape: `--their-2c-landy` declares their `2♣` a Landy, so
+//! the N1j counter tables are in the book at all
+//! ([docs/one-notrump-competitive.md](../../docs/one-notrump-competitive.md)).
 
 use clap::Parser;
 use pons::bidding::american::american_book;
@@ -44,6 +47,11 @@ struct Args {
     /// natural `(2♦)` leg for the N4 tables
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
+
+    /// Declare their `2♣` a Landy (`their.two_clubs_landy`), which swaps the
+    /// natural `(2♣)` leg for the N1j counter tables
+    #[arg(long, default_value_t = false)]
+    their_2c_landy: bool,
 
     /// Fall back to the v7 N4 tables, disabling the shipped Kokish–Kraft
     /// counter (`competition.multi_kokish_kraft`) — needs `--their-2d-multi`
@@ -134,6 +142,7 @@ fn main() {
     args.prefix.retain(|c| !matches!(c, '(' | ')'));
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
     agreements.competition.multi_minor_slam_try = match args.ns_multi_minor_slam_try.as_str() {
         "off" => None,

@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **`examples/probe-1nt-interference`'s module doc repeated its `--table b`
+  paragraph verbatim.** Deduplicated; no behavior change.
+
 - **Three flagged discrepancies written down, none silently resolved; (1) has
   since been ruled on and fixed below.**
   (1) `examples/dump-teacher` forced
@@ -127,6 +130,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   behaviour there ([docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md)).
 
 ### Added
+
+- **`--their-2c-landy` on `render-book` and `probe-call-reading`.** Their `2♣`
+  Landy is a *disclosure*, undeclared by default, so both tools silently showed
+  the systems-on natural-`2♣` leg and the whole N1j counter sat invisible —
+  `render-book --their-2c-landy --prefix "1NT (2♣)"` now renders the lane, and
+  `probe-call-reading --their-2c-landy` reads its calls. Same shape as the
+  existing `--their-2d-multi`, and the same class of hole `PROBE_THEIR_2C_LANDY`
+  closed for `probe-decision` on 2026-08-25. Salvaged onto `main` from
+  `park/landy-kk`, which keeps the parked knobs' arm flags.
 
 - **`competition.multi_doubler_minimum_notrump` — the 15-count's notrump out
   over the K–K doubler's natural other major. Shipped default-on 2026-08-27: a

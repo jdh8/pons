@@ -55,6 +55,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
 
+    /// Declare their `2♣` a Landy (`their.two_clubs_landy`), so the N1j
+    /// counter's calls read off `1N (2C) X`, `1N (2C) 2N` and their
+    /// continuations
+    #[arg(long, default_value_t = false)]
+    their_2c_landy: bool,
+
     /// Minimum suit length for the floorless Multi escape
     /// (`competition.multi_weak_escape`), so its published reading can be read
     /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`.  Absent leaves the
@@ -162,6 +168,7 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
