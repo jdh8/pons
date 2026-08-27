@@ -102,24 +102,34 @@ the actual runner/script names: the binary is `bba-gen` (hyphenated), and BEN
 not evidence of a bidding A/B. This check caught a parallel session running
 `ab-completion-alerts` on 2026-08-14.
 
-**Why a source-only edit is enough to poison a run** (surfaced 2026-08-26,
-recorded 2026-08-27). `ab-lib.sh`'s `arm` calls
+**Why a source-only edit was enough to poison a run** (surfaced 2026-08-26,
+**fixed 2026-08-27**). `ab-lib.sh`'s `arm` calls
 [`scripts/bba-gen-parallel.sh`](../scripts/bba-gen-parallel.sh) once per arm
 (`ab-lib.sh:45`), and that script runs `cargo build --release ... --example
 bba-gen` at its head unless `SKIP_BUILD=1` (`bba-gen-parallel.sh:39`). So
-**every arm of every `ab-*.sh` rebuilds the harness before it generates** —
-not just a resumed runner. Edit `src/` while a four-arm run is on arm 2 and
-arms 3–4 silently measure different code from arms 1–2, with nothing in the
-log to say so. The seed is shared, the gates still pass, and the result is a
-comparison across two systems.
+**every arm of every `ab-*.sh` used to rebuild the harness before it
+generated** — not just a resumed runner. Edit `src/` while a four-arm run was
+on arm 2 and arms 3–4 silently measured different code from arms 1–2, with
+nothing in the log to say so: shared seed, gates still passing, and the result
+a comparison across two systems.
 
-Two ways to be safe, in order of preference: don't edit `src/` while a run is
-live (the iron rule, and the reason this section exists), or export
-`SKIP_BUILD=1` for the whole run after building once — the script then hard
-fails if the binary is missing rather than quietly building a new one. Neither
-is wired in by default, and making `SKIP_BUILD=1` the default is a **flagged,
-undecided change**: it would trade this hazard for a staler one (a run that
-silently measures a binary older than its own commit).
+**The fix, jdh8's ruling 2026-08-27.** Sourcing `ab-lib.sh` now `export`s
+`SKIP_BUILD=1` immediately after its own single `cargo build`, so every
+`scripts/ab-*.sh` that sources it is immune by construction: one build per
+experiment, and `bba-gen-parallel.sh` hard-fails on a missing binary instead of
+quietly making a new one. `wj-calibration.sh` and `ab-weak-two-balancing.sh`
+build for themselves and got the same one-line export. The accepted cost is
+the staler hazard: a run started on a dirty or stale tree measures *that*
+build for all its arms — which is the point, but check `git status` before a
+run.
+
+Two callers are deliberately left alone — `cachalot-xfix-gen.sh` and
+`ab-reading-knobs.sh` build no binaries of their own and rely on the per-arm
+build (or a prebuilt tree). Both are finished one-offs; give either an explicit
+build before its loop if it is ever re-run.
+
+Editing `src/` while a run is live is still the iron rule. The export removes
+the silent-mixed-arms failure mode, not the reason for the rule.
 
 ## The poker worker on this box
 

@@ -238,7 +238,8 @@ reason, and a second time because `pkill` left the first run's twelve workers
 with a different seed. Verify with `ps -eo pid,ppid,args | grep bba-gen` that
 exactly one generation is live before trusting an arm.
 
-A reversible one-line hardening is proposed but **not applied** (it changes
-shared measurement plumbing and is jdh8's call): have `ab-lib.sh` `export
-SKIP_BUILD=1` immediately after its own single `cargo build`, which makes every
-`scripts/ab-*.sh` immune by construction.
+**Applied 2026-08-27** (jdh8's ruling): `ab-lib.sh` now `export`s
+`SKIP_BUILD=1` immediately after its own single `cargo build`, so every
+`scripts/ab-*.sh` that sources it is immune by construction. Details and the
+two hand-fixed direct callers in
+[shared-machine-data-gen.md](shared-machine-data-gen.md#check-for-live-abs-before-building-or-editing).

@@ -53,6 +53,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A/B arms can no longer measure two different builds.**
+  `scripts/bba-gen-parallel.sh` runs `cargo build --release` at its head unless
+  `SKIP_BUILD=1`, and `ab-lib.sh` calls it once *per arm* — so editing `src/`
+  mid-run made late arms silently measure different code from early ones, with
+  a shared seed, passing gates, and nothing in the log to say so. Sourcing
+  `ab-lib.sh` now exports `SKIP_BUILD=1` right after its own single build,
+  making every `scripts/ab-*.sh` immune by construction; the parallel script
+  hard-fails on a missing binary instead of quietly making a new one.
+  `wj-calibration.sh` and `ab-weak-two-balancing.sh` build for themselves and
+  got the same one-line export. Accepted trade: a run started on a dirty or
+  stale tree now measures that build for all its arms. No user-visible change
+  — measurement plumbing only, no bidding code touched.
+
 - **vs-BBA teacher corpora no longer mis-describe our own `1NT (2♦) X`.**
   `examples/dump-teacher` no longer forces
   `decision.reading.their_multi_double_reading` on for `vs_bba` arms. That knob

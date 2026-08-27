@@ -28,6 +28,7 @@ SEED_BASE=$(cat "$R/seed" 2>/dev/null || date +%s)
 echo "$SEED_BASE" >"$R/seed"
 
 cargo build --release --features serde --example bba-gen --example bba-score
+export SKIP_BUILD=1   # this build is the whole run's; see ab-lib.sh
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 log "=== WJ calibration start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/vul"

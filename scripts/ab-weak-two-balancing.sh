@@ -35,6 +35,7 @@ PER_SHARD=${PER_SHARD:-6400}
 SHARDS=$(nproc)
 
 cargo build --release --features serde --example bba-gen --example ab-dump-diff
+export SKIP_BUILD=1   # this build is the whole run's; see ab-lib.sh
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 

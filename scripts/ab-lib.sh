@@ -9,6 +9,9 @@
 #   SHOW         worst boards ab-dump-diff prints      (default 5)
 #   BUILD_EXTRA  extra `cargo build` --example flags   (e.g. --example ab-dump-sd)
 #
+# Sourcing exports SKIP_BUILD=1, so the build it does here is the only one the
+# whole experiment gets; see the comment at that line.
+#
 # A runner that scores single-dummy sets BUILD_EXTRA='--example ab-dump-sd' and
 # calls sddiff; the two split-by-opening runners override diffpair/sddiff with
 # dir-based variants after sourcing (their shard dirs are split by strain).
@@ -27,6 +30,13 @@ SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners lo
 # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
 # shellcheck disable=SC2086
 cargo build --release --features serde --example bba-gen --example ab-dump-diff ${BUILD_EXTRA:-}
+
+# One build per experiment, here.  bba-gen-parallel.sh otherwise rebuilds at the
+# head of *every arm*, so a `src/` edit mid-run makes late arms measure different
+# code from early ones with nothing in the log to say so.  With this exported it
+# hard-fails on a missing binary instead.  Cost: a run started on a dirty or
+# stale tree measures this build for all its arms -- which is the point.
+export SKIP_BUILD=1
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
