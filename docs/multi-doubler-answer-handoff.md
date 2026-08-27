@@ -116,7 +116,7 @@ of the deficit, leaving an estimated −309 µIMP/bd standing. (Different seeds
 and board counts, same generator and filter, so this composition is an
 estimate, not a measured cell.)
 
-Under `competition.multi_px_split` (default off, unmeasured) the answer table
+Under `competition.multi_px_split` (default off, **measured a loss 2026-08-27**) the answer table
 gains
 
 ```
@@ -224,7 +224,7 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
   `kokish_kraft_entries`.
 - The `multi_px_split` design, including why the 148 re-weight is a *reading*
   literal as well as a routing one, is
-  [§N4-KK "The `P`/`X` information split"](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-built-2026-08-26-default-off-ab-owed).
+  [§N4-KK "The `P`/`X` information split"](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
 
 ## Operational note, paid for on this run
 

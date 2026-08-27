@@ -351,7 +351,8 @@ rung ([multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md)). The
 census that motivated it is in
 [§N4-KK](one-notrump-competitive.md#inside-the-two-big-branches--where-x-and--actually-bleed-2026-08-26).
 
-A fourth knob is **built and unmeasured**, and it re-prices the third:
+A fourth knob is **built and measured a loss** (2026-08-27, stays default off),
+and it would have re-priced the third:
 `competition.multi_px_split` (default off, `--ns-multi-px-split`) splits
 responder's first call by **information** — `X` becomes
 `hcp(10..) | (hcp(8..=9) & (len(♥, 4..) | len(♠, 4..)))` where K–K plays a flat
@@ -359,9 +360,11 @@ responder's first call by **information** — `X` becomes
 of that the `multi_doubler_major` rung becomes required and moves from weight
 100 to **148** (above the natural `2NT`@145), the `X (2♠) - -` leg is re-armed,
 and the pass branch's delayed `2NT` becomes a live invitation opener accepts on
-`hcp 16+`. A/B owed — `scripts/ab-2d-multi-px.sh`, three arms, and the design
-is in
-[§N4-KK](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-built-2026-08-26-default-off-ab-owed).
+`hcp 16+`. **Measured a loss** — `scripts/ab-2d-multi-px.sh`, `SEED_BASE
+1787804916`: three of four cells resolved negative, the fourth a negative wash,
+on a divergence surface ~40× thinner than designed for (0.02%). Numbers and
+the design are in
+[§N4-KK](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
 
 A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed

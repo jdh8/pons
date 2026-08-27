@@ -1046,9 +1046,15 @@ pub struct CompetitionKnobs {
     ///   the 8–9-no-major band lands there — so opener answers it with
     ///   `kokish_kraft_invite_answer` (game on `hcp 16+`) instead of sitting.
     ///
-    /// **Off by default**, pending its A/B (`scripts/ab-2d-multi-px.sh`).
-    /// Inert while their `2♦` is undeclared or natural and inert without
-    /// [`Self::multi_kokish_kraft`].
+    /// **Off by default — a measured loss**, kept as an opt-in knob.
+    /// `scripts/ab-2d-multi-px.sh`, `SEED_BASE 1787804916`, 230 400 bd/arm/vul,
+    /// isolation gate 0 foreign at both vuls: per fired NV plain **−0.980** /
+    /// PD **−1.780**, both-vul plain **−1.861** / PD **−2.083**, against a
+    /// resolution of 1.49 and 1.76 — three resolved losses and one negative
+    /// wash, with `sddiff` flat.  The surface came in ~40× thinner than
+    /// designed for (0.02%): after the exclusions above, 8–9 with no four-card
+    /// major is nearly empty.  Inert while their `2♦` is undeclared or natural
+    /// and inert without [`Self::multi_kokish_kraft`].
     pub multi_px_split: bool,
     /// Opener's **notrump out** over the K–K doubler's natural other major
     /// (`1NT (2♦) X (2♥) - - 2♠ -` and its siblings)

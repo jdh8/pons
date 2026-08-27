@@ -1944,7 +1944,36 @@ ruling.
    `{completed} (4M)`, stays unauthored and is recorded in
    [minor-transfer-slam.md](minor-transfer-slam.md).
 
-### The `P`/`X` information split — `competition.multi_px_split` (BUILT 2026-08-26, default off, A/B owed)
+### The `P`/`X` information split — `competition.multi_px_split` (MEASURED LOSS 2026-08-27, stays default off)
+
+**Verdict first.** `scripts/ab-2d-multi-px.sh`, `SEED_BASE 1787804916`, sha
+`f44b73b9`, 230 400 bd/arm/vul, **isolation gate 0 foreign at both vuls**
+(0/50, 0/36). Per fired — NV plain **−0.980** / PD **−1.780**; both-vul plain
+**−1.861** / PD **−2.083**. Resolution is 10.56/√n_div = 1.49 (NV) and 1.76
+(both), so **three of the four cells are resolved losses and the fourth is a
+negative wash**; no cell is positive, and `sddiff` is flat (+0.224/+0.168 NV,
+−0.048/+0.279 both, every one inside its ±0.4 CI). The knob stays default off.
+`ab-results/2d-multi-px/`.
+
+**The surface came in ~40× thinner than this section predicted.** 50 and 36
+divergent boards out of 230 400 — 0.02%, not the "whole X/P frontier" the
+script sized for. The exclusion list below is why, and it is the honest
+correction to the design note: after the `140`/`180`/`176`/`178`/`150`/`152`
+rungs take their share, **8–9 with no four-card major is nearly empty**. The
+split is close to inert, and what it does move it moves the wrong way.
+
+**Where the loss comes from** — selected worst tail, so **unverified** as a
+population mechanism per [measurement.md](measurement.md) (no full-dump count
+was run). Two clusters: (a) hands that used to double and *collect* now pass —
+`off: 1NT 2♦ X 2♥ X - - -` against `on: 1NT 2♦ - 2♥ - - -`, four boards at −8
+to −11, which is mechanism 1, the constraint itself; (b) the `2NT`→`3♥`/`4♥`
+reroute at −10 to −13, going past a making `3NT`, which is mechanism 2's 148.
+Cluster (a) landing on the constraint is what argues against splitting the
+package into isolating arms: the first mechanism in the ordering below is
+already the leading suspect, and the population is too thin to pay for three
+more runs. Recorded, not queued.
+
+The design as built, kept for the record:
 
 The census above is two numbers about one decision: the `X` branch's pass-outs
 read **−824 plain on 293 boards** and the `-` branch's pass-outs read **+1230

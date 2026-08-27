@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Measured
+
+- **The Kokish–Kraft `P`/`X` information split is a measured loss and stays
+  default off.** `competition.multi_px_split` — responder's `1NT (2♦)` double
+  narrowed to `hcp(10..) | (hcp(8..=9) & four-card major)`, the doubler's
+  natural other major re-weighted 100 → 148, the `X (2♠) - -` leg re-armed and
+  the delayed `2NT` turned into a live invitation — measured **negative in all
+  four cells**. `scripts/ab-2d-multi-px.sh`, `SEED_BASE 1787804916`, sha
+  `f44b73b9`, 230 400 bd/arm/vul, isolation gate **0 foreign at both vuls**
+  (0/50, 0/36). Per fired: NV plain **−0.980** / PD **−1.780**, both-vul plain
+  **−1.861** / PD **−2.083**, against a resolution of 10.56/√n_div = 1.49 and
+  1.76 — three resolved losses and one negative wash, with `sddiff` flat
+  (+0.224/+0.168, −0.048/+0.279, all inside ±0.4). No user-visible change: the
+  knob was already off and the default system is untouched.
+  **The divergence surface came in ~40× thinner than the design sized for** —
+  0.02%, 50 and 36 boards, not the "whole X/P frontier": after a five-card
+  major escapes at 140, a six-card minor transfers at 176/178 and 10+ points on
+  distribution bids `3NT`@150, 8–9 with no four-card major is nearly empty. The
+  worst-board tail (selected, so unverified as a population mechanism) points
+  at the constraint itself — hands that used to double and collect now pass —
+  which is why the three confounded mechanisms were **not** split into
+  isolating arms. Recorded, not queued
+  ([§N4-KK](docs/one-notrump-competitive.md), `ab-results/2d-multi-px/`).
+
 ### Documentation
 
 - **Three flagged discrepancies written down, none silently resolved; (1) has
