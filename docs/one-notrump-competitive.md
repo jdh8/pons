@@ -51,8 +51,8 @@ anchor arm off the deal-keyed DD cache — seconds, no generation, no new solve:
 
 ```bash
 cargo run --release --features serde --example probe-1nt-interference -- \
-    ab-results/anchor-confirm/2026-08-22-053c4fb8/american-none \
-    --dd-cache ab-results/anchor-confirm/dd-cache.json
+    ab-results/anchor/2026-08-27-3237e037/american-none \
+    --dd-cache ab-results/anchor/dd-cache.json
 # --bucket "2♣" --show 8       the worst boards of one bucket
 # --bucket "2♠" --responses 8  that bucket by our response, and by hand class
 # --bucket "2♦" --responses 6  the N4e decomposition (§N4e); 6 keeps the 6-board rows
@@ -69,57 +69,61 @@ not isolate. Isolation is a package's own A/B (`bba-gen --filter-1nt`, one
 knob). The confound is broadly common across buckets, which is what leaves the
 ranking usable.
 
-### Current — arms `053c4fb8`, seed 1787064872, 204,800 boards/vulnerability (run 2026-08-23 local)
+### Current — arms `3237e037`, seed 1783375064, 204,800 boards/vulnerability (run 2026-08-27 local)
 
-`ab-results/anchor-confirm/2026-08-22-053c4fb8/american-{none,both}`, the
-shipping system, replaying 100.00% of our calls with 0 mismatches; whole-arm
-plain **−0.4818 NV / −0.5870 vul** IMPs/board against BBA. We open 1NT on
-**6.33%/6.53%** of boards and RHO contests **12.9%/10.8%** of those, so a
-contested 1NT is **0.82%/0.70% of all boards**. The three-level suits are split
-per RHO suit; `4+` is `3NT` and everything above it, still one floor-only
-bucket.
+`ab-results/anchor/2026-08-27-3237e037/american-{none,both}`, the shipping
+system, replaying 100.00% of our calls with 0 mismatches; whole-arm plain
+**−0.4741 NV / −0.5753 vul** IMPs/board against BBA. This is the **main anchor
+series** (seed 1783375064), not the `anchor-confirm` series the 2026-08-23
+census read — a different seed, so the two tables are scale for each other,
+never deltas. We open 1NT on **6.47%/6.68%** of boards and RHO contests
+**12.4%/10.4%** of those, so a contested 1NT is **0.80%/0.69% of all boards**.
+The three-level suits are split per RHO suit; `4+` is `3NT` and everything
+above it, still one floor-only bucket.
 
 | RHO | boards (NV+vul) | plain total | plain/bd | PD/bd NV | PD/bd vul |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| **`2♦` Multi** | 816 | **−689** | −0.84 | +0.08 | −0.02 |
-| **`3♣` preempt** | 140 | −152 | −1.09 | −1.00 | −0.94 |
-| **`3♠` preempt** | 72 | −107 | **−1.49** | −0.91 | −1.11 |
-| `2♣` Landy | 573 | −102 | −0.18 | +0.67 | +0.95 |
-| `2♥` Muiderberg | 409 | −99 | −0.24 | +0.20 | +0.84 |
-| `2♠` Muiderberg | 402 | −90 | −0.22 | +0.18 | +0.48 |
-| **`4+`** (`3NT` and up) | 38 | −43 | −1.13 | −1.17 | −1.20 |
-| `2NT` unusual | 131 | −26 | −0.20 | −0.12 | +0.53 |
-| **`3♥` preempt** | 105 | +7 | +0.07 | −0.11 | +1.02 |
-| **`3♦` preempt** | 93 | +60 | +0.65 | +0.32 | +1.46 |
-| `X` Woolsey | 336 | **+103** | +0.31 | +0.94 | +1.79 |
-| **all contested** | 3115 | −1138 | −0.53 / −0.18 | +0.22 | +0.57 |
-| **uncontested 1NT** | 23223 | — | **+0.12 / −0.02** | — | — |
+| `2♣` Landy | 551 | **−275** | −0.50 | −0.27 | +0.29 |
+| `2♠` Muiderberg | 430 | −189 | −0.44 | +0.01 | +0.49 |
+| **`4+`** (`3NT` and up) | 43 | −126 | **−2.93** | −2.29 | −2.74 |
+| **`3♠` preempt** | 88 | −101 | −1.15 | −0.10 | −0.41 |
+| `2♥` Muiderberg | 393 | −79 | −0.20 | +0.16 | +1.10 |
+| `X` Woolsey | 364 | −62 | −0.17 | +0.88 | +1.20 |
+| **`3♣` preempt** | 100 | −54 | −0.54 | −0.78 | +0.24 |
+| **`3♥` preempt** | 85 | −6 | −0.07 | +1.03 | +0.30 |
+| `2NT` unusual | 118 | +6 | +0.05 | −0.02 | +0.72 |
+| **`2♦` Multi** | 794 | **+38** | +0.05 | +0.51 | +0.95 |
+| **`3♦` preempt** | 89 | +58 | +0.65 | +0.80 | +0.73 |
+| **all contested** | 3055 | −790 | −0.44 / −0.05 | +0.19 | +0.67 |
+| **uncontested 1NT** | 23868 | — | **+0.13 / +0.04** | — | — |
 
 **Three findings.**
 
-1. **The lane's whole headroom is ~0.003 IMPs/bd.** Contested costs −0.65 NV /
-   −0.16 vul relative to *uncontested*, on 0.82%/0.70% of boards — 0.0053 NV /
-   0.0011 vul per board of the arm. Against a −0.48/−0.59 gap to BBA nothing
+1. **The lane's whole headroom is ~0.003 IMPs/bd.** Contested costs −0.57 NV /
+   −0.09 vul relative to *uncontested*, on 0.80%/0.69% of boards — 0.0046 NV /
+   0.0007 vul per board of the arm. Against a −0.47/−0.58 gap to BBA nothing
    here closes an anchor bucket; this is hygiene and disaster removal at the
-   standard ship gate, as scoped.
-2. **Contested 1NT is not a leak.** −0.53/−0.18 against the arm's own
-   −0.48/−0.59: a shade below average NV, well above it vulnerable. Uncontested
-   1NT (+0.12/−0.02) is the better board either way, and the 1NT opening stays
-   one of our better boards even when contested.
-3. **`(2♦)` Multi remains the lane's largest bucket, but N4e landed.** At
-   **−689 plain on 816 boards** it is 4.5 times the next bucket's total, while
-   PD is nearly flat at +0.08/−0.02 NV/vul. The same-seed post-ship move is
-   **+55 plain / +109 PD**, and the weak-six disaster is gone (§N4e); the
-   residue names no new package. Everything N3 and N1 touched has
-   moved: the four three-level suits pool to **410 bd / −192 plain / −73 PD**
-   (paired against the same seed's post-ship baseline of −273 / −186 —
-   [§N3](#measurement--eight-rounds-archived)), `X` is now **+103 plain,
-   +0.31/bd, PD +0.94/+1.79** where the pre-N3 snapshot had −183 plain,
-   −0.50/bd, PD +0.51/+0.74 — the plain half crossed, the PD half was already
-   positive — and `2♣` is −0.18 per board. Per *board* the worst cells are
-   still the rare ones — `3♠` −1.49, `4+` −1.13, `3♣` −1.09 — and inside `4+`
-   the floor still offers no `X` at all. Buckets from different seeds are not subtractable; the
-   pre-N3 figures are scale, not deltas.
+   standard ship gate, as scoped. The [campaign](bba-gap-campaign.md) says the
+   same thing structurally: `1NT (2♦)` fires on 1.17% of table-auctions, its
+   `X` on 0.29%, its answer table on 0.06% — below the ±0.02 headline CI by
+   construction.
+2. **Contested 1NT is not a leak — it is now above the arm's average at both
+   vulnerabilities.** −0.44/−0.05 against the arm's own −0.47/−0.58.
+   Uncontested 1NT (+0.13/+0.04) is still the better board, and the 1NT
+   opening is one of our better boards either way.
+3. **`(2♦)` Multi has crossed to positive, and that half of the lane is
+   paid-for work.** The largest bucket by boards (794) now reads **+38 plain**
+   and +0.51/+0.95 PD. This one is a genuine *paired* move: the same seed's
+   previous snapshot (`c5fbee11`, 2026-08-25) reads **−94 NV / +53 vul** on the
+   same 439/355 boards, so N4-KK's answer table and the minor-transfer slam
+   tries are worth **+79 plain / +42 PD** on this lane — and **every other
+   bucket is byte-identical** across the two snapshots (only `2♣` NV moves, by
+   2 IMPs). The ranking's top is now `2♣` Landy (**−275 on 551 bd**, −0.50/bd,
+   PD −0.27 NV) and `2♠` Muiderberg (−189, −0.44/bd) — the two systems-on
+   two-level buckets, both of which were mid-table on the previous seed. Per
+   *board* the worst cells are still the rare ones — `4+` −2.93, `3♠` −1.15 —
+   and inside `4+` the floor still offers no `X` at all (N3-x). Buckets from
+   different seeds are not subtractable; only the `anchor`-series pair above is.
 
 Superseded snapshots — the 2026-08-18 pre-N3 baseline that selected N3, and the
 pre-N1 forensic on why the systems-on rebase lost to their Landy `2♣` — are in
@@ -127,19 +131,20 @@ pre-N1 forensic on why the systems-on rebase lost to their Landy `2♣` — are 
 
 ### Current `2NT` reading — small-n wash
 
-The bucket is now **131 boards, −26 plain (−0.20/bd)**, PD −0.12/+0.53 NV/vul,
-on per-board CIs of ±1.36/±1.70 that swallow it whole; the signs still
-disagree. The starting snapshot's forensic pattern was that BBA **doubled**
-their minors and we bid on:
+The bucket is now **118 boards, +6 plain (+0.05/bd)**, PD −0.02/+0.72 NV/vul,
+on per-board CIs of ±1.21/±1.62 that swallow it whole; the signs still
+disagree — and the plain half has crossed to positive. The starting
+snapshot's forensic pattern was that BBA **doubled** their minors and we bid
+on:
 
 ```text
 us:  1NT 2NT X 3♦ - - -
 bba: 1NT 2NT X 3♦ - - X - - -
 ```
 
-Three re-anchors later there is still no replicated loss — `53a3c254` read
-+5 plain on 118 boards, while both `1e9a47e2` and this snapshot read −26 on
-131, all well inside their CIs — so N6 stays parked.
+Four re-anchors later there is still no replicated loss — `53a3c254` read
++5 plain on 118 boards, `1e9a47e2` and `053c4fb8` read −26 on 131, and this
+snapshot reads +6 on 118, all well inside their CIs — so N6 stays parked.
 
 ## Coverage inventory
 
@@ -233,14 +238,23 @@ read `win | win` at both-vulnerable over a `wash | wash` NV, so K–K is now the
 **default** table against a declared Multi. Residues 3, 4 and 6 are its
 follow-up queue ([§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25)).
 
+**Re-ranked at `3237e037` (2026-08-27).** The `(2♦)` Multi bucket has crossed
+to **+38 plain** and is no longer the lane's top cost; the two open cells the
+new census promotes are `4+` (**−2.93/bd**, the worst per-board cell on either
+scorer — that is **N3-x**, already queued) and, by total, the two systems-on
+two-level buckets `2♣` Landy (−275) and `2♠` Muiderberg (−189), neither of
+which has an open package. Both are shipped, tuned lanes whose totals sit
+inside per-board CIs of ±0.47–0.76, so this is a re-rank to watch, not a new
+package — a fresh seed can reorder them again.
+
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
 | **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** — re-measured on a fresh seed after the mirror book fixed the residue-1 leak (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** (0/683 and 0/482, against a 55% prior rate), both-vul is the decision table's `win | win` row — plain **+0.0019 ±0.0013** / PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired) — over a `wash | wash` NV (+0.0002 ±0.0012 / +0.0012 ±0.0015), sd-lead agreeing in all four cells and **no negative reading in eight**. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm; residues 3/4/6 are the follow-up queue ([§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25)) |
-| **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
+| **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 43 bd / −126 plain / −107 PD, **−2.93/bd** — the lane's worst cell per board on either scorer, on a CI (±3.58/±4.15) that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
 | N3-fit | fresh-seed confirmation of the `4M` fit rung | `nt_high_overcall_x_major_at_four` (**on**) | Round 5 shipped it on one seed (+1.14/+1.69 per fired, 0 foreign) and explicitly owed a confirmation. Rounds 7–8 ran against a `base` that *carries* it, which is not an isolated confirmation — the row is shipped but not settled |
-| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | 131 bd, −26 plain, CI ±1.36/±1.70 per board and the signs disagree by vulnerability — no replicated loss on any re-anchor since the starting snapshot. Mechanism stays priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)). Parked |
+| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | 118 bd, +6 plain, CI ±1.21/±1.62 per board and the signs disagree by vulnerability — no replicated loss on any re-anchor since the starting snapshot. Mechanism stays priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)). Parked |
 | N3-three | single-dummy re-measure of the refuted honor half | `nt_high_overcall_x_leave_in_three` (**off**) | Round 7 refuted it at sd-lead −2.44/−2.99 per fired; its `plain wash \| PD win` DD signature is the doubling artifact. Kept opt-in as a house-rule re-measure candidate on its vulnerable PD reading |
 | N3-xfer | re-measure the `(3♣)` transfers | `nt_3c_transfers` (**off**) | Two seeds at round 2 and two more at round 3, all four pooled cells positive and all four an order of magnitude inside their CI. What it buys — the invitational five-card major, and right-siding — is DD-blind, so this is a single-dummy-harness item |
 | N2c | the no-call 8–9 count with 0-1 / 4+ in their suit | book | **Re-read 2026-08-21: 19 bd, +11 plain / +91 PD.** The class that motivated it now reads *positive on both scorers*. Demoted to **parked pending replication**, not closed — n is small enough that either sign is seed noise |
