@@ -55,6 +55,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
 
+    /// Declare their `2♣` a Landy (`their.two_clubs_landy`), so the N1j
+    /// counter's calls read off `1N (2C) X`, `1N (2C) 2N` and their
+    /// continuations
+    #[arg(long, default_value_t = false)]
+    their_2c_landy: bool,
+
     /// Minimum suit length for the floorless Multi escape
     /// (`competition.multi_weak_escape`), so its published reading can be read
     /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`.  Absent leaves the
@@ -139,6 +145,16 @@ struct Args {
     /// disturbed auction (`docs/minor-transfer-slam.md`).
     #[arg(long, default_value_t = false)]
     no_ns_landy_minor_slam_answer: bool,
+
+    /// Author opener's notrump out over the N1j Landy doubler's advanced major
+    /// (`1NT (2♣) X (2♥)`, `1NT (2♣) X (2♠)`)
+    ///
+    /// `competition.landy_doubler_notrump`, default **off**: `3NT` on
+    /// `hcp(16..) & stopper_in(their major)` where the seat is the floor's
+    /// today and it passes.  The treatment arm of
+    /// `scripts/ab-landy-doubler-nt.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_notrump: bool,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -162,6 +178,7 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;
@@ -182,6 +199,7 @@ fn main() {
         ),
     };
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
+    agreements.competition.landy_doubler_notrump = args.ns_landy_doubler_notrump;
     if let Some(n) = args.ns_multi_weak_escape {
         agreements.competition.multi_weak_escape = (n > 0).then_some(n);
     }

@@ -562,6 +562,31 @@ fn landy_double_answer() -> Rules {
     Rules::new().rule(Call::Pass, 100, hcp(0..))
 }
 
+/// Opener's notrump out over the Landy doubler's advanced major
+/// (`1NT (2♣) X (2♥)`, `1NT (2♣) X (2♠)`), under
+/// [`CompetitionKnobs::landy_doubler_notrump`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_notrump]
+///
+/// [`landy_double_answer`] covers their *pass*; this covers their major, which
+/// is the seat that bleeds.  The double is `hcp(8..)` but reads back as **8–9**
+/// — [`landy_bba_responder`] ranks the ungated `3NT`@168 above it — and the
+/// hand that holds their major stopped is opener's, not the doubler's, so the
+/// game has to be bid from this side or not at all.  `hcp(16..)` opposite a
+/// known 8–9 is the 24 that bids it; everything else passes, as the floor did.
+///
+/// The gate and the weight are [`kokish_kraft_doubler_major_answer`]'s
+/// `3NT`@135, ported: same `hcp(16..) & stopper_in(major)`, same "fires on
+/// exactly the hands that pass today" ordering.  Both legs carry the rung.
+/// Total.
+fn landy_doubler_major_answer(major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            135,
+            hcp(16..) & stopper_in(major),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's answer to the counter's weak sign-offs — pass, always
 ///
 /// One of the `landy_natural_answers` trio.  Covers the weak `2♦` (and, under
@@ -1216,6 +1241,17 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         landy_bba_responder(agreements),
     ));
     entries.extend(rows_of(Pattern::after(OVER, "X -"), landy_double_answer()));
+    // Their major over the values double.  Unregistered by default, so the
+    // seat stays the floor's and the build is byte-identical; on, the node
+    // shadows the floor there (`docs/bidding-architecture.md`).
+    if agreements.competition.landy_doubler_notrump {
+        for major in [Suit::Hearts, Suit::Spades] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("X ({})", Bid::new(2, Strain::from(major)))),
+                landy_doubler_major_answer(major),
+            ));
+        }
+    }
     entries.extend(rows_of(
         Pattern::after(OVER, "2♦ -"),
         landy_signoff_answer(),

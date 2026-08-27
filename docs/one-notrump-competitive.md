@@ -287,12 +287,89 @@ opener's continuation deliberately the floor's. Every other lane tops out at
 `3NT` or a placed `5m`, so this one is the template the rest are measured
 against: [minor-transfer-slam.md](minor-transfer-slam.md).
 
-**Owed here, whatever N4-KK's arm reads:** that `4m` has *no authored answer*,
-and the seat it creates is the one the N4-KK build probed and found the floor
-answering `4♥` — a contract in the opponents' suit — with no keycard reachable
-at all (`instinct`'s `4NT` ask is gated on `Context::undisturbed`). jdh8's call
-is to port the winning shape back here; it is a fix, not a copy, and it owes its
-own seed.
+That answer **shipped default-on 2026-08-25** as
+`competition.landy_minor_slam_answer` — `4NT` RKCB on `hcp(16..)`, else `5m`,
+at the quiet seat and at their `(X)`. Before it, the floor answered `4♥` — a
+contract in the opponents' advertised suit — and could never keycard at all
+(`instinct`'s `4NT` ask is gated on `Context::undisturbed`, and this lane is
+disturbed by construction). The row, its numbers and the eleven Landy seats
+still floored above a four-level call live in
+[minor-transfer-slam.md](minor-transfer-slam.md). *(This paragraph read "owed"
+until 2026-08-27; the seat had shipped two days earlier.)*
+
+### N1k — the 2026-08-27 bucket cut, and the seat it names
+
+The re-census made `2♣` the top total-cost bucket (551 bd, −275 plain) with no
+open package, so the first move was the cheap decomposition off the anchor's own
+DD cache — the `(2♦)` Multi lane's Phase-0 move, ported:
+
+```sh
+cargo run --release --features serde --example probe-1nt-interference -- \
+    ab-results/anchor/2026-08-27-3237e037/american-none \
+    --dd-cache ab-results/anchor/dd-cache.json --bucket "2♣" --responses 4
+```
+
+Both vulnerabilities pooled (551 bd, −275 plain / −6 PD), split by **our first
+call** over their `2♣`:
+
+| our call | bd | plain | PD | reading |
+| --- | ---: | ---: | ---: | --- |
+| `P` | 281 | **−307** | +7 | half the bucket; 76% of it is `≤7 hcp, no five-card suit` — nothing to author |
+| `X` | 67 | **−75** | +8 | the values double, and then the auction dies |
+| `3♥`/`3♠` splinter | 23 | −18 | −32 | the only branch negative on **both** scorers |
+| `2♥`/`2♠` cue | 17 | −5 | −6 | ~0 |
+| `2♦` weak | 25 | +11 | −3 | ~0 |
+| `2NT` (→♣) | 58 | +6 | +51 | fine |
+| `3♣` (→♦) | 44 | +55 | −69 | `win \| loss` — the doubling-artifact row |
+| `3NT` | 36 | +58 | +38 | the branch that pays |
+
+Three findings, in order of size.
+
+**1. The pass branch is mostly not ours to fix, and the bucket does not
+isolate.** Of the 281 pass boards, 146 end with them playing a *making* 2M for
+−257 plain. Re-classifying every board by what happened at the **mirror** table
+puts −78 plain on 24 boards where *we* opened the bidding with the Landy-shaped
+hand and BBA passed, and −51 on 106 where our own defence passed their 1NT out.
+Those are the defensive-overcall and opening-discipline lanes wearing this
+bucket's clothes — the probe's own warning ("the buckets RANK, they do not
+isolate") measured rather than assumed. Nothing here is a counter-Landy package.
+
+**2. The values double has no game.** `X (2♥)` passed out is 22 bd at **−47
+plain / −44 PD**, and splitting it by opener's hand puts *all* of it in one
+cell:
+
+| opener | bd | plain | PD |
+| --- | ---: | ---: | ---: |
+| `hcp 16+`, their major stopped | 11 | **−45** | **−46** |
+| `hcp 15`, their major stopped | 6 | +10 | +12 |
+| no stopper | 5 | −11 | −10 |
+
+On those same deals BBA bids and makes `3NT` at the other table for +400/+600.
+The mechanism is a reading fact: the double is authored `hcp(8..)` but
+`landy_bba_responder` ranks the ungated `3NT`@168 above it, so it reads back as
+**8–9** (`probe-call-reading --their-2c-landy "1N (2C) X (2H)"`); 16 opposite a
+known 8–9 is the 24 that bids a game, and the stopper is on *opener's* side —
+the doubler is short in their major, which is why it could not bid `3NT` itself.
+The seat has no book node: `probe-decision "AJ5.KQ5.A932.Q54" "1NT (2♣) X (2♥)"`
+reads `fallback: Some(0)` and takes `Pass` at 11.9. This is the Multi campaign's
+`multi_doubler_notrump` — the answer table with no notrump rung — one lane over,
+and it is **built** as `competition.landy_doubler_notrump` (`3NT`@135 on
+`hcp(16..) & stopper_in(major)`, both legs, `Pass`@0), **default off, A/B owed**:
+`scripts/ab-landy-doubler-nt.sh`. Two named risks in that script: the node
+*shadows* the floor's natural `3♦` at this seat, and the `(2♠)` leg's same cell
+reads +0 plain / +30 PD over 7 boards, so a split verdict is a real outcome.
+
+**3. Two smaller candidates, neither built.** The `3♥`/`3♠` splinters are gated
+`points(10..)`, so a shortness-inflated 8–9 HCP hand fires them; opener signs
+off in `3NT` and it fails (14 of the 17 `3♥` boards are exactly
+`3♥ - 3NT - - -`), and the 8–9 HCP sub-cell is −33 plain / −39 PD against +8/+1
+for `hcp 10+`. A singleton in their major is the worst dummy 3NT can have, so
+`hcp(10..)` rather than `points(10..)` is the obvious arm — but it collides with
+finding 2 (those hands would then double, and land in the seat above), so it
+wants its own seed *after* that verdict, not beside it. Separately, the `3♣`
+(→♦) transfer's `win | loss` row is the decision table's doubling-artifact
+signature, and its worst lines are `3♣ (3♠) 5♦` — an **unauthored interfered
+tail** where the floor blasts five of a minor (6 bd, +1 plain / −38 PD).
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
@@ -2355,6 +2432,7 @@ reason to take it.
 | N1g Landy read-side wiring | `reading.their_landy_reading` (**on**) | **SHIPPED DEFAULT-ON 2026-08-14** | `plain wash \| PD win` ×3 seeds: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**. **Isolation gate 0 foreign — the campaign's first** | [closed §N1g](archive/one-notrump-competitive-closed.md#n1g--the-read-side-wiring-shipped-default-on-2026-08-14) |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
+| N1k opener's notrump out over the doubler's major | `competition.landy_doubler_notrump` (**off**) | **built 2026-08-27, A/B owed** | no verdict. The bucket cut that named it: `X (2♥)` passed out is 22 bd at −47 plain / −44 PD, all of it the `hcp 16+`-with-a-stopper cell (11 bd, −45/−46) against +10/+12 for the 15-counts. Ported from `multi_doubler_notrump`, which won 4/4 cells one lane over | [§N1k](#n1k--the-2026-08-27-bucket-cut-and-the-seat-it-names); `scripts/ab-landy-doubler-nt.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

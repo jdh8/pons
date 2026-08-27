@@ -1157,6 +1157,44 @@ pub struct CompetitionKnobs {
     /// the isolation gate found zero foreign boards.  The off state preserves
     /// the former floor-owned answer for comparison.
     pub landy_minor_slam_answer: bool,
+    /// Opener's **notrump out** over the N1j Landy doubler's advanced major
+    /// (`1NT (2♣) X (2♥)` and `1NT (2♣) X (2♠)`)
+    ///
+    /// The values double is `hcp(8..)`, but
+    /// `competition::lebensohl::landy_bba_responder` ranks the ungated
+    /// `3NT`@168 (`points(10..)`) above it, so the double reads back as
+    /// **8–9** — `probe-call-reading --their-2c-landy "1N (2C) X (2H)"`
+    /// prints `points 8..9`.  Opposite `hcp 16+` that is the 24 that bids a
+    /// game, and the hands that hold the *stopper* are opener's: the doubler
+    /// is typically short in their major (it is why it could not bid `3NT`
+    /// itself).  Yet the seat over their advance has no book node at all —
+    /// `probe-decision "AJ5.KQ5.A932.Q54" "1NT (2♣) X (2♥)"` reads
+    /// `fallback: Some(0)` and takes `Pass` at 11.9, with `2NT` a distant
+    /// 2.3 — so the auction dies in their partscore with 24 combined.
+    ///
+    /// The 2026-08-27 bucket cut measures the hole (551 lane boards at
+    /// `ab-results/anchor/2026-08-27-3237e037`, both vulnerabilities):
+    /// `X (2♥)` passed out is 22 boards at **−47 plain / −44 PD**, and the
+    /// whole of it is the `hcp 16+`-with-a-stopper cell — 11 boards at −45
+    /// plain / −46 PD, against +10/+12 for the 15-counts and −11/−18 for the
+    /// stopperless.  At the other table BBA bids and makes `3NT` for +400/+600
+    /// on those same deals.
+    ///
+    /// On, `competition::lebensohl::landy_doubler_major_answer` claims the
+    /// seat with `3NT`@135 on `hcp(16..) & stopper_in(major)` and a `Pass`
+    /// catch-all — the same rung and the same gate as
+    /// [`Self::multi_doubler_notrump`], which won 4/4 cells in the Multi lane
+    /// on 2026-08-27.  Authoring the node **shadows the floor** there, so the
+    /// floor's second choice (a natural `3♦`, 6.3) goes with it; that is the
+    /// arm's designed-for risk and the natural-`3m` rung is the follow-up if
+    /// the A/B reads a wash.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-nt.sh`).
+    /// The `(2♠)` leg is armed with the `(2♥)` one on the house's symmetric-
+    /// table idiom, though the same cut reads its `hcp 16+`-with-a-stopper
+    /// cell as +0/+30 over 7 boards; the arm prices both.  Inert while their
+    /// `2♣` is undeclared or natural.
+    pub landy_doubler_notrump: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1295,6 +1333,7 @@ impl Default for CompetitionKnobs {
             multi_doubler_notrump: true,
             multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
+            landy_doubler_notrump: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

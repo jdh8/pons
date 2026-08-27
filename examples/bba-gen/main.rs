@@ -861,6 +861,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_minor_slam_answer: bool,
 
+    /// Author opener's notrump out over the N1j Landy doubler's advanced major
+    /// (`1NT (2♣) X (2♥)`, `1NT (2♣) X (2♠)`)
+    ///
+    /// `competition.landy_doubler_notrump`, default **off**: `3NT` on
+    /// `hcp(16..) & stopper_in(their major)` where the seat is the floor's
+    /// today and it passes.  The treatment arm of
+    /// `scripts/ab-landy-doubler-nt.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_notrump: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2335,6 +2345,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
+    agreements.competition.landy_doubler_notrump = args.ns_landy_doubler_notrump;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

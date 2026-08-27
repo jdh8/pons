@@ -695,6 +695,56 @@ fn landy_counter_is_inert_when_the_knob_is_off() {
     );
 }
 
+/// The values double's own game: opener holds the stopper, so opener bids it
+///
+/// `competition.landy_doubler_notrump`, default off — the 2026-08-27 bucket
+/// cut reads the seat's floor-owned pass at −47 plain / −44 PD over 22 boards,
+/// all of it in the `hcp 16+`-with-a-stopper cell (§N1, A/B owed).
+#[test]
+fn landy_doubler_notrump_bids_the_stopped_game() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+    ];
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_notrump = true;
+    // 16 opposite a double that reads back 8-9 is the 24 that bids the game,
+    // and the heart stopper is on this side of the table.
+    let (c, floored) = best_call_with(&arm, &auction, "AJ5.KQ5.A932.Q54");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the notrump out must come from the book");
+    // A 15-count is 23 and passes; 16 without their suit stopped is the wrong
+    // side of the table and passes too.
+    assert_eq!(
+        best_call_with(&arm, &auction, "AJ5.KQ5.A932.J54").0,
+        Call::Pass
+    );
+    assert_eq!(
+        best_call_with(&arm, &auction, "AJ5.762.AQ32.KQ4").0,
+        Call::Pass
+    );
+    // Same rung on the spade leg.
+    let spades = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Spades),
+    ];
+    assert_eq!(
+        best_call_with(&arm, &spades, "KQ5.AJ5.A932.Q54").0,
+        call(3, Strain::Notrump)
+    );
+    // Off — the default — leaves the whole seat to the floor, which passes.
+    let mut off = Agreements::default();
+    off.decision.their.two_clubs_landy = true;
+    let (c, floored) = best_call_with(&off, &auction, "AJ5.KQ5.A932.Q54");
+    assert_eq!(c, Call::Pass);
+    assert!(floored, "the default arm keeps the floor-owned seat");
+}
+
 #[test]
 fn landy_bba_ladder_routes_the_both_minor_family() {
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];

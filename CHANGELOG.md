@@ -7,7 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`competition.landy_doubler_notrump`** (default **off**, A/B owed) — opener's
+  notrump out over the N1j Landy doubler's advanced major, `1NT (2♣) X (2♥)` and
+  `1NT (2♣) X (2♠)`: `3NT`@135 on `hcp(16..) & stopper_in(major)`, `Pass`@0
+  catch-all, both legs. The seat has been the floor's, and the floor passes it
+  out. Ported gate-for-gate from `competition.multi_doubler_notrump`, which won
+  4/4 cells in the `(2♦)` Multi lane on 2026-08-27. No user impact until the
+  knob is armed — the default build registers no node there and
+  `bid_landy_bba`'s default arm still reads `fallback: Some(0)`. Measure with
+  `scripts/ab-landy-doubler-nt.sh` (the first runner to use `--filter-landy`);
+  `docs/one-notrump-competitive.md` §N1k.
+
+- **`--their-2c-landy`** on `render-book` and `probe-call-reading` — the `(2♣)`
+  Landy lane could not be rendered or reading-probed at all before this: their
+  `2♣` is a *disclosure* (`decision.their.two_clubs_landy`), undeclared by
+  default, so both tools silently showed the natural-`2♣` leg. With the flag,
+  `render-book --their-2c-landy --prefix "1NT (2♣)"` prints 66 node headings
+  and 6 guarded sections where the flagless run prints 4 — three of them the
+  natural-`2♣` leg the counter replaces, the fourth a *defensive*-book node
+  (their 1NT, our own `2♣`) that the prefix match pulls in either way. The
+  `--ns-landy-doubler-notrump` arm flag is wired on both plus `bba-gen`, and
+  `probe-decision` gains `PROBE_LANDY_DOUBLER_NT`.
+
 ### Measured
+
+- **The `(2♣)` Landy bucket decomposed** (`docs/one-notrump-competitive.md`
+  §N1k; read-only, off the anchor's own DD cache — no generation). The
+  2026-08-27 census made `2♣` the top cost bucket (551 bd, **−275 plain**) with
+  no open package; splitting it by our first call puts **−307 plain over 281
+  boards on the pass branch and −75 over 67 on the values double**, both ≈0 on
+  perfect defense, while every other branch is neutral or positive. Three
+  results. (1) The pass branch is largely *not* this lane: 76% of it is a
+  responder with ≤7 HCP and no five-card suit, and re-classifying by the mirror
+  table puts −78 plain on 24 boards where we opened the Landy-shaped hand and
+  BBA passed, −51 on 106 where our own defence passed their 1NT out. (2) The
+  values double's `X (2♥)` pass-out (22 bd, −47 plain / −44 PD) is **entirely**
+  the `hcp 16+`-with-a-stopper cell (11 bd, −45/−46, against +10/+12 for the
+  15-counts) — the knob above. (3) Two candidates recorded, neither built: the
+  `3♥`/`3♠` splinters are gated on `points(10..)`, so shortness-inflated 8–9
+  HCP hands fire them and opener's `3NT` fails (−33 plain / −39 PD, against
+  +8/+1 for `hcp 10+`); and the `3♣`→♦ transfer reads the decision table's
+  doubling-artifact row (+55 plain / −69 PD), its worst lines an unauthored
+  `3♣ (3♠)` tail where the floor blasts `5♦`.
 
 - **BBA anchor re-run at `3237e037`** (`docs/bba-gap-campaign.md`; persistent
   seed `1783375064`, 204,800 boards per vulnerability per arm, all four arms
@@ -54,6 +97,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([§N4-KK](docs/one-notrump-competitive.md), `ab-results/2d-multi-px/`).
 
 ### Documentation
+
+- **Doc drift found while decomposing the `(2♣)` bucket, two fixed and two
+  flagged.** Fixed: `docs/one-notrump-competitive.md` §N1 still said the Landy
+  `4m` slam try "has *no authored answer*" and owed one — it shipped as
+  `competition.landy_minor_slam_answer` on 2026-08-25, two days before the
+  paragraph was read; and `examples/probe-1nt-interference`'s module doc carried
+  its `--table b` paragraph twice, verbatim. Flagged, **not** touched, both from
+  `docs/ai-bidder/landy-2c-counter-defense-research.md`: `landy_bba_ask_answer`
+  ends in a `4♣` catch-all that can manufacture four clubs on its no-minor
+  branch (a live authoring bug — proposed reversible default: gate the rung on
+  `len(♣, 4..)` and let the shortage fall to the notrump rung, behind its own
+  knob and its own A/B), and `landy_bba_takeout_answer`'s final notrump
+  catch-all is formally unreachable (proposed default: leave, record — deleting
+  it changes no bid but removes the table's only total-by-construction proof).
 
 - **Three flagged discrepancies written down, none silently resolved; (1) has
   since been ruled on and fixed below.**
