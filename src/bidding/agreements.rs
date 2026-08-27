@@ -1101,14 +1101,27 @@ pub struct CompetitionKnobs {
     /// not a one-point relaxation of [`Self::multi_doubler_notrump`]'s floor
     /// but its own knob with its own seed.
     ///
-    /// Default **off**, A/B owed.  The case for it is that the same rung one
-    /// point higher won all four cells by 3–4 SE on 2026-08-27, with 270 of
-    /// 273 divergences reaching a game the baseline never bid.  The case
-    /// against is that a 15-count opposite `hcp 8+` is 23 combined, so the
-    /// invitation can be wrong in both directions.  Inert without
-    /// [`Self::multi_doubler_notrump`] (or [`Self::multi_px_split`]) and
-    /// [`Self::multi_doubler_major`], and inert while their `2♦` is undeclared
-    /// or natural.
+    /// **On by default** since 2026-08-27: its A/B
+    /// (`scripts/ab-2d-multi-doubler-min-nt.sh`, 4.608M boards per cell) reads
+    /// a win in every cell on every scorer — no vulnerability +2.007 plain /
+    /// +1.597 perfect-defense IMPs per fired board over 144, both vulnerable
+    /// +2.011 / +1.413 over 92, and the 16-world single-dummy tie-breaker
+    /// agrees (+1.986 / +1.816 and +2.617 / +2.160).  Against 0.449 and 0.562
+    /// SE that is 4.5 / 3.6 and 3.6 / 2.5, so no cell is near resolution.  Both
+    /// isolation gates passed with zero foreign boards and every divergence is
+    /// a bid where the baseline passed.
+    ///
+    /// The designed-for risk is real but paid for: a 15-count opposite `hcp 8+`
+    /// is 23 combined, so the invitation *is* sometimes wrong in both
+    /// directions — the worst boards are `2NT` and accepted `3NT` going down —
+    /// but 48% of divergences reach a game the baseline never bid.  A bonus the
+    /// design did not predict and double-dummy under-counts: on 8 boards the
+    /// baseline's pass let the opponents balance into a game of *their* own
+    /// that `2NT` shut out.  Turn it off to recover the `hcp(16..)` floor.
+    ///
+    /// Inert without [`Self::multi_doubler_notrump`] (or
+    /// [`Self::multi_px_split`]) and [`Self::multi_doubler_major`], and inert
+    /// while their `2♦` is undeclared or natural.
     pub multi_doubler_minimum_notrump: bool,
     /// Author opener's answer to the N1j Landy `4m` slam try
     ///
@@ -1274,7 +1287,7 @@ impl Default for CompetitionKnobs {
             multi_doubler_major: true,
             multi_px_split: false,
             multi_doubler_notrump: true,
-            multi_doubler_minimum_notrump: false,
+            multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
             major_support_double: true,
             uvu_over_majors: true,

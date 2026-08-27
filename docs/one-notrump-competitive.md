@@ -2020,6 +2020,17 @@ from the default instead of carrying it. Both knobs still emit one rung
 (`multi_px_split || multi_doubler_notrump`), so disarming the default with
 `--no-ns-multi-doubler-notrump` would put it back in the `px` arm only.
 
+**And the ladder grew one rung lower the same day, also into `base`.**
+`competition.multi_doubler_minimum_notrump` shipped default-on 2026-08-27 (a
+win in all four cells, `ab-results/2d-multi-doubler-min-nt/`): the 15-count's
+`2NT`@120 on the `2♠` leg plus responder's `3NT`@140 acceptance, the rung below
+the `3NT`@135 out. It is gated on the notrump out rather than on the split, so
+it too is in both arms and confounds nothing here — the same reasoning, one
+point lower. The coupling argument gets *stronger*, not weaker: 148 sends more
+stopper-holding 8–9 doublers to that answer table, and the table now answers
+them from 15 up rather than from 16 up. Details in
+[multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md) item 2.
+
 **Deliberately not done.** Opener's takeout `X` at `- (2M)` — the pass branch's
 mirror of this split — is **skipped on jdh8's ruling**: BBA passes that seat
 94.2% / 92.7% and its only action is a trump-length penalty double,

@@ -977,6 +977,10 @@ fn kk_arm() -> crate::bidding::agreements::Agreements {
     // table this rung was measured against" and [`kk_major_arm`] keeps being
     // the contrast — the same move `multi_arm` made when K–K itself shipped.
     arm.competition.multi_doubler_major = false;
+    // Same move again for the 15-count's `2NT`, which shipped default-on
+    // 2026-08-27: pinned off here so `kk_nt` keeps meaning "the `hcp(16..)`
+    // floor" and [`kk_min_nt`] stays the contrast that turns it on.
+    arm.competition.multi_doubler_minimum_notrump = false;
     arm
 }
 

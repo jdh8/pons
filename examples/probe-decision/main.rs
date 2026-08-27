@@ -164,10 +164,13 @@ fn main() {
         Err(_) => {}
     }
     // That notrump out extended down to the 15-count as `2NT` on the `2♠` leg
-    // (`competition.multi_doubler_minimum_notrump`, default off, A/B owed):
-    // `PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP=1` arms it.
-    if std::env::var("PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP").is_ok_and(|v| v == "1") {
-        agreements.competition.multi_doubler_minimum_notrump = true;
+    // (`competition.multi_doubler_minimum_notrump`, **default on** since
+    // 2026-08-27): `PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP=0` disarms it back to
+    // the `hcp(16..)` floor, which is the interesting direction now.
+    match std::env::var("PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP").as_deref() {
+        Ok("0") => agreements.competition.multi_doubler_minimum_notrump = false,
+        Ok(_) => agreements.competition.multi_doubler_minimum_notrump = true,
+        Err(_) => {}
     }
     // Their `(2♣)` is Landy — a *disclosure*, undeclared by default, and until
     // 2026-08-25 this probe had no channel for one, so every N1j forensic

@@ -7,8 +7,10 @@ winning all four cells (§ *The repair, measured*) — but it recovers only
 **~20%** of the parent's both-vulnerable deficit, so that cell is improved,
 not retired. This document is why the cell exists, why it is not the rung's
 fault, what the repair bought, and what is still owed. The next rung down —
-`competition.multi_doubler_minimum_notrump`, the 15-count's `2NT` — is **built
-2026-08-27, default off, A/B owed** (item 2).
+`competition.multi_doubler_minimum_notrump`, the 15-count's `2NT` — **shipped
+default-on 2026-08-27**, also a win in all four cells (item 2). The answer
+table's ladder is now complete on the `2♠` leg; the `3♥` leg and the rest of
+the both-vulnerable cell (item 3) are what remain.
 
 ## What shipped, and what it measured
 
@@ -154,50 +156,54 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
    2.304M would have reached ~40 boards. Both smoke divergences are "bid where
    the baseline passed" with **0 foreign** on `--gate-opener ours`. Results in
    `ab-results/2d-multi-doubler-nt/`, `SEED_BASE=1787749549`.
-2. **The 15-count — BUILT 2026-08-27, `competition.multi_doubler_minimum_notrump`,
-   default off, A/B owed.** `multi_doubler_notrump` floors at `hcp(16..)`, so a
-   15-count with a stopper and short support still passed `2♠` — board 1 of the
-   worst tail (`A82.A53.KJ75.K74`, 15 HCP, three spades) is exactly that hand,
-   and `kk_doubler_notrump_repairs_the_answer_table` pins it as unrepaired.
-
-   The knob adds, on the `2♠` leg only:
+2. **The 15-count — SHIPPED 2026-08-27, default-on. Won all four cells.**
+   `competition.multi_doubler_minimum_notrump`. `multi_doubler_notrump` floors
+   at `hcp(16..)`, so a 15-count with a stopper and short support passed `2♠`
+   into a 4-2 or 4-3 — board 1 of that run's worst tail
+   (`A82.A53.KJ75.K74`, 15 HCP, three spades). The rung, on the `2♠` leg only:
 
    ```
    2NT @120  hcp(15..) & stopper_in(major)     opener, below the 3♠@130 invite
    3NT @140  hcp(10..)                         responder accepts — 25 opposite a known 15
    ```
 
-   `2NT` outranks spades at the same level, so the rung exists over `2♠`; over
-   the `3♥` leg there is nothing below `3NT` and its 15-count keeps passing.
-   That asymmetry is why this is **its own knob with its own seed**, not a
-   one-point relaxation of the `hcp(16..)` floor. Ordering does the gating, the
-   same idiom as the rest of the package: `hcp 16+` already took `4♠`@140 or
-   `3NT`@135, and a 15 with four spades took the `3♠`@130 invite, so 120 sees
-   only the 15-count with fewer than four. `minimum_notrump` is `and`-ed with
-   `notrump_out` at the call site — a rung *below* the notrump out is
-   incoherent without it (15 would bid and 16 would pass).
+   `ab-results/2d-multi-doubler-min-nt/`, `SEED_BASE=1787769822`, sha
+   `3107742e`, `PER_SHARD=384000` × 12 = **4.608M bd/arm/vul**,
+   `--their-2d-multi --filter-1nt`, arms `base` (the `hcp(16..)` floor) vs
+   `minnt`.
 
-   Pinned by `kk_doubler_minimum_notrump_bids_the_fifteen_count`, which asserts
-   the losing board bids `2NT` under the knob and passes without it, that 120
-   steals nothing from 140/135/130, that responder passes on 8–9 and accepts on
-   10, and that the `3♥` leg is unmoved. `smoke-default` byte-identical when
-   off.
+   | vul | fired | plain DD | PD | sd plain | sd PD |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | none | 144 | **+2.007** | **+1.597** | +1.986 | +1.816 |
+   | both | 92 | **+2.011** | **+1.413** | +2.617 | +2.160 |
 
-   **Run it with `scripts/ab-2d-multi-doubler-min-nt.sh`** at the notrump out's
-   own scale (4.608M bd/arm/vul, `JOBS=12 PER_SHARD=384000`). The smoke says
-   the surface is *thicker* than the parent's — 120 000 both-vul boards diverge
-   on **5**, 1 in 24 000 against the parent's 1 in 43 000, so that scale reaches
-   ~190 fired boards per cell. All five are "bid where the baseline passed",
-   `--gate-opener ours` reads **0 foreign**, and three of the five reach a game
-   the baseline never bid, i.e. responder's `hcp(10..)` acceptance firing.
+   IMPs per fired board. SE ≈ 5.39/√n = 0.449 (NV) and 0.562 (both), so
+   t = 4.5 / 3.6 and 3.6 / 2.5: `win | win` at both vulnerabilities, with the
+   16-world single-dummy tie-breaker agreeing in the same direction in all
+   four. Isolation gates **0 foreign** (0/144, 0/92); 100% of divergences are
+   "bid where the baseline passed".
 
-   The case *for*: the same rung one point higher won all four cells by 3–4 SE,
-   with 270 of 273 divergences reaching a game the baseline never bid. The case
-   *against*, and the reason this is not a default: 15 opposite `hcp 8+` is 23
-   combined, so the invitation can be wrong in **both** directions — accepted
-   into a bad `3NT`, or declined into a `2NT` that plays worse than defending
-   their partscore. A negative cell here is evidence the ladder should stop at
-   16, not evidence of a further missing rung.
+   **The designed-for risk showed up and was paid for.** 15 opposite `hcp 8+`
+   is 23 combined, so the invitation is sometimes wrong in both directions —
+   the worst boards are `2NT` and accepted `3NT` going down — but 48% of
+   divergences reach a game the baseline never bid. The both-vul PD cell is the
+   thinnest at 2.5 SE, which is where that risk would show, and it stays clear.
+
+   **A benefit the design did not predict, and double-dummy under-counts.** On
+   8 boards (6 NV, 2 both) the *baseline* reached a game and the candidate did
+   not: passing `2♠` let the opponents balance into a game of their own, and
+   `2NT` shut them out. The census reads it as "room handed to the opponents:
+   more in the baseline, 9 boards".
+
+   Flag inverted on ship to `--no-ns-multi-doubler-minimum-notrump` /
+   `PROBE_MULTI_DOUBLER_MINIMUM_NOTRUMP=0`; `kk_arm()` pins it off so every
+   existing K–K test keeps its meaning and `kk_min_nt` stays the contrast.
+   Pinned by `kk_doubler_minimum_notrump_bids_the_fifteen_count`.
+
+   *Sizing lesson, paid for on this run:* a 120 000-board smoke read **5**
+   divergences and sized the surface at 1 in 24 000; the truth is 1 in 32 000
+   (NV) and 1 in 50 000 (both). Five boards is Poisson noise — treat a smoke
+   that thin as order-of-magnitude only, and never shrink an arm on one.
 
 3. **The rest of the both-vul cell — NOW THE HEAD OF THE QUEUE.** Item 1
    answered its own half: the pass-outs were worth ~20% of the deficit, so

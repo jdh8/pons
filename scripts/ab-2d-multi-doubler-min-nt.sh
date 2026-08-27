@@ -27,7 +27,16 @@
 # treatment, which is why this gets its own knob and its own seed rather than
 # being a one-point relaxation of `multi_doubler_notrump`'s floor.
 #
-# The hypothesis: **the same rung one point lower keeps the same sign.**  The
+# The rung SHIPPED default-on 2026-08-27 on this script's own run: a win in all
+# four cells (none +2.007 plain / +1.597 PD over 144 fired; both +2.011 /
+# +1.413 over 92), 0 foreign on both gates, single-dummy agreeing in the same
+# direction everywhere.  The designed-for risk showed up and was paid for: the
+# worst boards are `2NT` and accepted `3NT` going down, but 48% of divergences
+# reach a game the baseline never bid, and on 8 boards the baseline's pass let
+# the opponents balance into a game of *their* own that `2NT` shut out.
+#
+# The hypothesis it tested: **the same rung one point lower keeps the same
+# sign.**  The
 # `hcp 16+` version won all four cells by 3–4 SE with 270 of 273 divergences
 # reaching a game the baseline never bid; if the 15-count's `2NT` is the same
 # population one trick shallower, it should read non-negative everywhere.  What
@@ -39,19 +48,20 @@
 #
 # Two arms, one seed set, `--their-2d-multi --filter-1nt` on both:
 #
-#   base    the shipped default: `4M`@140 / `3NT`@135 / `3♠`@130 / pass
-#   minnt   plus `2NT`@120 and responder's acceptance
+#   base    the `hcp(16..)` floor: `4M`@140 / `3NT`@135 / `3♠`@130 / pass
+#   minnt   plus `2NT`@120 and responder's acceptance — the default since
+#           2026-08-27, so `base` now carries the disarming flag and a re-run
+#           measures the same delta in the same direction
 #
 # SIZE IT AT THE NOTRUMP-OUT RUN'S SCALE (4.608M bd/arm/vul, JOBS=12
-# PER_SHARD=384000).  The smoke says the surface is *thicker* than that run's:
-# 120 000 boards at both-vulnerable diverge on **5**, i.e. 1 in 24 000 against
-# the notrump out's 1 in 43 000, so this scale reaches ~190 fired boards per
-# cell — better resolution than the parent got.  All five are "bid where the
-# baseline passed" with 0 foreign on `--gate-opener ours`, and three of the five
-# reach a game the baseline never bid, which is responder's `hcp(10..)`
-# acceptance firing.  Read the per-fired paired diff, not the per-board
-# headline: the resolution constant is 5.39 IMPs sd per divergent board, so
-# |Δ| > 10.56/√n_div per fired board clears 2 SE.
+# PER_SHARD=384000) — the measured surface is 1 divergence in 32 000 at no-vul
+# and 1 in 50 000 at both, i.e. 144 and 92 fired at this scale, against the
+# notrump out's 167 and 106.  **A 120 000-board smoke read 5 divergences and so
+# sized it at 1 in 24 000, twice the truth**; five boards is Poisson noise, so
+# treat a smoke that thin as order-of-magnitude only and do not shrink an arm on
+# one.  Read the per-fired paired diff, not the per-board headline: the
+# resolution constant is 5.39 IMPs sd per divergent board, so |Δ| > 10.56/√n_div
+# per fired board clears 2 SE — 0.90 and 1.12 at these counts.
 #
 # Scoring.  Plain AND perfect defense off the decision table in
 # docs/measurement.md; `sddiff` is the tie-breaker.  Read `probe-divergence
@@ -84,8 +94,8 @@ SEED_BASE=$(seed_for 2d-multi-doubler-min-nt)
 log "=== 2d-multi-doubler-min-nt SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base  "$v" --their-2d-multi --filter-1nt
-    arm minnt "$v" --their-2d-multi --filter-1nt --ns-multi-doubler-minimum-notrump
+    arm base  "$v" --their-2d-multi --filter-1nt --no-ns-multi-doubler-minimum-notrump
+    arm minnt "$v" --their-2d-multi --filter-1nt
 
     gatepair minnt base "$v"
     diffpair minnt base "$v"
