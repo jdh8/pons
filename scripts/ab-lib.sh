@@ -2,7 +2,8 @@
 # executable on its own; a runner sets R (and optionally the knobs below) then
 # sources it, and is left with only its experiment body — the arms and diff
 # pairs — to spell out.  Sourcing turns on `set -eu`, cds to the repo root,
-# builds the harnesses, and defines log / arm / diffpair / sddiff / seed_for.
+# builds the harnesses, and defines log / arm / gatepair / diffpair / sddiff /
+# seed_for.
 #
 # Honored if set before sourcing:
 #   PER_SHARD    boards per shard per arm per vul     (default 6400)
@@ -23,6 +24,7 @@ mkdir -p "$R"
 SHA=$(git rev-parse --short HEAD)
 DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
+PROBE=target/release/examples/probe-divergence
 PER_SHARD=${PER_SHARD:-6400}
 SHOW=${SHOW:-5}
 SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners log it
@@ -54,6 +56,20 @@ arm() {
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
     SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1
+}
+
+# gatepair ON OFF VUL — the isolation gate that must precede any headline
+# (docs/measurement.md): it must read **0 foreign**, i.e. no divergent board was
+# opened by the other side.  Needs BUILD_EXTRA='--example probe-divergence'.
+#
+# Runners written before 2026-08-27 define this themselves and shadow it; the
+# bodies are identical, so nothing changes for them.
+gatepair() {
+    on=$1; off=$2; vul=$3
+    out="$R/gate.$on.vs.$off.$vul.txt"
+    [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
+    log "isolation gate $on vs $off ($vul)"
+    "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener ours >"$out"
 }
 
 # diffpair ON OFF VUL — paired diff over the whole arm, plain + pd.  ab-dump-diff
