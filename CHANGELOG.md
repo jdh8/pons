@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **BBA anchor re-run at `3237e037`** (`docs/bba-gap-campaign.md`; persistent
+  seed `1783375064`, 204,800 boards per vulnerability per arm, all four arms
+  replay 100.00% / 0 mismatched). Gap vs BBA, pooled IMPs/board: **−0.525 plain
+  / −0.525 PD** for what ships (`american()`, from −0.526 / −0.526) and
+  **−0.992 / −1.120** for the deterministic side (from −0.994 / −1.121). The
+  net floor's paired worth is level again at +0.246 / +0.307, matching
+  `c5fbee11` to the fourth decimal in all four cells.
+
+  No user impact — this is a measurement, not a change. Because both snapshots
+  deal the same boards, the window is attributable exactly rather than
+  statistically: **305 of 409,600 boards changed auction** (0.07%), worth +601
+  plain / +514 PD on the instinct arm, and joining the two `boards.jsonl` on
+  those boards splits it into the 1NT minor-transfer `4m` slam try (263 bd,
+  +441 / +419), N4-KK's `1NT (2♦) X` answer table (37 bd, +143 / +74) and other
+  `1NT (2♦)` (5 bd, +17 / +21). Every competitive bucket is byte-identical.
+  Two findings: **pass/double inversion, `union_hull` and the latch detector
+  changed zero boards** in 819,200 table-auctions, confirming their inert A/Bs
+  at anchor scale; and the K–K lane's ceiling is structural — `1NT (2♦)` fires
+  on 1.17% of table-auctions, `1NT (2♦) X` on 0.29% and its answer table on
+  0.06%, so no ship in that lane can ever clear the ±0.02 headline CI. Isolated
+  fresh-seed A/Bs stay the only instrument that can arbitrate them.
+
 - **The Kokish–Kraft `P`/`X` information split is a measured loss and stays
   default off.** `competition.multi_px_split` — responder's `1NT (2♦)` double
   narrowed to `hcp(10..) | (hcp(8..=9) & four-card major)`, the doubler's
