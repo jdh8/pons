@@ -1190,9 +1190,61 @@ pub struct CompetitionKnobs {
     /// time and to slam another 13.5%, and BBA never doubles at either seat
     /// (`probe-bba-constraints --mode opener-c-x2h`, no `X` bucket over 0.5%).
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-rebids.sh`).
-    /// Inert while their `2♣` is undeclared or natural.
+    /// **Off by default — measured mixed on 2026-08-28** and kept for the
+    /// comparison arm (`scripts/ab-landy-doubler-rebids.sh`; §N1l).  The
+    /// per-rung split is what [`Self::landy_doubler_px`] and
+    /// [`Self::landy_doubler_white`] act on.  Inert while their `2♣` is
+    /// undeclared or natural.
     pub landy_doubler_rebids: bool,
+    /// The Landy doubler's rebid ladder cut down to the **penalty `X` alone**
+    ///
+    /// [`Self::landy_doubler_rebids`]'s four nodes with every constructive rung
+    /// deleted: `X`@155 on four of their major, `Pass`@0, nothing else.  This
+    /// is the §N1l measurement's own conclusion turned into an arm — the
+    /// per-rung split priced the `X` at **+7.489 (none) / +9.196 (both)**
+    /// IMPs/fired on plain DD, which is the *entire* vulnerable plain win of
+    /// the full ladder, while every constructive rung dragged vulnerable.
+    ///
+    /// A pure doubling knob, so it is arbitrated on plain DD: perfect defense
+    /// doubles the same failing contracts by fiat and is structurally blind to
+    /// what a real penalty double buys (docs/measurement.md's domain addendum).
+    /// Its `2NT -` and `4NT -` answer tables are **not** registered — an answer
+    /// to a question no arm asks is dead registration.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-flip.sh`).
+    /// Inert while their `2♣` is undeclared or natural, and shadowed by
+    /// [`Self::landy_doubler_rebids`] when both are set.
+    pub landy_doubler_px: bool,
+    /// The Landy doubler's rebid ladder with every constructive rung
+    /// **vulnerability-gated to non-vulnerable**
+    ///
+    /// [`Self::landy_doubler_px`] plus `3NT`@150 on `points(10..) &
+    /// stopper_in` (ungated: it is the only game rung, and it fires 28 times in
+    /// 9.2M boards) and, conjoined with `!vulnerable()`, the `2NT`@145
+    /// invitation and the natural `3♣`@100 / `3♦`@99.  Only the `4NT`@160
+    /// quantitative is deleted outright — it never fired once in either
+    /// measured cell, because responder's ungated `3NT`@168 caps this double at
+    /// nine points.
+    ///
+    /// **The axis is vulnerability, not the rung.**  A re-read of the
+    /// 2026-08-28 divergence stream grouped by first differing call says the
+    /// constructive family splits by colour, not by kind — non-vulnerable
+    /// `2NT` +1.888 plain / −1.667 PD, `3♣` +1.953 / −0.797, `3♦` +1.696 /
+    /// −0.607 per fired; vulnerable the same three are +0.733 / −3.695, +0.338
+    /// / −3.071, +0.183 / −2.481.  Every rung flips with colour, and the
+    /// natural minors are the *better* half white, not the drag: gating the
+    /// family is therefore the cut the data draws, and deleting the minors
+    /// (§N1l's first sketch) would have thrown away the two rungs with the
+    /// smallest white PD cost while keeping the largest.
+    ///
+    /// Keeping them obliges the two answer tables §N1l never built
+    /// ([`crate::bidding`]'s completeness rule): opener now answers `3♣`/`3♦`
+    /// with `3NT` on a maximum holding their suit, else a pass.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-flip.sh`).
+    /// Inert while their `2♣` is undeclared or natural, and shadowed by
+    /// [`Self::landy_doubler_rebids`] when both are set.
+    pub landy_doubler_white: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1332,6 +1384,8 @@ impl Default for CompetitionKnobs {
             multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
             landy_doubler_rebids: false,
+            landy_doubler_px: false,
+            landy_doubler_white: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

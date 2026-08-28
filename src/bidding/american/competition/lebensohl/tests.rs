@@ -913,6 +913,219 @@ fn landy_rebids_arm() -> Agreements {
     arm
 }
 
+/// The §N1l flip's `px` arm: the penalty `X` and the catch-all, nothing else.
+fn landy_px_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_px = true;
+    arm
+}
+
+/// The §N1l flip's `white` arm: `px` plus `3NT`, with the rest of the
+/// constructive family gated non-vulnerable.
+fn landy_white_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_white = true;
+    arm
+}
+
+/// The doubler's rebid seat with a vulnerability, which
+/// [`best_call_with`] pins to `NONE`
+///
+/// The `white` arm's constructive rungs are the only ones in this lane that
+/// read the context's vulnerability, so they are the only thing that needs
+/// this.
+fn best_call_vul(
+    agreements: &Agreements,
+    vul: contract_bridge::auction::RelativeVulnerability,
+    auction: &[Call],
+    hand: &str,
+) -> Call {
+    use contract_bridge::Hand;
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let (logits, _) = crate::bidding::american::american(agreements)
+        .bind()
+        .classify_with_provenance(hand, vul, auction)
+        .expect("a legal auction classifies");
+    (&logits.0)
+        .into_iter()
+        .reduce(|best, next| if next.1 > best.1 { next } else { best })
+        .map(|(call, _)| call)
+        .expect("array is never empty")
+}
+
+/// The four calls that reach the doubler's rebid seat over their `2♥`
+fn landy_doubler_seat() -> [Call; 6] {
+    [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ]
+}
+
+/// The §N1l flip: the two arms the per-rung split asked for
+///
+/// The 2026-08-28 measurement was mixed **by rung** — the penalty `X` carried
+/// the whole vulnerable plain win, every constructive rung dragged vulnerable —
+/// so [`CompetitionKnobs::landy_doubler_px`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_px]
+/// keeps only the `X` and
+/// [`landy_doubler_white`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_white]
+/// keeps the whole constructive family behind `!vulnerable()`.  The
+/// divergence stream re-read by first differing call says the family splits by
+/// **colour**, not by kind — every rung is positive white and negative red, and
+/// the natural minors are the *cheaper* half white.  This pins each arm's rung
+/// set on the same four hands, so a rung leaking into the wrong arm fails here
+/// rather than in an A/B.
+#[test]
+fn landy_doubler_flip_arms_carry_their_own_rungs() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let seat = landy_doubler_seat();
+    // Four of their major — every arm's one shared rung.
+    let doubles = "A54.KJ98.AQ3.J54";
+    // 9 points with their suit stopped: the invitation.
+    let invites = "KQ5.KJ8.943.T543";
+    // 10 points with their suit stopped: the game bid.
+    let games = "KQ5.KQ8.943.T543";
+    // 8 points, five clubs, no stopper: the full ladder's natural minor.
+    let minor = "K54.J98.83.KJ954";
+
+    for (name, arm) in [("px", landy_px_arm()), ("white", landy_white_arm())] {
+        let (c, floored) = best_call_with(&arm, &seat, doubles);
+        assert_eq!(c, Call::Double, "{name} keeps the penalty X");
+        assert!(!floored, "{name}'s X is authored, not the floor's");
+    }
+
+    // `px` deletes every constructive rung, colour or no colour.
+    for hand in [invites, games, minor] {
+        assert_eq!(best_call_with(&landy_px_arm(), &seat, hand).0, Call::Pass);
+        assert_eq!(
+            best_call_vul(&landy_px_arm(), RelativeVulnerability::WE, &seat, hand),
+            Call::Pass,
+        );
+    }
+
+    // `white` keeps the whole family — including the natural minors, which the
+    // re-read prices as the *cheaper* half of it, not the drag.
+    let white = landy_white_arm();
+    assert_eq!(
+        best_call_with(&white, &seat, invites).0,
+        call(2, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_with(&white, &seat, games).0,
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_with(&white, &seat, minor).0,
+        call(3, Strain::Clubs)
+    );
+
+    // The gate: every constructive rung is white-only, and `3NT` — the table's
+    // one game rung, 28 fires in 9.2M boards — is deliberately not gated.
+    for (hand, red) in [
+        (invites, Call::Pass),
+        (minor, Call::Pass),
+        (games, call(3, Strain::Notrump)),
+    ] {
+        assert_eq!(
+            best_call_vul(&white, RelativeVulnerability::WE, &seat, hand),
+            red,
+            "the white arm's constructive rungs are non-vulnerable only",
+        );
+    }
+    // The full ladder, kept for the comparison arm, still bids them red — that
+    // is exactly what the flip is flipping.
+    let full = landy_rebids_arm();
+    assert_eq!(
+        best_call_vul(&full, RelativeVulnerability::WE, &seat, invites),
+        call(2, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_vul(&full, RelativeVulnerability::WE, &seat, minor),
+        call(3, Strain::Clubs),
+    );
+    // Vulnerability moves the `X` nowhere.
+    assert_eq!(
+        best_call_vul(&white, RelativeVulnerability::WE, &seat, doubles),
+        Call::Double,
+    );
+}
+
+/// An answer table is registered only where its question exists
+///
+/// A `2NT -` node under an arm with no `2NT` rung is a book node with finite
+/// mass shadowing the floor for a call nobody makes
+/// (docs/bidding-architecture.md).  The rung and its answer move together.
+#[test]
+fn landy_doubler_flip_registers_only_the_answers_it_asks_for() {
+    let seat = landy_doubler_seat();
+    let after = |rung: Call| [seat.as_slice(), &[rung, Call::Pass]].concat();
+    let opener = "AQ54.A65.KQ4.Q83";
+
+    // Every arm carries the `X`, so every arm carries opener's sit over it.
+    for (name, arm) in [
+        ("px", landy_px_arm()),
+        ("white", landy_white_arm()),
+        ("full", landy_rebids_arm()),
+    ] {
+        let (c, floored) = best_call_with(&arm, &after(Call::Double), opener);
+        assert_eq!(c, Call::Pass, "{name}: the repeated double is penalty");
+        assert!(!floored, "{name}: and the sit is authored");
+    }
+
+    for rung in [
+        call(2, Strain::Notrump),
+        call(3, Strain::Clubs),
+        call(3, Strain::Diamonds),
+    ] {
+        let asked = after(rung);
+        assert!(
+            best_call_with(&landy_px_arm(), &asked, opener).1,
+            "px asks no {rung}, so its answer table is not registered",
+        );
+        assert!(
+            !best_call_with(&landy_white_arm(), &asked, opener).1,
+            "white asks {rung}, so the answer is authored",
+        );
+    }
+
+    // The `3m` answer itself — §N1l's completeness debt, paid here.  16
+    // opposite a capped 8–9 with their suit stopped is the 25 that bids the
+    // game; everything else passes the known minor fit.
+    let clubs = after(call(3, Strain::Clubs));
+    assert_eq!(
+        best_call_with(&landy_white_arm(), &clubs, "AQ54.A65.KQ4.Q83").0,
+        call(3, Strain::Notrump),
+        "a maximum with their hearts stopped bids the game",
+    );
+    assert_eq!(
+        best_call_with(&landy_white_arm(), &clubs, "AQ54.865.KQ4.Q83").0,
+        Call::Pass,
+        "without the stopper it passes the minor part-score",
+    );
+    assert_eq!(
+        best_call_with(&landy_white_arm(), &clubs, "AQ54.A65.KQ4.983").0,
+        Call::Pass,
+        "and so does a minimum",
+    );
+
+    let quantitative = after(call(4, Strain::Notrump));
+    for (name, arm) in [("px", landy_px_arm()), ("white", landy_white_arm())] {
+        assert!(
+            best_call_with(&arm, &quantitative, "AQ54.AK5.KQ4.J83").1,
+            "{name} deletes the quantitative 4NT, so its answer goes too",
+        );
+    }
+    assert!(
+        !best_call_with(&landy_rebids_arm(), &quantitative, "AQ54.AK5.KQ4.J83").1,
+        "the full ladder still asks it",
+    );
+}
+
 /// The doubler's rebid once their advance has named the major — the ladder the
 /// dying auction needs
 ///
@@ -1081,12 +1294,12 @@ fn landy_doubler_rebid_alerts_publish_the_trump_length() {
     // package invariant cannot: `unalerted_artificial` skips `Double` rules in
     // row-package fallbacks on purpose (the node key cannot witness which
     // strain a suffix-guarded double doubles).
-    let read_with = |scope, calls: &[Call]| {
-        let mut arm = landy_rebids_arm();
+    let read_arm = |mut arm: Agreements, scope, calls: &[Call]| {
         arm.decision.reading.scope = scope;
         let partnership = crate::bidding::american::american(&arm).bind();
         Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, calls))
     };
+    let read_with = |scope, calls: &[Call]| read_arm(landy_rebids_arm(), scope, calls);
     let read = |calls: &[Call]| read_with(crate::bidding::inference::ReadingScope::All, calls);
     let after = |last: Call| {
         [
@@ -1128,4 +1341,20 @@ fn landy_doubler_rebid_alerts_publish_the_trump_length() {
         4,
         "the alert is what publishes the trump length to an alert-only reader",
     );
+
+    // The `X` is the one rung the §N1l flip's two smaller arms keep, so the
+    // alert has to survive into both of them — a rung set is not allowed to
+    // change what a call means.
+    for (name, arm) in [("px", landy_px_arm()), ("white", landy_white_arm())] {
+        let read = read_arm(
+            arm,
+            crate::bidding::inference::ReadingScope::Alerted,
+            &after(Call::Double),
+        );
+        assert_eq!(
+            read.get(Relative::Partner).length(Suit::Hearts).min,
+            4,
+            "{name}'s penalty X publishes the trump length too",
+        );
+    }
 }

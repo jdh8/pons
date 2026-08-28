@@ -179,6 +179,13 @@ name = "probe-1nt-interference"
 path = "examples/probe-1nt-interference/main.rs"
 required-features = ["serde"]
 
+# Phase 0 of the Landy opener-seat package (docs/one-notrump-competitive.md
+# §N1m): prices every contract opener could steer to from `1NT (2♣) X (2♥)`.
+[[example]]
+name = "probe-landy-opener-oracle"
+path = "examples/probe-landy-opener-oracle/main.rs"
+required-features = ["serde"]
+
 [[example]]
 name = "probe-decision"
 path = "examples/probe-decision/main.rs"

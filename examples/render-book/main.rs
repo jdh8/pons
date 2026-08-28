@@ -117,6 +117,18 @@ struct Args {
     /// disturbed auction (`docs/minor-transfer-slam.md`).
     #[arg(long, default_value_t = false)]
     no_ns_landy_minor_slam_answer: bool,
+
+    /// Which §N1l rung subset the Landy doubler's own rebid seat carries
+    /// (`1NT (2♣) X (2♥) - -` and its three siblings), default `off`
+    ///
+    /// `px` is `competition.landy_doubler_px` — the penalty `X`@155 and the
+    /// `Pass`@0 catch-all; `white` is `landy_doubler_white`, which adds `3NT`
+    /// and gates the rest of the constructive family `!vulnerable()`; `full`
+    /// is `landy_doubler_rebids`,
+    /// the ladder as measured on 2026-08-28.  Needs `--their-2c-landy` to do
+    /// anything.
+    #[arg(long, default_value = "off", value_name = "off|px|white|full")]
+    ns_landy_doubler: String,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -161,6 +173,13 @@ fn main() {
         ),
     };
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
+    match args.ns_landy_doubler.as_str() {
+        "off" => {}
+        "px" => agreements.competition.landy_doubler_px = true,
+        "white" => agreements.competition.landy_doubler_white = true,
+        "full" => agreements.competition.landy_doubler_rebids = true,
+        other => panic!("--ns-landy-doubler must be off|px|white|full, got {other}"),
+    }
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

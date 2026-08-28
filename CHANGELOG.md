@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The §N1l flip: two cut-down Landy doubler ladders,
+  `competition.landy_doubler_px` and `competition.landy_doubler_white` (both
+  default off, A/B owed).** The full ladder's 2026-08-28 measurement was mixed
+  *by rung*, and re-reading `div.reb.vs.base.*.jsonl` grouped by first differing
+  call says the split is by **colour**: the penalty `X`@155 won at both
+  vulnerabilities (+7.489 none / +9.196 both IMPs/fired plain, PD flat) while
+  every constructive rung was positive white and negative red — `2NT` +1.888 /
+  −1.667 white against +0.733 / −3.695 red, `3♣` +1.953 / −0.797 against +0.338
+  / −3.071, `3♦` +1.696 / −0.607 against +0.183 / −2.481. So `px` keeps the `X`
+  and the `Pass`@0 catch-all alone, and `white` keeps the whole constructive
+  family behind `& !vulnerable()`. Only `4NT`@160 is deleted — it never fired
+  once in either cell, because responder's ungated `3NT`@168 caps this double at
+  nine points.
+
+  Deleting the natural minors (the flip's first sketch) would have kept the
+  worst white rung and dropped the two cheapest, so they stay — which pays
+  §N1l's completeness debt. **`landy_minor_rebid_answer` is new**: opener's
+  answer to the doubler's natural `3♣`/`3♦`, a table §N1l authored rungs for and
+  left to the floor. `3NT`@100 on `hcp(16..) & stopper_in(major)`, else `Pass`;
+  the stopper has to be opener's because the rung sits *below* the `2NT`
+  invitation that requires one. It is registered wherever the minor rungs exist,
+  so the `full` comparison arm gains it too and is no longer bit-identical to the
+  arm measured on 2026-08-28. Every answer table now moves with its rung —
+  `{path} X -` in all three arms, `2NT -`/`3♣ -`/`3♦ -` in `white` and `full`,
+  `4NT -` in `full` alone — because a book node with finite mass shadows the
+  floor whether or not any arm can reach it.
+
+  **No user impact** — both default off, `smoke-default --count 20000 --seed 1`
+  byte-identical to the previous `main`. Runner:
+  `scripts/ab-landy-doubler-flip.sh` (**a fresh `SEED_BASE` is mandatory**: both
+  subsets were selected from seed `1787917699`'s own split, so re-measuring on
+  that seed would be overfit). `bba-gen --ns-landy-doubler-px` /
+  `--ns-landy-doubler-white`, `PROBE_LANDY_DOUBLER_PX` / `_WHITE` in
+  `probe-decision`, matching flags in `probe-call-reading`, and a new
+  `render-book --ns-landy-doubler <off|px|white|full>` — the seat had no
+  render-book switch at all before, so §N1l's four nodes were invisible to the
+  book renderer. Design and falsifiers: `docs/one-notrump-competitive.md`
+  §N1l-flip.
+
+- **`probe-landy-opener-oracle`** — a read-only oracle at *opener's* seat in
+  the same lane (`1NT (2♣) X (2♥/2♠)`, the seat §N1k authored and lost). It
+  streams an existing arm dump, keeps the ~2% of boards that reach the seat, and
+  prices every contract opener could steer to — defend their major undoubled,
+  defend it doubled, `2NT`/`3NT` from either side, a natural `3m`, the unnamed
+  major — against the contract our live method actually reached, cut by opener's
+  length in their major × a stopper in it × HCP. No user impact (a probe).
+
 ### Measured
 
 - **The Landy doubler's rebid ladder is a mixed measurement and stays default

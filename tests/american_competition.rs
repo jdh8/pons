@@ -455,9 +455,31 @@ fn walk_kokish_kraft_with(
 /// floor the A/B measures passes there (`probe-decision` reads `P` 11.9 against
 /// `X` 3.0), which is the traffic the rung is authored for.
 fn walk_landy_doubler(opener: &str, responder: &str, theirs: &[Call], expected: &[Call]) {
+    walk_landy_doubler_arm(
+        |knobs| knobs.landy_doubler_rebids = true,
+        opener,
+        responder,
+        theirs,
+        expected,
+    );
+}
+
+/// [`walk_landy_doubler`] with the §N1l rung subset chosen by the caller
+///
+/// The flip (`landy_doubler_px`, `landy_doubler_white`) keeps the same four
+/// nodes with fewer rungs, so the same walk pins each arm — and a walk is the
+/// only thing that catches a *deleted* rung whose answer table was left
+/// registered behind it.
+fn walk_landy_doubler_arm(
+    arm: impl Fn(&mut pons::bidding::agreements::CompetitionKnobs),
+    opener: &str,
+    responder: &str,
+    theirs: &[Call],
+    expected: &[Call],
+) {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_clubs_landy = true;
-    agreements.competition.landy_doubler_rebids = true;
+    arm(&mut agreements.competition);
     let system = american(&agreements).bind();
 
     let mut auction = vec![call(1, Strain::Notrump)];
@@ -518,6 +540,89 @@ fn landy_doubler_invites_the_stopped_game_their_advance_named() {
             Call::Pass,               // opener: nothing to say yet
             call(2, Strain::Notrump), // responder: 8-9, their suit stopped
             call(3, Strain::Notrump), // opener: 16 accepts
+        ],
+    );
+}
+
+/// The §N1l flip's `px` arm walks the same penalty double and nothing else
+///
+/// Same two auctions as the pair above, one arm down: the `X` survives, and the
+/// hand that invited on the full ladder now passes — which is the arm's whole
+/// content, since the per-rung split priced the invitation as the ladder's
+/// worst rung and the `X` as its entire vulnerable plain win.
+#[test]
+fn landy_doubler_px_keeps_the_double_and_drops_the_invitation() {
+    let px = |knobs: &mut pons::bidding::agreements::CompetitionKnobs| {
+        knobs.landy_doubler_px = true;
+    };
+    walk_landy_doubler_arm(
+        px,
+        "AQ32.J432.AQ3.K3",
+        "5.KQ98.KT32.T543",
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[Call::Double, Call::Pass, Call::Double, Call::Pass],
+    );
+    walk_landy_doubler_arm(
+        px,
+        "AQ32.A432.KQ3.J3",
+        "Q54.KJ.KT432.543",
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        // The invitation is deleted, so responder passes and the auction ends
+        // in their `2♥` — the defend-instead-of-declare the split argued for.
+        &[Call::Double, Call::Pass, Call::Pass],
+    );
+}
+
+/// The `white` arm keeps the whole constructive family, and its answers,
+/// non-vulnerable
+#[test]
+fn landy_doubler_white_keeps_the_constructive_family() {
+    walk_landy_doubler_arm(
+        |knobs| knobs.landy_doubler_white = true,
+        "AQ32.A432.KQ3.J3",
+        "Q54.KJ.KT432.543",
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Notrump),
+            call(3, Strain::Notrump),
+        ],
+    );
+    // And the natural minor with its brand-new answer above it: five clubs and
+    // no heart stopper bids `3♣`, and opener's maximum with hearts stopped
+    // raises to the game.  That continuation did not exist before the flip —
+    // §N1l authored the rung and left the seat to the floor.
+    walk_landy_doubler_arm(
+        |knobs| knobs.landy_doubler_white = true,
+        "AQ32.A432.KQJ.32", // 16 with hearts stopped
+        "K54.J98.82.KJ954", // 8, five clubs, no heart stopper
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Clubs),
+            call(3, Strain::Notrump),
         ],
     );
 }

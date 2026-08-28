@@ -404,6 +404,81 @@ moves nothing on same-contract boards, and its two live deltas — thin games
 added opposite the 7-point doublers, doubler penalty-`X` boards removed —
 both point the wrong way here.
 
+### N1l-flip — the two cut-down arms (`landy_doubler_px` / `landy_doubler_white`, **built 2026-08-29, A/B owed**)
+
+The measurement above is a verdict **per rung**, so the flip is a choice of
+*subset*, not a new table. `landy_doubler_rebid` takes a `DoublerLadder` and
+three knobs name three subsets of the same four nodes:
+
+| arm | knob | rungs, top to bottom |
+| --- | --- | --- |
+| `px` | `competition.landy_doubler_px` | `X`@155 `len(major, 4..)` · `Pass`@0 |
+| `white` | `competition.landy_doubler_white` | `X`@155 · `3NT`@150 `points(10..) & stopper_in` · `2NT`@145 `hcp(8..=9) & stopper_in & !vulnerable()` · `3♣`@100 / `3♦`@99 `len(minor, 5..) & !vulnerable()` · `Pass`@0 |
+| `full` | `competition.landy_doubler_rebids` | the ladder as measured, kept as the comparison arm |
+
+**The axis is vulnerability, not the rung.** Re-reading
+`div.reb.vs.base.*.jsonl` grouped by first differing call — the plan's
+"adjust before building" step — moved the design. Per fired, plain / PD:
+
+| rung | share | non-vulnerable | vulnerable |
+| --- | ---: | --- | --- |
+| `2NT` | 36% | +1.888 / −1.667 | +0.733 / **−3.695** |
+| `3♣` | 25% | +1.953 / −0.797 | +0.338 / −3.071 |
+| `3♦` | 21% | +1.696 / −0.607 | +0.183 / −2.481 |
+| `X` | 12% | **+7.489** / −0.091 | **+9.196** / −0.148 |
+| `-` (table passes) | 6% | −0.445 / +2.929 | +1.206 / **+5.048** |
+| `3NT` | 0.02% | −2.105 / −3.579 (n=19) | +0.222 / −0.222 (n=9) |
+| `4NT` | 0% | never fires | never fires |
+
+Every constructive rung flips sign with colour, and the natural minors are the
+*cheaper* half white, not the drag: `3♦` costs −0.607 PD per fired against the
+`2NT` invitation's −1.667. So the first sketch of this flip — delete the
+minors, gate the `2NT` — would have kept the worst white rung and dropped the
+best two. `white` gates the whole family instead. Only `4NT` is deleted
+outright (it never fired in either cell, because responder's ungated `3NT`@168
+caps this double at nine points), and `3NT`@150 stays ungated as the table's
+only game rung on 28 fires in 9.2M boards.
+
+**Keeping the minors pays §N1l's completeness debt.** `{path} 3♣ -` and
+`{path} 3♦ -` were the Multi-twin hole — authored rungs with a floor-owned
+continuation. `landy_minor_rebid_answer` closes it: responder is capped at 8–9
+and bid the minor *below* the `2NT`@145 invitation, which denies the stopper
+that rung requires, so the stopper must be opener's and 16 opposite 9 is the 25
+that bids the game — `3NT`@100 on `hcp(16..) & stopper_in(major)`, else `Pass`.
+Total. Note this makes the `full` arm no longer bit-identical to the one
+measured on 2026-08-28: it gains the same two answer tables. Its historical
+numbers were measured without them.
+
+**Answer tables move with their rungs.** `{path} X -` (opener sits for the
+penalty double) is registered by every arm, because every arm carries the `X`;
+`{path} 2NT -`, `3♣ -` and `3♦ -` by `white` and `full`; `{path} 4NT -` by
+`full` alone. A node with finite mass shadows the floor
+([bidding-architecture.md](bidding-architecture.md)), so an answer to a
+question no arm asks is not merely dead — it is a live book node standing in
+the floor's way.
+
+**The vulnerability gate is real plumbing.** `vulnerable()`
+(`constraint.rs`) reads `Context::vul()` and is already used by
+`points_by_vul`; `& !vulnerable()` on each constructive constraint is the whole
+gate, and it renders in the disclosure (`8–9 HCP, stopper in ♥, and not
+(vulnerable)`). It is *our* side's vulnerability, the axis the measurement
+moved on.
+
+**What the A/B can and cannot separate.** The arms are generated at `-v none`
+and `-v both` only, so the gate makes `white` ≡ `full`-minus-`4NT`-plus-answers
+in the white cell and `white` ≡ `px`-plus-`3NT` in the red one. The white
+`white vs px` pair therefore isolates the whole constructive family cleanly,
+and `probe-divergence --jsonl --imps` split by `call_on` separates the rungs
+inside it for free; the red pair is a near-empty consistency check.
+
+**Falsifiers** (`scripts/ab-landy-doubler-flip.sh` states them in full): (1)
+the `X` win was selection — both subsets were *chosen from* seed `1787917699`'s
+split, so a fresh `SEED_BASE` is mandatory and a flat `px` closes §N1l; (2) the
+attribution was wrong and the ladder wins as a whole — read the `white vs px`
+pair; (3) vulnerability is the wrong axis and the constructive family is simply
+bad; (4) `px` is a pure doubling knob, so plain DD arbitrates and its PD row
+keeps the whole cost of the doubles with none of the benefit.
+
 ### Flagged, not fixed (§N1 — reversible defaults proposed)
 
 1. **BBA's opener does not sit at `1NT (2♣) X (2M)` the way it does in the
@@ -2505,6 +2580,7 @@ reason to take it.
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
+| **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px`, `landy_doubler_white` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The §N1l per-rung split turned into two arms: `px` = the penalty `X`@155 + `Pass`@0 alone; `white` = the whole constructive family with `2NT`/`3♣`/`3♦` gated `& !vulnerable()`. Re-reading the divergence stream by first differing call moved the design — every constructive rung flips sign with colour, and the natural minors are the *cheaper* half white (`3♦` −0.607 PD/fired against `2NT`'s −1.667), so gating beats deleting. Only `4NT` is deleted (0 fires). Keeping the minors pays §N1l's completeness debt: `landy_minor_rebid_answer` is the `3♣ -`/`3♦ -` table it never built. **Fresh `SEED_BASE` mandatory** — both subsets were selected from seed `1787917699`'s own split | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px--landy_doubler_white-built-2026-08-29-ab-owed); `scripts/ab-landy-doubler-flip.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

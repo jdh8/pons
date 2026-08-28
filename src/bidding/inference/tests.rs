@@ -918,6 +918,21 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.landy_doubler_rebids = true;
         profiles.push(("their-landy-doubler-rebids", a));
     }
+    // The §N1l flip's two arms: the same penalty `X` reading with fewer rungs
+    // above it, so a lost alert or a shrunken projection shows here as a
+    // profile diff rather than silently on the smallest arm only.
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_px = true;
+        profiles.push(("their-landy-doubler-px", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_white = true;
+        profiles.push(("their-landy-doubler-white", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

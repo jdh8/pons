@@ -112,16 +112,28 @@ fn landy_counter_package_invariants() {
     }
     // N1j: the BBA ladder alone, and with its weak-2♦ cap arm.  The stack
     // knobs are inert under it, so two arms cover the whole surface — crossed
-    // with §N1l's doubler rebid ladder, which adds four nodes plus three
-    // answers under each and is the only default-off knob in this lane.
+    // with §N1l's three doubler-rebid knobs, which add four nodes plus one to
+    // three answers under each and are the only default-off knobs in this lane.
     for cap in [false, true] {
-        for doubler_rebids in [false, true] {
-            let mut arm = Agreements::default();
-            arm.decision.their.two_clubs_landy = true;
-            arm.competition.defense_2c_landy_bba = true;
-            arm.competition.defense_2c_landy_weak_2d_cap = cap;
-            arm.competition.landy_doubler_rebids = doubler_rebids;
-            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        // All three §N1l knobs, crossed: each names a different rung subset at
+        // the same four nodes, and the selector is precedence-based, so the
+        // combinations where two are set have to be total too.
+        for rebids in [false, true] {
+            for px in [false, true] {
+                for white in [false, true] {
+                    let mut arm = Agreements::default();
+                    arm.decision.their.two_clubs_landy = true;
+                    arm.competition.defense_2c_landy_bba = true;
+                    arm.competition.defense_2c_landy_weak_2d_cap = cap;
+                    arm.competition.landy_doubler_rebids = rebids;
+                    arm.competition.landy_doubler_px = px;
+                    arm.competition.landy_doubler_white = white;
+                    crate::bidding::rows::assert_package_invariants(
+                        &arm,
+                        &[super::lebensohl_package()],
+                    );
+                }
+            }
         }
     }
 }

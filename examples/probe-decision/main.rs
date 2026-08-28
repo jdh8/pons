@@ -198,6 +198,18 @@ fn main() {
         Ok(_) => agreements.competition.landy_doubler_rebids = true,
         Err(_) => {}
     }
+    // The §N1l flip's two smaller arms (`competition.landy_doubler_px`,
+    // `landy_doubler_white`, both default off).  `REBIDS` shadows either.
+    match std::env::var("PROBE_LANDY_DOUBLER_PX").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_doubler_px = false,
+        Ok(_) => agreements.competition.landy_doubler_px = true,
+        Err(_) => {}
+    }
+    match std::env::var("PROBE_LANDY_DOUBLER_WHITE").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_doubler_white = false,
+        Ok(_) => agreements.competition.landy_doubler_white = true,
+        Err(_) => {}
+    }
     // The `4m` slam try above a completed *Puppet* minor transfer
     // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
     match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {

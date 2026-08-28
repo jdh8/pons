@@ -566,6 +566,43 @@ fn landy_double_answer() -> Rules {
     Rules::new().rule(Call::Pass, 100, hcp(0..))
 }
 
+/// Which of §N1l's rungs an arm carries at the Landy doubler's rebid seat
+///
+/// The 2026-08-28 measurement was mixed **by rung**, not overall: the penalty
+/// `X` carried the entire vulnerable plain win and the constructive family
+/// carried the vulnerable loss.  So the flip is a choice of subset, and the
+/// three knobs name three subsets rather than three tables.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DoublerLadder {
+    /// [`CompetitionKnobs::landy_doubler_px`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_px]
+    /// — the penalty `X` and the catch-all, nothing else
+    Px,
+    /// [`CompetitionKnobs::landy_doubler_white`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_white]
+    /// — plus `3NT`, and the whole constructive family gated non-vulnerable
+    White,
+    /// [`CompetitionKnobs::landy_doubler_rebids`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_rebids]
+    /// — the ladder as measured, every rung
+    Full,
+}
+
+/// The arm in force at the doubler's rebid seat, or [`None`] for the default
+///
+/// Most-to-least inclusive, so an arm that sets two knobs gets the bigger
+/// ladder instead of an arbitrary one — the A/B never sets two, but a package
+/// invariant crossing all three does.
+fn landy_doubler_ladder(agreements: &Agreements) -> Option<DoublerLadder> {
+    let knobs = &agreements.competition;
+    if knobs.landy_doubler_rebids {
+        Some(DoublerLadder::Full)
+    } else if knobs.landy_doubler_white {
+        Some(DoublerLadder::White)
+    } else if knobs.landy_doubler_px {
+        Some(DoublerLadder::Px)
+    } else {
+        None
+    }
+}
+
 /// The Landy doubler's rebid once their advance has named the major
 /// (`1NT (2♣) X (2♥) - -`, `X (2♠) - -`, `X (2♦) - (2♥)`, `X (2♦) - (2♠)`),
 /// under
@@ -616,29 +653,91 @@ fn landy_double_answer() -> Rules {
 /// `Pass`@0 catch-all, which is strictly worse than the floor this node
 /// shadows.  What actually fires in self-play is `X` / `2NT` / `3♣` / `3♦` /
 /// `Pass` — which is exactly the census's dying auction.
-fn landy_doubler_rebid(major: Suit) -> Rules {
-    let mut rules = Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 160, hcp(16..))
+///
+/// **The flip arms.**  The 2026-08-28 A/B measured this table mixed, and the
+/// per-rung split says why: the penalty `X` is +7.489 (none) / +9.196 (both)
+/// IMPs/fired on plain DD — the whole vulnerable plain win — while the
+/// constructive rungs are positive non-vulnerable and negative vulnerable, the
+/// `2NT` invitation worst (−3.695 PD/fired, and its declined half loses both
+/// scorers).  [`DoublerLadder`] turns that into two smaller arms:
+/// [`Px`][DoublerLadder::Px] keeps only the `X`, and
+/// [`White`][DoublerLadder::White] keeps the whole constructive family with the
+/// invitation and the natural minors gated `!vulnerable()`.  Both delete
+/// `4NT`, which never fired once in either measured cell.
+///
+/// The gate — rather than deleting rungs — is what the divergence stream says
+/// when it is re-read by first differing call: every constructive rung flips
+/// sign with colour, and the natural minors are the *cheaper* half white (`3♦`
+/// −0.607 PD per fired, `3♣` −0.797, against `2NT`'s −1.667), so a design that
+/// deleted the minors would have kept the worst rung and dropped the best two.
+fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder) -> Rules {
+    let mut rules = Rules::new();
+    if ladder == DoublerLadder::Full {
+        rules = rules.rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
+    }
+    // The one rung every arm carries — the measurement's whole vulnerable
+    // plain win, and the reason the flip exists.
+    rules = rules
         .rule(Call::Double, 155, len(major, 4..))
         .alert(LANDY_PENALTY)
-        .penalty()
-        .rule(
+        .penalty();
+    if ladder != DoublerLadder::Px {
+        rules = rules.rule(
             Bid::new(3, Strain::Notrump),
             150,
             points(10..) & stopper_in(major),
-        )
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            145,
-            hcp(8..=9) & stopper_in(major),
         );
-    // Below every rung above and above the catch-all, so the naturals fire on
-    // exactly the hands that pass today and cannot move a call this lane
-    // already makes.
-    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
-        rules = rules.rule(Bid::new(3, Strain::from(minor)), weight, len(minor, 5..));
+        // The invitation, and below it the naturals — the whole constructive
+        // family, gated on colour outside the full ladder.  Spelled as paired
+        // `rule` calls rather than one conditional constraint because the two
+        // constraints are different types.
+        //
+        // The naturals sit below every rung above and above the catch-all, so
+        // they fire on exactly the hands that pass today and cannot move a
+        // call this lane already makes.
+        let invite = hcp(8..=9) & stopper_in(major);
+        let white = ladder == DoublerLadder::White;
+        rules = if white {
+            rules.rule(Bid::new(2, Strain::Notrump), 145, invite & !vulnerable())
+        } else {
+            rules.rule(Bid::new(2, Strain::Notrump), 145, invite)
+        };
+        for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+            let call = Bid::new(3, Strain::from(minor));
+            rules = if white {
+                rules.rule(call, weight, len(minor, 5..) & !vulnerable())
+            } else {
+                rules.rule(call, weight, len(minor, 5..))
+            };
+        }
     }
     rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the doubler's natural three-level minor
+/// (`1NT (2♣) X (2♥) - - 3♣ -` and its siblings)
+///
+/// The table §N1l owed and never built — the Multi-twin hole, left standing
+/// because that measurement's `3♣`/`3♦` rungs ran with a floor-owned answer
+/// above them.  Any arm that keeps the rungs has to pay for it: an authored
+/// call whose continuation is the floor's is not a finished convention.
+///
+/// The arithmetic is the lane's, and it is tight.  Responder doubled on
+/// `hcp 8+` and is capped at nine by [`landy_bba_responder`]'s ungated
+/// `3NT`@168; it then bid a five-card minor *below* the `2NT`@145 invitation,
+/// which denies the stopper that rung requires.  So the stopper has to be
+/// opener's, and 16 opposite 9 is the 25 that bids the game — the same shape as
+/// [`kokish_kraft_invite_answer`], one rung higher and carrying the stopper
+/// test the invitation would have made.  Everything else passes the part-score
+/// in the known eight-card-or-better minor fit.  Total.
+fn landy_minor_rebid_answer(major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            100,
+            hcp(16..) & stopper_in(major),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to the counter's weak sign-offs — pass, always
@@ -1315,7 +1414,7 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     // slam another 13.5%, and BBA never doubles at opener's seat in either the
     // Landy or the Multi lane (`--mode opener-c-x2h`/`opener-d-x2h`, no `X`
     // bucket over 0.5% in eight cells) — the seat §N1k authored and lost.
-    if agreements.competition.landy_doubler_rebids {
+    if let Some(ladder) = landy_doubler_ladder(agreements) {
         for (path, major) in [
             ("X (2♥) - -", Suit::Hearts),
             ("X (2♠) - -", Suit::Spades),
@@ -1324,22 +1423,40 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         ] {
             entries.extend(rows_of(
                 Pattern::after(OVER, path),
-                landy_doubler_rebid(major),
+                landy_doubler_rebid(major, ladder),
             ));
             // The repeated double is penalty by this lane's polarity rule, so
-            // opener sits on it rather than answering a takeout.
+            // opener sits on it rather than answering a takeout.  Every arm
+            // carries the `X`, so every arm carries this.
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{path} X -")),
                 multi_signoff_pass(),
             ));
-            entries.extend(rows_of(
-                Pattern::after(OVER, &format!("{path} 2NT -")),
-                kokish_kraft_invite_answer(),
-            ));
-            entries.extend(rows_of(
-                Pattern::after(OVER, &format!("{path} 4NT -")),
-                multi_quant_answer(),
-            ));
+            // An answer table is registered only where its question exists: a
+            // rung below a deleted rung is dead registration, and a live node
+            // under a call no arm makes is a book node shadowing the floor for
+            // no reason.
+            if ladder != DoublerLadder::Px {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{path} 2NT -")),
+                    kokish_kraft_invite_answer(),
+                ));
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    entries.extend(rows_of(
+                        Pattern::after(
+                            OVER,
+                            &format!("{path} {} -", Bid::new(3, Strain::from(minor))),
+                        ),
+                        landy_minor_rebid_answer(major),
+                    ));
+                }
+            }
+            if ladder == DoublerLadder::Full {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{path} 4NT -")),
+                    multi_quant_answer(),
+                ));
+            }
         }
     }
     entries.extend(rows_of(

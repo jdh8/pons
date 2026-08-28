@@ -871,6 +871,27 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_rebids: bool,
 
+    /// The §N1l flip's `px` arm: the doubler's rebid seat with the penalty `X`
+    /// and the catch-all only
+    ///
+    /// `competition.landy_doubler_px`, default **off**.  The rung the
+    /// 2026-08-28 per-rung split priced at +7.489/+9.196 IMPs/fired plain,
+    /// with every constructive rung deleted.  A pure doubling knob — read it
+    /// on plain DD.  Shadowed by `--ns-landy-doubler-rebids`.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_px: bool,
+
+    /// The §N1l flip's `white` arm: `px` plus `3NT`, with the whole
+    /// constructive family gated non-vulnerable
+    ///
+    /// `competition.landy_doubler_white`, default **off**.  The `2NT`
+    /// invitation and the natural `3♣`/`3♦` carry `& !vulnerable()`; only the
+    /// `4NT` quantitative is deleted (it never fired in either measured cell).
+    /// Opener's `3♣`/`3♦` answer tables — §N1l's unpaid completeness debt —
+    /// come with it.  Shadowed by `--ns-landy-doubler-rebids`.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_white: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2346,6 +2367,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
+    agreements.competition.landy_doubler_px = args.ns_landy_doubler_px;
+    agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
