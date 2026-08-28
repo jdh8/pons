@@ -55,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **The current `1NT (2♣)` Landy table is documented as played.** The N1
+  campaign summary no longer says the `4m` slam try's answer is floor-owned:
+  `competition.landy_minor_slam_answer` has been default-on since 2026-08-25
+  and supplies `4NT` RKCB on a maximum, `5m` otherwise, plus the full keycard
+  ladder after pass or double. The transfer description now states its live
+  `points(2..)` floor instead of calling it literally "any strength". No
+  bidding or knob changed.
+
 - **`examples/probe-1nt-interference`'s module doc repeated its `--table b`
   paragraph verbatim.** Deduplicated; no behavior change.
 

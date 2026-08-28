@@ -922,7 +922,7 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 /// | `3NT` | game values, both majors stopped, no six-card minor | 180 |
 /// | `2♥`/`2♠` | **GF takeout**, 4+♦ 4+♣, exactly two in the bid major (2-2 bids `2♥`) | 178/177 |
 /// | `3♥`/`3♠` | **GF splinter**, 4+♦ 4+♣, 0-1 in the bid major | 176/175 |
-/// | `2NT` / `3♣` | transfers to ♣/♦, 6+, **any strength** | 174/173 |
+/// | `2NT` / `3♣` | transfers to ♣/♦, 6+, `points(2..)` (weak signoff through GF) | 174/173 |
 /// | `3NT` | game values, ungated | 168 |
 /// | `X` | values, `hcp(8..)` — the stack's row verbatim | 145 |
 /// | `2♦` | weak natural 5+ — verbatim (`hcp(..=6)` under the cap arm) | 140 |
@@ -1041,11 +1041,12 @@ fn landy_bba_diamond_completion(agreements: &Agreements) -> Rules {
 /// band's deliberate trade of the invitation for right-siding.  With game
 /// values: show the one major stopper held (`3♥`/`3♠`, a cue not length —
 /// opener supplies 3NT holding the other, [`landy_recue_answer`]), bid `3NT`
-/// holding both, or start the `4m` slam try on the six-card source of tricks
-/// — opener's continuation is deliberately the floor's, the cue stack's
-/// measured 6♦ lesson.  A game force with neither stopper takes its chances
-/// in `3NT`: opener opened a balanced 15-17, and five of a minor needs more
-/// than most of these hands hold.
+/// holding both, or start the `4m` slam try on the six-card source of tricks.
+/// With [`CompetitionKnobs::landy_minor_slam_answer`][crate::bidding::agreements::CompetitionKnobs::landy_minor_slam_answer]
+/// on (the default), [`landy_slam_answer`] continues with RKCB on a maximum and
+/// `5m` otherwise; the off arm restores the historical floor-owned seat.  A
+/// game force with neither stopper takes its chances in `3NT`: opener opened a
+/// balanced 15-17, and five of a minor needs more than most of these hands hold.
 fn landy_bba_transfer_rebid(minor: Suit) -> Rules {
     let mut rules = Rules::new();
     for (held, other, weight) in [

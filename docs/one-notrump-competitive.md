@@ -280,19 +280,20 @@ literal. The old stack remains wired behind
 `--defense-2c-landy-bba false`. See the
 [closed N1 history](archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14) for its tables, measurement, and exploration trail.
 
-N1j's wide minor transfers carry the engine's **only** slam channel above a
-completed minor transfer — `4m` on `points(13..) & len(minor, 6..)` in
-[`landy_bba_transfer_rebid`](../src/bidding/american/competition/lebensohl.rs),
-opener's continuation deliberately the floor's. Every other lane tops out at
-`3NT` or a placed `5m`, so this one is the template the rest are measured
-against: [minor-transfer-slam.md](minor-transfer-slam.md).
+N1j's wide minor transfers are `2NT`→♣ and `3♣`→♦ on a six-card suit and
+`points(2..)`: weak signoff through game force, not literally zero-strength.
+After the forced completion, `4m` on `points(13..) & len(minor, 6..)` is the
+slam try in
+[`landy_bba_transfer_rebid`](../src/bidding/american/competition/lebensohl.rs).
 
-**Owed here, whatever N4-KK's arm reads:** that `4m` has *no authored answer*,
-and the seat it creates is the one the N4-KK build probed and found the floor
-answering `4♥` — a contract in the opponents' suit — with no keycard reachable
-at all (`instinct`'s `4NT` ask is gated on `Context::undisturbed`). jdh8's call
-is to port the winning shape back here; it is a fix, not a copy, and it owes its
-own seed.
+**The answer shipped default-on 2026-08-25.** With
+`competition.landy_minor_slam_answer = true`, opener bids `4NT` RKCB on
+`hcp(16..)` and `5m` otherwise; the full keycard ladder is authored after both
+their pass and their double. Its isolated 2.304M-board/arm/vulnerability A/B
+had 0 foreign divergences and won all plain-DD, perfect-defense, and sd-lead
+cells: plain +5.56/+10.11 and PD +7.11/+11.44 IMPs/fired NV/vulnerable (n =
+18/9). The former floor-owned answer remains the explicit off arm. Design,
+probe, and measurement: [minor-transfer-slam.md](minor-transfer-slam.md).
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
@@ -1807,10 +1808,12 @@ ruling.
 
    **Generalized 2026-08-25 → [minor-transfer-slam.md](minor-transfer-slam.md).**
    jdh8's ruling: this residue is not N4-KK's. *Every* minor transfer in the
-   engine tops out at `3NT` or a placed `5m`, the counter to Landy included, and
-   the one slam channel that exists anywhere — N1j's `4m` on
-   `points(13..) & len(minor, 6..)`, opener's continuation deliberately the
-   floor's — is the shape to copy here. **The ceiling alternative is withdrawn**:
+   engine topped out at `3NT` or a placed `5m`, the counter to Landy included,
+   and the one slam channel that then existed anywhere — N1j's `4m` on
+   `points(13..) & len(minor, 6..)`, whose answer still belonged to the floor —
+   was the shape to copy here. That is the campaign-opening state; the Landy
+   answer and the other played lanes subsequently shipped in
+   [minor-transfer-slam.md](minor-transfer-slam.md). **The ceiling alternative is withdrawn**:
    it pushes the strong long minor into the values double (whose reading is
    already the looser one, residue 2) and runs the measured N1h/N1i right-siding
    trade (`3♣ ← 2NT`, −2.19 PD) backwards. The rung is `4m` at weight 151,
