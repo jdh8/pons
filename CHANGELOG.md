@@ -48,6 +48,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   book renderer. Design and falsifiers: `docs/one-notrump-competitive.md`
   §N1l-flip.
 
+- **§N1m: opener's own rebid over their Landy advance,
+  `competition.landy_opener_px` and `competition.landy_opener_rungs` (both
+  default off, A/B owed).** `1NT (2♣) X (2♥)` / `X (2♠)` — the seat §N1k
+  authored a `3NT` at and lost on 2026-08-27, re-opened as its own arm per that
+  section's flagged item 1. `px` doubles for penalty on **four-plus of the
+  major their advance named** (`X`@150, `comp:landy-penalty`, `.penalty()`),
+  passes otherwise, and authors the doubler's sit above it; `rungs` adds
+  `3NT`@135 on `hcp(16..) & stopper_in` and `2NT`@120 on `hcp(15..) &
+  stopper_in & !vulnerable()`, both sign-offs.
+
+  The design is the oracle's, not a hunch. `probe-landy-opener-oracle` priced
+  every contract opener could steer to on 103,653 (non-vulnerable) + 81,023
+  (vulnerable) seat boards against the contract our live method actually
+  reaches. Defending their major **doubled** wins every four-plus-trump bucket
+  at both vulnerabilities — +3.5/+5.3/+6.8 IMPs/board white and +4.8/+6.7/+8.1
+  red at 15/16/17 HCP — with a flat perfect-defense column. On a doubleton it loses at
+  every strength (−0.7…−4.5); on three it is negative at 15, marginal at 16, and
+  positive only at 17, where `3NT` matches or beats it given a stopper. So
+  `len(major, 4..)` is the whole gate: no HCP floor, no stopper test, and the
+  K–K reference's "three plus good defense" is rejected — the one cell that
+  would buy (three trumps, 17, no stopper) is left alone because the alert
+  publishes four-plus of that major and a three-card double would falsify it.
+  **`X`@150 above the notrump rungs is the repair for §N1k**: `has_stopper` is
+  length-blind, 17.4% of §N1k's `hcp(16..) & has_stopper` traffic was
+  four-trump hands, and there its `3NT` forwent +7.0…+7.8 IMPs/board by
+  shadowing the floor's delayed penalty double — which is what §N1k's own
+  forensic saw. Three rungs the design sketch carried are **absent**, each
+  priced out: a natural `3m` is dominated by notrump on its own boards at both
+  colours, `3OM` is the worst of all seven candidates on its 2.7% surface, and
+  the relay leg is a balancing seat where every candidate prices negative red.
+
+  **No user impact** — both default off, `smoke-default --count 20000 --seed 1`
+  byte-identical. Runner: `scripts/ab-landy-opener.sh`. `bba-gen
+  --ns-landy-opener-px` / `--ns-landy-opener-rungs`, `PROBE_LANDY_OPENER_PX` /
+  `_RUNGS`, `probe-call-reading` flags, `render-book --ns-landy-opener
+  <off|px|rungs>`. Design, tables and falsifiers:
+  `docs/one-notrump-competitive.md` §N1m.
+
+- **Flagged: `--filter-landy` admits only strictly balanced 1NT openers.**
+  `is_1nt_opener` requires no singleton/void and at most one doubleton, but the
+  shipped opening is `NotrumpShape::Wide6322`, which also opens the
+  two-doubleton 5m(422) and 6m(322). §N1m's probe measured the consequence:
+  **zero** six-card-minor openers in 103,653 seat boards. No A/B is invalidated
+  (both arms share the filter; the headline is IMPs per *accepted* board), but
+  every §N1/§N3 verdict is blind to the wide-shape slice, and a rung gated on a
+  long minor cannot be evaluated in that pool at all. Proposed reversible
+  default: leave the filter alone and state the blind spot wherever a
+  shape-gated rung is priced. Details in §N1's flagged item 5.
+
 - **`probe-landy-opener-oracle`** — a read-only oracle at *opener's* seat in
   the same lane (`1NT (2♣) X (2♥/2♠)`, the seat §N1k authored and lost). It
   streams an existing arm dump, keeps the ~2% of boards that reach the seat, and

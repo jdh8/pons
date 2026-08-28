@@ -210,6 +210,18 @@ fn main() {
         Ok(_) => agreements.competition.landy_doubler_white = true,
         Err(_) => {}
     }
+    // §N1m — **opener's** own seat one call earlier (`competition.landy_opener_px`
+    // and its `rungs` companion, both default off).  Needs `PROBE_THEIR_2C_LANDY`.
+    match std::env::var("PROBE_LANDY_OPENER_PX").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_opener_px = false,
+        Ok(_) => agreements.competition.landy_opener_px = true,
+        Err(_) => {}
+    }
+    match std::env::var("PROBE_LANDY_OPENER_RUNGS").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_opener_rungs = false,
+        Ok(_) => agreements.competition.landy_opener_rungs = true,
+        Err(_) => {}
+    }
     // The `4m` slam try above a completed *Puppet* minor transfer
     // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
     match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {

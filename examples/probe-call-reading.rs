@@ -78,6 +78,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_white: bool,
 
+    /// Arm §N1m's `px` arm (`competition.landy_opener_px`): opener's own
+    /// penalty `X` over their Landy advance
+    #[arg(long, default_value_t = false)]
+    ns_landy_opener_px: bool,
+
+    /// Arm §N1m's `rungs` arm (`competition.landy_opener_rungs`): opener's two
+    /// notrump rungs below that double
+    #[arg(long, default_value_t = false)]
+    ns_landy_opener_rungs: bool,
+
     /// Minimum suit length for the floorless Multi escape
     /// (`competition.multi_weak_escape`), so its published reading can be read
     /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`.  Absent leaves the
@@ -189,6 +199,8 @@ fn main() {
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = args.ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
+    agreements.competition.landy_opener_px = args.ns_landy_opener_px;
+    agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;

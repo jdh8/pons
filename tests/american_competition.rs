@@ -627,6 +627,54 @@ fn landy_doubler_white_keeps_the_constructive_family() {
     );
 }
 
+/// §N1m: opener's own penalty double of the major their advance named
+///
+/// The walk that the unit tests cannot do — this seat sits behind two opposing
+/// decisions and one of our own, and the deterministic instinct floor these
+/// integration tests pin *already* doubles here on any 12+ with at most three
+/// cards in each of their suits.  So the arm has to be the thing that changes
+/// the call on a hand the floor would not double: four of their major, which
+/// the floor's own gate excludes.
+#[test]
+fn landy_opener_penalizes_the_major_their_advance_named() {
+    // 1NT (2♣) X (2♥) X: opener holds four hearts over the advancer who chose
+    // them, and the doubler sits.  The oracle prices this bucket at +2.8…+8.1
+    // IMPs/board over today's floor, at both vulnerabilities.
+    walk_landy_doubler_arm(
+        |knobs| knobs.landy_opener_px = true,
+        "AQ32.J432.AQ3.K3", // 16 with four of their hearts
+        "5.KQ98.KT32.T543", // 9, four good hearts of its own
+        &[call(2, Strain::Clubs), call(2, Strain::Hearts), Call::Pass],
+        &[
+            Call::Double, // responder: values
+            Call::Double, // opener: penalty, on the suit now named
+            Call::Pass,   // responder: sits for it
+        ],
+    );
+}
+
+/// §N1m's `rungs` arm declares from opener's side when it cannot double
+#[test]
+fn landy_opener_rungs_declare_the_stopped_game() {
+    // 1NT (2♣) X (2♥) 3NT: three hearts is not a trump stack, so the same 16
+    // with their suit stopped takes the game instead — and the `X`@150 above
+    // is what kept it off the four-trump hands that refuted §N1k.
+    walk_landy_doubler_arm(
+        |knobs| {
+            knobs.landy_opener_px = true;
+            knobs.landy_opener_rungs = true;
+        },
+        "AQ32.AJ3.Q432.K3", // 16, three hearts headed by the ace
+        "5.KQ98.KT32.T543",
+        &[call(2, Strain::Clubs), call(2, Strain::Hearts), Call::Pass],
+        &[
+            Call::Double,
+            call(3, Strain::Notrump),
+            Call::Pass, // the doubler passes the game opener declared
+        ],
+    );
+}
+
 #[test]
 fn kokish_kraft_transfers_a_long_minor_and_finds_the_major_game() {
     // 1NT (2♦) 2NT - 3♣ - 3♦ - 4♥: the floorless club transfer is two-way, so

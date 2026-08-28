@@ -136,6 +136,29 @@ fn landy_counter_package_invariants() {
             }
         }
     }
+    // §N1m: opener's own seat one call earlier, crossed on its own axis rather
+    // than folded into the cartesian above — it adds two nodes plus one to
+    // three answers and does not interact with the doubler's rung set, except
+    // in the one combined arm at the foot, which is the arm the A/B ships.
+    for px in [false, true] {
+        for rungs in [false, true] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_clubs_landy = true;
+            arm.competition.defense_2c_landy_bba = true;
+            arm.competition.landy_opener_px = px;
+            arm.competition.landy_opener_rungs = rungs;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
+    }
+    {
+        let mut arm = Agreements::default();
+        arm.decision.their.two_clubs_landy = true;
+        arm.competition.defense_2c_landy_bba = true;
+        arm.competition.landy_doubler_white = true;
+        arm.competition.landy_opener_px = true;
+        arm.competition.landy_opener_rungs = true;
+        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+    }
 }
 
 /// The Multi stopper ask is default-off, so probe both opt-in packages

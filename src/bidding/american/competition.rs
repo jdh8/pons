@@ -193,9 +193,17 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
-/// Landy penalty double — the doubler's **second** `X`, once their advance has
-/// named the major (`1NT (2♣) X (2♥) - - X` and its siblings), under
-/// `competition.landy_doubler_rebids`: four-plus of *that* major.
+/// Landy penalty double — our side's `X` of the major their advance has named,
+/// at either of the two seats that can make it: **opener's**, immediately over
+/// the advance (`1NT (2♣) X (2♥)`, `competition.landy_opener_px`), and the
+/// **doubler's** second `X` one round later (`1NT (2♣) X (2♥) - - X` and its
+/// siblings, `competition.landy_doubler_rebids` and its flip arms).  One claim
+/// at both: four-plus of *that* major.
+///
+/// The two seats share the slug because they publish the same thing.  They
+/// differ only in who is still to speak — opener doubles with partner able to
+/// pull, the doubler's is the last word — and that is a matter for the
+/// continuation tables, not for disclosure.
 ///
 /// The polarity is this lane's house rule and it is the whole reason the alert
 /// exists.  A double after our own double is penalty; a double after our

@@ -1055,6 +1055,159 @@ fn landy_doubler_flip_arms_carry_their_own_rungs() {
     );
 }
 
+/// §N1m's arms: **opener's** own seat, one call before the doubler's
+fn landy_opener_arm(rungs: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_opener_px = true;
+    arm.competition.landy_opener_rungs = rungs;
+    arm
+}
+
+/// Opener's penalty double of the major their advance named, and the gate the
+/// oracle drew for it
+///
+/// `probe-landy-opener-oracle` prices defending their major **doubled** as the
+/// winner of every four-plus-trump bucket at both vulnerabilities (+2.8…+8.1
+/// IMPs/board over today's floor, PD flat) and −0.7…−4.5 on two or three
+/// trumps, so the whole gate is `len(major, 4..)`: no HCP floor, no stopper.
+/// The seat is the floor's by default and passes 98.5% of the time.
+#[test]
+fn landy_opener_doubles_four_of_their_advanced_major() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let seat = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+    ];
+    let arm = landy_opener_arm(false);
+
+    // Four of their major doubles, on a bare minimum and on a maximum alike.
+    for hand in ["AQ32.J432.AQ3.K3", "Q432.9432.AQ3.KJ3"] {
+        let (c, floored) = best_call_with(&arm, &seat, hand);
+        assert_eq!(c, Call::Double, "{hand} holds four of their hearts");
+        assert!(!floored, "and the double is authored, not the floor's");
+        assert_eq!(
+            best_call_vul(&arm, RelativeVulnerability::WE, &seat, hand),
+            Call::Double,
+            "the gate is length, so colour moves nothing",
+        );
+    }
+    // Three is not a trump stack — the oracle prices that double negative on
+    // every HCP band but seventeen, where `3NT` matches it anyway.
+    assert_eq!(
+        best_call_with(&arm, &seat, "AQ32.A43.AQ32.K3").0,
+        Call::Pass,
+    );
+    // The spade leg is the same table one step up.
+    let spades = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Spades),
+    ];
+    assert_eq!(
+        best_call_with(&arm, &spades, "J432.AQ32.AQ3.K3").0,
+        Call::Double,
+    );
+
+    // Opener's partner sits for it.
+    let sat = [seat.as_slice(), &[Call::Double, Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &sat, "5.KQ98.KT32.T543");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "the doubler sits for opener's penalty double"
+    );
+    assert!(!floored, "and the sit is authored");
+
+    // Off — the default — leaves the whole seat to the floor.
+    let mut off = Agreements::default();
+    off.decision.their.two_clubs_landy = true;
+    assert!(
+        best_call_with(&off, &seat, "AQ32.J432.AQ3.K3").1,
+        "the default arm keeps the floor-owned seat",
+    );
+}
+
+/// Opener's two notrump rungs, and the three the oracle threw out
+///
+/// `3NT`@135 on `hcp(16..) & stopper_in` and `2NT`@120 on fifteen, white only.
+/// The `X`@150 above them is what caps them at three trumps — the length cap
+/// `has_stopper` cannot express, and the hole that refuted §N1k.
+#[test]
+fn landy_opener_rungs_declare_only_under_the_double() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let seat = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+    ];
+    let px = landy_opener_arm(false);
+    let rungs = landy_opener_arm(true);
+
+    // Sixteen with their suit stopped, three trumps: the game.
+    let max = "AQ32.AJ3.Q432.K3";
+    assert_eq!(best_call_with(&px, &seat, max).0, Call::Pass);
+    assert_eq!(
+        best_call_with(&rungs, &seat, max).0,
+        call(3, Strain::Notrump),
+    );
+    // Fifteen with their suit stopped: the part-score, and white only.
+    let min = "AQ32.AJ3.J432.K3";
+    assert_eq!(
+        best_call_with(&rungs, &seat, min).0,
+        call(2, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_vul(&rungs, RelativeVulnerability::WE, &seat, min),
+        Call::Pass,
+        "declaring from this seat is a non-vulnerable idea",
+    );
+    // Four trumps outrank both rungs — the ordering IS the length cap that
+    // §N1k's `hcp(16..) & has_stopper` was missing.
+    assert_eq!(
+        best_call_with(&rungs, &seat, "AQ3.AJ32.Q432.K3").0,
+        Call::Double,
+    );
+    // No stopper in their suit, no notrump.
+    assert_eq!(
+        best_call_with(&rungs, &seat, "AQ32.932.AQ3.KJ3").0,
+        Call::Pass
+    );
+    // And the two rungs the oracle threw out are *absent*, not deferred: a
+    // fifteen with five clubs bids the notrump part-score white and passes
+    // red, never `3♣`; the same with five of the major they did not name
+    // never bids `3♠`.  Both would have had a rung under the plan's sketch.
+    for hand in ["AJ2.AJ3.32.KQ432", "AQJ32.AJ3.32.K32"] {
+        assert_eq!(
+            best_call_with(&rungs, &seat, hand).0,
+            call(2, Strain::Notrump),
+            "{hand} declares notrump, it does not bid a suit",
+        );
+        assert_eq!(
+            best_call_vul(&rungs, RelativeVulnerability::WE, &seat, hand),
+            Call::Pass,
+            "{hand} defends red rather than bidding a suit",
+        );
+    }
+
+    // Both rungs are sign-offs: partner passes them.
+    for rung in [call(2, Strain::Notrump), call(3, Strain::Notrump)] {
+        let after = [seat.as_slice(), &[rung, Call::Pass]].concat();
+        let (c, floored) = best_call_with(&rungs, &after, "5.KQ98.KT32.T543");
+        assert_eq!(c, Call::Pass, "the doubler passes opener's {rung}");
+        assert!(!floored, "and that pass is authored");
+        // `px` alone never asks, so it registers no answer either.
+        assert!(
+            best_call_with(&px, &after, "5.KQ98.KT32.T543").1,
+            "px asks no {rung}, so its answer table is not registered",
+        );
+    }
+}
+
 /// An answer table is registered only where its question exists
 ///
 /// A `2NT -` node under an arm with no `2NT` rung is a book node with finite
@@ -1355,6 +1508,29 @@ fn landy_doubler_rebid_alerts_publish_the_trump_length() {
             read.get(Relative::Partner).length(Suit::Hearts).min,
             4,
             "{name}'s penalty X publishes the trump length too",
+        );
+    }
+
+    // §N1m shares the slug one seat earlier, and the claim is the same: four
+    // of the major their advance named.  `artificial_calls_are_alerted` cannot
+    // see this double either, for the same reason, so this is its only guard.
+    let opener_seat = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    for scope in [
+        crate::bidding::inference::ReadingScope::All,
+        crate::bidding::inference::ReadingScope::Alerted,
+    ] {
+        let read = read_arm(landy_opener_arm(true), scope, &opener_seat);
+        assert_eq!(
+            read.get(Relative::Partner).length(Suit::Hearts).min,
+            4,
+            "opener's penalty X publishes the trump length under {scope:?}",
         );
     }
 }

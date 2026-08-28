@@ -1245,6 +1245,65 @@ pub struct CompetitionKnobs {
     /// Inert while their `2♣` is undeclared or natural, and shadowed by
     /// [`Self::landy_doubler_rebids`] when both are set.
     pub landy_doubler_white: bool,
+    /// **Opener's** own rebid once their advance has named the major
+    ///
+    /// `1NT (2♣) X (2♥)` and `X (2♠)` — the seat one call *before*
+    /// [`Self::landy_doubler_px`]'s, and the seat §N1k authored a `3NT` at,
+    /// lost, and gave back to the floor.  On, opener doubles for penalty with
+    /// **four-plus of the major their advance named** (`X`@150,
+    /// `comp:landy-penalty`, `.penalty()`), and passes otherwise; opener sits
+    /// over the double at `{path} X -`.
+    ///
+    /// The gate is the oracle's
+    /// (`probe-landy-opener-oracle`, 103,653 + 81,023 seat boards off the §N1l
+    /// base arms).  Priced against the contract our live method actually
+    /// reaches, `2Mx` wins **every** four-plus-trump bucket at both
+    /// vulnerabilities — +2.8…+6.8 IMPs/board non-vulnerable and +3.8…+8.1
+    /// vulnerable, rising with opener's HCP — while its perfect-defense column
+    /// stays flat (−1.2…+0.3), which is the doubling knob's signature.  On a
+    /// doubleton it loses at every strength (−0.7…−4.5); on three trumps it is
+    /// negative at 15, marginal at 16, and positive only at 17, where `3NT`
+    /// matches or beats it given a stopper.  So `4..` is the whole gate: no HCP
+    /// floor, no stopper test.  The one cell that buys — three trumps, 17, *no*
+    /// stopper, +1.96 white / +2.94 red on ~1.3% of the seat — is left alone on
+    /// purpose: `comp:landy-penalty` publishes four-plus of that major, so a
+    /// three-card double under it would make the alert false.  Nothing else in the lane needs
+    /// one either, because the ordering does the work — a four-trump maximum
+    /// doubles instead of declaring, and that is precisely the length-blind
+    /// `has_stopper` hole that refuted §N1k.
+    ///
+    /// The floor owns this seat today and passes it 98.5% / 99.5% of the time.
+    /// Authoring it also repairs a flagged instinct-floor defect: that floor's
+    /// takeout double here reads to partner as penalty.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
+    /// Inert while their `2♣` is undeclared or natural.
+    pub landy_opener_px: bool,
+    /// Opener's two notrump rungs below the penalty double
+    ///
+    /// Only effective with [`Self::landy_opener_px`]: a constructive rung
+    /// without the `X` above it re-creates §N1k, whose `3NT` on `hcp(16..) &
+    /// has_stopper` fired on the four-trump hands where the oracle prices it
+    /// −1.1…−4.5 and shadowed the floor's delayed penalty double.
+    ///
+    /// `3NT`@135 on `hcp(16..) & stopper_in(major)` and `2NT`@120 on
+    /// `hcp(15..) & stopper_in(major) & !vulnerable()`; opener's partner passes
+    /// both (the ordering caps the `2NT` at fifteen, so it is a sign-off, not
+    /// an invitation).  Every rung the plan sketched and the oracle then
+    /// rejected is absent: a natural `3m` is dominated by notrump on the same
+    /// boards at both vulnerabilities (+1.86 against `2NT`'s +1.99 and `3NT`'s
+    /// +2.19 white, +0.29 against +1.13 red), and the unnamed major's `3OM` is
+    /// the **worst** of all seven candidates on its own 2.7% surface (−0.78
+    /// plain, −4.5 PD) — they hold four-plus of it.
+    ///
+    /// The colour gate is the same one [`Self::landy_doubler_white`] carries,
+    /// for the same reason: declaring notrump from this seat is a
+    /// non-vulnerable idea.  Red, the whole declaring family collapses (`3NT`
+    /// +0.008, `2NT` −0.583 IMPs/board over the direct leg) except the 16–17
+    /// with a stopper, which is exactly what `3NT`@135 keeps.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
+    pub landy_opener_rungs: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1386,6 +1445,8 @@ impl Default for CompetitionKnobs {
             landy_doubler_rebids: false,
             landy_doubler_px: false,
             landy_doubler_white: false,
+            landy_opener_px: false,
+            landy_opener_rungs: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

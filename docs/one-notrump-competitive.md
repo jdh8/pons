@@ -479,6 +479,165 @@ pair; (3) vulnerability is the wrong axis and the constructive family is simply
 bad; (4) `px` is a pure doubling knob, so plain DD arbitrates and its PD row
 keeps the whole cost of the doubles with none of the benefit.
 
+### N1m — **opener's** own rebid over their advance (`landy_opener_px` / `landy_opener_rungs`, **built 2026-08-29, A/B owed**)
+
+`1NT (2♣) X (2♥)` and `X (2♠)` — the seat §N1l's is one call later, and the
+seat **§N1k authored a `3NT` at, lost on 2026-08-27, and gave back to the
+floor**. Flagged item 1 proposed leaving it there and re-opening it "only as
+its own arm after §N1l's verdict". This is that arm, and it is designed off a
+probe rather than off a hunch.
+
+#### The oracle (Phase 0)
+
+`examples/probe-landy-opener-oracle/` streams an existing arm dump, keeps the
+~2% of boards that reach the seat, solves them, and prices **every contract
+opener could steer to** against the contract our live method actually reaches:
+defend their major undoubled, defend it **doubled**, `2NT`/`3NT` from either
+side of our partnership, a natural `3m`, the unnamed major's `3OM`, and par.
+The cut is the design question stated as buckets — opener's length in *their*
+major × a stopper in it × opener's HCP.
+
+```text
+cargo run --release --features serde --example probe-landy-opener-oracle -- \
+    ab-results/landy-doubler-rebids/base-none \
+    --dd-cache ab-results/landy-opener-oracle/dd-cache.json --min 50
+```
+
+Run on the §N1l base arms (`SEED_BASE 1787917699`): **103,653** seat boards
+non-vulnerable (2.25% of 4.608M) and **81,023** vulnerable (1.76%), 105,334
+distinct deals solved. Reports in `ab-results/landy-opener-oracle/`.
+
+**What it can and cannot say.** Every candidate is priced as *the contract
+opener's call leads to if the auction stops there*: the oracle prices
+contracts, not auctions. It cannot see partner pulling, their advancer running
+from the double, or the information a bid leaks. It is an upper bound per rung
+and a reliable *ordering* between rungs on the same boards. The tell is in the
+data itself — `2Mx` beats **par** in the four-trump buckets, which is only
+possible because par lets them escape and the oracle does not.
+
+**The seat is the floor's and the floor passes it.** 98.5% non-vulnerable /
+99.5% vulnerable, the rest a natural `3♦` on ~1%. That is §N1l's "the auction
+dies after our values double", one call earlier.
+
+#### What the oracle says
+
+Plain-DD IMPs/board over today's floor, the **stopper-in-their-major** rows
+(the no-stopper rows differ by less than half an IMP except in the `3NT`
+column, and never change an ordering):
+
+| len × hcp | `2Mx` | `2NT`@op | `3NT`@op | par |
+| --- | ---: | ---: | ---: | ---: |
+| **none-vul** 2 × 15 | −3.666 | **+2.130** | +1.137 | +2.659 |
+| 2 × 16 | −2.352 | **+2.443** | +2.311 | +3.947 |
+| 2 × 17 | −0.992 | +2.491 | **+3.697** | +5.241 |
+| 3 × 15 | −1.257 | **+1.371** | +0.478 | +2.900 |
+| 3 × 16 | +0.657 | +1.560 | **+1.852** | +4.126 |
+| 3 × 17 | +2.462 | +1.462 | **+3.363** | +5.231 |
+| **4+** × 15 | **+3.524** | −0.608 | −1.415 | +1.810 |
+| **4+** × 16 | **+5.265** | −0.403 | +0.297 | +2.946 |
+| **4+** × 17 | **+6.754** | −0.343 | +1.851 | +3.800 |
+| **both-vul** 2 × 15 | −4.546 | **+0.441** | −0.658 | +2.287 |
+| 2 × 16 | −2.909 | +0.813 | **+1.325** | +4.016 |
+| 2 × 17 | −1.418 | +0.973 | **+3.478** | +5.784 |
+| 3 × 15 | −1.219 | −0.550 | −1.146 | +2.620 |
+| 3 × 16 | +1.091 | −0.458 | **+1.099** | +4.254 |
+| 3 × 17 | +3.327 | −0.861 | **+3.334** | +5.759 |
+| **4+** × 15 | **+4.872** | −3.411 | −3.506 | +0.573 |
+| **4+** × 16 | **+6.688** | −3.567 | −1.145 | +2.006 |
+| **4+** × 17 | **+8.111** | −3.716 | +1.093 | +3.328 |
+
+Bucket sizes run 2,086–18,234 boards; every figure's 95% CI is ±0.08…±0.35.
+
+Three readings, and they are the whole design.
+
+1. **The `X` gate is length, and nothing else.** `2Mx` wins *every*
+   four-plus-trump bucket at *both* vulnerabilities, on a minimum as well as a
+   maximum, with or without a stopper — and its perfect-defense column stays
+   flat (−1.2…+0.3), which is the signature of a real penalty double that plain
+   DD sees and PD is structurally blind to (measurement.md's domain addendum).
+   On a **doubleton** it loses at every strength (−0.7…−4.5). On **three** it is
+   negative at 15, marginal at 16, and positive only at 17 — and there `3NT`
+   matches or beats it whenever opener has a stopper (+3.363 against +2.462
+   white, +3.334 against +3.327 red). So `len(major, 4..)`, no HCP floor and no
+   stopper test, and the K–K reference's "three plus good defense" is
+   **rejected**.
+
+   One cell pays for that simplicity: three trumps, 17 HCP, **no** stopper —
+   `2Mx` +1.959 (n=1,409) white and +2.942 (n=1,049) red, against a rung set
+   that passes. That is ~4.5% of the `X`'s total value, and buying it costs
+   more than it is worth: `comp:landy-penalty` publishes *four-plus* of that
+   major, so a three-card double under the same alert would make the alert
+   false and the reading wrong. It would need its own slug, its own reading and
+   its own arm. **Residue, recorded, not built.**
+2. **Declaring notrump is a non-vulnerable idea, except 16–17 with a stopper.**
+   Red, the whole declaring family collapses (over the direct leg: `3NT` +0.008,
+   `2NT` −0.583) — but the 16–17-with-a-stopper cells hold up at both colours
+   (`3NT` +1.10…+3.48 red). The 15-with-a-stopper cells invert with colour:
+   `2NT` is +2.130 / +1.371 white and +0.441 / −0.550 red, so the anchor's old
+   "the 15s prefer passing" read is right vulnerable and wrong non-vulnerable.
+3. **Opener declares.** `@op` beats `@dbl` in every one of the 36 buckets at
+   both vulnerabilities — free right-siding evidence, and unsurprising: opener
+   holds the 15–17 and the stoppers, and their major sits under it.
+
+#### Why §N1k lost, in this data
+
+§N1k's `3NT` was gated `hcp(16..) & has_stopper` with nothing above it, and
+`has_stopper` is **length-blind**. 17.4% of that gate's traffic is the
+four-plus-trump slice, where the oracle prices `3NT` at −1.1…+1.9 against the
+double's +5.3…+8.1: the rung was not merely mediocre there, it **forwent
++7.0…+7.8 IMPs/board** by shadowing the floor's delayed penalty double — which
+is exactly what §N1k's forensic saw, the OFF arm's floor finding
+`X (2♥) - - X` on 3 of the 5 worst plain boards per cell. The oracle explains
+the refutation rather than contradicting it, which is the cross-check this
+probe was run to pass.
+
+The repair is ordering, not a better constraint: **`X`@150 above the notrump
+rungs supplies the ≤3-trump cap `has_stopper` cannot express**, for free.
+
+#### The arms as built
+
+| arm | knob | table |
+| --- | --- | --- |
+| `px` | `competition.landy_opener_px` | `X`@150 `len(major, 4..)` (`comp:landy-penalty`, `.penalty()`) · `Pass`@0, plus the doubler's sit at `{path} X -` |
+| `rungs` | `competition.landy_opener_rungs` (needs `px`) | plus `3NT`@135 `hcp(16..) & stopper_in` · `2NT`@120 `hcp(15..) & stopper_in & !vulnerable()`, each a sign-off the doubler passes |
+
+**Three rungs the plan sketched are absent, not deferred.** A natural `3m` is
+dominated by notrump on its *own* boards at both colours (+1.86 against `2NT`'s
++1.99 and `3NT`'s +2.19 white; +0.29 against +1.13 red). `3OM` in the major
+they did not name is the **worst of all seven candidates** on its own 2.7%
+surface (−0.78 plain, −4.5 PD) — they hold four-plus of it. And the relay leg
+(`X (2♦) - (2♥) - -`, verified seat-math; 5.1% / 3.3% of the seat) is a
+*balancing* seat where the live method already defends their `2♥` and every
+candidate prices negative red, so it is not authored either.
+
+**Their runout over our double stays the floor's** (flagged item 4, decided by
+smallest diff). The alert publishes opener's four-plus length, so the floor
+decides on true information rather than a phantom, and the §N1l twin one call
+later takes the same shape. The alert slug is shared with the doubler's seat
+(flagged item 3, default taken): one claim, two seats, and who is still to
+speak is a matter for the continuation tables rather than for disclosure.
+
+**Falsifiers** (`scripts/ab-landy-opener.sh` states them in full): (1) the
+oracle assumes they sit for the double — if `px` reads flat, split the `X` rows
+by their next call before anything else; (2) the *instinct* floor already
+doubles here, so anchor intuitions do not transfer (the net floor the A/B
+measures passes 98.5%); (3) `rungs` is only meaningful under `px`, and if it
+loses, the ≤3-trump cap was the whole story; (4) `px` is a pure doubling knob —
+plain DD arbitrates.
+
+#### A measurement caveat this probe turned up
+
+`--filter-landy`'s `is_1nt_opener` gate is **strictly balanced** (no
+singleton/void, at most one doubleton). Our 1NT opening is `NotrumpShape::Wide6322`,
+which also admits 5m(422) and 6m(322) — both of which have two doubletons. So
+**no wide-shape 1NT opener ever enters a `--filter-landy` pool**: the probe
+found 15,861 boards with a five-card club suit and 14,900 with five diamonds
+(all 5(332)) and **zero** with a six-card minor in 103,653 seat boards. This
+does not break any A/B — both arms share the filter and the headline is
+IMPs per *accepted* board — but every §N1 verdict measured under it is blind to
+that slice, and the "5+ vs 6+" question the `3m` rung was supposed to answer is
+**unanswerable in this pool**. Flagged below.
+
 ### Flagged, not fixed (§N1 — reversible defaults proposed)
 
 1. **BBA's opener does not sit at `1NT (2♣) X (2M)` the way it does in the
@@ -495,17 +654,25 @@ keeps the whole cost of the doubles with none of the benefit.
    rests on. What does not: “opener sits, as in the Multi lane.” Proposed
    reversible default: **leave opener's seat to the floor** — §N1k authored it
    and lost — and re-open it only as its own arm after §N1l's verdict.
+   **Acted on 2026-08-29**: that arm is
+   [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed),
+   built off the oracle and default off pending its A/B. The evidence the scope
+   call rested on survives unchanged — BBA never doubles at that seat in either
+   lane — and the oracle now says that is BBA leaving +2.8…+8.1 IMPs/board on
+   the table whenever it holds four of the major it advanced.
 2. **`landy_bba_responder`'s `3NT`@168 is ungated on high cards**
    (`points(10..)` alone, no stopper test), which is what caps the values
    double at nine points and kills §N1l's top two rungs in self-play. Proposed
    reversible default: **leave it**; re-gating moves every shape in the lane,
    not just this table's traffic, so it is a wider arm and a separate decision.
-3. **The `X (2NT)` leg and opener's `X (2M)` seat are unauthored on purpose.**
+3. **The `X (2NT)` leg is unauthored on purpose** — opener's `X (2M)` seat was
+   too, until §N1m re-opened it; the rest of this item stands.
    After the strong advance the overcaller jumps to `4M` 54.3% of the time and
    to slam another 13.5%; nothing invitational survives. `park/landy-kk` also
    registers a total-pass node at `X (2♦) - (2NT)`; it is **not** salvaged here,
    because a total pass shadows the floor at a seat this plan never scoped.
-   Proposed reversible default: **leave all three to the floor.**
+   Proposed reversible default: **leave the two remaining seats to the
+   floor.**
 4. **`artificial_calls_are_alerted` cannot cover `LANDY_PENALTY`.**
    `unalerted_artificial` skips `Double`/`Redouble` rules reached through
    row-package fallbacks by design — the node key cannot witness which strain a
@@ -514,7 +681,25 @@ keeps the whole cost of the doubles with none of the benefit.
    `landy_doubler_rebid_alerts_publish_the_trump_length`, which fails if the
    alert is dropped. Proposed reversible default: **leave the invariant's
    exemption alone**, and keep per-call alerted-scope assertions for penalty
-   doubles.
+   doubles. §N1m's opener-seat double shares the slug and is guarded the same
+   way, in the same test.
+5. **`--filter-landy` admits only strictly balanced 1NT openers.**
+   `is_1nt_opener` (`examples/bba-gen/main.rs`) requires no singleton/void and
+   at most one doubleton, but our shipped opening is
+   `NotrumpShape::Wide6322`, which also opens 5m(422) and 6m(322) — both
+   two-doubleton shapes. Measured consequence in §N1m's probe: **zero**
+   six-card-minor openers in 103,653 seat boards, and every five-card minor a
+   5(332). Every §N1 verdict measured under this filter (and §N3's, via
+   `--filter-preempt`'s identical gate) is therefore blind to the wide-shape
+   slice. It does not invalidate an A/B — both arms share the filter and the
+   headline is IMPs per *accepted* board, which the flag's own rustdoc already
+   says — but it does mean a rung gated on a long minor cannot be evaluated
+   here at all. Proposed reversible default: **leave the filter alone**
+   (widening it changes the accepted set, so every arm under it would have to
+   be re-generated and no old pair would stay comparable), and instead **state
+   the blind spot wherever a shape-gated rung is priced**. A
+   `--filter-landy-wide` sibling is the clean fix when a lane actually needs
+   the slice.
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
@@ -2581,6 +2766,7 @@ reason to take it.
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
 | **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px`, `landy_doubler_white` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The §N1l per-rung split turned into two arms: `px` = the penalty `X`@155 + `Pass`@0 alone; `white` = the whole constructive family with `2NT`/`3♣`/`3♦` gated `& !vulnerable()`. Re-reading the divergence stream by first differing call moved the design — every constructive rung flips sign with colour, and the natural minors are the *cheaper* half white (`3♦` −0.607 PD/fired against `2NT`'s −1.667), so gating beats deleting. Only `4NT` is deleted (0 fires). Keeping the minors pays §N1l's completeness debt: `landy_minor_rebid_answer` is the `3♣ -`/`3♦ -` table it never built. **Fresh `SEED_BASE` mandatory** — both subsets were selected from seed `1787917699`'s own split | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px--landy_doubler_white-built-2026-08-29-ab-owed); `scripts/ab-landy-doubler-flip.sh` |
+| **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

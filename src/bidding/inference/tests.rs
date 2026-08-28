@@ -933,6 +933,21 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.landy_doubler_white = true;
         profiles.push(("their-landy-doubler-white", a));
     }
+    // §N1m — the same penalty alert one seat earlier, so a reading that only
+    // survives at the doubler's node shows up here as a profile diff.
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_opener_px = true;
+        profiles.push(("their-landy-opener-px", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_opener_px = true;
+        a.competition.landy_opener_rungs = true;
+        profiles.push(("their-landy-opener-rungs", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

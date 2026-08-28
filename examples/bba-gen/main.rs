@@ -892,6 +892,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_white: bool,
 
+    /// Author **opener's** own rebid over their Landy advance
+    /// (`1NT (2♣) X (2♥)` / `X (2♠)`), §N1m's `px` arm
+    ///
+    /// `competition.landy_opener_px`, default **off**: a penalty `X`@150 on
+    /// four-plus of the major their advance named, `Pass`@0 otherwise, and
+    /// opener's sit over the double.  The gate is the oracle's —
+    /// `probe-landy-opener-oracle` prices `2Mx` the winner of every
+    /// four-plus-trump bucket at both vulnerabilities (+2.8…+8.1 IMPs/board)
+    /// with a flat PD column, and −0.7…−4.5 on two or three trumps.  A pure
+    /// doubling knob: read it on plain DD.
+    #[arg(long, default_value_t = false)]
+    ns_landy_opener_px: bool,
+
+    /// Add opener's two notrump rungs below that double (§N1m's `rungs` arm)
+    ///
+    /// `competition.landy_opener_rungs`, default **off** and only effective
+    /// with `--ns-landy-opener-px`: `3NT`@135 on `hcp(16..) & stopper_in` and
+    /// `2NT`@120 on `hcp(15..) & stopper_in & !vulnerable()`.  The `X` above
+    /// them supplies the ≤3-trump cap that §N1k's length-blind `has_stopper`
+    /// could not.  The natural `3m` and `3OM` rungs the plan sketched are
+    /// absent: the oracle prices both below notrump on their own boards.
+    #[arg(long, default_value_t = false)]
+    ns_landy_opener_rungs: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2369,6 +2393,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = args.ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
+    agreements.competition.landy_opener_px = args.ns_landy_opener_px;
+    agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

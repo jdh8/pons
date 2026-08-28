@@ -129,6 +129,16 @@ struct Args {
     /// anything.
     #[arg(long, default_value = "off", value_name = "off|px|white|full")]
     ns_landy_doubler: String,
+
+    /// Which §N1m rungs **opener's** own seat carries (`1NT (2♣) X (2♥)`),
+    /// default `off`
+    ///
+    /// `px` is `competition.landy_opener_px` — the penalty `X`@150 on
+    /// four-plus of their major and the `Pass`@0 catch-all; `rungs` adds
+    /// `landy_opener_rungs`' two notrump bids below it.  Needs
+    /// `--their-2c-landy` to do anything.
+    #[arg(long, default_value = "off", value_name = "off|px|rungs")]
+    ns_landy_opener: String,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -179,6 +189,15 @@ fn main() {
         "white" => agreements.competition.landy_doubler_white = true,
         "full" => agreements.competition.landy_doubler_rebids = true,
         other => panic!("--ns-landy-doubler must be off|px|white|full, got {other}"),
+    }
+    match args.ns_landy_opener.as_str() {
+        "off" => {}
+        "px" => agreements.competition.landy_opener_px = true,
+        "rungs" => {
+            agreements.competition.landy_opener_px = true;
+            agreements.competition.landy_opener_rungs = true;
+        }
+        other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
     }
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [

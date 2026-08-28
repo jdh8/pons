@@ -714,6 +714,73 @@ fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// **Opener's** own rebid once their advance has named the major
+/// (`1NT (2♣) X (2♥)`, `X (2♠)`), under
+/// [`CompetitionKnobs::landy_opener_px`][crate::bidding::agreements::CompetitionKnobs::landy_opener_px]
+/// and its `rungs` companion
+///
+/// The seat one call *before* [`landy_doubler_rebid`]'s, and the seat §N1k
+/// authored a `3NT` at, lost, and gave back to the floor.  The floor owns it
+/// today and passes 98.5% (non-vulnerable) / 99.5% (vulnerable) of the time.
+///
+/// **The `X` is the whole idea, and the oracle draws its gate.**
+/// `probe-landy-opener-oracle` priced every contract opener could steer to on
+/// 103,653 + 81,023 seat boards taken off the §N1l base arms, against the
+/// contract our live method actually reaches.  Defending their major
+/// **doubled** wins every four-plus-trump bucket at both vulnerabilities —
+/// +2.8…+6.8 IMPs/board white, +3.8…+8.1 red, rising with opener's HCP — with
+/// a flat perfect-defense column (−1.2…+0.3), which is exactly the signature
+/// of a real penalty double that plain DD sees and PD cannot
+/// (docs/measurement.md's domain addendum).  On a **doubleton** it loses at
+/// every strength (−0.7…−4.5); on **three** it is negative at 15, marginal at
+/// 16, and positive only at 17, where `3NT` matches or beats it given a
+/// stopper.  So `len(major, 4..)` is the entire gate: no HCP floor, no stopper
+/// test, and no "three plus good defense" (the K–K reference allows it; the
+/// oracle does not).  The one cell that would buy — three trumps, 17 HCP, *no*
+/// stopper, +1.96 white / +2.94 red on ~1.3% of the seat — stays unbought,
+/// because [`LANDY_PENALTY`] publishes four-plus of that major and a
+/// three-card double under the same slug would make the alert false.
+///
+/// **Ordering does the capping.**  §N1k's `3NT` fired on `hcp(16..) &
+/// has_stopper` with nothing above it, so it took the four-trump hands where
+/// the oracle prices notrump −1.1…−4.5 and shadowed the floor's delayed
+/// penalty double.  With `X`@150 on top, a four-trump maximum doubles and the
+/// notrump rungs see only the two- and three-card holdings they win on — the
+/// length cap `has_stopper` cannot express, supplied for free by the weights.
+///
+/// **What the oracle rejected.**  A natural `3m` is dominated by notrump on
+/// the same boards at both vulnerabilities (+1.86 against `2NT`'s +1.99 and
+/// `3NT`'s +2.19 white; +0.29 against +1.13 red), and the six-card slice that
+/// might have changed that is *structurally absent* from the pool —
+/// `--filter-landy`'s `is_1nt_opener` is strictly balanced, so 5m(422) and
+/// 6m(322) openers never enter.  `3OM` in the major they did not name is the
+/// worst of all seven candidates on its own 2.7% surface (−0.78 plain, −4.5
+/// PD): they hold four-plus of it.  Both rungs are therefore absent, not
+/// deferred.
+fn landy_opener_rebid(major: Suit, rungs: bool) -> Rules {
+    let mut rules = Rules::new()
+        .rule(Call::Double, 150, len(major, 4..))
+        .alert(LANDY_PENALTY)
+        .penalty();
+    if rungs {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                135,
+                hcp(16..) & stopper_in(major),
+            )
+            // Fifteen by the ordering above, and white only: red, every
+            // declaring candidate but the 16–17-with-a-stopper `3NT` collapses
+            // (`2NT` −0.583 IMPs/board over the direct leg).
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                120,
+                hcp(15..) & stopper_in(major) & !vulnerable(),
+            );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's answer to the doubler's natural three-level minor
 /// (`1NT (2♣) X (2♥) - - 3♣ -` and its siblings)
 ///
@@ -1456,6 +1523,34 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                     Pattern::after(OVER, &format!("{path} 4NT -")),
                     multi_quant_answer(),
                 ));
+            }
+        }
+    }
+    // Opener's own seat, one call before the doubler's (§N1m).  Two legs only:
+    // the relay's balancing analogue (`X (2♦) - (2♥) - -`) is 5.1% / 3.3% of
+    // the seat's boards and the oracle prices **every** candidate there
+    // negative at both vulnerabilities except par — opener is in the pass-out
+    // seat and the live method already defends their `2♥`, so there is nothing
+    // to buy.  Their runout over our double (`X (2♥) X (2♠)` and its siblings)
+    // stays the floor's: the alert publishes opener's four-plus length, so the
+    // floor decides on true information rather than a phantom, and the §N1l
+    // twin one call later takes the same shape.
+    if agreements.competition.landy_opener_px {
+        for (path, major) in [("X (2♥)", Suit::Hearts), ("X (2♠)", Suit::Spades)] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, path),
+                landy_opener_rebid(major, agreements.competition.landy_opener_rungs),
+            ));
+            // The doubler sits for the penalty double, and passes both notrump
+            // rungs: the ordering caps the `2NT` at fifteen, so it is a
+            // sign-off, and `3NT` is already the game.
+            let mut tails = vec![format!("{path} X -")];
+            if agreements.competition.landy_opener_rungs {
+                tails.push(format!("{path} 2NT -"));
+                tails.push(format!("{path} 3NT -"));
+            }
+            for tail in tails {
+                entries.extend(rows_of(Pattern::after(OVER, &tail), multi_signoff_pass()));
             }
         }
     }
