@@ -861,6 +861,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_minor_slam_answer: bool,
 
+    /// Author the N1j Landy doubler's own rebid once their advance has named
+    /// the major (`1NT (2♣) X (2♥) - -` and its three siblings)
+    ///
+    /// `competition.landy_doubler_rebids`, default **off**: the Kokish–Kraft
+    /// doubler ladder ported one suit down — `4NT` quantitative, the penalty
+    /// `X` on four of their major, `3NT`, the `2NT` invitation and natural
+    /// `3♣`/`3♦` — where the seat is the floor's today and the auction dies.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_rebids: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2335,6 +2345,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
+    agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

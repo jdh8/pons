@@ -912,6 +912,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.multi_px_split = true;
         profiles.push(("their-multi-px-split", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_rebids = true;
+        profiles.push(("their-landy-doubler-rebids", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

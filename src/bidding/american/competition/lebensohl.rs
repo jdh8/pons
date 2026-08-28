@@ -566,6 +566,81 @@ fn landy_double_answer() -> Rules {
     Rules::new().rule(Call::Pass, 100, hcp(0..))
 }
 
+/// The Landy doubler's rebid once their advance has named the major
+/// (`1NT (2♣) X (2♥) - -`, `X (2♠) - -`, `X (2♦) - (2♥)`, `X (2♦) - (2♠)`),
+/// under
+/// [`CompetitionKnobs::landy_doubler_rebids`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_rebids]
+///
+/// [`kokish_kraft_doubler_rebid`]'s ladder ported one suit down — same four
+/// rungs, same weights, same catch-all — with the two changes this lane forces.
+///
+/// **No `ran` fork.**  The Multi twin carries one because their advancer's
+/// pass-or-correct is provisional and the overcaller pulls it, which is why
+/// `kokish_kraft_entries` registers `X (2♥) - (2♠)`.  Probed at seat 1 with the
+/// actor's hands filtered to the ones BBA actually overcalls `2♣` with, the
+/// Landy overcaller passes the preference **94.5%** of the time over `(2♥)` and
+/// **96.7%** over `(2♠)`: it has already shown both majors and lets partner
+/// choose.  The preference is final, so there is no correction to fork on.
+///
+/// **A natural minor where the twin has the other major.**  The twin's
+/// weight-100 rung is the major partner did not pick.  Here they hold *both*
+/// majors, so there is no other major to bid, and the slot goes to a five-card
+/// minor at the three level.  That rung is also the only route for an 8–9
+/// one-suited minor: [`landy_bba_responder`]'s transfers above it are wide but
+/// its `3NT`@168 outranks the double, so the hand that doubles first is the one
+/// that cannot transfer.  Clubs first when both, the house's cheaper-minor
+/// idiom.
+///
+/// Every rung answers a hole this seat has today, and the seat is the floor's
+/// on every hand — `probe-decision` prints `fallback: Some(0)` across the band.
+/// The floor bids `3NT` holding `KJ98` of *their* major instead of doubling
+/// (`X` is not in its top six), and passes both the 8–9 invitation and the 8–9
+/// five-card minor.  That is the 2026-08-27 census's "the auction dies after
+/// our values double" (67 bd, −75 plain) stated hand by hand.
+///
+/// The escape legs take the same table: their `2♦` is **artificial** — BBA's
+/// own label on 200/200 hands, a "pick a major" relay the overcaller corrects
+/// 79.4% of the time and never passes — so it carries no diamond claim and the
+/// `3♦` rung is as safe there as on the preference legs.
+///
+/// **The top two rungs are dead in self-play, and they are kept anyway.**
+/// Unlike the Multi twin — whose `3NT`@150 needs *both* major stoppers, so a
+/// one-stopper game hand really does double first — this lane's
+/// [`landy_bba_responder`] carries an **ungated** `3NT`@168 on `points(10..)`.
+/// Every 10-plus-point hand therefore bids `3NT` directly and never doubles,
+/// which caps the double at nine points (`probe-call-reading` reads it back as
+/// `points 8..9`, and the ordering says the same thing).  So `4NT`@160
+/// (`hcp(16..)`) and `3NT`@150 (`points(10..)`) can only fire opposite a
+/// partner who is not bidding this table.  They stay because the table is
+/// **total**: with them deleted a strong hand arriving here would take the
+/// `Pass`@0 catch-all, which is strictly worse than the floor this node
+/// shadows.  What actually fires in self-play is `X` / `2NT` / `3♣` / `3♦` /
+/// `Pass` — which is exactly the census's dying auction.
+fn landy_doubler_rebid(major: Suit) -> Rules {
+    let mut rules = Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 160, hcp(16..))
+        .rule(Call::Double, 155, len(major, 4..))
+        .alert(LANDY_PENALTY)
+        .penalty()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(major),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            145,
+            hcp(8..=9) & stopper_in(major),
+        );
+    // Below every rung above and above the catch-all, so the naturals fire on
+    // exactly the hands that pass today and cannot move a call this lane
+    // already makes.
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(Bid::new(3, Strain::from(minor)), weight, len(minor, 5..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's answer to the counter's weak sign-offs — pass, always
 ///
 /// One of the `landy_natural_answers` trio.  Covers the weak `2♦` (and, under
@@ -1226,6 +1301,47 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         landy_bba_responder(agreements),
     ));
     entries.extend(rows_of(Pattern::after(OVER, "X -"), landy_double_answer()));
+
+    // The doubler's own rebid, once their advance has named the major.  Four
+    // paths, no correction leg: the Landy overcaller passes the preference
+    // 94.5%/96.7% of the time (probed at seat 1, filtered to hands it actually
+    // overcalls `2♣` with), so `X (2♥) - -` and `X (2♠) - -` carry essentially
+    // all of the preference traffic — and their artificial `2♦` escape is
+    // pulled to a major 79.4% of the time and passed never, so the two escape
+    // legs are live seats taking the same table with the major now named.
+    //
+    // `X (2NT)` and opener's own `X (2M)` seat are deliberately absent.  After
+    // the strong advance the overcaller jumps to `4M` 54.3% of the time and to
+    // slam another 13.5%, and BBA never doubles at opener's seat in either the
+    // Landy or the Multi lane (`--mode opener-c-x2h`/`opener-d-x2h`, no `X`
+    // bucket over 0.5% in eight cells) — the seat §N1k authored and lost.
+    if agreements.competition.landy_doubler_rebids {
+        for (path, major) in [
+            ("X (2♥) - -", Suit::Hearts),
+            ("X (2♠) - -", Suit::Spades),
+            ("X (2♦) - (2♥)", Suit::Hearts),
+            ("X (2♦) - (2♠)", Suit::Spades),
+        ] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, path),
+                landy_doubler_rebid(major),
+            ));
+            // The repeated double is penalty by this lane's polarity rule, so
+            // opener sits on it rather than answering a takeout.
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} X -")),
+                multi_signoff_pass(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} 2NT -")),
+                kokish_kraft_invite_answer(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} 4NT -")),
+                multi_quant_answer(),
+            ));
+        }
+    }
     entries.extend(rows_of(
         Pattern::after(OVER, "2♦ -"),
         landy_signoff_answer(),

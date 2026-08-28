@@ -190,6 +190,14 @@ fn main() {
         Ok(_) => agreements.competition.landy_minor_slam_answer = true,
         Err(_) => {}
     }
+    // The Landy doubler's own rebid once their advance names the major
+    // (`competition.landy_doubler_rebids`, default off — A/B owed).  Needs
+    // `PROBE_THEIR_2C_LANDY` to reach anything.
+    match std::env::var("PROBE_LANDY_DOUBLER_REBIDS").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_doubler_rebids = false,
+        Ok(_) => agreements.competition.landy_doubler_rebids = true,
+        Err(_) => {}
+    }
     // The `4m` slam try above a completed *Puppet* minor transfer
     // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
     match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {

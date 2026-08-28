@@ -193,6 +193,22 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
+/// Landy penalty double — the doubler's **second** `X`, once their advance has
+/// named the major (`1NT (2♣) X (2♥) - - X` and its siblings), under
+/// `competition.landy_doubler_rebids`: four-plus of *that* major.
+///
+/// The polarity is this lane's house rule and it is the whole reason the alert
+/// exists.  A double after our own double is penalty; a double after our
+/// *pass* is takeout and stays the floor's.  Nothing mechanises that split
+/// here — `inference::readers::penalty_x_reading_with_profile` requires *their*
+/// 1NT opening, so `penalty_latch` cannot fire in this lane — which leaves the
+/// alert and the `.penalty()` tag carrying the whole meaning.  An unalerted
+/// second double reads as the takeout it is not, a phantom four-card holding in
+/// the major nobody has left, so the alert has to publish **length in their
+/// suit**, not values.  [`MULTI_PENALTY`] is the same claim one lane over, but
+/// their `2♦` resolves to a major the overcaller may still correct; here the
+/// preference is final, so this double never becomes a correction hint.
+const LANDY_PENALTY: Alert = Alert("comp:landy-penalty");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not

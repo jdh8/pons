@@ -295,6 +295,118 @@ cells: plain +5.56/+10.11 and PD +7.11/+11.44 IMPs/fired NV/vulnerable (n =
 18/9). The former floor-owned answer remains the explicit off arm. Design,
 probe, and measurement: [minor-transfer-slam.md](minor-transfer-slam.md).
 
+### N1l — the doubler's own rebid (`landy_doubler_rebids`, **built 2026-08-28, A/B owed**)
+
+Salvaged from `park/landy-kk` as its own default-off knob; the branch's other
+three (`landy_splinter_hcp`, `landy_tail_completion`, `defense_2c_landy_kk`)
+stay parked. Every weight and gate below was re-derived against `main`'s code
+rather than carried over from the branch's tables.
+
+The seat: our doubler's own rebid after the values `X`, once their advance has
+named the major — `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and the two legs where
+their artificial `2♦` escape was pulled to a major. The 2026-08-27 census
+prices the branch at 67 bd / −75 IMPs plain, the auction dying after our double.
+
+**The polarity rule this authors, and why it needs a node.** Our subsequent `X`
+is penalty after our own `X`, and stays the floor's takeout after our `P`.
+Nothing mechanises that. `inference::readers::penalty_x_reading_with_profile`
+requires **their** 1NT opening — it scans forward from `opening_index` and
+returns `None` on the first non-pass that is a bid — so it returns `None` at
+`1NT (2♣)` exactly as it does at `1NT (2♦)`, and `penalty_latch` (default on)
+therefore cannot latch anything in either lane whatever its setting. `pdi_latch`
+is default off, reading-only and measured inert (`docs/pdi.md:284`). The `1NT
+(2♦)` twin's penalty meaning is 100% authored node — the rule's own
+`len(major, 4..)` read back through the ordinary projection plus
+`.alert(MULTI_PENALTY)` — and this lane copies that, not a latch.
+
+**The table** (`landy_doubler_rebid`, all four legs), `kokish_kraft_doubler_rebid`'s
+ladder ported one suit down:
+
+| call | w | gate | note |
+| --- | ---: | --- | --- |
+| `4NT` | 160 | `hcp(16..)` | quantitative; answer = `multi_quant_answer` (`6NT` on 17+) |
+| `X` | 155 | `len(their major, 4..)` | **penalty**, `LANDY_PENALTY` + `.penalty()`; opener sits (`multi_signoff_pass`) |
+| `3NT` | 150 | `points(10..) & stopper_in(major)` | |
+| `2NT` | 145 | `hcp(8..=9) & stopper_in(major)` | invite; answer = `kokish_kraft_invite_answer` (`3NT` on 16+) |
+| `3♣`/`3♦` | 100/99 | `len(minor, 5..)` | natural — replaces the twin's other-major rung, which this opponent's 4-4+ major shape makes impossible |
+| `P` | 0 | catch-all | |
+
+Two structural differences from the twin, both probe-driven. There is **no
+`ran` fork**: the Landy overcaller passes the preference 94.5%/96.7% of the
+time (probed at seat 1, hands filtered to the ones BBA actually overcalls `2♣`
+with), so the preference is final and there is no correction to fork on. And
+the twin's weight-100 *other major* becomes a natural **minor**, because this
+opponent holds both majors; that rung is also the only route for an 8–9
+one-suited minor, the wide transfers above it being game-forcing.
+
+**The top two rungs are dead in self-play, and are kept anyway.** Unlike the
+Multi twin — whose `3NT`@150 needs *both* major stoppers, so a one-stopper game
+hand really does double first — `landy_bba_responder` carries an **ungated**
+`3NT`@168 on `points(10..)`. Every 10-plus-point hand bids `3NT` directly and
+never doubles, capping the double at nine points. Verified, not assumed:
+`probe-call-reading --their-2c-landy --ns-landy-doubler-rebids` reads partner
+back as `points 8..9` at every rung of this table. So `4NT`@160 and `3NT`@150
+can only fire opposite a partner not bidding this table. They stay because the
+table must be **total** — deleted, a strong hand here would take `Pass`@0,
+strictly worse than the floor this node shadows. What fires in self-play is
+`X` / `2NT` / `3♣` / `3♦` / `Pass`.
+
+**Verified on the shipped tree.** `probe-decision` prints `fallback: Some(0)`
+at all four nodes with the knob off and a depth-2 book node with it on;
+`probe-call-reading` reads the penalty `X` as `♥ 4..13` and the `2NT` below it
+as `♥ 0..3` (denying the double it declined); `smoke-default --count 20000
+--seed 1` is byte-identical to `main`.
+
+**A/B owed.** Control = `main` HEAD, fresh `SEED_BASE`, `--filter-landy` on
+both arms, both scorers. Runner: `scripts/ab-landy-doubler-rebids.sh`. Two
+notes for the read. §N1k (`landy_doubler_notrump`, opener's `3NT` one call
+earlier) was **refuted** on 2026-08-27, and its forensic showed the OFF arm's
+floor already finding a delayed penalty double at this exact seat on 3 of the 5
+worst plain boards per cell — so part of what this table authors already
+happens emergently, and the measurable delta is the *difference* between the
+authored ladder and the floor's improvisation, not the whole 67 bd. And the
+`X`@155 is reached only when opener passes at `X (2M)`: the net floor passes
+there (`P` 11.9 vs `X` 3.0) but the instinct floor doubles (`rule #382`), so
+anchor arms take a different path and their pool differs — read the net-floor
+cells.
+
+### Flagged, not fixed (§N1 — reversible defaults proposed)
+
+1. **BBA's opener does not sit at `1NT (2♣) X (2M)` the way it does in the
+   Multi lane.** New probes `opener-c-x2h`/`opener-c-x2s` (2026-08-28,
+   100,000 hands/vul filtered to the 5,005 BBA opens 1NT with) read **67.3%
+   / 67.6% Pass non-vulnerable and 79.3% / 80.5% vulnerable**, with a natural
+   `3♣` on four-plus clubs taking the rest; the Multi twins on the same
+   sample size pass 91.7–93.0%. `epbot_get_info_meaning` says why: BBA labels
+   our `X` **“bidable suit”** over Landy and **“negative double”** over the
+   Multi — it has no values double in this lane at all. Full table in
+   [the counter-defense research](ai-bidder/landy-2c-counter-defense-research.md).
+   What survives for §N1l: BBA never *doubles* at that seat in either lane (no
+   `X` bucket over 0.5% in eight cells), which is the evidence the scope call
+   rests on. What does not: “opener sits, as in the Multi lane.” Proposed
+   reversible default: **leave opener's seat to the floor** — §N1k authored it
+   and lost — and re-open it only as its own arm after §N1l's verdict.
+2. **`landy_bba_responder`'s `3NT`@168 is ungated on high cards**
+   (`points(10..)` alone, no stopper test), which is what caps the values
+   double at nine points and kills §N1l's top two rungs in self-play. Proposed
+   reversible default: **leave it**; re-gating moves every shape in the lane,
+   not just this table's traffic, so it is a wider arm and a separate decision.
+3. **The `X (2NT)` leg and opener's `X (2M)` seat are unauthored on purpose.**
+   After the strong advance the overcaller jumps to `4M` 54.3% of the time and
+   to slam another 13.5%; nothing invitational survives. `park/landy-kk` also
+   registers a total-pass node at `X (2♦) - (2NT)`; it is **not** salvaged here,
+   because a total pass shadows the floor at a seat this plan never scoped.
+   Proposed reversible default: **leave all three to the floor.**
+4. **`artificial_calls_are_alerted` cannot cover `LANDY_PENALTY`.**
+   `unalerted_artificial` skips `Double`/`Redouble` rules reached through
+   row-package fallbacks by design — the node key cannot witness which strain a
+   suffix-guarded double doubles. Same hole covers `MULTI_PENALTY` one lane
+   over. The guard here is instead an explicit `ReadingScope::Alerted` arm in
+   `landy_doubler_rebid_alerts_publish_the_trump_length`, which fails if the
+   alert is dropped. Proposed reversible default: **leave the invariant's
+   exemption alone**, and keep per-call alerted-scope assertions for penalty
+   doubles.
+
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
 Knob `competition.nt_high_overcall_responses` (the table, **default on since
@@ -2358,6 +2470,7 @@ reason to take it.
 | N1g Landy read-side wiring | `reading.their_landy_reading` (**on**) | **SHIPPED DEFAULT-ON 2026-08-14** | `plain wash \| PD win` ×3 seeds: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**. **Isolation gate 0 foreign — the campaign's first** | [closed §N1g](archive/one-notrump-competitive-closed.md#n1g--the-read-side-wiring-shipped-default-on-2026-08-14) |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
+| N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **built 2026-08-28, A/B owed** | no verdict. Salvaged from `park/landy-kk` as its own knob; the branch's other three stay parked. The other half of the same 67 bd / −75 plain `X` branch §N1k cut — the seat *after* opener's. `kokish_kraft_doubler_rebid` ported with no correction leg (their overcaller passes the preference 94.5%/96.7%) and a natural `3m` where the twin has the other major; two escape legs added on the probe. `smoke-default` byte-identical with the knob off; `probe-decision` reads `fallback: Some(0)` off / depth-2 book on at all four nodes | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-built-2026-08-28-ab-owed); `scripts/ab-landy-doubler-rebids.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

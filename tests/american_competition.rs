@@ -438,6 +438,90 @@ fn walk_kokish_kraft_with(
     }
 }
 
+/// Walk a whole `1NT (2♣)` Landy auction with the doubler's own rebid ladder
+/// armed (`competition.landy_doubler_rebids`), asserting **our** call at every
+/// seat we own
+///
+/// [`walk_kokish_kraft`]'s twin one suit down.  The lane's unit tests pin each
+/// node in isolation; only a walk catches a rung that is never reached because
+/// the seat before it branched elsewhere — and this ladder sits four calls deep
+/// behind two opposing decisions.
+///
+/// Both walks give opener four of a major on purpose.  These integration tests
+/// pin the **deterministic instinct** floor (`tests/common`), and that floor
+/// makes a *takeout* double at `1NT (2♣) X (2M)` on any 12+ hand with at most
+/// three cards in each of their named suits — so an opener without four of the
+/// major they advanced never reaches the seat this ladder answers.  The net
+/// floor the A/B measures passes there (`probe-decision` reads `P` 11.9 against
+/// `X` 3.0), which is the traffic the rung is authored for.
+fn walk_landy_doubler(opener: &str, responder: &str, theirs: &[Call], expected: &[Call]) {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.decision.their.two_clubs_landy = true;
+    agreements.competition.landy_doubler_rebids = true;
+    let system = american(&agreements).bind();
+
+    let mut auction = vec![call(1, Strain::Notrump)];
+    let mut theirs = theirs.iter();
+    for (turn, want) in expected.iter().enumerate() {
+        auction.push(*theirs.next().expect("a scripted opposing call"));
+        let hand = if turn % 2 == 0 { responder } else { opener };
+        let got = best_call(&system, &auction, hand);
+        assert_eq!(
+            got, *want,
+            "turn {turn} of {auction:?}: {hand} should call {want}"
+        );
+        auction.push(got);
+    }
+}
+
+#[test]
+fn landy_doubler_penalizes_the_major_their_advance_chose() {
+    // 1NT (2♣) X (2♥) - - X: the values double waits for the advance to name
+    // the suit, and the repeated double is penalty by this lane's polarity
+    // rule.  On the shipped table responder has no rebid at all here and the
+    // floor bids `3NT` on these same four trumps.
+    walk_landy_doubler(
+        "AQ32.J432.AQ3.K3", // 16 balanced: it waits for the suit to be named
+        "5.KQ98.KT32.T543", // 9, four good hearts sitting over the overcaller
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double, // responder: values, 8-9 by the ordering above it
+            Call::Pass,   // opener: three trumps is not a trump stack
+            Call::Double, // responder: penalty, on the now-known suit
+            Call::Pass,   // opener: sits for it — after our X it is not takeout
+        ],
+    );
+}
+
+#[test]
+fn landy_doubler_invites_the_stopped_game_their_advance_named() {
+    // 1NT (2♣) X (2♥) - - 2NT - 3NT: the 8-9 invitation the census watched die.
+    // Responder's double is capped at nine points by `landy_bba_responder`'s
+    // ungated `3NT`@168, so the natural notrump rebid is the only way to ask,
+    // and opener accepts from the top of the range.
+    walk_landy_doubler(
+        "AQ32.A432.KQ3.J3", // 16, a maximum: it accepts
+        "Q54.KJ.KT432.543", // 9 with their hearts stopped, and only two of them
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            Call::Double,             // responder: values
+            Call::Pass,               // opener: nothing to say yet
+            call(2, Strain::Notrump), // responder: 8-9, their suit stopped
+            call(3, Strain::Notrump), // opener: 16 accepts
+        ],
+    );
+}
+
 #[test]
 fn kokish_kraft_transfers_a_long_minor_and_finds_the_major_game() {
     // 1NT (2♦) 2NT - 3♣ - 3♦ - 4♥: the floorless club transfer is two-way, so

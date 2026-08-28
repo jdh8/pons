@@ -904,3 +904,228 @@ fn landy_bba_makes_the_stack_knobs_inert() {
     let (c, _) = best_call_with(&arm, &auction, hand);
     assert_eq!(c, call(3, Strain::Notrump));
 }
+
+/// The §N1l arm: their `2♣` disclosed as Landy, the doubler's rebid ladder on.
+fn landy_rebids_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_rebids = true;
+    arm
+}
+
+/// The doubler's rebid once their advance has named the major — the ladder the
+/// dying auction needs
+///
+/// `competition.landy_doubler_rebids`, default off (§N1l, A/B owed).  The seat
+/// is the floor's today on every hand, and the floor bids `3NT` holding four of
+/// *their* major rather than doubling, and passes both the 8–9 invitation and
+/// the 8–9 five-card minor.
+#[test]
+fn landy_doubler_rebids_ladders_the_dying_auction() {
+    let arm = landy_rebids_arm();
+    let hearts = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+    // Four of their major is a penalty double against a pair who have shown
+    // 4-4+ in the majors and then chosen this one.
+    let (c, floored) = best_call_with(&arm, &hearts, "A54.KJ98.AQ3.J54");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the ladder must come from the book");
+    // 8-9 with their suit stopped invites; without a stopper it passes.
+    assert_eq!(
+        best_call_with(&arm, &hearts, "KQ5.KJ8.943.T543").0,
+        call(2, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.982.Q83.J954").0,
+        Call::Pass
+    );
+    // The natural minors — the only route for an 8-9 one-suiter, the wide
+    // transfers above being game-forcing.  Clubs first when both.
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.J98.83.KJ954").0,
+        call(3, Strain::Clubs)
+    );
+    assert_eq!(
+        best_call_with(&arm, &hearts, "K54.982.KQJ54.83").0,
+        call(3, Strain::Diamonds)
+    );
+
+    // The spade leg is the same table one step up.
+    let spades = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Spades),
+        Call::Pass,
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call_with(&arm, &spades, "KJ98.A54.AQ3.J54").0,
+        Call::Double
+    );
+    assert_eq!(
+        best_call_with(&arm, &spades, "KJ8.KQ5.943.T543").0,
+        call(2, Strain::Notrump)
+    );
+
+    // And the escape leg: their artificial `2♦` pulled to a major by the
+    // overcaller, which is what happens to it 79.4% of the time.
+    let escape = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Hearts),
+    ];
+    assert_eq!(
+        best_call_with(&arm, &escape, "A54.KJ98.AQ3.J54").0,
+        Call::Double
+    );
+
+    // Opener's three answers: accept the invitation from the top, the
+    // quantitative slam from the very top, and sit for the penalty double.
+    let invited = [hearts.as_slice(), &[call(2, Strain::Notrump), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &invited, "AQ54.A65.KQ4.Q83").0,
+        call(3, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call_with(&arm, &invited, "AQ54.A65.KQ4.983").0,
+        Call::Pass
+    );
+    let quantitative = [hearts.as_slice(), &[call(4, Strain::Notrump), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &quantitative, "AQ54.AK5.KQ4.J83").0,
+        call(6, Strain::Notrump)
+    );
+    let repeated = [hearts.as_slice(), &[Call::Double, Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &repeated, "AQ54.A65.KQ4.Q83");
+    assert_eq!(c, Call::Pass, "the repeated double is penalty; opener sits");
+    assert!(!floored, "and the sit is authored, not the floor's");
+
+    // Off — the default — leaves the whole seat to the floor.
+    let mut off = Agreements::default();
+    off.decision.their.two_clubs_landy = true;
+    let (c, floored) = best_call_with(&off, &hearts, "A54.KJ98.AQ3.J54");
+    assert!(
+        floored,
+        "the default arm keeps the floor-owned seat (got {c})"
+    );
+}
+
+/// The polarity rule, stated as the asymmetry it is: the **same hand** doubles
+/// for penalty after our own `X`, and does whatever the floor does after our
+/// `P`
+///
+/// Nothing mechanises this split.  `penalty_x_reading_with_profile` — the
+/// reader behind `penalty_latch` — requires *their* 1NT opening and returns
+/// `None` at both of these auctions, so no latch converts anything here; the
+/// authored node is the entire difference.  Assert it directly, because the
+/// two branches look identical from responder's hand.
+#[test]
+fn landy_doubler_rebid_inverts_only_after_our_own_double() {
+    let arm = landy_rebids_arm();
+    let hand = "A54.KJ98.AQ3.J54";
+    let doubled = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+    let passed = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+    ];
+
+    let (after_x, floored_x) = best_call_with(&arm, &doubled, hand);
+    assert_eq!(
+        after_x,
+        Call::Double,
+        "after our own X the rebid is penalty"
+    );
+    assert!(!floored_x, "and it comes from the authored node");
+
+    let (_, floored_p) = best_call_with(&arm, &passed, hand);
+    assert!(
+        floored_p,
+        "after our pass the seat is still the floor's takeout ladder",
+    );
+}
+
+/// The penalty double is `X`-after-`X`, so its alert has to publish **length**
+/// in their major — an unalerted second double reads as the takeout this lane's
+/// polarity rule gives to the *pass* branch instead (`docs/pdi.md`).
+#[test]
+fn landy_doubler_rebid_alerts_publish_the_trump_length() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    // Two scopes.  `All` (the default since 2026-08-16) reads the rule's own
+    // `len(major, 4..)` back through the ordinary projection, so it would pass
+    // even with the alert dropped; `Alerted` decodes alerted calls *only*, so
+    // it is the arm that actually guards `LANDY_PENALTY`'s presence.  The
+    // package invariant cannot: `unalerted_artificial` skips `Double` rules in
+    // row-package fallbacks on purpose (the node key cannot witness which
+    // strain a suffix-guarded double doubles).
+    let read_with = |scope, calls: &[Call]| {
+        let mut arm = landy_rebids_arm();
+        arm.decision.reading.scope = scope;
+        let partnership = crate::bidding::american::american(&arm).bind();
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, calls))
+    };
+    let read = |calls: &[Call]| read_with(crate::bidding::inference::ReadingScope::All, calls);
+    let after = |last: Call| {
+        [
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+            last,
+            Call::Pass,
+        ]
+    };
+
+    let penalty = read(&after(Call::Double));
+    let partner = penalty.get(Relative::Partner);
+    assert_eq!(
+        partner.length(Suit::Hearts).min,
+        4,
+        "the repeated double shows four of their major",
+    );
+
+    // And the invitation below it denies exactly that, by the weight ordering.
+    let invite = read(&after(call(2, Strain::Notrump)));
+    assert!(
+        invite.get(Relative::Partner).length(Suit::Hearts).max <= 3,
+        "the `2NT` invitation denies the double it declined (got {:?})",
+        invite.get(Relative::Partner).length(Suit::Hearts),
+    );
+
+    // Under `Alerted` the length survives only because the double carries
+    // `LANDY_PENALTY`.  Drop the alert and this is the assertion that fails.
+    let alerted_only = read_with(
+        crate::bidding::inference::ReadingScope::Alerted,
+        &after(Call::Double),
+    );
+    assert_eq!(
+        alerted_only.get(Relative::Partner).length(Suit::Hearts).min,
+        4,
+        "the alert is what publishes the trump length to an alert-only reader",
+    );
+}

@@ -1157,6 +1157,42 @@ pub struct CompetitionKnobs {
     /// the isolation gate found zero foreign boards.  The off state preserves
     /// the former floor-owned answer for comparison.
     pub landy_minor_slam_answer: bool,
+    /// The Landy doubler's own rebid once their advance has named the major
+    ///
+    /// `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and the two legs where their
+    /// artificial `2♦` escape was pulled to a major.  The seat is the floor's
+    /// today on every hand (`probe-decision` prints `fallback: Some(0)` across
+    /// the band), and the 2026-08-27 census says it is where the `X` branch
+    /// bleeds: 67 bd, −75 IMPs plain, the auction dying after our values
+    /// double.
+    ///
+    /// On, `competition::lebensohl::landy_doubler_rebid` claims it with
+    /// [`Self::multi_kokish_kraft`]'s ladder ported one suit down — `4NT`@160
+    /// quantitative, the penalty `X`@155 on four of their major, `3NT`@150,
+    /// the `2NT`@145 invitation, natural `3♣`/`3♦`@100/99 on a five-card
+    /// minor, `Pass`@0 — plus opener's three answers (sit over the repeated
+    /// double, [`Self::multi_kokish_kraft`]'s invite and quantitative tables).
+    /// Two structural differences from the twin, both probe-driven: there is
+    /// **no correction leg**, because the Landy overcaller passes the
+    /// preference 94.5%/96.7% of the time rather than pulling it, and the
+    /// twin's natural other-major rung becomes a natural *minor*, because this
+    /// opponent holds both majors.
+    ///
+    /// The polarity this authors — a double after our own double is penalty, a
+    /// double after our *pass* stays the floor's takeout — is **not** mechanised
+    /// anywhere.  `inference::readers::penalty_x_reading_with_profile` requires
+    /// *their* 1NT opening, so [`penalty_latch`][field@crate::bidding::inference::ReadingProfile::penalty_latch] cannot fire in
+    /// this lane whatever its setting; the alert and the `.penalty()` tag are
+    /// the whole mechanism, exactly as the `1NT (2♦)` twin does it.
+    ///
+    /// `X (2NT)` and opener's own `X (2M)` seat are left to the floor on
+    /// purpose — after that advance the overcaller jumps to `4M` 54.3% of the
+    /// time and to slam another 13.5%, and BBA never doubles at either seat
+    /// (`probe-bba-constraints --mode opener-c-x2h`, no `X` bucket over 0.5%).
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-rebids.sh`).
+    /// Inert while their `2♣` is undeclared or natural.
+    pub landy_doubler_rebids: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1295,6 +1331,7 @@ impl Default for CompetitionKnobs {
             multi_doubler_notrump: true,
             multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
+            landy_doubler_rebids: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

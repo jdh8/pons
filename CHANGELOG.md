@@ -148,6 +148,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Landy doubler's own rebid ladder, `competition.landy_doubler_rebids`
+  (default off, A/B owed).** `1NT (2♣) X (2♥) - -`, `X (2♠) - -` and the two
+  legs where their artificial `2♦` escape was pulled to a major were the
+  floor's on every hand (`probe-decision` printed `fallback: Some(0)` across
+  the band), and the 2026-08-27 census prices that branch at 67 bd / −75 IMPs
+  plain — the auction dying after our values double. On, the node plays
+  `kokish_kraft_doubler_rebid`'s ladder ported one suit down: `4NT`@160
+  quantitative, a **penalty** `X`@155 on four of their major (`LANDY_PENALTY`
+  + `.penalty()`, opener sits), `3NT`@150, the `2NT`@145 invitation, natural
+  `3♣`/`3♦`@100/99 on a five-card minor, `Pass`@0 — plus opener's three
+  answers, reusing `multi_signoff_pass`, `kokish_kraft_invite_answer` and
+  `multi_quant_answer`. Two probe-driven differences from the twin: **no
+  correction leg** (the Landy overcaller passes the preference 94.5%/96.7%
+  rather than pulling it) and a natural *minor* where the twin has the other
+  major (this opponent holds both). Salvaged from `park/landy-kk` §N1l as its
+  own knob, every weight and gate re-derived against `main`'s code; the
+  branch's other three knobs stay parked.
+
+  **No user impact yet** — off by default, `smoke-default --count 20000 --seed
+  1` byte-identical to `main`. The polarity it authors (a double after our own
+  `X` is penalty; after our `P` it stays the floor's takeout) is **not**
+  mechanised by any latch: `penalty_x_reading_with_profile` requires *their*
+  1NT opening, so `penalty_latch` cannot fire in this lane at all — the
+  authored node plus its alert is the whole mechanism, exactly as the `1NT
+  (2♦)` twin does it. Design, table and flags:
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1l.
+  Runner: `scripts/ab-landy-doubler-rebids.sh`.
+
 - **`opener-c-x2h` / `opener-c-x2s` on `probe-bba-constraints`**, exact twins
   of the Multi lane's `opener-d-x2h`/`opener-d-x2s`: BBA's 1NT opener answering
   the values double once their Landy advance has named the major. The

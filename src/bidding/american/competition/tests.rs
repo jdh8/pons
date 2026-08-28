@@ -111,13 +111,18 @@ fn landy_counter_package_invariants() {
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
     // N1j: the BBA ladder alone, and with its weak-2♦ cap arm.  The stack
-    // knobs are inert under it, so two arms cover the whole surface.
+    // knobs are inert under it, so two arms cover the whole surface — crossed
+    // with §N1l's doubler rebid ladder, which adds four nodes plus three
+    // answers under each and is the only default-off knob in this lane.
     for cap in [false, true] {
-        let mut arm = Agreements::default();
-        arm.decision.their.two_clubs_landy = true;
-        arm.competition.defense_2c_landy_bba = true;
-        arm.competition.defense_2c_landy_weak_2d_cap = cap;
-        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        for doubler_rebids in [false, true] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_clubs_landy = true;
+            arm.competition.defense_2c_landy_bba = true;
+            arm.competition.defense_2c_landy_weak_2d_cap = cap;
+            arm.competition.landy_doubler_rebids = doubler_rebids;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
     }
 }
 
