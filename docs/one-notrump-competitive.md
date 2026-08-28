@@ -295,7 +295,7 @@ cells: plain +5.56/+10.11 and PD +7.11/+11.44 IMPs/fired NV/vulnerable (n =
 18/9). The former floor-owned answer remains the explicit off arm. Design,
 probe, and measurement: [minor-transfer-slam.md](minor-transfer-slam.md).
 
-### N1l — the doubler's own rebid (`landy_doubler_rebids`, **built 2026-08-28, A/B owed**)
+### N1l — the doubler's own rebid (`landy_doubler_rebids`, **measured 2026-08-28: mixed, stays off**)
 
 Salvaged from `park/landy-kk` as its own default-off knob; the branch's other
 three (`landy_splinter_hcp`, `landy_tail_completion`, `defense_2c_landy_kk`)
@@ -357,18 +357,52 @@ at all four nodes with the knob off and a depth-2 book node with it on;
 as `♥ 0..3` (denying the double it declined); `smoke-default --count 20000
 --seed 1` is byte-identical to `main`.
 
-**A/B owed.** Control = `main` HEAD, fresh `SEED_BASE`, `--filter-landy` on
-both arms, both scorers. Runner: `scripts/ab-landy-doubler-rebids.sh`. Two
-notes for the read. §N1k (`landy_doubler_notrump`, opener's `3NT` one call
-earlier) was **refuted** on 2026-08-27, and its forensic showed the OFF arm's
-floor already finding a delayed penalty double at this exact seat on 3 of the 5
-worst plain boards per cell — so part of what this table authors already
-happens emergently, and the measurable delta is the *difference* between the
-authored ladder and the floor's improvisation, not the whole 67 bd. And the
-`X`@155 is reached only when opener passes at `X (2M)`: the net floor passes
-there (`P` 11.9 vs `X` 3.0) but the instinct floor doubles (`rule #382`), so
-anchor arms take a different path and their pool differs — read the net-floor
-cells.
+**As measured (2026-08-28).** `scripts/ab-landy-doubler-rebids.sh`,
+`SEED_BASE 1787917699`, sha `ba003a30`, 4,608,000 bd/arm/vul (24 × 192,000),
+isolation gate **0 foreign at both vuls**; fired 1.56% none / 1.26% both.
+IMPs/fired; every /board CI ≤ ±0.0008:
+
+| cell | DD plain | DD-PD | SD plain | SD-PD |
+| --- | ---: | ---: | ---: | ---: |
+| none | **+2.365** | −0.759 | **+3.059** | **+0.523** |
+| both | **+1.556** | −2.281 | **+2.539** | **−0.741** |
+
+The knob is mixed-direction (one rung adds doubles, the rest bid more), so the
+row read is per rung — `probe-divergence --jsonl --imps` on each cell, split by
+`call_on`, DD-priced, ±95% CI on the /fired mean:
+
+| rung | none: plain / PD | both: plain / PD |
+| --- | --- | --- |
+| penalty `X` (~12%) | **+7.489**±.083 / −0.091 | **+9.196**±.094 / −0.148 |
+| `2NT` invite (~36%) | +1.888±.055 / −1.667 | +0.733±.088 / **−3.695** |
+| `3♣` + `3♦` (~46%) | +1.7..2.0 / −0.6..−0.8 | +0.2..+0.3 / −2.5..−3.1 |
+| `-` (table passes, floor bid) (~6%) | −0.445 / +2.929 | +1.206 / **+5.048** |
+
+Falsifier 3 is **refuted**: the penalty `X` is the payoff, not the artifact —
+it carries the *entire* vulnerable plain win (+63,332 of +90,066 IMPs), the
+addendum arbitrates it on plain DD, and even its double-blind PD column is
+flat. Falsifier 1's "small win" shape did arrive, but concentrated: the
+authored ladder beats the floor's improvisation exactly where it doubles. **The
+drag is the constructive family, vulnerable.** Every constructive rung is
+win/loss on the ordinary rows at none but wash-to-thin/loss at both; the
+arbiter (SD-PD) flips sign with vulnerability; and the `2NT` invite's declined
+half (`2NT` passed out, n=10,051) loses **both scorers** at both vul
+(−0.612±.087 plain / −4.313±.130 PD) — the measured mistake is declaring a
+thin vulnerable notrump part-score instead of defending their `2♥`, not the
+accepted `3NT`s alone.
+
+**Verdict: mixed — not shippable default-on as built; the knob stays off.**
+The flip plan is cheap and finished-code-shaped: keep `X`@155 and the
+catch-all, tighten or vulnerability-gate the constructive rungs (the `2NT`
+invite first), re-measure. A vulnerable band hand would then defend via
+`Pass`@0, which the `-` row prices positive on both scorers at both vul
+(selection-biased — those are hands the floor chose to bid — but the sign is
+encouraging). Opener's max-with-stopper `3NT` jam one seat earlier was
+considered against this data and stays with flagged item 1: opener already
+declares every notrump ending in both arms (opener bid `1NT` first), so a jam
+moves nothing on same-contract boards, and its two live deltas — thin games
+added opposite the 7-point doublers, doubler penalty-`X` boards removed —
+both point the wrong way here.
 
 ### Flagged, not fixed (§N1 — reversible defaults proposed)
 
@@ -2470,7 +2504,7 @@ reason to take it.
 | N1g Landy read-side wiring | `reading.their_landy_reading` (**on**) | **SHIPPED DEFAULT-ON 2026-08-14** | `plain wash \| PD win` ×3 seeds: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**. **Isolation gate 0 foreign — the campaign's first** | [closed §N1g](archive/one-notrump-competitive-closed.md#n1g--the-read-side-wiring-shipped-default-on-2026-08-14) |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
-| N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **built 2026-08-28, A/B owed** | no verdict. Salvaged from `park/landy-kk` as its own knob; the branch's other three stay parked. The other half of the same 67 bd / −75 plain `X` branch §N1k cut — the seat *after* opener's. `kokish_kraft_doubler_rebid` ported with no correction leg (their overcaller passes the preference 94.5%/96.7%) and a natural `3m` where the twin has the other major; two escape legs added on the probe. `smoke-default` byte-identical with the knob off; `probe-decision` reads `fallback: Some(0)` off / depth-2 book on at all four nodes | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-built-2026-08-28-ab-owed); `scripts/ab-landy-doubler-rebids.sh` |
+| N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

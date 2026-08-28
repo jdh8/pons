@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **The Landy doubler's rebid ladder is a mixed measurement and stays default
+  off.** `competition.landy_doubler_rebids` (§N1l, built 2026-08-28) measured
+  on `scripts/ab-landy-doubler-rebids.sh`, `SEED_BASE 1787917699`, sha
+  `ba003a30`, 4,608,000 bd/arm/vul, isolation gate 0 foreign at both
+  vulnerabilities, fired 1.56% / 1.26%. Headline IMPs/fired none/both: DD
+  plain **+2.365 / +1.556**, DD-PD −0.759 / −2.281, SD plain +3.059 / +2.539,
+  SD-PD — the arbiter — **+0.523 / −0.741**. The per-rung split
+  (`probe-divergence --jsonl --imps`) attributes the entire vulnerable plain
+  win to the penalty `X`@155 (+9.196 ±0.094/fired; its PD column is
+  double-blind per the domain addendum and still flat, −0.148) and the
+  vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695
+  PD/fired), whose declined half loses both scorers CI-clear (−0.612 plain /
+  −4.313 PD). No user impact: the default is unchanged. The flip plan (keep
+  `X` + catch-all, tighten or vulnerability-gate the constructive rungs,
+  re-measure) is recorded in `docs/one-notrump-competitive.md` §N1l.
+
 - **BBA anchor re-run at `3237e037`** (`docs/bba-gap-campaign.md`; persistent
   seed `1783375064`, 204,800 boards per vulnerability per arm, all four arms
   replay 100.00% / 0 mismatched). Gap vs BBA, pooled IMPs/board: **−0.525 plain
