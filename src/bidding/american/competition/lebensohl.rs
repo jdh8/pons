@@ -338,8 +338,12 @@ pub(crate) fn lebensohl_responder(over: Suit, agreements: &Agreements) -> Rules 
 /// which makes defending the live option:
 ///
 /// - `X` = values (8+), penalty-oriented.  They will usually run to a major,
-///   and the floor already encircles that escape (`penalize_escape_stack` /
-///   `penalize_escape_values`), so this hands a job to machinery that exists.
+///   and that run is **unauthored**: the floor's penalty chase
+///   (`penalize_escape_stack` / `penalize_escape_values`) gates on
+///   `instinct::our_doubled_one_nt_escape`, which requires
+///   `auction[opening + 1] == Call::Double`.  Here that slot holds their `2♣`,
+///   so the chase never fires in this lane and the floor plays its ordinary
+///   takeout ladder after our double.
 /// - Natural bids in the suits they have **not** shown — `2♦`, `3♣`, `3♦` —
 ///   plus the natural `2NT` invite and a direct `3NT`.
 /// - No major bid of our own: with 5-4 majors opposite, ours are dead.
@@ -1849,9 +1853,14 @@ pub(super) fn lebensohl_package() -> Package {
                 // X back onto the stolen 2♣ Stayman one round later, sending
                 // `1NT (2♣) X (2♥)` into the contested-Stayman package.  So the
                 // book claims responder's first call and opener's one answer to
-                // each of them, and every deeper auction is the floor's — which
-                // is where we want it: the floor already encircles their escape
-                // from our double (`penalize_escape_stack`/`_values`).
+                // each of them, and every deeper auction is the floor's.  That
+                // is not the same as being covered: `penalize_escape_stack` /
+                // `penalize_escape_values` gate on
+                // `instinct::our_doubled_one_nt_escape`, which requires
+                // `auction[opening + 1] == Call::Double` — in `1NT (2♣) X (2♥)`
+                // that slot holds their `2♣`, so the penalty chase cannot fire
+                // here.  The seat after their run is unauthored and the floor
+                // plays its ordinary takeout ladder there.
                 entries.extend(rows_of(
                     Pattern::after(NT, "(2♣)"),
                     landy_responder(agreements),

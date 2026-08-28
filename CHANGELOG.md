@@ -55,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **The `1NT (2♣)` lane no longer claims the floor encircles their escape from
+  our double.** Two places in `lebensohl.rs` said `penalize_escape_stack` /
+  `penalize_escape_values` cover the seat after their run. They cannot: both
+  gate on `instinct::our_doubled_one_nt_escape`, which requires
+  `auction[opening + 1] == Call::Double`, and in `1NT (2♣) X (2♥)` that slot
+  holds their `2♣`. The seat is unauthored and the floor plays its ordinary
+  takeout ladder there — which is what the comments now say. Comment-only, no
+  behaviour change.
+
 - **The current `1NT (2♣)` Landy table is documented as played.** The N1
   campaign summary no longer says the `4m` slam try's answer is floor-owned:
   `competition.landy_minor_slam_answer` has been default-on since 2026-08-25
