@@ -148,6 +148,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`opener-c-x2h` / `opener-c-x2s` on `probe-bba-constraints`**, exact twins
+  of the Multi lane's `opener-d-x2h`/`opener-d-x2s`: BBA's 1NT opener answering
+  the values double once their Landy advance has named the major. The
+  `opener-c-*` family stopped at responder's non-double calls, so this seat had
+  never been probed. It does not mirror the Multi seat: BBA passes **67.3% /
+  67.6% non-vulnerable and 79.3% / 80.5% vulnerable** against the twins'
+  91.7–93.0%, bidding a natural `3♣` on four-plus clubs otherwise — because it
+  labels our `X` **“bidable suit”** over Landy and **“negative double”** over
+  the Multi. It never doubles at that seat in either lane, which is the
+  evidence behind leaving opener's seat unauthored. Table in
+  [docs/ai-bidder/landy-2c-counter-defense-research.md](docs/ai-bidder/landy-2c-counter-defense-research.md).
+
 - **`--their-2c-landy` on `render-book` and `probe-call-reading`.** Their `2♣`
   Landy is a *disclosure*, undeclared by default, so both tools silently showed
   the systems-on natural-`2♣` leg and the whole N1j counter sat invisible —

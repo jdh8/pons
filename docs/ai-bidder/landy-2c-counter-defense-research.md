@@ -419,6 +419,51 @@ the direct double creates a force. None prints all four branches. Treating one
 source's missing branch as another source's continuation would build a hybrid
 that no source actually plays.
 
+#### Probed: what BBA does at item 3's seat (2026-08-28)
+
+`probe-bba-constraints --mode opener-c-x2h|opener-c-x2s`, new modes, exact
+twins of the Multi lane's `opener-d-x2h`/`opener-d-x2s`. Seat 0 over
+`1NT (2♣) X (2M)`, default `--conv Multi-Landy=1` (the arm that makes their
+`2♣` both majors), 100,000 hands per vulnerability filtered to the 5,005 that
+BBA itself opens 1NT with, `--min-share 0.005`. The Multi twins are re-run at
+the same size as the control.
+
+**BBA reads the two doubles differently, and that is the headline.**
+`epbot_get_info_meaning` over 200 hands, identical on all 200 in every cell:
+
+| lane | their overcall | our `X` | their advance |
+| --- | --- | --- | --- |
+| `1NT (2♦)` Multi | “Multi-Landy, Multi” | **“negative double”** | “to the partner's longer” |
+| `1NT (2♣)` Landy | “Multi-Landy, both majors” | **“bidable suit”** | “weak” |
+
+So BBA has no values/penalty double here at all — over Landy its own `X` is a
+takeout showing a suit, which is why its opener answers rather than sits:
+
+| seat | vul | Pass | next call | rest |
+| --- | --- | ---: | --- | --- |
+| `X (2♥)` Landy | none | **67.3%** | `3♣` 30.2% (`hcp 15..17 & ♣4+`) | `2♠` 1.6%, `4♣` 0.9% |
+| `X (2♥)` Landy | both | **79.3%** | `3♣` 18.2% | `2♠` 1.6%, `4♣` 0.9% |
+| `X (2♠)` Landy | none | **67.6%** | `3♣` 29.7% | `3♥` 1.6%, `4♣` 1.1% |
+| `X (2♠)` Landy | both | **80.5%** | `3♣` 16.8% | `3♥` 1.6%, `4♣` 1.1% |
+| `X (2♥)` Multi | none / both | **91.7% / 91.8%** | `2NT` 6.2/6.1% (`hcp 17`) | `2♠` 2.1% |
+| `X (2♠)` Multi | none / both | **92.9% / 93.0%** | `2NT` 7.1/7.0% (`hcp 17`) | — |
+
+Two findings, in the order they bind:
+
+1. **BBA never doubles at this seat, in either lane** — no `X` bucket clears
+   0.5% in any of the eight cells. That is the evidence behind the §N1l scope
+   call that leaves opener's `X (2M)` seat unauthored, and it is the same
+   evidence that refuted §N1k's authored `3NT` there.
+2. **The Landy seat is *not* the Multi seat.** The expectation carried into the
+   probe was 92–94% Pass on both legs, transplanted from the Multi twin; the
+   Landy legs pass **67%** non-vulnerable and **80%** vulnerable, acting on a
+   natural `3♣` with four-plus clubs the rest of the time. The vulnerability
+   swing (30% → 18%) is real and one-directional. This does **not** move §N1l,
+   whose ladder sits one call *later* and is reached only when our opener
+   passes — but it does mean “opener sits at the doubler's seat” cannot be
+   justified by pointing at the Multi lane. Recorded, not acted on; see the
+   §N1l flag in [docs/one-notrump-competitive.md](../one-notrump-competitive.md).
+
 ## `2NT`, cues, `3NT`, and jumps
 
 ### `2NT`: four different calls sharing one label

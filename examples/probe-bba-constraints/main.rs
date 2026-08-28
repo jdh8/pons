@@ -671,6 +671,24 @@ fn main() -> Result<()> {
             Some(ONE_NT),
             "BBA opener over 1NT (2♣ Landy) 3♣ - — a 3♦ answer is the diamond transfer",
         ),
+        // §N1l: the doubler's rebid seat one lane over — opener answering the
+        // Landy values double once their advance has named the major.  Exact
+        // twins of `opener-d-x2h`/`opener-d-x2s`; the `opener-c-*` family
+        // stopped at responder's non-double calls, so this seat had never been
+        // probed.  Default `--conv Multi-Landy=1` is the arm that makes their
+        // `2♣` both majors — do not override it.
+        "opener-c-x2h" => (
+            0,
+            &[ONE_NT, TWO_C, DOUBLE, TWO_H],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♣ Landy) X (2♥) — answering the values double over the advancer's preference",
+        ),
+        "opener-c-x2s" => (
+            0,
+            &[ONE_NT, TWO_C, DOUBLE, TWO_S],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♣ Landy) X (2♠) — answering the values double over the advancer's preference",
+        ),
         "opener-d-x" => (
             0,
             &[ONE_NT, TWO_D, DOUBLE, PASS],
@@ -944,7 +962,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be custom|open|def1-c|def1-d|def1-h|def1-s|multi|advance|advance-x|counter|counter-x|counter-c|counter-h|counter-s|counter-2nt|counter-3c|counter-3d|counter-3h|counter-3s|opener-c-2nt|opener-c-2s|opener-c-3c|opener-d-x|opener-d-x2h|opener-d-x2s|counter-d-x2h|counter-d-x2h2s|counter-d-x2s|counter-d-x2h-2s|opener-h-2nt|opener-s-2nt|opener-h-x|opener-2nt-x|muider-h|muider-s|rebid-d|rebid-d-x|rebid-d-x2h|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
+            "--mode must be custom|open|def1-c|def1-d|def1-h|def1-s|multi|advance|advance-x|counter|counter-x|counter-c|counter-h|counter-s|counter-2nt|counter-3c|counter-3d|counter-3h|counter-3s|opener-c-2nt|opener-c-2s|opener-c-3c|opener-c-x2h|opener-c-x2s|opener-d-x|opener-d-x2h|opener-d-x2s|counter-d-x2h|counter-d-x2h2s|counter-d-x2s|counter-d-x2h-2s|opener-h-2nt|opener-s-2nt|opener-h-x|opener-2nt-x|muider-h|muider-s|rebid-d|rebid-d-x|rebid-d-x2h|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
