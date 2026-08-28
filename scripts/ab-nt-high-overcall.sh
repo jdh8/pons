@@ -2,7 +2,7 @@
 # ab-nt-high-overcall.sh — N3: their three-level overcall of our 1NT
 # (docs/one-notrump-competitive.md §N3).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-high-overcall.sh ab-results/nt-high-overcall \
 #       >ab-results/nt-high-overcall.log 2>&1 < /dev/null &
 #

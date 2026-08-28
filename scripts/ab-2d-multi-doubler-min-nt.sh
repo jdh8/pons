@@ -3,7 +3,7 @@
 # Kokish–Kraft doubler's natural other major
 # (docs/multi-doubler-answer-handoff.md item 2).
 #
-#   SKIP_BUILD=1 JOBS=12 PER_SHARD=384000 setsid nohup scripts/idle-run.sh \
+#   SKIP_BUILD=1 JOBS=24 PER_SHARD=384000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-doubler-min-nt.sh ab-results/2d-multi-doubler-min-nt \
 #       >ab-results/2d-multi-doubler-min-nt.log 2>&1 < /dev/null &
 #

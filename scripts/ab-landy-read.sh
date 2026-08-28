@@ -6,7 +6,7 @@
 # false on every board of the lane.  `--ns-their-landy-read` makes the declared
 # 2♣ read 4-4+ majors (no strength claim) and natural-suppresses the advances.
 #
-#   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-landy-read.sh \
+#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-landy-read.sh \
 #       ab-results/landy-read >ab-results/landy-read.log 2>&1 < /dev/null &
 #
 # BBA's 2/1 card overcalls 1NT with Multi-Landy, whose 2♣ *is* Landy, so the

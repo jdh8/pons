@@ -2,7 +2,7 @@
 # ab-landy-minor-slam.sh — opener's answer to the N1j Landy `4m` slam try
 # (docs/minor-transfer-slam.md queue item 2).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-minor-slam.sh ab-results/landy-minor-slam \
 #       >ab-results/landy-minor-slam.log 2>&1 < /dev/null &
 #

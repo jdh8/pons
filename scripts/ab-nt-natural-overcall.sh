@@ -2,7 +2,7 @@
 # ab-nt-natural-overcall.sh — M1 + M2 of the `(1NT) 2♦` mirror forensic
 # (docs/defensive-overcalls.md § "Defense to their 1NT — the (1NT) 2♦ mirror panel").
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-natural-overcall.sh pack ab-results/nt-natural-overcall \
 #       >ab-results/nt-natural-overcall.log 2>&1 < /dev/null &
 #

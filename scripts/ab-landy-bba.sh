@@ -3,7 +3,7 @@
 # (docs/one-notrump-competitive.md §N1j): the BBA-ladder Landy counter — the
 # anchor-aligned table — against the shipped stack, plus its weak-2♦ cap arm.
 #
-#   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-landy-bba.sh \
+#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-landy-bba.sh \
 #       ab-results/landy-bba >ab-results/landy-bba.log 2>&1 < /dev/null &
 #
 # Arms, all with `--their-2c-landy true --filter-1nt` (the true declaration of

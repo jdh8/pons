@@ -3,7 +3,7 @@
 # transfer (docs/minor-transfer-slam.md, docs/one-notrump-competitive.md §N4-KK
 # residues 3 and 6).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-slam.sh ab-results/2d-multi-slam \
 #       >ab-results/2d-multi-slam.log 2>&1 < /dev/null &
 #

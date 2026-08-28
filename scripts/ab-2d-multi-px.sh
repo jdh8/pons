@@ -2,7 +2,7 @@
 # ab-2d-multi-px.sh — the Kokish–Kraft `P`/`X` information split
 # (docs/one-notrump-competitive.md §N4-KK, docs/one-notrump-multi.md).
 #
-#   SKIP_BUILD=1 JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   SKIP_BUILD=1 JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-px.sh ab-results/2d-multi-px \
 #       >ab-results/2d-multi-px.log 2>&1 < /dev/null &
 #

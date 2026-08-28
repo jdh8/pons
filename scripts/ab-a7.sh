@@ -6,7 +6,7 @@
 # **sd-declarer playout** (`ab-dump-sd --sd-declarer` / `ab-slam-entry --sd`),
 # and a plain win that the playout reverses is a DD-optimism artifact.
 #
-#   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-a7.sh ab-results/a7 \
+#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-a7.sh ab-results/a7 \
 #       >ab-results/a7.log 2>&1 < /dev/null &
 #
 # Experiments:

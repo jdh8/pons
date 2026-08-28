@@ -4,8 +4,8 @@
 # defended-1NT deals and advertised as natural.  Plain + PD pre-screen every
 # range; SD_RANGES selects the sd-lead finalists (the competitive-range arbiter).
 #
-# Example (about 200k boards/arm/vulnerability with 12 polite shards):
-#   JOBS=12 PER_SHARD=17000 SD_RANGES='7:14 8:37' \
+# Example (about 400k boards/arm/vulnerability with 24 polite shards):
+#   JOBS=24 PER_SHARD=17000 SD_RANGES='7:14 8:37' \
 #     scripts/idle-run.sh scripts/ab-one-nt-defense-range.sh ab-results/nt-range
 #
 # Override NATURAL_RANGES to narrow or extend the grid; the 8:14 baseline is

@@ -2,7 +2,7 @@
 # ab-2d-double.sh — the `(2♦)` diamond penalty double, swept one axis at a time
 # (docs/one-notrump-competitive.md §N4b).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-double.sh ab-results/2d-double \
 #       >ab-results/2d-double.log 2>&1 < /dev/null &
 #

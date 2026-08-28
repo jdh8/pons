@@ -8,10 +8,10 @@
 # so that SD figure is a floor. `responsive_overcall_enabled` has no bba-gen
 # flag and uses self-play `ab-responsive` instead.
 #
-#   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \
+#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \
 #       >ab-results/a5.log 2>&1 < /dev/null &
 #
-# Shared-box cap: set JOBS (e.g. 12) to bound worker processes — bba-gen-parallel
+# Shared-box cap: set JOBS (e.g. 24) to bound worker processes — bba-gen-parallel
 # creates JOBS shards and ab-lib reads exactly JOBS shards. PER_SHARD (default
 # 6400) sets boards/shard/arm/vul; RESP_COUNT (default 400000, `--filter`ed) sets
 # the self-play board count. A smoke run uses tiny values.

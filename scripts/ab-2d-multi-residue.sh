@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-2d-multi-residue.sh — N4 residue: disclosed-Multi reader and 3♠ ask.
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-residue.sh ab-results/2d-multi-residue \
 #       >ab-results/2d-multi-residue.log 2>&1 < /dev/null &
 #

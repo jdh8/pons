@@ -2,7 +2,7 @@
 # ab-2d-multi-balance.sh — N4f + the two Multi reading knobs
 # (docs/one-notrump-competitive.md §N4f, docs/one-notrump-multi.md).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-balance.sh ab-results/2d-multi-balance \
 #       >ab-results/2d-multi-balance.log 2>&1 < /dev/null &
 #

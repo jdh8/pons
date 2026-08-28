@@ -2,7 +2,7 @@
 # ab-2d-multi-escape.sh — N4e: the floorless weak escape over their `(2♦)` Multi
 # (docs/one-notrump-competitive.md §N4e).
 #
-#   JOBS=12 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-escape.sh ab-results/2d-multi-escape \
 #       >ab-results/2d-multi-escape.log 2>&1 < /dev/null &
 #
