@@ -146,6 +146,18 @@ systemctl --user start poker-worker@lines-mtt89.service
 systemctl --user status poker-worker@lines-mtt89.service
 ```
 
+`stop` and `restart` are not two spellings of the same thing. The unit sets
+`KillSignal=SIGKILL`, so **`stop` preempts**: systemd kills the whole cgroup at
+once and the box is free immediately. That is safe by design — the worker
+publishes each flop tmp+rename, so an interrupted flop stays absent and the
+per-flop `.jsonl` gate re-solves it next time; the cost is that flop's compute,
+never data. **`restart` is the graceful one** (`RestartKillSignal=SIGTERM`,
+`TimeoutStopSec=infinity`): it waits without a deadline for the current flop to
+publish before replacing the process. So `stop` to free the box for a run,
+`restart` to cycle the worker without discarding work in flight. Before
+2026-08-28 `stop` drained as well and could block ~1 min, which used to explain
+a heavy run's silent first minute; it no longer does.
+
 Prefer `systemctl stop` to `kill -STOP`: measured 2026-07-30, the worker held
 ~19.6 GiB RSS on a 61 GiB no-swap box with ~9 GiB available, and a stopped
 process keeps that memory pinned. The bidding run still belongs under

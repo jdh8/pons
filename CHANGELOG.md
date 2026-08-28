@@ -169,6 +169,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **`stop` and `restart` on the shared box's poker worker are not two spellings
+  of the same thing**, and
+  [shared-machine-data-gen.md](docs/shared-machine-data-gen.md) now says so. The
+  unit sets `KillSignal=SIGKILL`, so `stop` preempts — the cgroup dies at once
+  and the box is free — which is safe because each flop publishes tmp+rename and
+  the `.jsonl` gate re-solves an interrupted one; `restart`
+  (`RestartKillSignal=SIGTERM`, `TimeoutStopSec=infinity`) is the graceful path
+  and waits without a deadline for the current flop to publish. `stop` to free
+  the box for a run, `restart` to cycle the worker. Before 2026-08-28 `stop`
+  drained too and could block ~1 min — the old explanation for a heavy run's
+  silent first minute, which no longer holds.
+
 - **The `1NT (2♣)` lane no longer claims the floor encircles their escape from
   our double.** Two places in `lebensohl.rs` said `penalize_escape_stack` /
   `penalize_escape_values` cover the seat after their run. They cannot: both
