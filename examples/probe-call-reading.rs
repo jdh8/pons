@@ -89,6 +89,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_opener_rungs: bool,
 
+    /// Arm §N1p (`competition.landy_notrump_no_major`): `3NT` over their Landy
+    /// denies a four-card major, so the values `X` stops reading `points 8..9`
+    #[arg(long, default_value_t = false)]
+    ns_landy_notrump_no_major: bool,
+
+    /// Arm §N1p's jam (`competition.landy_major_jam`, needs
+    /// `--ns-landy-notrump-no-major`): `4♠`@172 / `4♥`@171 on a strong
+    /// six-card major
+    #[arg(long, default_value_t = false)]
+    ns_landy_major_jam: bool,
+
     /// Minimum suit length for the floorless Multi escape
     /// (`competition.multi_weak_escape`), so its published reading can be read
     /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`.  Absent leaves the
@@ -202,6 +213,8 @@ fn main() {
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
+    agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
+    agreements.competition.landy_major_jam = args.ns_landy_major_jam;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.multi_kokish_kraft = !args.no_ns_multi_kokish_kraft;

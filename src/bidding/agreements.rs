@@ -1375,6 +1375,62 @@ pub struct CompetitionKnobs {
     ///
     /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
     pub landy_opener_rungs: bool,
+    /// `3NT` over their Landy denies a four-card major (§N1p)
+    ///
+    /// `landy_bba_responder` carries an **ungated**
+    /// `3NT`@168 on bare `points(10..)`, and it outranks the values `X`@145.
+    /// So every ten-plus-point hand bids `3NT` and never doubles, which caps
+    /// the double at nine points — verified, not assumed: `probe-call-reading
+    /// --their-2c-landy` reads partner back as `points 8..9`.  On, both `3NT`
+    /// rungs gain `len(♥, ..=3) & len(♠, ..=3)`, so the game hands holding
+    /// four-plus of a major they showed fall through to the double instead.
+    ///
+    /// Short stoppers stay welcome — the `stopper_in` terms are untouched, and
+    /// nothing else in the table moves, so the 6+ minor transfers @174/173 and
+    /// the game-forcing both-minors family @178-175 still outrank the `X`.
+    ///
+    /// The reading follows for free.  `reading.bid_exclusion` intersects each
+    /// rule with what its strictly heavier siblings deny, so restricting `3NT`
+    /// widens the double's published reading from `points 8..9` to *8+ hcp,
+    /// and with game values four-plus of a major* without a new slug, a new
+    /// alert or a `.bbsa` row.
+    ///
+    /// Why the double and not the notrump: N1d measured taking eight-to-nine
+    /// point hands *off* this double at −0.92/−2.53 PD per fired and flipping
+    /// them back at +2.0…+5.1, and §N1m's oracle prices defending their major
+    /// **doubled** at +3.5…+8.1 IMPs/board in every four-plus-trump bucket at
+    /// both vulnerabilities, minimum or maximum, stopper or none.
+    ///
+    /// Reaches the live BBA table only ([`Self::defense_2c_landy_bba`], on by
+    /// default); the stack arm's own ungated `3NT`@170 is left alone.
+    ///
+    /// **Off by default — the A/B is owed**
+    /// (`scripts/ab-landy-notrump-shape.sh`).  Inert while their `2♣` is
+    /// undeclared or natural.
+    pub landy_notrump_no_major: bool,
+    /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
+    ///
+    /// Only effective with [`Self::landy_notrump_no_major`]: without it the
+    /// six-card major game hands are still swallowed by the ungated `3NT`@168
+    /// and the rung never fires.
+    ///
+    /// `4♠`@172 on `len(♠, 6..) & points(10..)` and `4♥`@171 on the heart
+    /// twin — natural game bids that jam the whole auction, placed above the
+    /// restricted `3NT`@168 and below the transfers so "the transfers still
+    /// outrank the double" keeps holding.  Spades outranks hearts because with
+    /// 6-6 the better game is `4♠`; no other hand satisfies both.  Weak
+    /// six-carders keep defending through the `X`@145 — only the strong ones
+    /// jam.
+    ///
+    /// Opener sits at `4♥ -` / `4♠ -` (`multi_signoff_pass`).  That node is
+    /// insurance against a *measured* floor defect — §N1o's forensic caught the
+    /// floor cue-bidding this lane's four-level to `6♥` doubled — and it does
+    /// forgo slam on the fifteen-plus slice, so it is the first thing to relax
+    /// if the arm reads mixed.
+    ///
+    /// **Off by default — the A/B is owed**
+    /// (`scripts/ab-landy-notrump-shape.sh`).
+    pub landy_major_jam: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1518,6 +1574,8 @@ impl Default for CompetitionKnobs {
             landy_doubler_white: false,
             landy_opener_px: false,
             landy_opener_rungs: false,
+            landy_notrump_no_major: false,
+            landy_major_jam: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

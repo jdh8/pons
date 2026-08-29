@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1p: an unlimited values double over their Landy `2♣`,
+  `competition.landy_notrump_no_major` and `competition.landy_major_jam` (both
+  default off, A/B owed).** Responder's `X`@145 over `1NT (2♣)` is constrained
+  `hcp(8..)` — unlimited on top — but `landy_bba_responder`'s ungated
+  `3NT`@168 on bare `points(10..)` outranks it, so every ten-plus-point hand
+  declares and the double never sees a game hand (`probe-call-reading
+  --their-2c-landy` reads partner back as `points 8..9`). That cap is §N1's
+  flagged item 2, unmeasured either way since the ladder shipped.
+
+  `landy_notrump_no_major` conjoins `len(♥, ..=3) & len(♠, ..=3)` onto **both**
+  `3NT` rungs (@180 and @168), so the game hands holding four-plus of a major
+  they showed fall through to the double. `landy_major_jam`, effective only
+  with it, adds `4♠`@172 / `4♥`@171 on `len(major, 6..) & points(10..)` with
+  `multi_signoff_pass` above them — a strong six-card major jams the auction,
+  a weak one keeps defending.
+
+  **Restricting the notrump rather than promoting the `X` is the whole design.**
+  Promoting the double past `3NT`@168 buys the same hands, but "unlimited" then
+  has to clear the *gated* `3NT`@180 too, and there is no weight between 180 and
+  the GF both-minors family at 178 — so it would also displace the transfers
+  ("a six-carder never defends") and the splinters, three separately-defended
+  orderings at once. The gate as built moves the four-plus-major game hands and
+  nothing else; the stopper terms are untouched, so short stoppers still count.
+  It also carries its own disclosure: `reading.bid_exclusion` intersects each
+  rule with what its heavier siblings deny, so narrowing `3NT` republishes the
+  double's reading as *8+ hcp, and with game values four-plus of a major* with
+  **no new slug, no alert change and no `.bbsa` row** — unlike §N1l-flip's owed
+  no-catch-all arm, which is blocked on exactly such a decision.
+
+  **The two scales leave no hole**, which the arm depends on: `3NT`@168 floors
+  on `points` and the `X`@145 on `hcp`, but the shipped scale is
+  `raw_hcp + upgrade` with `upgrade` capped at 2, so `points ≥ 10 ⟹ hcp ≥ 8`
+  and every displaced hand clears the double's floor. With the 6+ minor
+  transferring and 4=1=4=4 splintering, nothing falls to the `Pass`@0 — `nt` is
+  a clean call-for-call substitution, not a substitution plus a suppression.
+
+  **No user impact** — both knobs are default off and every existing test
+  passes unchanged. Priors, all from this lane and none of them a measurement
+  of this arm: N1d priced taking 8-9 point hands *off* this double at
+  −0.92/−2.53 PD per fired and flipping them back at +2.0…+5.1; §N1m's oracle
+  prices defending their major doubled at +3.5…+8.1 IMPs/board in every
+  four-plus-trump bucket at both vulnerabilities; the 2026-08-27 census makes
+  `2♣` Landy the lane's top cost by total (−275 IMPs on 551 boards). Runner
+  `scripts/ab-landy-notrump-shape.sh` (arms `base | nt | jam`, with `jam vs nt`
+  paired to price the jam rung alone); `bba-gen --ns-landy-notrump-no-major` /
+  `--ns-landy-major-jam`, `PROBE_LANDY_NT_NO_MAJOR` / `PROBE_LANDY_MAJOR_JAM`
+  in `probe-decision`, matching flags in `probe-call-reading`, and a new
+  `render-book --ns-landy-responder <off|nt|jam>` — responder's own seat had no
+  render-book switch either. Design and falsifiers:
+  `docs/one-notrump-competitive.md` §N1p.
+
 - **The §N1l flip: two cut-down Landy doubler ladders,
   `competition.landy_doubler_px` and `competition.landy_doubler_white` (built
   default off; `px` has since **shipped default-on** and `white` measured not a

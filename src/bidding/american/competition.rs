@@ -174,6 +174,14 @@ const KK_MINORS: Alert = Alert("comp:kk-minors");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.
+///
+/// The slug covers both widths.  By default the ordering caps the double at
+/// nine points, because the table's ungated `3NT`@168 outranks it; under
+/// `landy_notrump_no_major` (§N1p) `3NT` denies a four-card major and the
+/// double picks up every game hand with length in a suit they showed.  The
+/// meaning widens, the tag does not — `reading.bid_exclusion` republishes the
+/// wider reading off the rule's own siblings, so there is nothing here to
+/// re-tag and no `.bbsa` row to re-bless.
 const LANDY_VALUES: Alert = Alert("comp:landy-values");
 /// Landy cue — `2♥`/`2♠` over their `(2♣)` Landy: a cue of a shown major
 /// naming the corresponding unshown minor (`2♥` = clubs, `2♠` = diamonds),

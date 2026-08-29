@@ -222,6 +222,19 @@ fn main() {
         Ok(_) => agreements.competition.landy_opener_rungs = true,
         Err(_) => {}
     }
+    // §N1p — `3NT` denies a four-card major, and the `4M` jam above it
+    // (`competition.landy_notrump_no_major` and `landy_major_jam`, both
+    // default off).  `JAM` needs `NO_MAJOR`.  Needs `PROBE_THEIR_2C_LANDY`.
+    match std::env::var("PROBE_LANDY_NT_NO_MAJOR").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_notrump_no_major = false,
+        Ok(_) => agreements.competition.landy_notrump_no_major = true,
+        Err(_) => {}
+    }
+    match std::env::var("PROBE_LANDY_MAJOR_JAM").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_major_jam = false,
+        Ok(_) => agreements.competition.landy_major_jam = true,
+        Err(_) => {}
+    }
     // The `4m` slam try above a completed *Puppet* minor transfer
     // (`notrump.minor_transfer_slam_try`, default 13): a points floor arms it.
     match std::env::var("PROBE_NT_MINOR_SLAM").as_deref() {

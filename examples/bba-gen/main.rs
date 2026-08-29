@@ -917,6 +917,27 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_opener_rungs: bool,
 
+    /// Restrict `3NT` over their Landy so it denies a four-card major (§N1p)
+    ///
+    /// `competition.landy_notrump_no_major`, default **off**.  Both `3NT`
+    /// rungs of responder's table gain `len(♥, ..=3) & len(♠, ..=3)`, so the
+    /// ten-plus-point hands holding four-plus of a major they showed fall
+    /// through to the values `X`@145 that the ungated `3NT`@168 otherwise
+    /// caps at nine points.  Stoppers, transfers and the two-suited family are
+    /// untouched.  A doubling knob in effect — read it on plain DD.
+    #[arg(long, default_value_t = false)]
+    ns_landy_notrump_no_major: bool,
+
+    /// Jam `4M` on a strong six-card major over their Landy (§N1p's jam arm)
+    ///
+    /// `competition.landy_major_jam`, default **off** and only effective with
+    /// `--ns-landy-notrump-no-major`: `4♠`@172 / `4♥`@171 on `len(major, 6..)
+    /// & points(10..)`, above the restricted `3NT`@168 and below the
+    /// transfers, with opener sitting.  Weak six-carders keep defending
+    /// through the double.  Partly an obstruction knob, which DD cannot see.
+    #[arg(long, default_value_t = false)]
+    ns_landy_major_jam: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2396,6 +2417,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
+    agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
+    agreements.competition.landy_major_jam = args.ns_landy_major_jam;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

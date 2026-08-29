@@ -1168,6 +1168,7 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 /// | `2♥`/`2♠` | **GF takeout**, 4+♦ 4+♣, exactly two in the bid major (2-2 bids `2♥`) | 178/177 |
 /// | `3♥`/`3♠` | **GF splinter**, 4+♦ 4+♣, 0-1 in the bid major | 176/175 |
 /// | `2NT` / `3♣` | transfers to ♣/♦, 6+, `points(2..)` (weak signoff through GF) | 174/173 |
+/// | `4♠` / `4♥` | **§N1p jam**, natural game, 6+ of their major | 172/171 |
 /// | `3NT` | game values, ungated | 168 |
 /// | `X` | values, `hcp(8..)` — the stack's row verbatim | 145 |
 /// | `2♦` | weak natural 5+ — verbatim (`hcp(..=6)` under the cap arm) | 140 |
@@ -1179,20 +1180,43 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 /// splinters — the shortness is the message with more play in it.  No `6NT`
 /// blast rung (BBA's 2.9%): opposite our 15-17 with a live Landy overcall, an
 /// 18+ responder is arithmetic-impossible in the lane.
+///
+/// **§N1p — the two knobs that widen the values double.**  Both `3NT` rungs are
+/// ungated on major length, and the cheaper one is ungated on everything but
+/// `points(10..)`, so every ten-plus-point hand bids `3NT` and the `X`@145 is
+/// capped at nine points.  Under
+/// [`CompetitionKnobs::landy_notrump_no_major`][crate::bidding::agreements::CompetitionKnobs::landy_notrump_no_major]
+/// both gain `len(♥, ..=3) & len(♠, ..=3)`, so the game hands holding
+/// four-plus of a major they showed reach the double instead; the stoppers, the
+/// transfers and the two-suited family are untouched, so a six-card minor still
+/// transfers and short stoppers still count.  Under
+/// [`CompetitionKnobs::landy_major_jam`][crate::bidding::agreements::CompetitionKnobs::landy_major_jam]
+/// as well, a *strong* six-card major jams the auction with `4M` instead — weak
+/// six-carders keep defending.  Both default off, A/B owed.
 fn landy_bba_responder(agreements: &Agreements) -> Rules {
     let both_minors = len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..);
 
+    // §N1p: `3NT` denies a four-card major, so the game hands holding
+    // four-plus of a suit they showed fall through to the values `X`@145
+    // instead of burying it.  Spelled as paired `rule` calls, like
+    // `landy_doubler_rebid`'s colour gate, because the two constraints are
+    // different types.
+    let deny_major = agreements.competition.landy_notrump_no_major;
+    let no_major = || len(Suit::Hearts, ..=3) & len(Suit::Spades, ..=3);
+
     // The gated 3NT — the stack's rung verbatim (see `landy_responder` for
     // why it outranks everything and takes no stopper gate on clubs).
-    let mut rules = Rules::new().rule(
-        Bid::new(3, Strain::Notrump),
-        180,
-        points(10..)
-            & stopper_in(Suit::Hearts)
-            & stopper_in(Suit::Spades)
-            & len(Suit::Clubs, ..=5)
-            & len(Suit::Diamonds, ..=5),
-    );
+    let game = Bid::new(3, Strain::Notrump);
+    let gated = points(10..)
+        & stopper_in(Suit::Hearts)
+        & stopper_in(Suit::Spades)
+        & len(Suit::Clubs, ..=5)
+        & len(Suit::Diamonds, ..=5);
+    let mut rules = if deny_major {
+        Rules::new().rule(game, 180, gated & no_major())
+    } else {
+        Rules::new().rule(game, 180, gated)
+    };
 
     // The GF both-minors family.  The takeout names the doubleton (so `2♠` is
     // exactly 2=3=4=4) and the splinter names the 0-1; the takeout therefore
@@ -1246,7 +1270,24 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // The ungated 3NT, the values X and the weak 2♦: the stack's rows,
     // byte-identical — except the 2♦ band under the cap arm, the N1i
     // `2♦ → Pass` lead isolated (the dropped 7-9 point hands pass).
-    rules = rules.rule(Bid::new(3, Strain::Notrump), 168, points(10..));
+    // §N1p's jam: a strong six-card major bids the game rather than
+    // defending, above the restricted `3NT`@168 and below the transfers so
+    // the transfers keep outranking the double.  `4♠` outranks `4♥` because
+    // with 6-6 the better game is `4♠`; nothing else satisfies both.
+    if deny_major && agreements.competition.landy_major_jam {
+        for (major, weight) in [(Suit::Spades, 172), (Suit::Hearts, 171)] {
+            rules = rules.rule(
+                Bid::new(4, Strain::from(major)),
+                weight,
+                len(major, 6..) & points(10..),
+            );
+        }
+    }
+    rules = if deny_major {
+        rules.rule(game, 168, points(10..) & no_major())
+    } else {
+        rules.rule(game, 168, points(10..))
+    };
     rules = rules
         .rule(Call::Double, 145, hcp(8..))
         .alert(LANDY_VALUES)
@@ -1467,6 +1508,17 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         landy_bba_responder(agreements),
     ));
     entries.extend(rows_of(Pattern::after(OVER, "X -"), landy_double_answer()));
+
+    // §N1p's jam is a sign-off: opener passes it.  The node is insurance
+    // against a *measured* floor defect — §N1o's forensic caught the floor
+    // cue-bidding this lane's four-level to `6♥` doubled — and it does forgo
+    // slam on the fifteen-plus slice, so it is the first thing to relax if the
+    // arm reads mixed.
+    if agreements.competition.landy_notrump_no_major && agreements.competition.landy_major_jam {
+        for path in ["4♠ -", "4♥ -"] {
+            entries.extend(rows_of(Pattern::after(OVER, path), multi_signoff_pass()));
+        }
+    }
 
     // The doubler's own rebid, once their advance has named the major.  Four
     // paths, no correction leg: the Landy overcaller passes the preference

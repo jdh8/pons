@@ -139,6 +139,17 @@ struct Args {
     /// `--their-2c-landy` to do anything.
     #[arg(long, default_value = "off", value_name = "off|px|rungs")]
     ns_landy_opener: String,
+
+    /// Which §N1p arm **responder's** direct table carries (`1NT (2♣)`),
+    /// default `off`
+    ///
+    /// `nt` is `competition.landy_notrump_no_major` — both `3NT` rungs deny a
+    /// four-card major, so the game hands with length in a suit they showed
+    /// reach the values `X`@145; `jam` adds `landy_major_jam`'s `4♠`@172 /
+    /// `4♥`@171 on a strong six-card major, and opener's sit above them.
+    /// Needs `--their-2c-landy` to do anything.
+    #[arg(long, default_value = "off", value_name = "off|nt|jam")]
+    ns_landy_responder: String,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -198,6 +209,15 @@ fn main() {
             agreements.competition.landy_opener_rungs = true;
         }
         other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
+    }
+    match args.ns_landy_responder.as_str() {
+        "off" => {}
+        "nt" => agreements.competition.landy_notrump_no_major = true,
+        "jam" => {
+            agreements.competition.landy_notrump_no_major = true;
+            agreements.competition.landy_major_jam = true;
+        }
+        other => panic!("--ns-landy-responder must be off|nt|jam, got {other}"),
     }
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [

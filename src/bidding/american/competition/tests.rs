@@ -159,6 +159,21 @@ fn landy_counter_package_invariants() {
         arm.competition.landy_opener_rungs = true;
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
+    // §N1p: responder's own table, its own axis.  `no_major` narrows two
+    // existing rungs (so the table's totality now rests on the `Pass`@0 alone
+    // for the 4-card-major game hands) and `jam` adds two rungs plus two
+    // answer nodes.  The `jam`-without-`no_major` cell is the inert one and is
+    // checked too, because the selector conjoins rather than falling back.
+    for no_major in [false, true] {
+        for jam in [false, true] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_clubs_landy = true;
+            arm.competition.defense_2c_landy_bba = true;
+            arm.competition.landy_notrump_no_major = no_major;
+            arm.competition.landy_major_jam = jam;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
+    }
 }
 
 /// The Multi stopper ask is default-off, so probe both opt-in packages
@@ -413,6 +428,16 @@ pub(super) fn bid_landy_bba(cap: bool, auction: &[Call], hand: &str) -> (Call, b
     arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_bba = true;
     arm.competition.defense_2c_landy_weak_2d_cap = cap;
+    best_call_with(&arm, auction, hand)
+}
+
+/// As [`bid_landy`] on the shipped N1j ladder, with §N1p's `3NT` restriction
+/// on and optionally its `4M` jam
+pub(super) fn bid_landy_n1p(jam: bool, auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_notrump_no_major = true;
+    arm.competition.landy_major_jam = jam;
     best_call_with(&arm, auction, hand)
 }
 

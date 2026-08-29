@@ -1,5 +1,5 @@
 use super::super::tests::{
-    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_n1,
+    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_n1, bid_landy_n1p,
     bid_landy_transfer, bid_transfer, call,
 };
 use crate::bidding::agreements::Agreements;
@@ -130,6 +130,62 @@ fn landy_counter_replaces_the_stolen_stayman_with_a_values_double() {
     ];
     let (c, _) = bid_landy(&after_double, "A54.AQ4.AQ54.K32");
     assert_eq!(c, Call::Pass, "opener leaves the values double in");
+}
+
+#[test]
+fn landy_notrump_no_major_doubles_the_four_card_major() {
+    // 1NT (2♣ Landy).  Eleven points with four spades — one of the suits they
+    // showed, so their fit is at best 4-3 and defending beats declaring.  The
+    // shipped table buries the hand in the ungated `3NT`@168, which is what
+    // caps the values double at nine points.
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let hand = "KQ32.K54.J432.Q3";
+    let (c, floored) = bid_landy_bba(true, &auction, hand);
+    assert_eq!(c, call(3, Strain::Notrump), "the default arm declares");
+    assert!(!floored, "and it comes from the book");
+
+    // §N1p: `3NT` denies a four-card major, so the same hand reaches the `X`.
+    let (c, floored) = bid_landy_n1p(false, &auction, hand);
+    assert_eq!(c, Call::Double);
+    assert!(
+        !floored,
+        "the widened values double must come from the book"
+    );
+
+    // Three small in each major still declares — the restriction is length,
+    // not values, and short stoppers stay welcome.
+    let (c, _) = bid_landy_n1p(false, &auction, "K32.K54.QJ32.Q32");
+    assert_eq!(c, call(3, Strain::Notrump));
+}
+
+#[test]
+fn landy_major_jam_bids_game_on_a_six_card_major() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let hand = "43.KQJ432.KQ3.42";
+
+    // Without the jam a six-card major is just more length in a suit they
+    // showed, so §N1p routes it to the double like any other.
+    let (c, _) = bid_landy_n1p(false, &auction, hand);
+    assert_eq!(c, Call::Double);
+
+    // With it, the strong six-carder takes the game and jams the auction.
+    let (c, floored) = bid_landy_n1p(true, &auction, hand);
+    assert_eq!(c, call(4, Strain::Hearts));
+    assert!(!floored, "the jam must come from the book");
+
+    // A weak six-carder keeps defending — the rung is `points(10..)`.
+    let (c, _) = bid_landy_n1p(true, &auction, "43.J98432.Q43.42");
+    assert_ne!(c, call(4, Strain::Hearts), "the jam is for strong hands");
+
+    // And opener sits: the jam is a sign-off, not a slam try.
+    let after_jam = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(4, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_n1p(true, &after_jam, "A54.A54.AQ54.K32");
+    assert_eq!(c, Call::Pass, "opener passes the jam");
 }
 
 #[test]
