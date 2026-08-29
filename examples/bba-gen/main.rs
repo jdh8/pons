@@ -930,8 +930,8 @@ struct Args {
 
     /// Jam `4M` on a strong six-card major over their Landy (§N1p's jam arm)
     ///
-    /// `competition.landy_major_jam`, default **off** and only effective with
-    /// `--ns-landy-notrump-no-major`: `4♠`@172 / `4♥`@171 on `len(major, 6..)
+    /// `competition.landy_major_jam`, default **off**, independent of
+    /// `--ns-landy-notrump-no-major` since 2026-08-30: `4♠`@172 / `4♥`@171 on `len(major, 6..)
     /// & points(10..)`, above the restricted `3NT`@168 and below the
     /// transfers, with opener sitting.  Weak six-carders keep defending
     /// through the double.  Partly an obstruction knob, which DD cannot see.

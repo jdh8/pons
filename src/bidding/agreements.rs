@@ -1404,15 +1404,30 @@ pub struct CompetitionKnobs {
     /// Reaches the live BBA table only ([`Self::defense_2c_landy_bba`], on by
     /// default); the stack arm's own ungated `3NT`@170 is left alone.
     ///
-    /// **Off by default — the A/B is owed**
-    /// (`scripts/ab-landy-notrump-shape.sh`).  Inert while their `2♣` is
-    /// undeclared or natural.
+    /// **Off by default — measured 2026-08-30 and lost at both colours**
+    /// (`scripts/ab-landy-notrump-shape.sh`): −0.0124 non-vulnerable /
+    /// −0.0076 vulnerable on plain DD, −0.0012 on the SD-PD arbiter, with the
+    /// positive DD-PD column an auto-double artifact.  Kept as an opt-in knob,
+    /// not deleted, because it is a single-dummy re-measure candidate.  Inert
+    /// while their `2♣` is undeclared or natural.
     pub landy_notrump_no_major: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
-    /// Only effective with [`Self::landy_notrump_no_major`]: without it the
-    /// six-card major game hands are still swallowed by the ungated `3NT`@168
-    /// and the rung never fires.
+    /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
+    /// used to be conjoined with it, under a doc claim that the rung "never
+    /// fires" alone because the ungated `3NT`@168 swallows the hands — which
+    /// was false: `4M`@172/@171 *outranks* 168, so it is the conjunct and not
+    /// the weight ladder that suppressed it.  Dropping the conjunct is
+    /// behaviour-preserving with both knobs on, so §N1p's measurement is
+    /// unaffected.
+    ///
+    /// What the two settings measure is **not the same experiment**.  With
+    /// `landy_notrump_no_major` on, `3NT`@168 denies four-plus of a major and
+    /// six of one is four-plus, so `4M` substitutes for the **`X`** — that is
+    /// §N1p's `jam vs nt` pair, +5.541 IMPs/fired sd-plain on 1,567 boards,
+    /// riding an arm that lost.  Alone, `3NT`@168 is ungated and `4M`
+    /// substitutes for the **game** instead.  The measured number does not
+    /// transfer; that arm is unrun.
     ///
     /// `4♠`@172 on `len(♠, 6..) & points(10..)` and `4♥`@171 on the heart
     /// twin — natural game bids that jam the whole auction, placed above the
@@ -1428,8 +1443,9 @@ pub struct CompetitionKnobs {
     /// forgo slam on the fifteen-plus slice, so it is the first thing to relax
     /// if the arm reads mixed.
     ///
-    /// **Off by default — the A/B is owed**
-    /// (`scripts/ab-landy-notrump-shape.sh`).
+    /// **Off by default — the standalone A/B is owed.**  Measured only
+    /// on top of [`Self::landy_notrump_no_major`]
+    /// (`scripts/ab-landy-notrump-shape.sh`, 2026-08-30).
     pub landy_major_jam: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors

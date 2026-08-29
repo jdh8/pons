@@ -188,6 +188,44 @@ fn landy_major_jam_bids_game_on_a_six_card_major() {
     assert_eq!(c, Call::Pass, "opener passes the jam");
 }
 
+/// The jam rung standalone, which is the arm §N1p never ran
+///
+/// `landy_major_jam` used to be conjoined with `landy_notrump_no_major`, so the
+/// only measurement of it — §N1p's `jam vs nt` pair — priced `4M` against the
+/// **double**, because a gated `3NT`@168 denies four-plus of a major and six of
+/// one is four-plus.  Alone, `3NT`@168 is ungated and `4M`@171 outranks it, so
+/// the rung substitutes for the **game** instead.  Different experiment, and
+/// the +5.541 IMPs/fired does not transfer.
+#[test]
+fn landy_major_jam_alone_replaces_the_notrump_not_the_double() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let hand = "43.KQJ432.KQ3.42";
+
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+
+    // Neither knob: the ungated `3NT`@168 takes the six-card major. This is
+    // what the standalone jam displaces — not the `X` §N1p measured against.
+    let (c, _) = best_call_with(&arm, &auction, hand);
+    assert_eq!(c, call(3, Strain::Notrump));
+
+    // The jam alone, with `3NT` left ungated: `4♥`@171 outranks 168.
+    arm.competition.landy_major_jam = true;
+    let (c, floored) = best_call_with(&arm, &auction, hand);
+    assert_eq!(c, call(4, Strain::Hearts));
+    assert!(!floored, "the jam must come from the book");
+
+    // Its sit node is no longer gated on `landy_notrump_no_major` either.
+    let after_jam = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(4, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (c, _) = best_call_with(&arm, &after_jam, "A54.A54.AQ54.K32");
+    assert_eq!(c, Call::Pass, "opener sits without the notrump gate");
+}
+
 #[test]
 fn landy_counter_bids_naturally_in_the_suits_they_did_not_show() {
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];

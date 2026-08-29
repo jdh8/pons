@@ -94,7 +94,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_notrump_no_major: bool,
 
-    /// Arm §N1p's jam (`competition.landy_major_jam`, needs
+    /// Arm §N1p's jam (`competition.landy_major_jam`, independent of
     /// `--ns-landy-notrump-no-major`): `4♠`@172 / `4♥`@171 on a strong
     /// six-card major
     #[arg(long, default_value_t = false)]

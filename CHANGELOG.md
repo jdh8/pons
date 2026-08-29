@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.landy_major_jam` decoupled from
+  `competition.landy_notrump_no_major`** (§N1p follow-up), so the `4M` jam over
+  their Landy `2♣` can be measured on its own for the first time. The knob doc
+  had claimed the rung "never fires" without the notrump gate because the
+  ungated `3NT`@168 swallows the hands — **false**, since `4♠`@172 and
+  `4♥`@171 both outrank 168; it was the `deny_major &&` conjunct that
+  suppressed it. Dropping the conjunct is behaviour-preserving with both knobs
+  on, so §N1p's measurement is unaffected, and `smoke-default --count 20000
+  --seed 1` is byte-identical to the previous commit.
+
+  Standalone, `4M` substitutes for the **game** rather than for the **double**,
+  which is why §N1p's `jam vs nt` number does not transfer. It also carries
+  **zero reading drift**, verified: `probe-call-reading --their-2c-landy
+  "1N (2C) X -"` returns `points 8..9` unchanged, because `3NT`@168 stays
+  ungated and keeps capping the values double. That is precisely the mechanism
+  that cost §N1p its 16.0% / 13.4% "bid where the baseline passed" bucket.
+
+  New runner `scripts/ab-landy-major-jam.sh` (arms `base | jam`, both
+  vulnerabilities, five falsifiers in the header — chief among them that the
+  rung has no quality gate, so a ratty six-bagger with soft side values is
+  exactly the hand `3NT` was right on) and a new
+  `render-book --ns-landy-responder jam-only` mode, which is a different table
+  from `jam`. **No user impact** — the knob is still default off and the A/B is
+  owed. Design: `docs/one-notrump-competitive.md` §N1p → "The standalone arm".
+
 - **A full four-BBA `1NT (2♣)` Landy continuation tree.** A fresh
   4,608,000-deal self-play corpus follows all 4,074 live starts through 455
   terminal auctions and inventories every observed opener/responder `X` and
@@ -101,10 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **One stranded win**: `jam vs nt`, paired on the same boards, wins all four
   scorers (+4.295 plain, +1.669 PD, +5.541 sd-plain, +3.591 SD-PD IMPs/fired)
   on its 1,567 boards, with the `4M` sit node never needing relaxation. It
-  cannot ship because `4♠`@172 / `4♥`@171 are gated on
-  `landy_notrump_no_major && landy_major_jam`. Since those weights also outrank
-  the *ungated* `3NT`@168, decoupling the jam rung from the losing gate is the
-  live follow-up.
+  cannot ship on that number, and not only because it rode a losing arm: with
+  `landy_notrump_no_major` on, `3NT`@168 denies four-plus of a major and six of
+  one *is* four-plus, so `4M` replaced the **`X`**. Standalone it replaces the
+  **`3NT`** instead — a different experiment, and the §N1p loss was mostly "we
+  stopped reaching game", a cost a game bid does not pay.
 
 - **The §N1l flip: two cut-down Landy doubler ladders,
   `competition.landy_doubler_px` and `competition.landy_doubler_white` (built

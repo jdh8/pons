@@ -147,8 +147,14 @@ struct Args {
     /// four-card major, so the game hands with length in a suit they showed
     /// reach the values `X`@145; `jam` adds `landy_major_jam`'s `4♠`@172 /
     /// `4♥`@171 on a strong six-card major, and opener's sit above them.
+    ///
+    /// `jam-only` is the third arm, and it is a **different** table from `jam`:
+    /// with `3NT`@168 left ungated the `4M` rungs still outrank it, so the jam
+    /// substitutes for the game rather than for the double.  That is the
+    /// comparison `scripts/ab-landy-major-jam.sh` runs and §N1p never did.
+    ///
     /// Needs `--their-2c-landy` to do anything.
-    #[arg(long, default_value = "off", value_name = "off|nt|jam")]
+    #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only")]
     ns_landy_responder: String,
 }
 
@@ -217,7 +223,8 @@ fn main() {
             agreements.competition.landy_notrump_no_major = true;
             agreements.competition.landy_major_jam = true;
         }
-        other => panic!("--ns-landy-responder must be off|nt|jam, got {other}"),
+        "jam-only" => agreements.competition.landy_major_jam = true,
+        other => panic!("--ns-landy-responder must be off|nt|jam|jam-only, got {other}"),
     }
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [

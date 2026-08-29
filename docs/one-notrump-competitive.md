@@ -776,10 +776,54 @@ costs nothing in PD while the extra competitive room still scores**. The
 +2.383 IMPs/fired PD row is that artifact, not a result. Both knobs stay off.
 
 The `jam vs nt` pair wins **all four scorers** (+5.541 IMPs/fired sd-plain) on
-its 1,567 boards, and the sit node never needed relaxing. It cannot ship: `4M`
-is gated on `deny_major && landy_major_jam`, so it rides on the losing arm.
-Decoupling it is the live follow-up — `4♠`@172 / `4♥`@171 outrank the *ungated*
-`3NT`@168 too, so the rung fires on its own with no change to the notrump.
+its 1,567 boards, and the sit node never needed relaxing. **It cannot ship on
+that number**, and not merely because it rode a losing arm — it measured the
+wrong substitution:
+
+| | what `4M` replaced | measured |
+| --- | --- | --- |
+| `jam vs nt` | the **`X`**@145 — `nt` gates `3NT`@168 to deny 4+ majors, and six of one *is* four-plus | +5.541/fired sd-plain |
+| jam standalone | the **`3NT`**@168 — ungated on `main`, and `4♠`@172 / `4♥`@171 outrank it | **unrun** |
+
+Same hands, different comparison, and the §N1p loss was overwhelmingly *"we
+stopped reaching game"* — a cost the standalone jam does not pay, because `4M`
+**is** a game. So the +5.541 transfers to nothing and the real question is open.
+
+#### The standalone arm (`landy_major_jam` decoupled, 2026-08-30)
+
+The `deny_major &&` conjunct was dropped from both the rungs and their two sit
+nodes. The generalisation is **behaviour-preserving where the two overlap** —
+with both knobs on the table is exactly what §N1p measured — so the verdict
+above stands unchanged.
+
+It also corrects a doc/code discrepancy: `landy_major_jam`'s knob doc claimed
+the rung "never fires" without `landy_notrump_no_major` because the ungated
+`3NT`@168 swallows the hands. **False** — 172 and 171 both outrank 168. It was
+the conjunct that suppressed the rung, not the weight ladder, which is why
+decoupling costs nothing.
+
+**The standalone arm has zero reading drift**, verified not assumed:
+`probe-call-reading --their-2c-landy "1N (2C) X -"` returns `points 8..9` with
+the same suit ranges on `main` and with `--ns-landy-major-jam`. `3NT`@168 stays
+ungated, so the exclusion that caps the double is untouched, and the `4M`
+denials are already implied by that cap. This is exactly the mechanism §N1p
+tripped over — its 16.0% / 13.4% "bid where the baseline passed" bucket — and
+the jam does not touch it.
+
+The bridge case is that their `2♣` shows **both majors**, so our own six-card
+major sits opposite known length: the suit breaks badly, trump control beats
+the ninth trick, and `4M` takes the four-level away from a pair that has
+advertised a fit. §N1p measured the candidate handing the opponents more room
+on 72–75% of divergent boards by doubling instead of declaring; the jam does
+the opposite.
+
+Runner `scripts/ab-landy-major-jam.sh` (arms `base | jam`, both vulnerabilities,
+fresh `SEED_BASE`), render `render-book --their-2c-landy --ns-landy-responder
+jam-only --prefix "1NT 2♣"`. Its named risks, in the header: obstruction is
+invisible to DD (read the sd pair first); `4M` may simply be an overbid, since
+the rung has **no quality gate** and a ratty six-bagger with soft side values is
+the hand `3NT` was right on (read the made/down split before the IMP mean); the
+sit still forgoes slam on the fifteen-plus slice; the slice is thin (~0.03%).
 
 ##### Falsifier 2 resolves against the idea, not against a continuation
 

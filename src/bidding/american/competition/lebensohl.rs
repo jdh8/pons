@@ -1271,10 +1271,18 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // byte-identical — except the 2♦ band under the cap arm, the N1i
     // `2♦ → Pass` lead isolated (the dropped 7-9 point hands pass).
     // §N1p's jam: a strong six-card major bids the game rather than
-    // defending, above the restricted `3NT`@168 and below the transfers so
-    // the transfers keep outranking the double.  `4♠` outranks `4♥` because
-    // with 6-6 the better game is `4♠`; nothing else satisfies both.
-    if deny_major && agreements.competition.landy_major_jam {
+    // defending, above `3NT`@168 and below the transfers so the transfers
+    // keep outranking the double.  `4♠` outranks `4♥` because with 6-6 the
+    // better game is `4♠`; nothing else satisfies both.
+    //
+    // Independent of `landy_notrump_no_major` since 2026-08-30, and the
+    // generalisation is behaviour-preserving where the two overlap: with both
+    // knobs on the rungs are added exactly as §N1p measured them.  What it
+    // adds is the arm §N1p could not run — the jam over an *ungated*
+    // `3NT`@168, where `4M` substitutes for the game rather than for the
+    // double.  §N1p's `jam vs nt` win was measured against the double and
+    // does not transfer; see the "Verdict" block in the campaign doc.
+    if agreements.competition.landy_major_jam {
         for (major, weight) in [(Suit::Spades, 172), (Suit::Hearts, 171)] {
             rules = rules.rule(
                 Bid::new(4, Strain::from(major)),
@@ -1514,7 +1522,7 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     // cue-bidding this lane's four-level to `6♥` doubled — and it does forgo
     // slam on the fifteen-plus slice, so it is the first thing to relax if the
     // arm reads mixed.
-    if agreements.competition.landy_notrump_no_major && agreements.competition.landy_major_jam {
+    if agreements.competition.landy_major_jam {
         for path in ["4♠ -", "4♥ -"] {
             entries.extend(rows_of(Pattern::after(OVER, path), multi_signoff_pass()));
         }
