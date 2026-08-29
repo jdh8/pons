@@ -404,7 +404,7 @@ moves nothing on same-contract boards, and its two live deltas — thin games
 added opposite the 7-point doublers, doubler penalty-`X` boards removed —
 both point the wrong way here.
 
-### N1l-flip — the two cut-down arms (`landy_doubler_px` / `landy_doubler_white`, **built 2026-08-29, A/B owed**)
+### N1l-flip — the two cut-down arms (`landy_doubler_px` **SHIPPED DEFAULT-ON 2026-08-29** / `landy_doubler_white` **not a win, stays off**)
 
 The measurement above is a verdict **per rung**, so the flip is a choice of
 *subset*, not a new table. `landy_doubler_rebid` takes a `DoublerLadder` and
@@ -478,6 +478,112 @@ attribution was wrong and the ladder wins as a whole — read the `white vs px`
 pair; (3) vulnerability is the wrong axis and the constructive family is simply
 bad; (4) `px` is a pure doubling knob, so plain DD arbitrates and its PD row
 keeps the whole cost of the doubles with none of the benefit.
+
+#### The verdict (2026-08-29)
+
+`scripts/ab-landy-doubler-flip.sh`, fresh `SEED_BASE=1787942099`, sha
+`de59ad86`, 4.608M boards per arm per vulnerability, **all six isolation gates
+0 foreign**.
+
+| pair | vul | plain DD | DD-PD | sd-plain | SD-PD |
+| --- | --- | ---: | ---: | ---: | ---: |
+| **`px` vs base** | none | **+0.0107** ±.0004 | **+0.0039** ±.0003 | +0.0061 | +0.0000 ±.0003 |
+| **`px` vs base** | both | **+0.0142** ±.0004 | **+0.0061** ±.0003 | +0.0100 | **+0.0028** ±.0003 |
+| `white` vs base | none | +0.0409 ±.0006 | **−0.0091** ±.0007 | +0.0547 | +0.0140 ±.0007 |
+| `white` vs base | both | *(≡ `px`)* | | | |
+| `white` vs `px` | none | +0.0302 ±.0005 | **−0.0132** ±.0007 | +0.0484 | +0.0138 ±.0007 |
+| `white` vs `px` | both | 0 fired | 0 | 0 | 0 |
+
+**`px` ships default-on.** Every column is a win except the one non-vulnerable
+SD-PD wash — the decision table's `win | win` row, with no need for the domain
+addendum's rescue.  Off-switch `--no-ns-landy-doubler-px`.
+
+**`white` is not a win and stays off.** `win | loss` at both readings of the
+non-vulnerable cell, and vulnerable it is the same arm as `px` (`white vs px`
+fires on **0** boards, so the gate leaves only the `3NT`, which responder's
+ungated `3NT`@168 caps out of existence).  The sd bracket dissents — sd-plain
++0.0547, SD-PD +0.0140 — which is not nothing in a 1NT lane, where DD's
+killing lead is the documented bias and runs against the arm that *declares*
+notrump.  A conflict, not a clearance.
+
+#### The falsifiers, answered
+
+1. **Selection — refuted.**  Split by first differing call on the fresh
+   stream, the `X` rung prices **+7.554** (none, n=8,341) / **+9.189** (both,
+   n=7,007) IMPs/fired plain, against the **+7.489 / +9.196** that selected
+   it — inside 1%.  Its PD row stays flat (−0.129 / −0.188), the domain
+   addendum's signature.  The rung is real.
+2. **Whole-ladder attribution — refuted.**  Vulnerable the pair is empty by
+   construction; non-vulnerable `white vs px` reproduces the split's sign
+   pattern and sharpens it.  The rungs do not rescue each other.
+3. **Colour is the wrong axis — open, and the gate is now known to be
+   under-specified.**  `!vulnerable()` reads **our own** vulnerability only,
+   and the A/B spans just the symmetric diagonal.  Favourable and unfavourable
+   are unmeasured and are where a constructive/doubling split should diverge
+   most.  A retry owes a *relative* gate and the two asymmetric cells
+   (jdh8, 2026-08-29).
+4. **PD blindness — moot.**  `px` wins DD-PD outright at both colours, so the
+   excuse was never needed.
+
+#### Two caveats, measured and recorded
+
+**The `Pass`@0 catch-all is wrong and shipped anyway.** It gives the node
+finite mass at three trumps or fewer, so it shadows a floor that was *already
+acting* there.  Summing every `call_on == "-"` row of the divergence split, the
+suppression costs **−14,171 IMPs plain non-vulnerable** (+889 vulnerable, a
+wash) — enough to take the white cell from +0.0107 to roughly **+0.0138**.
+
+What the floor does there is **not** a penalty double.  Opener pulls it:
+
+| our length in their major | pulled to `3NT` | `2NT` | `3♦`/`4♠` | converted for penalty |
+| --- | ---: | ---: | ---: | ---: |
+| 2 (n=2,461) | **49.5%** | 11.0% | 7.7% | 16.7% |
+| 3 (n=1,719) | **49.6%** | 17.3% | 18.5% | ~4% |
+
+It is a takeout-shaped values double that **opener answers by declaring
+notrump** — which is independently what the oracle's third reading says is
+right (`@op` beats `@dbl` in all 36 buckets).  So the lane already had a
+working mechanism nobody authored, and both flip arms break it in opposite
+directions: `px` ends the auction, `white` rebuilds the same games from the
+**wrong side**.  That is the leading candidate mechanism for `white`'s DD-PD
+row, and it is untested.
+
+Deleting the catch-all is therefore the **owed follow-up arm** — and it is not
+shipped here because of the second caveat.
+
+**Disclosure.** `comp:landy-penalty` publishes *four-plus* of the major their
+advance named.  That is honest for the book rung.  With the catch-all gone the
+same `X` at the same seat would *also* be the floor's takeout double on three
+or fewer, under one published reading claiming four-plus — the phantom-suit
+class.  The catch-all currently keeps the floor off that seat, so the conflict
+is latent; the no-catch-all arm owes this tag a decision before it can ship.
+Recorded in the precedent block in
+[`src/bidding/card.rs`](../src/bidding/card.rs).
+
+**Where `white`'s loss actually lives.** `div.white.vs.px.none.jsonl` split by
+the rung `white` bids and `px` passes (61,651 divergences, all solved):
+
+| rung | n | share | plain/fired | DD-PD/fired | share of the −60,805 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `2NT` | 27,105 | 44.0% | +2.048 | **−1.921** | **85.6%** |
+| `3♣` | 17,878 | 29.0% | +2.407 | −0.381 | 11.2% |
+| `3♦` | 16,668 | 27.0% | +2.442 | −0.115 | 3.2% |
+
+The invitation is 44% of the traffic and **86% of the damage**; the natural
+minors are plain-positive at +2.4 and PD-neutral to within a rounding error
+(`3♦` −0.115).  `3NT` does not appear at all — it fires 28 times in 9.2M
+boards, as designed.  So §N1l's *first* sketch had the rung right and the verb
+wrong: the `2NT` is the drag, and deleting it (rather than gating the whole
+family on colour) is the arm the data now points at — plain ≈ +0.0182,
+DD-PD ≈ −0.0019, roughly a sevenfold reduction in the PD cost.  It is still a
+`win | loss`, so it does not ship on this evidence either; it is the natural
+partner to the right-siding question above, since the `2NT` is exactly the rung
+that declares notrump from the wrong hand.
+
+**Not evidence:** BBA's behaviour at *this* seat is unknown.  The
+`opener-c-x2h`/`opener-c-x2s` probes read **opener's** seat (§N1m), and the
+*"bidable suit"* label is on our **first** `X`.  A position-6 probe is
+unrun.
 
 ### N1m — **opener's** own rebid over their advance (`landy_opener_px` / `landy_opener_rungs`, **built 2026-08-29, A/B owed**)
 
@@ -2765,7 +2871,7 @@ reason to take it.
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` (**both off**) | **both REFUTED 2026-08-15, lane closed** | N1h `plain wash \| PD loss` (vul PD **−0.00081 ±0.00074**); N1i no CI-clear cell, all eight leaning negative. `cue ← X` negative in both, so **N1d's cue floor is settled — do not probe it again** | [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
-| **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px`, `landy_doubler_white` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The §N1l per-rung split turned into two arms: `px` = the penalty `X`@155 + `Pass`@0 alone; `white` = the whole constructive family with `2NT`/`3♣`/`3♦` gated `& !vulnerable()`. Re-reading the divergence stream by first differing call moved the design — every constructive rung flips sign with colour, and the natural minors are the *cheaper* half white (`3♦` −0.607 PD/fired against `2NT`'s −1.667), so gating beats deleting. Only `4NT` is deleted (0 fires). Keeping the minors pays §N1l's completeness debt: `landy_minor_rebid_answer` is the `3♣ -`/`3♦ -` table it never built. **Fresh `SEED_BASE` mandatory** — both subsets were selected from seed `1787917699`'s own split | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px--landy_doubler_white-built-2026-08-29-ab-owed); `scripts/ab-landy-doubler-flip.sh` |
+| **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px` (**ON**, off-switch `--no-ns-landy-doubler-px`), `landy_doubler_white` (**off**) | **`px` SHIPPED DEFAULT-ON 2026-08-29; `white` not a win** | `px` plain **+0.0107 ±.0004** NV / **+0.0142 ±.0004** vul, PD +0.0039/+0.0061, sd-plain +0.0061/+0.0100, SD-PD +0.0000/+0.0028 — a win on every column bar the one NV SD-PD wash, all six gates 0 foreign. **Selection refuted**: the `X` rung re-prices **+7.554/+9.189** IMPs/fired against the +7.489/+9.196 that selected it. `white` is `win | loss` (plain +0.0409, **DD-PD −0.0091** NV; vulnerable it *is* `px` — `white vs px` fires 0 boards), sd bracket dissenting (+0.0547/+0.0140). Two caveats shipped open: the **`Pass`@0 catch-all costs −14,171 IMPs plain NV** by shadowing a floor takeout double opener pulls to `3NT` 49.5% of the time, and `comp:landy-penalty` publishes four-plus while that floor call is short — deleting the catch-all is the owed arm and owes the tag a decision. `white`'s `!vulnerable()` reads our own colour only; asymmetric vuls unmeasured. Seed `1787942099`, sha `de59ad86` | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px-shipped-default-on-2026-08-29--landy_doubler_white-not-a-win-stays-off); `scripts/ab-landy-doubler-flip.sh` |
 | **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |

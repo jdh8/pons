@@ -1211,7 +1211,40 @@ pub struct CompetitionKnobs {
     /// Its `2NT -` and `4NT -` answer tables are **not** registered — an answer
     /// to a question no arm asks is dead registration.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-flip.sh`).
+    /// **Shipped default-on 2026-08-29** (`scripts/ab-landy-doubler-flip.sh`,
+    /// fresh `SEED_BASE=1787942099`, 4.608M boards per arm per vulnerability,
+    /// both isolation gates 0 foreign).  Against the floor it reads plain
+    /// **+0.0107 [±0.0004]** non-vulnerable / **+0.0142 [±0.0004]**
+    /// vulnerable, PD +0.0039 / +0.0061, sd-plain +0.0061 / +0.0100, SD-PD
+    /// +0.0000 [±0.0003] / +0.0028 [±0.0003] IMPs/board — a win on every
+    /// column except the one non-vulnerable SD-PD wash.  Off-switch:
+    /// `--no-ns-landy-doubler-px`.
+    ///
+    /// The re-measure retired the selection worry outright: split by first
+    /// differing call on the fresh stream, the `X` rung prices **+7.554**
+    /// (none, n=8,341) / **+9.189** (both, n=7,007) IMPs/fired against the
+    /// **+7.489 / +9.196** that selected it — inside 1%, so the rung is not a
+    /// seed artifact.  Its PD row stays flat (−0.129 / −0.188), the domain
+    /// addendum's signature.
+    ///
+    /// **Caveat — the `Pass`@0 catch-all is measured wrong and kept anyway.**
+    /// It gives this node finite mass at three trumps or fewer, so it shadows
+    /// a floor that was *already acting* there, and the suppression costs
+    /// **−14,171 IMPs plain non-vulnerable** (+889 vulnerable, a wash) —
+    /// enough to take the white cell from +0.0107 to roughly +0.0138.  What
+    /// the floor does there is not a penalty double: at two trumps it is
+    /// pulled by opener to `3NT` **49.5%** of the time (`2NT` 11.0%, `3♦`
+    /// 7.7%) and converted for penalties only 16.7%, at three trumps pulled
+    /// 49.6% / 17.3% / 11.3% and converted ~4%.  It is a takeout-shaped values
+    /// double that opener answers by declaring notrump — independently what
+    /// `probe-landy-opener-oracle`'s third reading says is right
+    /// (`@op` beats `@dbl` in all 36 buckets).  Deleting the catch-all is the
+    /// owed follow-up arm; it is **not** shipped here because the same `X` at
+    /// the same seat would then be book-penalty at four-plus and
+    /// floor-takeout at three or fewer, under one published
+    /// `comp:landy-penalty` reading that claims four-plus.  That is a
+    /// disclosure question, not an arithmetic one.
+    ///
     /// Inert while their `2♣` is undeclared or natural, and shadowed by
     /// [`Self::landy_doubler_rebids`] when both are set.
     pub landy_doubler_px: bool,
@@ -1241,7 +1274,45 @@ pub struct CompetitionKnobs {
     /// ([`crate::bidding`]'s completeness rule): opener now answers `3♣`/`3♦`
     /// with `3NT` on a maximum holding their suit, else a pass.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-doubler-flip.sh`).
+    /// **Measured NOT A WIN 2026-08-29, stays off** (same run and seed as
+    /// [`Self::landy_doubler_px`]).  Against the floor non-vulnerable: plain
+    /// +0.0409 [±0.0006] but **DD-PD −0.0091 [±0.0007]** — the decision
+    /// table's `win | loss` row, "don't ship on this evidence".  Isolated
+    /// against `px` on the same boards the sign pattern is the same and
+    /// sharper (plain +0.0302, **DD-PD −0.0132**), so the constructive family
+    /// is what carries it, not the `3NT`.  Vulnerable the two arms are
+    /// byte-identical in effect — `white vs px` fires on **0** boards, because
+    /// the gate leaves only `3NT` between them and responder's ungated
+    /// `3NT`@168 caps this double at nine points.
+    ///
+    /// **The loss is one rung.**  Split by the rung `white` bids and `px`
+    /// passes (61,651 divergences): `2NT` is 44.0% of traffic at plain +2.048
+    /// / **DD-PD −1.921** per fired, **85.6% of the entire −60,805 IMP PD
+    /// deficit**, against `3♣` +2.407 / −0.381 and `3♦` +2.442 / −0.115.  The
+    /// natural minors are plain-positive and PD-neutral; the invitation is the
+    /// drag, and it is also the rung that declares notrump from the wrong
+    /// hand.  Deleting it projects to plain ≈ +0.0182 / DD-PD ≈ −0.0019 —
+    /// still `win | loss`, still not shippable, but the arm the data points at.
+    ///
+    /// The sd bracket dissents (sd-plain +0.0547, **SD-PD +0.0140
+    /// [±0.0007]**), which is not nothing in a 1NT lane — DD's killing lead is
+    /// the one documented bias here, and it runs against the arm that
+    /// *declares* notrump.  It is a conflict, not a clearance, and the arm
+    /// does not ship on it.
+    ///
+    /// **Two caveats bound any retry.**  *Colour is the wrong axis as
+    /// spelled*: `!vulnerable()` reads **our own** vulnerability only, and the
+    /// A/B spans just the symmetric diagonal (none, both).  Favourable and
+    /// unfavourable are unmeasured, and are exactly where a constructive /
+    /// doubling split should diverge most; a refined gate must be relative,
+    /// and needs the two asymmetric cells run.  *And the rungs may be
+    /// right-siding backwards*: they declare `3NT`/`2NT` from the **doubler**,
+    /// while the floor this node shadows reaches the same games from
+    /// **opener** — pulled there 49.5% of the time at two trumps — which
+    /// `probe-landy-opener-oracle` scores better in all 36 buckets.  Same
+    /// contract, wrong hand on lead is a plausible mechanism for the DD-PD
+    /// row, and it is untested.
+    ///
     /// Inert while their `2♣` is undeclared or natural, and shadowed by
     /// [`Self::landy_doubler_rebids`] when both are set.
     pub landy_doubler_white: bool,
@@ -1443,7 +1514,7 @@ impl Default for CompetitionKnobs {
             multi_doubler_minimum_notrump: true,
             landy_minor_slam_answer: true,
             landy_doubler_rebids: false,
-            landy_doubler_px: false,
+            landy_doubler_px: true,
             landy_doubler_white: false,
             landy_opener_px: false,
             landy_opener_rungs: false,

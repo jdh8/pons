@@ -871,15 +871,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_rebids: bool,
 
-    /// The §N1l flip's `px` arm: the doubler's rebid seat with the penalty `X`
-    /// and the catch-all only
+    /// Turn **off** §N1l's shipped `px` arm: the doubler's rebid seat with the
+    /// penalty `X` and the catch-all only
     ///
-    /// `competition.landy_doubler_px`, default **off**.  The rung the
-    /// 2026-08-28 per-rung split priced at +7.489/+9.196 IMPs/fired plain,
-    /// with every constructive rung deleted.  A pure doubling knob — read it
-    /// on plain DD.  Shadowed by `--ns-landy-doubler-rebids`.
+    /// `competition.landy_doubler_px`, **default on** since 2026-08-29 —
+    /// plain +0.0107 non-vulnerable / +0.0142 vulnerable IMPs/board against
+    /// the floor, the `X` rung itself +7.554/+9.189 per fired.  A pure
+    /// doubling knob — read it on plain DD.  Shadowed by
+    /// `--ns-landy-doubler-rebids`.
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_px: bool,
+    no_ns_landy_doubler_px: bool,
 
     /// The §N1l flip's `white` arm: `px` plus `3NT`, with the whole
     /// constructive family gated non-vulnerable
@@ -2391,7 +2392,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.notrump.minor_transfer_slam_fit = !args.no_ns_minor_transfer_slam_fit;
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
-    agreements.competition.landy_doubler_px = args.ns_landy_doubler_px;
+    agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;

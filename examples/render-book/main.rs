@@ -119,15 +119,15 @@ struct Args {
     no_ns_landy_minor_slam_answer: bool,
 
     /// Which §N1l rung subset the Landy doubler's own rebid seat carries
-    /// (`1NT (2♣) X (2♥) - -` and its three siblings), default `off`
+    /// (`1NT (2♣) X (2♥) - -` and its three siblings), default `px`
     ///
     /// `px` is `competition.landy_doubler_px` — the penalty `X`@155 and the
-    /// `Pass`@0 catch-all; `white` is `landy_doubler_white`, which adds `3NT`
-    /// and gates the rest of the constructive family `!vulnerable()`; `full`
-    /// is `landy_doubler_rebids`,
-    /// the ladder as measured on 2026-08-28.  Needs `--their-2c-landy` to do
-    /// anything.
-    #[arg(long, default_value = "off", value_name = "off|px|white|full")]
+    /// `Pass`@0 catch-all, **shipped default-on 2026-08-29**; `white` is
+    /// `landy_doubler_white`, which adds `3NT` and gates the rest of the
+    /// constructive family `!vulnerable()`; `full` is `landy_doubler_rebids`,
+    /// the ladder as measured on 2026-08-28.  `off` hands the seat back to the
+    /// floor.  Needs `--their-2c-landy` to do anything.
+    #[arg(long, default_value = "px", value_name = "off|px|white|full")]
     ns_landy_doubler: String,
 
     /// Which §N1m rungs **opener's** own seat carries (`1NT (2♣) X (2♥)`),
@@ -184,7 +184,7 @@ fn main() {
     };
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     match args.ns_landy_doubler.as_str() {
-        "off" => {}
+        "off" => agreements.competition.landy_doubler_px = false,
         "px" => agreements.competition.landy_doubler_px = true,
         "white" => agreements.competition.landy_doubler_white = true,
         "full" => agreements.competition.landy_doubler_rebids = true,

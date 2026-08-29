@@ -64,6 +64,7 @@ comp:kk-minors 0 -> 4
 comp:kk-two-suiter 0 -> 40
 comp:kk-values 0 -> 4
 comp:landy-cue 0 -> 24
+comp:landy-penalty 0 -> 16
 comp:landy-spl 0 -> 8
 comp:landy-tko 0 -> 8
 comp:landy-transfer 0 -> 8

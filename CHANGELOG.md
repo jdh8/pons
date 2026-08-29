@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **The §N1l flip: two cut-down Landy doubler ladders,
-  `competition.landy_doubler_px` and `competition.landy_doubler_white` (both
-  default off, A/B owed).** The full ladder's 2026-08-28 measurement was mixed
+  `competition.landy_doubler_px` and `competition.landy_doubler_white` (built
+  default off; `px` has since **shipped default-on** and `white` measured not a
+  win — see *Measured* above).** The full ladder's 2026-08-28 measurement was mixed
   *by rung*, and re-reading `div.reb.vs.base.*.jsonl` grouped by first differing
   call says the split is by **colour**: the penalty `X`@155 won at both
   vulnerabilities (+7.489 none / +9.196 both IMPs/fired plain, PD flat) while
@@ -36,12 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `4NT -` in `full` alone — because a book node with finite mass shadows the
   floor whether or not any arm can reach it.
 
-  **No user impact** — both default off, `smoke-default --count 20000 --seed 1`
-  byte-identical to the previous `main`. Runner:
+  **No user impact at build time** — both were default off and
+  `smoke-default --count 20000 --seed 1` was byte-identical to the previous
+  `main`; `px`'s default flip is the *Measured* entry above. Runner:
   `scripts/ab-landy-doubler-flip.sh` (**a fresh `SEED_BASE` is mandatory**: both
   subsets were selected from seed `1787917699`'s own split, so re-measuring on
-  that seed would be overfit). `bba-gen --ns-landy-doubler-px` /
-  `--ns-landy-doubler-white`, `PROBE_LANDY_DOUBLER_PX` / `_WHITE` in
+  that seed would be overfit). `bba-gen --ns-landy-doubler-px` (since inverted to
+  `--no-ns-landy-doubler-px`) / `--ns-landy-doubler-white`, `PROBE_LANDY_DOUBLER_PX` / `_WHITE` in
   `probe-decision`, matching flags in `probe-call-reading`, and a new
   `render-book --ns-landy-doubler <off|px|white|full>` — the seat had no
   render-book switch at all before, so §N1l's four nodes were invisible to the
@@ -106,6 +108,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   length in their major × a stopper in it × HCP. No user impact (a probe).
 
 ### Measured
+
+- **§N1l's penalty double ships default-on: `competition.landy_doubler_px`.**
+  Measured on `scripts/ab-landy-doubler-flip.sh` with a **fresh**
+  `SEED_BASE=1787942099`, sha `de59ad86`, 4.608M boards per arm per
+  vulnerability, all six isolation gates 0 foreign. Against the floor: plain
+  **+0.0107 IMPs/board [95% CI ±0.0004]** non-vulnerable and **+0.0142
+  [±0.0004]** vulnerable, PD +0.0039 / +0.0061, sd-plain +0.0061 / +0.0100,
+  SD-PD +0.0000 [±0.0003] / +0.0028 [±0.0003] — a win on every column except
+  the one non-vulnerable SD-PD wash, so the decision table's `win | win` row
+  with no appeal to the doubling addendum. The doubler now doubles their
+  advance for penalty holding **four-plus of the major it named**
+  (`X`@155, `comp:landy-penalty`, `.penalty()`), and passes otherwise.
+  Off-switch: `bba-gen --no-ns-landy-doubler-px` (the flag inverted from
+  `--ns-landy-doubler-px`; `render-book --ns-landy-doubler` now defaults to
+  `px` and takes `off`). `tests/fixtures/alert-sites.txt` gains
+  `comp:landy-penalty 0 -> 16` under `[their-landy]`; the `.bbsa` cards are
+  **unchanged**, per the precedent recorded in `src/bidding/card.rs`.
+
+  **The selection worry is refuted, which was falsifier 1.** Both arms were
+  rung subsets *chosen from* seed `1787917699`'s own per-rung split. Re-split
+  by first differing call on the fresh stream, the `X` rung prices **+7.554**
+  (none, n=8,341) / **+9.189** (both, n=7,007) IMPs/fired plain against the
+  **+7.489 / +9.196** that selected it — inside 1% — with its PD row flat
+  (−0.129 / −0.188), the domain addendum's signature.
+
+  **Two caveats ship open, both measured.** (1) The `Pass`@0 catch-all gives
+  the node finite mass at three trumps or fewer and so shadows a floor that was
+  already acting there, costing **−14,171 IMPs plain non-vulnerable** (+889
+  vulnerable, a wash) — enough to take the white cell to roughly +0.0138. That
+  floor call is **not** a penalty double: opener pulls it to `3NT` 49.5% of the
+  time on two trumps (`2NT` 11.0%, `3♦` 7.7%, converted for penalty 16.7%) and
+  49.6% on three, which is a takeout-shaped values double answered by opener
+  declaring notrump — independently what `probe-landy-opener-oracle`'s
+  right-siding reading says is correct. Deleting the catch-all is the owed
+  follow-up arm. (2) It is not shipped yet because `comp:landy-penalty`
+  publishes four-plus of their major, so with the catch-all gone the same `X`
+  at the same seat would be book-penalty at four-plus and floor-takeout at
+  three or fewer under one reading claiming four-plus — the phantom-suit class.
+  Latent today, live the moment that arm lands.
+
+- **§N1l's `white` arm is not a win and stays default off.** Same run and seed.
+  Non-vulnerable it is the decision table's `win | loss` row at both readings —
+  against the floor plain +0.0409 [±0.0006] but **DD-PD −0.0091 [±0.0007]**,
+  and isolated against `px` on the same boards plain +0.0302 with **DD-PD
+  −0.0132**, so the constructive family carries it rather than the `3NT`.
+  Vulnerable the two arms are the same arm: `white vs px` fires on **0** boards,
+  because the colour gate leaves only the `3NT` between them and responder's
+  ungated `3NT`@168 caps this double at nine points. The sd bracket dissents
+  (sd-plain +0.0547, SD-PD +0.0140 [±0.0007]) — not nothing in a 1NT lane,
+  where DD's killing lead is the documented bias and runs against the arm that
+  *declares* notrump — but a conflict is not a clearance.
+
+  **Two caveats bound a retry.** The gate is spelled `!vulnerable()`, which
+  reads **our own** vulnerability only, and the A/B spans just the symmetric
+  diagonal (none, both): favourable and unfavourable are unmeasured, and are
+  where a constructive/doubling split should diverge most, so a refined gate
+  must be *relative* and owes the two asymmetric cells (jdh8, 2026-08-29). And
+  the rungs may be right-siding backwards — they declare `3NT`/`2NT` from the
+  **doubler**, while the floor they shadow reaches the same games from
+  **opener**, which the oracle scores better in all 36 buckets. Same contract,
+  wrong hand on lead is a plausible mechanism for the DD-PD row and is untested.
+
+  **The loss localises to one rung.** Splitting the 61,651 `white vs px`
+  divergences by the rung `white` bids: `2NT` is 44.0% of traffic (n=27,105) at
+  plain +2.048 / **DD-PD −1.921** per fired — **85.6% of the whole −60,805 IMP
+  PD deficit** — against `3♣` +2.407 / −0.381 (11.2%) and `3♦` +2.442 / −0.115
+  (3.2%). The natural minors are plain-positive and PD-neutral; the invitation
+  is the drag. §N1l's original sketch named the right rung and the wrong verb:
+  deleting the `2NT` (rather than gating the family on colour) projects to plain
+  ≈ +0.0182 / DD-PD ≈ −0.0019, a sevenfold cut in the PD cost. Still a
+  `win | loss`, so still not shippable on this evidence — and it is the natural
+  partner to the right-siding question, since the `2NT` is precisely the rung
+  that declares notrump from the wrong hand.
+
+  Not evidence either way: BBA's behaviour at **this** seat is unknown. The
+  `opener-c-x2h`/`opener-c-x2s` probes read *opener's* seat (§N1m), and the
+  "bidable suit" label is on our *first* `X`. A position-6 probe is unrun.
 
 - **The Landy doubler's rebid ladder is a mixed measurement and stays default
   off.** `competition.landy_doubler_rebids` (§N1l, built 2026-08-28) measured

@@ -68,10 +68,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_rebids: bool,
 
-    /// Arm the §N1l flip's `px` arm (`competition.landy_doubler_px`): the
-    /// penalty `X` alone at the doubler's rebid seat
+    /// Turn **off** §N1l's shipped `px` arm
+    /// (`competition.landy_doubler_px`, default on): the penalty `X` alone at
+    /// the doubler's rebid seat
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_px: bool,
+    no_ns_landy_doubler_px: bool,
 
     /// Arm the §N1l flip's `white` arm (`competition.landy_doubler_white`):
     /// the `X`, `3NT`, and the constructive family gated non-vulnerable
@@ -197,7 +198,7 @@ fn main() {
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
-    agreements.competition.landy_doubler_px = args.ns_landy_doubler_px;
+    agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;

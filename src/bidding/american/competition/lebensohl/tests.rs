@@ -1376,14 +1376,29 @@ fn landy_doubler_rebids_ladders_the_dying_auction() {
     assert_eq!(c, Call::Pass, "the repeated double is penalty; opener sits");
     assert!(!floored, "and the sit is authored, not the floor's");
 
-    // Off — the default — leaves the whole seat to the floor.
+    // The shipped default is `px` (2026-08-29): the penalty `X` on four-plus
+    // of their major, and the `Pass`@0 catch-all under it.
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    let (c, floored) = best_call_with(&shipped, &hearts, "A54.KJ98.AQ3.J54");
+    assert_eq!(c, Call::Double, "px's penalty X is the shipped default");
+    assert!(!floored, "and it is authored, not the floor's");
+
+    // Three trumps takes the catch-all rather than the floor — this is the
+    // measured caveat on `landy_doubler_px`, not an accident: the node has
+    // finite mass there, so it shadows a floor that was acting (−14,171 IMPs
+    // plain non-vulnerable).  Deleting the catch-all is the owed follow-up
+    // arm, and this assertion is what will fail when it lands.
+    let (c, floored) = best_call_with(&shipped, &hearts, "A543.KJ9.AQ3.J54");
+    assert_eq!(c, Call::Pass, "three trumps takes the catch-all");
+    assert!(!floored, "the catch-all shadows the floor at three trumps");
+
+    // Off (`--no-ns-landy-doubler-px`) leaves the whole seat to the floor.
     let mut off = Agreements::default();
     off.decision.their.two_clubs_landy = true;
+    off.competition.landy_doubler_px = false;
     let (c, floored) = best_call_with(&off, &hearts, "A54.KJ98.AQ3.J54");
-    assert!(
-        floored,
-        "the default arm keeps the floor-owned seat (got {c})"
-    );
+    assert!(floored, "the off arm keeps the floor-owned seat (got {c})");
 }
 
 /// The polarity rule, stated as the asymmetry it is: the **same hand** doubles

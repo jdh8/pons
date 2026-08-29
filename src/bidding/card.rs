@@ -172,6 +172,21 @@ const fn not_defined() -> usize {
 // N1j's alignment claim is structural, not literal readability — see
 // `docs/one-notrump-competitive.md` §N1j.
 //
+// `comp:landy-penalty` (the doubler's own penalty `X` of their advance,
+// `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
+// sibling one seat earlier): same record as the `comp:landy-*` family above —
+// keyed on the opponents' disclosed Landy `2♣`, which EPBot's schema cannot
+// name, so a `.bbsa` row would have nowhere to land.  One ceiling is specific
+// to this tag and worth stating: the alert publishes **four-plus of the major
+// their advance named**, and that is honest for the book rung, but the same
+// `X` at the same seat is *also* made by the floor on three trumps or fewer,
+// where it is takeout-shaped and opener pulls it (49.5% to `3NT` at two
+// trumps).  The published reading therefore covers the authored call and not
+// the floored one.  Accepted as-is because the catch-all currently keeps the
+// floor off that seat; it becomes live the moment the no-catch-all arm ships,
+// and that arm owes this tag a decision — see
+// `docs/one-notrump-competitive.md` §N1l.
+//
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the
 // card already declares (Jacoby/Texas/Stayman/Puppet answers, lebensohl 3♣,
