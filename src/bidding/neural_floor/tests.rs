@@ -2,6 +2,7 @@ use super::*;
 use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Bid, Strain};
+use proptest::prelude::*;
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -405,4 +406,312 @@ fn the_accountant_pushes_no_double_over_a_slam() {
         shelled_with(&silent, &slam, hand).0[Call::Pass],
         "the cap skips the action rather than scaling it"
     );
+}
+
+// --- PDI dialect translation (docs/pdi.md) --------------------------------
+
+/// `1NT (2♣) X (2♥) X` — §N1m's tagged double, at index 4
+const OPENER_PX: [Call; 5] = [
+    call(1, Strain::Notrump),
+    call(2, Strain::Clubs),
+    Call::Double,
+    call(2, Strain::Hearts),
+    Call::Double,
+];
+
+/// The auction `OPENER_PX` continues into, plus the tag mask its reading gives
+fn opener_px(tail: &[Call]) -> (Vec<Call>, u64) {
+    ([OPENER_PX.as_slice(), tail].concat(), 1 << 4)
+}
+
+/// The lane's floor-owned nodes, restated in the teacher's dialect
+///
+/// Their immediate runout takes S1 alone; the sit-then-run node takes S1 and S2
+/// together, which is where the double moves a seat along (side aggregate right,
+/// seat attribution wrong — the priced v1 approximation).
+#[test]
+fn pdi_swap_restates_the_lane_nodes() {
+    // `X (2♠)` — they run at once.  S1 only.
+    let (auction, flips) = opener_px(&[call(2, Strain::Spades)]);
+    let picture = pdi_swap(&auction, flips).expect("the runout node translates");
+    assert_eq!(
+        picture.swapped,
+        vec![
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+        ]
+    );
+    assert!(
+        !picture.swap_output,
+        "our double no longer stands either way"
+    );
+
+    // `X - - (2♠)` — partner sat, then they ran.  S1 + S2.
+    let (auction, flips) = opener_px(&[Call::Pass, Call::Pass, call(2, Strain::Spades)]);
+    let picture = pdi_swap(&auction, flips).expect("the sit-then-run node translates");
+    assert_eq!(
+        picture.swapped,
+        vec![
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+            Call::Double,
+            call(2, Strain::Spades),
+        ]
+    );
+    assert!(!picture.swap_output);
+}
+
+/// S5: at `X (P)` the two pictures disagree about whether our double stands, so
+/// the answer has to come back through the same permutation
+///
+/// Dormant in this lane — that node is `1NT (2♣) X (2♥) X -`, which §N1m
+/// registers to `multi_signoff_pass`, so the book shadows the floor there.  Built
+/// and pinned as a pure function for the next tag site.
+#[test]
+fn pdi_swap_flags_the_standing_double_node() {
+    let (auction, flips) = opener_px(&[Call::Pass]);
+    let picture = pdi_swap(&auction, flips).expect("the sit node translates");
+    assert!(picture.swap_output);
+    assert_eq!(picture.swapped.last(), Some(&Call::Pass));
+}
+
+/// The `None` families S4 folds into one replay check
+#[test]
+fn pdi_swap_declines_what_it_cannot_express() {
+    // A tagged `X` in the **pass-out** seat: rewriting it to a pass ends the
+    // auction, so there is no live node to serve.  This is what makes §N1l's
+    // preference legs structurally untranslatable, and the reason its rebid is
+    // left untagged rather than tagged-and-inert.
+    let preference = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+        Call::Double,
+    ];
+    assert!(pdi_swap(&preference, 1 << 6).is_none());
+
+    // Their immediate redouble: with our double rewritten away the `XX` has
+    // nothing under it.
+    let (redoubled, flips) = opener_px(&[Call::Redouble]);
+    assert!(pdi_swap(&redoubled, flips).is_none());
+
+    // S3: nothing tagged, nothing to say.
+    let (plain, _) = opener_px(&[call(2, Strain::Spades)]);
+    assert!(pdi_swap(&plain, 0).is_none());
+
+    // A tag on a call that is not a double moves nothing.
+    assert!(pdi_swap(&plain, 1 << 3).is_none());
+}
+
+/// Their double is never ours: the caller scopes the reading's table-wide mask
+/// with [`our_side_mask`], and at an odd length that clears an even-index tag.
+#[test]
+fn pdi_flips_are_scoped_to_the_side_to_act() {
+    let (auction, flips) = opener_px(&[call(2, Strain::Spades)]);
+    assert_eq!(auction.len() % 2, 0);
+    assert_eq!(flips & our_side_mask(auction.len()), flips);
+    // One call earlier it is their turn, and the same bit is not ours.
+    assert_eq!(flips & our_side_mask(auction.len() - 1), 0);
+}
+
+proptest! {
+    /// Whatever the flips, the picture is either absent or a **live legal
+    /// auction of the same length** — the invariant the shell's callers rely on
+    /// to hand it to `prefixed_context`.
+    #[test]
+    fn pdi_swap_only_ever_yields_a_live_legal_auction(seed in any::<u64>()) {
+        use rand::seq::IndexedRandom as _;
+        use rand::{RngExt as _, SeedableRng as _};
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        // A random legal auction, stopped before the final pass.
+        let mut played = Auction::new();
+        let every: Vec<Call> = Logits::new().iter().map(|(call, _)| call).collect();
+        for _ in 0..rng.random_range(0..12) {
+            let legal: Vec<Call> = every
+                .iter()
+                .copied()
+                .filter(|&call| played.can_push(call).is_ok())
+                .collect();
+            let Some(&call) = legal.choose(&mut rng) else { break };
+            played.push(call);
+            if played.has_ended() {
+                played = Auction::new();
+                break;
+            }
+        }
+        let auction: Vec<Call> = played.iter().copied().collect();
+        // Any subset of our-side doubles, exactly as the shell would pass them.
+        let mut flips = 0u64;
+        for (index, &made) in auction.iter().enumerate() {
+            if made == Call::Double && rng.random_bool(0.5) {
+                flips |= 1 << index;
+            }
+        }
+        flips &= our_side_mask(auction.len());
+
+        let Some(picture) = pdi_swap(&auction, flips) else { return Ok(()) };
+        prop_assert_eq!(picture.swapped.len(), auction.len());
+        let mut replay = Auction::new();
+        prop_assert!(replay.try_extend(picture.swapped.iter().copied()).is_ok());
+        prop_assert!(!replay.has_ended());
+    }
+}
+
+/// The §N1m arm with the shell armed
+fn translate_arm(on: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_opener_px = true;
+    arm.decision.instinct.pdi_translate = on;
+    arm
+}
+
+/// The shipped v6 floor for `agreements`, and a context on the real auction
+fn v6_floor(agreements: &Agreements) -> (ConfiguredFloorV6, CompactConfig) {
+    let compact = CompactConfig::symmetric(&crate::bidding::features::ConventionCard::capture(
+        agreements, false,
+    ));
+    (
+        ConfiguredFloorV6::new(
+            compact.clone(),
+            Arc::new(crate::bidding::instinct(agreements)),
+        ),
+        compact,
+    )
+}
+
+fn bits(logits: &Logits) -> Vec<u32> {
+    logits.iter().map(|(_, x)| x.to_bits()).collect()
+}
+
+/// End to end: the net is fed the **swapped** picture and answered against the
+/// **real** auction
+///
+/// The reference is computed by hand from the parts — features over the swapped
+/// prefixed context, the shipped net, then the real auction's legality mask and
+/// the accountant gate — so a shell that leaked the swapped auction into either
+/// of the last two stages fails here rather than in an A/B.
+#[test]
+fn pdi_translation_feeds_the_floor_the_swapped_picture() {
+    let agreements = translate_arm(true);
+    let partnership = crate::bidding::american::american(&agreements).bind();
+    let (floor, compact) = v6_floor(&agreements);
+    let hand: Hand = "5.KQ98.KT32.T543".parse().expect("valid test hand");
+
+    let (real, _) = opener_px(&[Call::Pass, Call::Pass, call(2, Strain::Spades)]);
+    let context = partnership.prefixed_context(RelativeVulnerability::NONE, &real);
+    assert!(!forced(&context), "this node is the floor's judgement");
+    let served = floor.classify(hand, &context);
+
+    let swapped = vec![
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        Call::Pass,
+        Call::Double,
+        call(2, Strain::Spades),
+    ];
+    let picture = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &swapped)
+        .with_profile(agreements.decision)
+        .with_compact(&compact);
+    let mut want = crate::bidding::neural::classify_bba_v6(&crate::bidding::features::features_v6(
+        hand, &picture,
+    ));
+    mask_illegal(&mut want, &real);
+    crate::bidding::instinct::competitive_gate(&mut want, hand, &context);
+    assert_eq!(bits(&served), bits(&want));
+
+    // And it is not the untranslated answer — the shell actually moved the input.
+    let untranslated = crate::bidding::neural::classify_bba_v6(
+        &crate::bidding::features::features_v6(hand, &context.clone().with_compact(&compact)),
+    );
+    assert_ne!(bits(&served), bits(&untranslated));
+}
+
+/// Knob off is the untranslated path, bit for bit — the guard exits first, so
+/// nothing downstream can drift
+#[test]
+fn pdi_translation_off_serves_the_real_auction() {
+    let agreements = translate_arm(false);
+    let partnership = crate::bidding::american::american(&agreements).bind();
+    let (floor, compact) = v6_floor(&agreements);
+    let hand: Hand = "5.KQ98.KT32.T543".parse().expect("valid test hand");
+
+    let (real, _) = opener_px(&[Call::Pass, Call::Pass, call(2, Strain::Spades)]);
+    let context = partnership.prefixed_context(RelativeVulnerability::NONE, &real);
+    let mut want = crate::bidding::neural::classify_bba_v6(&crate::bidding::features::features_v6(
+        hand,
+        &context.clone().with_compact(&compact),
+    ));
+    mask_illegal(&mut want, &real);
+    crate::bidding::instinct::competitive_gate(&mut want, hand, &context);
+    assert_eq!(bits(&floor.classify(hand, &context)), bits(&want));
+}
+
+/// S4 at the shell: their redouble leaves no expressible picture, so the floor
+/// serves the real auction even with the knob on
+#[test]
+fn pdi_translation_falls_back_where_the_rewrite_is_illegal() {
+    let hand: Hand = "5.KQ98.KT32.T543".parse().expect("valid test hand");
+    let (redoubled, _) = opener_px(&[Call::Redouble]);
+    let answer = |on: bool| {
+        let agreements = translate_arm(on);
+        let partnership = crate::bidding::american::american(&agreements).bind();
+        let (floor, _) = v6_floor(&agreements);
+        bits(&floor.classify(
+            hand,
+            &partnership.prefixed_context(RelativeVulnerability::NONE, &redoubled),
+        ))
+    };
+    assert_eq!(answer(true), answer(false));
+}
+
+/// The shipped default has no `.pdi()`-tagged rule reachable, so arming the
+/// shell there is inert — the in-crate half of the KR1 non-inferiority claim
+#[test]
+fn pdi_translation_is_inert_in_the_default_config() {
+    let hand: Hand = "5.KQ98.KT32.T543".parse().expect("valid test hand");
+    let answer = |on: bool, auction: &[Call]| {
+        let mut agreements = Agreements::default();
+        agreements.decision.instinct.pdi_translate = on;
+        let partnership = crate::bidding::american::american(&agreements).bind();
+        let (floor, _) = v6_floor(&agreements);
+        bits(&floor.classify(
+            hand,
+            &partnership.prefixed_context(RelativeVulnerability::NONE, auction),
+        ))
+    };
+    let (runout, _) = opener_px(&[call(2, Strain::Spades)]);
+    for auction in [
+        runout.as_slice(),
+        &[
+            call(1, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ],
+        &[
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Hearts),
+        ],
+    ] {
+        assert_eq!(answer(true, auction), answer(false, auction));
+    }
 }

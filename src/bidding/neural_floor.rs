@@ -30,6 +30,17 @@
 //!   knob-off is byte-identical and the net keeps its monopoly on introducing
 //!   calls.
 //!
+//! One optional stage runs *before* the net instead of after it: the **PDI
+//! dialect translation** (`pdi_swap`).  The net was distilled from BBA's book,
+//! so where one of our authored rules means something that book reads
+//! differently — a rule tagged [`Rules::pdi`][super::Rules::pdi] — the auction it
+//! is shown is rewritten into the picture BBA would have had to reach the same
+//! agreement.  Features come off the translated picture; the legality mask and
+//! the accountant gate stay on the **real** one, so the shell can never
+//! introduce an illegal call.  Off by default
+//! ([`pdi_translate`][super::instinct::InstinctProfile::pdi_translate]); see
+//! `docs/pdi.md`.
+//!
 //! Hand-conditioned game forces (a strong-notrump responder who *holds* game
 //! values) are deliberately left to the net — that is judgement, measured in
 //! aggregate by the A/B examples, not guarded here.
@@ -42,6 +53,7 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
+use super::inference::our_side_mask;
 use super::instinct::{competitive_gate, forced};
 use super::trie::Classifier;
 use super::{features, neural};
@@ -107,9 +119,14 @@ impl Classifier for ConfiguredFloorBba {
         }
         // The context arrives from the trie without a config — only this floor
         // knows the cell — so attach ours for the extractor to read.  The clone
-        // copies scalars and borrows; the auction and prefixes are not copied.
-        let configured = context.clone().with_config(&self.0);
+        // inside `dialect_context` copies scalars and borrows; the auction and
+        // prefixes are not copied.
+        let picture = pdi_picture(context);
+        let configured = dialect_context(context, picture.as_ref()).with_config(&self.0);
         let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
+        if picture.is_some_and(|picture| picture.swap_output) {
+            swap_pass_double(&mut logits);
+        }
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         logits
@@ -139,12 +156,150 @@ impl Classifier for ConfiguredFloorV6 {
         if forced(context) {
             return self.1.classify(hand, context);
         }
-        let configured = context.clone().with_compact(&self.0);
+        let picture = pdi_picture(context);
+        let configured = dialect_context(context, picture.as_ref()).with_compact(&self.0);
         let mut logits = (self.2)(&features::features_v6(hand, &configured));
+        if picture.is_some_and(|picture| picture.swap_output) {
+            swap_pass_double(&mut logits);
+        }
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         logits
     }
+}
+
+/// One PDI **dialect translation**: the auction to serve, and whether the
+/// answer needs unswapping
+///
+/// See [`pdi_swap`] for the rules S1–S5 that build it.
+struct PdiPicture {
+    /// The auction rewritten into the floor's dialect — same length, same
+    /// legality, our tagged calls restated
+    swapped: Vec<Call>,
+    /// The real and swapped pictures disagree on whether our double *stands*,
+    /// so `Pass` and `Double` must trade logits before the legality mask (S5)
+    swap_output: bool,
+}
+
+/// Whether index `i` carries a divergence tag in `flips`
+///
+/// Positions past 63 carry no bit — the shared `CallMasks` limitation, which
+/// this makes total rather than a shift overflow.
+const fn tagged(flips: u64, i: usize) -> bool {
+    i < 64 && flips & (1 << i) != 0
+}
+
+/// Restate our PDI-divergent calls in the floor's own dialect
+///
+/// `flips` are the auction indices of **our** tagged calls (the caller scopes
+/// the reading's table-wide mask with [`our_side_mask`]).  The rewrite is five
+/// rules:
+///
+/// - **S1** — a tagged `X` becomes `P`.  Our tagged doubles are penalty; the
+///   teacher's book reads a double in that seat as takeout, and the nearest
+///   thing in its dialect to "nothing to ask for, happy to defend" is a pass.
+/// - **S2** — our sit over a tagged `X` (the `[X, P, P]` window, tag on the
+///   `X`) becomes `X`.  The pair's aggregate is preserved: we did double and we
+///   did elect to defend, said in the order the teacher would say it.  A wider
+///   window is impossible — a third pass would have ended the real auction.
+/// - **S3** — nothing moved, no picture; serve the real auction.
+/// - **S4** — replay the rewrite through [`Auction::try_extend`]; if it is
+///   illegal, *or has ended*, there is no picture.  One check subsumes several
+///   families at once: a tagged `X` in the pass-out seat (where `X → P` ends the
+///   auction — this is what makes the §N1l preference legs untranslatable),
+///   their immediate `XX` of our tagged `X` (a redouble with no double under
+///   it), and anything else the rewrite cannot express.
+/// - **S5** — if the auction ends `X P` with the tag on that `X`, the two
+///   pictures disagree about whether our double is still standing, which is the
+///   one place the *answer* needs translating back too.
+///
+/// Note what S2 does **not** get right: it moves the double one seat along, so
+/// the side aggregate is faithful but the seat attribution of the four trumps is
+/// not.  A knowing v1 approximation, priced by the A/B rather than papered over.
+fn pdi_swap(auction: &[Call], flips: u64) -> Option<PdiPicture> {
+    if flips == 0 {
+        return None;
+    }
+    let mut swapped = auction.to_vec();
+    let mut moved = false;
+    for (index, &call) in auction.iter().enumerate() {
+        if call != Call::Double || !tagged(flips, index) {
+            continue;
+        }
+        swapped[index] = Call::Pass; // S1
+        moved = true;
+        if auction.get(index + 1) == Some(&Call::Pass)
+            && auction.get(index + 2) == Some(&Call::Pass)
+        {
+            swapped[index + 2] = Call::Double; // S2
+        }
+    }
+    if !moved {
+        return None; // S3
+    }
+    // S4: the picture has to be a real auction that is still going.
+    let mut replay = Auction::new();
+    replay.try_extend(swapped.iter().copied()).ok()?;
+    if replay.has_ended() {
+        return None;
+    }
+    // S5
+    let swap_output = auction.last() == Some(&Call::Pass)
+        && auction.len() >= 2
+        && auction[auction.len() - 2] == Call::Double
+        && tagged(flips, auction.len() - 2);
+    Some(PdiPicture {
+        swapped,
+        swap_output,
+    })
+}
+
+/// The dialect translation in force for this decision, if any
+///
+/// The guard chain, in cost order: the knob, then a length the mask can address,
+/// then an attached system (a bare diagnostic context has no trie prefixes, so
+/// the swapped auction would read as almost nothing — serve it untranslated),
+/// then the reading's tag mask scoped to the side to act.  `flips == 0` — every
+/// decision in the shipped default, where nothing is tagged — costs one field
+/// read off the already-cached reading.
+fn pdi_picture(context: &Context<'_>) -> Option<PdiPicture> {
+    if !context.decision_profile().instinct.pdi_translate {
+        return None;
+    }
+    let auction = context.auction();
+    if auction.len() > 64 || context.own_system().is_none() {
+        return None;
+    }
+    pdi_swap(
+        auction,
+        context.inferences().pdi_flip() & our_side_mask(auction.len()),
+    )
+}
+
+/// The context whose features the net is served: the translated picture where
+/// the shell fires, the real one otherwise
+///
+/// `prefixed_context` rather than a bare [`Context::new`], because a keyless
+/// context carries no trie prefixes — the swapped auction would lose the Landy
+/// decode and read as a natural nothing, which is the opposite of the point.
+/// The profile is re-pinned because attaching a system takes that system's own
+/// pin, which is not necessarily this decision's.
+fn dialect_context<'a>(context: &Context<'a>, picture: Option<&'a PdiPicture>) -> Context<'a> {
+    match picture {
+        Some(picture) => context
+            .own_system()
+            .expect("pdi_picture returns None without an attached system")
+            .prefixed_context(context.vul(), &picture.swapped)
+            .with_profile(context.decision_profile()),
+        None => context.clone(),
+    }
+}
+
+/// Trade the `Pass` and `Double` logits (S5)
+fn swap_pass_double(logits: &mut Logits) {
+    let pass = logits[Call::Pass];
+    logits[Call::Pass] = logits[Call::Double];
+    logits[Call::Double] = pass;
 }
 
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them

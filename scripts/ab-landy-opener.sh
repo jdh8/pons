@@ -27,7 +27,7 @@
 # signature of a real penalty double.  (2) On two or three trumps that same
 # double is negative except at 17 HCP, where `3NT` matches it, so `len(major,
 # 4..)` is the whole gate.  (3) Declaring is a **white** idea except for the
-# 16–17 with a stopper, which holds up red too.  Two arms:
+# 16–17 with a stopper, which holds up red too.  Four arms:
 #
 #   base    today's `main` — the seat is the floor's, and it passes 98.5% /
 #           99.5% of the time
@@ -36,6 +36,29 @@
 #   rungs   plus `competition.landy_opener_rungs`: `3NT`@135 `hcp(16..) &
 #           stopper_in` and `2NT`@120 `hcp(15..) & stopper_in & !vulnerable()`,
 #           each a sign-off the doubler passes
+#   pxt     `px` plus `instinct.pdi_translate` — the **dialect-translation
+#           shell** (docs/pdi.md).  `px`'s whole runout tail is the floor's, and
+#           the floor is a distillation of BBA, whose own book calls this seat's
+#           `X` a *takeout double* with 2-4 of the major (`probe-bba-book
+#           --prefix "1NT (2♣) X (2♥)" --conv "Multi-Landy=1"`, 2026-08-29).  So
+#           every node under our penalty double is decided by a net that has
+#           misread it.  `pxt` rewrites the auction into the picture BBA would
+#           have had (our `X` becomes `P`; our sit over it becomes the `X`) and
+#           extracts features from that, while the legality mask and the
+#           accountant gate stay on the real auction.  Read it as falsifier 1's
+#           repair, not as a separate idea: `pxt vs px` is the shell, `pxt vs
+#           base` is what `px` is worth once its tail is served in a dialect the
+#           floor understands.
+#
+# The shell needs no arm of its own in the *default* config.  Only one authored
+# rule carries the `.pdi()` tag (§N1m's `X`@150), it exists only under
+# `landy_opener_px`, and §N1l's doubler rebid is deliberately untagged — on its
+# escape legs BBA already reads the double as penalty, so translating there would
+# restate a call the teacher understands, which is the P2 anti-teaching mode.
+# With no tagged rule reachable, `--ns-pdi-translate` is inert by construction:
+# `pdi_translation_is_inert_in_the_default_config` pins it in-crate and
+# `smoke-default --count 20000 --seed 1` is byte-identical (2026-08-29,
+# 38ee1e21…).  That is the KR1 non-inferiority proof; no `xlate` arm is owed.
 #
 # Falsifiers, in order.
 #   1. **The oracle assumes they sit.**  Every candidate is priced as the
@@ -60,7 +83,14 @@
 #   4. **PD is blind to `px` by construction** (docs/measurement.md's domain
 #      addendum): perfect defense doubles the same failing contracts by fiat,
 #      so `px` keeps the whole cost of a real penalty double and none of its
-#      benefit.  Arbitrate `px` on plain DD with SD-PD as tie-break.
+#      benefit.  Arbitrate `px` on plain DD with SD-PD as tie-break — and read
+#      both `px vs base` and `pxt vs base` before calling §N1m, since the shell
+#      may be what makes the double shippable.
+#   5. **The shell's own seat approximation.**  Where partner sat over our
+#      double and *then* they ran (`X - - (2♠)`), the rewrite moves the double
+#      one seat along: the side aggregate is faithful, the seat attribution of
+#      the four trumps is not.  If `pxt` loses to `px`, split the divergence
+#      stream by whether that window fired before blaming the shell as a whole.
 #
 # Scoring: plain AND perfect defense off docs/measurement.md's decision table;
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0 foreign
@@ -77,8 +107,9 @@ for v in none both; do
     arm base  "$v" --filter-landy
     arm px    "$v" --filter-landy --ns-landy-opener-px
     arm rungs "$v" --filter-landy --ns-landy-opener-px --ns-landy-opener-rungs
+    arm pxt   "$v" --filter-landy --ns-landy-opener-px --ns-pdi-translate
 
-    for a in px rungs; do
+    for a in px rungs pxt; do
         gatepair "$a" base "$v"
         diffpair "$a" base "$v"
         sddiff   "$a" base "$v"
@@ -88,6 +119,11 @@ for v in none both; do
     gatepair rungs px "$v"
     diffpair rungs px "$v"
     sddiff   rungs px "$v"
+    # The shell in isolation: same book both sides, only the picture the floor
+    # is served differs, so this pair prices the translation alone.
+    gatepair pxt px "$v"
+    diffpair pxt px "$v"
+    sddiff   pxt px "$v"
 done
 
 log "landy-opener done"

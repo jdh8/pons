@@ -61,6 +61,7 @@ pub use read::Inferences;
 
 pub(crate) use envelope::relative_of;
 pub(crate) use projection::{AuthoredProjection, AuthoringStepCache};
+pub(crate) use read::our_side_mask;
 pub(in crate::bidding) use readers::penalty_x_reading_with_profile;
 
 #[cfg(test)]

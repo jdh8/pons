@@ -171,6 +171,20 @@ pub struct Inferences {
     /// serialization skips it.  See `docs/pdi.md`.
     #[cfg_attr(feature = "serde", serde(skip))]
     pdi_latched: bool,
+    /// Auction indices whose authored rule is tagged **PDI-divergent**
+    /// ([`Rule::pdi_divergent`][crate::bidding::rules::Rule::pdi_divergent]) —
+    /// the seats the distilled floor's own book reads as something else, which
+    /// its dialect-translation shell rewrites before extracting features.
+    ///
+    /// A mask, not a `bool`, because the shell needs the *positions*: it is the
+    /// authored tag alone, with no structural conversion passes folded in
+    /// (divergence is a property of a rule, not of the auction's shape), and it
+    /// is table-wide — the floor scopes it to the side to act with
+    /// `our_side_mask`.  Zeroed across the systems-on overcall strip, whose
+    /// shortened auction would put every bit off by one.  Like `pdi_latched` a
+    /// fact about the *calls*, so serialization skips it.  See `docs/pdi.md`.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pdi_flip: u64,
     /// The reading settings this reading was produced under — the gauges and
     /// membership rule [`admits`][Self::admits] tests on.  Carried on the value
     /// so the sampler's acceptance test runs on the partnership's pinned settings
@@ -292,6 +306,7 @@ impl Inferences {
             // Stamped by the caller that has the auction (see `Inferences::read`);
             // the trigger-free early returns leave it false.
             pdi_latched: false,
+            pdi_flip: 0,
             profile,
         };
         if profile.blind_opponents {
@@ -425,6 +440,12 @@ impl Inferences {
                 }
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
+            // The strip re-keys a *shortened* auction, so every per-index bit
+            // read off it is one place left of where the caller's length puts
+            // it.  `pdi_latched` needs no such care (it is collapsed against
+            // the auction it was taken on); a mask does, and skipping the
+            // translation is the safe fallback — the floor serves untranslated.
+            reading.pdi_flip = 0;
             if context.reading_profile().scope != ReadingScope::All {
                 return reading;
             }
@@ -1495,6 +1516,11 @@ impl Inferences {
             profile,
         );
         this.pdi_latched = earliest_pdi_trigger(pdi_triggers, len).is_some();
+        // The authored tag alone — `conversion_passes` is deliberately *not*
+        // folded in.  A structural conversion pass says nothing about whether
+        // the teacher's book reads our call the way we mean it, and the whole
+        // point of a separate tag is per-rule granularity.
+        this.pdi_flip = masks.pdi_flip;
         this
     }
 
@@ -1514,6 +1540,16 @@ impl Inferences {
     #[must_use]
     pub const fn pdi_latched(&self) -> bool {
         self.pdi_latched
+    }
+
+    /// Auction indices whose authored rule diverges from the floor's dialect
+    ///
+    /// See the field of the same name.  Table-wide: scope it to the side to
+    /// act before acting on it, as the floor's translation shell does with the
+    /// crate-internal `our_side_mask`.
+    #[must_use]
+    pub const fn pdi_flip(&self) -> u64 {
+        self.pdi_flip
     }
 }
 
@@ -1556,13 +1592,22 @@ const PDI_PASS_POINT_CAP: u8 = 11;
 /// Even indices act on an even-length auction, odd on odd, so one parity mask
 /// scopes the whole trigger set to our side.
 fn earliest_pdi_trigger(triggers: u64, len: usize) -> Option<usize> {
-    let ours: u64 = if len.is_multiple_of(2) {
+    let ours = triggers & our_side_mask(len);
+    (ours != 0).then(|| ours.trailing_zeros() as usize)
+}
+
+/// The auction indices belonging to the **side to act** after `len` calls
+///
+/// Even indices act on an even-length auction, odd on odd, so one parity mask
+/// scopes any per-index mask to our side.  Shared by the pass/double-inversion
+/// latch and the floor's dialect-translation shell, so the two cannot drift.
+#[must_use]
+pub(crate) const fn our_side_mask(len: usize) -> u64 {
+    if len.is_multiple_of(2) {
         0x5555_5555_5555_5555
     } else {
         0xAAAA_AAAA_AAAA_AAAA
-    };
-    let ours = triggers & ours;
-    (ours != 0).then(|| ours.trailing_zeros() as usize)
+    }
 }
 
 /// Project the authored rule of every artificial prior call into [`Inferences`]
@@ -1593,6 +1638,7 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
         announced_unions,
         control_bid: None,
         pdi_latched: false,
+        pdi_flip: 0,
         profile: context.reading_profile(),
     }
 }

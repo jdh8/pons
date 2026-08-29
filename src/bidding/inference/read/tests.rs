@@ -1651,6 +1651,105 @@ fn trigger_mask_ignores_positions_past_63() {
     assert_eq!(bits, 1 << 5);
 }
 
+/// The §N1m arm: their `2♣` disclosed as Landy, opener's own penalty `X` on —
+/// the only rule in the book that carries `.pdi()`
+fn landy_opener_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_opener_px = true;
+    arm
+}
+
+/// `1NT (2♣) X (2♥) X (2♠)` — the divergence tag lands on opener's own double
+/// and on nothing else
+///
+/// Bit 4 is §N1m's `X`@150, the rule the 2026-08-29 render showed BBA reading as
+/// a *takeout* double with 2–4 of their major.  Bit 2 is responder's first
+/// double in the same auction — a real `.penalty()` trigger, deliberately
+/// **not** tagged, because divergence and penalty-ness are different facts.
+#[test]
+fn pdi_tag_marks_the_divergent_double_alone() {
+    let auction = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Clubs),
+        Call::Double,
+        bid(2, Strain::Hearts),
+        Call::Double,
+        bid(2, Strain::Spades),
+    ];
+    let flip = read_booked_with(&landy_opener_arm(), &auction).pdi_flip();
+    assert_eq!(flip & (1 << 4), 1 << 4, "opener's §N1m X is tagged");
+    assert_eq!(flip & (1 << 2), 0, "responder's first X is not");
+    // The penalty mask still sees both — the two tags are independent.
+    assert!(read_booked_with(&landy_opener_arm(), &auction).pdi_latched());
+}
+
+/// With the knob off the rule is absent, so the shipped default has no tagged
+/// call anywhere in this lane — which is what makes `pdi_translate` inert by
+/// construction in the default config.
+#[test]
+fn pdi_tag_is_absent_without_its_knob() {
+    let auction = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Clubs),
+        Call::Double,
+        bid(2, Strain::Hearts),
+        Call::Double,
+        bid(2, Strain::Spades),
+    ];
+    let mut landy_only = Agreements::default();
+    landy_only.decision.their.two_clubs_landy = true;
+    assert_eq!(read_booked_with(&landy_only, &auction).pdi_flip(), 0);
+    assert_eq!(
+        read_booked_with(&Agreements::default(), &auction).pdi_flip(),
+        0
+    );
+}
+
+/// §N1l's doubler rebid is `.penalty()` but **not** `.pdi()`: on its escape legs
+/// BBA reads the double as penalty too, so translating there would restate a
+/// call the teacher already understands (the P2 anti-teaching mode).
+#[test]
+fn the_landy_doubler_rebid_is_not_tagged() {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_px = true;
+    let escape = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Clubs),
+        Call::Double,
+        bid(2, Strain::Diamonds),
+        Call::Pass,
+        bid(2, Strain::Hearts),
+        Call::Double,
+        bid(2, Strain::Spades),
+    ];
+    assert_eq!(read_booked_with(&arm, &escape).pdi_flip(), 0);
+    assert!(
+        read_booked_with(&arm, &escape).pdi_latched(),
+        "it is still a penalty trigger"
+    );
+}
+
+/// The systems-on overcall strip re-keys a *shortened* auction, so the mask it
+/// produces would be one index left of the caller's length.  Zeroed rather than
+/// re-indexed: the floor then serves untranslated, which is always safe.
+#[test]
+fn the_overcall_strip_publishes_no_flip_mask() {
+    let auction = [
+        bid(1, Strain::Hearts),
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Clubs),
+        Call::Pass,
+    ];
+    assert!(
+        systems_on_overcall_strip(&auction, Agreements::default().decision).is_some(),
+        "this is the lane the strip fires on",
+    );
+    assert_eq!(read_booked(&auction).pdi_flip(), 0);
+}
+
 /// The trigger tag records identically through the step cache and the one-shot
 /// driver — the `masks` `assert_eq` inside the parity helper is what pins it.
 #[test]

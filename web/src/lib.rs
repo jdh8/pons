@@ -1008,6 +1008,7 @@ knob!(set_uvu_encircle, uvu_encircle, decision.instinct.uvu_encircle: bool);
 knob!(set_penalty_no_pull, penalty_no_pull, decision.instinct.penalty_no_pull: bool);
 knob!(set_advancer_xx_runout, advancer_xx_runout, decision.instinct.advancer_xx_runout: bool);
 knob!(set_forcing_ceiling_read, forcing_ceiling_read, decision.instinct.forcing_ceiling_read: bool);
+knob!(set_pdi_translate, pdi_translate, decision.instinct.pdi_translate: bool);
 knob!(set_doubler_xx_runout, doubler_xx_runout, instinct.doubler_xx_runout: bool);
 knob!(set_negative_double_shape, negative_double_shape, competition.negative_double_shape: american::NegativeDoubleShape);
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
@@ -1554,6 +1555,7 @@ static SETTINGS: &[Setting] = &[
     toggle("advancer_xx_runout", FLOOR, "", true, set_advancer_xx_runout, advancer_xx_runout),
     toggle("forcing_ceiling_read", FLOOR, "", true, set_forcing_ceiling_read, forcing_ceiling_read),
     toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),
+    toggle("pdi_translate", FLOOR, "Serve the floor our divergent doubles in its own dialect", false, set_pdi_translate, pdi_translate),
     // Inference (auction reading)
     gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "opponent:notrump_defense=woolsey"),
     toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),

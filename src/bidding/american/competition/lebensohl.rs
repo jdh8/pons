@@ -665,6 +665,20 @@ fn landy_doubler_ladder(agreements: &Agreements) -> Option<DoublerLadder> {
 /// invitation and the natural minors gated `!vulnerable()`.  Both delete
 /// `4NT`, which never fired once in either measured cell.
 ///
+/// **This seat is deliberately *not* `.pdi()`-tagged, and the renders say why.**
+/// Re-rendered 2026-08-29 under `--conv "Multi-Landy=1"`, BBA splits by leg: on
+/// the **preference** legs (`X (2♥) - -`, `X (2♠) - -`) it calls the `X` a
+/// "reopening double" holding **0–2** of their major — a real divergence from
+/// the four-plus penalty double authored here — but on the **escape** legs
+/// (`X (2♦) - (2♥)`, `X (2♦) - (2♠)`) it calls it "penalty" with **3–5**, the
+/// same dialect we speak.  The translation shell can only ever fire on the
+/// escape legs: on a preference leg the tagged `X` sits in the pass-out seat,
+/// so rewriting it to a pass ends the auction and the shell's replay check
+/// declines.  A tag here would therefore translate in exactly the
+/// dialect-*matching* lanes and nowhere else, which is the anti-teaching that
+/// lost P2.  One `.pdi()` reverses this if the escape-leg reading is ever
+/// re-measured.  See `docs/pdi.md`.
+///
 /// The gate — rather than deleting rungs — is what the divergence stream says
 /// when it is re-read by first differing call: every constructive rung flips
 /// sign with colour, and the natural minors are the *cheaper* half white (`3♦`
@@ -748,6 +762,18 @@ fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder) -> Rules {
 /// notrump rungs see only the two- and three-card holdings they win on — the
 /// length cap `has_stopper` cannot express, supplied for free by the weights.
 ///
+/// **The teacher reads this seat as takeout, so it carries `.pdi()`.**
+/// Re-rendered 2026-08-29 under the right card (`probe-bba-book --prefix
+/// "1NT (2♣) X (2♥)" --conv "Multi-Landy=1" --vuls none`), BBA labels the `X`
+/// here **"takeout double"**, 17 HCP, and 2–4 of their major — the negation of
+/// the length gate above.  The spade leg says the same.  So every floor-owned
+/// node below this double is decided by a net that has misread it, and the tag
+/// is what lets `neural_floor`'s shell serve that net a picture in its own
+/// dialect.  Under
+/// [`CompetitionKnobs::landy_opener_px`][crate::bidding::agreements::CompetitionKnobs::landy_opener_px]
+/// only — with the knob off the rule is absent, so the shipped default has no
+/// tagged call at all.  See `docs/pdi.md`.
+///
 /// **What the oracle rejected.**  A natural `3m` is dominated by notrump on
 /// the same boards at both vulnerabilities (+1.86 against `2NT`'s +1.99 and
 /// `3NT`'s +2.19 white; +0.29 against +1.13 red), and the six-card slice that
@@ -761,7 +787,8 @@ fn landy_opener_rebid(major: Suit, rungs: bool) -> Rules {
     let mut rules = Rules::new()
         .rule(Call::Double, 150, len(major, 4..))
         .alert(LANDY_PENALTY)
-        .penalty();
+        .penalty()
+        .pdi();
     if rungs {
         rules = rules
             .rule(

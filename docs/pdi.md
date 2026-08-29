@@ -1,5 +1,12 @@
 # Pass/double inversion (PDI)
 
+> **Status (2026-08-29): a second, separate mechanism now exists — the
+> [dialect-translation shell](#the-dialect-translation-shell-2026-08-29),
+> knob `pdi_translate`, default off, A/B owed.** It is *not* a resurrection of
+> the P2 logit swap: it triggers off a new per-rule divergence tag rather than
+> off penalty-ness, and it rewrites the net's **input** instead of permuting its
+> output. The rest of this document is the 2026-08-26 latch campaign, unchanged.
+>
 > **Status (2026-08-26): the action gates lost and were deleted; the reading-only
 > replacement is authored, and a bid-only pre-count measured it INERT.**
 > `pdi_latch` is a pure reading knob, default off: our post-trigger pass over
@@ -110,6 +117,9 @@ auction[i-2..=i] == X P P ──► conversion_passes ┘
 - **`conversion_passes`** (src/bidding/inference/read.rs) is rules-free and
   depends only on `auction[i - 2 ..= i]`, so an incrementally grown auction
   rescans it by construction.
+- **`Inferences.pdi_flip`** is the third, independent mask on the same rails —
+  the divergence tag, no conversion passes folded in. See
+  [the dialect-translation shell](#the-dialect-translation-shell-2026-08-29).
 - **`Inferences.pdi_latched`** collapses the two into one side-scoped `bool`.
   It is a `bool`, not the mask, because the systems-on overcall strip re-reads a
   *shortened* auction: a mask handed out would be indexed against the stripped
@@ -138,11 +148,16 @@ measured and deleted.
   means the legacy `(1NT) X` lane alone, and the three wrappers
   (`penalty_latched_c`, `may_pull_penalty`, `not_penalty_latched`) still key off
   it. Widening them to the whole trigger set was **Mode A** of the P2 loss.
-- **The configured neural floor has no PDI shell.** The v6 floor distils BBA
-  (`teacher: bba`, `dd_weight: 0.0`), and BBA already plays expert post-trigger
-  methods — its post-trigger doubles are penalty-suggestive, its passes "nothing
-  more to say". A shell that re-inverts the served logits is a *second*
-  inversion on an already-inverted policy. That was **Mode B**.
+- **The configured neural floor has no PDI shell keyed to *this* trigger set.**
+  The v6 floor distils BBA (`teacher: bba`, `dd_weight: 0.0`), and BBA already
+  plays expert post-trigger methods — its post-trigger doubles are
+  penalty-suggestive, its passes "nothing more to say". A shell that re-inverts
+  the served logits is a *second* inversion on an already-inverted policy. That
+  was **Mode B**. The floor *does* now carry a shell keyed to a different,
+  narrower trigger — the per-rule divergence tag, on seats where BBA's book
+  measurably reads our call as something else, translating its **input** rather
+  than permuting its output. See
+  [the dialect-translation shell](#the-dialect-translation-shell-2026-08-29).
 - **The X half is unread.** The generalized double adds no points or
   suit-length claim, and the legacy `(1NT) X` stack reader is left exactly as
   shipped where the two lanes overlap. Arm 2 owns it (follow-on 3).
@@ -270,6 +285,157 @@ The one-lane prototype — knob `ReadingProfile::penalty_latch`, detector
 `penalty_latched`, reader twin `penalty_latch_double_reading` — is untouched.
 Re-keying it through the tag is follow-on (2) below.
 
+## The dialect-translation shell (2026-08-29)
+
+A second mechanism, sharing nothing with the latch above but the file it is
+documented in. The latch asks *what our own pass means to us*. This asks *what
+our double means to the net we floor with*.
+
+### The problem, in one measurement
+
+The v6 floor is distilled from BBA, so it speaks BBA's book. Re-rendered under
+the right card on 2026-08-29 (`probe-bba-book --conv "Multi-Landy=1" --vuls
+none`, one node per row, `X` only):
+
+| seat | our rule | BBA's label | their major | divergent? |
+| --- | --- | --- | --- | --- |
+| `1NT (2♣) X (2♥)` — §N1m opener | `X`@150 `len(♥,4..)`, penalty | **takeout double**, 17 HCP | ♥ 2–4 | **yes** |
+| `1NT (2♣) X (2♠)` — §N1m opener | `X`@150 `len(♠,4..)`, penalty | **takeout double**, 17 HCP | ♠ 2–4 | **yes** |
+| `1NT (2♣) X (2♥) - -` — §N1l doubler | `X`@155 `len(♥,4..)`, penalty | **reopening double**, 6–11 | ♥ 0–2 | yes, but see below |
+| `1NT (2♣) X (2♠) - -` — §N1l doubler | `X`@155 `len(♠,4..)`, penalty | **reopening double**, 6–11 | ♠ 0–2 | yes, but see below |
+| `1NT (2♣) X (2♦) - (2♥)` — §N1l escape leg | `X`@155 `len(♥,4..)`, penalty | **penalty**, 7–11 | ♥ 3–5 | **no** |
+| `1NT (2♣) X (2♦) - (2♠)` — §N1l escape leg | `X`@155 `len(♠,4..)`, penalty | **penalty**, 7–11 | ♠ 3–5 | **no** |
+
+The cached walk said the same thing about the §N1l seat a week earlier
+(`ab-results/bba-book/2026-08-23-08c54312-dirty/00512.jsonl:3-4`, caveat
+Multi-Landy=0), and the served floor behaves accordingly: it pulls our double to
+`3NT` 49.5% of the time and converts ~17% (§N1l-flip caveat table;
+`agreements.rs` says it outright). Every floor-owned node downstream of our
+penalty double — their runout `X (2♥) X (2♠)` is deliberately the floor's
+(`lebensohl.rs`) — is decided by a net that has misread partner.
+
+### The tag
+
+`Rule.pdi`, builder `.pdi()`, accessor `Rule::pdi_divergent` — a third,
+independent bit beside `.alert()` (disclosure) and `.penalty()` (the latch's
+reading switch). There is no `.pdi_if`: divergence is a measured fact about one
+authored seat against the teacher's book, not a knob-conditional style.
+
+**This is why the shell is not P2.** P2 swapped output logits over the whole
+`.penalty()`-plus-conversion trigger set, which fires in dialect-**matching**
+lanes too (the K–K Multi second `X` is penalty in both books) — so it
+anti-taught the swap on every such board. The trigger here is a per-rule tag on
+confirmed-divergent seats only. That is the new evidence "Dropped, with reasons"
+demands.
+
+**Only §N1m carries it.** §N1l's doubler rebid is deliberately left untagged,
+and the table above is the reason: on its **preference** legs the tagged `X` sits
+in the pass-out seat, so rewriting it to a pass ends the auction and S4 declines
+— those legs can never translate. On its **escape** legs, which are the only ones
+that *can* translate, BBA already reads the double as penalty. A tag there would
+fire in exactly the dialect-matching lanes and nowhere else — P2's failure mode
+in miniature. One `.pdi()` in `landy_doubler_rebid` reverses this if the
+escape-leg reading is ever re-measured; the per-rule granularity is the point.
+
+### The mechanism
+
+`pdi_swap(auction, flips) -> Option<PdiPicture>` in `neural_floor.rs`, a pure
+function; `flips` is the reading's tag mask scoped to the side to act.
+
+- **S1** — a tagged `X` becomes `P`.
+- **S2** — our sit over a tagged `X` (the `[X, P, P]` window, tag on the `X`)
+  becomes `X`. A wider window is impossible: a third pass would have ended the
+  real auction.
+- **S3** — nothing moved, no picture.
+- **S4** — replay through `Auction::try_extend`; **illegal or ended** → no
+  picture, serve untranslated. One check subsumes the §N1l preference legs, their
+  immediate `XX` of our tagged `X`, and every other inexpressible rewrite.
+- **S5** — the auction ends `X P` with the tag on that `X`: the two pictures
+  disagree about whether our double still stands, so `Pass` and `Double` trade
+  **logits** before `mask_illegal(real)`. Dormant in this lane (that node is
+  book-owned by `multi_signoff_pass`), built and unit-tested for the next tag
+  site.
+
+`forced(context)`, `mask_illegal` and `competitive_gate` all stay on the **real**
+auction and context, so the shell can never introduce an illegal call.
+`Fallback::Rebase` composes — rebased classifiers already classify the real
+auction. Both configured floors get the shell (v6 and the v4
+`ConfiguredFloorBba`); they share the teacher.
+
+The lane's two floor-owned nodes, verified legal:
+
+| real auction | served to the net |
+| --- | --- |
+| `1NT (2♣) X (2♥) X (2♠)` | `1NT (2♣) X (2♥) - (2♠)` |
+| `1NT (2♣) X (2♥) X - - (2♠)` | `1NT (2♣) X (2♥) - - X (2♠)` |
+
+**Known v1 approximation.** The second row is S2 moving the double to
+responder's seat: the side aggregate is right, the seat attribution of the four
+trumps is wrong. Accepted and priced by the A/B (falsifier 5 in
+`scripts/ab-landy-opener.sh`), not papered over.
+
+### Plumbing
+
+```
+Rule.pdi  ──►  CallMasks.pdi_flip  ──►  Inferences.pdi_flip  ──►  pdi_picture
+  (tag)      (trigger_tags_live,        (read.rs, table-wide,      (neural_floor.rs,
+              both drivers, one scan)     serde-skipped)            & our_side_mask)
+```
+
+`trigger_tags_live` replaced `penalty_trigger_live` and reads both tags in one
+pass, consulting `face_live` only for a rule carrying a tag still unset — so an
+untagged table costs exactly what it did before. `conversion_passes` is
+deliberately **not** folded into `pdi_flip`: a structural conversion says nothing
+about whether the teacher reads our call the way we mean it.
+
+`Inferences.pdi_flip` is a mask rather than the latch's collapsed `bool` because
+the shell needs positions. The hazard that justified collapsing `pdi_latched` is
+handled instead by **zeroing the mask across the systems-on overcall strip**,
+whose shortened auction would put every bit one index left of the caller's
+length; the floor then serves untranslated, which is always safe.
+
+### The knob
+
+`InstinctProfile::pdi_translate`, **default off** — `--ns-pdi-translate`,
+`set_pdi_translate` in the web registry. It lives in `DecisionProfile`, so
+decision-cache identity is automatic. Cost: one extra uncached reading per
+*translated* node only; `flips == 0` is one field read off the already-cached
+reading.
+
+**It is inert in the shipped default by construction.** The only tagged rule
+exists behind `competition.landy_opener_px`, which is itself off, so the default
+config has no tagged call to translate —
+`pdi_translation_is_inert_in_the_default_config` pins that in-crate and
+`smoke-default --count 20000 --seed 1` is byte-identical
+(`38ee1e212f105204e84be973bf472ea78801785a7b67cace688f400ef0831afc`). That is
+the KR1 non-inferiority proof, and it is why no default-config `xlate` arm is
+owed.
+
+### Measurement
+
+`scripts/ab-landy-opener.sh` (owed, unrun) carries the arm: `pxt` =
+`--ns-landy-opener-px --ns-pdi-translate`, beside `base | px | rungs`. Gates
+0-foreign, both scorers, both vulnerabilities.
+
+- **`landy_opener_px`** arbitrates on plain DD with SD-PD as tie-break
+  (falsifier 4 — PD is blind to penalty doubles by construction), reading both
+  `px vs base` and `pxt vs base`: the shell may be what makes `px` shippable,
+  since falsifier 1's runout tail is exactly what it repairs.
+- **`pdi_translate`** ships default-on only if `pxt vs px` reads win|win or
+  wash|win. Its default-config exposure is already settled above.
+
+### Follow-ons
+
+- **Their-side translation.** The mask records their tagged calls too under
+  `table_alerts`; the shell scopes itself to our side and nothing reads theirs.
+- **Forced-rail interplay.** `forced(context)` runs on the real auction and short
+  -circuits before the shell. If a future tag site sits under a rail, the two
+  need a stated precedence.
+- **Future tag sites.** S5 is dormant here. The first tagged seat whose sit node
+  is *not* book-owned exercises it live, and should be measured knowing that.
+- **§N1l's escape legs**, if the "BBA reads it as penalty there" render is ever
+  overturned.
+
 ## Verdicts
 
 | date | change | arms | verdict |
@@ -281,6 +447,8 @@ Re-keying it through the tag is follow-on (2) below.
 | 2026-08-26 | ULP variant ("x-only": `logits[Double] = logits[Pass].next_up()`, Pass untouched) under the new `--declare-books-mutually` self-play | treated-us vs untreated-`american`, honest mutual books, 204,800 bd/arm/vul | **REJECT.** 10k pilot read +0.013/+0.016 plain; at full size plain washed (−0.0024 / +0.0003) and **PD lost (−0.0111 / −0.0123)**. *Non-standard evidence*: two design changes at once (mechanism **and** opponents), so it is not a clean read on either. Artifacts `pdi-latch-mutual-xonly{,-full}-20260826/` |
 | 2026-08-26 | **Task 3 probe: the post-trigger passer and doubler populations**, `probe-pdi-population` over the P2 baseline arms (409,600 boards, both vuls) | — | thresholds set at `[their-suit ≤ 4] ∪ [points ≤ 11]`; every tag cleared; a level bound, a freshness gate and a `suit_hcp` axis all ruled out — see below |
 | 2026-08-26 | **Arm 1 authored** — the pass-side union, knob-gated, `smoke-default --count 20000 --seed 1` byte-identical off | — | shipped opt-in |
+| 2026-08-29 | **The dialect-translation shell**: `.pdi()` tag, `pdi_swap` S1–S5, `pdi_translate` knob; §N1m tagged, §N1l deliberately not | — | shipped opt-in, **inert in the default config by construction**; `smoke-default --count 20000 --seed 1` byte-identical (`38ee1e21…`). A/B owed: `pxt` arm of `scripts/ab-landy-opener.sh` |
+| 2026-08-29 | **Step 0 renders** — both §N1m seats and all four §N1l legs, `probe-bba-book --conv "Multi-Landy=1" --vuls none` | — | §N1m reads *takeout* (their major 2–4) at both legs; §N1l reads *reopening* (0–2) on the preference legs but **penalty** (3–5) on the escape legs — which is what disqualified §N1l from the tag |
 | 2026-08-26 | **Arm 1 bid-only pre-count** — both arms bid at 204,800 bd/vul, `SEED_BASE=1787700673`, auctions diffed with **no solver** | on vs off, both vuls, both tables | **INERT: 10 divergent boards in 409,600 (0.0024%).** No DD time spent. A reach-maximal negative control (`[len ≤ 2] ∪ [pts ≤ 5]`, a knowingly false claim) reaches only 132 boards (0.032%) — see "Why the reading is inert" |
 
 ### The P2 forensic, and the premise it produced
@@ -489,7 +657,10 @@ Two doc/code discrepancies, flagged rather than resolved:
 8. **Forcing-pass PDI triggers** — the classic application. Marks auction
    states, not rules, which is why the tag stayed a `bool`.
 9. **Card/`.bbsa` disclosure** — only if the knob ships default-on.
-10. `competition.double_override` is tagged `.penalty_if(lo >= 2)` — the cut that
+10. **The dialect-translation shell's own queue** — their-side translation, the
+    forced-rail precedence, and the first tag site that exercises S5 live. See
+    [the section above](#the-dialect-translation-shell-2026-08-29).
+11. `competition.double_override` is tagged `.penalty_if(lo >= 2)` — the cut that
     separates the shipped `Optional` double (2..=3) from `Takeout` (..=3, which
     admits shortness). The probe cleared it: its lane is not a leak source.
     Revisit if a sweep ever wants a different boundary.
@@ -498,7 +669,11 @@ Two doc/code discrepancies, flagged rather than resolved:
 
 Do not resurrect without new evidence.
 
-- **The full P/X swap** — measured loss (P2, all four cells).
+- **The full P/X swap** — measured loss (P2, all four cells). The
+  [dialect-translation shell](#the-dialect-translation-shell-2026-08-29) is the
+  new evidence this list demands, and it differs on both axes: a per-rule
+  divergence tag instead of the penalty trigger set, and input-side translation
+  instead of an output-side permutation.
 - **The ULP tie-break** — non-win in its only, caveated, measurement.
 - **A level-bound (`≤3`) arm** — aimed at the wrong mode: the losing converted
   contracts (`2♠`, `3♥`, `3♦`) are all already ≤3, so it would have allowed

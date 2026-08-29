@@ -424,6 +424,25 @@ pub struct InstinctProfile {
     /// `docs/ai-bidder/competitive-accountant.md`, calibrated in
     /// `docs/ai-bidder/doubling-calibration.md`.
     pub competitive_accountant: bool,
+    /// Translate our **PDI-divergent** calls into the floor's own dialect
+    /// before extracting features
+    ///
+    /// The distilled floor speaks BBA's book.  Where an authored rule carries
+    /// [`Rules::pdi`][crate::bidding::Rules::pdi] — a seat whose meaning that
+    /// book reads differently, measured render by render — this rewrites the
+    /// auction into the picture BBA would have had to reach the same agreement,
+    /// serves *that* to the net, and masks the answer against the real auction.
+    /// Input-side translation, not an output-side inversion: the P2 logit swap
+    /// (`docs/pdi.md`) lost because it re-inverted an already-inverted policy in
+    /// dialect-matching lanes.
+    ///
+    /// **Default off**, A/B owed.  In the shipped default it is inert by
+    /// construction — the only tagged rule lives behind
+    /// [`CompetitionKnobs::landy_opener_px`][super::agreements::CompetitionKnobs::landy_opener_px],
+    /// which is itself off — so the treatment arm is `--ns-landy-opener-px
+    /// --ns-pdi-translate`.  Designed in `docs/pdi.md`, "the dialect-translation
+    /// shell".
+    pub pdi_translate: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
     ///
     /// In the fit-sum game gate, take partner's shown strength from the
@@ -560,6 +579,7 @@ impl Default for InstinctProfile {
             accountant_floor: true,
             net_collar: false,
             competitive_accountant: true,
+            pdi_translate: false,
             fit_sum_support_read: false,
             nt_hcp_read: false,
             forcing_ceiling_read: true,
@@ -603,6 +623,7 @@ impl InstinctProfile {
             accountant_floor: false,
             net_collar: true,
             competitive_accountant: false,
+            pdi_translate: true,
             fit_sum_support_read: true,
             nt_hcp_read: true,
             forcing_ceiling_read: false,

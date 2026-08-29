@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The PDI dialect-translation shell: a `.pdi()` rule tag, `pdi_swap`, and the
+  `instinct.pdi_translate` knob (default off; A/B owed).** The shipped floor is
+  distilled from BBA, so it reads a call the way *BBA's book* reads it. Re-rendered
+  on 2026-08-29 (`probe-bba-book --prefix "1NT (2♣) X (2♥)" --conv
+  "Multi-Landy=1"`), that book calls §N1m's penalty `X` a **takeout double**
+  holding 2–4 of their major — the negation of the `len(major, 4..)` gate we
+  authored — and the whole runout tail below that double is the floor's. With the
+  knob on, the auction handed to the net is rewritten into the picture BBA would
+  have had to mean the same thing (our tagged `X` → `P`; our sit over it → `X`),
+  features are extracted from *that*, and the legality mask plus the competitive
+  accountant stay on the **real** auction, so the shell can never introduce an
+  illegal call. Where the rewrite is illegal or would end the auction it declines
+  and the floor is served untranslated.
+
+  This is not a resurrection of the measured-loss P2 logit swap: the trigger is a
+  new per-rule tag on *confirmed-divergent* seats (orthogonal to `.alert()` and
+  `.penalty()`) rather than penalty-ness, which fires in dialect-matching lanes
+  too, and the translation is input-side rather than an output permutation.
+  §N1l's doubler rebid is deliberately **not** tagged: the same renders show BBA
+  reading its escape-leg double as penalty, and the escape legs are the only ones
+  the shell could reach.
+
+  **No user impact.** The only tagged rule lives behind
+  `competition.landy_opener_px`, which is off by default, so the shipped system
+  has no tagged call to translate: `smoke-default --count 20000 --seed 1` is
+  byte-identical (`38ee1e21…`). Measured by the new `pxt` arm of
+  `scripts/ab-landy-opener.sh`. Design and evidence in
+  [docs/pdi.md](docs/pdi.md), "The dialect-translation shell"; new CLI flag
+  `--ns-pdi-translate` and web toggle `pdi_translate`.
+
 - **The §N1l flip: two cut-down Landy doubler ladders,
   `competition.landy_doubler_px` and `competition.landy_doubler_white` (built
   default off; `px` has since **shipped default-on** and `white` measured not a

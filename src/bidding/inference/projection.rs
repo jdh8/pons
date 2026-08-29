@@ -300,6 +300,26 @@ pub(super) struct CallMasks {
     /// (a pass that converts partner's double) is rules-free and lives in
     /// [`Inferences::read`][super::Inferences::read].  See `docs/pdi.md`.
     pub(super) penalty_trigger: u64,
+    /// Calls a live authored rule tags **PDI-divergent** ([`Rule::pdi_divergent`]
+    /// [crate::bidding::rules::Rule::pdi_divergent]) — the seats whose meaning the
+    /// distilled floor's own book reads differently, which the floor's
+    /// dialect-translation shell rewrites before it extracts features.  Recorded
+    /// beside `penalty_trigger` and for the same reason (an unalerted double never
+    /// reaches [`authored_effect`] under the shipped `Alerted` scope), but a
+    /// strictly separate tag: penalty-ness fires in dialect-*matching* lanes too.
+    /// See `docs/pdi.md`.
+    pub(super) pdi_flip: u64,
+}
+
+/// The trigger tags the live authored rules for one call carry
+///
+/// Two orthogonal bits read in one scan: `penalty` feeds the pass/double-inversion
+/// reading, `pdi` feeds the floor's dialect translation.  See
+/// [`trigger_tags_live`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct TriggerTags {
+    penalty: bool,
+    pdi: bool,
 }
 
 impl CallMasks {
@@ -332,6 +352,22 @@ impl CallMasks {
         }
     }
 
+    /// Record one call's trigger tags — the single site both projection drivers
+    /// OR through, so the one-shot walk and the step cache cannot disagree
+    /// (`assert_step_cache_projection_parity` is the trip wire)
+    fn mark(&mut self, index: usize, tags: TriggerTags) {
+        if index >= 64 {
+            return;
+        }
+        let bit = 1 << index;
+        if tags.penalty {
+            self.penalty_trigger |= bit;
+        }
+        if tags.pdi {
+            self.pdi_flip |= bit;
+        }
+    }
+
     fn merge(&mut self, other: Self) {
         self.suppressed |= other.suppressed;
         self.authored |= other.authored;
@@ -339,6 +375,7 @@ impl CallMasks {
         self.artificial |= other.artificial;
         self.walk_shape |= other.walk_shape;
         self.penalty_trigger |= other.penalty_trigger;
+        self.pdi_flip |= other.pdi_flip;
         for (mine, theirs) in self.length_floor.iter_mut().zip(other.length_floor) {
             for (mine, theirs) in mine.iter_mut().zip(theirs) {
                 *mine |= theirs;
@@ -405,7 +442,7 @@ impl AuthoredEffect<'_> {
     }
 }
 
-/// Whether any live authored rule for `made` tags it **penalty-oriented**
+/// Which trigger tags the live authored rules for `made` carry
 ///
 /// The sibling of the `alerted` ANY inside [`authored_effect`], deliberately kept
 /// *outside* it: that function's compiled skip fast-paths and its decode gate both
@@ -413,25 +450,42 @@ impl AuthoredEffect<'_> {
 /// scope an unalerted call never gets that far — which would silently drop the
 /// natural `(1NT) X`, the very trigger the latch was built on.
 ///
+/// One scan for both tags, and `face_live` is consulted only for a rule that
+/// carries a tag still unset — so an untagged table costs exactly the call
+/// comparison it cost when this returned a bare `bool`.
+///
 /// Positions past 63 carry no bit (the shared [`CallMasks`] limitation).  A plain
 /// per-table scan: `CompiledRules::alerted_rule_indices` has a penalty-tagged mirror
 /// waiting to be written if a bench ever regresses — read
 /// `docs/bidding-performance-handoff.md` before touching the compiled path.
-fn penalty_trigger_live(
+fn trigger_tags_live(
     made: Call,
     ctx: &Context<'_>,
     classifier: &dyn crate::bidding::trie::Classifier,
     decode_pass: bool,
-) -> bool {
+) -> TriggerTags {
+    let mut tags = TriggerTags::default();
     if made == Call::Pass && !decode_pass {
-        return false;
+        return tags;
     }
-    classifier.as_rules().is_some_and(|rules| {
-        rules
-            .rules()
-            .iter()
-            .any(|rule| rule.call() == made && rule.penalty_oriented() && rule.face_live(ctx))
-    })
+    let Some(rules) = classifier.as_rules() else {
+        return tags;
+    };
+    for rule in rules.rules() {
+        if rule.call() != made {
+            continue;
+        }
+        let penalty = rule.penalty_oriented() && !tags.penalty;
+        let pdi = rule.pdi_divergent() && !tags.pdi;
+        if (penalty || pdi) && rule.face_live(ctx) {
+            tags.penalty |= penalty;
+            tags.pdi |= pdi;
+            if tags.penalty && tags.pdi {
+                break;
+            }
+        }
+    }
+    tags
 }
 
 #[inline(always)]
@@ -633,12 +687,10 @@ impl AbsoluteProjection {
         self.masks.record(index, &effect);
     }
 
-    /// Record a PDI trigger — the step-cache twin of the one-shot driver's OR
-    /// into `masks.penalty_trigger` (see [`penalty_trigger_live`])
-    fn mark_penalty_trigger(&mut self, index: usize) {
-        if index < 64 {
-            self.masks.penalty_trigger |= 1 << index;
-        }
+    /// Record one call's trigger tags — the step-cache twin of the one-shot
+    /// driver's OR into `masks` (see [`trigger_tags_live`])
+    fn mark_triggers(&mut self, index: usize, tags: TriggerTags) {
+        self.masks.mark(index, tags);
     }
 }
 
@@ -1117,9 +1169,10 @@ impl AuthoringStepCache {
             if (profile.scope != ReadingScope::All || own_side)
                 && let Some(answer) = pending.own
             {
-                if penalty_trigger_live(made, &at_time, answer.classifier, false) {
-                    self.own.mark_penalty_trigger(index);
-                }
+                self.own.mark_triggers(
+                    index,
+                    trigger_tags_live(made, &at_time, answer.classifier, false),
+                );
                 if let Some(effect) = authored_effect(
                     made,
                     &at_time,
@@ -1134,9 +1187,8 @@ impl AuthoringStepCache {
                 && !fallback_projection
                 && let Some(classifier) = pending.own_exact
             {
-                if penalty_trigger_live(made, &at_time, classifier, false) {
-                    self.own.mark_penalty_trigger(index);
-                }
+                self.own
+                    .mark_triggers(index, trigger_tags_live(made, &at_time, classifier, false));
                 if let Some(effect) = authored_effect(
                     made,
                     &at_time,
@@ -1158,9 +1210,10 @@ impl AuthoringStepCache {
                         decision.reading.scope = ReadingScope::Alerted;
                         decision
                     });
-                    if penalty_trigger_live(made, &disclosed, answer.classifier, false) {
-                        self.opponents.mark_penalty_trigger(index);
-                    }
+                    self.opponents.mark_triggers(
+                        index,
+                        trigger_tags_live(made, &disclosed, answer.classifier, false),
+                    );
                     if let Some(effect) = authored_effect(
                         made,
                         &disclosed,
@@ -1173,9 +1226,10 @@ impl AuthoringStepCache {
                     }
                 }
                 if read_passes && made == Call::Pass && (!opponent || table_alerts) {
-                    if penalty_trigger_live(made, &at_time, answer.classifier, true) {
-                        self.passes.mark_penalty_trigger(index);
-                    }
+                    self.passes.mark_triggers(
+                        index,
+                        trigger_tags_live(made, &at_time, answer.classifier, true),
+                    );
                     if let Some(effect) = authored_effect(
                         made,
                         &at_time,
@@ -1415,9 +1469,9 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
         {
             projection.apply(len, index, effect, profile);
         }
-        if index < 64 && penalty_trigger_live(made, ctx, classifier, decode_pass) {
-            projection.masks.penalty_trigger |= 1 << index;
-        }
+        projection
+            .masks
+            .mark(index, trigger_tags_live(made, ctx, classifier, decode_pass));
     };
 
     // A rule's constraint is a claim about the moment its call was made, so it

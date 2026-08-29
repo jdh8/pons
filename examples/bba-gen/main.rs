@@ -1637,6 +1637,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_pdi_latch: bool,
 
+    /// Translate our PDI-divergent calls into the distilled floor's own dialect
+    /// before it extracts features (default off): where an authored rule is
+    /// tagged divergent, the net is shown the auction BBA's book would have had
+    /// to mean the same thing.  Inert unless a tagged rule is armed — today only
+    /// `--ns-landy-opener-px` (docs/pdi.md, "the dialect-translation shell").
+    #[arg(long, default_value_t = false)]
+    ns_pdi_translate: bool,
+
     /// Recompute each seat's sound hull from its union after the walk (default
     /// off): a post-walk union that the finished walk collapses then narrows what
     /// the book, `instinct()` and the floor's feature block read, not just the
@@ -2280,6 +2288,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
+    agreements.decision.instinct.pdi_translate = args.ns_pdi_translate;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;

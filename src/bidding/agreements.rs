@@ -1245,6 +1245,13 @@ pub struct CompetitionKnobs {
     /// `comp:landy-penalty` reading that claims four-plus.  That is a
     /// disclosure question, not an arithmetic one.
     ///
+    /// This `X` is **not** `.pdi()`-tagged, unlike §N1m's one seat earlier.  BBA
+    /// reads it as a reopening double (0–2 of their major) on the preference
+    /// legs — where the dialect shell structurally cannot fire — and as
+    /// **penalty** (3–5) on the escape legs, where it could.  Tagging it would
+    /// translate only in the lanes the teacher already understands, which is the
+    /// P2 anti-teaching mode.  See `docs/pdi.md`.
+    ///
     /// Inert while their `2♣` is undeclared or natural, and shadowed by
     /// [`Self::landy_doubler_rebids`] when both are set.
     pub landy_doubler_px: bool,
@@ -1346,6 +1353,14 @@ pub struct CompetitionKnobs {
     /// The floor owns this seat today and passes it 98.5% / 99.5% of the time.
     /// Authoring it also repairs a flagged instinct-floor defect: that floor's
     /// takeout double here reads to partner as penalty.
+    ///
+    /// The `X` is the book's only `.pdi()`-tagged rule: BBA — which the shipped
+    /// floor distils — reads this seat's double as a **takeout** double with 2–4
+    /// of their major (2026-08-29 render), and every node below it is the
+    /// floor's.  So the A/B carries a third arm, `pxt`, adding
+    /// [`InstinctProfile::pdi_translate`][crate::bidding::instinct::InstinctProfile::pdi_translate]
+    /// — the dialect-translation shell that serves that net a picture in its own
+    /// book.  See `docs/pdi.md`.
     ///
     /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
     /// Inert while their `2♣` is undeclared or natural.

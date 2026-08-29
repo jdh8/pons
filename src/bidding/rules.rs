@@ -94,6 +94,7 @@ pub struct Rule {
     label: &'static str,
     alert: Option<Alert>,
     penalty: bool,
+    pdi: bool,
     face: Option<FaceGate>,
     face_id: Option<FaceId>,
     origin: &'static Location<'static>,
@@ -163,6 +164,25 @@ impl Rule {
     #[must_use]
     pub const fn penalty_oriented(&self) -> bool {
         self.penalty
+    }
+
+    /// Whether this rule's call **diverges from the neural floor's dialect** —
+    /// the PDI dialect-translation trigger
+    ///
+    /// Set with [`Rules::pdi`].  Marks a call the distilled teacher reads as
+    /// something else — measured, per seat, off the book walk — so the floor's
+    /// shell may serve the net a picture in *its* dialect rather than ours.
+    ///
+    /// Orthogonal to both siblings, and the orthogonality is the point:
+    /// [`alert`][Self::alert] is *disclosure* (what the opponents are owed),
+    /// [`penalty_oriented`][Self::penalty_oriented] is the *reading* switch
+    /// (pass/double inversion), and this one is *divergence from the teacher* —
+    /// a call can be any combination of the three.  Tagging penalty-ness
+    /// instead was the P2 loss: it fires in dialect-**matching** lanes too,
+    /// which anti-teaches the swap.  See `docs/pdi.md`.
+    #[must_use]
+    pub const fn pdi_divergent(&self) -> bool {
+        self.pdi
     }
 
     /// Whether this rule is live on the current face of the auction
@@ -349,6 +369,7 @@ impl Rules {
             label: "",
             alert: None,
             penalty: false,
+            pdi: false,
             face: None,
             face_id: None,
             origin: Location::caller(),
@@ -445,6 +466,27 @@ impl Rules {
     #[must_use]
     pub fn penalty_if(self, on: bool) -> Self {
         if on { self.penalty() } else { self }
+    }
+
+    /// Tag the most recently added rule as **diverging from the floor's
+    /// dialect** — a PDI translation trigger (see [`Rule::pdi_divergent`])
+    ///
+    /// Chains after [`rule`][Self::rule], mirroring [`penalty`][Self::penalty]:
+    /// `….rule(Call::Double, w, when).penalty().pdi()`.  There is deliberately
+    /// no `pdi_if`: divergence is a measured fact about one authored seat
+    /// against the teacher's book, not a knob-conditional style, so no
+    /// conditional site exists to serve.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn pdi(mut self) -> Self {
+        self.rules
+            .last_mut()
+            .expect("pdi() requires a preceding rule()")
+            .pdi = true;
+        self
     }
 
     /// Gate the most recently added rule on a face-of-auction predicate
