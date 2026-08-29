@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMP result changed.
 
 - **§N1p: an unlimited values double over their Landy `2♣`,
-  `competition.landy_notrump_no_major` and `competition.landy_major_jam` (both
-  default off, A/B owed).** Responder's `X`@145 over `1NT (2♣)` is constrained
+  `competition.landy_notrump_no_major` and `competition.landy_major_jam`
+  (**measured 2026-08-30: `nt` is a loss, both stay default off**).** Responder's `X`@145 over `1NT (2♣)` is constrained
   `hcp(8..)` — unlimited on top — but `landy_bba_responder`'s ungated
   `3NT`@168 on bare `points(10..)` outranks it, so every ten-plus-point hand
   declares and the double never sees a game hand (`probe-call-reading
@@ -74,6 +74,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book --ns-landy-responder <off|nt|jam>` — responder's own seat had no
   render-book switch either. Design and falsifiers:
   `docs/one-notrump-competitive.md` §N1p.
+
+  **Measured 2026-08-30 (`SEED_BASE=1788005427`, 4,608,000 boards/arm/vul,
+  isolation gate 0 foreign on all four pairs).** `nt vs base` is **−0.0124
+  IMPs/board non-vulnerable and −0.0076 vulnerable on plain DD**, and
+  **−0.0012 on the SD-PD arbiter** — a loss at both colours, no flip with
+  vulnerability. Only DD-PD is positive (+0.018/+0.020), and that is the
+  auto-double artifact: perfect defense already doubles every failing contract,
+  so deleting our own penalty double costs nothing there while the extra
+  competitive room still scores. Both knobs therefore stay off, and §N1's
+  flagged item 2 is settled rather than merely proposed.
+
+  **Why it lost, from the divergence split**: the `3NT`→`X` substitution itself
+  is the dominant bucket (83.6% / 86.4% of divergences), not the reading drift
+  above the double (16.0% / 13.4%). Game is reached in the baseline only on
+  81.5% / 84.8% of divergent boards, the candidate hands the opponents more
+  room on 72–75%, and declarer changes sides on 91–95%. Four of the five worst
+  boards trade a quiet made `3NT` for a competitive disaster. Structurally: BBA
+  labels our Landy `X` "bidable suit" (`12-17, 5+♣`), never doubles at opener's
+  seat, and reads the double as takeout, so the neural floor distilled from it
+  has **no learned concept of a values double in this lane** — widening the
+  double's traffic by a reading change hands both continuations to a floor that
+  misreads the call. §N1l shipped because it authored the doubler's rebids as
+  book instead.
+
+  **One stranded win**: `jam vs nt`, paired on the same boards, wins all four
+  scorers (+4.295 plain, +1.669 PD, +5.541 sd-plain, +3.591 SD-PD IMPs/fired)
+  on its 1,567 boards, with the `4M` sit node never needing relaxation. It
+  cannot ship because `4♠`@172 / `4♥`@171 are gated on
+  `landy_notrump_no_major && landy_major_jam`. Since those weights also outrank
+  the *ungated* `3NT`@168, decoupling the jam rung from the losing gate is the
+  live follow-up.
 
 - **The §N1l flip: two cut-down Landy doubler ladders,
   `competition.landy_doubler_px` and `competition.landy_doubler_white` (built

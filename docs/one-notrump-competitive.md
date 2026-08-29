@@ -744,7 +744,7 @@ IMPs per *accepted* board — but every §N1 verdict measured under it is blind 
 that slice, and the "5+ vs 6+" question the `3m` rung was supposed to answer is
 **unanswerable in this pool**. Flagged below.
 
-### N1p — an **unlimited** values double (`landy_notrump_no_major` / `landy_major_jam`, **built 2026-08-29, A/B owed**)
+### N1p — an **unlimited** values double (`landy_notrump_no_major` / `landy_major_jam`, **measured loss 2026-08-30, both stay off**)
 
 Responder's direct seat, `1NT (2♣) ?`. The `X`@145 is constrained `hcp(8..)` —
 **unlimited on top in its own constraint** — but the table's ungated `3NT`@168
@@ -755,6 +755,71 @@ the double never sees a game hand. Verified, not assumed: `probe-call-reading
 This is [flagged item 2](#flagged-not-fixed-n1--reversible-defaults-proposed)
 taken up. The flag proposed leaving it because *re-gating* `3NT` "moves every
 shape in the lane"; the arm below moves only the shape that matters.
+
+#### Verdict — `nt` loses at both colours; the `jam` rung is a stranded win
+
+Runner `scripts/ab-landy-notrump-shape.sh`, `SEED_BASE=1788005427`,
+4,608,000 boards/arm/vul, isolation gate **0 foreign** on all four pairs.
+
+| pair | fired | DD plain | DD-PD | sd-plain | **SD-PD** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `nt vs base` none | 54,987 (1.19%) | **−0.0124** ±.0007 | +0.0181 ±.0008 | **−0.0266** ±.0007 | **−0.0012** ±.0007 |
+| `nt vs base` both | 37,778 (0.82%) | **−0.0076** ±.0007 | +0.0195 ±.0008 | — | — |
+| `jam vs base` none | 55,093 | −0.0109 | +0.0186 | −0.0247 | −0.0002 |
+| `jam vs nt` none | 1,567 (0.03%) | **+0.0015** ±.0001 | **+0.0006** | **+0.0020** ±.0001 | **+0.0013** ±.0001 |
+
+`nt` loses plain DD at **both** vulnerabilities — no colour flip, unlike
+§N1l's rungs — and loses the SD-PD arbiter white. Only the DD-PD column is
+positive, and falsifier 1 is aimed the wrong way to rescue it: perfect defense
+already doubles every failing contract, so **deleting our own penalty double
+costs nothing in PD while the extra competitive room still scores**. The
++2.383 IMPs/fired PD row is that artifact, not a result. Both knobs stay off.
+
+The `jam vs nt` pair wins **all four scorers** (+5.541 IMPs/fired sd-plain) on
+its 1,567 boards, and the sit node never needed relaxing. It cannot ship: `4M`
+is gated on `deny_major && landy_major_jam`, so it rides on the losing arm.
+Decoupling it is the live follow-up — `4♠`@172 / `4♥`@171 outrank the *ungated*
+`3NT`@168 too, so the rung fires on its own with no change to the notrump.
+
+##### Falsifier 2 resolves against the idea, not against a continuation
+
+The divergence split (`probe-divergence --gate-opener ours`) makes the
+`3NT`→`X` substitution itself the dominant bucket, not the reading drift at
+opener's seat:
+
+| bucket, *our first differing call* | none | both |
+| --- | ---: | ---: |
+| a different bid (the `3NT`→`X` swap) | 83.6% | 86.4% |
+| bid where the baseline passed (reading drift above the `X`) | 16.0% | 13.4% |
+| game reached, **baseline only** | 81.5% | 84.8% |
+| more room handed to the opponents in the candidate | 72.3% | 75.0% |
+| declarer changed sides | 91.1% | 94.9% |
+
+Four of the five worst white boards are a quiet made `3NT` traded for a
+competitive train wreck — `off: 1NT 2♣ 3NT - - -` against
+`on: 1NT 2♣ X - - 2♠ 4♥ - 4♠ X - - XX - - -`. That is falsifier 2's *"we
+defended a making game"* branch, which the runner header marked **idea dead**
+rather than repairable.
+
+##### Why: the double is outside the floor's teacher's vocabulary
+
+Flagged item 1 already recorded that BBA labels our `X` over Landy **"bidable
+suit"** (`12-17, 5+♣`) and never doubles at opener's seat. A further probe
+(jdh8, 2026-08-30) adds that BBA's 1NT opener **does not double and reads the
+double as takeout**, contrary to expert practice. So the floor — distilled from
+BBA — has no learned concept of a values double in this lane.
+
+§N1l shipped because it authored *both* sides of the call: the doubler's own
+rebids are book. §N1p does the opposite — it routes several times more traffic
+**into** the double, gives the opponents a free round of bidding they never got
+over `3NT`, and leaves both continuations to a floor that misreads the call.
+The 72–75% "more room handed to the opponents" is that cost, measured.
+
+**The rule this buys**: in this lane, widening a call's traffic by a *reading*
+change is only safe where the floor's teacher shares the concept. Where it does
+not, the widening owes authored continuations first. See
+[docs/reading-drift-handoff.md](reading-drift-handoff.md) — a reading knob is a
+bidding knob under a neural floor.
 
 #### The fix is on the notrump, not on the double
 
@@ -802,6 +867,13 @@ siblings deny, which is the whole mechanism that caps the double today. Narrow
 gains an honest denial of major length. **No new slug, no alert change, no
 `.bbsa` row, no `comp:landy-penalty`-style disclosure decision** — which is what
 separates this from the no-catch-all arm §N1l-flip still owes.
+
+**Free of disclosure cost, not of behavioural cost** — established by the A/B,
+recorded here against the claim above. The reading attaches to the *call*, so
+the widening also republishes every pre-existing eight-to-nine point values
+double as `points 8..37`, and the floor one seat up acts on it. That is the
+16.0% / 13.4% "bid where the baseline passed" bucket in the verdict: a real
+cost, secondary to the substitution but not zero.
 
 #### Priors
 
@@ -855,12 +927,18 @@ The `4♠ -` / `4♥ -` sit is `multi_signoff_pass` — opener passes unconditio
 so the jam arm **forgoes slam** on the fifteen-plus / six-card-major slice. It
 is there because §N1o's forensic caught the floor cue-bidding this lane's
 four-level to `6♥` doubled. Proposed reversible default: **keep the sit**, and
-delete it first if the jam arm reads mixed.
+delete it first if the jam arm reads mixed. **Settled 2026-08-30**: the jam arm
+won all four scorers with the sit in place, so it was never relaxed — and it
+carries forward unchanged into the decoupled-`4M` follow-up.
 
 Runner `scripts/ab-landy-notrump-shape.sh`, arms `base | nt | jam` at both
-vulnerabilities, fresh `SEED_BASE`, `jam vs nt` paired on the same boards to
-price the jam rung alone. Renders: `render-book --their-2c-landy
---ns-landy-responder <off|nt|jam> --prefix "1NT 2♣"`.
+vulnerabilities, `SEED_BASE=1788005427`, `jam vs nt` paired on the same boards
+to price the jam rung alone. Renders: `render-book --their-2c-landy
+--ns-landy-responder <off|nt|jam> --prefix "1NT 2♣"`. The run was stopped after
+`jam-both` began (0 shards written, nothing lost); `jam vs base` and
+`jam vs nt` are therefore white-only, and the both-vul `nt vs base` DD cells
+were scored off the two completed arms. The sit node was never relaxed — the
+jam arm read a win, not mixed.
 
 ### Flagged, not fixed (§N1 — reversible defaults proposed)
 
@@ -890,11 +968,14 @@ price the jam rung alone. Renders: `render-book --their-2c-landy
    reversible default: **leave it**; re-gating moves every shape in the lane,
    not just this table's traffic, so it is a wider arm and a separate decision.
    **Acted on 2026-08-29** (jdh8): that arm is
-   [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major--landy_major_jam-built-2026-08-29-ab-owed),
+   [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major--landy_major_jam-measured-loss-2026-08-30-both-stay-off),
    and it is narrower than the flag feared — the gate is `len(♥, ..=3) &
    len(♠, ..=3)` on the two `3NT` rungs alone, so the stoppers, the transfers
    and the two-suited family keep their orderings and only the four-plus-major
-   game hands move. Default off pending its A/B.
+   game hands move. **Measured 2026-08-30 and lost at both colours** — so the
+   flag's original proposed default was right, for the reason it gave in
+   reverse: re-gating `3NT` moved only this table's traffic, and that traffic
+   was better off declaring. The flag is now **settled, not merely proposed**.
 3. **The `X (2NT)` leg is unauthored on purpose** — opener's `X (2M)` seat was
    too, until §N1m re-opened it; the rest of this item stands.
    After the strong advance the overcaller jumps to `4M` 54.3% of the time and
@@ -2997,7 +3078,7 @@ reason to take it.
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
 | **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px` (**ON**, off-switch `--no-ns-landy-doubler-px`), `landy_doubler_white` (**off**) | **`px` SHIPPED DEFAULT-ON 2026-08-29; `white` not a win** | `px` plain **+0.0107 ±.0004** NV / **+0.0142 ±.0004** vul, PD +0.0039/+0.0061, sd-plain +0.0061/+0.0100, SD-PD +0.0000/+0.0028 — a win on every column bar the one NV SD-PD wash, all six gates 0 foreign. **Selection refuted**: the `X` rung re-prices **+7.554/+9.189** IMPs/fired against the +7.489/+9.196 that selected it. `white` is `win | loss` (plain +0.0409, **DD-PD −0.0091** NV; vulnerable it *is* `px` — `white vs px` fires 0 boards), sd bracket dissenting (+0.0547/+0.0140). Two caveats shipped open: the **`Pass`@0 catch-all costs −14,171 IMPs plain NV** by shadowing a floor takeout double opener pulls to `3NT` 49.5% of the time, and `comp:landy-penalty` publishes four-plus while that floor call is short — deleting the catch-all is the owed arm and owes the tag a decision. `white`'s `!vulnerable()` reads our own colour only; asymmetric vuls unmeasured. Seed `1787942099`, sha `de59ad86` | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px-shipped-default-on-2026-08-29--landy_doubler_white-not-a-win-stays-off); `scripts/ab-landy-doubler-flip.sh` |
 | **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
-| **N1p** an unlimited values double | `competition.landy_notrump_no_major`, `landy_major_jam` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. Flagged item 2 taken up: the `X`@145 is `hcp(8..)` — unlimited in its constraint — but the ungated `3NT`@168 outranks it, so `probe-call-reading` reads partner back as `points 8..9`. `nt` conjoins `len(♥, ..=3) & len(♠, ..=3)` onto both `3NT` rungs so the four-plus-major game hands reach the double; `jam` adds `4♠`@172 / `4♥`@171 on a strong six-card major, opener sitting. Restricting the notrump rather than promoting the `X` is what keeps the transfers and the GF both-minors family outranking it — there is no weight between `3NT`@180 and the family at 178. The widened reading falls out of `bid_exclusion`, so **no new slug and no disclosure decision** | [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major--landy_major_jam-built-2026-08-29-ab-owed); `scripts/ab-landy-notrump-shape.sh` |
+| **N1p** an unlimited values double | `competition.landy_notrump_no_major`, `landy_major_jam` (**both off**) | **measured loss 2026-08-30, both stay off** | `nt vs base` **−0.0124** none / **−0.0076** both on plain DD, **−0.0012** on the SD-PD arbiter; DD-PD +0.018/+0.020 is the auto-double artifact. No colour flip. The divergence split makes the `3NT`→`X` swap the dominant bucket (83.6%/86.4%), with game reached in the baseline only 81.5%/84.8% of the time and 72–75% more room handed to the opponents — falsifier 2's *idea dead* branch. `jam vs nt` wins all four scorers (+5.541 IMPs/fired sd-plain) on 1,567 boards but rides the losing arm; **decoupling the `4M` rung is the live follow-up**. Flagged item 2 taken up: the `X`@145 is `hcp(8..)` — unlimited in its constraint — but the ungated `3NT`@168 outranks it, so `probe-call-reading` reads partner back as `points 8..9`. `nt` conjoins `len(♥, ..=3) & len(♠, ..=3)` onto both `3NT` rungs so the four-plus-major game hands reach the double; `jam` adds `4♠`@172 / `4♥`@171 on a strong six-card major, opener sitting. Restricting the notrump rather than promoting the `X` is what keeps the transfers and the GF both-minors family outranking it — there is no weight between `3NT`@180 and the family at 178. The widened reading falls out of `bid_exclusion`, so **no new slug and no disclosure decision** | [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major--landy_major_jam-measured-loss-2026-08-30-both-stay-off); `scripts/ab-landy-notrump-shape.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |
