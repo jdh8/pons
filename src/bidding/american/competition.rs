@@ -193,24 +193,33 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
-/// Landy penalty double — our side's `X` of the major their advance has named,
-/// at either of the two seats that can make it: **opener's**, immediately over
-/// the advance (`1NT (2♣) X (2♥)`, `competition.landy_opener_px`), and the
-/// **doubler's** second `X` one round later (`1NT (2♣) X (2♥) - - X` and its
-/// siblings, `competition.landy_doubler_rebids` and its flip arms).  One claim
-/// at both: four-plus of *that* major.
+/// Landy penalty double — our side's `X` of the major their side is currently
+/// in, at every seat that can make one.  **One claim at all of them: four-plus
+/// of that major.**  The seats:
 ///
-/// The two seats share the slug because they publish the same thing.  They
-/// differ only in who is still to speak — opener doubles with partner able to
-/// pull, the doubler's is the last word — and that is a matter for the
-/// continuation tables, not for disclosure.
+/// - **opener's**, immediately over the advance (`1NT (2♣) X (2♥)`,
+///   `competition.landy_opener_px`);
+/// - the **doubler's** second `X` one round later (`1NT (2♣) X (2♥) - - X` and
+///   its siblings, `competition.landy_doubler_rebids` and its flip arms);
+/// - the **chase** — either partner's double of the major their side *ran to*
+///   after one of the above, at both branches (`landy_penalty_chase`).  The run
+///   suit differs from the advance suit, which is the only thing that changes:
+///   the claim is still four-plus of the doubled major.
+///
+/// The seats share the slug because they publish the same thing.  They differ
+/// only in who is still to speak — opener doubles with partner able to pull, the
+/// doubler's is the last word — and that is a matter for the continuation
+/// tables, not for disclosure.
 ///
 /// The polarity is this lane's house rule and it is the whole reason the alert
-/// exists.  A double after our own double is penalty; a double after our
-/// *pass* is takeout and stays the floor's.  Nothing mechanises that split
-/// here — `inference::readers::penalty_x_reading_with_profile` requires *their*
-/// 1NT opening, so `penalty_latch` cannot fire in this lane — which leaves the
-/// alert and the `.penalty()` tag carrying the whole meaning.  An unalerted
+/// exists.  A double after our own double is penalty.  A double after our *pass*
+/// **was** takeout and the floor's — that is superseded: by the trigger theorem
+/// (`docs/pdi.md`) the pass is precisely where a pass/double inversion can
+/// locate, so `competition.landy_pdi` authors the seats after it as penalty too,
+/// under this same claim.  Nothing mechanises the split here —
+/// `inference::readers::penalty_x_reading_with_profile` requires *their* 1NT
+/// opening, so `penalty_latch` cannot fire in this lane — which leaves the alert
+/// and the `.penalty()` tag carrying the whole meaning.  An unalerted
 /// second double reads as the takeout it is not, a phantom four-card holding in
 /// the major nobody has left, so the alert has to publish **length in their
 /// suit**, not values.  [`MULTI_PENALTY`] is the same claim one lane over, but

@@ -173,12 +173,15 @@ const fn not_defined() -> usize {
 // `docs/one-notrump-competitive.md` §N1j.
 //
 // `comp:landy-penalty` (the doubler's own penalty `X` of their advance,
-// `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
-// sibling one seat earlier): same record as the `comp:landy-*` family above —
-// keyed on the opponents' disclosed Landy `2♣`, which EPBot's schema cannot
-// name, so a `.bbsa` row would have nowhere to land.  One ceiling is specific
+// `competition.landy_doubler_px`, default since 2026-08-29, its §N1m sibling one
+// seat earlier, and the chase doubles of the major they *ran to* under
+// `landy_opener_px` / `landy_pdi`): same record as the `comp:landy-*` family
+// above — keyed on the opponents' disclosed Landy `2♣`, which EPBot's schema
+// cannot name, so a `.bbsa` row would have nowhere to land.  The claim
+// generalises to the run suit unchanged (four-plus of the major the double
+// doubles), so the new seats need no new slug.  One ceiling is specific
 // to this tag and worth stating: the alert publishes **four-plus of the major
-// their advance named**, and that is honest for the book rung, but the same
+// the double names**, and that is honest for the book rung, but the same
 // `X` at the same seat is *also* made by the floor on three trumps or fewer,
 // where it is takeout-shaped and opener pulls it (49.5% to `3NT` at two
 // trumps).  The published reading therefore covers the authored call and not

@@ -808,6 +808,51 @@ fn landy_opener_rebid(major: Suit, rungs: bool) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Their cheapest escape from a doubled major into the **other** major, and
+/// that major
+///
+/// Landy's `2♣` shows both majors, so the run out of a doubled preference is
+/// almost always the partner suit.  From a doubled `2♥` that is `2♠`; from a
+/// doubled `2♠` there is nothing below `3♥`, which is why the spade leg's whole
+/// chase sits one level higher.
+fn landy_escape(major: Suit) -> (Suit, Bid) {
+    if major == Suit::Hearts {
+        (Suit::Spades, Bid::new(2, Strain::Spades))
+    } else {
+        (Suit::Hearts, Bid::new(3, Strain::Hearts))
+    }
+}
+
+/// The penalty process continued over their run — one table, five seats
+///
+/// Every node below a penalty double in this lane has the same two calls: double
+/// the suit they ran to on four-plus, or pass.  The gate is the one the lane has
+/// twice measured (`len(major, 4..)`, no HCP floor — §N1l shipped it and §N1m's
+/// oracle drew it), and it is the same claim [`LANDY_PENALTY`] already
+/// publishes, one suit over.
+///
+/// It serves both branches:
+///
+/// - the **X branch** ([`CompetitionKnobs::landy_opener_px`][crate::bidding::agreements::CompetitionKnobs::landy_opener_px]),
+///   where opener doubled the advance and their side runs — responder punishes
+///   an immediate correction, opener a delayed one;
+/// - the **P branch** ([`CompetitionKnobs::landy_pdi`][crate::bidding::agreements::CompetitionKnobs::landy_pdi]),
+///   where opener *passed* — the pass/double-inversion trigger — and the double
+///   one round later is penalty rather than the takeout the floor reads.
+///
+/// No `.pdi()` tag on this rule.  Under the X branch these nodes are book-owned,
+/// so there is nothing for the floor's dialect shell to translate; under the P
+/// branch the divergent call is a **pass**, and a pass has no synonym in that
+/// dialect — S1 can rewrite a tagged `X` to a `P` but not the reverse.  Both
+/// branches are therefore repaired by authoring, which is what this table is.
+fn landy_penalty_chase(run: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Double, 150, len(run, 4..))
+        .alert(LANDY_PENALTY)
+        .penalty()
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's answer to the doubler's natural three-level minor
 /// (`1NT (2♣) X (2♥) - - 3♣ -` and its siblings)
 ///
@@ -1553,15 +1598,24 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             }
         }
     }
+    // One chase node — the double of the suit they ran to — plus the sit under
+    // it.  Both branches below register in exactly this shape, which is why they
+    // share a helper rather than a knob.
+    fn chase(suffix: &str, run: Suit) -> Vec<Entry> {
+        let mut rows = rows_of(Pattern::after(OVER, suffix), landy_penalty_chase(run));
+        rows.extend(rows_of(
+            Pattern::after(OVER, &format!("{suffix} X -")),
+            multi_signoff_pass(),
+        ));
+        rows
+    }
+
     // Opener's own seat, one call before the doubler's (§N1m).  Two legs only:
     // the relay's balancing analogue (`X (2♦) - (2♥) - -`) is 5.1% / 3.3% of
     // the seat's boards and the oracle prices **every** candidate there
     // negative at both vulnerabilities except par — opener is in the pass-out
     // seat and the live method already defends their `2♥`, so there is nothing
-    // to buy.  Their runout over our double (`X (2♥) X (2♠)` and its siblings)
-    // stays the floor's: the alert publishes opener's four-plus length, so the
-    // floor decides on true information rather than a phantom, and the §N1l
-    // twin one call later takes the same shape.
+    // to buy.
     if agreements.competition.landy_opener_px {
         for (path, major) in [("X (2♥)", Suit::Hearts), ("X (2♠)", Suit::Spades)] {
             entries.extend(rows_of(
@@ -1579,6 +1633,46 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             for tail in tails {
                 entries.extend(rows_of(Pattern::after(OVER, &tail), multi_signoff_pass()));
             }
+            // Their runout over the double.  §N1m as first built left this to
+            // the floor on the argument that the alert publishes opener's true
+            // length — but the floor is a distillation of a book that calls this
+            // double *takeout* (2–4 of the major, 2026-08-29 render), so it acts
+            // on a phantom whatever we disclose, and an artificial call whose
+            // interfered tail is the floor's is not a finished convention.
+            let (run, escape) = landy_escape(major);
+            entries.extend(chase(&format!("{path} X ({escape})"), run));
+            entries.extend(chase(&format!("{path} X - - ({escape})"), run));
+            // Their redouble.  Partner sits: the double claimed four-plus
+            // trumps behind the bidder and nothing about the redouble makes
+            // that less true, so the authored answer is the sit the floor
+            // would otherwise have to guess at.  Delete this node to give the
+            // seat back to the floor — that is the whole reversal.
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{path} X (XX)")),
+                multi_signoff_pass(),
+            ));
+        }
+    }
+    // §N1n — the **P branch**.  Opener's pass over their advance is this lane's
+    // pass/double-inversion trigger (a double cannot be doubled, so the seat
+    // that hears partner's `X` has no P/X pair to invert; only a pass over their
+    // live bid does).  After it our later double is penalty, and the floor —
+    // which reads the pass as ordinary and the double as takeout — cannot be
+    // told otherwise by the dialect shell, because a pass has no synonym to
+    // rewrite it into.  So these are authored rows contrary to the floor.
+    //
+    // Independent of `landy_opener_px`: the patterns match whether opener's pass
+    // and the delayed double came from the book or the floor.  `X (2M) - - X -`
+    // — opener's sit over §N1l's delayed double — is already registered by the
+    // doubler ladder above, which ships default-on.
+    if agreements.competition.landy_pdi {
+        for (path, major) in [("X (2♥)", Suit::Hearts), ("X (2♠)", Suit::Spades)] {
+            let (run, escape) = landy_escape(major);
+            // B1: the overcaller corrects the preference, responder punishes it.
+            entries.extend(chase(&format!("{path} - ({escape})"), run));
+            // B2: the advancer runs from §N1l's delayed double, opener punishes
+            // it — that shipped rung's own interfered tail, never authored.
+            entries.extend(chase(&format!("{path} - - X ({escape})"), run));
         }
     }
     entries.extend(rows_of(

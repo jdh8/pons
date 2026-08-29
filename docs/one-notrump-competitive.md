@@ -716,12 +716,35 @@ surface (−0.78 plain, −4.5 PD) — they hold four-plus of it. And the relay 
 *balancing* seat where the live method already defends their `2♥` and every
 candidate prices negative red, so it is not authored either.
 
-**Their runout over our double stays the floor's** (flagged item 4, decided by
-smallest diff). The alert publishes opener's four-plus length, so the floor
-decides on true information rather than a phantom, and the §N1l twin one call
-later takes the same shape. The alert slug is shared with the doubler's seat
-(flagged item 3, default taken): one claim, two seats, and who is still to
-speak is a matter for the continuation tables rather than for disclosure.
+**Their runout over our double is authored** — superseding the first build's
+"stays the floor's", which rested on the alert publishing opener's four-plus
+length so that "the floor decides on true information rather than a phantom".
+The 2026-08-29 renders killed that premise: BBA's own book, which the shipped
+floor distils, labels this seat's `X` a **takeout double** with 2–4 of the
+major, so what the floor believes about our double is fixed by *its* dialect and
+no disclosure of ours changes it. Under a misreading floor the completeness rule
+binds — an artificial call whose interfered tail is the floor's is not a finished
+convention — so `px` now carries:
+
+| node | seat | table |
+| --- | --- | --- |
+| A1 `X (2M) X (2M′)` | responder | `X`@150 `len(M′, 4..)` (`comp:landy-penalty`, `.penalty()`) · `Pass`@0 |
+| A2 `X (2M) X - - (2M′)` | opener | the same table — a 4-4 in their majors |
+| A3 `X (2M) X (XX)` | responder | `Pass`@0: partner sits over their redouble |
+| sits | partner of each new `X` | `multi_signoff_pass` at `{path} X -` |
+
+`M′` is the other major at its cheapest legal level, so the hearts leg chases to
+`2♠` and the spade leg — which has nothing below it — to `3♥`. Below the chase
+the tail is the floor's again; that residue is what the `pxt` arm now prices.
+The alert slug is shared with every one of these seats (flagged item 3, default
+taken): one claim — four-plus of the major the double doubles — and who is still
+to speak is a matter for the continuation tables rather than for disclosure.
+
+**The `Pass`@0 at A3 is the reversible half.** Sitting is the honest default (the
+double claimed four trumps behind the bidder and their redouble does not make
+that less true), but it *is* a book node shadowing the floor at a seat no
+measurement has visited. Deleting that one node gives the seat back; nothing else
+in the tail depends on it.
 
 **Falsifiers** (`scripts/ab-landy-opener.sh` states them in full): (1) the
 oracle assumes they sit for the double — if `px` reads flat, split the `X` rows
@@ -743,6 +766,64 @@ does not break any A/B — both arms share the filter and the headline is
 IMPs per *accepted* board — but every §N1 verdict measured under it is blind to
 that slice, and the "5+ vs 6+" question the `3m` rung was supposed to answer is
 **unanswerable in this pool**. Flagged below.
+
+### N1n — the P branch: PDI after opener's pass (`landy_pdi`, **built 2026-08-29, A/B owed**)
+
+§N1m authors what happens after opener **doubles**. This is the other branch:
+what happens after opener **passes**, which is where the pass/double inversion
+actually lives.
+
+#### The trigger theorem
+
+A PDI trigger must locate at a **P**. Inversion needs both legs legal at the seat
+it governs, and hearing partner's `X` (RHO having passed) **doubling is illegal**
+— the contract is already doubled by our side. There is no `P`/`X` pair to invert
+there; the choice is sit-or-pull. Only a pass over their live bid has both legs
+available, which makes opener's pass at `1NT (2♣) X (2♥) -` the trigger and every
+call after it the inverted one. Full statement in [pdi.md](pdi.md), "The trigger
+theorem".
+
+The corollary is what forces this section to exist. A divergent **`X`** has a
+synonym in the floor's own dialect, and the dialect-translation shell
+(`pdi_translate`) exploits it: S1 rewrites our tagged double to a pass and serves
+the net a picture it understands. A PDI-loaded **`P`** has no synonym — no call
+means "pass, but as an election" in a book that does not play the agreement — so
+no input translation can repair the P branch. **Authoring is the only instrument
+here**, which is why no row below carries `.pdi()`.
+
+#### What is authored
+
+| node | seat | table |
+| --- | --- | --- |
+| B1 `X (2M) - (2M′)` | responder | `X`@150 `len(M′, 4..)` (`comp:landy-penalty`, `.penalty()`) · `Pass`@0 |
+| B2 `X (2M) - - X (2M′)` | opener | the same table |
+| sits | partner of each new `X` | `multi_signoff_pass` at `{path} X -` |
+
+**B1** is the overcaller correcting their partner's preference (5.5% / 3.3% of
+that seat by the §N1l probe — the Landy overcaller passes the preference
+94.5% / 96.7% of the time) and responder, the original doubler, punishing the
+correction. **B2** is the advancer running from §N1l's delayed `X` — and that
+double ships **default-on** as `landy_doubler_px`, so B2 is a live rung's own
+interfered tail that no arm has ever authored. `X (2M) - - X -`, opener's sit
+over the delayed double, is already registered by the doubler ladder.
+
+**Independent of `landy_opener_px`.** The trie matches these patterns whether
+opener's pass and the delayed double came from the book or from the floor, so
+§N1n is its own knob and its own A/B rather than a rung of §N1m's.
+
+#### Measurement
+
+`scripts/ab-landy-pdi.sh` (`base | pdi`), fresh `SEED_BASE`, queued **after**
+§N1m's run — sequential, one run saturates the box. Both scorers, both
+vulnerabilities, `probe-divergence --gate-opener ours` at 0 foreign before any
+headline. It is a doubling knob like its siblings, so plain DD arbitrates and
+SD-PD tie-breaks (perfect defense is blind to a real penalty double by
+construction).
+
+Falsifier, stated once: the seats are **rare**. B1 needs their correction and B2
+needs their run from a doubled contract, on top of a lane that is itself ~2% of
+boards. Read the fired count before the headline, and if it is small the honest
+verdict is "not measurable here", not "no effect".
 
 ### Flagged, not fixed (§N1 — reversible defaults proposed)
 
@@ -788,7 +869,13 @@ that slice, and the "5+ vs 6+" question the `3m` rung was supposed to answer is
    alert is dropped. Proposed reversible default: **leave the invariant's
    exemption alone**, and keep per-call alerted-scope assertions for penalty
    doubles. §N1m's opener-seat double shares the slug and is guarded the same
-   way, in the same test.
+   way, in the same test, and so are the chase doubles §N1m/§N1n added on
+   2026-08-29 — `landy_chase_alerts_publish_the_run_suit_length` is their arm.
+   **Amended 2026-08-29**: the exemption's cost grew with the number of seats
+   sharing the slug (two, now six), so the per-call assertions are no longer a
+   stopgap but the actual guard. If a seventh seat lands without one, the right
+   fix is a witness in `unalerted_artificial` for suffix-guarded doubles, not
+   another test.
 5. **`--filter-landy` admits only strictly balanced 1NT openers.**
    `is_1nt_opener` (`examples/bba-gen/main.rs`) requires no singleton/void and
    at most one doubleton, but our shipped opening is
@@ -2872,7 +2959,8 @@ reason to take it.
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
 | **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px` (**ON**, off-switch `--no-ns-landy-doubler-px`), `landy_doubler_white` (**off**) | **`px` SHIPPED DEFAULT-ON 2026-08-29; `white` not a win** | `px` plain **+0.0107 ±.0004** NV / **+0.0142 ±.0004** vul, PD +0.0039/+0.0061, sd-plain +0.0061/+0.0100, SD-PD +0.0000/+0.0028 — a win on every column bar the one NV SD-PD wash, all six gates 0 foreign. **Selection refuted**: the `X` rung re-prices **+7.554/+9.189** IMPs/fired against the +7.489/+9.196 that selected it. `white` is `win | loss` (plain +0.0409, **DD-PD −0.0091** NV; vulnerable it *is* `px` — `white vs px` fires 0 boards), sd bracket dissenting (+0.0547/+0.0140). Two caveats shipped open: the **`Pass`@0 catch-all costs −14,171 IMPs plain NV** by shadowing a floor takeout double opener pulls to `3NT` 49.5% of the time, and `comp:landy-penalty` publishes four-plus while that floor call is short — deleting the catch-all is the owed arm and owes the tag a decision. `white`'s `!vulnerable()` reads our own colour only; asymmetric vuls unmeasured. Seed `1787942099`, sha `de59ad86` | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px-shipped-default-on-2026-08-29--landy_doubler_white-not-a-win-stays-off); `scripts/ab-landy-doubler-flip.sh` |
-| **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**), plus `instinct.pdi_translate` in the `pxt` arm | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent. The whole runout tail below the `X` is the floor's, and the floor misreads the double — BBA labels this seat's `X` a *takeout* double with 2–4 of their major (2026-08-29 render) — so the script also carries `pxt`, the dialect-translation shell ([pdi.md](pdi.md)) | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
+| **N1m** opener's own rebid over their advance, **with its runout tail** | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**), plus `instinct.pdi_translate` in the `pxt` arm | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent. The runout tail below the `X` is **authored** as of 2026-08-29 (A1/A2/A3 + sits — see §N1n's preamble): BBA labels this seat's `X` a *takeout* double with 2–4 of their major, so disclosure cannot make the floor decide that tail well, and an artificial call whose interfered tail is the floor's is not finished. The script still carries `pxt`, the dialect-translation shell ([pdi.md](pdi.md)), now scoped to the **deep** tail below the chase | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
+| **N1n** the P branch — PDI after opener's pass | `competition.landy_pdi` (**off**) | **built 2026-08-29, A/B owed** | no verdict. The trigger theorem (docs/pdi.md) says a pass/double inversion can only locate at a **P**: hearing partner's `X` there is no legal double left to invert. Opener's pass over the advance is that P, and the floor reads every double after it as takeout — a divergence the dialect shell **cannot** repair, because a pass has no synonym to translate into. Two seats: responder over the overcaller's correction (B1), opener over the advancer's run from §N1l's delayed `X` (B2 — that shipped default-on rung's own interfered tail). Independent of `landy_opener_px` | [§N1n](#n1n--the-p-branch-pdi-after-openers-pass-landy_pdi-built-2026-08-29-ab-owed); `scripts/ab-landy-pdi.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

@@ -1356,8 +1356,12 @@ pub struct CompetitionKnobs {
     ///
     /// The `X` is the book's only `.pdi()`-tagged rule: BBA — which the shipped
     /// floor distils — reads this seat's double as a **takeout** double with 2–4
-    /// of their major (2026-08-29 render), and every node below it is the
-    /// floor's.  So the A/B carries a third arm, `pxt`, adding
+    /// of their major (2026-08-29 render).  Their runout over it is authored
+    /// here rather than left to that net (the completeness rule: an artificial
+    /// call whose interfered tail is the floor's is not a finished convention) —
+    /// responder punishes an immediate correction, opener punishes a delayed
+    /// one, and partner sits over their redouble.  Below those the tail is the
+    /// floor's again, so the A/B carries a third arm, `pxt`, adding
     /// [`InstinctProfile::pdi_translate`][crate::bidding::instinct::InstinctProfile::pdi_translate]
     /// — the dialect-translation shell that serves that net a picture in its own
     /// book.  See `docs/pdi.md`.
@@ -1390,6 +1394,40 @@ pub struct CompetitionKnobs {
     ///
     /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
     pub landy_opener_rungs: bool,
+    /// §N1n — the **P branch**: the penalty process continues after opener has
+    /// *passed* their advance
+    ///
+    /// The pass/double-inversion trigger in this lane locates at a **P**, not at
+    /// a double.  Hearing partner's `X`, doubling is illegal — the contract is
+    /// already doubled by our side — so at that seat there is no `P`/`X` pair to
+    /// invert.  Only a pass over their live bid has both legs legal, which is
+    /// what makes opener's pass over the advance (`1NT (2♣) X (2♥) -`) the
+    /// trigger and the calls after it the inverted ones.  See `docs/pdi.md`,
+    /// "The trigger theorem".
+    ///
+    /// Two seats, both doubling the major their side ran to on `len(run, 4..)`,
+    /// with a `Pass`@0 catch-all and the partner's sit under each:
+    ///
+    /// - **B1** `X (2♥) - (2♠)` — the overcaller corrects their partner's
+    ///   preference and *responder*, the original doubler, punishes it;
+    /// - **B2** `X (2♥) - - X (2♠)` — the advancer runs from
+    ///   [`Self::landy_doubler_px`]'s delayed double and *opener* punishes it.
+    ///   This is that shipped default-on rung's own interfered tail, which no
+    ///   arm has ever authored.
+    ///
+    /// The spade leg mirrors one level up: their only escape from a doubled
+    /// `2♠` into the other major is `3♥`.
+    ///
+    /// **Independent of [`Self::landy_opener_px`]** — the trie matches these
+    /// patterns whether opener's pass and the delayed double were the book's or
+    /// the floor's.  Deliberately *not* `.pdi()`-tagged: the divergence here is
+    /// on a **pass**, which has no synonym in the floor's dialect (the shell can
+    /// rewrite a tagged `X` to a `P`, but not the other way), so this branch is
+    /// repaired by authoring alone.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-pdi.sh`).
+    /// Inert while their `2♣` is undeclared or natural.
+    pub landy_pdi: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1533,6 +1571,7 @@ impl Default for CompetitionKnobs {
             landy_doubler_white: false,
             landy_opener_px: false,
             landy_opener_rungs: false,
+            landy_pdi: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

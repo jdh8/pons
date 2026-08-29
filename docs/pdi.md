@@ -46,6 +46,26 @@ as a reading, deferred to arm 2 (follow-on 3).
 
 A trigger is a call by **our side**, at index `i`, of one of two kinds.
 
+### The trigger theorem — a trigger locates at a P
+
+Inversion needs *both* legs legal at the seat it governs, and one seat cannot
+supply them. Hearing partner's `X` (RHO having passed), **doubling is illegal**:
+the contract is already doubled by our side. So at that seat there is no `P`/`X`
+pair to invert — the choice is sit-or-pull, not pass-or-double, and the only
+thing an inversion could say there is already said by the pass.
+
+A **pass over their live bid** is the seat that has both. It is also where the
+information is: partner has to read our pass as an election, and the floor reads
+it as ordinary. That is why the shipped triggers are *conversion passes* and why
+the Landy suite below activates on **opener's pass**, not on a double.
+
+The corollary matters for the shell: a divergent `X` has a synonym in the
+teacher's dialect (S1 rewrites it to a `P`), but a **PDI-loaded `P` has none**
+— there is no call that means "pass, but as an election" in a book that does not
+play the agreement. So an `X`-side divergence can be translated and a `P`-side
+divergence can only be **authored**. The two components of the Landy suite are
+exactly those two repairs.
+
 ### 1. Rule-tagged penalty-oriented doubles
 
 An authoring rule carries `.penalty()` (`Rules::penalty` /
@@ -422,7 +442,69 @@ owed.
   `px vs base` and `pxt vs base`: the shell may be what makes `px` shippable,
   since falsifier 1's runout tail is exactly what it repairs.
 - **`pdi_translate`** ships default-on only if `pxt vs px` reads win|win or
-  wash|win. Its default-config exposure is already settled above.
+  wash|win. Its default-config exposure is already settled above. Note the arm
+  narrowed once the tail was authored: `pxt vs px` now prices the deep floor tail
+  alone, so a wash there is a real finding, not a null run.
+
+§N1n has its own runner, `scripts/ab-landy-pdi.sh` (`base | pdi`), queued
+**after** §N1m's — sequential, one run saturates the box, fresh `SEED_BASE`.
+
+### The full suite against Landy (2026-08-29)
+
+The shell alone is half a repair. Applied to the `1NT (2♣)` lane the whole thing
+is two components, and the trigger theorem says which is which.
+
+**1. Fully author the penalty `X`, tail included.** §N1m's `X`@150 is an
+artificial call whose interfered continuations were the floor's — and that floor
+reads the call as takeout, so disclosing our true length does not help it. The
+completeness rule applies, and the tail is now book:
+
+| node | seat | rows |
+| --- | --- | --- |
+| A1 `X (2M) X (2M′)` | responder | `X` penalty `len(M′,4..)` · `Pass`@0 |
+| A2 `X (2M) X - - (2M′)` | opener | `X` penalty `len(M′,4..)` (4-4 in their majors) · `Pass`@0 |
+| A3 `X (2M) X (XX)` | responder | `Pass`@0 — partner sits over their redouble |
+| sits | partner of each new `X` | `{path} X -` → `multi_signoff_pass` |
+
+**2. Activate PDI on opener's pass** — knob `competition.landy_pdi`, default off,
+§N1n. Opener's `P` over the advance is the trigger, and no input translation can
+repair its consequences, so the calls after it are authored rows contrary to the
+floor:
+
+| node | seat | rows |
+| --- | --- | --- |
+| B1 `X (2M) - (2M′)` | responder | `X` penalty `len(M′,4..)` · `Pass`@0 |
+| B2 `X (2M) - - X (2M′)` | opener | `X` penalty `len(M′,4..)` · `Pass`@0 |
+| sits | partner of each new `X` | `{path} X -` → `multi_signoff_pass` |
+
+`M′` is the other major at its cheapest legal level — `2♠` out of a doubled
+`2♥`, `3♥` out of a doubled `2♠`, so the spade leg's whole chase sits one level
+up. Every gate is the lane's twice-measured `len(major, 4..)`, every new `X`
+carries `.alert(LANDY_PENALTY)` (one claim, many seats — guarded by an explicit
+`Alerted`-scope test, since the package invariant cannot see a suffix-guarded
+double) and `.penalty()`.
+
+**§N1l is already the P branch's centrepiece**: `landy_doubler_px`, shipped
+default-on, is the doubler's delayed `X` at `X (2M) - -` — a double after our own
+pass. B2 is that shipped rung's *own* interfered tail, which no arm had ever
+authored. §N1n is deliberately **independent** of `landy_opener_px`: the trie
+matches these patterns whether opener's pass and the delayed double came from the
+book or from the floor.
+
+**No new row is `.pdi()`-tagged.** A-nodes are book-owned, so there is nothing
+for the shell to translate; B-nodes' divergent call is a pass, which by the
+theorem has no synonym to translate into.
+
+**Consequence for the shell's scope.** After full authoring, `pxt ≡ px` at every
+book-owned node — the shell never touches a book decision — so `pxt vs px` now
+reads only the **deep floor tail** below the authored chase (they run twice, they
+run to a minor, they run over the redouble). Kept as an arm anyway: that residual
+is what the tag was built for, and a null result there is itself the answer to
+"how much is left once the book is complete".
+
+This supersedes `LANDY_PENALTY`'s old polarity note — "a double after our *pass*
+is takeout and stays the floor's". It is takeout on the floor, which is the
+defect; §N1n is the repair.
 
 ### Follow-ons
 
@@ -448,6 +530,7 @@ owed.
 | 2026-08-26 | **Task 3 probe: the post-trigger passer and doubler populations**, `probe-pdi-population` over the P2 baseline arms (409,600 boards, both vuls) | — | thresholds set at `[their-suit ≤ 4] ∪ [points ≤ 11]`; every tag cleared; a level bound, a freshness gate and a `suit_hcp` axis all ruled out — see below |
 | 2026-08-26 | **Arm 1 authored** — the pass-side union, knob-gated, `smoke-default --count 20000 --seed 1` byte-identical off | — | shipped opt-in |
 | 2026-08-29 | **The dialect-translation shell**: `.pdi()` tag, `pdi_swap` S1–S5, `pdi_translate` knob; §N1m tagged, §N1l deliberately not | — | shipped opt-in, **inert in the default config by construction**; `smoke-default --count 20000 --seed 1` byte-identical (`38ee1e21…`). A/B owed: `pxt` arm of `scripts/ab-landy-opener.sh` |
+| 2026-08-29 | **The full suite against Landy** — §N1m's runout tail authored (A1/A2/A3 + sits, riding `landy_opener_px`) and the P branch authored behind new `competition.landy_pdi` (B1/B2 + sits), off the trigger theorem | — | shipped opt-in, both branches default off; `smoke-default --count 20000 --seed 1` byte-identical. A/Bs owed: `scripts/ab-landy-opener.sh` (px now carries its tail) then `scripts/ab-landy-pdi.sh` |
 | 2026-08-29 | **Step 0 renders** — both §N1m seats and all four §N1l legs, `probe-bba-book --conv "Multi-Landy=1" --vuls none` | — | §N1m reads *takeout* (their major 2–4) at both legs; §N1l reads *reopening* (0–2) on the preference legs but **penalty** (3–5) on the escape legs — which is what disqualified §N1l from the tag |
 | 2026-08-26 | **Arm 1 bid-only pre-count** — both arms bid at 204,800 bd/vul, `SEED_BASE=1787700673`, auctions diffed with **no solver** | on vs off, both vuls, both tables | **INERT: 10 divergent boards in 409,600 (0.0024%).** No DD time spent. A reach-maximal negative control (`[len ≤ 2] ∪ [pts ≤ 5]`, a knowingly false claim) reaches only 132 boards (0.032%) — see "Why the reading is inert" |
 
@@ -660,7 +743,12 @@ Two doc/code discrepancies, flagged rather than resolved:
 10. **The dialect-translation shell's own queue** — their-side translation, the
     forced-rail precedence, and the first tag site that exercises S5 live. See
     [the section above](#the-dialect-translation-shell-2026-08-29).
-11. `competition.double_override` is tagged `.penalty_if(lo >= 2)` — the cut that
+11. **The Landy suite's deep tail** — the chase closes at one double per side
+    per branch. Below it (they run twice, they run to a minor, they run over the
+    redouble) the floor is back, reading the whole penalty process as takeout.
+    Whether that is worth authoring is exactly what the narrowed `pxt vs px`
+    reads.
+12. `competition.double_override` is tagged `.penalty_if(lo >= 2)` — the cut that
     separates the shipped `Optional` double (2..=3) from `Takeout` (..=3, which
     admits shortness). The probe cleared it: its lane is not a leak source.
     Revisit if a sweep ever wants a different boundary.

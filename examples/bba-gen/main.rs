@@ -917,6 +917,20 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_opener_rungs: bool,
 
+    /// Author the **P branch** of the Landy penalty process — §N1n
+    ///
+    /// `competition.landy_pdi`, default **off**: after opener *passes* their
+    /// advance (`1NT (2♣) X (2♥) -`, this lane's pass/double-inversion trigger),
+    /// our later double of the major they run to is penalty on four-plus rather
+    /// than the takeout the floor reads.  Two seats — responder over an
+    /// immediate correction, opener over the advancer's run from the doubler's
+    /// delayed `X` — plus the sit under each.  Independent of
+    /// `--ns-landy-opener-px`; unlike the X branch it carries no `.pdi()` tag,
+    /// because the divergent call is a pass and a pass has no synonym in the
+    /// floor's dialect (docs/pdi.md, "The trigger theorem").
+    #[arg(long, default_value_t = false)]
+    ns_landy_pdi: bool,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2405,6 +2419,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
+    agreements.competition.landy_pdi = args.ns_landy_pdi;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

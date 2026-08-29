@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Landy penalty process, finished: §N1m's runout tail and §N1n's P branch
+  (`competition.landy_pdi`, default off; A/B owed).** Two components of one
+  suite, split by a structural fact — a pass/double inversion can only trigger at
+  a **pass**. Hearing partner's double, doubling is illegal (our side has already
+  doubled), so that seat has no `P`/`X` pair to invert; only a pass over their
+  live bid has both legs legal.
+
+  **The `X` branch** (rides `competition.landy_opener_px`): §N1m's penalty double
+  now carries its own runout. Responder doubles an immediate correction, opener
+  doubles the advancer's delayed run, partner sits over their redouble, each with
+  its own sit — the gate the lane has twice measured, `len(run, 4..)`, under the
+  existing `comp:landy-penalty` claim. The first build left this tail to the
+  floor on the argument that the alert publishes opener's true length; the
+  2026-08-29 render killed that premise (BBA's book, which the floor distils,
+  calls the double **takeout** with 2–4 of the major), so the completeness rule
+  binds instead.
+
+  **The P branch** is new (`competition.landy_pdi`, §N1n): after opener *passes*
+  the advance, our later double of the major they run to is penalty rather than
+  the takeout the floor reads. Two seats — responder over the overcaller's
+  correction, opener over the advancer's run from `landy_doubler_px`'s delayed
+  `X`, which is that **shipped default-on** rung's own interfered tail and had
+  never been authored. Independent of `landy_opener_px`: the patterns match
+  whether opener's pass and the delayed double came from the book or the floor.
+
+  No row here carries the `.pdi()` tag, and that is the point of the split: a
+  divergent double has a synonym in the floor's dialect (the shell rewrites it to
+  a pass), but a PDI-loaded pass has none, so the P branch is repairable by
+  authoring alone. One consequence for the shell: with the tail authored,
+  `pxt ≡ px` at every book node, so `pxt vs px` now prices the deep floor tail
+  below the chase.
+
+  **No user impact** — both branches sit behind default-off knobs, so
+  `smoke-default --count 20000 --seed 1` stays byte-identical. New runner
+  `scripts/ab-landy-pdi.sh` (`base | pdi`), queued after
+  `scripts/ab-landy-opener.sh`; new CLI flag `--ns-landy-pdi`. Design in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1n and
+  [docs/pdi.md](docs/pdi.md), "The trigger theorem".
+
 - **The PDI dialect-translation shell: a `.pdi()` rule tag, `pdi_swap`, and the
   `instinct.pdi_translate` knob (default off; A/B owed).** The shipped floor is
   distilled from BBA, so it reads a call the way *BBA's book* reads it. Re-rendered

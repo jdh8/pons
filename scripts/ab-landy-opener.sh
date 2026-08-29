@@ -32,7 +32,13 @@
 #   base    today's `main` — the seat is the floor's, and it passes 98.5% /
 #           99.5% of the time
 #   px      `competition.landy_opener_px`: `X`@150 `len(major, 4..)` +
-#           `Pass`@0, plus the doubler's sit at `{path} X -`
+#           `Pass`@0, the doubler's sit at `{path} X -`, and — since 2026-08-29 —
+#           **their whole runout over it**: responder doubles an immediate
+#           correction, opener doubles a delayed one, partner sits over their
+#           redouble, each with its own sit.  The first build left that tail to
+#           the floor on the argument that the alert publishes opener's true
+#           length; the render below killed that premise, so the completeness
+#           rule binds and the tail is book.
 #   rungs   plus `competition.landy_opener_rungs`: `3NT`@135 `hcp(16..) &
 #           stopper_in` and `2NT`@120 `hcp(15..) & stopper_in & !vulnerable()`,
 #           each a sign-off the doubler passes
@@ -45,10 +51,17 @@
 #           misread it.  `pxt` rewrites the auction into the picture BBA would
 #           have had (our `X` becomes `P`; our sit over it becomes the `X`) and
 #           extracts features from that, while the legality mask and the
-#           accountant gate stay on the real auction.  Read it as falsifier 1's
-#           repair, not as a separate idea: `pxt vs px` is the shell, `pxt vs
-#           base` is what `px` is worth once its tail is served in a dialect the
-#           floor understands.
+#           accountant gate stay on the real auction.  With the tail now
+#           authored the shell can no longer touch a book node, so `pxt vs px`
+#           prices the **deep** floor tail alone — they run twice, they run to a
+#           minor, they run over the redouble.  A wash there is a real finding
+#           (the book has absorbed the divergence), not a null run.
+#
+# §N1n, the P branch of the same penalty process (what our doubles mean once
+# opener has *passed* the advance), is a **separate knob and a separate run**:
+# `scripts/ab-landy-pdi.sh`, queued after this one.  It is not an arm here
+# because its patterns match whether opener's pass came from the book or the
+# floor, so it is independent of `--ns-landy-opener-px`.
 #
 # The shell needs no arm of its own in the *default* config.  Only one authored
 # rule carries the `.pdi()` tag (§N1m's `X`@150), it exists only under
@@ -64,9 +77,12 @@
 #   1. **The oracle assumes they sit.**  Every candidate is priced as the
 #      contract the auction stops in, so `2Mx` is scored with the advancer
 #      never running — which is why it beats *par* in the four-trump buckets
-#      (par lets them escape).  If `px` reads flat or negative, the first thing
-#      to check is the runout: `probe-divergence --jsonl` on the `X` rows,
-#      split by their next call.  That tail is deliberately the floor's.
+#      (par lets them escape).  Answered by authoring rather than left standing:
+#      `px` now carries the runout tail, so the arm no longer hands the escape to
+#      a net that reads our double as takeout.  If `px` still reads flat or
+#      negative, split the `X` rows by their next call
+#      (`probe-divergence --jsonl`) — what is left below the chase is the deep
+#      tail, which is what `pxt` prices.
 #   2. **The floor already doubles here.**  The *instinct* floor makes a
 #      takeout double at this seat on 12+ with at most three cards in each of
 #      their suits, so on the anchor's pool part of this is emergent.  The net
@@ -84,8 +100,7 @@
 #      addendum): perfect defense doubles the same failing contracts by fiat,
 #      so `px` keeps the whole cost of a real penalty double and none of its
 #      benefit.  Arbitrate `px` on plain DD with SD-PD as tie-break — and read
-#      both `px vs base` and `pxt vs base` before calling §N1m, since the shell
-#      may be what makes the double shippable.
+#      both `px vs base` and `pxt vs base` before calling §N1m.
 #   5. **The shell's own seat approximation.**  Where partner sat over our
 #      double and *then* they ran (`X - - (2♠)`), the rewrite moves the double
 #      one seat along: the side aggregate is faithful, the seat attribution of

@@ -1064,6 +1064,208 @@ fn landy_opener_arm(rungs: bool) -> Agreements {
     arm
 }
 
+/// §N1n's arm: the P branch, opener having *passed* their advance
+fn landy_pdi_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_pdi = true;
+    arm
+}
+
+/// `1NT (2♣) X (2♥) …` — the lane every §N1m/§N1n node hangs off
+fn landy_advance(major: Strain) -> [Call; 4] {
+    [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, major),
+    ]
+}
+
+/// §N1m's runout tail, authored rather than left to a floor that reads the
+/// double as takeout
+///
+/// Three nodes and two sits.  The gate is the lane's twice-measured
+/// `len(run, 4..)`, so four of the suit they ran to doubles and three passes;
+/// every one of them has to be the **book's**, or the completeness rule the
+/// tail was authored for is unpaid.
+#[test]
+fn landy_opener_px_authors_its_own_runout_tail() {
+    let arm = landy_opener_arm(false);
+    let doubled = [landy_advance(Strain::Hearts).as_slice(), &[Call::Double]].concat();
+
+    // A1 — the overcaller pulls at once; responder punishes on four spades.
+    let a1 = [doubled.as_slice(), &[call(2, Strain::Spades)]].concat();
+    let (c, floored) = best_call_with(&arm, &a1, "KJ98.A54.AQ3.J54");
+    assert_eq!(c, Call::Double, "four of the suit they ran to");
+    assert!(!floored, "the runout tail is the book's now");
+    assert_eq!(best_call_with(&arm, &a1, "KJ9.A543.AQ3.J54").0, Call::Pass);
+
+    // …and opener sits for it.
+    let a1_sit = [a1.as_slice(), &[Call::Double, Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &a1_sit, "AQ32.KJ98.A32.K3");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the sit under a new double is authored too");
+
+    // A2 — they sit, then the advancer runs; opener punishes on a 4-4.
+    let a2 = [
+        doubled.as_slice(),
+        &[Call::Pass, Call::Pass, call(2, Strain::Spades)],
+    ]
+    .concat();
+    let (c, floored) = best_call_with(&arm, &a2, "AQ32.KJ98.A32.K3");
+    assert_eq!(c, Call::Double, "four-four in their majors");
+    assert!(!floored);
+    assert_eq!(best_call_with(&arm, &a2, "AQ3.KJ98.A432.K3").0, Call::Pass);
+
+    // …and responder sits for that one.
+    let a2_sit = [a2.as_slice(), &[Call::Double, Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &a2_sit, "KJ9.A543.AQ3.J54").0,
+        Call::Pass
+    );
+
+    // A3 — they redouble; partner sits rather than guessing a runout.
+    let a3 = [doubled.as_slice(), &[Call::Redouble]].concat();
+    let (c, floored) = best_call_with(&arm, &a3, "KJ98.A54.AQ3.J54");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the interfered tail is authored, not the floor's");
+}
+
+/// The spade leg's chase sits one level up: their only escape from a doubled
+/// `2♠` into the other major is `3♥`
+#[test]
+fn the_spade_leg_chases_them_to_three_hearts() {
+    let arm = landy_opener_arm(false);
+    let node = [
+        landy_advance(Strain::Spades).as_slice(),
+        &[Call::Double, call(3, Strain::Hearts)],
+    ]
+    .concat();
+    let (c, floored) = best_call_with(&arm, &node, "A54.KJ98.AQ3.J54");
+    assert_eq!(c, Call::Double, "four of the hearts they ran to");
+    assert!(!floored);
+    assert_eq!(
+        best_call_with(&arm, &node, "A543.KJ9.AQ3.J54").0,
+        Call::Pass
+    );
+}
+
+/// §N1n — the P branch: after opener *passes* the advance, our later double of
+/// the suit they run to is penalty, not the takeout the floor reads
+///
+/// The trigger is the pass, not a double: hearing partner's `X` there is no
+/// legal double left to invert, so only a pass over their live bid has both legs
+/// available (docs/pdi.md, "The trigger theorem").
+#[test]
+fn landy_pdi_punishes_the_run_after_openers_pass() {
+    let arm = landy_pdi_arm();
+    let passed = [landy_advance(Strain::Hearts).as_slice(), &[Call::Pass]].concat();
+
+    // B1 — the overcaller corrects the preference; responder punishes it.
+    let b1 = [passed.as_slice(), &[call(2, Strain::Spades)]].concat();
+    let (c, floored) = best_call_with(&arm, &b1, "KJ98.A54.AQ3.J54");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the P branch is authored contrary to the floor");
+    assert_eq!(best_call_with(&arm, &b1, "KJ9.A543.AQ3.J54").0, Call::Pass);
+    let b1_sit = [b1.as_slice(), &[Call::Double, Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &b1_sit, "AQ32.KJ98.A32.K3").0,
+        Call::Pass
+    );
+
+    // B2 — the advancer runs from the doubler's delayed `X`; opener punishes it.
+    // That double is §N1l's, which ships default-on, so this is its own
+    // interfered tail — never authored before.
+    let b2 = [
+        passed.as_slice(),
+        &[Call::Pass, Call::Double, call(2, Strain::Spades)],
+    ]
+    .concat();
+    let (c, floored) = best_call_with(&arm, &b2, "AQ32.KJ98.A32.K3");
+    assert_eq!(c, Call::Double);
+    assert!(!floored);
+    assert_eq!(best_call_with(&arm, &b2, "AQ3.KJ98.A432.K3").0, Call::Pass);
+    let b2_sit = [b2.as_slice(), &[Call::Double, Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &b2_sit, "KJ9.A543.AQ3.J54").0,
+        Call::Pass
+    );
+}
+
+/// The P branch does not ride the X branch: its patterns match whether opener's
+/// pass and the delayed double came from the book or the floor
+#[test]
+fn landy_pdi_is_independent_of_openers_own_double() {
+    let arm = landy_pdi_arm();
+    assert!(!arm.competition.landy_opener_px);
+    let b1 = [
+        landy_advance(Strain::Hearts).as_slice(),
+        &[Call::Pass, call(2, Strain::Spades)],
+    ]
+    .concat();
+    assert_eq!(
+        best_call_with(&arm, &b1, "KJ98.A54.AQ3.J54").0,
+        Call::Double
+    );
+
+    // And with the knob off the seat is the floor's again.
+    let mut off = Agreements::default();
+    off.decision.their.two_clubs_landy = true;
+    assert!(best_call_with(&off, &b1, "KJ98.A54.AQ3.J54").1);
+}
+
+/// The chase doubles publish the **run** suit's length, at both branches
+///
+/// `comp:landy-penalty` is one claim at many seats, and each new seat doubles a
+/// different suit from the one the advance named.  The package invariant cannot
+/// guard any of them — `unalerted_artificial` skips `Double` rules reached
+/// through row-package fallbacks, because a node key cannot witness which strain
+/// a suffix-guarded double doubles (§N1 flagged item 4) — so this is the
+/// explicit `Alerted`-scope arm that fails if the alert is dropped.
+#[test]
+fn landy_chase_alerts_publish_the_run_suit_length() {
+    use crate::bidding::inference::{Inferences, ReadingScope, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let alerted_partner = |mut arm: Agreements, calls: &[Call]| {
+        arm.decision.reading.scope = ReadingScope::Alerted;
+        let partnership = crate::bidding::american::american(&arm).bind();
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, calls))
+            .get(Relative::Partner)
+            .length(Suit::Spades)
+    };
+    // The X branch: opener doubled 2♥, they ran to 2♠, partner doubled that.
+    let x_branch = [
+        landy_advance(Strain::Hearts).as_slice(),
+        &[
+            Call::Double,
+            call(2, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+        ],
+    ]
+    .concat();
+    assert_eq!(
+        alerted_partner(landy_opener_arm(false), &x_branch).min,
+        4,
+        "the alert is what publishes the run suit to an alert-only reader",
+    );
+    // The P branch: opener passed, they corrected to 2♠, partner doubled that.
+    let p_branch = [
+        landy_advance(Strain::Hearts).as_slice(),
+        &[
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+        ],
+    ]
+    .concat();
+    assert_eq!(alerted_partner(landy_pdi_arm(), &p_branch).min, 4);
+}
+
 /// Opener's penalty double of the major their advance named, and the gate the
 /// oracle drew for it
 ///
