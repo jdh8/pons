@@ -48,12 +48,13 @@ and disagree on nearly every scarce call:
 
 1. **Direct double is usually penalty-oriented or card-showing**, but its
    floor and its force differ. Published methods range from an exact 7-8 HCP
-   proposal to an unlimited values action. BBA is unusual in that no double
-   appeared in the finite probes reviewed here.
+   proposal to an unlimited values action. BBA is unusual in that no **direct**
+   double appeared in either the actor-only probes or 4,074 coherent starts.
 2. **Delayed double is not a generic fallback.** Cohen and Gilles-Roupoil make
    a pass-then-double takeout-ish; Kokish-Kraft makes it penalty; Kaplan makes
    it negative but passable by opener with four trumps; McCallum-Sanborn calls
-   it cooperative. These cannot be combined by slogan.
+   it cooperative. BBA's live pass-then-double is explicitly `reopening
+   double`, and opener usually pulls it. These cannot be combined by slogan.
 3. **`2♦` is often a natural weak/competitive escape**, but several of the
    strongest exact methods simply omit it. An omitted `2♦` is a research gap,
    not permission to import the natural treatment.
@@ -387,7 +388,7 @@ is:
 | Jean Christophe | 8+ HCP, balanced, starts penalty process | not specified in Landy subsection |
 | Incision | penalty-oriented unless followed by natural GF `3m` | competitive both minors |
 | EBU *Full Standard English* | general strength, about 10+ HCP | all later doubles penalty; the source is not seat-specific |
-| BBA | no double appeared in these probes | no published delayed path from the probes |
+| BBA | no direct double in 4,074 coherent starts | live pass-then-`X` is `reopening double`; opener pulls 78.6% after advancer passes |
 | pons | values, 8+ HCP | unauthored/floor-owned |
 
 Steve Robinson's expert panel reinforces that this is a partnership choice,
@@ -412,6 +413,14 @@ The shorthand “pass then double” hides at least two different actors:
    three good trumps, or merely a maximum? Is pass forcing?
 4. If advancer passes or doubles rather than selecting a major, how long does
    the force created by responder's `X` last?
+
+The all-four-BBA walk now answers BBA's own live branch: after responder passes,
+advancer chooses `2M`, and opener plus overcaller pass, responder's delayed `X`
+is `reopening double`, not penalty. Opener converts only 28.6% over hearts and
+15.5% over spades after advancer passes; the rest pulls mainly to `3♣`, `3♦`,
+or `2NT`. Direct responder `X` remained 0/4,074. See the complete tree and
+133-node `X`/`XX` inventory in
+[`bba-1nt-landy-tree.md`](bba-1nt-landy-tree.md).
 
 Kokish-Kraft supplies an opener conversion threshold after the direct values
 double. Kaplan supplies one after a delayed negative double. Cohen states that
@@ -531,14 +540,22 @@ Gerber survives. Those calls must be explicit in any candidate package.
 
 ### What BBA actually does, including the rare call the old census missed
 
-The existing BBA probe found this main ladder at `1NT (2♣) ?`: `3NT` 49.7%,
-pass 26.8%, natural invitational `2NT` 13.6%, `6NT` 2.9%, `3♣` transfer to
-diamonds 2.9%, `2♠` transfer to clubs 2.8%, and `7NT` 0.5%. Opener completes
-both minor transfers 100%; no double appeared in that finite probe.
-[Local evidence and reproduction commands.](bba-1nt-counter-defense.md#2-landy--a-notrump-ladder-no-double-minor-transfers-only)
+The existing actor-only BBA probe found this ladder at `1NT (2♣) ?`: `3NT`
+49.7%, pass 26.8%, natural invitational `2NT` 13.6%, `6NT` 2.9%, `3♣`
+transfer to diamonds 2.9%, `2♠` transfer to clubs 2.8%, and `7NT` 0.5%.
+After advancer passes, opener completes both minor transfers 100%; no direct
+double appeared.
+[Local evidence and reproduction commands.](bba-1nt-counter-defense.md)
 
-A fresh `--min-share 0` probe on 2026-08-25 corrects one material claim in
-that document: BBA also bids direct `4♠` on 178 of 40,000 hands
+Those frequencies were never coherent-deal estimates. The all-BBA corpus
+reached the root 4,074 times and reversed the two leading shares: Pass 57.95%,
+`3NT` 14.83%, natural `2NT` 10.92%, `3♣` 6.75%, `2♠` 5.87%, and `4♠` 1.89%.
+It produced no `6NT`, `7NT`, or direct `X`, but did expose the live delayed
+reopening doubles. Use [`bba-1nt-landy-tree.md`](bba-1nt-landy-tree.md) for
+frequencies and the old probes for hand bands and meanings.
+
+A fresh `--min-share 0` probe on 2026-08-25 corrected one material claim in
+the earlier inventory: BBA also bids direct `4♠` on 178 of 40,000 hands
 (**0.445%**), at both vulnerabilities. Its reported suit bands were 5-5 in
 the minors and its candidate sketch was 5+ clubs and 5+ diamonds; the reported
 HCP band was 3-17, median 12; 200/200 meaning labels say `Minors`. These are
@@ -568,10 +585,8 @@ cargo run --quiet --release --example probe-bba-constraints -- \
   --seed 20260825
 ```
 
-The older “no both-minors call” summary in
-[`bba-1nt-counter-defense.md`](bba-1nt-counter-defense.md) and the closed N1
-archive is therefore stale and should be corrected separately. This research
-task does not modify those files.
+The live counter-defense note now includes that call. The closed N1 archive
+retains the old statement as historical campaign evidence.
 
 BBA's structure is not Cohen, Kaplan, or pons. It keeps the notrump ladder,
 moves one-suited minors through `2♠`/`3♣`, showed no values double in these
@@ -613,10 +628,11 @@ weak-`2♦` tails remain floor-owned.
 
 ### Local discrepancies and reachable gaps found during this research
 
-1. **The BBA inventory is stale:** the rare direct `4♠` both-minors request
-   disproves the archived statement that BBA has no both-minor call. It does
-   not make BBA equivalent to pons: BBA asks for placement at the four level,
-   while pons devotes `2M`/`3M` to GF both-minor shape.
+1. **The old BBA inventory was stale:** the rare direct `4♠` both-minors
+   request disproves the archived statement that BBA has no both-minor call.
+   The live note is corrected. This does not make BBA equivalent to pons: BBA
+   asks for placement at the four level, while pons devotes `2M`/`3M` to GF
+   both-minor shape.
 2. **A manufactured-club catch-all is reachable.** After a pons `2M` takeout,
    opener may choose notrump either with the short-major stopper **or** with no
    four-card minor. If responder then asks for the other-major stopper and
@@ -646,7 +662,7 @@ weak-`2♦` tails remain floor-owned.
    four-card-minor branches already cover every hand: if `no_minor` is false,
    at least one minor is four-plus. The source itself says the final notrump
    catch-all merely restates that union. Leave it for a separate byte-identity
-   cleanup; this research task makes no code change.
+   cleanup; this tree work changes no bidding behavior.
 
 The reversible default for all seven discrepancies is the same: preserve live,
 measured behavior; make doc-only corrections separately unless a new A/B
@@ -771,10 +787,12 @@ No located method answers all of these. A pons package must:
     obstruction are not visible to plain double-dummy, so both repository
     scorers remain necessary.
 
-The largest documentary gap is not the first-round table; it is the force and
-penalty tree after the opponents choose a major. The next research pass would
-benefit more from original partnership continuations or direct expert
-clarification on those auctions than from another one-line convention card.
+For published human methods, the largest documentary gap is not the first-round
+table; it is the force and penalty tree after the opponents choose a major.
+BBA's implementation is now empirically mapped, but that does not turn it into
+a published agreement. The next literature pass would benefit more from
+original partnership continuations or direct expert clarification on those
+auctions than from another one-line convention card.
 
 ## Source inventory
 

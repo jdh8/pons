@@ -556,6 +556,25 @@ table remains behind `--no-ns-multi-kokish-kraft`. The current tree and A/B
 verdict are in [one-notrump-multi.md](../one-notrump-multi.md) and
 [one-notrump-competitive.md §N4-KK](../one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
+#### 5.5.2 All-BBA `1NT (2♣)` Landy tree
+
+The focused run
+`ab-results/bba-book/2026-08-30-4fdb9633-landy2c-bba-selfplay` put
+`Multi-Landy=1, Cappelletti=0, Landy=0` on all four BBA seats and generated
+4,608,000 coherent boards. The lane occurred 4,074 times and was followed to
+455 terminal auctions. A new `--no-ceiling` walk flag lets the reach corpus,
+rather than the ordinary contested-`3NT` cut, bound this focused tree; all
+observed continuations reached termination, with 0 dangling nodes and no live
+child stopped by a walk gate.
+
+The live root is Pass 57.95%, `3NT` 14.83%, `2NT` 10.92%, `3♣`→♦ 6.75%,
+`2♠`→♣ 5.87%, `4♠` both minors 1.89%, and small natural diamond/minor tails.
+Direct responder `X` is 0/4,074. The material double is delayed:
+`1NT (2♣) - (2M) - - X` reads `reopening double`, and opener pulls it 78.6%
+of the time after advancer passes. The complete grouped tree, seat-specific
+double semantics, reproduction record, and raw-artifact map are in
+[`bba-1nt-landy-tree.md`](bba-1nt-landy-tree.md).
+
 ### 5.6 The book/floor partition
 
 | family | labelled readings | `calculated bid` | no-rule share |

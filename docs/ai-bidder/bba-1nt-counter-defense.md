@@ -78,7 +78,7 @@ believe. There is no separate disclosure input at this node: the declaration
 
 ## Lane by lane — responder at `1NT (X) ?`
 
-### `(2♣)` Landy — a notrump ladder, no double, minor transfers only
+### `(2♣)` Landy — a notrump ladder, minor transfers, no direct double
 
 The lane our census made package N1. BBA drops **every major-seeking gadget**
 and bids notrump by strength:
@@ -89,17 +89,29 @@ and bids notrump by strength:
 | Pass | 26.8% | `hcp 2–8` | too weak |
 | **2NT** | 13.6% | `hcp 7–10` | **natural invite** — opener passes at 15-16, bids `3NT` at 16-17 |
 | 6NT | 2.9% | `hcp 18–21` | slam blast (33+ combined) |
-| **3♣** | 2.9% | `len(♦, 6..)`, `hcp 5–18` | **transfer to diamonds** — opener completes `3♦`, 100% |
-| **2♠** | 2.8% | `len(♣, 6..)`, `hcp 5–18` | **transfer to clubs** — opener completes `3♣`, 100% |
+| **3♣** | 2.9% | `len(♦, 6..)`, `hcp 5–18` | **transfer to diamonds** — after advancer passes, opener completes `3♦`, 100% |
+| **2♠** | 2.8% | `len(♣, 6..)`, `hcp 5–18` | **transfer to clubs** — after advancer passes, opener completes `3♣`, 100% |
 | 7NT | 0.5% | `hcp 22+` | grand blast |
+| **4♠** | 0.445% | 5+♣ and 5+♦ | **both-minor placement request** |
+| **3♦** | 0.2% | `len(♦, 6..)`, very weak | natural |
+| **5♣** / **5♦** | 0.05% each | six-card minor | natural |
 
-**There is no double at all** — 0% at `--min-share 0`, the only lane in the set
-without one. No Stayman, no major transfer, no natural major: their `2♣` claimed
-both majors, so every call that would look for one is gone. What survives is
-precisely the part of the uncontested structure that survives the claim — the
-notrump ladder and the two minor transfers (`2♠`→♣, `3♣`→♦, BBA's own
-`1N-2S transfer to clubs` / `1N-3C transfer to diamonds` scheme), running on top
-of the stolen `2♣`.
+**There is no direct double at this node** — 0% at `--min-share 0`, the only
+lane in the set without one. No Stayman, no major transfer, no natural major:
+their `2♣` claimed both majors, so every call that would look for one is gone.
+What survives is primarily the part of the uncontested structure that survives
+the claim — the notrump ladder and the two minor transfers (`2♠`→♣, `3♣`→♦,
+BBA's own `1N-2S transfer to clubs` / `1N-3C transfer to diamonds` scheme),
+running on top of the stolen `2♣` — plus a rare `4♠` both-minor placement
+request and natural long-minor tails.
+
+The percentages above are actor-only probes, useful for meanings but not live
+frequencies: the random responder can contradict both the 15–17 opener and the
+Landy hand. In the 4,608,000-deal all-BBA corpus, `1NT (2♣)` occurred 4,074
+times: Pass 57.95%, `3NT` 14.83%, `2NT` 10.92%, and direct `X` zero. The
+actor-only `6NT`/`7NT` buckets were zero live because the two known hands
+already consume at least 24 HCP. The full coherent tree and every live later
+double are in [`bba-1nt-landy-tree.md`](bba-1nt-landy-tree.md).
 
 This settles `vendor/bba/21GF.bbsa`'s `Transfers if RHO bids clubs = 1` against
 the engine for the first time — the disclosure sweep filed that row as
@@ -415,11 +427,14 @@ applies to any of it.
   Puppet scheme onto the lane, so alignment is structural, never literal).
 - **N1 (shipped) agrees with BBA on the ladder and disagrees on the double.**
   Our counter's gated `3NT` outranking the cues, and N1c's weak-6+ minor
-  transfer, both have BBA analogues (`3NT` 49.7%; `2♠`→♣ and `3♣`→♦ completed
-  100%). Our values `X` at `hcp(8..)` has none — BBA never doubles Landy. Three
-  of our own experiments (N1d, N1h, N1i) priced hands *onto* that double and
-  liked it, so this is a disagreement with evidence on our side, not an
-  oversight to fix.
+  transfer, both have BBA analogues (`3NT` 49.7% actor-only, 14.8% live;
+  `2♠`→♣ and `3♣`→♦ completed 100% after a clean pass). Our values `X` at
+  `hcp(8..)` has no BBA direct analogue: BBA's responder never doubled in
+  4,074 coherent starts.
+  BBA does use a later reopening double after passing and hearing advancer
+  choose a major, which is a different action. Three of our own experiments
+  (N1d, N1h, N1i) priced hands *onto* the direct double and liked it, so this is
+  a disagreement with evidence on our side, not an oversight to fix.
 - **N2's open question has an answer to compare against**: BBA plays plain
   **Lebensohl** over Muiderberg with a takeout double showing the *other* major,
   where we play Cohen **Transfer** Lebensohl. That is a concrete A/B, not a

@@ -37,7 +37,7 @@ What the buckets and archetypes establish:
 - The four suit overcalls are **wide-range (9–18 HCP), not preempts**; vulnerability
   lifts the floor ≈ 1 HCP. The structure relies on the relays below to sort out level.
 
-## Continuations over the 2♣ Landy — `1NT (2♣) [Pass or X]`
+## Mixed pons–BBA continuations over the 2♣ Landy — `1NT (2♣) [Pass or X]`
 
 This is the requested pons-opener perspective: pons opens `1NT`, BBA overcalls
 `(2♣)`, and our responder passes (`-`) or doubles. The table is BBA advancer's
@@ -46,6 +46,11 @@ next call. It comes from all 24 shards of
 table only when ownership proves that pons opened and BBA made both opposing
 calls. A raw search for `1NT 2♣` is invalid because each dump also contains the
 opposite table.
+
+This is not BBA's own counter-defense: pons occupies both seats on the opener's
+side. The coherent four-BBA continuation tree, including opener's and
+responder's later doubles, is in
+[`bba-1nt-landy-tree.md`](bba-1nt-landy-tree.md).
 
 | our call | vul | live n | BBA `2♥` | `2♠` | `2♦` | Pass | `3♥` | other |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

@@ -19,7 +19,8 @@
 //! ones to `3NT`**, judged by the *child's* family (how many sides have made a
 //! non-pass call).  `1♠ - 4♠` is inside the constructive ceiling; `1♠ (4♥)` is a
 //! contested dead end.  A dead end's meaning is still read and recorded — only
-//! its subtree is skipped.
+//! its subtree is skipped.  `--no-ceiling` disables this cut for a focused walk
+//! whose reach corpus supplies the bound instead.
 //!
 //! **The floor gate.**  A `calculated bid` child is a dead end unless a BBA
 //! self-play corpus actually reaches it (`--selfplay`, `--corpus`,
@@ -132,6 +133,10 @@ struct Args {
     /// complete; `--reach-depth 99` restores the unbounded walk.
     #[arg(long, default_value_t = 4)]
     reach_depth: usize,
+
+    /// Do not stop at the constructive `4♠` or contested `3NT` ceiling
+    #[arg(long)]
+    no_ceiling: bool,
 
     /// Expand every `calculated bid` child, corpus or not (a census flag —
     /// the floor's tree is unbounded in practice)
@@ -931,7 +936,9 @@ impl Walk<'_> {
                 .all(|read| read.l == Interpretation::CALCULATED);
             let verdict: Option<&str> = if child.has_ended() {
                 Some("end")
-            } else if matches!(call, Call::Bid(bid) if bid > ceiling(family(&child))) {
+            } else if !self.args.no_ceiling
+                && matches!(call, Call::Bid(bid) if bid > ceiling(family(&child)))
+            {
                 Some("ceil")
             } else if child.len() >= self.args.max_depth {
                 Some("depth")

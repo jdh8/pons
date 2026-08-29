@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A full four-BBA `1NT (2♣)` Landy continuation tree.** A fresh
+  4,608,000-deal self-play corpus follows all 4,074 live starts through 455
+  terminal auctions and inventories every observed opener/responder `X` and
+  `XX`. Direct responder `X` was 0/4,074; the live pass-then-double after
+  advancer chose a major is a reopening double, which opener pulled 78.6% after
+  the opponents passed. `probe-bba-book --no-ceiling` now lets a focused reach
+  corpus bound the walk above its normal contested-`3NT` ceiling. No bidding
+  behavior or IMP result changed.
+
 - **BBA's live `1NT (2♣) [Pass or X]` Multi-Landy tree.** The BBA defense note
   now records advancer frequencies and the material continuations from 24
   existing live shards per vulnerability, with an explicit
