@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's live `1NT (2♣) [Pass or X]` Multi-Landy tree.** The BBA defense note
+  now records advancer frequencies and the material continuations from 24
+  existing live shards per vulnerability, with an explicit
+  `Multi-Landy=1, Cappelletti=0, Landy=0` meaning guard. No bidding behavior or
+  IMP result changed.
+
 - **§N1p: an unlimited values double over their Landy `2♣`,
   `competition.landy_notrump_no_major` and `competition.landy_major_jam` (both
   default off, A/B owed).** Responder's `X`@145 over `1NT (2♣)` is constrained
