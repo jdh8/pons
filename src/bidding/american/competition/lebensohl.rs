@@ -692,15 +692,16 @@ fn landy_doubler_ladder(agreements: &Agreements) -> Option<DoublerLadder> {
 ///
 /// **§N1-lia's three knobs, all rung edits on this one table.**
 /// [`CompetitionKnobs::landy_doubler_catchall`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_catchall]
-/// (default on) keeps the `Pass`@0; off, the short hands fall through to the
-/// floor's takeout-shaped values double — the −14,171-IMP suppression the
-/// shipped arm's caveat prices, un-blocked by [`LANDY_PENALTY`]'s re-worded
-/// tag.  [`CompetitionKnobs::landy_doubler_three_honors`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_three_honors]
+/// (default **off** since 2026-08-30) restores the `Pass`@0; the shipped
+/// default drops it, so the short hands fall through to the floor's
+/// takeout-shaped values double — a measured +0.0036 NV / +0.0014 BV plain
+/// IMPs/board, un-blocked by [`LANDY_PENALTY`]'s re-worded tag.
+/// [`CompetitionKnobs::landy_doubler_three_honors`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_three_honors]
 /// and [`CompetitionKnobs::landy_doubler_three_small`][crate::bidding::agreements::CompetitionKnobs::landy_doubler_three_small]
-/// add mutually exclusive three-card `X` cells at 154/153 under the same tag
-/// and `.penalty()`, splitting exactly-three trumps by `top_honors` — the
-/// sibling lane priced `len3 hon0` positive and `len3 hon1` negative, and
-/// `hon2+` is unmeasured.
+/// (both default **on**, same A/B) add mutually exclusive three-card `X`
+/// cells at 154/153 under the same tag and `.penalty()`, splitting
+/// exactly-three trumps by `top_honors` — both cells measured plain wins at
+/// both vulnerabilities, overturning the sibling lane's lone-honor caveat.
 fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
     if ladder == DoublerLadder::Full {

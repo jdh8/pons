@@ -104,22 +104,23 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 
-    /// Delete the Landy doubler-rebid `Pass`@0 catch-all
-    /// (`competition.landy_doubler_catchall`, default on — §N1-lia package A)
+    /// Restore the Landy doubler-rebid `Pass`@0 catch-all
+    /// (`competition.landy_doubler_catchall`, default off since 2026-08-30 —
+    /// §N1-lia package A's historical `px` arm)
     #[arg(long, default_value_t = false)]
-    no_ns_landy_doubler_catchall: bool,
+    ns_landy_doubler_catchall: bool,
 
-    /// Arm the doubler's three-trump honors cell
-    /// (`competition.landy_doubler_three_honors`): `X`@154 on
+    /// Drop the doubler's three-trump honors cell
+    /// (`competition.landy_doubler_three_honors`, default on): `X`@154 on
     /// `len(3..=3) & top_honors(2..)`
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_three_honors: bool,
+    no_ns_landy_doubler_three_honors: bool,
 
-    /// Arm the doubler's three-small-trumps cell
-    /// (`competition.landy_doubler_three_small`): `X`@153 on
+    /// Drop the doubler's three-small-trumps cell
+    /// (`competition.landy_doubler_three_small`, default on): `X`@153 on
     /// `len(3..=3) & top_honors(..=1)`
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_three_small: bool,
+    no_ns_landy_doubler_three_small: bool,
 
     /// Arm §N1-lia's package C (`competition.landy_texas`): the jam rides
     /// South African Texas and the direct majors become the NF slam try
@@ -247,9 +248,9 @@ fn main() {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
-    agreements.competition.landy_doubler_catchall = !args.no_ns_landy_doubler_catchall;
-    agreements.competition.landy_doubler_three_honors = args.ns_landy_doubler_three_honors;
-    agreements.competition.landy_doubler_three_small = args.ns_landy_doubler_three_small;
+    agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
+    agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
+    agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;
     agreements.competition.landy_texas = args.ns_landy_texas;
     agreements.competition.landy_texas_floor = args.ns_landy_texas_floor;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;

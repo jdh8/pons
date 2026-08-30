@@ -206,10 +206,12 @@ const LANDY_SPL: Alert = Alert("comp:landy-spl");
 /// the advance (`1NT (2♣) X (2♥)`, `competition.landy_opener_px`), and the
 /// **doubler's** second `X` one round later (`1NT (2♣) X (2♥) - - X` and its
 /// siblings, `competition.landy_doubler_rebids` and its flip arms).  One claim
-/// at both: **length or honour strength in their major** — four-plus at every
-/// shipped cell, and exactly three under the §N1-lia three-card cells
-/// (`landy_doubler_three_honors` / `_three_small`), whose top-honor split the
-/// rules carry and the projection publishes.  Re-worded from "four-plus"
+/// at both: **length or honour strength in their major** — four-plus at the
+/// top rung, exactly three under the §N1-lia cells
+/// (`landy_doubler_three_honors` / `_three_small`, default-on 2026-08-30),
+/// whose top-honor split the rules carry and the projection publishes.  The
+/// floor's shorter values double lives under the same claim now that the
+/// catch-all is gone.  Re-worded from "four-plus"
 /// 2026-08-30 so the tag covers every cell that can fire under it — the arms
 /// differ only in the rule, never in disclosure — which is what unblocked the
 /// `landy_doubler_catchall=false` arm (the floor's short values double at the

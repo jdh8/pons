@@ -50,6 +50,17 @@
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0
 # foreign BEFORE any headline.  Resumable; SEED_BASE persists in
 # $R/landy-lia-doubler.seed.  Iron rule: do NOT edit `src/` while this runs.
+#
+# VERDICT (2026-08-30, SEED_BASE=1788088630, 4.6M boards/arm/vul, all gates
+# 0-foreign): every adjacent pair a plain win at both vulnerabilities, every
+# sd tie-break positive — the full ladder shipped default-on.
+#   nocatch vs base  +0.0036 NV / +0.0014 BV plain (sd +0.0032 / +0.0009)
+#   hon vs nocatch   +0.0008 NV / +0.0008 BV plain (sd +2.0…+2.3 per fired)
+#   cells vs hon     +0.0104 NV / +0.0118 BV plain (sd +0.0007 / +0.0020)
+# Falsifier 1 refuted (the −14,171 reproduces on a fresh stream), falsifier 3
+# refuted (the honors cell is positive), and the sibling lane's lone-honor
+# caveat did not carry: three small trumps double at this seat.  PD negative
+# throughout — the pre-registered doubling artifact, reported double-blind.
 R=${1:?usage: ab-landy-lia-doubler.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -58,12 +69,15 @@ SEED_BASE=$(seed_for landy-lia-doubler)
 log "=== landy-lia-doubler SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base    "$v" --filter-landy
-    arm nocatch "$v" --filter-landy --no-ns-landy-doubler-catchall
-    arm hon     "$v" --filter-landy --no-ns-landy-doubler-catchall \
-        --ns-landy-doubler-three-honors
-    arm cells   "$v" --filter-landy --no-ns-landy-doubler-catchall \
-        --ns-landy-doubler-three-honors --ns-landy-doubler-three-small
+    # Flags rewritten 2026-08-30 after the full ladder shipped default-on:
+    # `cells` is now the bare default and the historical arms are rebuilt by
+    # restoring the catch-all / dropping the cells.
+    arm base    "$v" --filter-landy --ns-landy-doubler-catchall \
+        --no-ns-landy-doubler-three-honors --no-ns-landy-doubler-three-small
+    arm nocatch "$v" --filter-landy \
+        --no-ns-landy-doubler-three-honors --no-ns-landy-doubler-three-small
+    arm hon     "$v" --filter-landy --no-ns-landy-doubler-three-small
+    arm cells   "$v" --filter-landy
 
     for a in nocatch hon cells; do
         gatepair "$a" base "$v"

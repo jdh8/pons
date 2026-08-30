@@ -1005,7 +1005,17 @@ fn landy_rebids_arm() -> Agreements {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.landy_doubler_rebids = true;
+    pin_n1l_cells(&mut arm);
     arm
+}
+
+/// Pin the §N1l doubler seat as measured (2026-08-28): the `Pass`@0
+/// catch-all on, no three-card cells.  §N1-lia's 2026-08-30 default flips
+/// must not leak into the tests that pin the historical arms' rung sets.
+fn pin_n1l_cells(arm: &mut Agreements) {
+    arm.competition.landy_doubler_catchall = true;
+    arm.competition.landy_doubler_three_honors = false;
+    arm.competition.landy_doubler_three_small = false;
 }
 
 /// The §N1l flip's `px` arm: the penalty `X` and the catch-all, nothing else.
@@ -1013,6 +1023,7 @@ fn landy_px_arm() -> Agreements {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.landy_doubler_px = true;
+    pin_n1l_cells(&mut arm);
     arm
 }
 
@@ -1022,6 +1033,7 @@ fn landy_white_arm() -> Agreements {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.landy_doubler_white = true;
+    pin_n1l_cells(&mut arm);
     arm
 }
 
@@ -1471,22 +1483,22 @@ fn landy_doubler_rebids_ladders_the_dying_auction() {
     assert_eq!(c, Call::Pass, "the repeated double is penalty; opener sits");
     assert!(!floored, "and the sit is authored, not the floor's");
 
-    // The shipped default is `px` (2026-08-29): the penalty `X` on four-plus
-    // of their major, and the `Pass`@0 catch-all under it.
+    // The shipped default is `px` (2026-08-29) plus §N1-lia's cells
+    // (2026-08-30): the penalty `X` on four-plus of their major and the
+    // exactly-three cells below it, no catch-all.
     let mut shipped = Agreements::default();
     shipped.decision.their.two_clubs_landy = true;
     let (c, floored) = best_call_with(&shipped, &hearts, "A54.KJ98.AQ3.J54");
     assert_eq!(c, Call::Double, "px's penalty X is the shipped default");
     assert!(!floored, "and it is authored, not the floor's");
 
-    // Three trumps takes the catch-all rather than the floor — this is the
-    // measured caveat on `landy_doubler_px`, not an accident: the node has
-    // finite mass there, so it shadows a floor that was acting (−14,171 IMPs
-    // plain non-vulnerable).  Deleting the catch-all is the owed follow-up
-    // arm, and this assertion is what will fail when it lands.
+    // Three trumps to one top honor doubles from the small cell — §N1-lia
+    // package A (2026-08-30) deleted the shadowing catch-all and re-bought
+    // exactly-three trumps cell by cell, all under the one re-worded
+    // `comp:landy-penalty` claim.
     let (c, floored) = best_call_with(&shipped, &hearts, "A543.KJ9.AQ3.J54");
-    assert_eq!(c, Call::Pass, "three trumps takes the catch-all");
-    assert!(!floored, "the catch-all shadows the floor at three trumps");
+    assert_eq!(c, Call::Double, "three trumps doubles from the small cell");
+    assert!(!floored, "the cell is book, not the floor");
 
     // Off (`--no-ns-landy-doubler-px`) leaves the whole seat to the floor.
     let mut off = Agreements::default();
@@ -1944,13 +1956,15 @@ fn landy_doubler_cells_split_three_trumps() {
     let (c, _) = best_call_with(&cells, &seat, "A54.KJ9.AQ3.J543");
     assert_eq!(c, Call::Double, "one top honor is the small cell's too");
 
-    // The shipped default still carries the catch-all — the guard the
-    // `landy_doubler_rebids_ladders_the_dying_auction` test asserts.
+    // The shipped default (2026-08-30) is the full ladder: catch-all gone,
+    // both cells on — the same hand doubles with no knob touched.
     let mut shipped = Agreements::default();
     shipped.decision.their.two_clubs_landy = true;
     let (c, floored) = best_call_with(&shipped, &seat, "A54.KJ9.AQ3.J543");
-    assert_eq!(c, Call::Pass, "the default keeps the three-trump catch-all");
+    assert_eq!(c, Call::Double, "the default ships the small cell");
     assert!(!floored);
+    let (_, floored) = best_call_with(&shipped, &seat, "A54.98.AQ32.KJ54");
+    assert!(floored, "a doubleton still reaches the floor by default");
 }
 
 /// §N1-lia package C: the jam rides South African Texas, the direct major is

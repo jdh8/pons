@@ -585,10 +585,20 @@ fn landy_doubler_px_keeps_the_double_and_drops_the_invitation() {
 
 /// The `white` arm keeps the whole constructive family, and its answers,
 /// non-vulnerable
+///
+/// The arm is pinned as measured (2026-08-28): catch-all on, no three-card
+/// cells — §N1-lia's shipped small cell would otherwise double the second
+/// walk's three small hearts ahead of the natural `3♣` this test exists for.
 #[test]
 fn landy_doubler_white_keeps_the_constructive_family() {
+    let white = |knobs: &mut pons::bidding::agreements::CompetitionKnobs| {
+        knobs.landy_doubler_white = true;
+        knobs.landy_doubler_catchall = true;
+        knobs.landy_doubler_three_honors = false;
+        knobs.landy_doubler_three_small = false;
+    };
     walk_landy_doubler_arm(
-        |knobs| knobs.landy_doubler_white = true,
+        white,
         "AQ32.A432.KQ3.J3",
         "Q54.KJ.KT432.543",
         &[
@@ -609,7 +619,7 @@ fn landy_doubler_white_keeps_the_constructive_family() {
     // raises to the game.  That continuation did not exist before the flip —
     // §N1l authored the rung and left the seat to the floor.
     walk_landy_doubler_arm(
-        |knobs| knobs.landy_doubler_white = true,
+        white,
         "AQ32.A432.KQJ.32", // 16 with hearts stopped
         "K54.J98.82.KJ954", // 8, five clubs, no heart stopper
         &[

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **§N1-lia package A shipped default-on: the Landy doubler's rebid seat
+  unshadowed and exactly-three trumps re-bought cell by cell**
+  (`competition.landy_doubler_catchall` now **false**,
+  `landy_doubler_three_honors` / `landy_doubler_three_small` now **true**;
+  `ab-landy-lia-doubler.sh`, 4.6M boards/arm/vul, all isolation gates
+  0-foreign). Every adjacent pair on the cumulative ladder is a plain-DD win
+  at both vulnerabilities and every sd-lead tie-break is positive: the
+  catch-all deletion +0.0036 NV / +0.0014 BV IMPs/board, the honors cell
+  +0.0008 / +0.0008 (+2.0–2.3 sd IMPs/fired), the small cell +0.0104 /
+  +0.0118 (sd +0.0007 / +0.0020). PD reads negative throughout — the
+  pre-registered doubling artifact for penalty rungs, excluded from
+  arbitration. The sibling lane's lone-honor caveat did not carry to this
+  seat, and package D (`landy_notrump_no_major`) is now unblocked on the
+  repaired seat. CLI polarity flipped to match (`--ns-landy-doubler-catchall`
+  restores the old catch-all; `--no-ns-landy-doubler-three-honors` /
+  `--no-ns-landy-doubler-three-small` drop the cells).
+
 ### Added
 
 - **§N1-lia built: Lia's counter-defense to their Landy `2♣`, four packages

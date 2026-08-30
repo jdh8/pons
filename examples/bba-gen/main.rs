@@ -948,34 +948,35 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 
-    /// Delete the `Pass`@0 catch-all from the Landy doubler's rebid ladder
-    /// (§N1-lia, package A)
+    /// Restore the `Pass`@0 catch-all on the Landy doubler's rebid ladder
+    /// (§N1-lia package A's historical `px` arm)
     ///
-    /// `competition.landy_doubler_catchall`, default **on** (the shipped `px`
-    /// arm keeps it).  Off, the node rejects three trumps or fewer and the
-    /// floor's takeout-shaped values double — which opener pulls to `3NT`
-    /// ~49.5% of the time — acts again; the shipped catch-all suppresses it
-    /// at a measured −14,171 IMPs plain non-vulnerable.
+    /// `competition.landy_doubler_catchall`, default **off** since the
+    /// 2026-08-30 A/B: deleting it won +0.0036 NV / +0.0014 BV plain
+    /// IMPs/board.  On, the node re-shadows the floor's takeout-shaped
+    /// values double at three trumps or fewer.
     #[arg(long, default_value_t = false)]
-    no_ns_landy_doubler_catchall: bool,
+    ns_landy_doubler_catchall: bool,
 
-    /// The Landy doubler re-doubles on exactly three trumps to two-plus top
+    /// Drop the Landy doubler's `X` on exactly three trumps to two-plus top
     /// honors (§N1-lia, package A)
     ///
-    /// `competition.landy_doubler_three_honors`, default **off**: `X`@154 on
+    /// `competition.landy_doubler_three_honors`, default **on** (2026-08-30:
+    /// +0.0008 plain at both vulnerabilities): `X`@154 on
     /// `len(major, 3..=3) & top_honors(major, 2..)`, same `comp:landy-penalty`
-    /// tag.  A doubling rung — read it on plain DD.
+    /// tag.
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_three_honors: bool,
+    no_ns_landy_doubler_three_honors: bool,
 
-    /// The Landy doubler re-doubles on exactly three small trumps
+    /// Drop the Landy doubler's `X` on exactly three small trumps
     /// (§N1-lia, package A)
     ///
-    /// `competition.landy_doubler_three_small`, default **off**: `X`@153 on
-    /// `len(major, 3..=3) & top_honors(major, ..=1)` — the complement cell of
-    /// `--ns-landy-doubler-three-honors`.  A doubling rung — plain DD.
+    /// `competition.landy_doubler_three_small`, default **on** (2026-08-30:
+    /// +0.0104 NV / +0.0118 BV plain, sd-lead tie-break positive at both):
+    /// `X`@153 on `len(major, 3..=3) & top_honors(major, ..=1)` — the
+    /// complement cell of the honors rung above it.
     #[arg(long, default_value_t = false)]
-    ns_landy_doubler_three_small: bool,
+    no_ns_landy_doubler_three_small: bool,
 
     /// South African Texas at the four level over their Landy `2♣`
     /// (§N1-lia, package C)
@@ -2476,9 +2477,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
-    agreements.competition.landy_doubler_catchall = !args.no_ns_landy_doubler_catchall;
-    agreements.competition.landy_doubler_three_honors = args.ns_landy_doubler_three_honors;
-    agreements.competition.landy_doubler_three_small = args.ns_landy_doubler_three_small;
+    agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
+    agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
+    agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;
     agreements.competition.landy_texas = args.ns_landy_texas;
     agreements.competition.landy_texas_floor = args.ns_landy_texas_floor;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;

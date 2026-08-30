@@ -1495,10 +1495,14 @@ pub struct CompetitionKnobs {
     /// major"** — one claim across every cell, so the arms differ only in the
     /// rule, never in disclosure — which is what unblocks this arm.
     ///
-    /// **On by default (shipped behavior); the off arm's A/B is owed**
-    /// (`scripts/ab-landy-lia-doubler.sh`).  Read wherever
-    /// [`Self::landy_doubler_rebids`] / [`Self::landy_doubler_px`] /
-    /// [`Self::landy_doubler_white`] build the seat.
+    /// **Off by default — measured 2026-08-30** (`ab-landy-lia-doubler.sh`,
+    /// 4.6M boards/vul): deleting the catch-all won **+0.0036 ±0.0002**
+    /// plain NV / **+0.0014 ±0.0003** BV IMPs/board, sd-lead confirming
+    /// (+0.0032 / +0.0009); the PD loss (−0.0027 / −0.0044) is the
+    /// pre-registered doubling artifact.  On preserves the historical `px`
+    /// arm.  Read wherever [`Self::landy_doubler_rebids`] /
+    /// [`Self::landy_doubler_px`] / [`Self::landy_doubler_white`] build the
+    /// seat.
     pub landy_doubler_catchall: bool,
     /// The Landy doubler re-doubles on exactly three trumps to **two of the
     /// top three honors** (§N1-lia, package A)
@@ -1510,9 +1514,11 @@ pub struct CompetitionKnobs {
     /// real) but `hon2+` is genuinely unmeasured — at KQx or better the
     /// holding is trump tricks, not a stopper spent on defense.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-lia-doubler.sh`,
-    /// run on top of the no-catch-all arm).  A pure doubling rung: arbitrate
-    /// on plain DD, PD reported double-blind.
+    /// **On by default — measured 2026-08-30** (`ab-landy-lia-doubler.sh`,
+    /// adjacent pair vs the no-catch-all arm): **+0.0008 ±0.0001** plain
+    /// IMPs/board at *both* vulnerabilities, and the sd-lead tie-break keeps
+    /// +2.0–2.3 IMPs/fired — at KQx or better the holding really is trump
+    /// tricks.  The sibling lane's lone-honor caveat did not carry over.
     pub landy_doubler_three_honors: bool,
     /// The Landy doubler re-doubles on exactly three **small** trumps
     /// (§N1-lia, package A)
@@ -1524,8 +1530,12 @@ pub struct CompetitionKnobs {
     /// fired): with nothing wasted in their suit the double is pure values,
     /// and partner's pull lands somewhere real.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-lia-doubler.sh`,
-    /// the fourth arm, on top of the honors cell).  Plain-DD arbitration.
+    /// **On by default — measured 2026-08-30** (`ab-landy-lia-doubler.sh`,
+    /// adjacent pair vs the honors cell): **+0.0104 ±0.0005** plain NV /
+    /// **+0.0118 ±0.0006** BV IMPs/board.  Most of the per-fired margin is
+    /// the DD-lead artifact — sd-lead shrinks it to +0.0007 ±0.0005 NV /
+    /// +0.0020 ±0.0006 BV — but the tie-break stays above zero at both
+    /// vulnerabilities, so the cell ships.
     pub landy_doubler_three_small: bool,
     /// South African Texas at the four level over their Landy `2♣`
     /// (§N1-lia, package C)
@@ -1707,9 +1717,9 @@ impl Default for CompetitionKnobs {
             landy_notrump_no_major: false,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
-            landy_doubler_catchall: true,
-            landy_doubler_three_honors: false,
-            landy_doubler_three_small: false,
+            landy_doubler_catchall: false,
+            landy_doubler_three_honors: true,
+            landy_doubler_three_small: true,
             landy_texas: false,
             landy_texas_floor: 10,
             major_support_double: true,
