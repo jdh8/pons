@@ -76,9 +76,9 @@ SEED_BASE=$(seed_for landy-notrump-shape)
 log "=== landy-notrump-shape SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base "$v" --filter-landy
-    arm nt   "$v" --filter-landy --ns-landy-notrump-no-major
-    arm jam  "$v" --filter-landy --ns-landy-notrump-no-major --ns-landy-major-jam
+    arm base "$v" --filter-landy --no-ns-landy-major-jam
+    arm nt   "$v" --filter-landy --ns-landy-notrump-no-major --no-ns-landy-major-jam
+    arm jam  "$v" --filter-landy --ns-landy-notrump-no-major
 
     for a in nt jam; do
         gatepair "$a" base "$v"

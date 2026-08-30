@@ -928,15 +928,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_notrump_no_major: bool,
 
-    /// Jam `4M` on a strong six-card major over their Landy (§N1p's jam arm)
+    /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
-    /// `competition.landy_major_jam`, default **off**, independent of
-    /// `--ns-landy-notrump-no-major` since 2026-08-30: `4♠`@172 / `4♥`@171 on `len(major, 6..)
-    /// & points(10..)`, above the restricted `3NT`@168 and below the
-    /// transfers, with opener sitting.  Weak six-carders keep defending
-    /// through the double.  Partly an obstruction knob, which DD cannot see.
+    /// `competition.landy_major_jam`, default **on** since it swept its
+    /// standalone A/B: `4♠`@172 / `4♥`@171 on `len(major, 6..) & points(10..)`,
+    /// above `3NT`@168 and below the transfers, with opener sitting.  Weak
+    /// six-carders keep defending through the double.
     #[arg(long, default_value_t = false)]
-    ns_landy_major_jam: bool,
+    no_ns_landy_major_jam: bool,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
@@ -2418,7 +2417,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_opener_px = args.ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
-    agreements.competition.landy_major_jam = args.ns_landy_major_jam;
+    agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

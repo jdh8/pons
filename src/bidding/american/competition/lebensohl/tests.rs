@@ -206,6 +206,7 @@ fn landy_major_jam_alone_replaces_the_notrump_not_the_double() {
 
     // Neither knob: the ungated `3NT`@168 takes the six-card major. This is
     // what the standalone jam displaces — not the `X` §N1p measured against.
+    arm.competition.landy_major_jam = false;
     let (c, _) = best_call_with(&arm, &auction, hand);
     assert_eq!(c, call(3, Strain::Notrump));
 

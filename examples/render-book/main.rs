@@ -147,6 +147,7 @@ struct Args {
     /// four-card major, so the game hands with length in a suit they showed
     /// reach the values `X`@145; `jam` adds `landy_major_jam`'s `4♠`@172 /
     /// `4♥`@171 on a strong six-card major, and opener's sit above them.
+    /// `off` and `nt` clear `landy_major_jam`, which now ships on.
     ///
     /// `jam-only` is the third arm, and it is a **different** table from `jam`:
     /// with `3NT`@168 left ungated the `4M` rungs still outrank it, so the jam
@@ -217,8 +218,11 @@ fn main() {
         other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
     }
     match args.ns_landy_responder.as_str() {
-        "off" => {}
-        "nt" => agreements.competition.landy_notrump_no_major = true,
+        "off" => agreements.competition.landy_major_jam = false,
+        "nt" => {
+            agreements.competition.landy_notrump_no_major = true;
+            agreements.competition.landy_major_jam = false;
+        }
         "jam" => {
             agreements.competition.landy_notrump_no_major = true;
             agreements.competition.landy_major_jam = true;

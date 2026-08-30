@@ -1426,8 +1426,8 @@ pub struct CompetitionKnobs {
     /// six of one is four-plus, so `4M` substitutes for the **`X`** — that is
     /// §N1p's `jam vs nt` pair, +5.541 IMPs/fired sd-plain on 1,567 boards,
     /// riding an arm that lost.  Alone, `3NT`@168 is ungated and `4M`
-    /// substitutes for the **game** instead.  The measured number does not
-    /// transfer; that arm is unrun.
+    /// substitutes for the **game** instead — that is what shipped, and the
+    /// +5.541 does not transfer to it.
     ///
     /// `4♠`@172 on `len(♠, 6..) & points(10..)` and `4♥`@171 on the heart
     /// twin — natural game bids that jam the whole auction, placed above the
@@ -1443,9 +1443,14 @@ pub struct CompetitionKnobs {
     /// forgo slam on the fifteen-plus slice, so it is the first thing to relax
     /// if the arm reads mixed.
     ///
-    /// **Off by default — the standalone A/B is owed.**  Measured only
-    /// on top of [`Self::landy_notrump_no_major`]
-    /// (`scripts/ab-landy-notrump-shape.sh`, 2026-08-30).
+    /// **Default on** — the standalone arm swept every cell
+    /// (`scripts/ab-landy-major-jam.sh`, 2026-08-30, SEED_BASE=1788033942,
+    /// 4.6M boards/vul, 0.02%/0.03% fired): DD plain +1.443/+1.611
+    /// IMPs/fired NV/vul, DD perfect-defense +1.635/+1.957, SD plain
+    /// +1.435/+1.600, SD-PD +1.558/+1.866 — eight of eight positive, every
+    /// CI excluding 0, isolation gate passed at both vulnerabilities.  The
+    /// divergences are purely `3NT` → `4M`; no board gains or loses an
+    /// action.  `--no-ns-landy-major-jam` in `bba-gen` for the off arm.
     pub landy_major_jam: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
@@ -1591,7 +1596,7 @@ impl Default for CompetitionKnobs {
             landy_opener_px: false,
             landy_opener_rungs: false,
             landy_notrump_no_major: false,
-            landy_major_jam: false,
+            landy_major_jam: true,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.landy_major_jam` now ships default on** — the `4M` jam over
+  their Landy `2♣` (`4♠`@172 / `4♥`@171 on `len(major, 6..) & points(10..)`,
+  opener sitting). Its standalone A/B swept **all eight cells**
+  (`scripts/ab-landy-major-jam.sh`, `SEED_BASE=1788033942`, sha `52fbc7c1`,
+  4,608,000 boards/arm/vul):
+
+  | scorer | none (1,381 fired, 0.03%) | both (1,013 fired, 0.02%) |
+  | --- | ---: | ---: |
+  | DD plain | +1.443 IMPs/fired (+0.0004 ±.0001) | +1.611 (+0.0004 ±.0001) |
+  | DD perfect-defense | +1.635 (+0.0005 ±.0001) | +1.957 (+0.0004 ±.0001) |
+  | sd-plain (16 worlds) | +1.435 (+0.0004 ±.0001) | +1.600 (+0.0004 ±.0001) |
+  | SD-PD (arbiter) | +1.558 (+0.0005 ±.0001) | +1.866 (+0.0004 ±.0001) |
+
+  Every CI excludes 0 and the isolation gate found **0 foreign** boards at both
+  colours. Plain DD wins on its own, so this is a contract gain, not the
+  auto-double artifact that flattered §N1p's losing `nt` arm. The divergence
+  census is unusually clean: **100.0%** "a different bid" and game reached in
+  *both* arms on 100.0% of divergent boards, so the two arms bid the same
+  auction up to the rung and the only thing priced is `4M` versus `3NT` on a
+  strong six-card major opposite a pair that has advertised both majors.
+
+  **User impact:** the default system now jams to game on that hand class
+  instead of declaring `3NT`, worth ~+1.4…+2.0 IMPs per fired board on a
+  ~0.03% slice. The losing boards are all one shape — a texture-poor six-bagger
+  where `3NT` had nine top tricks — so a quality gate on the suit is a tuning
+  follow-up, not a defect. `--no-ns-landy-major-jam` in `bba-gen` and
+  `probe-call-reading` gives the off arm; `render-book --ns-landy-responder
+  off|nt` clears it. `cards/*.bbsa` are unchanged — the rung is natural, so it
+  carries no alert and discloses nothing new to BBA. Design and the full
+  census: `docs/one-notrump-competitive.md` §N1p → "Verdict — an eight-of-eight
+  sweep".
+
+  `competition.landy_notrump_no_major` **stays default off** (measured loss).
+
 - **`competition.landy_major_jam` decoupled from
   `competition.landy_notrump_no_major`** (§N1p follow-up), so the `4M` jam over
   their Landy `2♣` can be measured on its own for the first time. The knob doc
@@ -31,8 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rung has no quality gate, so a ratty six-bagger with soft side values is
   exactly the hand `3NT` was right on) and a new
   `render-book --ns-landy-responder jam-only` mode, which is a different table
-  from `jam`. **No user impact** — the knob is still default off and the A/B is
-  owed. Design: `docs/one-notrump-competitive.md` §N1p → "The standalone arm".
+  from `jam`. Design: `docs/one-notrump-competitive.md` §N1p → "The standalone
+  arm". The A/B it enabled has since run and shipped — see below.
 
 - **A full four-BBA `1NT (2♣)` Landy continuation tree.** A fresh
   4,608,000-deal self-play corpus follows all 4,074 live starts through 455

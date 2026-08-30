@@ -72,8 +72,8 @@ SEED_BASE=$(seed_for landy-major-jam)
 log "=== landy-major-jam SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base "$v" --filter-landy
-    arm jam  "$v" --filter-landy --ns-landy-major-jam
+    arm base "$v" --filter-landy --no-ns-landy-major-jam
+    arm jam  "$v" --filter-landy
 
     gatepair jam base "$v"
     diffpair jam base "$v"

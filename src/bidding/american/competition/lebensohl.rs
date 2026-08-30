@@ -1192,7 +1192,8 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 /// transfers and short stoppers still count.  Under
 /// [`CompetitionKnobs::landy_major_jam`][crate::bidding::agreements::CompetitionKnobs::landy_major_jam]
 /// as well, a *strong* six-card major jams the auction with `4M` instead — weak
-/// six-carders keep defending.  Both default off, A/B owed.
+/// six-carders keep defending.  The jam is **on by default** (it swept its
+/// standalone A/B); `landy_notrump_no_major` stays off (measured loss).
 fn landy_bba_responder(agreements: &Agreements) -> Rules {
     let both_minors = len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..);
 
@@ -1275,13 +1276,12 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // keep outranking the double.  `4♠` outranks `4♥` because with 6-6 the
     // better game is `4♠`; nothing else satisfies both.
     //
-    // Independent of `landy_notrump_no_major` since 2026-08-30, and the
-    // generalisation is behaviour-preserving where the two overlap: with both
-    // knobs on the rungs are added exactly as §N1p measured them.  What it
-    // adds is the arm §N1p could not run — the jam over an *ungated*
-    // `3NT`@168, where `4M` substitutes for the game rather than for the
-    // double.  §N1p's `jam vs nt` win was measured against the double and
-    // does not transfer; see the "Verdict" block in the campaign doc.
+    // Independent of `landy_notrump_no_major` since 2026-08-30, and default
+    // on since the standalone A/B swept all eight cells: the jam over an
+    // *ungated* `3NT`@168, where `4M` substitutes for the game rather than
+    // for the double.  §N1p's `jam vs nt` win was measured against the
+    // double and does not transfer; see the "Verdict" block in the campaign
+    // doc.
     if agreements.competition.landy_major_jam {
         for (major, weight) in [(Suit::Spades, 172), (Suit::Hearts, 171)] {
             rules = rules.rule(

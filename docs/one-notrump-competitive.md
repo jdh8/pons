@@ -744,7 +744,7 @@ IMPs per *accepted* board — but every §N1 verdict measured under it is blind 
 that slice, and the "5+ vs 6+" question the `3m` rung was supposed to answer is
 **unanswerable in this pool**. Flagged below.
 
-### N1p — an **unlimited** values double (`landy_notrump_no_major` / `landy_major_jam`, **measured loss 2026-08-30, both stay off**)
+### N1p — an **unlimited** values double (`landy_notrump_no_major` **loss, stays off**; `landy_major_jam` **shipped default-on 2026-08-30**)
 
 Responder's direct seat, `1NT (2♣) ?`. The `X`@145 is constrained `hcp(8..)` —
 **unlimited on top in its own constraint** — but the table's ungated `3NT`@168
@@ -825,6 +825,52 @@ the rung has **no quality gate** and a ratty six-bagger with soft side values is
 the hand `3NT` was right on (read the made/down split before the IMP mean); the
 sit still forgoes slam on the fifteen-plus slice; the slice is thin (~0.03%).
 
+##### Verdict — an eight-of-eight sweep; **shipped default-on**
+
+`SEED_BASE=1788033942`, sha `52fbc7c1`, 4,608,000 boards/arm/vul, 24 shards.
+
+| scorer | none (1,381 fired, 0.03%) | both (1,013 fired, 0.02%) |
+| --- | ---: | ---: |
+| DD plain | **+1.443**/fired (+0.0004 ±.0001) | **+1.611**/fired (+0.0004 ±.0001) |
+| DD perfect-defense | **+1.635**/fired (+0.0005 ±.0001) | **+1.957**/fired (+0.0004 ±.0001) |
+| sd-plain (16 worlds) | **+1.435**/fired (+0.0004 ±.0001) | **+1.600**/fired (+0.0004 ±.0001) |
+| **SD-PD** (arbiter) | **+1.558**/fired (+0.0005 ±.0001) | **+1.866**/fired (+0.0004 ±.0001) |
+
+Every cell positive, every CI excluding 0, isolation gate **0 foreign** at both
+colours. This is not a doubling artifact — plain DD wins on its own and the PD
+column only widens the margin, which is the signature of a *contract* gain, not
+of auto-doubles.
+
+The divergence census says the rung is doing exactly one thing, and nothing
+else: **100.0%** "a different bid" at both colours — zero boards where an arm
+bid and the other passed, zero pass-outs, and game reached in **both** arms on
+100.0% of divergent boards. §N1p's fatal buckets are all empty here. Compare:
+
+| bucket | §N1p (`nt`) | the standalone jam |
+| --- | ---: | ---: |
+| bid where the baseline passed | 16.0% / 13.4% | **0.0% / 0.0%** |
+| game reached, baseline only | 81.5% / 84.8% | **0.0% / 0.0%** |
+| more room handed to the opponents | 72.3% / 75.0% | **0.0% / 0.0%** (6.2% / 0.2% *less*) |
+| declarer changed sides | 91.1% / 94.9% | 4.9% / 0.2% |
+
+So the two arms bid the same auction up to the rung and reach game either way;
+the only question priced is `4M` versus `3NT` on a strong six-card major
+opposite a pair that has advertised both majors. `4M` wins it by 3:1 in IMPs.
+
+The named risks resolve as follows. **Obstruction**: not needed — the win is
+already there on plain DD, and the tiny room asymmetry runs *our* way. **The
+overbid**: real but priced. Every one of the five worst boards at every scorer
+is the same shape, a making `3NT` traded for a failing `4M` (the 6––4 flat
+holdings such as `85.AT9763.6.KQ73` opposite `KQJ.54.KQJ94.AJ4`, where the
+notrump has nine top tricks and the heart game has a trump loser plus two).
+They cost −11…−16 IMPs each and are outweighed threefold, so a quality gate is
+a *tuning* follow-up, not a ship blocker. **The sit's forgone slam**: invisible
+at this fire rate; unchanged and still the first thing to relax.
+
+Follow-ups, both optional and both unstarted: a quality gate on the six-card
+suit (the losing boards are all texture-poor), and relaxing `multi_signoff_pass`
+on the fifteen-plus slice now that the rung ships.
+
 ##### Falsifier 2 resolves against the idea, not against a continuation
 
 The divergence split (`probe-divergence --gate-opener ours`) makes the
@@ -894,6 +940,7 @@ major is the shape that wants to defend at any strength, which is what
 | --- | --- |
 | `nt` | `competition.landy_notrump_no_major` — both `3NT` rungs (@180 and @168) gain `len(♥, ..=3) & len(♠, ..=3)`. Paired `rule` calls, not a conditional constraint: the two constraints are different types (the `landy_doubler_white` idiom) |
 | `jam` | `nt` plus `competition.landy_major_jam` — `4♠`@172 / `4♥`@171 on `len(major, 6..) & points(10..)`, above the restricted `3NT`@168 and below the transfers, with `multi_signoff_pass` at `4♠ -` / `4♥ -` |
+| `jam-only` | `competition.landy_major_jam` alone — the same two rungs and sits over an **ungated** `3NT`@168, so `4M` substitutes for the game. **This is what ships**, and `nt` stays off |
 
 Where the displaced hands land, in order: a 6+ minor still transfers; the GF
 both-minors shapes still fire (4+♦ *and* 4+♣ leaves at most three in each major
