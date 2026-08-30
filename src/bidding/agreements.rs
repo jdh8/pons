@@ -1452,6 +1452,115 @@ pub struct CompetitionKnobs {
     /// divergences are purely `3NT` → `4M`; no board gains or loses an
     /// action.  `--no-ns-landy-major-jam` in `bba-gen` for the off arm.
     pub landy_major_jam: bool,
+    /// Lia's counter-defense ladder over their Landy `2♣` (§N1-lia, package B)
+    ///
+    /// IntoBridge's counter is ~80% the shipped N1j table; this knob carries
+    /// the two deltas its tree is better-informed on.  The minor ladder drops
+    /// a full level to match BBA's own coherent self-play tree
+    /// (`docs/ai-bidder/bba-1nt-landy-tree.md`: `2♠`→♣ 5.9%, `3♣`→♦ 6.8%):
+    /// `2♠` = 5+♣ weak or game-forcing, `2NT` = 7+♦ / a good six (`len(6..=6)
+    /// & top_honors(2..)`) / GF, and the invitations return as natural
+    /// `3♣`/`3♦`@167/166 — the N1c right-siding trade partially unwound.  The
+    /// `2=3=4=4` takeout split dies: `2♥` becomes the **only** GF takeout
+    /// (4+♦ 4+♣, 2+ in both majors) and its answer priority reverses — opener
+    /// offers a four-card minor *before* notrump, `2NT` = spade stopper, `2♠`
+    /// = neither (asks).  Instead of a forced completion, opener answers the
+    /// minor rungs by length (`comp:landy-length`): the cheap raise = 3+, the
+    /// step below it a doubleton (`2NT` over `2♠`; `3♣` over `2NT` — opener
+    /// is balanced, so two diamonds implies 3+ clubs, a safe landing).  The
+    /// N4-KK `4m` slam try and [`Self::landy_minor_slam_answer`]'s answer
+    /// re-hang byte-identical on every leg.  Splinters, both `3NT` rungs, the
+    /// values `X`, the weak `2♦` and the jam are untouched.
+    ///
+    /// Read only under [`Self::defense_2c_landy_bba`] (the shipped ladder it
+    /// modifies).  **Off by default — the A/B is owed**
+    /// (`scripts/ab-landy-lia.sh`); a permutation, so it cannot be
+    /// decomposed.  Inert while their `2♣` is undeclared or natural.
+    pub defense_2c_landy_lia: bool,
+    /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder
+    /// (§N1-lia, package A — **on** preserves the shipped `px` arm)
+    ///
+    /// The catch-all is measured wrong and shipped anyway
+    /// ([`Self::landy_doubler_px`]'s caveat): it gives the node finite mass at
+    /// three trumps or fewer, shadowing a floor that was already acting there
+    /// at a cost of **−14,171 IMPs plain non-vulnerable** (+889 vulnerable).
+    /// Off, the short hands fall through to the floor's takeout-shaped values
+    /// double, which opener pulls to `3NT` ~49.5% of the time — the working
+    /// mechanism nobody authored.
+    ///
+    /// The deletion was blocked on disclosure, not arithmetic: the same `X`
+    /// at the same seat would be book-penalty at four-plus and floor-takeout
+    /// below it under one `comp:landy-penalty` tag that claimed four-plus.
+    /// §N1-lia re-words the tag to **"length or honour strength in their
+    /// major"** — one claim across every cell, so the arms differ only in the
+    /// rule, never in disclosure — which is what unblocks this arm.
+    ///
+    /// **On by default (shipped behavior); the off arm's A/B is owed**
+    /// (`scripts/ab-landy-lia-doubler.sh`).  Read wherever
+    /// [`Self::landy_doubler_rebids`] / [`Self::landy_doubler_px`] /
+    /// [`Self::landy_doubler_white`] build the seat.
+    pub landy_doubler_catchall: bool,
+    /// The Landy doubler re-doubles on exactly three trumps to **two of the
+    /// top three honors** (§N1-lia, package A)
+    ///
+    /// `X`@154 on `len(major, 3..=3) & top_honors(major, 2..)`, under the
+    /// same `comp:landy-penalty` tag and `.penalty()` as the `X`@155 above
+    /// it.  The sibling lane's re-slice priced `len3 hon1` at −0.75/+0.37
+    /// plain per fired (the lone honor *is* the stopper that made `3NT`
+    /// real) but `hon2+` is genuinely unmeasured — at KQx or better the
+    /// holding is trump tricks, not a stopper spent on defense.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-lia-doubler.sh`,
+    /// run on top of the no-catch-all arm).  A pure doubling rung: arbitrate
+    /// on plain DD, PD reported double-blind.
+    pub landy_doubler_three_honors: bool,
+    /// The Landy doubler re-doubles on exactly three **small** trumps
+    /// (§N1-lia, package A)
+    ///
+    /// `X`@153 on `len(major, 3..=3) & top_honors(major, ..=1)` — the
+    /// complement cell of [`Self::landy_doubler_three_honors`], mirroring the
+    /// sibling pair `nt_high_overcall_x_leave_in` / `_three`.  The sibling
+    /// re-slice priced `len3 hon0` **positive** (+0.62/+1.85 plain per
+    /// fired): with nothing wasted in their suit the double is pure values,
+    /// and partner's pull lands somewhere real.
+    ///
+    /// **Off by default — the A/B is owed** (`scripts/ab-landy-lia-doubler.sh`,
+    /// the fourth arm, on top of the honors cell).  Plain-DD arbitration.
+    pub landy_doubler_three_small: bool,
+    /// South African Texas at the four level over their Landy `2♣`
+    /// (§N1-lia, package C)
+    ///
+    /// The `4♣`/`4♦` seat is floor-owned today, so the jam declares from the
+    /// wrong side and a 16+ hand cannot look for slam.  On, the
+    /// [`Self::landy_major_jam`] rung rides a transfer instead: `4♦`@170 → ♠
+    /// / `4♣`@169 → ♥ (`4♦` outranks `4♣` as `4♠`@172 outranks `4♥`@171
+    /// today — 6-6 wants spades), carrying the jam's gate
+    /// (`points(landy_texas_floor..) & len(major, 6..)`), opener completing
+    /// via the uncontested `complete_texas`.  The freed direct `4♥`/`4♠`
+    /// become the uncontested NF slam-try tier verbatim
+    /// (`hcp(15..=direct_4m_max)`, `slam_try_answer` + the RKCB ladder
+    /// above), and a 16+ hand transfers
+    /// and drives its own `4NT` (`texas_slam_drive_rebid`) — the DD-visible
+    /// half of the package.  The drive seat carries a `Pass`@0 sit rail the
+    /// uncontested twin does not need: there `instinct()` never pulls a
+    /// completed transfer, but this lane's floor is the learned one §N1o
+    /// caught cue-bidding a dead four-level to `6♥` doubled.  The right-siding
+    /// half is invisible to the harness by construction
+    /// (docs/measurement.md): a wash on DD is real, and the package ships on
+    /// a non-loss.
+    ///
+    /// Read only under [`Self::landy_major_jam`] (it moves that rung's
+    /// call).  **Off by default — the A/B is owed**
+    /// (`scripts/ab-landy-texas.sh`).  Inert while their `2♣` is undeclared
+    /// or natural.
+    pub landy_texas: bool,
+    /// The points floor on the four-level game rungs over their Landy `2♣`
+    /// (the jam's `points(10..)`, and [`Self::landy_texas`]'s transfers)
+    ///
+    /// Default `10` — the shipped jam gate verbatim.  Exists so the floor can
+    /// be swept as its own arm later; §N1-lia's package C does **not** sweep
+    /// it (that package changes only which call carries the hand).
+    pub landy_texas_floor: u8,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -1597,6 +1706,12 @@ impl Default for CompetitionKnobs {
             landy_opener_rungs: false,
             landy_notrump_no_major: false,
             landy_major_jam: true,
+            defense_2c_landy_lia: false,
+            landy_doubler_catchall: true,
+            landy_doubler_three_honors: false,
+            landy_doubler_three_small: false,
+            landy_texas: false,
+            landy_texas_floor: 10,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

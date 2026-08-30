@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1-lia built: Lia's counter-defense to their Landy `2♣`, four packages
+  behind six knobs, every default byte-identical** (`smoke-default --count
+  20000 --seed 1` verified twice; A/Bs owed, sequential — runners
+  `scripts/ab-landy-lia-doubler.sh`, `ab-landy-lia.sh`, `ab-landy-texas.sh`,
+  design in `docs/one-notrump-competitive.md` §N1-lia).
+
+  - **Package A** (`competition.landy_doubler_catchall`, default **on**;
+    `landy_doubler_three_honors` / `landy_doubler_three_small`, default
+    **off**): the doubler-rebid `Pass`@0 catch-all becomes deletable — the
+    §N1l-flip caveat's ≈ +14,171 IMPs plain NV — and exactly-three trumps can
+    be bought back cell by cell (`X`@154 on `top_honors(2..)`, `X`@153 on
+    `top_honors(..=1)`). The blocking disclosure decision is taken:
+    `comp:landy-penalty` now reads **"length or honour strength in their
+    major"**, one claim across every cell (and the floor's short double the
+    no-catch-all arm un-shadows), recorded in `card.rs`. Build finding: the
+    deletion was a **silent no-op** until the doubler tables moved from
+    `Pattern::after` guards to exact `Pattern::node`s —
+    `Trie::resolve_floored`'s single fall-through returns a guarded
+    fallback's all-−∞ logits unchecked, so only an exact node's rejection
+    falls to the floor. Registration form is byte-identical at defaults.
+  - **Package B** (`competition.defense_2c_landy_lia`, default **off**): the
+    minor ladder drops a full level to match BBA's own coherent self-play
+    tree — `2♠` = 5+♣ weak-or-GF, `2NT` = 7+♦/good-6/GF, natural `3♣`/`3♦`
+    invitations restored — with `2♥` the only GF takeout (answer priority
+    reversed: minors first, `2NT` = spade stopper, `2♠` asks,
+    `comp:landy-ask`), opener answering the minor rungs **by length**
+    (`comp:landy-length`: cheap raise = 3+, step below = doubleton) instead
+    of completing, and the N4-KK `4m` slam machinery re-hung byte-identical
+    on every leg. The restored invitations carry the stack lane's
+    acceptance table — the adversarial build review caught the seat
+    floor-owned, answering a phantom `3♦` transfer completion.
+  - **Package C** (`competition.landy_texas`, default **off**;
+    `landy_texas_floor`, default **10**): the jam rides South African Texas
+    (`4♦`→♠ / `4♣`→♥, the uncontested `texas` slug reused) so opener
+    declares; the freed direct `4♥`/`4♠` become the uncontested NF slam-try
+    tier and a 16+ hand transfers and drives its own `4NT` — with a `Pass`@0
+    sit rail over the drive seat, because this lane's floor is the learned
+    one §N1o caught cue-bidding a dead four-level to `6♥` doubled.
+  - **Package D** is a re-measure of `landy_notrump_no_major` on top of A's
+    winner (its §N1p loss was measured with the broken catch-all in place).
+
+  No bidding behavior or IMP result changes until an arm ships. New flags in
+  `bba-gen`/`probe-call-reading` for every knob; `render-book` gains
+  `--ns-landy-responder lia` and `--ns-landy-texas`; four new profiles in
+  `gated_profiles_preserve_alert_invariant`; `tests/fixtures/alert-sites.txt`
+  and `cards/*.bbsa` unchanged (all new slugs sit behind default-off gates).
+
 - **`competition.landy_major_jam` now ships default on** — the `4M` jam over
   their Landy `2♣` (`4♠`@172 / `4♥`@171 on `len(major, 6..) & points(10..)`,
   opener sitting). Its standalone A/B swept **all eight cells**

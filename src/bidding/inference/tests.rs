@@ -948,6 +948,37 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.landy_opener_rungs = true;
         profiles.push(("their-landy-opener-rungs", a));
     }
+    // §N1-lia: the ladder permutation and its Texas four-level (each riding
+    // the shipped N1j table, then together), and the doubler's three-card
+    // cells over the deleted catch-all — every arm the campaign's four
+    // packages can field.
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.defense_2c_landy_lia = true;
+        profiles.push(("their-landy-lia", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_texas = true;
+        profiles.push(("their-landy-texas", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.defense_2c_landy_lia = true;
+        a.competition.landy_texas = true;
+        profiles.push(("their-landy-lia-texas", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.landy_doubler_catchall = false;
+        a.competition.landy_doubler_three_honors = true;
+        a.competition.landy_doubler_three_small = true;
+        profiles.push(("their-landy-doubler-cells", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

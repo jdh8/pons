@@ -176,16 +176,26 @@ const fn not_defined() -> usize {
 // `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
 // sibling one seat earlier): same record as the `comp:landy-*` family above —
 // keyed on the opponents' disclosed Landy `2♣`, which EPBot's schema cannot
-// name, so a `.bbsa` row would have nowhere to land.  One ceiling is specific
-// to this tag and worth stating: the alert publishes **four-plus of the major
-// their advance named**, and that is honest for the book rung, but the same
-// `X` at the same seat is *also* made by the floor on three trumps or fewer,
-// where it is takeout-shaped and opener pulls it (49.5% to `3NT` at two
-// trumps).  The published reading therefore covers the authored call and not
-// the floored one.  Accepted as-is because the catch-all currently keeps the
-// floor off that seat; it becomes live the moment the no-catch-all arm ships,
-// and that arm owes this tag a decision — see
-// `docs/one-notrump-competitive.md` §N1l.
+// name, so a `.bbsa` row would have nowhere to land.  One ceiling was
+// specific to this tag: the alert used to publish **four-plus of the major
+// their advance named**, honest for the book rung but not for the floor's
+// short takeout-shaped double at the same seat (opener pulls it, 49.5% to
+// `3NT` at two trumps), which stayed latent only while the `Pass`@0
+// catch-all kept the floor off the seat.  §N1-lia re-worded the tag
+// (2026-08-30) to **"length or honour strength in their major"** — the union
+// of every cell that can fire under it, including the
+// `landy_doubler_three_honors`/`_three_small` cells and the floor's short
+// double the `landy_doubler_catchall=false` arm un-shadows — which is the
+// decision the no-catch-all arm owed.  The mechanical reading stays each
+// rule's own projection.  See `docs/one-notrump-competitive.md` §N1-lia.
+//
+// `comp:landy-ask` / `comp:landy-length` (§N1-lia's opener answers — the `2♠`
+// no-minor-no-stopper ask over the lone `2♥` takeout, and the by-length
+// answers to the `2♠`/`2NT` minor rungs; `competition.defense_2c_landy_lia`,
+// default off): same no-schema-name record as the family above, plus the
+// same `Transfers if RHO bids clubs` ceiling — EPBot decodes the lane
+// through our disclosed uncontested scheme whatever we author.  Recorded at
+// build time so a ship needs no new decision here.
 //
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the

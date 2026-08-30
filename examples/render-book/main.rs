@@ -154,9 +154,21 @@ struct Args {
     /// substitutes for the game rather than for the double.  That is the
     /// comparison `scripts/ab-landy-major-jam.sh` runs and §N1p never did.
     ///
+    /// `lia` is §N1-lia's ladder (`competition.defense_2c_landy_lia`, jam left
+    /// at its shipped default): the minor rungs a level down (`2♠`→♣ two-way,
+    /// `2NT`→♦), one `2♥` takeout with the answer priority reversed, natural
+    /// `3♣`/`3♦` invitations, opener answering the minor rungs by length.
+    ///
     /// Needs `--their-2c-landy` to do anything.
-    #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only")]
+    #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only|lia")]
     ns_landy_responder: String,
+
+    /// Arm §N1-lia's package C (`competition.landy_texas`): the jam rides
+    /// South African Texas (`4♦`→♠ / `4♣`→♥, opener completing) and the freed
+    /// direct `4♥`/`4♠` become the uncontested NF slam-try tier.  Composes
+    /// with `--ns-landy-responder lia` or stands alone on the shipped ladder.
+    #[arg(long, default_value_t = false)]
+    ns_landy_texas: bool,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -228,8 +240,10 @@ fn main() {
             agreements.competition.landy_major_jam = true;
         }
         "jam-only" => agreements.competition.landy_major_jam = true,
-        other => panic!("--ns-landy-responder must be off|nt|jam|jam-only, got {other}"),
+        "lia" => agreements.competition.defense_2c_landy_lia = true,
+        other => panic!("--ns-landy-responder must be off|nt|jam|jam-only|lia, got {other}"),
     }
+    agreements.competition.landy_texas = args.ns_landy_texas;
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

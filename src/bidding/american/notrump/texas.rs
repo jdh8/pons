@@ -14,7 +14,7 @@ use super::*;
 /// is RKCB, the [`slam`] 1430 ladder (installed alongside) places the slam.  Weaker
 /// (game-only) transfers match no rule and pass opener's `4M`.  Empty unless the
 /// reroute is on ([`NotrumpKnobs::texas_slam_drive`][crate::bidding::agreements::NotrumpKnobs::texas_slam_drive]).
-fn texas_slam_drive_rebid(agreements: &Agreements) -> Rules {
+pub(crate) fn texas_slam_drive_rebid(agreements: &Agreements) -> Rules {
     if !agreements.notrump.texas_slam_drive {
         return Rules::new();
     }
@@ -77,7 +77,7 @@ pub(super) fn texas_strength_gate(
 ///
 /// `4♣ → 4♥`, `4♦ → 4♠`.  Responder showed 6+ with game-no-slam values, so
 /// opener simply names the game and declares.
-fn complete_texas(into: Suit, agreements: &Agreements) -> Rules {
+pub(crate) fn complete_texas(into: Suit, agreements: &Agreements) -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::from(into)), 100, hcp(0..))
         .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)

@@ -37,8 +37,8 @@ use super::super::rows::{
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
-    PUPPET, complete_transfer, direct_4m_max, notrump_responses, slam_try_answer, smolen_at_three,
-    smolen_completion, stayman_answers,
+    PUPPET, TEXAS, complete_texas, complete_transfer, direct_4m_max, notrump_responses,
+    slam_try_answer, smolen_at_three, smolen_completion, stayman_answers, texas_slam_drive_rebid,
 };
 use super::weak_twos;
 use super::{COMPLETION, call};
@@ -206,7 +206,14 @@ const LANDY_SPL: Alert = Alert("comp:landy-spl");
 /// the advance (`1NT (2♣) X (2♥)`, `competition.landy_opener_px`), and the
 /// **doubler's** second `X` one round later (`1NT (2♣) X (2♥) - - X` and its
 /// siblings, `competition.landy_doubler_rebids` and its flip arms).  One claim
-/// at both: four-plus of *that* major.
+/// at both: **length or honour strength in their major** — four-plus at every
+/// shipped cell, and exactly three under the §N1-lia three-card cells
+/// (`landy_doubler_three_honors` / `_three_small`), whose top-honor split the
+/// rules carry and the projection publishes.  Re-worded from "four-plus"
+/// 2026-08-30 so the tag covers every cell that can fire under it — the arms
+/// differ only in the rule, never in disclosure — which is what unblocked the
+/// `landy_doubler_catchall=false` arm (the floor's short values double at the
+/// same seat no longer contradicts the tag).
 ///
 /// The two seats share the slug because they publish the same thing.  They
 /// differ only in who is still to speak — opener doubles with partner able to
@@ -225,6 +232,22 @@ const LANDY_SPL: Alert = Alert("comp:landy-spl");
 /// their `2♦` resolves to a major the overcaller may still correct; here the
 /// preference is final, so this double never becomes a correction hint.
 const LANDY_PENALTY: Alert = Alert("comp:landy-penalty");
+/// Lia's stopper ask — opener's `2♠` over the §N1-lia takeout (`1NT (2♣) 2♥ -
+/// 2♠`): no four-card minor and no spade stopper, by exclusion under the
+/// reversed answer priority (minors first, then the `2NT` stopper rung).  A
+/// cue of a suit *they* showed, constrained `hcp(0..)` so it projects nothing
+/// — the alert is by hand, as the invariant's witness cannot see a vacuous
+/// constraint, and it is what stops the walk reading opener for spades.
+const LANDY_ASK: Alert = Alert("comp:landy-ask");
+/// Lia's length answer — opener's reply to the §N1-lia minor rungs (`2♠` = 5+♣
+/// weak-or-GF, `2NT` = long diamonds): the cheap raise shows **three-card**
+/// support (`3♣` over `2♠`, `3♦` over `2NT`), the step below it a doubleton
+/// (`2NT` over `2♠`, a contract; `3♣` over `2NT` — opener is balanced, so two
+/// diamonds implies 3+ clubs, a safe landing).  Alerted so the reader decodes
+/// the rule's exact `len` bands instead of the natural walk's four-card raise
+/// floor — a three-card raise read as four is unsound, and the doubleton
+/// `3♣` names a suit the rule says nothing about.
+const LANDY_LENGTH: Alert = Alert("comp:landy-length");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not

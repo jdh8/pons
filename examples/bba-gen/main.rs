@@ -937,6 +937,63 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_major_jam: bool,
 
+    /// Lia's counter-defense ladder over their Landy `2♣` (§N1-lia, package B)
+    ///
+    /// `competition.defense_2c_landy_lia`, default **off**.  The minor ladder
+    /// drops a level to match BBA's own coherent tree (`2♠` = 5+♣ weak or GF,
+    /// `2NT` = 7+♦/good 6/GF, natural `3♣`/`3♦` invitations return), `2♥`
+    /// becomes the only GF takeout with its answer priority reversed, and
+    /// opener answers the minor rungs by length instead of completing.  A
+    /// permutation — one arm, it cannot be decomposed.
+    #[arg(long, default_value_t = false)]
+    ns_landy_lia: bool,
+
+    /// Delete the `Pass`@0 catch-all from the Landy doubler's rebid ladder
+    /// (§N1-lia, package A)
+    ///
+    /// `competition.landy_doubler_catchall`, default **on** (the shipped `px`
+    /// arm keeps it).  Off, the node rejects three trumps or fewer and the
+    /// floor's takeout-shaped values double — which opener pulls to `3NT`
+    /// ~49.5% of the time — acts again; the shipped catch-all suppresses it
+    /// at a measured −14,171 IMPs plain non-vulnerable.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_doubler_catchall: bool,
+
+    /// The Landy doubler re-doubles on exactly three trumps to two-plus top
+    /// honors (§N1-lia, package A)
+    ///
+    /// `competition.landy_doubler_three_honors`, default **off**: `X`@154 on
+    /// `len(major, 3..=3) & top_honors(major, 2..)`, same `comp:landy-penalty`
+    /// tag.  A doubling rung — read it on plain DD.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_three_honors: bool,
+
+    /// The Landy doubler re-doubles on exactly three small trumps
+    /// (§N1-lia, package A)
+    ///
+    /// `competition.landy_doubler_three_small`, default **off**: `X`@153 on
+    /// `len(major, 3..=3) & top_honors(major, ..=1)` — the complement cell of
+    /// `--ns-landy-doubler-three-honors`.  A doubling rung — plain DD.
+    #[arg(long, default_value_t = false)]
+    ns_landy_doubler_three_small: bool,
+
+    /// South African Texas at the four level over their Landy `2♣`
+    /// (§N1-lia, package C)
+    ///
+    /// `competition.landy_texas`, default **off**; read only under the jam.
+    /// `4♦`→♠ / `4♣`→♥ carry the jam's gate so opener declares, the freed
+    /// direct `4♥`/`4♠` become the uncontested NF slam-try tier, and a 16+
+    /// hand transfers and drives its own `4NT`.  Right-siding is invisible to
+    /// DD — a wash is real; ships on a non-loss.
+    #[arg(long, default_value_t = false)]
+    ns_landy_texas: bool,
+
+    /// The points floor on the Landy four-level game rungs (the jam's 10)
+    ///
+    /// `competition.landy_texas_floor`.  Not swept by §N1-lia's package C.
+    #[arg(long, default_value_t = 10)]
+    ns_landy_texas_floor: u8,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2418,6 +2475,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
+    agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
+    agreements.competition.landy_doubler_catchall = !args.no_ns_landy_doubler_catchall;
+    agreements.competition.landy_doubler_three_honors = args.ns_landy_doubler_three_honors;
+    agreements.competition.landy_doubler_three_small = args.ns_landy_doubler_three_small;
+    agreements.competition.landy_texas = args.ns_landy_texas;
+    agreements.competition.landy_texas_floor = args.ns_landy_texas_floor;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

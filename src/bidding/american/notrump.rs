@@ -106,7 +106,9 @@ pub use size_ask::SizeAskEight;
 pub(super) use splinter::notrump_splinter;
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam, slam_try_answer};
-pub(super) use texas::{direct_4m_max, texas_drive, texas_transfers};
+pub(super) use texas::{
+    complete_texas, direct_4m_max, texas_drive, texas_slam_drive_rebid, texas_transfers,
+};
 pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_force};
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
@@ -134,7 +136,10 @@ pub const EUROPEAN: Alert = Alert("european");
 const STAYMAN: Alert = Alert("stayman");
 const JACOBY: Alert = Alert("jacoby-transfer");
 const BOTH_MAJORS: Alert = Alert("both-majors");
-const TEXAS: Alert = Alert("texas");
+// `pub` like `PUPPET`: the §N1-lia Landy lane reuses the slug for its own
+// South African Texas rungs (`competition::lebensohl`), same meaning one
+// auction over.
+pub const TEXAS: Alert = Alert("texas");
 const SMOLEN: Alert = Alert("smolen");
 const SPLINTER: Alert = Alert("splinter");
 const SLAM_TRY: Alert = Alert("slam-try");

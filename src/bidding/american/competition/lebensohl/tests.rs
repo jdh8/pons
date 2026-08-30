@@ -1,6 +1,6 @@
 use super::super::tests::{
-    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_n1, bid_landy_n1p,
-    bid_landy_transfer, bid_transfer, call,
+    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_lia, bid_landy_n1,
+    bid_landy_n1p, bid_landy_transfer, bid_transfer, call,
 };
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
@@ -1643,4 +1643,493 @@ fn landy_doubler_rebid_alerts_publish_the_trump_length() {
             "opener's penalty X publishes the trump length under {scope:?}",
         );
     }
+}
+
+/// §N1-lia's arm: their `2♣` disclosed as Landy, the lia ladder on
+fn landy_lia_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_lia = true;
+    arm
+}
+
+/// §N1-lia package A's arms: the catch-all deleted, then the three-card cells
+fn landy_cells_arm(honors: bool, small: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_catchall = false;
+    arm.competition.landy_doubler_three_honors = honors;
+    arm.competition.landy_doubler_three_small = small;
+    arm
+}
+
+/// §N1-lia package C's arm: the jam riding South African Texas
+fn landy_texas_arm() -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_texas = true;
+    arm
+}
+
+/// §N1-lia's direct seat: the minor ladder a level down, one takeout, natural
+/// invitations
+///
+/// `competition.defense_2c_landy_lia`, default off (package B, A/B owed).  The
+/// ladder matches BBA's own coherent self-play tree: `2♠` = 5+♣ weak or GF,
+/// `2NT` = 7+♦ / a good six / GF, `3♣`/`3♦` = natural invitations, and `2♥`
+/// the only GF takeout (the 2=3=4=4 split dies into it).
+#[test]
+fn landy_lia_re_rungs_the_minor_ladder() {
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // The two-way 2♠: a weak five-card club hand and a game-forcing six both
+    // take it; the invitational band bids its suit naturally instead.
+    let (c, floored) = bid_landy_lia(&direct, "432.32.432.KJ543");
+    assert_eq!(c, call(2, Strain::Spades), "weak clubs ride the 2♠ rung");
+    assert!(!floored, "the rung must come from the book");
+    assert_eq!(
+        bid_landy_lia(&direct, "A2.32.A32.KQJ432").0,
+        call(2, Strain::Spades),
+        "a game force with long clubs takes the same rung",
+    );
+    assert_eq!(
+        bid_landy_lia(&direct, "K32.432.32.KQ543").0,
+        call(3, Strain::Clubs),
+        "the 8-9 band invites naturally instead",
+    );
+    assert_eq!(
+        bid_landy_lia(&direct, "432.432.KQ543.K2").0,
+        call(3, Strain::Diamonds),
+        "and the diamond invitation mirrors it",
+    );
+
+    // The diamond rung narrows because the weak 2♦ escape already exists:
+    // seven-plus or a good six ride 2NT, a bad weak five keeps the escape.
+    assert_eq!(
+        bid_landy_lia(&direct, "32.32.QJ76543.32").0,
+        call(2, Strain::Notrump),
+        "seven diamonds transfer at 2NT",
+    );
+    assert_eq!(
+        bid_landy_lia(&direct, "32.432.KQJ432.32").0,
+        call(2, Strain::Notrump),
+        "a good six (two of the top three) transfers too",
+    );
+    assert_eq!(
+        bid_landy_lia(&direct, "432.432.QJ543.Q2").0,
+        call(2, Strain::Diamonds),
+        "the weak natural 2♦ is untouched",
+    );
+
+    // The 2=3=4=4 game force: N1j names the doubleton with 2♠; lia's only
+    // takeout is 2♥, so the split dies into it.
+    let two_suiter = "32.432.AQ32.KQ32";
+    assert_eq!(
+        bid_landy_bba(true, &direct, two_suiter).0,
+        call(2, Strain::Spades),
+        "the shipped ladder names the spade doubleton",
+    );
+    let (c, floored) = bid_landy_lia(&direct, two_suiter);
+    assert_eq!(c, call(2, Strain::Hearts), "lia's takeout absorbs it");
+    assert!(!floored);
+}
+
+/// §N1-lia's minor rungs: opener answers by length, no forced completion
+///
+/// The cheap raise shows three-card support, the step below it a doubleton
+/// (`2NT` over `2♠` a contract; `3♣` over `2NT` safe — balanced with two
+/// diamonds implies 3+ clubs).  The weak hand signs off over the doubleton
+/// answer and opener sits; the game force cues or drives, and the N4-KK `4m`
+/// slam try re-hangs byte-identical with its authored answer.  The restored
+/// natural invitations get the stack lane's accept table — the floor cannot
+/// see the lia regime and would answer a phantom `3♦` transfer completion.
+#[test]
+fn landy_lia_answers_the_minor_rungs_by_length() {
+    let arm = landy_lia_arm();
+
+    // The invitation's acceptance seat: 3NT from the top with both of their
+    // majors stopped, else sit for the partscore — authored, not the floor's.
+    let invited = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let (c, floored) = best_call_with(&arm, &invited, "AK4.KQ42.A95.K32");
+    assert_eq!(c, call(3, Strain::Notrump), "a maximum accepts the invite");
+    assert!(!floored, "the acceptance must come from the book");
+    let (c, floored) = best_call_with(&arm, &invited, "A54.KQ42.A95.Q32");
+    assert_eq!(c, Call::Pass, "a minimum sits for the partscore");
+    assert!(
+        !floored,
+        "and the decline is authored, not a phantom transfer"
+    );
+    let clubs = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let (c, floored) = best_call_with(&arm, &clubs, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(3, Strain::Clubs), "three-card support raises");
+    assert!(!floored, "the length answer must come from the book");
+    assert_eq!(
+        best_call_with(&arm, &clubs, "A54.KQ42.A954.K3").0,
+        call(2, Strain::Notrump),
+        "a doubleton offers the 2NT contract",
+    );
+
+    let diamonds = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call_with(&arm, &diamonds, "A54.KQ4.A954.K32").0,
+        call(3, Strain::Diamonds),
+        "three-card support raises the diamond rung",
+    );
+    assert_eq!(
+        best_call_with(&arm, &diamonds, "A54.KQ42.A9.K543").0,
+        call(3, Strain::Clubs),
+        "two diamonds land in the implied club fit",
+    );
+
+    // The weak hand signs off over the doubleton answer — and passes the fit
+    // answer, which is already its contract.
+    let misfit = [clubs.as_slice(), &[call(2, Strain::Notrump), Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &misfit, "432.32.432.KJ543");
+    assert_eq!(c, call(3, Strain::Clubs), "the weak hand signs off");
+    assert!(!floored);
+    let fit = [clubs.as_slice(), &[call(3, Strain::Clubs), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &fit, "432.32.432.KJ543").0,
+        Call::Pass,
+        "the fit answer is already the weak hand's contract",
+    );
+    let signed_off = [misfit.as_slice(), &[call(3, Strain::Clubs), Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &signed_off, "A54.KQ42.A954.K3");
+    assert_eq!(c, Call::Pass, "opener sits for the sign-off");
+    assert!(!floored, "and the sit is authored, not the floor's");
+
+    // The game force shows its one stopper (the transfer-rebid cue verbatim),
+    // and the six-card source of tricks starts the re-hung 4m slam try, whose
+    // answer asks keycard from a maximum.
+    assert_eq!(
+        best_call_with(&arm, &fit, "A2.32.A32.KQJ432").0,
+        call(3, Strain::Spades),
+        "the game force cues the stopper it holds",
+    );
+    let diamond_fit = [
+        diamonds.as_slice(),
+        &[call(3, Strain::Diamonds), Call::Pass],
+    ]
+    .concat();
+    assert_eq!(
+        best_call_with(&arm, &diamond_fit, "A2.K2.AQJ5432.32").0,
+        call(4, Strain::Diamonds),
+        "the six-card source starts the slam try",
+    );
+    let tried = [
+        diamond_fit.as_slice(),
+        &[call(4, Strain::Diamonds), Call::Pass],
+    ]
+    .concat();
+    let (c, floored) = best_call_with(&arm, &tried, "AK4.KQ42.K95.A32");
+    assert_eq!(c, call(4, Strain::Notrump), "a maximum asks keycard");
+    assert!(!floored, "the slam answer re-hangs with the rung");
+}
+
+/// §N1-lia's takeout: the answer priority reverses and the ask seat is new
+///
+/// Opener offers a four-card minor *before* notrump (the 4-4 fit is the
+/// takeout's point), `2NT` claims the spade stopper specifically, and `2♠`
+/// denies both (asking).  Responder resolves hearts with the reused `3♥` cue.
+#[test]
+fn landy_lia_reverses_the_takeout_answer() {
+    let arm = landy_lia_arm();
+    let takeout = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    // A four-card minor now outranks the stopper answer — the reversal.
+    let (c, floored) = best_call_with(&arm, &takeout, "A54.K42.A95.KQ32");
+    assert_eq!(c, call(3, Strain::Clubs), "the minor comes before notrump");
+    assert!(!floored);
+    assert_eq!(
+        best_call_with(&arm, &takeout, "A54.KQ42.A95.K32").0,
+        call(2, Strain::Notrump),
+        "minor-less with the spade stopper answers 2NT",
+    );
+    let (c, floored) = best_call_with(&arm, &takeout, "543.AKQ2.A95.K32");
+    assert_eq!(c, call(2, Strain::Spades), "neither: the 2♠ ask");
+    assert!(!floored, "the ask is authored, not the floor's");
+
+    // Over the ask, responder needs its own spade stopper for notrump; with
+    // it but no heart stopper, the cue asks opener for hearts, and opener
+    // answers the game holding it.
+    let asked = [takeout.as_slice(), &[call(2, Strain::Spades), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &asked, "A2.K2.AQ32.Q432").0,
+        call(3, Strain::Notrump),
+        "both stoppers held: bid the game",
+    );
+    assert_eq!(
+        best_call_with(&arm, &asked, "A2.32.AQ32.KQ32").0,
+        call(3, Strain::Hearts),
+        "spades only: cue for the heart stopper",
+    );
+    assert_eq!(
+        best_call_with(&arm, &asked, "32.A2.AQ32.KQ432").0,
+        call(4, Strain::Clubs),
+        "no spade stopper anywhere: the game force lands in the minor",
+    );
+    let cued = [asked.as_slice(), &[call(3, Strain::Hearts), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &cued, "543.AKQ2.A95.K32").0,
+        call(3, Strain::Notrump),
+        "opener supplies the heart stopper",
+    );
+
+    // Over the 2NT answer the live cue flips to hearts — opener's notrump
+    // claimed spades, and nothing in lia's structure ever promises hearts.
+    let shown = [takeout.as_slice(), &[call(2, Strain::Notrump), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &shown, "A2.32.AQ32.KQ32").0,
+        call(3, Strain::Hearts),
+        "responder asks for the heart stopper over 2NT",
+    );
+}
+
+/// §N1-lia package A: the catch-all knob and the three-card cells
+///
+/// `landy_doubler_catchall=false` un-shadows the floor below the rungs (the
+/// measured −14,171-IMP suppression); the two cells then buy exactly-three
+/// trumps back by top-honor class, each under the re-worded
+/// `comp:landy-penalty` tag.
+#[test]
+fn landy_doubler_cells_split_three_trumps() {
+    let seat = landy_doubler_seat();
+
+    // Catch-all deleted, no cells: four trumps still double from the book,
+    // three or fewer fall through to the floor the catch-all suppressed.
+    let nocatch = landy_cells_arm(false, false);
+    let (c, floored) = best_call_with(&nocatch, &seat, "A54.KJ98.AQ3.J54");
+    assert_eq!(c, Call::Double, "the four-trump penalty X is untouched");
+    assert!(!floored);
+    let (c, floored) = best_call_with(&nocatch, &seat, "A54.KJ9.AQ3.J543");
+    assert!(
+        floored,
+        "three trumps now reach the floor (got {c}, floored={floored})"
+    );
+    let (_, floored) = best_call_with(&nocatch, &seat, "A54.98.AQ32.KJ54");
+    assert!(floored, "a doubleton reaches the floor in every arm");
+
+    // The honors cell: two of the top three re-buys the double; one does not.
+    let honors = landy_cells_arm(true, false);
+    let (c, floored) = best_call_with(&honors, &seat, "A54.KQ9.AQ3.J543");
+    assert_eq!(c, Call::Double, "KQx doubles under the honors cell");
+    assert!(!floored);
+    let (_, floored) = best_call_with(&honors, &seat, "A54.KJ9.AQ3.J543");
+    assert!(floored, "a single top honor stays the floor's");
+
+    // The small cell on top: zero-or-one top honor doubles too.
+    let cells = landy_cells_arm(true, true);
+    let (c, floored) = best_call_with(&cells, &seat, "A54.982.AQ3.KJ54");
+    assert_eq!(c, Call::Double, "three small doubles under the small cell");
+    assert!(!floored);
+    let (c, _) = best_call_with(&cells, &seat, "A54.KJ9.AQ3.J543");
+    assert_eq!(c, Call::Double, "one top honor is the small cell's too");
+
+    // The shipped default still carries the catch-all — the guard the
+    // `landy_doubler_rebids_ladders_the_dying_auction` test asserts.
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    let (c, floored) = best_call_with(&shipped, &seat, "A54.KJ9.AQ3.J543");
+    assert_eq!(c, Call::Pass, "the default keeps the three-trump catch-all");
+    assert!(!floored);
+}
+
+/// §N1-lia package C: the jam rides South African Texas, the direct major is
+/// the slam try, and 16+ drives keycard above the completion
+#[test]
+fn landy_texas_reroutes_the_four_level() {
+    let arm = landy_texas_arm();
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // The jam hand transfers so opener declares; the shipped arm jams 4♠.
+    let jam_hand = "AQJ543.32.432.A2";
+    let mut shipped = Agreements::default();
+    shipped.decision.their.two_clubs_landy = true;
+    assert_eq!(
+        best_call_with(&shipped, &direct, jam_hand).0,
+        call(4, Strain::Spades),
+        "the shipped jam declares from the wrong side",
+    );
+    let (c, floored) = best_call_with(&arm, &direct, jam_hand);
+    assert_eq!(
+        c,
+        call(4, Strain::Diamonds),
+        "under Texas the jam transfers"
+    );
+    assert!(!floored);
+
+    // Fifteen takes the freed direct slam try; sixteen-plus transfers and
+    // will drive its own keycard.  (Both hands leave hearts unstopped — the
+    // gated `3NT`@180 outranks the whole four-level family, as it always has.)
+    assert_eq!(
+        best_call_with(&arm, &direct, "AQJ543.32.A32.A2").0,
+        call(4, Strain::Spades),
+        "the 15-count invites with the direct call",
+    );
+    assert_eq!(
+        best_call_with(&arm, &direct, "AKJ543.32.A32.A2").0,
+        call(4, Strain::Diamonds),
+        "sixteen-plus transfers instead",
+    );
+
+    // Opener completes the transfer, doubled or not.
+    let transfer = [direct.as_slice(), &[call(4, Strain::Diamonds), Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &transfer, "A54.KQ42.A95.K32");
+    assert_eq!(c, call(4, Strain::Spades), "opener completes");
+    assert!(!floored);
+    let doubled = [
+        direct.as_slice(),
+        &[call(4, Strain::Diamonds), Call::Double],
+    ]
+    .concat();
+    assert_eq!(
+        best_call_with(&arm, &doubled, "A54.KQ42.A95.K32").0,
+        call(4, Strain::Spades),
+        "their double takes no room; the completion stands",
+    );
+
+    // Above the completion: the game hand sits by authorship (the learned
+    // floor must not pull a completed transfer — §N1o's forensic), and the
+    // 16+ hand drives keycard.
+    let completed = [transfer.as_slice(), &[call(4, Strain::Spades), Call::Pass]].concat();
+    let (c, floored) = best_call_with(&arm, &completed, jam_hand);
+    assert_eq!(c, Call::Pass, "the game hand passes the completion");
+    assert!(!floored, "and the sit is authored, not the floor's");
+    let (c, floored) = best_call_with(&arm, &completed, "AKJ543.32.A32.A2");
+    assert_eq!(c, call(4, Strain::Notrump), "sixteen-plus drives keycard");
+    assert!(!floored);
+
+    // The direct try is opener-decides: a maximum launches keycard, a
+    // minimum signs off in the game.
+    let tried = [direct.as_slice(), &[call(4, Strain::Spades), Call::Pass]].concat();
+    assert_eq!(
+        best_call_with(&arm, &tried, "AK4.KQ42.A95.K32").0,
+        call(4, Strain::Notrump),
+        "a maximum accepts the try with RKCB",
+    );
+    assert_eq!(
+        best_call_with(&arm, &tried, "A54.KQ42.A95.K32").0,
+        Call::Pass,
+        "a minimum signs off",
+    );
+}
+
+/// §N1-lia's rungs publish sound readings: the minor rungs their suit and
+/// length bands, the takeout its minors, and the ask no phantom spade suit
+#[test]
+fn landy_lia_rungs_publish_their_shapes() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let partnership = crate::bidding::american::american(&landy_lia_arm()).bind();
+    let read = |calls: &[Call]| {
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, calls))
+    };
+    let base = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // The 2♠ rung is clubs, not spades.
+    let clubs = read(&[base.as_slice(), &[call(2, Strain::Spades), Call::Pass]].concat());
+    let partner = clubs.get(Relative::Partner);
+    assert!(
+        partner.length(Suit::Clubs).min >= 5,
+        "2♠ publishes five-plus clubs (got {:?})",
+        partner.length(Suit::Clubs),
+    );
+    assert_eq!(
+        partner.length(Suit::Spades).min,
+        0,
+        "and floors no phantom spade suit",
+    );
+
+    // The 2NT rung is six-plus diamonds.
+    let diamonds = read(&[base.as_slice(), &[call(2, Strain::Notrump), Call::Pass]].concat());
+    assert!(
+        diamonds.get(Relative::Partner).length(Suit::Diamonds).min >= 6,
+        "2NT publishes six-plus diamonds (got {:?})",
+        diamonds.get(Relative::Partner).length(Suit::Diamonds),
+    );
+
+    // Opener's length answers: the raise floors three, the doubleton caps two
+    // — the exact bands, not the walk's four-card raise floor.
+    let raised = read(
+        &[
+            base.as_slice(),
+            &[
+                call(2, Strain::Spades),
+                Call::Pass,
+                call(3, Strain::Clubs),
+                Call::Pass,
+            ],
+        ]
+        .concat(),
+    );
+    let support = raised.get(Relative::Partner).length(Suit::Clubs);
+    assert!(
+        support.min >= 3 && support.min < 4,
+        "the raise shows exactly a three-card floor (got {support:?})",
+    );
+    let short = read(
+        &[
+            base.as_slice(),
+            &[
+                call(2, Strain::Spades),
+                Call::Pass,
+                call(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ]
+        .concat(),
+    );
+    assert!(
+        short.get(Relative::Partner).length(Suit::Clubs).max <= 2,
+        "the doubleton answer caps clubs at two (got {:?})",
+        short.get(Relative::Partner).length(Suit::Clubs),
+    );
+
+    // The takeout publishes both minors; opener's 2♠ ask floors no spades.
+    let takeout = read(&[base.as_slice(), &[call(2, Strain::Hearts), Call::Pass]].concat());
+    let partner = takeout.get(Relative::Partner);
+    assert!(
+        partner.length(Suit::Clubs).min >= 4 && partner.length(Suit::Diamonds).min >= 4,
+        "the takeout publishes four-four minors (got ♣{:?} ♦{:?})",
+        partner.length(Suit::Clubs),
+        partner.length(Suit::Diamonds),
+    );
+    let ask = read(
+        &[
+            base.as_slice(),
+            &[
+                call(2, Strain::Hearts),
+                Call::Pass,
+                call(2, Strain::Spades),
+                Call::Pass,
+            ],
+        ]
+        .concat(),
+    );
+    assert!(
+        ask.get(Relative::Partner).length(Suit::Spades).min <= 2,
+        "the alerted ask adds no spade claim past the balanced opening (got {:?})",
+        ask.get(Relative::Partner).length(Suit::Spades),
+    );
 }
