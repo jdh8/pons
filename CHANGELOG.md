@@ -47,6 +47,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The measurement iron rule on right-siding is refined** (docs only, no code
+  change). CLAUDE.md and [docs/measurement.md](docs/measurement.md) claimed DD
+  was blind to right-siding outright; package C above measured a same-contract
+  right-siding win on plain DD, so both now read: **DD prices right-siding's
+  lead direction and not its concealment, and therefore sees the idea iff
+  declarer actually moves.** The "measuring zero is real" clause survives,
+  narrowed to the no-flip case — §N1o's notrump endings, where opener declared
+  in both arms, measured exactly 0. Three live items that deferred a
+  measurement on the old premise are requeued as plain-DD items: N3-xfer's
+  `(3♣)` Lebensohl transfers and their design note, and the
+  splinter-versus-fragment question in `docs/ai-bidder/bba-1nt-splinter.md`,
+  whose entire argument is which defender leads and through what. Historical
+  ledger rows reading "DD-blind right-siding" are left as records of what was
+  concluded at the time.
+
 - **§N1-lia package B measured a loss; `competition.defense_2c_landy_lia`
   stays default off** (`ab-landy-lia.sh`, seed 1788122360, control
   `59cd46ee`, 4.6M boards/arm/vul, both isolation gates 0-foreign). Plain DD

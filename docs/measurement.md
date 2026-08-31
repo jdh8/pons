@@ -555,10 +555,28 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   ships: a fresh-seed holdout of the aligned-cell fit. One discrepancy stands
   unresolved: this run's level-4 pooled λ is 0.644 against the shipped 0.539
   (≈1 se at these counts, but larger than the ≤0.02 the first holdout moved).
-- **Right-siding alone never wins on DD.** Both arms reach the same contract;
-  only the declarer differs, and neither plain DD nor PD sees who declares.
-  A convention whose only edge is right-siding measures ≈0 — don't trade real
-  constructive value (an auto-drive-to-game, a weak relay) to gain it.
+- **Right-siding: DD prices the lead direction, not the concealment.** The
+  solver takes a *(contract, declarer)* pair, so moving declarer moves who is
+  on lead — leading *through* the strong hand's tenaces instead of *into* them
+  is an honest double-dummy fact, and both plain DD and PD score it. What DD
+  cannot see is the other half: that the leader, facing the closed strong hand,
+  would have found the killing lead less often. So:
+  - **Declarer actually moves → DD sees it**, at roughly the lead-direction
+    share of the true edge. §N1-lia package C's Texas transfer won +0.616 /
+    +0.711 IMPs per fired board on plain DD with 96% of its divergent boards
+    the *same contract from the other seat*, and sd-lead — where the leader is
+    blind in both arms — kept the sign at about a third the size (+0.220 /
+    +0.352). §N1o's lead 2 is the same result from the other side: CI-clear
+    positive exactly where declarer moved.
+  - **Declarer does not move → DD sees nothing, and that zero is real.**
+    §N1o's notrump endings, where opener declared in both arms, measured
+    exactly 0. A convention whose edge is purely concealment measures ≈0 —
+    don't trade real constructive value (an auto-drive-to-game, a weak relay)
+    to gain it.
+
+  A right-siding idea therefore gets measured like any other. Read its
+  divergence first: if the declarer seat flips, a plain-DD zero is a verdict,
+  not a blind spot.
 - **The new-information rule.** A constructive structure wins only if it adds
   information the auction doesn't already carry. Rebuilding "advancer bids over
   a takeout double" wins little — the double already advertised the fit. The

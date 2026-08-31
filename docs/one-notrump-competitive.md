@@ -256,7 +256,7 @@ package — a fresh seed can reorder them again.
 | N3-fit | fresh-seed confirmation of the `4M` fit rung | `nt_high_overcall_x_major_at_four` (**on**) | Round 5 shipped it on one seed (+1.14/+1.69 per fired, 0 foreign) and explicitly owed a confirmation. Rounds 7–8 ran against a `base` that *carries* it, which is not an isolated confirmation — the row is shipped but not settled |
 | N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | 118 bd, +6 plain, CI ±1.21/±1.62 per board and the signs disagree by vulnerability — no replicated loss on any re-anchor since the starting snapshot. Mechanism stays priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)). Parked |
 | N3-three | single-dummy re-measure of the refuted honor half | `nt_high_overcall_x_leave_in_three` (**off**) | Round 7 refuted it at sd-lead −2.44/−2.99 per fired; its `plain wash \| PD win` DD signature is the doubling artifact. Kept opt-in as a house-rule re-measure candidate on its vulnerable PD reading |
-| N3-xfer | re-measure the `(3♣)` transfers | `nt_3c_transfers` (**off**) | Two seeds at round 2 and two more at round 3, all four pooled cells positive and all four an order of magnitude inside their CI. What it buys — the invitational five-card major, and right-siding — is DD-blind, so this is a single-dummy-harness item |
+| N3-xfer | re-measure the `(3♣)` transfers | `nt_3c_transfers` (**off**) | Two seeds at round 2 and two more at round 3, all four pooled cells positive and all four an order of magnitude inside their CI. Filed as a single-dummy-harness item because what it buys — the invitational five-card major, and right-siding — was believed DD-blind. **Requeued as a plain-DD item 2026-09-01**: the completion moves declarer, and §N1-lia package C measured that half on plain DD |
 | N2c | the no-call 8–9 count with 0-1 / 4+ in their suit | book | **Re-read 2026-08-21: 19 bd, +11 plain / +91 PD.** The class that motivated it now reads *positive on both scorers*. Demoted to **parked pending replication**, not closed — n is small enough that either sign is seed noise |
 | N7 | Absent responses contested | new | Puppet `3♣`, `3♦`, splinters, `3NT`, Texas, `4NT` — rarest in the system |
 | N8 | Delete `1NT - 2NT - 3♣ - 3♦ -`'s `pass_out` node — the redundant half of the pair | knobless (book node) | **Inherited 2026-08-18** from the closed [authored-reading campaign](authored-reading-handoff.md)'s Phase 2 row. Probed 2026-08-17: with the node removed the auction falls to the root fallback and the floor offers **`P` alone** on every hand at both vulnerabilities, so the node buys nothing — but its twin `1NT - 2♠ - 2NT - 3♣ -` blasts **`4♣` 1.200 over `P` 0.000** (the floor's support-raise fires on partner's *sign-off*, never reading the `points 0..9` cap the same reading supplies). The pre-registered rule was "any hand still blasts → leave both", so both stayed. This is the deletion of the *redundant* one alone, and it owes its own arm; the twin's real repair is the floor-side settle rail ([dutch-system.md](dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher)), not a book node |
@@ -1298,6 +1298,20 @@ leader the killing lead is found less often **in both arms**, so the gap
 narrows to about a third (+0.220/+0.352) — still positive at both colours,
 and the more realistic number of the two.
 
+**Adopted 2026-09-01** (jdh8: "the iron rule is good, it is just the minor claim
+that DD is blind to right-siding that needs refinement"). CLAUDE.md's iron rule
+and [measurement.md](measurement.md)'s rule list now read *right-siding is
+half-visible — DD prices the lead direction, not the concealment, so it sees
+the idea iff declarer actually moves*; the "measuring zero is real" clause
+survives, narrowed to the no-flip case that §N1o's notrump endings exhibit.
+Three live items that deferred on the old premise were requeued: N3-xfer's
+`(3♣)` transfers (above), the `(3♣)` transfer design note, and the
+splinter-vs-fragment question in
+[bba-1nt-splinter.md](ai-bidder/bba-1nt-splinter.md), whose whole argument is
+about which defender leads and through what — the half the solver can see.
+Historical ledger rows that read "DD-blind right-siding" stand as records of
+what was concluded at the time.
+
 Falsifier 2 (the alerted transfer tells the defense the anchor major before the
 lead) is **refuted** by the same rows: sd-lead is the scorer that could see an
 information leak, and it is positive at both vulnerabilities under both
@@ -1586,7 +1600,9 @@ own constraint — no new reader. INV+ is driven to game at the completion (the
 "displaced bid is GF" simplification), so there is no min/max split and no
 responder second call to author. What it buys is the invitational five-card
 major, which the natural table can only show as `X` or a pass, plus
-right-siding — DD-blind, so the plain scorer will not credit it.
+right-siding — believed DD-blind when this was written, but the completion
+moves declarer, so under the refined rule the plain scorer credits its
+lead-direction half (see the §N1-lia package C verdict below).
 **BBA plays all three naturally** (per-suit census recorded in
 [bba-1nt-counter-defense.md](ai-bidder/bba-1nt-counter-defense.md)
 §`(3♣)` per call), so the arm is judged on its own merit, not on alignment.

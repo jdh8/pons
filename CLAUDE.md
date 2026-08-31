@@ -105,9 +105,11 @@ two docs above hold the full story; the rules survive summarizing:
   **both** plain DD and perfect-defense, and read the verdict from the decision
   table. A PD-only win is a doubling artifact; a plain-DD wash + PD win is
   shippable default-on.
-- DD is blind to obstruction, concealment, and right-siding. Preemptive ideas
-  measuring negative is the harness, not the idea; right-siding-only ideas
-  measuring zero is real.
+- DD is blind to obstruction and concealment. Preemptive ideas measuring
+  negative is the harness, not the idea. **Right-siding is half-visible**: DD
+  prices the lead direction (a different declarer puts a different defender on
+  lead), not the concealment, so it sees a right-siding idea iff declarer
+  actually moves — if it doesn't, measuring zero is real.
 - Before declaring a measured loss dead, trace the worst divergent boards —
   the usual culprits are an unauthored continuation or an over-broad trigger.
 - Measure against the **real routing** (the contract those hands actually

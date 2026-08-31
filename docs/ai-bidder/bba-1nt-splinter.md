@@ -151,8 +151,16 @@ to make a lead directing double" and a DD study found the same trick count on
 91.6% of deals. Rarer, but worse when it happens: an LDX of a *fragment* runs the
 lead through responder's real three cards with the doubler's length sitting
 behind them, while an LDX of a *splinter* directs into a void or singleton and
-warns us for free. DD is blind to right-siding and lead-direction alike, so this
-one is settled on theory — an A/B here would measure ≈0 and tell us nothing.
+warns us for free.
+
+**This was filed as "settled on theory, an A/B would measure ≈0" on the premise
+that DD is blind to right-siding and lead-direction alike. That premise is
+wrong** — §N1-lia package C measured a same-contract right-siding win on plain
+DD, and the refined rule ([measurement.md](../measurement.md)) is that DD
+prices the *lead direction* and only the *concealment* is invisible. The
+argument above is a lead-direction argument end to end (which defender leads,
+and through what), so it is exactly the half the solver can see. An A/B here is
+live, not moot — the deferral stands only on priority.
 
 ### The floor could not use the reading
 
