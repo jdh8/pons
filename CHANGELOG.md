@@ -47,6 +47,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1-lia package D measured a non-win; `competition.landy_notrump_no_major`
+  stays default off** (`ab-landy-nt-remeasure.sh`, seed 1788191041, control
+  `60115871`, 4.6M boards/arm/vul, both isolation gates 0-foreign). No
+  user-visible behaviour change; the default system is byte-identical. §N1p
+  lost this knob with a broken doubler seat below it, and package A repaired
+  that seat, so the re-measure asked whether the loss was the idea or the
+  floor. The answer is neither cleanly: **plain DD flips to +0.0077 / +0.0075
+  IMPs/board (NV/BV) but plain sd-lead stays −0.0061 / −0.0056**, and the
+  SD-PD arbiter reads −0.0011 / +0.0000 against §N1p's −0.0012. Perfect
+  defense's +0.0145 / +0.0146 is the decision table's `loss | win` row
+  verbatim — synthetic doubles of the baseline `3NT`s the candidate no longer
+  bids — and was pre-registered as the runner's falsifier 1. Plain DD reads
+  the knob **+0.0142 / +0.0138 / +0.0131 above plain sd-lead** across §N1p NV,
+  D NV and D BV: **the lead-model seam is stable across two routings and
+  roughly double the effect it is being asked to adjudicate**, so the knob's
+  plain-DD sign is decided by the lead model, not by the treatment. The sign
+  is the tell — the candidate's mechanism is declaring `3NT` less often, and
+  the scorer that hands the defence a clairvoyant opening lead is the one that
+  likes it.
+
+  The forensic is the part worth keeping. Bucketing the divergence by the
+  bidder's own major lengths — which is exactly what the gate reads — shows
+  **the gate bundles two halves with opposite signs**, monotone in the *short*
+  major and breaking sign between two and three, replicating independently at
+  both vulnerabilities: 4-4 +4.74/+5.90, 3-4 +3.53/+4.74, 4-5 +3.47/+4.95,
+  3-5 +3.11/+4.50 IMPs per fired, against 2-4 −0.13/+0.31, 2-5 −0.20/−0.27,
+  1-4 −2.08/−1.86, 1-5 −1.84/−2.30. That is +52,861 / +50,663 IMPs in the
+  `min major ≥ 3` half against −18,838 / −10,758 in the `≤ 2` half, and the
+  bundle ships the difference. The bridge reading is direct: they showed both
+  majors, so three-plus in each leaves them in a misfit with nowhere to run
+  and defending is right, while a singleton major hands them a big fit and the
+  double gets run out. Under the disjunctive-gate rule these are two arms, and
+  the narrowed gate — bar `3NT` only when both majors are 3+ and one is 4+ —
+  is owed its own A/B. Full verdict, the falsifier dispositions, and a flagged
+  harness gap (`ab-dump-sd` has no `--on-ns-landy-*` disclosure flag, so every
+  §N1-lia sd row reads both arms with control semantics) in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1-lia
+  package D.
+
 - **The measurement iron rule on right-siding is refined** (docs only, no code
   change). CLAUDE.md and [docs/measurement.md](docs/measurement.md) claimed DD
   was blind to right-siding outright; package C above measured a same-contract

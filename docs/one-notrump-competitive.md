@@ -1031,7 +1031,7 @@ to price the jam rung alone. Renders: `render-book --their-2c-landy
 were scored off the two completed arms. The sit node was never relaxed — the
 jam arm read a win, not mixed.
 
-### N1-lia — Lia's counter-defense: the minor ladder a level down, the doubler unshadowed, Texas at the four level (**packages A and C shipped default-on; B measured loss; D owed**)
+### N1-lia — Lia's counter-defense: the minor ladder a level down, the doubler unshadowed, Texas at the four level (**packages A and C shipped default-on; B and D measured non-wins**)
 
 `1NT (2♣)` is the lane's top cost bucket by total (−275 IMPs plain on 551
 boards, the census above) and has had no open package at census level since
@@ -1079,7 +1079,9 @@ it to +0.10/+0.37 per fired — but the tie-break holds above zero at both
 vulnerabilities, matching the `len3 hon0` sibling prior. PD is negative
 throughout: the pre-registered doubling artifact, reported double-blind and
 excluded from arbitration per the script header. Package D
-(`landy_notrump_no_major`) is now unblocked on the repaired seat.
+(`landy_notrump_no_major`) is now unblocked on the repaired seat — and, run
+there, [measured a non-win](#verdict--measured-non-win-2026-09-01-landy_notrump_no_major-stays-default-off):
+the repair reached, but it moved the undoubled scorers only.
 
 ##### As designed (build record)
 
@@ -1387,6 +1389,140 @@ experiment's record untouched:
 C is inert in the comparison either way: `landy_texas` is gated on
 `landy_major_jam`, and with the jam on it is on identically in both arms.
 
+##### Verdict — **measured non-win 2026-09-01, `landy_notrump_no_major` stays default off**
+
+`scripts/ab-landy-nt-remeasure.sh`, `SEED_BASE=1788191041`, control
+`60115871`, 4,608,000 bd/arm/vul. Both isolation gates **0 foreign** (of
+54,309 / 36,591 divergent) before any headline.
+
+| column | not vulnerable | both vulnerable |
+| --- | --- | --- |
+| fired | 54,309 (1.18%) | 36,591 (0.79%) |
+| plain DD | **+0.0077** ±0.0007 (+0.652/fired) | **+0.0075** ±0.0008 (+0.943/fired) |
+| PD | +0.0145 ±0.0008 (+1.228/fired) | +0.0146 ±0.0008 (+1.835/fired) |
+| plain SD (sd-lead) | **−0.0061** ±0.0007 (−0.459/fired) | **−0.0056** ±0.0008 (−0.634/fired) |
+| SD-PD | −0.0011 ±0.0008 (−0.084/fired) | +0.0000 ±0.0008 (+0.004/fired) |
+
+(The two sd rows print their own denominator, 61,454 / 40,521 fired, against
+the DD rows' 54,309 / 36,591 — `ab-dump-sd` and `probe-divergence` count a
+moved board differently. Compare the **IMPs/board** columns, which share one
+denominator; the per-fired figures do not.)
+
+**Why this is not a ship, despite two CI-clear positive columns.** Read the
+scorers by what each one's synthetic double does to *this* knob's mechanism —
+the candidate stops bidding `3NT` and doubles instead, so the baseline's game
+is the contract a synthetic `X` lands on:
+
+* **PD is the decision table's `loss | win` row in its literal form** — "it
+  credits phantom doubles of contracts we no longer bid". Every failing
+  baseline `3NT` is doubled for free; the candidate, which no longer bids
+  them, banks the difference. §N1p dismissed the same +0.018/+0.020 as the
+  auto-double artifact and this is the same artifact on the same lane.
+  Falsifier 1 pre-registered it. Discount the column.
+* **The two columns with no synthetic double straddle zero**: plain DD
+  +0.0077/+0.0075, plain SD −0.0061/−0.0056. They differ *only* in the lead
+  model, and the knob's whole measured effect is smaller than the gap between
+  them at both colours.
+* **SD-PD — the column §N1p itself named "the arbiter" — carries the artifact
+  in the candidate's favour and still cannot clear zero** (−0.0011, +0.0000).
+  With a thumb on its scale it reads a wash.
+
+So there is no scorer-independent win, and A's repair did not reverse §N1p:
+on the arbiter column the two experiments read **−0.0012** (§N1p) and
+**−0.0011 / +0.0000** (D). Falsifier 3 is answered — the repair *did* reach,
+and what it bought is visible, but it bought it in the undoubled scorers only:
+
+| | plain DD | plain SD | PD | SD-PD |
+| --- | --- | --- | --- | --- |
+| §N1p `nt` (NV) | −0.0124 | −0.0266 | +0.0181 | −0.0012 |
+| D `nt` (NV) | +0.0077 | −0.0061 | +0.0145 | −0.0011 |
+| move | **+0.0201** | **+0.0205** | −0.0036 | +0.0001 |
+
+(A between-experiment comparison across a routing change — §N1p held the jam
+off — so suggestive, not a measurement, per the series-break caution in
+[measurement.md](measurement.md).) The **lead-model seam is bigger than the
+knob**: plain DD reads this knob **+0.0142** above plain SD at §N1p NV,
+**+0.0138** at D NV and **+0.0131** at D BV — stable across two experiments,
+two routings and two vulnerabilities, and roughly double the plain-DD effect
+it is being asked to adjudicate. The sign is the tell: the candidate's whole
+mechanism is *declaring `3NT` less often*, and the scorer that hands the
+defence a clairvoyant opening lead is the one that likes it. This is the
+documented 1NT-end blind-lead seam ("DD pessimistic
+for declarer; sd-lead corrects it"), and the knob's plain-DD sign is decided
+by the lead model rather than by the treatment.
+
+##### Falsifier 2's split — the gate is a bundled disjunction with opposite-signed halves
+
+`probe-divergence --imps --jsonl`, both vulnerabilities, bucketed by the
+**mover's own major lengths** (the knob reads exactly that: `len(♥, ..=3) &
+len(♠, ..=3)` on the bidder of `3NT`). `off=3NT` is 74.3%/79.9% of the
+divergence and `3NT → X` is 98.9%/99.0% of that bucket, so the substitution
+is clean. Inside it, plain-DD IMPs per fired board by the mover's major shape,
+short-long:
+
+| majors | n (NV) | plain NV | n (BV) | plain BV |
+| --- | --- | --- | --- | --- |
+| 4-4 | 1,754 | **+4.743** | 1,288 | **+5.902** |
+| 4-5 | 532 | **+3.474** | 393 | **+4.947** |
+| 3-4 | 10,258 | **+3.534** | 7,228 | **+4.736** |
+| 3-5 | 2,074 | **+3.108** | 1,529 | **+4.504** |
+| 2-4 | 12,470 | −0.125 | 9,012 | +0.307 |
+| 2-5 | 4,006 | −0.199 | 2,948 | −0.271 |
+| 1-4 | 4,734 | **−2.079** | 3,447 | **−1.864** |
+| 1-5 | 3,609 | **−1.842** | 2,736 | **−2.304** |
+
+Monotone in the **short** major across all eight cells, replicating
+independently at both vulnerabilities, with the sign break between two and
+three. The bridge reason is plain: they showed both majors, so a mover holding
+3+ in each has them in a genuine misfit with nowhere to run and defending is
+right, while a mover with a singleton major has handed them a big fit — the
+double gets run out to something making, and `3NT` (where the short major is
+partner's problem, not ours) was fine. Summed: the `min major ≥ 3` half is
+**+52,861 NV / +50,663 BV** plain IMPs on 14,618 / 10,438 boards, the
+`≤ 2` half **−18,838 / −10,758** on 24,819 / 18,143. The bundle nets the
+difference, which is why it reads as a small win on the column that likes it.
+
+This is [measurement.md](measurement.md)'s **disjunctive-gate rule** — "when a
+candidate gate is a disjunction and any slice gives its disjuncts different
+signs, they are two arms, always" — and the bundle is currently burying a
++3.1-to-+5.9-per-fired cell inside a losing one. The split variable is a hand
+feature the bidder knows before choosing, so it is a legal gate, not a
+post-hoc outcome slice.
+
+**Owed, not done: the narrowed arm.** Today's gate bars `3NT` whenever either
+major is 4+. The gate the split asks for bars it only when *both* majors are
+3+ **and** one of them is 4+ — the misfit hands — so `3NT` survives on every
+hand with a doubleton or singleton major. On plain DD it would move
++0.0115 / +0.0110 IMPs/board against the bundle's +0.0077 / +0.0075, on
+roughly a third of the traffic. Whether it clears the lead-model seam is an
+A/B and not an extrapolation — though the direction is favourable, since the
+seam lives on hands whose `3NT` stands or falls on the opening lead, and those
+are exactly the singleton-major hands the narrowing stops moving. Until that
+arm runs, `landy_notrump_no_major` stays **default off** and §N1p's flag 2
+stays settled.
+
+**Residual worth a line for whoever takes the narrowed arm.** The bucket where
+the double did *not* end in defending — `both NS`, 15.4%/14.1% of divergence —
+costs **−1.710 / −2.657 per fired**: opener pulls, and we declare something
+worse than the `3NT` we gave up. That is a continuation defect on an authored
+seat (A's cells), so it is the book's to fix, and it is inside the narrowed
+arm's traffic too.
+
+##### Flagged, not fixed: the sd columns disclose no Landy knob
+
+`ab-dump-sd` has `--on-ns-*` disclosure flags for the free-bid, negative-double
+and overcall families, and **none for any `landy_*` knob** (`--help | grep -i
+landy` is empty). So the blind leader reads both arms with control semantics:
+under the ON arm the responder's `X` is wider and its `3NT` narrower, and the
+leader is not told. Every sd row in §N1-lia — package A's tie-breaks, C's
+corroboration and D's arbiter column — carries that caveat. It does not
+invalidate them (the seam's stability across §N1p, which ran under the same
+condition, argues it is a lead-model effect rather than a disclosure one), but
+it bounds them. Proposed reversible default: **leave the harness alone and
+quote the caveat**, since adding flags is a harness change that would
+re-baseline the sd column mid-campaign; add `--on-ns-landy-*` when the
+narrowed arm above runs, so its sd row is measured with the knob disclosed.
+
 #### The arms
 
 Sequential, fresh `SEED_BASE` per package, 4,608,000 bd/arm/vul at the §N1p
@@ -1448,6 +1584,12 @@ undeclared or natural.
    flag's original proposed default was right, for the reason it gave in
    reverse: re-gating `3NT` moved only this table's traffic, and that traffic
    was better off declaring. The flag is now **settled, not merely proposed**.
+   **Re-measured 2026-09-01** as §N1-lia package D, on the seat package A
+   repaired, and it stays settled — but the split says *why* more precisely
+   than "better off declaring": on plain DD only the traffic with a **short**
+   major was, and the whole plain-DD verdict sits inside the lead-model seam.
+   The gate bundles that half with a `min major ≥ 3` half worth +3.1…+5.9
+   IMPs/fired, and the narrowed gate is this flag's one live descendant.
 3. **The `X (2NT)` leg is unauthored on purpose** — opener's `X (2M)` seat was
    too, until §N1m re-opened it; the rest of this item stands.
    After the strong advance the overcaller jumps to `4M` 54.3% of the time and
@@ -3552,8 +3694,8 @@ reason to take it.
 | N1l the doubler's own rebid ladder | `competition.landy_doubler_rebids` (**off**) | **measured 2026-08-28: mixed, stays off** | SD-PD (the arbiter) **+0.523 none / −0.741 both** IMPs/fired; DD plain wins both cells (+2.365 / +1.556) but the per-rung split attributes the whole vulnerable plain win to the penalty `X`@155 (+9.196/fired, PD double-blind column flat) and the vulnerable loss to the constructive rungs — worst the `2NT` invite (−3.695 PD), whose declined half loses both scorers. Flip plan queued: keep `X` + catch-all, tighten/vul-gate the constructive rungs, re-measure. Seed `1787917699`, sha `ba003a30` | [§N1l](#n1l--the-doublers-own-rebid-landy_doubler_rebids-measured-2026-08-28-mixed-stays-off); `scripts/ab-landy-doubler-rebids.sh` |
 | **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px` (**ON**, off-switch `--no-ns-landy-doubler-px`), `landy_doubler_white` (**off**) | **`px` SHIPPED DEFAULT-ON 2026-08-29; `white` not a win** | `px` plain **+0.0107 ±.0004** NV / **+0.0142 ±.0004** vul, PD +0.0039/+0.0061, sd-plain +0.0061/+0.0100, SD-PD +0.0000/+0.0028 — a win on every column bar the one NV SD-PD wash, all six gates 0 foreign. **Selection refuted**: the `X` rung re-prices **+7.554/+9.189** IMPs/fired against the +7.489/+9.196 that selected it. `white` is `win | loss` (plain +0.0409, **DD-PD −0.0091** NV; vulnerable it *is* `px` — `white vs px` fires 0 boards), sd bracket dissenting (+0.0547/+0.0140). Two caveats shipped open: the **`Pass`@0 catch-all costs −14,171 IMPs plain NV** by shadowing a floor takeout double opener pulls to `3NT` 49.5% of the time, and `comp:landy-penalty` publishes four-plus while that floor call is short — deleting the catch-all is the owed arm and owes the tag a decision. `white`'s `!vulnerable()` reads our own colour only; asymmetric vuls unmeasured. Seed `1787942099`, sha `de59ad86` | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px-shipped-default-on-2026-08-29--landy_doubler_white-not-a-win-stays-off); `scripts/ab-landy-doubler-flip.sh` |
 | **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
-| **N1p** an unlimited values double | `competition.landy_notrump_no_major` (**off**), `landy_major_jam` (**ON**, off-switch `--no-ns-landy-major-jam`) | **`nt` measured loss 2026-08-30, stays off; the decoupled `4M` jam SHIPPED DEFAULT-ON 2026-08-30** | `nt vs base` **−0.0124** none / **−0.0076** both on plain DD, **−0.0012** on the SD-PD arbiter; DD-PD +0.018/+0.020 is the auto-double artifact. No colour flip. The divergence split makes the `3NT`→`X` swap the dominant bucket (83.6%/86.4%), with game reached in the baseline only 81.5%/84.8% of the time and 72–75% more room handed to the opponents — falsifier 2's *idea dead* branch. `jam vs nt` wins all four scorers (+5.541 IMPs/fired sd-plain) on 1,567 boards but rode the losing arm and measured the wrong substitution, so the rung was **decoupled** and re-measured standalone: an **eight-of-eight sweep** (`scripts/ab-landy-major-jam.sh`, `SEED_BASE=1788033942`, sha `52fbc7c1` — DD plain +1.443/+1.611 IMPs/fired, SD-PD +1.558/+1.866, every CI excluding 0, both gates 0 foreign), shipped default-on. Flagged item 2 taken up: the `X`@145 is `hcp(8..)` — unlimited in its constraint — but the ungated `3NT`@168 outranks it, so `probe-call-reading` reads partner back as `points 8..9`. The widened reading falls out of `bid_exclusion`, so **no new slug and no disclosure decision** | [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major-loss-stays-off-landy_major_jam-shipped-default-on-2026-08-30); `scripts/ab-landy-notrump-shape.sh`; `scripts/ab-landy-major-jam.sh` |
-| **N1-lia** Lia's counter-defense (four packages) | `competition.landy_doubler_catchall` (**off 2026-08-30**), `landy_doubler_three_honors`, `landy_doubler_three_small` (**both on 2026-08-30**), `defense_2c_landy_lia` (**off**), `landy_texas` (**on 2026-08-31**), `landy_texas_floor` (**10**) | **packages A and C shipped default-on (2026-08-30, 2026-08-31); B measured loss 2026-08-31 (stays off, repair queue recorded); D `nt` re-measure owed** | **A: the full ladder wins** — every adjacent pair a plain win at both vuls (nocatch +0.0036/+0.0014, hon +0.0008/+0.0008, cells +0.0104/+0.0118 IMPs/board NV/BV), every sd tie-break positive; PD negative throughout is the pre-registered doubling artifact. Falsifiers 1 and 3 refuted; the sibling lone-honor caveat did not carry. Package A takes up both §N1l-flip caveats: the catch-all deletion (≈ +14,171 IMPs plain NV on the flip stream) unblocked by re-wording `comp:landy-penalty` to "length or honour strength in their major", plus two three-card `X` cells split by `top_honors` (sibling priors: `len3 hon0` +0.62/+1.85, `hon1` −0.75/+0.37, `hon2+` unmeasured). Build finding worth the row: the deletion was a **silent no-op** until the doubler tables moved from `Pattern::after` guards to exact `Pattern::node`s — `Trie::resolve_floored`'s single fall-through returns a guarded fallback's all-−∞ logits unchecked, so only an exact node's rejection reaches the floor. **B: measured loss** (seed 1788122360, plain **+0.0050** ±0.0012 NV / **−0.0384** ±0.0014 BV, PD −0.0756/−0.1210, gates 0-foreign) — stays default off. Forensic (`probe-divergence --imps`, bucketed by first differing call and responder's hand) splits the deficit into four named defects, none of them the concept: the **contested tails are unauthored** (every lia node requires the opponents to have passed, so any opponent bid drops the rest to a floor with no forcing channel — 95%/94% of the diamond rung's whole loss, and −63,950/−80,789 on the club rung), the **weak five-card sign-off** is vulnerability-dependent (uncontested weak: exactly-5 clubs **+1.405 NV / −0.803 BV** per fired while 6c and 7+c win at both colours — falsifier 2 confirmed sharper than posed, and that one cell is 45% of BV's PD deficit), the `2NT` cap **starves diamonds** into passing (−35,827/−32,432, falsifier 4), and the sole `2♥` takeout is the worst per-fired rung (−4.07/−5.00). **Falsifier 1 is reversed, not merely refuted**: the N1c right-siding trade was wrong on plain DD — the restored natural invitations are the ladder's biggest win (`3♣` **+85,613 NV / +35,920 BV**). At BV the first three defects sum to −176,261 of a −176,837 total, so the rest of the ladder is roughly break-even. Repair queue in size order: contested tails, a 6+ club floor for the weak `2♠` leg when vulnerable, a rung for the starved diamonds, the 2=3=4=4 merge. **C: shipped default-on** (seed 1788181796, gates 0-foreign) — an eight-of-eight sweep, plain **+0.616 NV / +0.711 BV** per fired, PD +0.816/+0.996, sd-lead +0.220/+0.352 plain and +0.305/+0.506 PD; fires on 0.03%/0.02% of boards so the per-board move is +0.0002, >6.7σ/>5.6σ off the printed CI bound. **Its mechanism is the reverse of the design's**: the DD-visible half was supposed to be the slam reroute, which reaches the five level on 5 of 2211 divergent boards (0 at both-vul), while right-siding was supposed to be invisible — instead 96.4%/96.3% of divergent boards are the *same contract from the other seat*, and that bucket is the whole win. The correction to the iron rule: DD is blind to right-siding's **concealment**, not to its **lead direction** — a different declarer puts a different defender on lead and the solver prices that honestly; sd-lead, where the leader is blind in both arms, keeps the sign at a third the size. Falsifier 2 (the alerted transfer leaks the anchor major) refuted by exactly those sd rows; falsifier 1 moot; PD>plain here is not the doubling artifact but the baseline's wrong-sided contract failing harder under a defense that always finds the lead. Residual: the transfer hands the opponents room on ~4% of fired boards (52/37, zero the other way) and draws 33/30 doubles the direct jam never drew — the entire worst-5 list, outweighed ~5:1. Defaults byte-identical while off (`smoke-default` ×2); C's ship moves `alert-sites.txt`'s `[their-landy]` section only | [§N1-lia](#n1-lia--lias-counter-defense-the-minor-ladder-a-level-down-the-doubler-unshadowed-texas-at-the-four-level-packages-a-and-c-shipped-default-on-b-measured-loss-d-owed); `scripts/ab-landy-lia-doubler.sh`, `ab-landy-lia.sh`, `ab-landy-texas.sh` |
+| **N1p** an unlimited values double | `competition.landy_notrump_no_major` (**off**), `landy_major_jam` (**ON**, off-switch `--no-ns-landy-major-jam`) | **`nt` measured loss 2026-08-30, stays off; the decoupled `4M` jam SHIPPED DEFAULT-ON 2026-08-30** | `nt vs base` **−0.0124** none / **−0.0076** both on plain DD, **−0.0012** on the SD-PD arbiter; DD-PD +0.018/+0.020 is the auto-double artifact. No colour flip. The divergence split makes the `3NT`→`X` swap the dominant bucket (83.6%/86.4%), with game reached in the baseline only 81.5%/84.8% of the time and 72–75% more room handed to the opponents — falsifier 2's *idea dead* branch. `jam vs nt` wins all four scorers (+5.541 IMPs/fired sd-plain) on 1,567 boards but rode the losing arm and measured the wrong substitution, so the rung was **decoupled** and re-measured standalone: an **eight-of-eight sweep** (`scripts/ab-landy-major-jam.sh`, `SEED_BASE=1788033942`, sha `52fbc7c1` — DD plain +1.443/+1.611 IMPs/fired, SD-PD +1.558/+1.866, every CI excluding 0, both gates 0 foreign), shipped default-on. Flagged item 2 taken up: the `X`@145 is `hcp(8..)` — unlimited in its constraint — but the ungated `3NT`@168 outranks it, so `probe-call-reading` reads partner back as `points 8..9`. The widened reading falls out of `bid_exclusion`, so **no new slug and no disclosure decision**. **Re-measured 2026-09-01** on the repaired seat as §N1-lia package D and it stays off: plain DD flips to +0.0077/+0.0075 but plain SD stays −0.0061/−0.0056 and the SD-PD arbiter reads −0.0011/+0.0000 against §N1p's −0.0012 — the seam between the two plain columns (DD reads +0.014 above SD, stable across both experiments) is bigger than the knob. D's split found the reason this table keeps reading marginal: the gate bundles opposite-signed halves, and the `min major ≥ 3` half alone is worth +3.1…+5.9 IMPs/fired | [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major-loss-stays-off-landy_major_jam-shipped-default-on-2026-08-30); `scripts/ab-landy-notrump-shape.sh`; `scripts/ab-landy-major-jam.sh` |
+| **N1-lia** Lia's counter-defense (four packages) | `competition.landy_doubler_catchall` (**off 2026-08-30**), `landy_doubler_three_honors`, `landy_doubler_three_small` (**both on 2026-08-30**), `defense_2c_landy_lia` (**off**), `landy_texas` (**on 2026-08-31**), `landy_texas_floor` (**10**) | **packages A and C shipped default-on (2026-08-30, 2026-08-31); B measured loss 2026-08-31 and D measured a non-win 2026-09-01 (both stay off, both with a named repair)** | **A: the full ladder wins** — every adjacent pair a plain win at both vuls (nocatch +0.0036/+0.0014, hon +0.0008/+0.0008, cells +0.0104/+0.0118 IMPs/board NV/BV), every sd tie-break positive; PD negative throughout is the pre-registered doubling artifact. Falsifiers 1 and 3 refuted; the sibling lone-honor caveat did not carry. Package A takes up both §N1l-flip caveats: the catch-all deletion (≈ +14,171 IMPs plain NV on the flip stream) unblocked by re-wording `comp:landy-penalty` to "length or honour strength in their major", plus two three-card `X` cells split by `top_honors` (sibling priors: `len3 hon0` +0.62/+1.85, `hon1` −0.75/+0.37, `hon2+` unmeasured). Build finding worth the row: the deletion was a **silent no-op** until the doubler tables moved from `Pattern::after` guards to exact `Pattern::node`s — `Trie::resolve_floored`'s single fall-through returns a guarded fallback's all-−∞ logits unchecked, so only an exact node's rejection reaches the floor. **B: measured loss** (seed 1788122360, plain **+0.0050** ±0.0012 NV / **−0.0384** ±0.0014 BV, PD −0.0756/−0.1210, gates 0-foreign) — stays default off. Forensic (`probe-divergence --imps`, bucketed by first differing call and responder's hand) splits the deficit into four named defects, none of them the concept: the **contested tails are unauthored** (every lia node requires the opponents to have passed, so any opponent bid drops the rest to a floor with no forcing channel — 95%/94% of the diamond rung's whole loss, and −63,950/−80,789 on the club rung), the **weak five-card sign-off** is vulnerability-dependent (uncontested weak: exactly-5 clubs **+1.405 NV / −0.803 BV** per fired while 6c and 7+c win at both colours — falsifier 2 confirmed sharper than posed, and that one cell is 45% of BV's PD deficit), the `2NT` cap **starves diamonds** into passing (−35,827/−32,432, falsifier 4), and the sole `2♥` takeout is the worst per-fired rung (−4.07/−5.00). **Falsifier 1 is reversed, not merely refuted**: the N1c right-siding trade was wrong on plain DD — the restored natural invitations are the ladder's biggest win (`3♣` **+85,613 NV / +35,920 BV**). At BV the first three defects sum to −176,261 of a −176,837 total, so the rest of the ladder is roughly break-even. Repair queue in size order: contested tails, a 6+ club floor for the weak `2♠` leg when vulnerable, a rung for the starved diamonds, the 2=3=4=4 merge. **C: shipped default-on** (seed 1788181796, gates 0-foreign) — an eight-of-eight sweep, plain **+0.616 NV / +0.711 BV** per fired, PD +0.816/+0.996, sd-lead +0.220/+0.352 plain and +0.305/+0.506 PD; fires on 0.03%/0.02% of boards so the per-board move is +0.0002, >6.7σ/>5.6σ off the printed CI bound. **Its mechanism is the reverse of the design's**: the DD-visible half was supposed to be the slam reroute, which reaches the five level on 5 of 2211 divergent boards (0 at both-vul), while right-siding was supposed to be invisible — instead 96.4%/96.3% of divergent boards are the *same contract from the other seat*, and that bucket is the whole win. The correction to the iron rule: DD is blind to right-siding's **concealment**, not to its **lead direction** — a different declarer puts a different defender on lead and the solver prices that honestly; sd-lead, where the leader is blind in both arms, keeps the sign at a third the size. Falsifier 2 (the alerted transfer leaks the anchor major) refuted by exactly those sd rows; falsifier 1 moot; PD>plain here is not the doubling artifact but the baseline's wrong-sided contract failing harder under a defense that always finds the lead. Residual: the transfer hands the opponents room on ~4% of fired boards (52/37, zero the other way) and draws 33/30 doubles the direct jam never drew — the entire worst-5 list, outweighed ~5:1. Defaults byte-identical while off (`smoke-default` ×2); C's ship moves `alert-sites.txt`'s `[their-landy]` section only. **D: measured non-win** (seed 1788191041, control `60115871`, gates 0-foreign) — `landy_notrump_no_major` stays default off, and A's repair did not reverse §N1p. Plain DD **+0.0077 NV / +0.0075 BV** and PD +0.0145/+0.0146 are both CI-clear positive, but PD is the decision table's `loss \| win` row verbatim (synthetic doubles of the baseline `3NT`s the candidate no longer bids, pre-registered as falsifier 1), and the two columns with no synthetic double **straddle zero** — plain SD −0.0061/−0.0056 against plain DD's +0.0077/+0.0075. On SD-PD, the column §N1p itself named the arbiter, the two experiments read −0.0012 (§N1p) and −0.0011/+0.0000 (D): the artifact leans the candidate's way and it still cannot clear zero. The **lead-model seam is bigger than the knob** — plain DD reads it +0.0142/+0.0138/+0.0131 above plain SD across §N1p NV, D NV and D BV, stable across two routings, and roughly double the effect it is adjudicating; the sign is the tell, since the candidate's mechanism is declaring `3NT` less and the clairvoyant-lead scorer is the one that likes it. Falsifier 3 answered: the repair reached, moving both *undoubled* columns +0.020 and both doubled columns ≈0. **Falsifier 2 returned a third branch neither posed** — the gate is a bundled disjunction whose halves have opposite signs. Bucketed by the mover's own major lengths (`off=3NT` is 74.3%/79.9% of divergence, `3NT → X` 98.9%/99.0% of it), plain IMPs/fired are monotone in the **short** major and break sign between two and three: 4-4 +4.74/+5.90, 3-4 +3.53/+4.74, 3-5 +3.11/+4.50, 4-5 +3.47/+4.95 against 2-4 −0.13/+0.31, 2-5 −0.20/−0.27, 1-4 −2.08/−1.86, 1-5 −1.84/−2.30 — +52,861/+50,663 IMPs in the `min major ≥ 3` half against −18,838/−10,758 in the `≤ 2` half. They showed both majors, so 3+ in each is a misfit with nowhere to run and a singleton is a big fit for them; the narrowed gate (bar `3NT` only when both majors are 3+ and one is 4+) is owed as its own arm under the disjunctive-gate rule, worth +0.0115/+0.0110 plain on a third of the traffic. Residual for that arm: the `both NS` bucket, where opener pulls the double and we declare something worse, costs −1.710/−2.657 per fired on 15.4%/14.1% of divergence. Flagged: `ab-dump-sd` has **no `--on-ns-landy-*` disclosure flag**, so every §N1-lia sd row reads both arms with control semantics | [§N1-lia](#n1-lia--lias-counter-defense-the-minor-ladder-a-level-down-the-doubler-unshadowed-texas-at-the-four-level-packages-a-and-c-shipped-default-on-b-and-d-measured-non-wins); `scripts/ab-landy-lia-doubler.sh`, `ab-landy-lia.sh`, `ab-landy-texas.sh`, `ab-landy-nt-remeasure.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |
