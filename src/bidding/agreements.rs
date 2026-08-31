@@ -1550,19 +1550,24 @@ pub struct CompetitionKnobs {
     /// become the uncontested NF slam-try tier verbatim
     /// (`hcp(15..=direct_4m_max)`, `slam_try_answer` + the RKCB ladder
     /// above), and a 16+ hand transfers
-    /// and drives its own `4NT` (`texas_slam_drive_rebid`) — the DD-visible
-    /// half of the package.  The drive seat carries a `Pass`@0 sit rail the
-    /// uncontested twin does not need: there `instinct()` never pulls a
-    /// completed transfer, but this lane's floor is the learned one §N1o
-    /// caught cue-bidding a dead four-level to `6♥` doubled.  The right-siding
-    /// half is invisible to the harness by construction
-    /// (docs/measurement.md): a wash on DD is real, and the package ships on
-    /// a non-loss.
+    /// and drives its own `4NT` (`texas_slam_drive_rebid`).  The drive seat
+    /// carries a `Pass`@0 sit rail the uncontested twin does not need: there
+    /// `instinct()` never pulls a completed transfer, but this lane's floor is
+    /// the learned one §N1o caught cue-bidding a dead four-level to `6♥`
+    /// doubled.
     ///
-    /// Read only under [`Self::landy_major_jam`] (it moves that rung's
-    /// call).  **Off by default — the A/B is owed**
-    /// (`scripts/ab-landy-texas.sh`).  Inert while their `2♣` is undeclared
-    /// or natural.
+    /// **Default on since 2026-08-31** — the A/B swept all eight cells
+    /// (`scripts/ab-landy-texas.sh`, +0.616 / +0.711 IMPs per fired plain,
+    /// +0.816 / +0.996 PD).  It won for the half the design expected to be
+    /// unmeasurable: 96% of divergent boards are the *same* contract played
+    /// from the other seat, and the slam reroute reaches the five level on 5
+    /// of 2211.  Double dummy is blind to right-siding's *concealment*, not to
+    /// its *lead direction* — a different declarer puts a different defender
+    /// on lead, and the solver prices that.  sd-lead, where the leader is
+    /// blind, keeps the sign at a third the size (+0.220 / +0.352).
+    ///
+    /// Read only under [`Self::landy_major_jam`] (it moves that rung's call).
+    /// Inert while their `2♣` is undeclared or natural.
     pub landy_texas: bool,
     /// The points floor on the four-level game rungs over their Landy `2♣`
     /// (the jam's `points(10..)`, and [`Self::landy_texas`]'s transfers)
@@ -1720,7 +1725,7 @@ impl Default for CompetitionKnobs {
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,
             landy_doubler_three_small: true,
-            landy_texas: false,
+            landy_texas: true,
             landy_texas_floor: 10,
             major_support_double: true,
             uvu_over_majors: true,

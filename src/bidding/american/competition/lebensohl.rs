@@ -214,8 +214,11 @@ fn landy_lia(agreements: &Agreements) -> bool {
 /// ([`CompetitionKnobs::landy_texas`][crate::bidding::agreements::CompetitionKnobs::landy_texas])
 ///
 /// A modifier of the jam rung — it moves that rung's call — so it is inert
-/// unless the jam is on.  Independent of [`landy_lia`]: package C measures on
-/// whichever responder ladder `main` then carries.
+/// unless the jam is on.  Independent of [`landy_lia`], which is why package C
+/// still measured a win after that ladder lost: **default on since
+/// 2026-08-31**, an eight-of-eight sweep bought almost entirely by
+/// right-siding (96% of divergent boards are the same contract from the other
+/// seat; the slam reroute reaches the five level on 5 of 2211).
 fn landy_texas(agreements: &Agreements) -> bool {
     agreements.competition.landy_major_jam && agreements.competition.landy_texas
 }

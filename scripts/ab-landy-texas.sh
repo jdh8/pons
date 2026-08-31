@@ -47,6 +47,31 @@
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0
 # foreign BEFORE any headline.  Resumable; SEED_BASE persists in
 # $R/landy-texas.seed.  Iron rule: do NOT edit `src/` while this runs.
+#
+# VERDICT (2026-08-31, SEED_BASE=1788181796, control 8dca085a, 4.6M
+# boards/arm/vul, both gates 0-foreign): **eight of eight, shipped default-on.**
+#   plain  +0.616 IMPs/fired NV / +0.711 BV  (+788 / +662 IMPs total)
+#   PD     +0.816 NV / +0.996 BV             (+1045 / +927)
+#   sd     +0.220 / +0.352 plain, +0.305 / +0.506 PD
+# Fires on 0.03% NV / 0.02% BV of boards, so the per-board move is +0.0002; the
+# per-fired plain cells are >5.6 sigma off the printed per-board CI bound.
+#
+# The header's expected mechanism is REVERSED, and it is the interesting part.
+# It predicted a plain wash (right-siding invisible) carried by the DD-visible
+# slam reroute.  Measured, the reroute is the invisible half -- level 5+ on 5 of
+# 2211 divergent boards, 0 at both-vul -- and right-siding is what the harness
+# priced: 96.4% NV / 96.3% BV of divergent boards are the SAME contract played
+# from the other seat.  Double dummy is blind to right-siding's *concealment*,
+# not to its *lead direction*: N-declaring and S-declaring 4H put different
+# defenders on lead, and the solver prices that difference honestly.  sd-lead,
+# where the leader is blind and finds the killing lead less often in both arms,
+# keeps the sign at about a third the size -- the realistic number.
+# Falsifier 1 (slam overbid) is moot at 5 boards; falsifier 2 (the alerted
+# transfer leaks the anchor major) is refuted -- sd is positive at both colours,
+# and sd is the scorer that could see it; falsifier 3 needs no relaxation.
+# Residual cost, if anyone revisits: the transfer hands the opponents room on
+# 4.1% NV / 4.0% BV of fired boards (52 / 37, zero the other way) and draws 33 /
+# 30 doubles the direct jam never drew -- those are the whole worst-5 list.
 R=${1:?usage: ab-landy-texas.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -55,8 +80,10 @@ SEED_BASE=$(seed_for landy-texas)
 log "=== landy-texas SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base  "$v" --filter-landy
-    arm texas "$v" --filter-landy --ns-landy-texas
+    # Flags rewritten 2026-08-31 after the package shipped default-on:
+    # `texas` is now the bare default and `base` restores the direct jam.
+    arm base  "$v" --filter-landy --no-ns-landy-texas
+    arm texas "$v" --filter-landy
 
     gatepair texas base "$v"
     diffpair texas base "$v"

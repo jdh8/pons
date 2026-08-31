@@ -203,6 +203,10 @@ fn landy_major_jam_alone_replaces_the_notrump_not_the_double() {
 
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
+    // The rung under test is the *direct* `4M`; package C's transfer, shipped
+    // default-on since 2026-08-31, carries the same hand one call lower and is
+    // measured on its own (`landy_texas_reroutes_the_four_level`).
+    arm.competition.landy_texas = false;
 
     // Neither knob: the ungated `3NT`@168 takes the six-card major. This is
     // what the standalone jam displaces — not the `X` §N1p measured against.
@@ -1974,14 +1978,16 @@ fn landy_texas_reroutes_the_four_level() {
     let arm = landy_texas_arm();
     let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
 
-    // The jam hand transfers so opener declares; the shipped arm jams 4♠.
+    // The jam hand transfers so opener declares; the pre-C arm jammed 4♠ from
+    // responder's side, which is the +0.6…+0.7 IMPs/fired this package bought.
     let jam_hand = "AQJ543.32.432.A2";
-    let mut shipped = Agreements::default();
-    shipped.decision.their.two_clubs_landy = true;
+    let mut pre_c = Agreements::default();
+    pre_c.decision.their.two_clubs_landy = true;
+    pre_c.competition.landy_texas = false;
     assert_eq!(
-        best_call_with(&shipped, &direct, jam_hand).0,
+        best_call_with(&pre_c, &direct, jam_hand).0,
         call(4, Strain::Spades),
-        "the shipped jam declares from the wrong side",
+        "the direct jam declares from the wrong side",
     );
     let (c, floored) = best_call_with(&arm, &direct, jam_hand);
     assert_eq!(

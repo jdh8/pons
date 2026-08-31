@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **South African Texas at the four level over their Landy `2♣`, default on**
+  (`competition.landy_texas`, §N1-lia package C). Over an opposing Landy `2♣`,
+  a strong six-card major no longer jams `4♥`/`4♠` directly: it transfers with
+  `4♣`/`4♦` so the 1NT opener declares, and the freed direct `4♥`/`4♠` become
+  the non-forcing slam-try tier while a 16+ hand transfers and drives its own
+  `4NT`. **Measured +0.616 IMPs per fired not vulnerable / +0.711 vulnerable
+  on plain DD, +0.816 / +0.996 under perfect defense, with sd-lead
+  +0.220 / +0.352 and +0.305 / +0.506** (`ab-landy-texas.sh`, seed 1788181796,
+  control `8dca085a`, 4.6M boards/arm/vul, both isolation gates 0-foreign) —
+  every one of the eight cells positive. The rung is rare, firing on 0.03% /
+  0.02% of boards, so the per-board move is +0.0002 / +0.0001.
+
+  Worth recording because it corrects a standing assumption: the package was
+  designed expecting a plain-DD *wash*, on the premise that right-siding is
+  invisible to a double-dummy harness, with the slam reroute as the only
+  measurable half. It measured the other way round. The slam reroute reaches
+  the five level on 5 of 2211 divergent boards (none at both-vul), while
+  **96% of divergent boards are the same contract played from the other seat**
+  — and that bucket is the entire win. Double dummy is blind to right-siding's
+  *concealment*, not to its *lead direction*: North-declaring `4♥` puts East on
+  lead where South-declaring puts West, so the solver prices leading through
+  the opener's tenaces versus into them. Under sd-lead, where the leader is
+  blind in both arms, the gap narrows to about a third but keeps its sign at
+  both colours. Full verdict, falsifier dispositions and the residual cost (the
+  transfer hands the opponents room on ~4% of fired boards and draws doubles
+  the direct jam never drew, outweighed roughly 5:1) in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1-lia
+  package C.
+
+  Harness note: `--ns-landy-texas` is now `--no-ns-landy-texas` in `bba-gen`,
+  `probe-call-reading` and `render-book`, following the house idiom for a
+  shipped knob. `cards/*.bbsa` are unchanged (BBA's schema has no row for Texas
+  over *their* Landy); `tests/fixtures/alert-sites.txt` moves in its
+  `[their-landy]` section only, the default profile staying put — which is the
+  standing proof that the knob is inert while their `2♣` is undeclared.
+
 ### Changed
 
 - **§N1-lia package B measured a loss; `competition.defense_2c_landy_lia`

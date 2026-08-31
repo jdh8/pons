@@ -981,13 +981,15 @@ struct Args {
     /// South African Texas at the four level over their Landy `2♣`
     /// (§N1-lia, package C)
     ///
-    /// `competition.landy_texas`, default **off**; read only under the jam.
-    /// `4♦`→♠ / `4♣`→♥ carry the jam's gate so opener declares, the freed
-    /// direct `4♥`/`4♠` become the uncontested NF slam-try tier, and a 16+
-    /// hand transfers and drives its own `4NT`.  Right-siding is invisible to
-    /// DD — a wash is real; ships on a non-loss.
+    /// `competition.landy_texas`, **default on since 2026-08-31**; read only
+    /// under the jam.  `4♦`→♠ / `4♣`→♥ carry the jam's gate so opener
+    /// declares, the freed direct `4♥`/`4♠` become the uncontested NF
+    /// slam-try tier, and a 16+ hand transfers and drives its own `4NT`.  The
+    /// A/B swept all eight cells (+0.616 / +0.711 IMPs per fired plain) on the
+    /// right-siding half alone — DD is blind to concealment, not to which
+    /// defender is on lead.
     #[arg(long, default_value_t = false)]
-    ns_landy_texas: bool,
+    no_ns_landy_texas: bool,
 
     /// The points floor on the Landy four-level game rungs (the jam's 10)
     ///
@@ -2480,7 +2482,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
     agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;
-    agreements.competition.landy_texas = args.ns_landy_texas;
+    agreements.competition.landy_texas = !args.no_ns_landy_texas;
     agreements.competition.landy_texas_floor = args.ns_landy_texas_floor;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;

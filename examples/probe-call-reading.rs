@@ -122,10 +122,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_doubler_three_small: bool,
 
-    /// Arm §N1-lia's package C (`competition.landy_texas`): the jam rides
-    /// South African Texas and the direct majors become the NF slam try
+    /// Disarm §N1-lia's package C (`competition.landy_texas`, default on): the
+    /// jam rides South African Texas and the direct majors are the NF slam try
     #[arg(long, default_value_t = false)]
-    ns_landy_texas: bool,
+    no_ns_landy_texas: bool,
 
     /// The points floor on the Landy four-level game rungs
     /// (`competition.landy_texas_floor`, the jam's 10)
@@ -251,7 +251,7 @@ fn main() {
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
     agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;
-    agreements.competition.landy_texas = args.ns_landy_texas;
+    agreements.competition.landy_texas = !args.no_ns_landy_texas;
     agreements.competition.landy_texas_floor = args.ns_landy_texas_floor;
     agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
     agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;

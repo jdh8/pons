@@ -163,12 +163,12 @@ struct Args {
     #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only|lia")]
     ns_landy_responder: String,
 
-    /// Arm §N1-lia's package C (`competition.landy_texas`): the jam rides
-    /// South African Texas (`4♦`→♠ / `4♣`→♥, opener completing) and the freed
-    /// direct `4♥`/`4♠` become the uncontested NF slam-try tier.  Composes
-    /// with `--ns-landy-responder lia` or stands alone on the shipped ladder.
+    /// Disarm §N1-lia's package C (`competition.landy_texas`, default on): the
+    /// jam rides South African Texas (`4♦`→♠ / `4♣`→♥, opener completing) and
+    /// the freed direct `4♥`/`4♠` are the uncontested NF slam-try tier.
+    /// Composes with `--ns-landy-responder lia` or stands alone.
     #[arg(long, default_value_t = false)]
-    ns_landy_texas: bool,
+    no_ns_landy_texas: bool,
 }
 
 fn print_rules(rules: &Rules, opaque: &mut usize) {
@@ -243,7 +243,7 @@ fn main() {
         "lia" => agreements.competition.defense_2c_landy_lia = true,
         other => panic!("--ns-landy-responder must be off|nt|jam|jam-only|lia, got {other}"),
     }
-    agreements.competition.landy_texas = args.ns_landy_texas;
+    agreements.competition.landy_texas = !args.no_ns_landy_texas;
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

@@ -438,6 +438,10 @@ pub(super) fn bid_landy_n1p(jam: bool, auction: &[Call], hand: &str) -> (Call, b
     arm.decision.their.two_clubs_landy = true;
     arm.competition.landy_notrump_no_major = true;
     arm.competition.landy_major_jam = jam;
+    // §N1p ran before §N1-lia's package C shipped South African Texas
+    // default-on, so its jam is the *direct* `4M`.  Reconstructing that
+    // experiment means disarming the transfer that now carries the same hand.
+    arm.competition.landy_texas = false;
     best_call_with(&arm, auction, hand)
 }
 

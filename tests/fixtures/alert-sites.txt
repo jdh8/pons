@@ -75,9 +75,10 @@ comp:lebensohl-transfer 72 -> 68
 comp:multi-penalty 0 -> 24
 comp:multi-takeout 0 -> 12
 comp:stayman 8 -> 4
-completion 696 -> 676
-rkcb 18404 -> 18776
+completion 696 -> 692
+rkcb 18404 -> 19232
 smolen 120 -> 112
+texas 80 -> 88
 
 [multi-stopper]
 comp:multi-stopper-ask 0 -> 8
@@ -94,6 +95,6 @@ comp:multi-penalty 16 -> 24
 comp:multi-takeout 8 -> 12
 comp:multi-values 4 -> 0
 comp:stayman 8 -> 4
-completion 680 -> 676
-rkcb 18484 -> 18776
+completion 696 -> 692
+rkcb 18940 -> 19232
 smolen 120 -> 112
