@@ -46,6 +46,38 @@
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0
 # foreign BEFORE any headline.  Resumable; SEED_BASE persists in
 # $R/landy-lia.seed.  Iron rule: do NOT edit `src/` while this runs.
+#
+# VERDICT (2026-08-31, SEED_BASE=1788122360, control 59cd46ee, 4.6M
+# boards/arm/vul, both gates 0-foreign): **measured loss, stays default off.**
+#   plain  +0.0050 ±0.0012 NV / -0.0384 ±0.0014 BV
+#   PD     -0.0756 ±0.0016 NV / -0.1210 ±0.0018 BV
+#   sd     +0.0374 / +0.0016 plain, -0.0289 / -0.0691 PD
+# Plain splits by colour (BV is 27 sigma) and PD is an order of magnitude past
+# package A's doubling artifact -- lia *removes* our penalty doubles (5.51% of
+# divergent boards vs base's 7.79%), which is what perfect defense pays for.
+#
+# Forensic (probe-divergence --imps, bucketed by first differing call and by
+# responder's hand) -- four named defects, none of them the concept:
+#   1. Contested tails unauthored.  Every lia node needs the opponents to have
+#      passed, so any opponent bid drops the rest to a floor with no forcing
+#      channel: 95%/94% of the `2NT` rung's whole loss, -63,950/-80,789 on
+#      `2♠`.  Not just the advancer -- they pass over `2♠` 85% of the time and
+#      enter after opener's length answer.
+#   2. Falsifier 2 confirmed, sharper: the weak five-card sign-off is
+#      *vulnerability-dependent* -- uncontested weak, exactly-5 clubs is
+#      +1.405 NV / -0.803 BV per fired while 6c (+0.993/+0.668) and 7+c
+#      (+1.849/+1.683) win at both colours.  That cell is 45% of BV's PD loss.
+#   3. Falsifier 4 confirmed: the `2NT` cap starves weak six-card diamond hands
+#      into passing, -35,827 NV / -32,432 BV.
+#   4. The sole `2♥` takeout is the worst per-fired rung (-4.07/-5.00).
+# Falsifier 1 is REVERSED, not refuted: the N1c right-siding trade was wrong on
+# plain DD -- the restored natural invitations are the ladder's biggest win
+# (`3♣` +85,613 NV / +35,920 BV).  At BV defects 1-3 sum to -176,261 of a
+# -176,837 total, so the rest of the ladder is roughly break-even.
+# Repair queue before any re-measure, in size order: contested tails; a 6+ club
+# floor for the weak `2♠` leg when vulnerable; a rung for the starved diamonds;
+# the 2=3=4=4 merge into `2♥`.  Full record in docs/one-notrump-competitive.md
+# §N1-lia package B.
 R=${1:?usage: ab-landy-lia.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

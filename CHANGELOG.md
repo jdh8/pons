@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1-lia package B measured a loss; `competition.defense_2c_landy_lia`
+  stays default off** (`ab-landy-lia.sh`, seed 1788122360, control
+  `59cd46ee`, 4.6M boards/arm/vul, both isolation gates 0-foreign). Plain DD
+  splits by colour — **+0.0050** ±0.0012 IMPs/board not vulnerable but
+  **−0.0384** ±0.0014 vulnerable — and perfect defense is −0.0756 / −0.1210,
+  an order of magnitude past package A's doubling artifact and running the
+  opposite way: lia *removes* our penalty doubles (5.51% of divergent boards
+  against base's 7.79%), which is precisely what perfect defense pays for. No
+  user-visible behaviour change; the default system is byte-identical.
+  Forensic attribution (`probe-divergence --imps`) splits the deficit into
+  four repairable defects rather than a wrong idea: the contested tails are
+  unauthored at every level of the ladder (95%/94% of the `2NT` rung's entire
+  loss), the weak five-card `2♠` sign-off is vulnerability-dependent
+  (uncontested weak: exactly-five clubs +1.405 NV / −0.803 BV IMPs per fired,
+  while six and seven-plus win at both colours), the narrowed `2NT` starves
+  weak six-card diamond hands into passing, and the sole `2♥` takeout is the
+  worst per-fired rung. The N1c right-siding trade is **reversed**, not just
+  refuted: the restored natural invitations are the ladder's biggest win
+  (`3♣` +85,613 NV / +35,920 BV). Repair queue and full numbers in
+  docs/one-notrump-competitive.md §N1-lia package B.
 - **§N1-lia package A shipped default-on: the Landy doubler's rebid seat
   unshadowed and exactly-three trumps re-bought cell by cell**
   (`competition.landy_doubler_catchall` now **false**,
