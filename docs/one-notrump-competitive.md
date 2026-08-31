@@ -1347,16 +1347,31 @@ on a non-loss.
 
 #### Package D — `landy_notrump_no_major` re-measured on A's winner
 
-§N1p's `nt` loss was measured with the broken catch-all in place; A's full
-ladder shipped, so post-A `main` is the control. Runner unchanged
-(`scripts/ab-landy-notrump-shape.sh`, the `nt` pair only), fresh seed.
+§N1p's `nt` loss was measured with the broken catch-all in place — its own
+falsifier 2 says the doubler's rebid was the floor's, pulling a values double
+to `3NT` 49.5% of the time on two trumps, so that arm partly measured the
+floor. Package A deleted the shadowing catch-all and authored the three-card
+cells, which is the repair that unblocks this re-measure. Control is
+post-C `main`, fresh seed.
 
-**C does not disturb it.** Both arms of the `nt` pair carry
-`--no-ns-landy-major-jam`, and `landy_texas` is gated on `landy_major_jam`, so
-package C is inert on both sides of the comparison. The runner's third (`jam`)
-arm *is* downstream of C — with the jam on, `main` now reaches the game by
-transfer — but D is the `nt` pair only, and re-running `jam` would ask a
-different question from the one §N1p already answered.
+**New runner, and a deliberate departure from the plan's wording.** The plan
+said "the `nt` pair only" of `scripts/ab-landy-notrump-shape.sh`, whose arms
+hold `landy_major_jam` **off** on both sides — the framing §N1p measured. Two
+things have changed since, so package D runs
+`scripts/ab-landy-nt-remeasure.sh` (`base` = bare `main`, `nt` = `+
+--ns-landy-notrump-no-major`) instead, and §N1p's runner keeps its own
+experiment's record untouched:
+
+* The jam has been default-on since 2026-08-30 and C's Texas since
+  2026-08-31, so a strong six-card major now leaves via `4♣`/`4♦`. It never
+  reaches `3NT`@168, and `nt` cannot move it either way. Holding the jam off
+  would measure a pool `main` no longer routes that way — against the iron rule
+  that a ship decision is measured against the real routing.
+* The moving pool is therefore the **four- and five-card** major game hands
+  only. Narrower than §N1p's, and the whole ship-relevant question.
+
+C is inert in the comparison either way: `landy_texas` is gated on
+`landy_major_jam`, and with the jam on it is on identically in both arms.
 
 #### The arms
 
