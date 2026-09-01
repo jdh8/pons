@@ -77,11 +77,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gate and went straight on to print the headline the gate exists to veto. The
   guard now requires the `isolation gate PASSED` line, which re-runs a failed
   gate while leaving its text on disk for forensics. No effect on a passing
-  gate, so every existing results directory resumes as before. Affects all
-  runners that source `ab-lib.sh`; found by the pre-flight audit of
-  §N1-lia package B's repair A/B.
+  gate, so every existing results directory resumes as before.
+
+  **This had fired twice.** `ab-results/2d-multi-kk/log` records a resume that
+  logged `skip .../gate.kk.vs.base.none.txt (exists)` over a gate reading 843
+  foreign of 1530 divergent, and `ab-results/2d-multi-escape-s2/log` did the
+  same for both `both`-vul cells (1 foreign of 165 and of 420). No shipped
+  verdict rests on either: K–K shipped off `2d-multi-kk-gated/`, whose two
+  gates both read 0 foreign, and the escape contamination is one board. Eight
+  of the tree's 75 gate files record a failure.
+
+  The first fix was announced as affecting every runner. It did not: **eleven
+  runners shadowed `gatepair` with a private copy of the pre-fix body**
+  (`ab-2d-multi-{balance,doubler,doubler-min-nt,doubler-nt,escape,kk,px,residue,slam}`,
+  `ab-landy-minor-slam`, `ab-nt-natural-overcall`), so a later definition won
+  and the fix was inert exactly where it had already fired. All eleven copies
+  are deleted; `gatepair` takes the opener side as an optional 4th argument
+  (`ours` by default) for the one runner that gated on `theirs`.
+
+- **`sddiff`'s skip guard was the same bug, one function below the one that was
+  fixed** (`scripts/ab-lib.sh`). It tested `[ -s "$out" ]` while running
+  `ab-dump-sd … >"$out" 2>&1`, so *any* failure — the aligned-arms assertion, an
+  OOM kill, a bad flag — left its own message in the guarded file and the cell
+  was skipped permanently, silently dropping the single-dummy column. The guard
+  now requires a `Delta` line. 46 runners call `sddiff`; no results directory on
+  disk has ever hit it (361 of 361 `sd.*.txt` carry a `Delta`), so nothing
+  re-runs. `diffpair` is deliberately unchanged — `ab-dump-diff` writes its
+  report through `--out-plain`/`--out-pd` and its diagnostics to the log, so a
+  failure cannot forge its own guard.
+
+- **A resume that drops `BOARDS` now fails instead of silently measuring a 30×
+  smaller sample** (`scripts/ab-lib.sh`). The pairing key recorded the shard
+  count but not the boards per shard, and `PER_SHARD` falls back to 6400 when
+  `BOARDS` is unset. If both arms of a vulnerability were still missing, they
+  regenerated *aligned* at 1/30 the sample: every assertion passed, the run
+  exited 0, and only a board count in the report header contradicted the
+  runner's own log. A first launch that forgot `BOARDS` did this to all four
+  arms. `$R/per-shard` now joins `$R/shards` in the key. Directories predating
+  this have no record and adopt whatever the next invocation uses.
+
+- **An arm short by a dead worker is regenerated instead of wedged**
+  (`scripts/ab-lib.sh`). `arm()` resume-skipped on `shard-0.json` alone, so an
+  arm missing any other shard was skipped forever; it now counts shards against
+  `$SHARDS`. The generator's bare `wait` still reports success when a worker
+  dies — `scripts/bba-gen-parallel.sh` needs the same treatment and is left
+  alone only because it is executing as this is written.
+
+- **The recorded SHA now marks a dirty tree** (`scripts/ab-lib.sh`). It was
+  `git rev-parse --short HEAD`, which names the last commit, not what ran: the
+  in-flight §N1-lia run logged `sha=27e47969` while executing a working-tree
+  script whose pre-registration carried different falsifiers. A `-dirty` suffix
+  now says so.
+
+  Found by an audit of the whole harness prompted by the sticky-gate fix.
 
 ### Changed
+
+- **Three A/B modes no longer collide in one results directory**
+  (`scripts/ab-ben-defensive-overcalls.sh`). Its BBA twin namespaces by mode
+  (`R=$BASE/$MODE`); the BEN one took the directory verbatim, so `bar` and
+  `seam` shared the arm names `control` and `on` with different knobs and a
+  second mode pointed at the same directory would resume-skip both arms and
+  print the first mode's number under the second mode's name. Every run to date
+  namespaced by hand, so no measurement is affected; `docs/takeout-double-layers.md`
+  names `seam` the next re-measure candidate, which is the run it would have hit.
 
 - **§N1-lia package B rebuilt on its own forensic; `competition.defense_2c_landy_lia`
   stays default off pending the A/B** (`scripts/ab-landy-lia-repair.sh`, new).

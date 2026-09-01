@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.."
 
 : "${R:?source ab-lib.sh with R set to the results dir}"
 mkdir -p "$R"
-SHA=$(git rev-parse --short HEAD)
+SHA=$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo -dirty)
 DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
 PROBE=target/release/examples/probe-divergence
@@ -40,14 +40,21 @@ PER_SHARD=${PER_SHARD:-6400}
 # Pairing guard: every arm of one results dir must be generated with the same
 # shard count — shard i seeds SEED_BASE+i, so resuming a dir with a different
 # JOBS would diff arms drawn from different deal sets.
-if [ -s "$R/shards" ]; then
-    [ "$(cat "$R/shards")" = "$SHARDS" ] || {
-        echo "ab-lib: $R was generated with $(cat "$R/shards") shards, not $SHARDS; rerun with JOBS=$(cat "$R/shards") or use a fresh results dir" >&2
-        exit 1
-    }
-else
-    echo "$SHARDS" >"$R/shards"
-fi
+# Both halves: a resume that keeps JOBS but drops BOARDS falls back to 6400/shard
+# (ab-lib.sh:38), and if BOTH arms of a vulnerability are still missing it
+# regenerates them aligned -- every assert passes and the headline is quoted on a
+# silently smaller sample.  Pin the count too, so that fails loudly instead.
+for k in shards:$SHARDS per-shard:$PER_SHARD; do
+    f="$R/${k%%:*}"; want="${k#*:}"
+    if [ -s "$f" ]; then
+        [ "$(cat "$f")" = "$want" ] || {
+            echo "ab-lib: $R was generated with ${k%%:*}=$(cat "$f"), not $want; rerun with JOBS=$(cat "$R/shards") and BOARDS=<shards x per-shard as recorded in $R>, or use a fresh results dir" >&2
+            exit 1
+        }
+    else
+        echo "$want" >"$f"
+    fi
+done
 
 # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
 # shellcheck disable=SC2086
@@ -64,28 +71,33 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 # arm NAME VUL [bba-gen flags...] — generate one arm unless already present
 #
-# The resume check tests for a SHARD, not for the directory: bba-gen-parallel
-# mkdirs before it launches a worker, so an arm that died on startup (a stale
-# flag, a bad card path) leaves an empty dir behind.  Skipping on `-d` would
-# then silently resume past an arm that was never generated, and diffpair would
-# score it against nothing.
+# The resume check COUNTS shards, and tests neither the directory nor shard-0.
+# bba-gen-parallel mkdirs before it launches a worker, so an arm that died on
+# startup (a stale flag, a bad card path) leaves an empty dir behind; and its
+# fan-out ends in a bare `wait`, which reports zero even when a worker was
+# OOM-killed, so an arm can be short by any shard but the 0th.  Skipping on `-d`
+# resumes past an arm that was never generated; skipping on shard-0 alone wedges
+# a short arm forever, and if both arms lost the SAME index (one deterministic
+# crash, same deal stream) every downstream assert still passes.
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"
-    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; return 0; }
+    [ "$(ls "$dir"/shard-*.json 2>/dev/null | wc -l | tr -d " ")" = "$SHARDS" ] \
+        && { log "skip $dir (complete)"; return 0; }
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
     SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1
 }
 
-# gatepair ON OFF VUL — the isolation gate that must precede any headline
+# gatepair ON OFF VUL [ours|theirs] — the isolation gate before any headline
 # (docs/measurement.md): it must read **0 foreign**, i.e. no divergent board was
 # opened by the other side.  Needs BUILD_EXTRA='--example probe-divergence'.
 #
-# Runners written before 2026-08-27 define this themselves and shadow it; the
-# bodies are identical, so nothing changes for them.
+# Do NOT shadow this in a runner.  Eleven did (all with the pre-fix `-s` guard
+# below), which made the 2026-09-01 fix inert for them until they were deleted;
+# ab-nt-natural-overcall.sh needed `theirs`, which is now the 4th argument.
 gatepair() {
-    on=$1; off=$2; vul=$3
+    on=$1; off=$2; vul=$3; side=${4:-ours}
     out="$R/gate.$on.vs.$off.$vul.txt"
     # Guard on the PASSED line, not on the file.  probe-divergence writes its
     # FAILED summary to the same stdout it is judged by (examples/probe-
@@ -94,7 +106,7 @@ gatepair() {
     # on to print the very headline the runner pre-registers the gate against.
     grep -q 'isolation gate PASSED' "$out" 2>/dev/null && { log "skip $out (passed)"; return 0; }
     log "isolation gate $on vs $off ($vul)"
-    "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener ours >"$out"
+    "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener "$side" >"$out"
 }
 
 # diffpair ON OFF VUL — paired diff over the whole arm, plain + pd.  ab-dump-diff
@@ -123,7 +135,11 @@ diffpair() {
 sddiff() {
     on=$1; off=$2; vul=$3; shift 3
     out="$R/sd.$on.vs.$off.$vul.txt"
-    [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
+    # Guard on the result line, not on the file -- same reason as gatepair, and
+    # worse here: `2>&1` below folds a panic (ab-dump-sd asserts the arms are
+    # aligned) into the very file the guard reads, so an `-s` guard skips the
+    # cell permanently and the sd column silently goes missing.
+    grep -q '^Delta' "$out" 2>/dev/null && { log "skip $out (scored)"; return 0; }
     log "sd-diff $on vs $off ($vul, 16 worlds$*)"
     "$SD" "$R/$on-$vul" "$R/$off-$vul" -v "$vul" --sd-worlds 16 --show 0 "$@" >"$out" 2>&1
 }

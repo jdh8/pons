@@ -80,14 +80,6 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 PROBE=target/release/examples/probe-divergence
 
-gatepair() {
-    on=$1; off=$2; vul=$3
-    out="$R/gate.$on.vs.$off.$vul.txt"
-    [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
-    log "isolation gate $on vs $off ($vul)"
-    "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener ours >"$out"
-}
-
 SEED_BASE=$(seed_for 2d-multi-slam)
 log "=== 2d-multi-slam SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 

@@ -85,18 +85,10 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 PROBE=target/release/examples/probe-divergence
 
-gatepair() {
-    on=$1; off=$2; vul=$3
-    out="$R/gate.$on.vs.$off.$vul.txt"
-    [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
-    log "isolation gate $on vs $off ($vul)"
-    "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener theirs >"$out"
-}
-
 # compare ON OFF VUL [disclosure flags for ab-dump-sd] — the three columns.
 compare() {
     on=$1; off=$2; vul=$3; shift 3
-    gatepair "$on" "$off" "$vul"
+    gatepair "$on" "$off" "$vul" theirs
     diffpair "$on" "$off" "$vul"
     sddiff "$on" "$off" "$vul" "$@"
 }

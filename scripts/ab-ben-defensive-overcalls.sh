@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
 
 MODE=${1:?usage: ab-ben-defensive-overcalls.sh o3 RESULTS_DIR}
-R=${2:?usage: ab-ben-defensive-overcalls.sh o3 RESULTS_DIR}
+BASE=${2:?usage: ab-ben-defensive-overcalls.sh o3 RESULTS_DIR}
 case "$MODE" in
 o3 | bar | seam) ;;
 reading|o1|o2)
@@ -21,6 +21,7 @@ o4)
     exit 2
     ;;
 esac
+R=$BASE/$MODE
 : "${SEED_BASE:?set SEED_BASE to the matching BBA experiment seed}"
 PER_SHARD=${PER_SHARD:-1600}
 SHOW=${SHOW:-8}
