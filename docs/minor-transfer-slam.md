@@ -69,11 +69,22 @@ Queue and measurement sections record the shipped answers.
 | Constructive European (opt-in) | `2♠` (→♣) / `3♣` (→♦) | none / none | the same `8` | **`3NT` in both minors** — no splinter arm, no `5m` at all. **Not a defect — see below** |
 | N1j Landy `(2♣)` (default on) | `2NT` (→♣) / `3♣` (→♦), `len 6.. & points(2..)` | 2 / none | stopper cue `3♥`/`3♠` (10+), **`4m` (13+, six)**, `3NT` (10+), Pass | **`4m`**, and then the floor — [`landy_bba_transfer_rebid`](../src/bidding/american/competition/lebensohl.rs) |
 | N1c legacy Landy stack (arm) | `2NT` (→♣) only, `points(2..=9)` | 2 / **9 — capped** | terminal | `3♣`, forced pass |
+| §N1-lia Landy `(2♣)` (opt-in, `defense_2c_landy_lia`; **built 2026-09-01, later than this census**) | **not a transfer** — `2♠` = natural 6+♣, `2NT` = natural 6+♦ | 8 / **none** | opener answers by length **or accepts at `3NT`**; over the length legs the N1j rebid verbatim, over the acceptance `4m` (13+, six) | **`4m`** with `landy_slam_answer` + RKCB on **both** — the length legs and the acceptance — [`landy_lia_accept_rebid`](../src/bidding/american/competition/lebensohl.rs) |
 | N4-KK `(2♦)` Multi (default on) | `2NT` (→♣) / `3♣` (→♦), `len 6..` and **no point term** | floorless / none | two-suiter steps (10+), `3NT` (10+), Pass | **`3NT`** — [`kokish_kraft_transfer_rebid`](../src/bidding/american/competition/rubensohl.rs) |
 | N4-KK, they compete over it | same transfer | — | `3NT` (10+ with a stopper), `X` (`hcp 10+`), Pass | **`3NT`**, or their partscore doubled |
 | N3 `(3♣)` transfer variant (opt-in) | `3♠` (→♦), `points(10..)` | 10 (GF) / none | **no transferor-rebid node at all** — the seat is *floored*, not shadowed | `3NT`, else `5♦` |
 | Rubensohl `(2♥)`/`(2♠)` (default) | `3♣` (→♦), top step (→♣) | 9 / 10 | **no transferor-rebid node at all** | `3♦` (a partscore) or `3NT` |
 | Gladiator, after our 1NT overcall (opt-in) | `2NT` (→♣) | **`points(..inv)` — capped** | — | `3♣` sign-off |
+
+One row postdates the census and is marked as such. §N1-lia's rungs are not
+transfers at all — responder declares its own six-card minor — but the rule
+this document produced binds them anyway, because what it is really about is an
+**uncapped minor rung whose ladder runs out**: opener's `3NT` acceptance can
+land opposite a hand that wanted slam, and an unauthored `4m` above it reads as
+nothing while the floor's keycard ask is gated on `undisturbed`. The lane is
+disturbed by construction, so the `4m` and its answer are authored on the
+acceptance as well as on the length legs. Recorded here as the "Landy port" the
+queue below asked for; it is owed a measurement, not a decision.
 
 ### The European arm is out of scope — corrected 2026-08-25
 

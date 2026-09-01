@@ -192,11 +192,24 @@ const LANDY_CUE: Alert = Alert("comp:landy-cue");
 /// minors: a weak six-card club escape, transferred so the `1NT` opener
 /// declares.  Their `2♣` is artificial, so clubs are ours to transfer into.
 const LANDY_TRANSFER: Alert = Alert("comp:landy-transfer");
-/// Landy both-minors takeout — `2♥`/`2♠` over their `(2♣)` Landy under the
-/// N1j BBA ladder: game-forcing with 4+ in both minors and exactly a doubleton
-/// in the bid major (2-2 bids `2♥`, so `2♠` promises three hearts).  Opener
-/// answers in notrump with that major stopped or no four-card minor, else
-/// picks a minor.
+/// Landy natural minor — `2♠` (clubs) / `2NT` (diamonds) over their `(2♣)`
+/// Landy under §N1-lia: a **six-card minor, invitational or better**, named
+/// one step below its own suit because the two calls below `3♣` are the only
+/// room the lane leaves.  Not a transfer — responder plays it, opener answers
+/// by length ([`LANDY_LENGTH`]) or accepts at `3NT` from the top.  The
+/// six-card *sign-offs* one step higher (`3♣`/`3♦`, ≤7) name their own suit
+/// and are natural, so they carry no alert.
+const LANDY_MINOR: Alert = Alert("comp:landy-minor");
+/// Landy both-minors takeout — `2♥`/`2♠` over their `(2♣)` Landy: 4+ in both
+/// minors, with shortness in the majors, opener answering by minor length or
+/// stopper.  One claim across both ladders, which differ in how much they
+/// promise: under the N1j BBA ladder it is game-forcing with **exactly** a
+/// doubleton in the bid major (2-2 bids `2♥`, so `2♠` promises three hearts);
+/// under §N1-lia there is one takeout, `2♥`, invitational-or-better with **at
+/// most** a doubleton in each major — unbalanced by construction, since 4+4+
+/// in the minors and 2-2-or-shorter in the majors is a nine-card minor
+/// holding.  The union is what the tag publishes: length in both minors and
+/// shortness in the majors, the strength read off each rule's own projection.
 const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.

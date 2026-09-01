@@ -155,9 +155,11 @@ struct Args {
     /// comparison `scripts/ab-landy-major-jam.sh` runs and §N1p never did.
     ///
     /// `lia` is §N1-lia's ladder (`competition.defense_2c_landy_lia`, jam left
-    /// at its shipped default): the minor rungs a level down (`2♠`→♣ two-way,
-    /// `2NT`→♦), one `2♥` takeout with the answer priority reversed, natural
-    /// `3♣`/`3♦` invitations, opener answering the minor rungs by length.
+    /// at its shipped default), as re-probed 2026-09-01: `2♠`/`2NT` are
+    /// **natural** six-card minors (clubs / diamonds), invitational or better,
+    /// answered by length or accepted at `3NT`; `2♥` is the one takeout,
+    /// unbalanced with 4+ in both minors, its answer priority reversed; and
+    /// `3♣`/`3♦` are six-card sign-offs straddling the weak `2♦`.
     ///
     /// Needs `--their-2c-landy` to do anything.
     #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only|lia")]

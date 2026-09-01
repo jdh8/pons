@@ -1454,27 +1454,45 @@ pub struct CompetitionKnobs {
     pub landy_major_jam: bool,
     /// Lia's counter-defense ladder over their Landy `2♣` (§N1-lia, package B)
     ///
-    /// IntoBridge's counter is ~80% the shipped N1j table; this knob carries
-    /// the two deltas its tree is better-informed on.  The minor ladder drops
-    /// a full level to match BBA's own coherent self-play tree
-    /// (`docs/ai-bidder/bba-1nt-landy-tree.md`: `2♠`→♣ 5.9%, `3♣`→♦ 6.8%):
-    /// `2♠` = 5+♣ weak or game-forcing, `2NT` = 7+♦ / a good six (`len(6..=6)
-    /// & top_honors(2..)`) / GF, and the invitations return as natural
-    /// `3♣`/`3♦`@167/166 — the N1c right-siding trade partially unwound.  The
-    /// `2=3=4=4` takeout split dies: `2♥` becomes the **only** GF takeout
-    /// (4+♦ 4+♣, 2+ in both majors) and its answer priority reverses — opener
-    /// offers a four-card minor *before* notrump, `2NT` = spade stopper, `2♠`
-    /// = neither (asks).  Instead of a forced completion, opener answers the
-    /// minor rungs by length (`comp:landy-length`): the cheap raise = 3+, the
-    /// step below it a doubleton (`2NT` over `2♠`; `3♣` over `2NT` — opener
-    /// is balanced, so two diamonds implies 3+ clubs, a safe landing).  The
-    /// N4-KK `4m` slam try and [`Self::landy_minor_slam_answer`]'s answer
-    /// re-hang byte-identical on every leg.  Splinters, both `3NT` rungs, the
-    /// values `X`, the weak `2♦` and the jam are untouched.
+    /// Lia is **IntoBridge's AI**, probed by hand on cuebids.com — no code, so
+    /// the table below is a reading of her play, and the first reading was
+    /// **wrong**.  It had the ladder inverted (weak transfers at the two
+    /// level, natural invitations at the three) and both the 2026-08-31
+    /// measured loss and its 2026-09-01 repair were built on that misreading;
+    /// this knob was **redefined in place** 2026-09-01 to what she actually
+    /// plays, since it never shipped and its off state is byte-identical.  The
+    /// superseded semantics are pinned by sha in the campaign doc.
+    ///
+    /// Her four rungs, and our band for each (she states shape, not strength,
+    /// so the bands are ours):
+    ///
+    /// * `2♥` — **unbalanced** both-minors takeout, 4+♦ 4+♣, invitational or
+    ///   better (`len(♥, ..=2) & len(♠, ..=2)`, which with 4+4+ in the minors
+    ///   *is* unbalanced).  The only takeout — the `2=3=4=4` split dies with
+    ///   the shape, and the answer priority reverses: a four-card minor before
+    ///   notrump, `2NT` = spade stopper, `2♠` = neither (asks), `3NT` = the
+    ///   maximum accepting.  Lia's shape contains the splinters', so under
+    ///   this knob the splinters outrank the takeout instead of being disjoint
+    ///   from it.
+    /// * `2♠` / `2NT` — natural **six-card minors**, invitational or better
+    ///   and uncapped (`comp:landy-minor`; clubs and diamonds respectively).
+    ///   Not transfers: responder declares, and opener answers by length
+    ///   (`comp:landy-length` — cheap raise 3+, the step below it a doubleton)
+    ///   or accepts at `3NT` from the top of the range.
+    /// * `3♣` / `3♦` — natural six-card **sign-offs**, at most seven points,
+    ///   ranked to straddle the weak `2♦`@140: `3♣`@141 above it (clubs have
+    ///   no cheaper outlet), `3♦`@139 below it, which hands the escape its
+    ///   traffic back and picks up the 0-4 HCP six-card diamond hands it
+    ///   refuses — package B's "starved diamonds", closed by rung order alone.
+    ///
+    /// Both `3NT` rungs, the values `X`, the weak `2♦` and the jam are
+    /// untouched.  The `4m` slam try and [`Self::landy_minor_slam_answer`]'s
+    /// answer re-hang on every leg, and on the `3NT` acceptance too — the
+    /// uncapped rungs owe it (`docs/minor-transfer-slam.md`).
     ///
     /// Read only under [`Self::defense_2c_landy_bba`] (the shipped ladder it
     /// modifies).  **Off by default — the A/B is owed**
-    /// (`scripts/ab-landy-lia.sh`); a permutation, so it cannot be
+    /// (`scripts/ab-landy-lia2.sh`); a permutation, so it cannot be
     /// decomposed.  Inert while their `2♣` is undeclared or natural.
     pub defense_2c_landy_lia: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder

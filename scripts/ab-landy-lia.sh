@@ -2,6 +2,15 @@
 # ab-landy-lia.sh — §N1-lia package B: Lia's re-rung counter ladder over their
 # Landy `2♣`, one arm — a permutation, it cannot be decomposed.
 #
+# SUPERSEDED TWICE.  This runner measured a loss on 2026-08-31 (see the VERDICT
+# block below); `ab-landy-lia-repair.sh` repaired the four defects that verdict
+# named and was itself stopped mid-flight on 2026-09-01, when the probe of
+# Lia's responder table turned out to have been **inverted**.  Both scored a
+# system nobody plays.  The live runner is `scripts/ab-landy-lia2.sh`.  This
+# file is kept as the record of what it actually measured — and the forensic it
+# produced is still the best evidence this lane has; `docs/one-notrump-
+# competitive.md` §N1-lia says which of its defects transfer.
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia.sh ab-results/landy-lia \
 #       >ab-results/landy-lia.log 2>&1 < /dev/null & disown

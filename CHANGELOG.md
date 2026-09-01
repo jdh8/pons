@@ -142,11 +142,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced by hand, so no measurement is affected; `docs/takeout-double-layers.md`
   names `seam` the next re-measure candidate, which is the run it would have hit.
 
-- **§N1-lia package B rebuilt on its own forensic; `competition.defense_2c_landy_lia`
-  stays default off pending the A/B** (`scripts/ab-landy-lia-repair.sh`, new).
-  No user-visible behaviour change — every edit is behind the off-by-default
-  knob and `smoke-default --count 20000 --seed 1` is byte-identical against
-  `main` HEAD, verified twice. The ladder measured a loss on 2026-08-31
+- **§N1-lia package B corrected: the probe of Lia's counter was wrong, so
+  `competition.defense_2c_landy_lia` was redefined in place**
+  (`scripts/ab-landy-lia2.sh`, new; `scripts/ab-landy-lia-repair.sh` gets a
+  superseded VERDICT block). No user-visible behaviour change — every edit is
+  behind the off-by-default knob and `smoke-default --count 20000 --seed 1` is
+  byte-identical against `main` HEAD, verified twice.
+
+  Lia is IntoBridge's AI, probed by hand on cuebids.com, and the original read
+  had her responder ladder **inverted**: weak transfers at the two level and
+  natural invitations at the three, where she plays an **UNBAL 4+♣ 4+♦
+  takeout** at `2♥`, **natural six-card minors, invitational or better**, at
+  `2♠`/`2NT`, and **six-card sign-offs** at `3♣`/`3♦`. The unlisted calls
+  (`X`@145, `2♦`@140, `3M`, `3NT`, `Pass`) are confirmed unchanged, so the
+  correction is exactly four rungs. The knob is redefined rather than twinned:
+  it never shipped, its off state is byte-identical, and the superseded
+  semantics are pinned by sha (`8a778178`) — a second knob whose only job is to
+  neutralise the first is scaffolding.
+
+  What the rebuild changes beyond the four rungs:
+
+  - **The takeout is spelled as shape** — `4+♣ & 4+♦ & len(♥, ..=2) & len(♠,
+    ..=2)`, which with eight-plus cards in the minors *is* unbalanced — so it
+    still excludes the 2=3=4=4 merge the forensic convicted, and it now
+    **contains** the splinter shapes. The splinters therefore move above it
+    (`3♥`/`3♠` @179/178 against the takeout's @177); N1j's exact doubletons stay
+    disjoint from them and its order is untouched.
+  - **The sign-offs straddle the weak `2♦`@140** (`3♣`@141 above it, `3♦`@139
+    below), so the escape keeps every hand it can take and `3♦` picks up the
+    ones it refuses — the 6+♦ hands with **0-4 HCP** that failed its five-HCP
+    floor. That closes the old defect 3 by rung order alone, with no widening
+    and no knob, and it removes the last `vulnerable()` term from the package.
+  - **Opener accepts at `3NT`** from the top of the range with both of their
+    majors stopped, over the takeout and over both minor rungs — the rung an
+    invitational band cannot do without, since a describe-only structure walks
+    a 24-count into `3♣`. Responder's placements are re-banded to match: two
+    game-forcing catch-alls (`5m`@100, `3NT`@100) are gated on game values and
+    `Pass`@0 becomes the finite rung.
+  - **The `2♠` ask's catch-all drops from `4♣`@20 to `3♣`@20** — natural, which
+    retires an unalerted artificial call *and* stops the auction committing to
+    the five level opposite eight points. Dropping below `3NT` opens a node the
+    four-level rung could not reach, where the floor bids a stopperless `3NT`
+    on every probed hand, so opener now answers it (`landy_lia_ask_landing`):
+    correct to `3♦` holding a club doubleton and three diamonds, else pass.
+  - **`comp:landy-minor` is a new alert slug** for the two natural minor rungs;
+    `comp:landy-transfer` keeps its N1c meaning and this knob no longer uses
+    it. `comp:landy-tko` is re-worded to the union of both ladders' claims.
+    `alert-sites.txt` does not move — the fixture's sections are all built at
+    the knob's `false` default.
+  - **Opener's contested seat gains its two value calls** (`3NT` accept and the
+    four-trump penalty double) on the `2♠`/`2NT` rungs, which the first build's
+    bust-or-game-force rungs could not support — with the sit that mirrors
+    them, `{rung} ({over}) X -`, whose old registration rode the invitation rung
+    that has become a sign-off.
+  - **All six flagged lia-only node families are closed**, taking the
+    reversible defaults the 2026-09-01 pre-flight audit wrote (their balancing
+    double via `Option<Bid>`, sits at the responder follow-ups, responder
+    captaining one round deeper). They were left open only so as not to disturb
+    the A/B that has now been superseded.
+  - **The minor-transfer-slam rule is honoured above opener's acceptance**: the
+    minor rungs are uncapped, so `4m` with an authored answer and the RKCB
+    ladder re-hang there as well as on the length legs
+    ([docs/minor-transfer-slam.md](docs/minor-transfer-slam.md), which gains
+    the lane's census row).
+
+  **The A/B is owed and is not launched.** `scripts/ab-landy-lia2.sh` carries
+  the pre-registration, including the arbitration rule for the doubling-artifact
+  row stated up front — the thing the stopped run got wrong. Its falsifier 1 is
+  the correction's own predicted loss: true Lia has **no rung** for the
+  exactly-five 8-9 hand, and that band was the built ladder's biggest measured
+  win.
+
+  **The repair A/B was stopped mid-flight** and is superseded, with one cell
+  recorded rather than discarded (seed 1788247951, control `ce94faeb`: NV plain
+  **+0.0191** ±0.0011, PD **−0.0382** ±0.0014, gates 0-foreign; both-vul never
+  run). No arbitration is owed — there is no second cell and no surviving
+  build.
+
+  Everything below this paragraph is the record of the **superseded** build,
+  kept because the loss and the repair were measured against it and a verdict is
+  only readable against what it scored. The ladder measured a loss on 2026-08-31
   (+0.0050 NV / **−0.0384** BV plain DD) and its forensic named four defects,
   none of them the concept. All four are now repaired, and **two of the repair
   plan's three pre-registered decision rules came back inverted** when the
@@ -204,12 +279,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Corrected on launch day by the runner's pre-flight audit: defect 1's closure
   is **partial by construction**. Authoring opener's sit creates fresh lia-only
   traffic one seat later, and **six** node families — not the one previously
-  listed — still fall to the learned floor, including their **balancing
-  double**, which nothing can catch today (`landy_lia_entries` yields bids only,
-  and `systems_on_over_double` guards on the first suffix call being a `Double`
+  listed — still fell to the learned floor, including their **balancing
+  double**, which nothing could catch (`landy_lia_entries` yields bids only, and
+  `systems_on_over_double` guards on the first suffix call being a `Double`
   where here it is a `Pass`). Enumerated as a table in the doc's "Flagged, not
-  built", with the reversible default; not built, because it would change what
-  the A/B measures.
+  built", with the reversible default; left unbuilt at the time because it
+  would have changed what that A/B measured, and **all six are built now**.
 
 - **§N1-lia package D measured a non-win; `competition.landy_notrump_no_major`
   stays default off** (`ab-landy-nt-remeasure.sh`, seed 1788191041, control

@@ -2,6 +2,41 @@
 # ab-landy-lia-repair.sh — §N1-lia package B, repaired: Lia's re-rung counter
 # ladder over their Landy `2♣` with the forensic's four named defects fixed.
 #
+# ============================== VERDICT ==============================
+# STOPPED 2026-09-01, SUPERSEDED BY THE PROBE CORRECTION.  Do not resume,
+# and do not launch this runner again — the build it scores no longer
+# exists.  Superseded by `scripts/ab-landy-lia2.sh`.
+#
+# SEED_BASE=1788247951, control ce94faeb, JOBS=24 BOARDS=4608000.
+# One cell completed before the run was stopped, recorded because it is the
+# only measurement the repaired build will ever get:
+#
+#   vul   plain              PD                 gates
+#   none  +0.0191 ±0.0011    −0.0382 ±0.0014    0-foreign
+#   both  never run          never run          --
+#
+# Why stopped: `defense_2c_landy_lia` was built on a **misread probe** of
+# Lia's responder table — her ladder is the inverse of what was built (UNBAL
+# takeout, INV+ six-card minors at 2♠/2NT, six-card sign-offs at 3♣/3♦).  The
+# repaired arm is therefore a repair to nobody's system.  The knob was
+# redefined in place on 2026-09-01; the superseded semantics are pinned by
+# sha (8a778178; the measured-loss build is 59cd46ee-control).
+#
+# The NV row above has the doubling-artifact shape (plain win, PD loss) on a
+# mechanism that bids more, and the arbitration rule this header stated for
+# it was WRONG — which is what `ce94faeb` corrected, mid-flight, before the
+# probe correction made the whole question moot.  There is no both-vul cell
+# to arbitrate against and no surviving build to ship, so **no arbitration
+# decision is owed**.  `ab-results/landy-lia-repair/` stays on disk.
+#
+# Everything below is the pre-registration as it stood at launch.  It is
+# kept verbatim: a verdict is only readable against the header that was
+# written before the run, and the four defects it names are still the best
+# evidence this lane has — `docs/one-notrump-competitive.md` §N1-lia says
+# which of them transfer to the corrected ladder and which one predicts a
+# loss.
+# =====================================================================
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia-repair.sh ab-results/landy-lia-repair \
 #       >ab-results/landy-lia-repair.log 2>&1 < /dev/null & disown
