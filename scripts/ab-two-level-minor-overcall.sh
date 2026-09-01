@@ -9,7 +9,7 @@
 # touch the codebase while it runs (bba-gen-parallel re-invokes cargo build;
 # must stay a no-op).
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-two-level-minor-overcall.sh ab-results/two-level-minor-overcall \
 #       >ab-results/two-level-minor-overcall.log 2>&1 &
 #

@@ -27,7 +27,7 @@
 # A reading/disclosure change is a constructive-side change, so plain DD is the
 # honest primary metric and pd guards the doubling tail.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-declared-agreement.sh ab-results/declared-agreement \
 #       >ab-results/declared-agreement.log 2>&1 &
 #

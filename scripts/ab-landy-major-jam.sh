@@ -2,7 +2,7 @@
 # ab-landy-major-jam.sh — §N1p-jam: the `4M` jam rung over their Landy `2♣`,
 # measured **standalone** for the first time.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-major-jam.sh ab-results/landy-major-jam \
 #       >ab-results/landy-major-jam.log 2>&1 < /dev/null & disown
 #

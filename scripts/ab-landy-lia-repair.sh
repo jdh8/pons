@@ -2,7 +2,7 @@
 # ab-landy-lia-repair.sh — §N1-lia package B, repaired: Lia's re-rung counter
 # ladder over their Landy `2♣` with the forensic's four named defects fixed.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia-repair.sh ab-results/landy-lia-repair \
 #       >ab-results/landy-lia-repair.log 2>&1 < /dev/null & disown
 #

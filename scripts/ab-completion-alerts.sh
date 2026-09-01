@@ -9,7 +9,7 @@
 # decodes its own rule's projection and suppresses the natural walk — the
 # advance-sohl `3♣` stops reading as a four-card club holding.
 #
-#   JOBS=32 setsid nohup scripts/idle-run.sh scripts/ab-completion-alerts.sh \
+#   JOBS=32 BOARDS=204800 setsid nohup scripts/idle-run.sh scripts/ab-completion-alerts.sh \
 #       ab-results/completion-alerts >ab-results/completion-alerts.log 2>&1 < /dev/null &
 #
 # UNFILTERED on purpose (the ab-landy-read.sh note): the sibling defect's

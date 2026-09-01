@@ -2,7 +2,7 @@
 # ab-landy-nt-remeasure.sh — §N1-lia package D: `landy_notrump_no_major`
 # re-measured against the routing `main` actually plays, one arm.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-nt-remeasure.sh ab-results/landy-nt-remeasure \
 #       >ab-results/landy-nt-remeasure.log 2>&1 < /dev/null & disown
 #

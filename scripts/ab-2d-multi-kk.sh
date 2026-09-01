@@ -2,7 +2,7 @@
 # ab-2d-multi-kk.sh — N4-KK: the Kokish–Kraft counter-defense to their `(2♦)`
 # Multi (docs/one-notrump-competitive.md §N4-KK, docs/one-notrump-multi.md).
 #
-#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-kk.sh ab-results/2d-multi-kk \
 #       >ab-results/2d-multi-kk.log 2>&1 < /dev/null &
 #

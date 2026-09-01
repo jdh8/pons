@@ -14,7 +14,7 @@
 # channel (`--declare-opponents`, Phase 2a), measured negative and is default
 # off; the two are deliberately not run together.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-declared-book.sh ab-results/rows-phase2b \
 #       >ab-results/rows-phase2b.log 2>&1 &
 #

@@ -6,7 +6,7 @@
 # (docs/one-notrump-competitive.md — "confirm a single-seed negative [or
 # borderline] before designing against it").
 #
-#   PER_SHARD=7200 setsid nohup scripts/idle-run.sh scripts/ab-landy-confirm.sh \
+#   BOARDS=230400 setsid nohup scripts/idle-run.sh scripts/ab-landy-confirm.sh \
 #       ab-results/landy-n1def-confirm >ab-results/landy-n1def-confirm.log 2>&1 &
 R=${1:?usage: ab-landy-confirm.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd'

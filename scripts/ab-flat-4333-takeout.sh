@@ -7,14 +7,14 @@
 # do NOT touch the codebase while it runs (bba-gen-parallel re-invokes cargo
 # build; it must stay a no-op).
 #
-#   PER_SHARD=12800 setsid nohup scripts/idle-run.sh \
+#   BOARDS=409600 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-flat-4333-takeout.sh ab-results/flat-4333-takeout \
 #       >ab-results/flat-4333-takeout.log 2>&1 &
 #
 # Resumable: an existing arm dir or a non-empty diff file is skipped; the
 # SEED_BASE persists in $R/seed so a restart stays seed-aligned.
 R=${1:?usage: ab-flat-4333-takeout.sh RESULTS_DIR}
-PER_SHARD=${PER_SHARD:-12800}
+[ -n "${PER_SHARD:-}" ] || BOARDS=${BOARDS:-409600}   # total bd/arm/vul; ab-lib derives PER_SHARD
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 

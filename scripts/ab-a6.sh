@@ -14,7 +14,7 @@
 # The lone contested one, set_rubens_transfer_reading (unblinds the *overcaller*),
 # has no self-play harness → bba-gen diffpair vs EPBot at the end.
 #
-#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-a6.sh ab-results/a6 \
+#   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-a6.sh ab-results/a6 \
 #       >ab-results/a6.log 2>&1 < /dev/null &
 #
 # COUNT (default 1_000_000) sets boards/example/vul for the self-play arms; the

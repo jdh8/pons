@@ -2,7 +2,7 @@
 # ab-landy-lia.sh — §N1-lia package B: Lia's re-rung counter ladder over their
 # Landy `2♣`, one arm — a permutation, it cannot be decomposed.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia.sh ab-results/landy-lia \
 #       >ab-results/landy-lia.log 2>&1 < /dev/null & disown
 #

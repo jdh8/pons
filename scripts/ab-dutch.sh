@@ -9,7 +9,7 @@
 # change → plain DD is the honest primary metric; pd guards the doubling tail.
 # (No sddiff: Phase 2.1 has no obstructive/preemptive calls to price blind.)
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-dutch.sh ab-results/dutch-phase2.1 \
 #       >ab-results/dutch-phase2.1.log 2>&1 &
 #

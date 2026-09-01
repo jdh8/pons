@@ -2,7 +2,7 @@
 # ab-landy-texas.sh — §N1-lia package C: the four-level over their Landy `2♣`
 # rides South African Texas, one arm.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-texas.sh ab-results/landy-texas \
 #       >ab-results/landy-texas.log 2>&1 < /dev/null & disown
 #

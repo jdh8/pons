@@ -13,14 +13,14 @@
 # Both scorers, both vuls, one shared SEED_BASE, arms strictly sequential.
 # Modeled on scripts/ab-minor-jump.sh; do NOT touch the codebase while it runs.
 #
-#   PER_SHARD=12800 setsid nohup scripts/idle-run.sh \
+#   BOARDS=409600 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-advance-2nt.sh ab-results/advance-2nt \
 #       >ab-results/advance-2nt.log 2>&1 &
 #
 # Resumable: an existing arm dir or a non-empty diff file is skipped; the
 # SEED_BASE persists in $R/seed so a restart stays seed-aligned.
 R=${1:?usage: ab-advance-2nt.sh RESULTS_DIR}
-PER_SHARD=${PER_SHARD:-12800}
+[ -n "${PER_SHARD:-}" ] || BOARDS=${BOARDS:-409600}   # total bd/arm/vul; ab-lib derives PER_SHARD
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 

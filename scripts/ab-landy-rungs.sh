@@ -3,7 +3,7 @@
 # (docs/one-notrump-competitive.md §N1h/N1i): the Landy counter's minor rungs
 # re-priced, two ways, against one shared baseline.
 #
-#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-landy-rungs.sh \
+#   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-landy-rungs.sh \
 #       ab-results/landy-low >ab-results/landy-low.log 2>&1 < /dev/null &
 #
 # Arms, all with `--their-2c-landy true --filter-1nt` (a true declaration of

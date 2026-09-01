@@ -19,7 +19,7 @@
 # A declaration change is a constructive-side change — plain DD is the honest
 # primary metric, pd guards the doubling tail.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-declared-opponents.sh ab-results/card-fold-e3 \
 #       >ab-results/card-fold-e3.log 2>&1 &
 #

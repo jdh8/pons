@@ -9,7 +9,7 @@
 # keeps Stayman (useless against a hand holding both majors) and turns 2♦/2♥
 # into Jacoby transfers *into* their suits.
 #
-#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-landy-counter.sh \
+#   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-landy-counter.sh \
 #       ab-results/landy-counter >ab-results/landy-counter.log 2>&1 < /dev/null &
 #
 # BBA's 2/1 card overcalls 1NT with Multi-Landy, whose 2♣ *is* Landy, so the

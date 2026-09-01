@@ -2,7 +2,7 @@
 # ab-2d-multi-doubler-nt.sh — opener's **notrump out** over the Kokish–Kraft
 # doubler's natural other major (docs/multi-doubler-answer-handoff.md item 1).
 #
-#   SKIP_BUILD=1 JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   SKIP_BUILD=1 JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-doubler-nt.sh ab-results/2d-multi-doubler-nt \
 #       >ab-results/2d-multi-doubler-nt.log 2>&1 < /dev/null &
 #

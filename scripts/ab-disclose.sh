@@ -32,7 +32,7 @@
 # ~50k boards/arm/vul on a 32-core box.  Resumable; SEED_BASE persists in
 # $R/seed (a NEW dir -> a new seed).
 R=${1:?usage: ab-disclose.sh RESULTS_DIR}
-PER_SHARD=${PER_SHARD:-1562}
+[ -n "${PER_SHARD:-}" ] || BOARDS=${BOARDS:-50000}   # total bd/arm/vul; ab-lib derives PER_SHARD
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 

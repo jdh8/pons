@@ -6,7 +6,7 @@
 # plain DD + perfect defense from one solve, plus plain SD and SD-PD. Arms are
 # sequential and share one persistent fresh seed.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-direct-weak-jump-overcall.sh \
 #       ab-results/direct-weak-jump-overcall/<date>-<sha> \
 #       >ab-results/direct-weak-jump-overcall.log 2>&1 &

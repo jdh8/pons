@@ -11,7 +11,7 @@
 # touch the codebase while it runs (bba-gen-parallel re-invokes cargo build; must
 # stay a no-op).
 #
-#   PER_SHARD=6400 SPLIT=<split_by_opening.py> setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 SPLIT=<split_by_opening.py> setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-overcall-gladiator.sh ab-results/nt-overcall-gladiator \
 #       >ab-results/nt-overcall-gladiator.log 2>&1 &
 R=${1:?usage: ab-nt-overcall-gladiator.sh RESULTS_DIR}

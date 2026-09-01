@@ -2,7 +2,7 @@
 # ab-landy-notrump-shape.sh — §N1p: an unlimited values double over their Landy
 # `2♣`, bought by restricting `3NT` rather than by promoting the `X`.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-notrump-shape.sh ab-results/landy-notrump-shape \
 #       >ab-results/landy-notrump-shape.log 2>&1 < /dev/null & disown
 #

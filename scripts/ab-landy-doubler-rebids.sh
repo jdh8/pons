@@ -3,7 +3,7 @@
 # `(2♣)` values double: `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and the two escape
 # legs `X (2♦) - (2♥)` / `X (2♦) - (2♠)`.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-doubler-rebids.sh ab-results/landy-doubler-rebids \
 #       >ab-results/landy-doubler-rebids.log 2>&1 < /dev/null &
 #

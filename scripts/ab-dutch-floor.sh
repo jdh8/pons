@@ -14,7 +14,7 @@
 # docs/measurement.md.  This is the prerequisite for A/B B (the WJ net over 1♦):
 # B's non-1♦ subtrees *are* this arm's treatment, so B is uninterpretable first.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-dutch-floor.sh ab-results/dutch-floor \
 #       >ab-results/dutch-floor.log 2>&1 &
 #

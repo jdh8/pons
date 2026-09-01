@@ -10,7 +10,7 @@
 # in the auction, so the arms are byte-identical until it fires — the divergent
 # set is the fired set (read IMPs/fired straight off), no --advertise needed.
 #
-#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-a4.sh ab-results/a4 \
+#   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-a4.sh ab-results/a4 \
 #       >ab-results/a4.log 2>&1 < /dev/null &
 #
 # Shared-box cap: set JOBS (e.g. 24) to bound worker processes — bba-gen-parallel

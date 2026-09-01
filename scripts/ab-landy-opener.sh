@@ -3,7 +3,7 @@
 # `1NT (2♣) X (2♥)` and `X (2♠)`.  The seat §N1k authored a `3NT` at, lost, and
 # gave back to the floor.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-opener.sh ab-results/landy-opener \
 #       >ab-results/landy-opener.log 2>&1 < /dev/null &
 #

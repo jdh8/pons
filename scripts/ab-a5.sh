@@ -8,7 +8,7 @@
 # so that SD figure is a floor. `responsive_overcall_enabled` has no bba-gen
 # flag and uses self-play `ab-responsive` instead.
 #
-#   JOBS=24 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \
+#   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \
 #       >ab-results/a5.log 2>&1 < /dev/null &
 #
 # Shared-box cap: set JOBS (e.g. 24) to bound worker processes — bba-gen-parallel

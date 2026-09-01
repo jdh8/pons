@@ -22,14 +22,14 @@
 #                       `set_minor_keycard` knob replaces the unreproducible
 #                       worktree revert of 99da1b3 as the off arm.
 #
-# Slam knobs fire rarely (~0.1-0.3%), so the bba arms default to PER_SHARD=26667
-# (× JOBS=12 ≈ 320k boards/arm/vul, the original transfer-slam-try sample).
+# Slam knobs fire rarely (~0.1-0.3%), so the bba arms default to BOARDS=320000
+# boards/arm/vul (the original transfer-slam-try sample).
 # COUNT (default 1_000_000) sizes the self-play slam-entry arms.
 #
 # Resumable: existing outputs are skipped; per-experiment seeds persist in
 # $R/<exp>.seed. Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-a7.sh RESULTS_DIR}
-PER_SHARD=${PER_SHARD:-26667}
+[ -n "${PER_SHARD:-}" ] || BOARDS=${BOARDS:-320000}   # total bd/arm/vul; ab-lib derives PER_SHARD
 BUILD_EXTRA='--example ab-dump-sd --example ab-slam-entry --example ab-minor-keycard'
 . "$(dirname "$0")/ab-lib.sh"
 

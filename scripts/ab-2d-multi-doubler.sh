@@ -2,7 +2,7 @@
 # ab-2d-multi-doubler.sh — the Kokish–Kraft doubler's natural other major
 # (docs/one-notrump-competitive.md §N4-KK residue 4, docs/one-notrump-multi.md).
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-doubler.sh ab-results/2d-multi-doubler \
 #       >ab-results/2d-multi-doubler.log 2>&1 < /dev/null &
 #

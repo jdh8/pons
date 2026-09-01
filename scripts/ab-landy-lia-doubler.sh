@@ -2,7 +2,7 @@
 # ab-landy-lia-doubler.sh — §N1-lia package A: the Landy doubler's rebid seat,
 # the catch-all deleted and exactly-three trumps bought back cell by cell.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia-doubler.sh ab-results/landy-lia-doubler \
 #       >ab-results/landy-lia-doubler.log 2>&1 < /dev/null & disown
 #

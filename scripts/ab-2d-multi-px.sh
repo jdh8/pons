@@ -2,7 +2,7 @@
 # ab-2d-multi-px.sh — the Kokish–Kraft `P`/`X` information split
 # (docs/one-notrump-competitive.md §N4-KK, docs/one-notrump-multi.md).
 #
-#   SKIP_BUILD=1 JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   SKIP_BUILD=1 JOBS=24 BOARDS=230400 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-px.sh ab-results/2d-multi-px \
 #       >ab-results/2d-multi-px.log 2>&1 < /dev/null &
 #
@@ -69,7 +69,7 @@
 # and needed 2.3M bd/vul to reach ~1300 fired, this arm's divergence surface is
 # **every 8–9 board that used to double** — the whole X/P frontier of the lane,
 # which the K–K A/B reached at 230 400 bd/vul.  So start at N4-KK scale
-# (`PER_SHARD=19200` × 12) and scale up only if the per-fired paired diff is
+# (`BOARDS=230400`) and scale up only if the per-fired paired diff is
 # under-powered.  The resolution constant is unchanged: 5.39 IMPs sd per
 # contract-divergent board, so a cell needs |Δ| > 10.56/√n_div IMPs per
 # divergent board.

@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`BOARDS` knob for A/B runners** (`scripts/ab-lib.sh`): set the total boards
+  per arm per vul directly and `PER_SHARD` is derived from `JOBS`, making
+  `JOBS` pure parallelism. Previously the sample was `PER_SHARD × JOBS`, so
+  the 2026-08-28 recipe bump from 12 to 24 jobs silently doubled the implied
+  sample of every pre-existing recipe header (harmless in practice — post-bump
+  runs used scripts already sized for 24, e.g. `24 × 192000 = 4.608M` — but a
+  stale header like `ab-2d-multi-doubler-min-nt.sh`'s `JOBS=24
+  PER_SHARD=384000` would re-run at twice its documented sizing).
+
+  Every runner that sources `ab-lib.sh` is converted: recipe headers and
+  in-script defaults now state `BOARDS` (the header's implied total at its
+  stated `JOBS`, or nproc=32 where none; the three whose prose documented a
+  different intended total — `min-nt` 4.608M, `px` 230 400, `a7` 320 000 — get
+  that total, fixing their stale 2×). `ab-lib.sh` also records the shard count
+  in `$R/shards` and refuses to resume a results dir under a different `JOBS`,
+  since shard *i* seeds `SEED_BASE + i` and mixed shard counts would pair arms
+  drawn from different deal sets (dirs from before this change have no record;
+  their first resume writes the then-current count). The seven self-contained
+  runners with their own generation plumbing (`ab-ben-*`, `ab-diamond-floor`,
+  `ab-face-corroborate`, `ab-reading-drift`, `ab-walk-shape`,
+  `ab-weak-two-balancing`) keep `PER_SHARD`, which remains honored everywhere.
+
 - **South African Texas at the four level over their Landy `2♣`, default on**
   (`competition.landy_texas`, §N1-lia package C). Over an opposing Landy `2♣`,
   a strong six-card major no longer jams `4♥`/`4♠` directly: it transfers with

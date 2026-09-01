@@ -14,7 +14,7 @@
 # deletion WINS both scorers both vuls, firing 1.15%: plain +0.0257/+0.0306,
 # PD +0.0315/+0.0370 IMPs/board NV/vul. This leg is the real-routing verdict.
 #
-#   PER_SHARD=12800 setsid nohup scripts/idle-run.sh \
+#   BOARDS=409600 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-game-backstop.sh ab-results/game-backstop \
 #       >ab-results/game-backstop.log 2>&1 &
 #

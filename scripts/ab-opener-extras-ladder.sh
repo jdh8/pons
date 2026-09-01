@@ -9,7 +9,7 @@
 # scripts/ab-competitive-rebid.sh; do NOT touch the codebase while it runs
 # (bba-gen-parallel re-invokes cargo build; must stay a no-op).
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-opener-extras-ladder.sh ab-results/opener-extras-ladder \
 #       >ab-results/opener-extras-ladder.log 2>&1 &
 #

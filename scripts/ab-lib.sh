@@ -6,6 +6,7 @@
 # seed_for.
 #
 # Honored if set before sourcing:
+#   BOARDS       total boards per arm per vul; sets PER_SHARD = BOARDS/JOBS
 #   PER_SHARD    boards per shard per arm per vul     (default 6400)
 #   SHOW         worst boards ab-dump-diff prints      (default 5)
 #   BUILD_EXTRA  extra `cargo build` --example flags   (e.g. --example ab-dump-sd)
@@ -25,9 +26,28 @@ SHA=$(git rev-parse --short HEAD)
 DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
 PROBE=target/release/examples/probe-divergence
-PER_SHARD=${PER_SHARD:-6400}
 SHOW=${SHOW:-5}
 SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners log it
+# BOARDS = total boards per arm per vul, the knob that actually sets statistical
+# power; when given, PER_SHARD is derived so JOBS is pure parallelism (rounded up
+# to a multiple of 4 per shard for dealer balance).  PER_SHARD alone still works,
+# but note total = PER_SHARD × JOBS, so changing JOBS then rescales the sample.
+if [ -n "${BOARDS:-}" ]; then
+    PER_SHARD=$(( (BOARDS / SHARDS + 3) / 4 * 4 ))
+fi
+PER_SHARD=${PER_SHARD:-6400}
+
+# Pairing guard: every arm of one results dir must be generated with the same
+# shard count — shard i seeds SEED_BASE+i, so resuming a dir with a different
+# JOBS would diff arms drawn from different deal sets.
+if [ -s "$R/shards" ]; then
+    [ "$(cat "$R/shards")" = "$SHARDS" ] || {
+        echo "ab-lib: $R was generated with $(cat "$R/shards") shards, not $SHARDS; rerun with JOBS=$(cat "$R/shards") or use a fresh results dir" >&2
+        exit 1
+    }
+else
+    echo "$SHARDS" >"$R/shards"
+fi
 
 # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
 # shellcheck disable=SC2086

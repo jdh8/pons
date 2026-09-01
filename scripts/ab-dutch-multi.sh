@@ -25,7 +25,7 @@
 # here, not a red flag; trace the worst divergent boards before calling any
 # reading final.
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-dutch-multi.sh ab-results/dutch-multi \
 #       >ab-results/dutch-multi.log 2>&1 &
 #

@@ -2,7 +2,7 @@
 # ab-2d-multi.sh — N4: their `(2♦)` over our 1NT read as a Multi
 # (docs/one-notrump-competitive.md §N4).
 #
-#   JOBS=24 PER_SHARD=19200 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi.sh ab-results/2d-multi \
 #       >ab-results/2d-multi.log 2>&1 < /dev/null &
 #

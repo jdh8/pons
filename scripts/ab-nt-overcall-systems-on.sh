@@ -10,7 +10,7 @@
 # ab-dump-sd), arms sequential, one shared SEED_BASE. Do NOT touch the codebase
 # while it runs (bba-gen-parallel re-invokes cargo build; must stay a no-op).
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-overcall-systems-on.sh ab-results/nt-overcall-systems-on \
 #       >ab-results/nt-overcall-systems-on.log 2>&1 &
 R=${1:?usage: ab-nt-overcall-systems-on.sh RESULTS_DIR}

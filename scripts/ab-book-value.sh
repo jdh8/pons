@@ -18,7 +18,7 @@
 # floor has largely absorbed the book.  Read plain DD as primary with pd
 # guarding the doubling tail (docs/measurement.md).
 #
-#   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \
+#   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-book-value.sh ab-results/book-value \
 #       >ab-results/book-value.log 2>&1 &
 #

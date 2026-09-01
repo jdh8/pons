@@ -3,7 +3,7 @@
 # Kokish–Kraft doubler's natural other major
 # (docs/multi-doubler-answer-handoff.md item 2).
 #
-#   SKIP_BUILD=1 JOBS=24 PER_SHARD=384000 setsid nohup scripts/idle-run.sh \
+#   SKIP_BUILD=1 JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-doubler-min-nt.sh ab-results/2d-multi-doubler-min-nt \
 #       >ab-results/2d-multi-doubler-min-nt.log 2>&1 < /dev/null &
 #
@@ -53,8 +53,8 @@
 #           2026-08-27, so `base` now carries the disarming flag and a re-run
 #           measures the same delta in the same direction
 #
-# SIZE IT AT THE NOTRUMP-OUT RUN'S SCALE (4.608M bd/arm/vul, JOBS=12
-# PER_SHARD=384000) — the measured surface is 1 divergence in 32 000 at no-vul
+# SIZE IT AT THE NOTRUMP-OUT RUN'S SCALE (4.608M bd/arm/vul,
+# BOARDS=4608000) — the measured surface is 1 divergence in 32 000 at no-vul
 # and 1 in 50 000 at both, i.e. 144 and 92 fired at this scale, against the
 # notrump out's 167 and 106.  **A 120 000-board smoke read 5 divergences and so
 # sized it at 1 in 24 000, twice the truth**; five boards is Poisson noise, so

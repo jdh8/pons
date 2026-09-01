@@ -2,7 +2,7 @@
 # ab-landy-doubler-flip.sh — §N1l's flip: the doubler's rebid ladder cut down
 # to the rungs the 2026-08-28 per-rung split actually credited.
 #
-#   JOBS=24 PER_SHARD=192000 setsid nohup scripts/idle-run.sh \
+#   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-doubler-flip.sh ab-results/landy-doubler-flip \
 #       >ab-results/landy-doubler-flip.log 2>&1 < /dev/null &
 #
