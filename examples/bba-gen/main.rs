@@ -940,12 +940,13 @@ struct Args {
     /// Lia's counter-defense ladder over their Landy `2♣` (§N1-lia, package B)
     ///
     /// `competition.defense_2c_landy_lia`, default **off**, re-probed and
-    /// redefined in place 2026-09-01: `2♥` is an **unbalanced** both-minors
-    /// takeout (4+♣ 4+♦, invitational or better) and the only one, `2♠`/`2NT`
-    /// are **natural** six-card minors invitational-or-better with opener
-    /// answering by length or accepting at `3NT`, and `3♣`/`3♦` are six-card
-    /// sign-offs straddling the weak `2♦`.  A permutation — one arm, it cannot
-    /// be decomposed.
+    /// redefined in place 2026-09-01, then **refined on the lia2 forensic**
+    /// after that build measured a loss: `2♠`/`2NT` are six-card minors
+    /// invitational-or-better answered by super-accept / `3NT` / completion,
+    /// the values `X` narrows to two-plus in each major, `2♥` is the one
+    /// both-minors takeout in two bands *below* it, and `3♦`@142 / `3♣`@141
+    /// are six-card sign-offs over a `2♦` escape whose ceiling rises to eight
+    /// HCP.  A permutation — one arm, it cannot be decomposed.
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 

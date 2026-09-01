@@ -1031,7 +1031,7 @@ to price the jam rung alone. Renders: `render-book --their-2c-landy
 were scored off the two completed arms. The sit node was never relaxed — the
 jam arm read a win, not mixed.
 
-### N1-lia — Lia's counter-defense: the minor ladder a level down, the doubler unshadowed, Texas at the four level (**packages A and C shipped default-on; B and D measured non-wins**)
+### N1-lia — Lia's counter-defense: the minor ladder a level down, the doubler unshadowed, Texas at the four level (**packages A and C shipped default-on; B and D measured non-wins; B refined on its own forensic, A/B owed**)
 
 `1NT (2♣)` is the lane's top cost bucket by total (−275 IMPs plain on 551
 boards, the census above) and has had no open package at census level since
@@ -1121,7 +1121,7 @@ the floored/not-floored split per arm. Any future "let the floor own it by
 deleting the catch-all" change in a **row package** has to cross the same
 seam — the trie comment (`trie.rs`, "single fall-through") is the marker.
 
-#### Package B — `defense_2c_landy_lia`: **the built ladder was nobody's system; redefined in place 2026-09-01, A/B owed**
+#### Package B — `defense_2c_landy_lia`: **misprobed, redefined in place, measured a loss, then refined on its own forensic 2026-09-01 — A/B owed**
 
 > **Misprobe annotation (2026-09-01).** Everything in this section down to
 > "The repair" is a true record of a **built ladder that no one plays**. The
@@ -1489,7 +1489,7 @@ Two nodes the plan did not name, both found by pricing the census:
   note lives here: rebasing it onto this repair widens §N1n's trigger set by
   two lia-gated sites, both inert while the knob is off.
 
-##### Rebuilt as true Lia (2026-09-01)
+##### Rebuilt as true Lia (2026-09-01) — **this is the build `ab-landy-lia2.sh` measured**
 
 The knob was **redefined in place** — it never shipped, its off state is
 byte-identical, and pinning the old semantics by sha is cheaper than a second
@@ -1615,25 +1615,246 @@ What is still floor-owned is now one seat deeper again, and the honest statement
 is that authoring a `Pass` always creates fresh traffic below it; the difference
 is that the families above were the ones the census could *price*.
 
+##### Verdict of the rebuild — **measured a loss 2026-09-01; the knob stays default off**
+
+`scripts/ab-landy-lia2.sh`, SEED_BASE 1788264406, control `main` HEAD sha
+`32242d63`, 4,608,000 boards/arm/vul, both isolation gates **0 foreign**:
+
+| vul | fired | plain DD | PD |
+| --- | --- | --- | --- |
+| NV | 143,158 (3.11%) | **−0.0077** ±0.0009 (−35,676; −0.249/fired) | −0.0127 ±0.0011 (−58,701; −0.410/fired) |
+| BV | 123,212 (2.67%) | **−0.0059** ±0.0010 (−27,354; −0.222/fired) | −0.0172 ±0.0012 (−79,454; −0.645/fired) |
+
+Plain DD was the runner's pre-registered arbiter at both colours and both cells
+are negative, so there was no plain win to ship on. The sd pass was **killed
+unrun** — four negative cells need no lead model. Both arm directories and
+`imps-{none,both}.jsonl` are kept; everything below is read off them.
+
+**The loss is the diamond leg, and the club leg is a clean win.** Splitting the
+divergence by which leg moved (baseline `2NT` = its club transfer, `3♣` = its
+diamond transfer; candidate `2♠`/`3♣` clubs, `2NT`/`3♦` diamonds):
+
+| leg | n (NV) | plain NV | plain BV |
+| --- | --- | --- | --- |
+| club | 57,495 | **+58,256** (+0.0126/bd) | **+63,018** (+0.0137/bd) |
+| diamond | 49,380 | **−92,508** (−0.0201/bd) | **−83,517** (−0.0181/bd) |
+| rest | 36,283 | −1,424 (−0.0003/bd) | −6,855 (−0.0015/bd) |
+
+`2NT → 3♣` is the whole run's biggest cell (**+46,715 NV / +54,641 BV**), so
+unwinding N1c's right-siding trade for a natural club rung is right and the
+club leg is kept. Falsifier 1 (the exactly-five 8-9 hand has nowhere to go) is
+therefore **not** where the loss went. The five worst cells NV are all diamond
+or sell-out: `3♣ → 2♦` −36,875, `3♣ → 3♦` −36,119, `3♦ → -` −22,119,
+`3♣ → 2♥` −10,344, `3♣ → 2NT` −8,708.
+
+**Five findings, each of which is a row of the refinement below.**
+
+1. **No weak diamond rung beats the baseline's wide transfer.** Re-solving the
+   boards where the baseline bid its `3♣`→♦ transfer, bucketed by responder's
+   own diamond holding, every candidate call is negative on plain DD and the
+   INV+ rung is the only one inside −1.0 per fired:
+
+   | responder holds | lia bid | n (NV) | plain/fired NV | BV |
+   | --- | --- | --- | --- | --- |
+   | 6♦ thin, 0-4 HCP | `3♦` | 13,533 | **−1.966** | −1.773 |
+   | 6♦ thin, 5+ HCP | `2♦` | 9,223 | **−2.534** | −2.464 |
+   | 6♦ two top honors | `2♦` | 1,361 | −2.617 | −2.290 |
+   | 7+♦ | `2♦` | 2,345 | **−4.238** | −4.859 |
+   | 7+♦ | `3♦` | 2,897 | −2.701 | −2.713 |
+   | any | `2NT` | 11,839 | −0.709 … −0.762 | −0.342 … −0.712 |
+
+   This is the "hybrid nobody has built" from the repair queue, priced: the
+   diamond leg wants a transfer, and the weak rungs it replaced are worth about
+   −2 IMPs/fired each.
+
+2. **The `Pass`@0 sell-outs were selling out to a floor that was right.** Cell
+   `3♦ → -` — the baseline competed to `3♦`, the candidate passed — is 14,717
+   boards at **−22,119 plain NV / −13,364 BV**, and 14,699 of them are after
+   our own `2♦` escape: `1NT (2♣) 2♦ (2♠) -` (6,836 bd, −9,724) and
+   `1NT (2♣) 2♦ (2♥) -` (5,895 bd, −11,878). The 2026-09-01 census read the
+   floor's behaviour correctly (it does bid) and drew the wrong conclusion from
+   it. **The code comment at `lebensohl.rs` calling the floor's `3♦` "a
+   law-of-total-tricks violation" was wrong** — the doc/code discrepancy
+   flagged to jdh8 on 2026-09-01 is resolved in the measurement's favour, and
+   the comment is gone.
+
+3. **Right-siding is not null here, and the first reading of it took the wrong
+   column.** Declaring *side* flips on 123 NV / 66 BV boards — that is the
+   zero that was recorded. Declarer *seat* flips on **26,664 NV / 27,911 BV**
+   same-contract boards, worth **−6,406 (−0.0014/bd) / −10,416 (−0.0023/bd)**
+   plain, worst cell `2NT → 3♣` (−3,630 / −5,600). Package C's correction to
+   the iron rule applies exactly: DD prices the lead direction, so a seat flip
+   is visible and real, and what the natural rungs gave back was declarership.
+
+4. **The by-length answer answered the wrong question.** `comp:landy-length`
+   told responder which partscore to pick; an invitational rung's question is
+   whether this is a game.
+
+5. **The `X`-versus-takeout cell is genuinely mixed.** Cell `X → 2♥` — the
+   baseline doubled, the candidate took out — split by responder's own majors:
+   the 8,113 NV / 6,236 BV boards holding two-plus in each major are **+1.854 /
+   +1.154 plain** IMPs per fired for the takeout and **−1.305 / −2.169** under
+   perfect defense. Plain says take out, PD says double, and the runner's own
+   arbitration note says the one PD loss this lane does *not* wave through is a
+   mechanism that removes our penalty doubles — which is what taking out with
+   values does.
+
+##### Refined on the lia2 forensic (2026-09-01) — **A/B owed**
+
+Same knob, still default off, defaults byte-identical. The refinement keeps the
+club leg intact and re-cuts everything the forensic convicted.
+
+###### Responder's table
+
+| Call | Weight | Rule | Alert |
+| --- | --- | --- | --- |
+| `3♥`/`3♠` | 179/178 | splinters, unchanged | `comp:landy-spl` |
+| `2♠` | 174 | `len(♣, 6..) & points(8..)` | `comp:landy-minor` |
+| `2NT` | 173 | `len(♦, 6..) & points(8..)` | `comp:landy-minor` |
+| `X` | 145 | `hcp(8..) & len(♥, 2..) & len(♠, 2..)` — **narrowed** | `comp:landy-values` |
+| `2♥` | **144** | `4+♣ & 4+♦ & points(8..)` — **no major term**, and below the double | `comp:landy-tko` |
+| `2♥` | **143** | `len(♣, 5..) & len(♦, 4..=4) & points(4..=7)` — the weak band, **new** | `comp:landy-tko` |
+| `3♦` | **142** | `(len(♦, 7..) \| len(♦, 6..) & top_honors(♦, 2..)) & points(..=7)` | none — natural |
+| `3♣` | 141 | `len(♣, 6..) & points(..=7)` | none — natural |
+| `2♦` | 140 | `len(♦, 5..) & hcp(..=8) & floors` — **ceiling raised** | none — natural |
+
+`3NT`@180/@168, the `4M` jam and `Pass`@0 are the shared table verbatim.
+
+**The takeout moves under the double, and the double gains a shape term.** Lia
+states the takeout as shape in the minors and says nothing about the majors, so
+neither band carries a major term and the rung *order* does that work instead:
+8+ with two-plus in each of their suits doubles, 8+ with a short one takes out,
+10+ with a singleton splinters. That is finding 5, resolved for the double —
+plain favours the takeout by +1.854/+1.154 per fired and PD favours the double
+by −1.305/−2.169, and this lane does not wave through a PD loss whose mechanism
+is removing our penalty doubles. **Pre-registered as falsifier 1 of the next
+arm**: if the club leg's win shrinks and this is where it went, flip the two
+weights back. The deliberate orphan is the 8-9 hand with a short major and not
+both minors, which now has no rung.
+
+**The weak takeout band is ours, not hers**, and it exists for the hand no
+other rung reaches: five-plus clubs and exactly four diamonds at 4-7, too short
+of diamonds for the escape and too short of clubs for `3♣`. Its five-card club
+guarantee is what makes opener's `3♣`-before-`3♦` answer priority safe.
+
+**The diamond leg is re-cut three ways** (finding 1). `2NT` carries the whole
+INV+ band — it is the least-bad diamond cell in the forensic by a factor of
+three — `3♦`@142 re-gates to *excessive* diamonds, and the `2♦` escape's
+ceiling rises to eight HCP to take everything they leave ("bid `2♦` if
+possible"). `defense_2c_landy_weak_2d_cap` keeps governing the base arm only:
+it caps a rung this ladder has re-cut, so crossing them would measure two edits
+at once. **Pre-registered residue**: the weak six-card diamond hand is still
+off the transfer, and that is the −1.97/fired cell. If the next arm's diamond
+leg is still negative, the answer is the wide transfer (`points(2..)` on `2NT`)
+and the INV+ gate is what has to go.
+
+###### Continuations
+
+* **Opener answers the minor rungs off one Max-break+ table**
+  (`landy_lia_max_break`), the same shape on both legs:
+
+  | Answer | Meaning | Weight |
+  | --- | --- | --- |
+  | the step below the completion (`2NT` over `2♠`, `3♣` over `2NT`) | super-accept: maximum with three-card support (`comp:landy-super`, **new**) | 161 |
+  | `3NT` | maximum, no super-accept — `landy_lia_accept` verbatim | 160 |
+  | the completion (`3♣` over `2♠`, `3♦` over `2NT`) | the minimum default, and the finite catch-all | 100 |
+
+  Findings 3 and 4 in one edit: the completion puts **opener** in the contract
+  on the common branch, which recovers the right-siding the length table gave
+  back, and the two rungs above it answer whether this is a game.
+  `comp:landy-length` retires with `landy_lia_minor_answer` and
+  `landy_lia_misfit_rebid`. Three-card support is the reversible default on the
+  super-accept — opposite the rung's six that is a nine-card fit; flip it to
+  `4..` if a probe disagrees.
+* **Responder over the super-accept** (`landy_lia_super_rebid`): the `4m` slam
+  try, `3NT` on both majors held, else retreat to three of the minor, which is
+  the **finite catch-all** rather than a `Pass` — on the diamond leg the
+  super-accept is `3♣` and passing it would leave a six-one fit on the table.
+  Opener sits for the retreat. The `3NT` gate is `points(9..)`, one below every
+  other lia rung, because opener has published `hcp(16..)` here and nowhere
+  else; at ten it would strand exactly the hand the super-accept exists to
+  find.
+* **Responder over the completion**: `landy_bba_transfer_rebid` verbatim — the
+  cues, the `4m` slam try, `3NT`, and `Pass`@0 for the invitation declined.
+  `landy_recue_answer` rides this leg only; the super-accept's rebid has no
+  cues, and a node under a call no arm makes is a book node shadowing the floor
+  for nothing.
+* **Responder over the `3NT` accept**: `landy_lia_accept_rebid` unchanged, with
+  `landy_slam_answer` and `slam::rkcb_rows` re-hanging on all three legs
+  ([minor-transfer-slam.md](minor-transfer-slam.md)).
+* **The weak takeout band gets one rung**: `3♣`@60 pulls opener's `2NT` on
+  `len(♣, 5..) & points(..=7)`, and opener sits for it (`2♥ - 2NT - 3♣ -`).
+  Opener denied a four-card minor to bid `2NT`, so it is facing a five-two club
+  fit with no values, and sitting it is the one thing the weak hand must not
+  do. Unauthored the floor bids a phantom `3♦` there.
+
+###### The contested surface, restricted to the rungs that promise something
+
+Finding 2 as built. `landy_lia_overcalled` loses its `values` parameter and its
+`Pass`@0, and its registrations over the weak `3m` sign-offs and the `2♦`
+escape are **deleted** — those seats are the floor's again, which is what the
+measurement says they should have been. What remains rides `2♠`/`2NT` only and
+is three narrow rungs with no catch-all:
+
+* `3NT` — the accept, where their call left room for it below the game.
+* `X` — penalty on `len(major, 4..)`, the oracle's gate, at the three level and
+  below.
+* the **completion**, while their entry has left it cheap enough to be legal —
+  new, and the same right-siding argument as the quiet table. In practice it
+  fires at `2NT (3♣)` and nowhere else: the club leg's completion is `3♣`
+  itself, and every entry above `2♠` is already past it. **A new rung owes a
+  new seat**, and the build's adversarial review caught this one: responder is
+  uncapped over `2NT (3♣) 3♦`, and left to the floor that seat is sound on
+  strength (pass 8-11, `3NT` 12-14) but bids a phantom `4♥` on ~8% of the band,
+  heart voids included, with opener answering `4♠` on every hand.
+  `landy_lia_contested_rebid` takes it, its `(X)` tail answers verbatim, and
+  opener sits for the game-forcing `4m`.
+
+Those registrations are exact **`Pattern::node`s**, not `Pattern::after`
+guards. This is package A's finding re-used: `Trie::resolve_floored` returns a
+guarded fallback's all-−∞ logits unchecked and the driver passes, so deleting a
+`Pass`@0 behind a guard is a silent no-op. `landy_lia_contested_rebid` —
+responder's captain table — is unchanged and keeps its `Pass`@0: it is the seat
+that knows its strength, and it must never be stranded.
+
 ###### Owed, and flagged
 
-* **The A/B** — `scripts/ab-landy-lia2.sh`, written and not launched. Control is
-  `main` HEAD, arm is the knob on, fresh `SEED_BASE`, both colours, sized to
-  match the two prior runs. Its header carries the pre-registration, including
-  the arbitration rule for the doubling-artifact row stated up front this time.
-* **The exactly-five 8-9 hand has no rung** and the forensic says that band was
-  the built ladder's biggest win. Falsifier 1 of the new runner.
-* **`2♥ - 3NT -` is an authored sit**, so the takeout hand can never move past
-  opener's acceptance. Deliberate (4-4 minors want 33 for a slam and opener has
-  already bid the game on a maximum), reversible by weight.
-* **`landy_recue_answer`'s `4m`@20 still has no answer node** — unchanged, still
-  shared with the base arm, still owed its own A/B.
-* **`park/landy-pdi` owes a rebase** for two `.penalty()` rows, unchanged by the
-  correction: `landy_lia_overcalled`'s and `landy_lia_contested_rebid`'s.
-* **`alert-sites.txt` does not move.** `comp:landy-minor` is a new slug, but the
-  fixture's four sections are all built at `defense_2c_landy_lia = false` and no
-  `card.rs` row reads a `landy_*` knob. The slug's disclosure record is written
-  in `card.rs` now so a ship needs no new decision.
+* **The A/B** — `scripts/ab-landy-lia3.sh`, owed. Fresh `SEED_BASE`, control =
+  then-current `main`, both colours, sized to match the three prior runs. The
+  falsifiers are: the `X`-versus-takeout weight flip (1), opener's accept over
+  the two-band takeout (2), the diamond leg's remaining weak-hand residue (3),
+  and whether handing the weak rungs' contested seats back to the floor is
+  worth the −22,119 the sell-outs cost (4). The lia2 verdict block above
+  carries the numbers each of them is measured against.
+* **Opener's `3NT`@160 accept over `2♥` can now fire opposite the weak band.**
+  The accept was authored when the takeout promised 8+, so a maximum meant 24+
+  combined; with the 4-7 band under the same call it can be 20. `2♥ - 3NT -`
+  is an authored sit, so responder cannot pull it. This is a defect the weak
+  band introduced and it is deliberately left standing rather than patched
+  blind — the alternative is to weight the accept *below* opener's minor
+  picks, which protects the weak hand at the cost of missing the 8-9 × maximum
+  game, and choosing between two unmeasured tables on analysis alone is what
+  the iron rule forbids. Both are one weight. **Falsifier 2 of the next arm**:
+  bucket `2♥ → 3NT` boards by responder's own strength; if the 4-7 half is
+  where the takeout's loss is, the accept moves down.
+
+* **The `3♣` sign-off's contested tail is now the floor's on inference, not on
+  measurement.** The convicted cell was the `2♦` escape's tail; the `3♣` one is
+  deleted by the same argument but was never priced on its own, and the census
+  says the floor pushes `4♣` on 96% of `3♣ (3♠)` boards. Reversible: restore
+  the `{3m} ({over})` loop.
+* **Six thin diamonds under the escape's five-HCP floor now pass.** `3♦`'s
+  re-gate to excessive length reopens part of the old "starved diamonds" seam
+  for the 6♦ 0-4 HCP hand — deliberate, since that band measured −1.97/fired on
+  the rung it is losing, but it is a pass where the baseline transfers.
+* **`landy_recue_answer`'s `4m`@20 still has no answer node** — unchanged,
+  still shared with the base arm, still owed its own A/B.
+* **`park/landy-pdi` owes a rebase** for the two `.penalty()` rows, unchanged
+  by the refinement.
+* **`alert-sites.txt` does not move.** `comp:landy-super` is a new slug and
+  `comp:landy-length` retires, but the fixture's four sections are all built at
+  `defense_2c_landy_lia = false`. Both slugs' disclosure records are in
+  `card.rs`, so a ship needs no new decision.
 * **Byte-identity**: `smoke-default --count 20000 --seed 1` byte-identical
   against `main` HEAD, verified twice.
 
@@ -1919,8 +2140,9 @@ unlaunched one), `scripts/ab-landy-texas.sh`
 Invariants: four new profiles in `gated_profiles_preserve_alert_invariant`
 (`their-landy-lia`, `their-landy-texas`, `their-landy-lia-texas`,
 `their-landy-doubler-cells`); `cards/*.bbsa` unchanged throughout (the
-`comp:landy-ask`/`comp:landy-length`/`comp:landy-minor` no-schema-name records
-are in `card.rs`'s precedent block, written at build time — and BBA's schema has
+`comp:landy-ask`/`comp:landy-super`/`comp:landy-minor` no-schema-name records
+are in `card.rs`'s precedent block, written at build time (`comp:landy-length`
+retired with the by-length answer in the lia2 refinement) — and BBA's schema has
 no row for Texas over *their* Landy either, only for our own).
 `tests/fixtures/alert-sites.txt` was unchanged while every knob was default-off
 and moved once on C's ship, in its `[their-landy]` section only: `texas
@@ -4077,7 +4299,7 @@ reason to take it.
 | **N1l-flip** the cut-down doubler ladder | `competition.landy_doubler_px` (**ON**, off-switch `--no-ns-landy-doubler-px`), `landy_doubler_white` (**off**) | **`px` SHIPPED DEFAULT-ON 2026-08-29; `white` not a win** | `px` plain **+0.0107 ±.0004** NV / **+0.0142 ±.0004** vul, PD +0.0039/+0.0061, sd-plain +0.0061/+0.0100, SD-PD +0.0000/+0.0028 — a win on every column bar the one NV SD-PD wash, all six gates 0 foreign. **Selection refuted**: the `X` rung re-prices **+7.554/+9.189** IMPs/fired against the +7.489/+9.196 that selected it. `white` is `win | loss` (plain +0.0409, **DD-PD −0.0091** NV; vulnerable it *is* `px` — `white vs px` fires 0 boards), sd bracket dissenting (+0.0547/+0.0140). Two caveats shipped open: the **`Pass`@0 catch-all costs −14,171 IMPs plain NV** by shadowing a floor takeout double opener pulls to `3NT` 49.5% of the time, and `comp:landy-penalty` publishes four-plus while that floor call is short — deleting the catch-all is the owed arm and owes the tag a decision. `white`'s `!vulnerable()` reads our own colour only; asymmetric vuls unmeasured. Seed `1787942099`, sha `de59ad86` | [§N1l-flip](#n1l-flip--the-two-cut-down-arms-landy_doubler_px-shipped-default-on-2026-08-29--landy_doubler_white-not-a-win-stays-off); `scripts/ab-landy-doubler-flip.sh` |
 | **N1m** opener's own rebid over their advance | `competition.landy_opener_px`, `landy_opener_rungs` (**both off**) | **built 2026-08-29, A/B owed** | no verdict. The seat §N1k lost at, re-opened as its own arm per flagged item 1. Designed off `probe-landy-opener-oracle` (103,653 + 81,023 seat boards, 105,334 deals solved): defending their major **doubled** wins every four-plus-trump bucket at both vuls (+2.8…+8.1 IMPs/bd over the floor, PD flat) and loses on two or three, so `len(major, 4..)` is the whole gate. `X`@150 above the notrump rungs supplies the ≤3-trump cap `has_stopper` could not — 17.4% of §N1k's gate was four-trump hands where its `3NT` forwent +7.0…+7.8. `3m`, `3OM` and the relay leg all priced out and are absent | [§N1m](#n1m--openers-own-rebid-over-their-advance-landy_opener_px--landy_opener_rungs-built-2026-08-29-ab-owed); `scripts/ab-landy-opener.sh` |
 | **N1p** an unlimited values double | `competition.landy_notrump_no_major` (**off**), `landy_major_jam` (**ON**, off-switch `--no-ns-landy-major-jam`) | **`nt` measured loss 2026-08-30, stays off; the decoupled `4M` jam SHIPPED DEFAULT-ON 2026-08-30** | `nt vs base` **−0.0124** none / **−0.0076** both on plain DD, **−0.0012** on the SD-PD arbiter; DD-PD +0.018/+0.020 is the auto-double artifact. No colour flip. The divergence split makes the `3NT`→`X` swap the dominant bucket (83.6%/86.4%), with game reached in the baseline only 81.5%/84.8% of the time and 72–75% more room handed to the opponents — falsifier 2's *idea dead* branch. `jam vs nt` wins all four scorers (+5.541 IMPs/fired sd-plain) on 1,567 boards but rode the losing arm and measured the wrong substitution, so the rung was **decoupled** and re-measured standalone: an **eight-of-eight sweep** (`scripts/ab-landy-major-jam.sh`, `SEED_BASE=1788033942`, sha `52fbc7c1` — DD plain +1.443/+1.611 IMPs/fired, SD-PD +1.558/+1.866, every CI excluding 0, both gates 0 foreign), shipped default-on. Flagged item 2 taken up: the `X`@145 is `hcp(8..)` — unlimited in its constraint — but the ungated `3NT`@168 outranks it, so `probe-call-reading` reads partner back as `points 8..9`. The widened reading falls out of `bid_exclusion`, so **no new slug and no disclosure decision**. **Re-measured 2026-09-01** on the repaired seat as §N1-lia package D and it stays off: plain DD flips to +0.0077/+0.0075 but plain SD stays −0.0061/−0.0056 and the SD-PD arbiter reads −0.0011/+0.0000 against §N1p's −0.0012 — the seam between the two plain columns (DD reads +0.014 above SD, stable across both experiments) is bigger than the knob. D's split found the reason this table keeps reading marginal: the gate bundles opposite-signed halves, and the `min major ≥ 3` half alone is worth +3.1…+5.9 IMPs/fired | [§N1p](#n1p--an-unlimited-values-double-landy_notrump_no_major-loss-stays-off-landy_major_jam-shipped-default-on-2026-08-30); `scripts/ab-landy-notrump-shape.sh`; `scripts/ab-landy-major-jam.sh` |
-| **N1-lia** Lia's counter-defense (four packages) | `competition.landy_doubler_catchall` (**off 2026-08-30**), `landy_doubler_three_honors`, `landy_doubler_three_small` (**both on 2026-08-30**), `defense_2c_landy_lia` (**off**), `landy_texas` (**on 2026-08-31**), `landy_texas_floor` (**10**) | **packages A and C shipped default-on (2026-08-30, 2026-08-31); B's build was MISPROBED and is superseded — redefined in place 2026-09-01 as Lia's real ladder, A/B owed; D measured a non-win 2026-09-01 (stays off)** | **A: the full ladder wins** — every adjacent pair a plain win at both vuls (nocatch +0.0036/+0.0014, hon +0.0008/+0.0008, cells +0.0104/+0.0118 IMPs/board NV/BV), every sd tie-break positive; PD negative throughout is the pre-registered doubling artifact. Falsifiers 1 and 3 refuted; the sibling lone-honor caveat did not carry. Package A takes up both §N1l-flip caveats: the catch-all deletion (≈ +14,171 IMPs plain NV on the flip stream) unblocked by re-wording `comp:landy-penalty` to "length or honour strength in their major", plus two three-card `X` cells split by `top_honors` (sibling priors: `len3 hon0` +0.62/+1.85, `hon1` −0.75/+0.37, `hon2+` unmeasured). Build finding worth the row: the deletion was a **silent no-op** until the doubler tables moved from `Pattern::after` guards to exact `Pattern::node`s — `Trie::resolve_floored`'s single fall-through returns a guarded fallback's all-−∞ logits unchecked, so only an exact node's rejection reaches the floor. **B: the probe was wrong, and both its A/Bs measured nobody's system.** Lia is IntoBridge's AI, probed by hand on cuebids.com, and the original read had her responder ladder **inverted** — weak transfers at the two level and natural invitations at the three, where she plays an UNBAL 4+♣4+♦ takeout at `2♥`, natural INV+ six-card minors at `2♠`/`2NT`, and six-card sign-offs at `3♣`/`3♦` (the unlisted `X`@145, `2♦`@140, `3M`, `3NT` and `Pass` are confirmed unchanged). The knob was **redefined in place 2026-09-01** — it never shipped, its off state is byte-identical, and the superseded semantics are pinned by sha (`8a778178`; measured-loss build `59cd46ee`-control), which beats a scaffolding knob whose only job is to neutralise the first. The rebuild spells the takeout as shape (`len(♥,..=2) & len(♠,..=2)`, unbalanced by construction with 4+4+ minors, so the convicted 2=3=4=4 merge stays out) and therefore moves the splinters **above** it (179/178 vs 177), inverts the minors to natural six-card rungs under a new `comp:landy-minor` slug with opener accepting at `3NT` from the top, and drops the sign-offs to **straddle** the weak `2♦`@140 (`3♣`@141 / `3♦`@139) — which closes defect 3's starved diamonds by rung order alone and removes every `vulnerable()` term from the package. Responder's placements are re-banded for INV+ (`Pass` replaces two game-forcing catch-alls), the `2♠` ask's unalerted `4♣`@20 becomes a natural `3♣`@20, the minor-transfer-slam rule is honoured above opener's acceptance, and **all six flagged lia-only node families are closed** (the constraint that kept them open — not disturbing the in-flight A/B — died with it). The correction's one predicted loss is pre-registered as falsifier 1 of the new runner: the exactly-five 8-9 hand has no rung under Lia, and that band was the built ladder's biggest measured win. **The two superseded verdicts, kept as records of what they scored:** the first build (seed 1788122360, plain **+0.0050** ±0.0012 NV / **−0.0384** ±0.0014 BV, PD −0.0756/−0.1210, gates 0-foreign) and its four-defect repair, whose A/B was **STOPPED mid-flight** on the probe correction with one cell done (seed 1788247951, control `ce94faeb`, NV plain **+0.0191** ±0.0011 / PD **−0.0382** ±0.0014, gates 0-foreign; BV never run). That NV row is the doubling-artifact shape on a bid-more mechanism and the stopped runner's header stated its arbitration rule wrong — **moot**, since there is no both-vul cell and no surviving build; no decision is owed. The forensic below still stands as evidence about the lane, and the campaign section says which defects transfer. Forensic (`probe-divergence --imps`, bucketed by first differing call and responder's hand) splits the deficit into four named defects, none of them the concept: the **contested tails are unauthored** (every lia node requires the opponents to have passed, so any opponent bid drops the rest to a floor with no forcing channel — 95%/94% of the diamond rung's whole loss, and −63,950/−80,789 on the club rung), the **weak five-card sign-off** is vulnerability-dependent (uncontested weak: exactly-5 clubs **+1.405 NV / −0.803 BV** per fired while 6c and 7+c win at both colours — falsifier 2 confirmed sharper than posed, and that one cell is 45% of BV's PD deficit), the `2NT` cap **starves diamonds** into passing (−35,827/−32,432, falsifier 4), and the sole `2♥` takeout is the worst per-fired rung (−4.07/−5.00). **Falsifier 1 is reversed, not merely refuted**: the N1c right-siding trade was wrong on plain DD — the restored natural invitations are the ladder's biggest win (`3♣` **+85,613 NV / +35,920 BV**). At BV the first three defects sum to −176,261 of a −176,837 total, so the rest of the ladder is roughly break-even. Repair queue in size order: contested tails, a 6+ club floor for the weak `2♠` leg when vulnerable, a rung for the starved diamonds, the 2=3=4=4 merge. **All four built 2026-09-01** (`ab-landy-lia-repair.sh`, A/B owed, defaults byte-identical ×2), and re-solving the kept divergence sets inverted two of the repair plan's three pre-registered rules: the restored invitations split on **length** not colour (`3♦` +0.920 IMPs/fired quiet at exactly five, −0.910 at six-plus), and the starved diamonds are a **0-4 HCP** seam between `2NT`'s quality gate and the `2♦` escape's five-HCP `natural_floor`, not a 7+ HCP cap problem — so `2NT` takes the N1j transfer's own shape gate back (`len(♦,6..) & points(2..)`) and the plan's `2♦` cap lift is a measured no-op, not built. Defect 1's mechanism is that the floor **bids** at the unauthored nodes (`4♣` on 72% of `2♠ (3♠)`, 96% of `3♣ (3♠)`), so the repair is mostly authored `Pass`: opener sits, responder captains. Two nodes the plan never named were added on the census — the four-level entries (floor −3.4/−4.3 per fired) and the balancing seat (−8,347 NV on the club rung). Flagged and deliberately **not** repaired: `landy_recue_answer`'s `4m`@20 has no answer node, which is four of the five worst both-vul boards, but that seat is shared with the control arm and owes its own A/B. **C: shipped default-on** (seed 1788181796, gates 0-foreign) — an eight-of-eight sweep, plain **+0.616 NV / +0.711 BV** per fired, PD +0.816/+0.996, sd-lead +0.220/+0.352 plain and +0.305/+0.506 PD; fires on 0.03%/0.02% of boards so the per-board move is +0.0002, >6.7σ/>5.6σ off the printed CI bound. **Its mechanism is the reverse of the design's**: the DD-visible half was supposed to be the slam reroute, which reaches the five level on 5 of 2211 divergent boards (0 at both-vul), while right-siding was supposed to be invisible — instead 96.4%/96.3% of divergent boards are the *same contract from the other seat*, and that bucket is the whole win. The correction to the iron rule: DD is blind to right-siding's **concealment**, not to its **lead direction** — a different declarer puts a different defender on lead and the solver prices that honestly; sd-lead, where the leader is blind in both arms, keeps the sign at a third the size. Falsifier 2 (the alerted transfer leaks the anchor major) refuted by exactly those sd rows; falsifier 1 moot; PD>plain here is not the doubling artifact but the baseline's wrong-sided contract failing harder under a defense that always finds the lead. Residual: the transfer hands the opponents room on ~4% of fired boards (52/37, zero the other way) and draws 33/30 doubles the direct jam never drew — the entire worst-5 list, outweighed ~5:1. Defaults byte-identical while off (`smoke-default` ×2); C's ship moves `alert-sites.txt`'s `[their-landy]` section only. **D: measured non-win** (seed 1788191041, control `60115871`, gates 0-foreign) — `landy_notrump_no_major` stays default off, and A's repair did not reverse §N1p. Plain DD **+0.0077 NV / +0.0075 BV** and PD +0.0145/+0.0146 are both CI-clear positive, but PD is the decision table's `loss \| win` row verbatim (synthetic doubles of the baseline `3NT`s the candidate no longer bids, pre-registered as falsifier 1), and the two columns with no synthetic double **straddle zero** — plain SD −0.0061/−0.0056 against plain DD's +0.0077/+0.0075. On SD-PD, the column §N1p itself named the arbiter, the two experiments read −0.0012 (§N1p) and −0.0011/+0.0000 (D): the artifact leans the candidate's way and it still cannot clear zero. The **lead-model seam is bigger than the knob** — plain DD reads it +0.0142/+0.0138/+0.0131 above plain SD across §N1p NV, D NV and D BV, stable across two routings, and roughly double the effect it is adjudicating; the sign is the tell, since the candidate's mechanism is declaring `3NT` less and the clairvoyant-lead scorer is the one that likes it. Falsifier 3 answered: the repair reached, moving both *undoubled* columns +0.020 and both doubled columns ≈0. **Falsifier 2 returned a third branch neither posed** — the gate is a bundled disjunction whose halves have opposite signs. Bucketed by the mover's own major lengths (`off=3NT` is 74.3%/79.9% of divergence, `3NT → X` 98.9%/99.0% of it), plain IMPs/fired are monotone in the **short** major and break sign between two and three: 4-4 +4.74/+5.90, 3-4 +3.53/+4.74, 3-5 +3.11/+4.50, 4-5 +3.47/+4.95 against 2-4 −0.13/+0.31, 2-5 −0.20/−0.27, 1-4 −2.08/−1.86, 1-5 −1.84/−2.30 — +52,861/+50,663 IMPs in the `min major ≥ 3` half against −18,838/−10,758 in the `≤ 2` half. They showed both majors, so 3+ in each is a misfit with nowhere to run and a singleton is a big fit for them; the narrowed gate (bar `3NT` only when both majors are 3+ and one is 4+) is owed as its own arm under the disjunctive-gate rule, worth +0.0115/+0.0110 plain on a third of the traffic. Residual for that arm: the `both NS` bucket, where opener pulls the double and we declare something worse, costs −1.710/−2.657 per fired on 15.4%/14.1% of divergence. Flagged: `ab-dump-sd` has **no `--on-ns-landy-*` disclosure flag**, so every §N1-lia sd row reads both arms with control semantics | [§N1-lia](#n1-lia--lias-counter-defense-the-minor-ladder-a-level-down-the-doubler-unshadowed-texas-at-the-four-level-packages-a-and-c-shipped-default-on-b-and-d-measured-non-wins); `scripts/ab-landy-lia-doubler.sh`, `ab-landy-lia.sh`, `ab-landy-lia-repair.sh`, **`ab-landy-lia2.sh`** (B's live runner, unlaunched), `ab-landy-texas.sh`, `ab-landy-nt-remeasure.sh` |
+| **N1-lia** Lia's counter-defense (four packages) | `competition.landy_doubler_catchall` (**off 2026-08-30**), `landy_doubler_three_honors`, `landy_doubler_three_small` (**both on 2026-08-30**), `defense_2c_landy_lia` (**off**), `landy_texas` (**on 2026-08-31**), `landy_texas_floor` (**10**) | **packages A and C shipped default-on (2026-08-30, 2026-08-31); B's build was MISPROBED, redefined in place 2026-09-01 as Lia's real ladder, then MEASURED A LOSS 2026-09-01 and REFINED on its own forensic — stays off, refinement's A/B owed; D measured a non-win 2026-09-01 (stays off)** | **A: the full ladder wins** — every adjacent pair a plain win at both vuls (nocatch +0.0036/+0.0014, hon +0.0008/+0.0008, cells +0.0104/+0.0118 IMPs/board NV/BV), every sd tie-break positive; PD negative throughout is the pre-registered doubling artifact. Falsifiers 1 and 3 refuted; the sibling lone-honor caveat did not carry. Package A takes up both §N1l-flip caveats: the catch-all deletion (≈ +14,171 IMPs plain NV on the flip stream) unblocked by re-wording `comp:landy-penalty` to "length or honour strength in their major", plus two three-card `X` cells split by `top_honors` (sibling priors: `len3 hon0` +0.62/+1.85, `hon1` −0.75/+0.37, `hon2+` unmeasured). Build finding worth the row: the deletion was a **silent no-op** until the doubler tables moved from `Pattern::after` guards to exact `Pattern::node`s — `Trie::resolve_floored`'s single fall-through returns a guarded fallback's all-−∞ logits unchecked, so only an exact node's rejection reaches the floor. **B: the probe was wrong, and both its A/Bs measured nobody's system.** Lia is IntoBridge's AI, probed by hand on cuebids.com, and the original read had her responder ladder **inverted** — weak transfers at the two level and natural invitations at the three, where she plays an UNBAL 4+♣4+♦ takeout at `2♥`, natural INV+ six-card minors at `2♠`/`2NT`, and six-card sign-offs at `3♣`/`3♦` (the unlisted `X`@145, `2♦`@140, `3M`, `3NT` and `Pass` are confirmed unchanged). The knob was **redefined in place 2026-09-01** — it never shipped, its off state is byte-identical, and the superseded semantics are pinned by sha (`8a778178`; measured-loss build `59cd46ee`-control), which beats a scaffolding knob whose only job is to neutralise the first. The rebuild spells the takeout as shape (`len(♥,..=2) & len(♠,..=2)`, unbalanced by construction with 4+4+ minors, so the convicted 2=3=4=4 merge stays out) and therefore moves the splinters **above** it (179/178 vs 177), inverts the minors to natural six-card rungs under a new `comp:landy-minor` slug with opener accepting at `3NT` from the top, and drops the sign-offs to **straddle** the weak `2♦`@140 (`3♣`@141 / `3♦`@139) — which closes defect 3's starved diamonds by rung order alone and removes every `vulnerable()` term from the package. Responder's placements are re-banded for INV+ (`Pass` replaces two game-forcing catch-alls), the `2♠` ask's unalerted `4♣`@20 becomes a natural `3♣`@20, the minor-transfer-slam rule is honoured above opener's acceptance, and **all six flagged lia-only node families are closed** (the constraint that kept them open — not disturbing the in-flight A/B — died with it). The correction's one predicted loss is pre-registered as falsifier 1 of the new runner: the exactly-five 8-9 hand has no rung under Lia, and that band was the built ladder's biggest measured win. **The two superseded verdicts, kept as records of what they scored:** the first build (seed 1788122360, plain **+0.0050** ±0.0012 NV / **−0.0384** ±0.0014 BV, PD −0.0756/−0.1210, gates 0-foreign) and its four-defect repair, whose A/B was **STOPPED mid-flight** on the probe correction with one cell done (seed 1788247951, control `ce94faeb`, NV plain **+0.0191** ±0.0011 / PD **−0.0382** ±0.0014, gates 0-foreign; BV never run). That NV row is the doubling-artifact shape on a bid-more mechanism and the stopped runner's header stated its arbitration rule wrong — **moot**, since there is no both-vul cell and no surviving build; no decision is owed. The forensic below still stands as evidence about the lane, and the campaign section says which defects transfer. Forensic (`probe-divergence --imps`, bucketed by first differing call and responder's hand) splits the deficit into four named defects, none of them the concept: the **contested tails are unauthored** (every lia node requires the opponents to have passed, so any opponent bid drops the rest to a floor with no forcing channel — 95%/94% of the diamond rung's whole loss, and −63,950/−80,789 on the club rung), the **weak five-card sign-off** is vulnerability-dependent (uncontested weak: exactly-5 clubs **+1.405 NV / −0.803 BV** per fired while 6c and 7+c win at both colours — falsifier 2 confirmed sharper than posed, and that one cell is 45% of BV's PD deficit), the `2NT` cap **starves diamonds** into passing (−35,827/−32,432, falsifier 4), and the sole `2♥` takeout is the worst per-fired rung (−4.07/−5.00). **Falsifier 1 is reversed, not merely refuted**: the N1c right-siding trade was wrong on plain DD — the restored natural invitations are the ladder's biggest win (`3♣` **+85,613 NV / +35,920 BV**). At BV the first three defects sum to −176,261 of a −176,837 total, so the rest of the ladder is roughly break-even. Repair queue in size order: contested tails, a 6+ club floor for the weak `2♠` leg when vulnerable, a rung for the starved diamonds, the 2=3=4=4 merge. **All four built 2026-09-01** (`ab-landy-lia-repair.sh`, A/B owed, defaults byte-identical ×2), and re-solving the kept divergence sets inverted two of the repair plan's three pre-registered rules: the restored invitations split on **length** not colour (`3♦` +0.920 IMPs/fired quiet at exactly five, −0.910 at six-plus), and the starved diamonds are a **0-4 HCP** seam between `2NT`'s quality gate and the `2♦` escape's five-HCP `natural_floor`, not a 7+ HCP cap problem — so `2NT` takes the N1j transfer's own shape gate back (`len(♦,6..) & points(2..)`) and the plan's `2♦` cap lift is a measured no-op, not built. Defect 1's mechanism is that the floor **bids** at the unauthored nodes (`4♣` on 72% of `2♠ (3♠)`, 96% of `3♣ (3♠)`), so the repair is mostly authored `Pass`: opener sits, responder captains. Two nodes the plan never named were added on the census — the four-level entries (floor −3.4/−4.3 per fired) and the balancing seat (−8,347 NV on the club rung). Flagged and deliberately **not** repaired: `landy_recue_answer`'s `4m`@20 has no answer node, which is four of the five worst both-vul boards, but that seat is shared with the control arm and owes its own A/B. **B measured 2026-09-01 and LOST** (`ab-landy-lia2.sh`, seed 1788264406, control `32242d63`, 4.608M bd/arm/vul, gates 0-foreign): plain **−0.0077 ±0.0009** NV / **−0.0059 ±0.0010** BV, PD −0.0127/−0.0172; plain was the pre-registered arbiter at both colours, sd killed unrun. The forensic splits it by leg and the **club leg wins** (+0.0126/+0.0137 per board; `2NT → 3♣` is the run's biggest cell at +46,715/+54,641) while the **diamond leg loses** (−0.0201/−0.0181) — so the ladder was **refined, not reverted**, on five measured findings: (1) no weak diamond rung beats the baseline's wide transfer (6♦ thin 0-4 HCP → `3♦` −1.966/fired, 6♦ 5+ HCP → `2♦` −2.534, 7+♦ → `2♦` −4.238, against `2NT` at −0.709…−0.762), so `2NT` carries the whole INV+ band, `3♦`@142 re-gates to **excessive** diamonds and the `2♦` escape's ceiling rises to eight HCP; (2) the `Pass`@0 sell-outs were selling out to a floor that was **right** — cell `3♦ → -` is 14,717 boards at −22,119 NV / −13,364 BV, 14,699 of them after our own `2♦` — so `landy_lia_overcalled` loses its registrations over the weak rungs and the escape *and* its own catch-all, at exact `Pattern::node`s (package A's silent-no-op trap), and the code comment calling the floor's `3♦` "a law-of-total-tricks violation" is **withdrawn**, resolving that flagged doc/code discrepancy against the comment; (3) **right-siding is not null** — the earlier "0 of 18,170 declarer flips" read the declaring-*side* column (123 NV / 66 BV); declarer *seat* flips on 26,664/27,911 same-contract boards worth −0.0014/−0.0023 per board, worst cell `2NT → 3♣`, so the Max-break+ table makes the **completion** opener's minimum default and takes declarership back; (4) the by-length answer answered the wrong question, so `comp:landy-length` retires for `comp:landy-super` (super-accept / `3NT` / completion); (5) the `X`-vs-takeout cell is genuinely mixed — the 8,113/6,236 boards with two-plus in each major are **+1.854/+1.154 plain** for the takeout and **−1.305/−2.169 PD** — and the refinement gives them to the **double** (narrowed to `len(♥,2..) & len(♠,2..)`, with the takeout dropped below it in two bands and no major term), pre-registered as the next arm's falsifier 1. **C: shipped default-on** (seed 1788181796, gates 0-foreign) — an eight-of-eight sweep, plain **+0.616 NV / +0.711 BV** per fired, PD +0.816/+0.996, sd-lead +0.220/+0.352 plain and +0.305/+0.506 PD; fires on 0.03%/0.02% of boards so the per-board move is +0.0002, >6.7σ/>5.6σ off the printed CI bound. **Its mechanism is the reverse of the design's**: the DD-visible half was supposed to be the slam reroute, which reaches the five level on 5 of 2211 divergent boards (0 at both-vul), while right-siding was supposed to be invisible — instead 96.4%/96.3% of divergent boards are the *same contract from the other seat*, and that bucket is the whole win. The correction to the iron rule: DD is blind to right-siding's **concealment**, not to its **lead direction** — a different declarer puts a different defender on lead and the solver prices that honestly; sd-lead, where the leader is blind in both arms, keeps the sign at a third the size. Falsifier 2 (the alerted transfer leaks the anchor major) refuted by exactly those sd rows; falsifier 1 moot; PD>plain here is not the doubling artifact but the baseline's wrong-sided contract failing harder under a defense that always finds the lead. Residual: the transfer hands the opponents room on ~4% of fired boards (52/37, zero the other way) and draws 33/30 doubles the direct jam never drew — the entire worst-5 list, outweighed ~5:1. Defaults byte-identical while off (`smoke-default` ×2); C's ship moves `alert-sites.txt`'s `[their-landy]` section only. **D: measured non-win** (seed 1788191041, control `60115871`, gates 0-foreign) — `landy_notrump_no_major` stays default off, and A's repair did not reverse §N1p. Plain DD **+0.0077 NV / +0.0075 BV** and PD +0.0145/+0.0146 are both CI-clear positive, but PD is the decision table's `loss \| win` row verbatim (synthetic doubles of the baseline `3NT`s the candidate no longer bids, pre-registered as falsifier 1), and the two columns with no synthetic double **straddle zero** — plain SD −0.0061/−0.0056 against plain DD's +0.0077/+0.0075. On SD-PD, the column §N1p itself named the arbiter, the two experiments read −0.0012 (§N1p) and −0.0011/+0.0000 (D): the artifact leans the candidate's way and it still cannot clear zero. The **lead-model seam is bigger than the knob** — plain DD reads it +0.0142/+0.0138/+0.0131 above plain SD across §N1p NV, D NV and D BV, stable across two routings, and roughly double the effect it is adjudicating; the sign is the tell, since the candidate's mechanism is declaring `3NT` less and the clairvoyant-lead scorer is the one that likes it. Falsifier 3 answered: the repair reached, moving both *undoubled* columns +0.020 and both doubled columns ≈0. **Falsifier 2 returned a third branch neither posed** — the gate is a bundled disjunction whose halves have opposite signs. Bucketed by the mover's own major lengths (`off=3NT` is 74.3%/79.9% of divergence, `3NT → X` 98.9%/99.0% of it), plain IMPs/fired are monotone in the **short** major and break sign between two and three: 4-4 +4.74/+5.90, 3-4 +3.53/+4.74, 3-5 +3.11/+4.50, 4-5 +3.47/+4.95 against 2-4 −0.13/+0.31, 2-5 −0.20/−0.27, 1-4 −2.08/−1.86, 1-5 −1.84/−2.30 — +52,861/+50,663 IMPs in the `min major ≥ 3` half against −18,838/−10,758 in the `≤ 2` half. They showed both majors, so 3+ in each is a misfit with nowhere to run and a singleton is a big fit for them; the narrowed gate (bar `3NT` only when both majors are 3+ and one is 4+) is owed as its own arm under the disjunctive-gate rule, worth +0.0115/+0.0110 plain on a third of the traffic. Residual for that arm: the `both NS` bucket, where opener pulls the double and we declare something worse, costs −1.710/−2.657 per fired on 15.4%/14.1% of divergence. Flagged: `ab-dump-sd` has **no `--on-ns-landy-*` disclosure flag**, so every §N1-lia sd row reads both arms with control semantics | [§N1-lia](#n1-lia--lias-counter-defense-the-minor-ladder-a-level-down-the-doubler-unshadowed-texas-at-the-four-level-packages-a-and-c-shipped-default-on-b-and-d-measured-non-wins-b-refined-on-its-own-forensic-ab-owed); `scripts/ab-landy-lia-doubler.sh`, `ab-landy-lia.sh`, `ab-landy-lia-repair.sh`, `ab-landy-lia2.sh` (B's measured loss, VERDICT block + forensic), **`ab-landy-lia3.sh`** (the refinement's runner, owed), `ab-landy-texas.sh`, `ab-landy-nt-remeasure.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

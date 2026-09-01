@@ -142,6 +142,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   namespaced by hand, so no measurement is affected; `docs/takeout-double-layers.md`
   names `seam` the next re-measure candidate, which is the run it would have hit.
 
+- **§N1-lia package B measured a loss, then refined on its own forensic**
+  (`competition.defense_2c_landy_lia`, still **default off**; the default
+  system stays byte-identical). `ab-landy-lia2.sh`, SEED_BASE 1788264406,
+  control sha `32242d63`, 4.608M boards/arm/vul, both isolation gates
+  0-foreign: plain DD **−0.0077 ±0.0009** not vulnerable and **−0.0059
+  ±0.0010** vulnerable, PD −0.0127 / −0.0172. Plain was the pre-registered
+  arbiter at both colours, so the knob stays off and the runner now carries
+  its VERDICT block. The forensic splits the arm cleanly by leg — the **club**
+  leg won (+0.0126 / +0.0137 IMPs per board, and `2NT → 3♣` is the run's
+  biggest cell at +46,715 / +54,641) while the **diamond** leg lost (−0.0201 /
+  −0.0181) — so the ladder is re-cut rather than reverted, and the refinement
+  owes its own A/B (`ab-landy-lia3.sh`).
+
+  What changed, each row bought by a measured cell:
+
+  - **Opener's answer to `2♠`/`2NT` is Max-break+**, replacing the by-length
+    answer: the step below the completion is a super-accept (maximum with
+    three-card support, new alert `comp:landy-super`), `3NT` is the maximum
+    without one, and the completion is the minimum default. Two findings in
+    one edit — length told responder which partscore to pick when the question
+    an invitational rung asks is *whether this is a game*, and responder
+    declaring its own suit gave back the right-siding the N1j transfer had
+    (26,664 / 27,911 same-contract-other-seat boards at −0.0014 / −0.0023 per
+    board). `comp:landy-length` retires.
+  - **The `Pass`@0 sell-outs are deleted.** `landy_lia_overcalled`'s
+    registrations over the weak `3m` sign-offs and the `2♦` escape were selling
+    out to a floor that was competing correctly: cell `3♦ → -` cost **−22,119
+    plain IMPs NV / −13,364 BV** over 14,717 boards, 14,699 of them after our
+    own `2♦`. Those seats are the floor's again, the table's own `Pass`@0 is
+    gone so its residue over the INV+ rungs falls through by rejection (at
+    exact `Pattern::node`s, since a guarded fallback's rejection is returned
+    unchecked), and it gains a completion rung where their entry leaves it
+    cheap — and that new rung's own seat (`2NT (3♣) 3♦ -`, the only node where
+    it fires) is authored with it, since responder is uncapped there and the
+    floor bids a phantom `4♥` on ~8% of the band. The code comment calling the
+    floor's `3♦` "a law-of-total-tricks violation" was wrong and is gone.
+  - **The diamond leg is re-cut three ways.** Every weak diamond rung lost to
+    the baseline's wide transfer (6♦ thin 0-4 HCP → `3♦` −1.97/fired; 6♦ 5+ HCP
+    → `2♦` −2.53; 7+♦ → `2♦` −4.24), and the INV+ rung was the only cell inside
+    −1.0. So `3♦`@142 re-gates to **excessive** diamonds (seven, or six with two
+    of the top three), the `2♦` escape's ceiling rises to eight HCP to take
+    what it leaves, and `defense_2c_landy_weak_2d_cap` now governs the base arm
+    only.
+  - **The values `X` narrows to two-plus in each major and the takeout drops
+    below it**, in two bands and with no major term: 4+♣4+♦ invitational-or-
+    better at @144, and a weak 5+♣ / exactly-4♦ band at @143 for the 4-7 hand
+    no other rung reaches (opener sits for its `3♣` pull of `2NT`). The cell
+    this moves is genuinely mixed and is pre-registered as the next arm's
+    first falsifier: **+1.854 / +1.154 plain** IMPs per fired favour the
+    takeout, **−1.305 / −2.169** PD favour the double.
+
 - **§N1-lia package B corrected: the probe of Lia's counter was wrong, so
   `competition.defense_2c_landy_lia` was redefined in place**
   (`scripts/ab-landy-lia2.sh`, new; `scripts/ab-landy-lia-repair.sh` gets a

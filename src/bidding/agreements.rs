@@ -1463,36 +1463,57 @@ pub struct CompetitionKnobs {
     /// plays, since it never shipped and its off state is byte-identical.  The
     /// superseded semantics are pinned by sha in the campaign doc.
     ///
-    /// Her four rungs, and our band for each (she states shape, not strength,
-    /// so the bands are ours):
+    /// That corrected build then **measured a loss** on 2026-09-01
+    /// (`ab-landy-lia2.sh`, SEED_BASE 1788264406, control sha `32242d63`,
+    /// 4.608M boards/arm/vul): plain DD **−0.0077 ±0.0009** NV and **−0.0059
+    /// ±0.0010** BV, PD −0.0127 / −0.0172, both isolation gates 0-foreign.
+    /// The forensic split it by leg — the **club** leg won (+0.0126 NV /
+    /// +0.0137 BV per board) and the **diamond** leg lost (−0.0201 /
+    /// −0.0181) — so the ladder below is the refinement that keeps the first
+    /// and re-cuts the second, and it owes its own arm.
     ///
-    /// * `2♥` — **unbalanced** both-minors takeout, 4+♦ 4+♣, invitational or
-    ///   better (`len(♥, ..=2) & len(♠, ..=2)`, which with 4+4+ in the minors
-    ///   *is* unbalanced).  The only takeout — the `2=3=4=4` split dies with
-    ///   the shape, and the answer priority reverses: a four-card minor before
-    ///   notrump, `2NT` = spade stopper, `2♠` = neither (asks), `3NT` = the
-    ///   maximum accepting.  Lia's shape contains the splinters', so under
-    ///   this knob the splinters outrank the takeout instead of being disjoint
-    ///   from it.
-    /// * `2♠` / `2NT` — natural **six-card minors**, invitational or better
-    ///   and uncapped (`comp:landy-minor`; clubs and diamonds respectively).
-    ///   Not transfers: responder declares, and opener answers by length
-    ///   (`comp:landy-length` — cheap raise 3+, the step below it a doubleton)
-    ///   or accepts at `3NT` from the top of the range.
-    /// * `3♣` / `3♦` — natural six-card **sign-offs**, at most seven points,
-    ///   ranked to straddle the weak `2♦`@140: `3♣`@141 above it (clubs have
-    ///   no cheaper outlet), `3♦`@139 below it, which hands the escape its
-    ///   traffic back and picks up the 0-4 HCP six-card diamond hands it
-    ///   refuses — package B's "starved diamonds", closed by rung order alone.
+    /// Her rungs, and our band for each (she states shape, not strength, so
+    /// the bands are ours):
     ///
-    /// Both `3NT` rungs, the values `X`, the weak `2♦` and the jam are
-    /// untouched.  The `4m` slam try and [`Self::landy_minor_slam_answer`]'s
-    /// answer re-hang on every leg, and on the `3NT` acceptance too — the
-    /// uncapped rungs owe it (`docs/minor-transfer-slam.md`).
+    /// * `2♠` / `2NT` — **six-card minors**, invitational or better and
+    ///   uncapped (`comp:landy-minor`; clubs and diamonds respectively).
+    ///   Responder names the step below its suit and opener answers off one
+    ///   three-rung table: the step below the completion is a **super-accept**
+    ///   (`comp:landy-super`, maximum with three-card support), `3NT` is the
+    ///   maximum without one, and the completion is the minimum default — so
+    ///   opener declares on the common branch, which is the half of the N1h
+    ///   right-siding trade the lia2 arm proved was worth keeping (its
+    ///   same-contract-other-seat bucket cost −0.0014 / −0.0023 per board).
+    /// * `X` — the shared values double, **narrowed** to two-plus in each
+    ///   major.  With the takeout below it, this is the both-minors hand that
+    ///   has defense in their suits.
+    /// * `2♥` — the one both-minors takeout, in two bands and with **no major
+    ///   term**: 4+♣ 4+♦ invitational-or-better at @144, and a weak 5+♣ /
+    ///   exactly-4♦ band at @143 for the 4-7 hand no other rung reaches.
+    ///   Below the double, so what arrives here at strength is the hand with
+    ///   a *short* major; the answer priority reverses (a four-card minor
+    ///   before notrump, `2NT` = spade stopper, `2♠` = neither, `3NT` = the
+    ///   maximum accepting).  Lia's shape contains the splinters', so under
+    ///   this knob the splinters outrank the takeout instead of being
+    ///   disjoint from it.
+    /// * `3♦`@142 / `3♣`@141 — six-card **sign-offs** at most seven points,
+    ///   ranked over the weak `2♦`@140, whose ceiling rises to eight HCP to
+    ///   take everything they leave.  `3♦` is re-gated to **excessive**
+    ///   diamonds — seven, or six with two of the top three — because the
+    ///   arm's two worst cells were both a merely-long diamond sign-off
+    ///   against the base arm's wide transfer (`3♣ → 2♦` −36,875 plain NV,
+    ///   `3♣ → 3♦` −36,119).
+    ///
+    /// Both `3NT` rungs and the jam are untouched, and
+    /// [`Self::defense_2c_landy_weak_2d_cap`] keeps governing the base arm
+    /// only — it caps a rung this ladder has re-cut.  The `4m` slam try and
+    /// [`Self::landy_minor_slam_answer`]'s answer re-hang on every leg, and
+    /// on the `3NT` acceptance too — the uncapped rungs owe it
+    /// (`docs/minor-transfer-slam.md`).
     ///
     /// Read only under [`Self::defense_2c_landy_bba`] (the shipped ladder it
-    /// modifies).  **Off by default — the A/B is owed**
-    /// (`scripts/ab-landy-lia2.sh`); a permutation, so it cannot be
+    /// modifies).  **Off by default — measured a loss 2026-09-01 and the
+    /// refinement's own A/B is owed**; a permutation, so it cannot be
     /// decomposed.  Inert while their `2♣` is undeclared or natural.
     pub defense_2c_landy_lia: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder

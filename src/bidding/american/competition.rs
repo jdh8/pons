@@ -182,6 +182,13 @@ const KK_MINORS: Alert = Alert("comp:kk-minors");
 /// meaning widens, the tag does not — `reading.bid_exclusion` republishes the
 /// wider reading off the rule's own siblings, so there is nothing here to
 /// re-tag and no `.bbsa` row to re-bless.
+///
+/// Under §N1-lia the same double gains a **shape** term — `len(♥, 2..) &
+/// len(♠, 2..)`, two-plus in each of the majors they showed — because the
+/// both-minors takeout sits one weight *below* it there and needs the short
+/// major to reach.  Values with defense in their suits doubles; values with a
+/// singleton takes out.  Same tag again: the reading is the rule's own
+/// projection, and the claim ("values against their two-suiter") is unmoved.
 const LANDY_VALUES: Alert = Alert("comp:landy-values");
 /// Landy cue — `2♥`/`2♠` over their `(2♣)` Landy: a cue of a shown major
 /// naming the corresponding unshown minor (`2♥` = clubs, `2♠` = diamonds),
@@ -192,24 +199,33 @@ const LANDY_CUE: Alert = Alert("comp:landy-cue");
 /// minors: a weak six-card club escape, transferred so the `1NT` opener
 /// declares.  Their `2♣` is artificial, so clubs are ours to transfer into.
 const LANDY_TRANSFER: Alert = Alert("comp:landy-transfer");
-/// Landy natural minor — `2♠` (clubs) / `2NT` (diamonds) over their `(2♣)`
+/// Landy minor rung — `2♠` (clubs) / `2NT` (diamonds) over their `(2♣)`
 /// Landy under §N1-lia: a **six-card minor, invitational or better**, named
 /// one step below its own suit because the two calls below `3♣` are the only
-/// room the lane leaves.  Not a transfer — responder plays it, opener answers
-/// by length ([`LANDY_LENGTH`]) or accepts at `3NT` from the top.  The
-/// six-card *sign-offs* one step higher (`3♣`/`3♦`, ≤7) name their own suit
-/// and are natural, so they carry no alert.
+/// room the lane leaves.  Opener answers off one three-rung table: the step
+/// below the completion is a **super-accept** ([`LANDY_SUPER`] — maximum with
+/// three-card support), `3NT` is the maximum without one, and the completion
+/// itself (`3♣` over `2♠`, `3♦` over `2NT`) is the minimum default, which
+/// puts the **opener** in the contract.  So the rung right-sides like a
+/// transfer even though responder names the step, and the tag publishes the
+/// length and the invitational floor rather than a transfer's target.  The
+/// six-card *sign-offs* one step higher (`3♣`, ≤7, and the excessive-diamond
+/// `3♦`) name their own suit and are natural, so they carry no alert.
 const LANDY_MINOR: Alert = Alert("comp:landy-minor");
 /// Landy both-minors takeout — `2♥`/`2♠` over their `(2♣)` Landy: 4+ in both
 /// minors, with shortness in the majors, opener answering by minor length or
 /// stopper.  One claim across both ladders, which differ in how much they
 /// promise: under the N1j BBA ladder it is game-forcing with **exactly** a
 /// doubleton in the bid major (2-2 bids `2♥`, so `2♠` promises three hearts);
-/// under §N1-lia there is one takeout, `2♥`, invitational-or-better with **at
-/// most** a doubleton in each major — unbalanced by construction, since 4+4+
-/// in the minors and 2-2-or-shorter in the majors is a nine-card minor
-/// holding.  The union is what the tag publishes: length in both minors and
-/// shortness in the majors, the strength read off each rule's own projection.
+/// under §N1-lia there is one takeout, `2♥`, in **two bands and with no major
+/// term at all** — a strong band (4+♣ 4+♦, invitational or better, unlimited
+/// above) and a weak one (5+♣ and exactly four diamonds, 4-7).  Lia states the
+/// takeout as shape in the minors and says nothing about the majors, and the
+/// ladder spells the rest by rung order: the values `X` one weight above it
+/// carries the two-plus majors, so what reaches `2♥` at strength is the hand
+/// with a *short* major.  The union across both ladders is therefore **length
+/// in both minors**, with the major shortness a claim only the N1j rungs make;
+/// the strength is read off each rule's own projection.
 const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
@@ -254,15 +270,19 @@ const LANDY_PENALTY: Alert = Alert("comp:landy-penalty");
 /// — the alert is by hand, as the invariant's witness cannot see a vacuous
 /// constraint, and it is what stops the walk reading opener for spades.
 const LANDY_ASK: Alert = Alert("comp:landy-ask");
-/// Lia's length answer — opener's reply to the §N1-lia minor rungs (`2♠` = 5+♣
-/// weak-or-GF, `2NT` = long diamonds): the cheap raise shows **three-card**
-/// support (`3♣` over `2♠`, `3♦` over `2NT`), the step below it a doubleton
-/// (`2NT` over `2♠`, a contract; `3♣` over `2NT` — opener is balanced, so two
-/// diamonds implies 3+ clubs, a safe landing).  Alerted so the reader decodes
-/// the rule's exact `len` bands instead of the natural walk's four-card raise
-/// floor — a three-card raise read as four is unsound, and the doubleton
-/// `3♣` names a suit the rule says nothing about.
-const LANDY_LENGTH: Alert = Alert("comp:landy-length");
+/// Lia's super-accept — opener's step below the completion over a §N1-lia
+/// minor rung (`2NT` over `2♠`, `3♣` over `2NT`): a **maximum with three-card
+/// support**, which opposite the rung's six is a nine-card fit.
+///
+/// Artificial at both rungs and for two different reasons, which is why one
+/// slug covers them: over `2NT` the step is `3♣` and names a suit the rule
+/// says nothing about, and over `2♠` it is `2NT`, a call the natural walk
+/// would read as a balanced sign-off rather than as a raise.  It replaces
+/// `comp:landy-length`, the by-length answer the 2026-09-01 rebuild carried
+/// and the lia2 A/B measured: length told responder which contract to pick
+/// and never told it whether to bid a game, so the invitational band's own
+/// question went unanswered one rung below the `3NT` accept.
+const LANDY_SUPER: Alert = Alert("comp:landy-super");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not

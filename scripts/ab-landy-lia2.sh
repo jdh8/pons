@@ -143,6 +143,109 @@
 #   ./target/release/examples/probe-divergence \
 #       $R/lia-both $R/base-both --imps --jsonl $R/imps-both.jsonl
 #
+# ============================ VERDICT ============================
+#
+# **MEASURED A LOSS 2026-09-01.  `defense_2c_landy_lia` stays default off.**
+# SEED_BASE=1788264406, control sha 32242d63 (`main` HEAD), 4,608,000
+# boards/arm/vul, both isolation gates **0 foreign / PASSED**.
+#
+#   vul | fired          | plain DD           | PD
+#   ----+----------------+--------------------+-------------------
+#   NV  | 143,158 (3.11%)| -0.0077 +-0.0009   | -0.0127 +-0.0011
+#       |                | (-35,676; -0.249/f)| (-58,701; -0.410/f)
+#   BV  | 123,212 (2.67%)| -0.0059 +-0.0010   | -0.0172 +-0.0012
+#       |                | (-27,354; -0.222/f)| (-79,454; -0.645/f)
+#
+# Plain DD is the pre-registered arbiter at both colours and both cells are
+# negative, so there is no plain win to ship on and the knob stays off.  The
+# sd pass was killed unrun: four negative cells need no lead model.  Both arm
+# directories and `imps-{none,both}.jsonl` are KEPT — the forensic below is
+# read off them and is the best evidence this lane has.
+#
+# THE LOSS IS THE DIAMOND LEG.  Splitting the divergence by which leg moved
+# (baseline `2NT` = its club transfer, `3♣` = its diamond transfer; candidate
+# `2♠`/`3♣` clubs, `2NT`/`3♦` diamonds):
+#
+#   leg      | n (NV) | plain NV          | plain BV
+#   ---------+--------+-------------------+------------------
+#   club     | 57,495 | +58,256 (+0.0126) | +63,018 (+0.0137)
+#   diamond  | 49,380 | -92,508 (-0.0201) | -83,517 (-0.0181)
+#   rest     | 36,283 |  -1,424 (-0.0003) |  -6,855 (-0.0015)
+#
+# The club leg is a clean win and `2NT -> 3♣` is the whole run's biggest cell
+# (+46,715 NV / +54,641 BV): unwinding N1c's right-siding trade for a natural
+# club rung is right.  Every diamond cell is a loss.
+#
+# FIVE FINDINGS THE NEXT ARM IS BUILT ON.
+#
+# 1. **No weak diamond rung beats the baseline's wide transfer.**  Re-solving
+#    the boards where the baseline bid its `3♣`->diamond transfer, bucketed by
+#    responder's own diamond holding, every candidate call is negative on
+#    plain DD and the INV+ rung is the least bad:
+#
+#      responder holds        | lia bid | n (NV)  | plain/fired NV | BV
+#      ----------------------+---------+---------+----------------+-------
+#      6d thin, 0-4 hcp      | 3D      | 13,533  | -1.966         | -1.773
+#      6d thin, 5+ hcp       | 2D      |  9,223  | -2.534         | -2.464
+#      6d two top honors     | 2D      |  1,361  | -2.617         | -2.290
+#      7+d                   | 2D      |  2,345  | -4.238         | -4.859
+#      7+d                   | 3D      |  2,897  | -2.701         | -2.713
+#      any                   | 2NT     | 11,839  | -0.709 .. -0.76| -0.34..-0.71
+#
+#    So the refinement gives the diamond leg back to a transfer at `2NT` and
+#    re-cuts what is left: `3D` re-gates to EXCESSIVE diamonds (seven, or six
+#    with two of the top three) and the `2D` escape's ceiling rises to eight
+#    HCP to take everything below it.  **Pre-registered residue**: this still
+#    leaves the weak six-card diamond hand off the transfer, which is the
+#    cell above at -1.97/fired.  If the next arm's diamond leg is still
+#    negative, the answer is the wide transfer (`points(2..)` on `2NT`) and
+#    the INV+ gate is what has to go.
+#
+# 2. **The Pass@0 sell-outs were selling out to a floor that was right.**
+#    Cell `3D -> -` (baseline competed to `3D`, candidate passed): 14,717
+#    boards, **-22,119 plain NV / -13,364 BV**, 14,699 of them after our own
+#    `2D` escape, concentrated in `1NT (2C) 2D (2S) -` (6,836 bd, -9,724) and
+#    `1NT (2C) 2D (2H) -` (5,895 bd, -11,878).  The 2026-09-01 census read
+#    the floor's behaviour right (it does bid) and drew the wrong conclusion.
+#    The refinement DELETES `landy_lia_overcalled`'s registrations over the
+#    weak rungs and the escape, and strips its `Pass`@0 so the residue over
+#    the INV+ rungs reaches the floor by rejection -- at exact
+#    `Pattern::node`s, since a guarded fallback's all-inf logits are returned
+#    unchecked (package A's silent no-op).  The comment at
+#    `lebensohl.rs:2536-2544` calling the floor's `3D` "a law-of-total-tricks
+#    violation" was wrong and is gone.
+#
+# 3. **Right-siding is NOT null here, and the earlier note saying so read the
+#    wrong column.**  Declaring SIDE flips on 123 NV / 66 BV boards -- that is
+#    the zero.  Declarer SEAT flips on **26,664 NV / 27,911 BV** same-contract
+#    boards, worth **-6,406 (-0.0014/bd) / -10,416 (-0.0023/bd)** plain, worst
+#    cell `2NT -> 3C` (-3,630 / -5,600).  Package C's rule applies: DD prices
+#    the lead direction, so this is real and it is the natural rungs giving
+#    declarership back.  The refinement's Max-break+ answer table makes the
+#    COMPLETION opener's minimum default, which recovers it on both legs.
+#
+# 4. **The by-length answer answered the wrong question.**  `comp:landy-length`
+#    told responder which partscore to pick; the rung is invitational, so what
+#    it needs is whether this is a game.  Replaced by super-accept / `3NT` /
+#    completion under a new `comp:landy-super`.
+#
+# 5. **The `X`-vs-takeout cell is genuinely mixed, and the refinement picks
+#    the double.**  Cell `X -> 2H` (baseline doubled, candidate took out),
+#    split by responder's majors: the 8,113 NV / 6,236 BV boards with 2-2 or
+#    better in the majors are **+1.854 / +1.154 plain** per fired for the
+#    takeout and **-1.305 / -2.169 PD**.  Plain says take out; PD says double;
+#    and this header's own arbitration note says the one PD loss this lane
+#    does not wave through is a mechanism that REMOVES our penalty doubles,
+#    which is what taking out with values does.  So the refinement narrows the
+#    values `X` to `len(H,2..) & len(S,2..)` and drops the takeout below it,
+#    in two bands and with no major term.  **Falsifier 1 of the next arm**: if
+#    the club leg's win shrinks and this cell is where it went, flip the two
+#    weights back.
+#
+# The refinement is `scripts/ab-landy-lia3.sh` (owed), fresh SEED_BASE,
+# control = then-current `main`.
+# =================================================================
+#
 R=${1:?usage: ab-landy-lia2.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

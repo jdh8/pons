@@ -99,9 +99,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_major_jam: bool,
 
-    /// Arm §N1-lia's ladder (`competition.defense_2c_landy_lia`): natural
-    /// six-card minors at `2♠`/`2NT` (INV+), one unbalanced `2♥` takeout,
-    /// six-card sign-offs at `3♣`/`3♦`
+    /// Arm §N1-lia's ladder (`competition.defense_2c_landy_lia`): six-card
+    /// minors at `2♠`/`2NT` (INV+) answered by super-accept / `3NT` /
+    /// completion, a two-band `2♥` takeout under a values `X` narrowed to
+    /// two-plus majors, and six-card sign-offs at `3♦`/`3♣`
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 

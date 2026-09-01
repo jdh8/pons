@@ -189,17 +189,20 @@ const fn not_defined() -> usize {
 // decision the no-catch-all arm owed.  The mechanical reading stays each
 // rule's own projection.  See `docs/one-notrump-competitive.md` §N1-lia.
 //
-// `comp:landy-ask` / `comp:landy-length` / `comp:landy-minor` (§N1-lia's own
+// `comp:landy-ask` / `comp:landy-super` / `comp:landy-minor` (§N1-lia's own
 // three slugs — the `2♠` no-minor-no-stopper ask over the lone `2♥` takeout,
-// the by-length answers to the minor rungs, and the natural six-card
-// `2♠`/`2NT` minors themselves; `competition.defense_2c_landy_lia`, default
-// off): same no-schema-name record as the family above, plus the same
-// `Transfers if RHO bids clubs` ceiling — EPBot decodes the lane through our
-// disclosed uncontested scheme whatever we author.  Recorded at build time so
-// a ship needs no new decision here.  `comp:landy-minor` arrived with the
-// 2026-09-01 probe correction, which turned those two rungs from transfers
-// into natural minors; `comp:landy-transfer` keeps its N1c meaning and this
-// knob no longer uses it.
+// opener's super-accept of a minor rung, and the six-card `2♠`/`2NT` minors
+// themselves; `competition.defense_2c_landy_lia`, default off): same
+// no-schema-name record as the family above, plus the same `Transfers if RHO
+// bids clubs` ceiling — EPBot decodes the lane through our disclosed
+// uncontested scheme whatever we author.  Recorded at build time so a ship
+// needs no new decision here.  `comp:landy-minor` arrived with the 2026-09-01
+// probe correction; `comp:landy-super` replaced `comp:landy-length` in the
+// lia2 refinement, when opener's by-length answer became the Max-break+ table
+// (super-accept / `3NT` / completion) — a rung set that says whether this is a
+// game rather than which partscore to pick, and that puts opener back in the
+// contract on the common branch.  `comp:landy-transfer` keeps its N1c meaning
+// and this knob no longer uses it.
 //
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the
