@@ -87,7 +87,12 @@ arm() {
 gatepair() {
     on=$1; off=$2; vul=$3
     out="$R/gate.$on.vs.$off.$vul.txt"
-    [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
+    # Guard on the PASSED line, not on the file.  probe-divergence writes its
+    # FAILED summary to the same stdout it is judged by (examples/probe-
+    # divergence/main.rs:419 bails *after* the shell redirect has filled $out),
+    # so an `-s` guard makes a failed gate sticky: the resume skips it and goes
+    # on to print the very headline the runner pre-registers the gate against.
+    grep -q 'isolation gate PASSED' "$out" 2>/dev/null && { log "skip $out (passed)"; return 0; }
     log "isolation gate $on vs $off ($vul)"
     "$PROBE" "$R/$on-$vul" "$R/$off-$vul" --gate-opener ours >"$out"
 }

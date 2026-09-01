@@ -67,6 +67,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[their-landy]` section only, the default profile staying put — which is the
   standing proof that the knob is inert while their `2♣` is undeclared.
 
+### Fixed
+
+- **A failed isolation gate is no longer sticky across a resume**
+  (`scripts/ab-lib.sh`). `gatepair`'s skip guard tested only that its output
+  file was non-empty, but `probe-divergence` prints the `isolation gate FAILED`
+  summary to the very stdout the shell has already redirected into that file
+  before it bails — so a run killed and resumed after a failed gate skipped the
+  gate and went straight on to print the headline the gate exists to veto. The
+  guard now requires the `isolation gate PASSED` line, which re-runs a failed
+  gate while leaving its text on disk for forensics. No effect on a passing
+  gate, so every existing results directory resumes as before. Affects all
+  runners that source `ab-lib.sh`; found by the pre-flight audit of
+  §N1-lia package B's repair A/B.
+
 ### Changed
 
 - **§N1-lia package B rebuilt on its own forensic; `competition.defense_2c_landy_lia`
@@ -127,6 +141,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because it is shared with the control arm, in
   [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1-lia
   package B.
+
+  Corrected on launch day by the runner's pre-flight audit: defect 1's closure
+  is **partial by construction**. Authoring opener's sit creates fresh lia-only
+  traffic one seat later, and **six** node families — not the one previously
+  listed — still fall to the learned floor, including their **balancing
+  double**, which nothing can catch today (`landy_lia_entries` yields bids only,
+  and `systems_on_over_double` guards on the first suffix call being a `Double`
+  where here it is a `Pass`). Enumerated as a table in the doc's "Flagged, not
+  built", with the reversible default; not built, because it would change what
+  the A/B measures.
 
 - **§N1-lia package D measured a non-win; `competition.landy_notrump_no_major`
   stays default off** (`ab-landy-nt-remeasure.sh`, seed 1788191041, control
