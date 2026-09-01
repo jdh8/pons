@@ -1823,9 +1823,47 @@ that knows its strength, and it must never be stranded.
   then-current `main`, both colours, sized to match the three prior runs. The
   falsifiers are: the `X`-versus-takeout weight flip (1), opener's accept over
   the two-band takeout (2), the diamond leg's remaining weak-hand residue (3),
-  and whether handing the weak rungs' contested seats back to the floor is
-  worth the −22,119 the sell-outs cost (4). The lia2 verdict block above
-  carries the numbers each of them is measured against.
+  whether handing the weak rungs' contested seats back to the floor is
+  worth the −22,119 the sell-outs cost (4), and the contested takeout's own
+  floor handoff (5, next bullet). The lia2 verdict block above
+  carries the numbers each of them is measured against. On the forensic
+  **watch list**, no pre-stated number: `2♥ (4♥/4♠)`, where the floor's
+  delayed double was the worst per-fired cell class one rung over
+  (`2♠ (4M)`, −3.434/−4.268) but this seat was never priced.
+* **The contested `2♥ ({raise})` seat is the floor's (2026-09-02).** The
+  pre-launch review caught `landy_bba_takeout_overcalled` riding the two-band
+  takeout: its `Pass`@0 was authored safe "because responder's game force
+  guarantees another turn", and no lia band is a game force — the weak band
+  never bids again, making the `Pass`@0 the sell-out class the lia2 A/B
+  convicted, and its free 2NT/3NT-on-a-stopper a game bid opposite a possible
+  four-count (the same shape as the flagged `3NT`@160 accept, one seat
+  later). The registration is skipped under `lia_takeout` — the same handoff
+  as the weak rungs' contested tails; the splinters (`points(10..)`) keep the
+  ladder. The old forensic tallied this seat at 16 boards, −35/−10, but the
+  weak band raises its frequency. Reversible: drop the `!lia_takeout` guard
+  in `landy_bba_entries`. **Falsifier 5**: if the lia3 forensic shows the
+  floor selling out or blind-pushing these cells, the seat wants a lia table
+  gated by band-consistent values, not the old ladder back.
+* **The pre-launch reading gate PASSED (2026-09-02)** — with the correct
+  invocation. `probe-call-reading --their-2c-landy --ns-landy-lia` reads every
+  re-cut call soundly and tightly: `2♥` 4-9 points, ♣4+, ♦4-5 (the strong
+  band's 8-9 cap is genuine rung-order inference — 10+ both-minors hands are
+  shape-forced into `X`/`3NT`/splinter first), `2NT` 8+ with ♦6+ ♣≤5, `X` 8-9
+  with the 2+2+ major terms (the refinement's owed reading-union item, present
+  after all), sign-offs 0-7 on their six-card suits, escape 5-9 on ♦5-6. The
+  review's first probe omitted `--their-2c-landy`, under which
+  `--ns-landy-lia` is **inert** — `lebensohl_package` registers nothing and
+  `1NT (2♣) …` resolves through the systems-on rebase to the constructive
+  tables, whose "♦2-2 on `2NT - 3♣`" is that lane's own sound
+  diamond-transfer-break description, bidder and reading agreeing via the same
+  `Fallback::Rebase`. Half a day chased that as a phantom before the
+  cross-build comparison surfaced it. The example now warns on the inert
+  combination and its flag doc carries the "needs `--their-2c-landy`" sentence
+  its doubler-rebids sibling always had; the ~dozen other `--ns-landy-*`
+  modifier flags share the trap and are **flagged, not fixed** — a warn or an
+  implied disclosure per flag is a one-line decision each, owed to the flag
+  audit, not this package. The A/B harness derives the disclosure from the
+  opponent's card, so no measurement was ever affected.
 * **Opener's `3NT`@160 accept over `2♥` can now fire opposite the weak band.**
   The accept was authored when the takeout promised 8+, so a maximum meant 24+
   combined; with the 4-7 band under the same call it can be 20. `2♥ - 3NT -`

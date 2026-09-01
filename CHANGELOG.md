@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **§N1-lia package B pre-launch completion** (knob
+  `competition.defense_2c_landy_lia`, still default off; default system
+  byte-identical, smoke digest verified twice against `main` HEAD). The
+  pre-A/B review of the refined ladder's interfered tails closed three items:
+  - The contested two-band takeout seat (`1NT (2♣) 2♥ (2♠/3♥/3♠)`) no longer
+    registers `landy_bba_takeout_overcalled` in the lia arm — that ladder's
+    `Pass`@0 was authored safe "because responder's game force guarantees
+    another turn", and neither lia band is a game force; its free
+    notrump-on-a-stopper was a game bid opposite a possible four-count. The
+    seat is the floor's, the same handoff as the weak rungs' contested tails
+    (falsifier 5 of `scripts/ab-landy-lia3.sh`); the splinters keep the
+    ladder. `2♥ (4♥/4♠)` joins the forensic watch list unpriced.
+  - The pre-registered reading gate passed with the **armed** probe
+    (`--their-2c-landy --ns-landy-lia`): every re-cut call projects soundly
+    and tightly, including the values `X`'s new 2+2+ major terms and the
+    rung-order 8-9 cap on the strong takeout band. A first probe without the
+    disclosure flag read the systems-on rebase's constructive tables and
+    presented a spurious "♦2-2 phantom"; `probe-call-reading --ns-landy-lia`
+    now warns when `--their-2c-landy` is absent and documents the dependency.
+    The other `--ns-landy-*` modifier flags share the silent-inert trap and
+    are flagged in the campaign doc, not fixed here.
+  - `scripts/ab-landy-lia3.sh` added: same 4.608M boards/arm/vul sizing as
+    the three prior runs, plain-DD arbitration inherited from lia2, five
+    numbered falsifiers pre-registered in the campaign doc.
+
 ### Added
 
 - **`BOARDS` knob for A/B runners** (`scripts/ab-lib.sh`): set the total boards

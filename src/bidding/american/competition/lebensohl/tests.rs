@@ -2210,6 +2210,53 @@ fn landy_lia_reverses_the_takeout_answer() {
     );
 }
 
+/// §N1-lia's two-band takeout takes no contested table: the compressed
+/// ladder's Pass was safe "because responder's game force guarantees another
+/// turn", and the weak band broke the premise — its four-count never bids
+/// again, so the `Pass`@0 there is the sell-out class the lia2 A/B convicted
+/// and the free notrump-on-a-stopper is a game bid opposite nothing.  The
+/// seat is the floor's, like the weak rungs' contested tails; the splinters
+/// still promise `points(10..)` and keep the ladder.
+#[test]
+fn landy_lia_two_band_takeout_contested_seat_is_the_floors() {
+    let arm = landy_lia_arm();
+    let takeout = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+    ];
+    for raise in [
+        call(2, Strain::Spades),
+        call(3, Strain::Hearts),
+        call(3, Strain::Spades),
+    ] {
+        let contested = [takeout.as_slice(), &[raise]].concat();
+        // The old table's 2NT/3NT rung fired on exactly this hand (a bare
+        // stopper in the raised suit) opposite a possible four-count.
+        let (_, floored) = best_call_with(&arm, &contested, "A54.KQ42.A95.J32");
+        assert!(floored, "opener's seat over their raise is the floor's");
+    }
+
+    // The splinter's contested seat keeps the compressed ladder: responder is
+    // game-forcing, so its doctrine holds.
+    let splintered = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Hearts),
+        call(3, Strain::Spades),
+    ];
+    let (c, floored) = best_call_with(&arm, &splintered, "A54.KQ42.A95.J32");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "the heart stopper answers notrump over their raise of a splinter"
+    );
+    assert!(
+        !floored,
+        "the splinter's contested ladder is still authored"
+    );
+}
+
 /// §N1-lia package A: the catch-all knob and the three-card cells
 ///
 /// `landy_doubler_catchall=false` un-shadows the floor below the rungs (the

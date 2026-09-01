@@ -2722,23 +2722,32 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             &cheapest_above(Strain::Notrump, call).to_string(),
         ));
         // Their raise: `(2♠)` exists over `2♥` only, the 3M raises over
-        // whatever sits below them; the four level stays the floor's.  Lia's
-        // takeout names no short major, so its compressed ladder keys the
-        // stopper on the suit they actually raised instead.
-        let mut raises = vec![
-            (Bid::new(3, Strain::Hearts), Suit::Hearts),
-            (Bid::new(3, Strain::Spades), Suit::Spades),
-        ];
-        let cheap = Bid::new(2, Strain::Spades);
-        if cheap > call {
-            raises.push((cheap, Suit::Spades));
-        }
-        for (over, raised) in raises.into_iter().filter(|(o, _)| *o > call) {
-            let stopper = if lia_takeout { raised } else { short };
-            entries.extend(rows_of(
-                Pattern::after(OVER, &format!("{call} ({over})")),
-                landy_bba_takeout_overcalled(stopper, over),
-            ));
+        // whatever sits below them; the four level stays the floor's.
+        //
+        // §N1-lia's two-level takeout takes **no** contested table.  The
+        // compressed ladder's own safety doctrine — Pass is fine "because
+        // responder's game force guarantees another turn" — is false for a
+        // rung whose union band starts at four points: the weak band never
+        // bids again, so the `Pass`@0 is the sell-out class the lia2 A/B
+        // convicted, and the free notrump-on-a-stopper is a game bid opposite
+        // a possible four-count.  The seat goes to the floor by the same
+        // handoff as the weak rungs' contested tails; the splinters (level 3,
+        // `points(10..)`) keep the ladder, whose doctrine they still satisfy.
+        if !lia_takeout {
+            let mut raises = vec![
+                (Bid::new(3, Strain::Hearts), Suit::Hearts),
+                (Bid::new(3, Strain::Spades), Suit::Spades),
+            ];
+            let cheap = Bid::new(2, Strain::Spades);
+            if cheap > call {
+                raises.push((cheap, Suit::Spades));
+            }
+            for (over, _) in raises.into_iter().filter(|(o, _)| *o > call) {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{call} ({over})")),
+                    landy_bba_takeout_overcalled(short, over),
+                ));
+            }
         }
     }
 

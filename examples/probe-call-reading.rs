@@ -102,7 +102,11 @@ struct Args {
     /// Arm §N1-lia's ladder (`competition.defense_2c_landy_lia`): six-card
     /// minors at `2♠`/`2NT` (INV+) answered by super-accept / `3NT` /
     /// completion, a two-band `2♥` takeout under a values `X` narrowed to
-    /// two-plus majors, and six-card sign-offs at `3♦`/`3♣`
+    /// two-plus majors, and six-card sign-offs at `3♦`/`3♣`.  Needs
+    /// `--their-2c-landy` to reach anything: without the disclosure the whole
+    /// Landy branch is unregistered and `1NT (2♣) …` probes the systems-on
+    /// rebase — the constructive tables, whose readings are that lane's own
+    /// sound self-description, not §N1-lia's
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 
@@ -250,6 +254,14 @@ fn main() {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
+    // The 2026-09-02 pre-launch review lost an afternoon to this flag probing
+    // the wrong lane; warn instead of silently answering from the rebase.
+    if args.ns_landy_lia && !args.their_2c_landy {
+        eprintln!(
+            "warning: --ns-landy-lia is inert without --their-2c-landy; \
+             this run probes the systems-on default lane"
+        );
+    }
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
     agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;
