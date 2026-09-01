@@ -174,6 +174,24 @@ fn landy_counter_package_invariants() {
             crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
         }
     }
+    // §N1-lia package B: responder's re-rung ladder, its length answers and
+    // (since the 2026-09-01 repair) its whole contested surface.  This arm was
+    // **missing** until that repair — `defense_2c_landy_lia` appeared in the
+    // alert-invariant profile list but in no `assert_package_invariants` sweep,
+    // so every lia row shipped with no totality check, no weight-tie check and
+    // no alert check.  Crossed with `landy_texas` (package C, default-on) and
+    // with the `2♦` cap, which the repair branches on `landy_lia`.
+    for texas in [false, true] {
+        for cap in [false, true] {
+            let mut arm = Agreements::default();
+            arm.decision.their.two_clubs_landy = true;
+            arm.competition.defense_2c_landy_bba = true;
+            arm.competition.defense_2c_landy_lia = true;
+            arm.competition.defense_2c_landy_weak_2d_cap = cap;
+            arm.competition.landy_texas = texas;
+            crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+        }
+    }
 }
 
 /// The Multi stopper ask is default-off, so probe both opt-in packages

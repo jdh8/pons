@@ -1292,11 +1292,19 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // The GF both-minors family.  N1j: the takeout names the doubleton (so
     // `2♠` is exactly 2=3=4=4) and the splinter names the 0-1; the takeout
     // therefore requires 2+ in the *other* major too, or the splinter would
-    // lose its singleton hands to the cheaper call.  §N1-lia: `2♥` is the
-    // **only** takeout (2+ in both majors — the 2=3=4=4 split dies into it)
-    // and `2♠` is freed for the club rung; the splinters are untouched — Lia's
-    // own 5+5+ leaves a 4-4 hand with a singleton major homeless, ours does
-    // not.
+    // lose its singleton hands to the cheaper call.  §N1-lia frees `2♠` for the club
+    // rung, so `2♥` is the **only** takeout; the splinters are untouched —
+    // Lia's own 5+5+ leaves a 4-4 hand with a singleton major homeless, ours
+    // does not.
+    //
+    // The first build let `2♥` absorb the 2=3=4=4 hands the vanished `2♠`
+    // takeout used to name (`len(♥, 2..)` instead of `2..=2`), and package B's
+    // forensic made it the arm's **worst rung per fired**: −4.074 IMPs plain
+    // NV over 3,069 boards, of which every single one is the merged shape,
+    // ending in a forced `5♣` (−3.832/fired) or `5♦` (−4.324).  The merge is
+    // reverted; an excluded 2=3=4=4 holds four-plus of each minor, at most
+    // five of each and 10+ points, so it re-routes to `3NT`@180/@168 by weight
+    // alone — which is what the base arm reaches on those boards.
     let lia = landy_lia(agreements);
     rules = if lia {
         rules
@@ -1304,7 +1312,7 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
                 Bid::new(2, Strain::Hearts),
                 178,
                 both_minors.clone()
-                    & len(Suit::Hearts, 2..)
+                    & len(Suit::Hearts, 2..=2)
                     & len(Suit::Spades, 2..)
                     & points(10..),
             )
@@ -1354,19 +1362,31 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // asymmetric: the weak `2♦`@140 gives diamonds a cheap natural outlet, so
     // `2NT` narrows to 7+ / a good six / GF, while clubs have nothing below
     // `2NT` and `2♠` stays genuinely two-way (weak or GF; INV bids `3♣`).
+    //
+    // The weak leg's **sixth club is red-only** — package B's forensic priced
+    // the uncontested weak rung by club length and it splits on colour, not on
+    // length alone: exactly five clubs is **+1.405 IMPs/fired white and −0.803
+    // red**, while six (+0.993/+0.668) and seven-plus (+1.849/+1.683) win at
+    // both.  That one cell carried 45% of the arm's whole both-vul
+    // perfect-defense deficit, so the light five-card sign-off keeps its white
+    // traffic and gives up its red — the `over_overcall` free-bid idiom
+    // (`top_honors(x, 2..) | !vulnerable()`) with length as the quality term.
+    // A red 5-card ≤7 hand falls through to `Pass`@0 exactly as it does in the
+    // N1j base, since the invitation above wants 8-9; `vulnerable()` projects
+    // `unknown()`, so the published reading stays "5+ clubs" at both colours.
     rules = if lia {
         rules
             .rule(
                 Bid::new(2, Strain::Spades),
                 174,
-                len(Suit::Clubs, 5..) & (points(..=7) | points(10..)),
+                len(Suit::Clubs, 5..)
+                    & (points(..=7) & (len(Suit::Clubs, 6..) | !vulnerable()) | points(10..)),
             )
             .alert(LANDY_TRANSFER)
             .rule(
                 Bid::new(2, Strain::Notrump),
                 173,
-                len(Suit::Diamonds, 6..)
-                    & (len(Suit::Diamonds, 7..) | top_honors(Suit::Diamonds, 2..) | points(10..)),
+                len(Suit::Diamonds, 6..) & points(2..),
             )
             .alert(LANDY_TRANSFER)
     } else {
@@ -1718,6 +1738,172 @@ fn landy_lia_misfit_rebid(minor: Suit, signoff: Bid) -> Rules {
     landy_bba_transfer_rebid(minor).rule(signoff, 60, points(..=9))
 }
 
+/// The opponents' entries a §N1-lia contested tail is authored against
+///
+/// Every call above `floor` in the band the censused arm actually uses: their
+/// two majors at every level they bid them, plus the two minors at the three
+/// level.  The band stops at `4♠` because nothing above it appears — and it
+/// **includes** the four level, though a first draft stopped at three on the
+/// argument that the floor's delayed double there (47% of `2♠ (4♥)` boards,
+/// 74% of `2♠ (4♠)`) might be right.  Step 0 priced it: those two cells are
+/// −3.434 and −4.268 IMPs/fired, the worst per-fired cells in the whole `2♠`
+/// bucket.  The floor's four-level double is not a judgement it earns; it is
+/// the same blind push one level higher.
+fn landy_lia_entries(floor: Bid) -> impl Iterator<Item = Bid> {
+    [
+        Bid::new(2, Strain::Hearts),
+        Bid::new(2, Strain::Spades),
+        Bid::new(3, Strain::Clubs),
+        Bid::new(3, Strain::Diamonds),
+        Bid::new(3, Strain::Hearts),
+        Bid::new(3, Strain::Spades),
+        Bid::new(4, Strain::Hearts),
+        Bid::new(4, Strain::Spades),
+    ]
+    .into_iter()
+    .filter(move |bid| *bid > floor)
+}
+
+/// Their major, if the call they just made named one
+///
+/// The §N1-lia contested tables key their penalty double on the suit doubled,
+/// and [`LANDY_PENALTY`] publishes length in **their major** — so a minor
+/// entry (`2♠ (3♦)`) and a double take no double of ours under that slug.
+fn their_major(over: Option<Bid>) -> Option<Suit> {
+    over?
+        .strain
+        .suit()
+        .filter(|suit| matches!(suit, Suit::Hearts | Suit::Spades))
+}
+
+/// Opener's seat when they compete over a §N1-lia rung
+/// (`1NT (2♣) 2♠ (3♠)`, `… 2♦ (2♥)`, `… 3♣ (3♥)`, …)
+///
+/// **The measured defect is not that the floor is silent here — it is that the
+/// floor bids.** Censused over package B's own `lia` arm, at opener's seat the
+/// learned floor pushes `4♣` on **72%** of `2♠ (3♠)` boards and **96%** of
+/// `3♣ (3♠)`, `4♦` on 91% of `2♦ (3♥)`, and `3♦` on 91% of `2♦ (2♥)` — every
+/// one of them a level past what the rung promised, since `2♠` may be a bust,
+/// `3♣` is an 8-9 invitation and `2♦` caps at six HCP.  The
+/// `4♣-4♥-5♣-5♦-6♣-6♥` runaways in the arm's worst boards all start there.
+/// Authoring `Pass`@0 is a **decision to sell out**, not a no-op, and it is
+/// the substance of the repair.
+///
+/// Opener's pass is safe by construction, and by the auction's shape rather
+/// than by a game force ([`landy_cue_overcalled`]'s doctrine needed the
+/// latter, which a two-way rung cannot supply): their bid cannot be followed
+/// by three passes without responder speaking again, so nothing responder
+/// holds is stranded, and responder is the seat that knows which half of the
+/// rung it has.
+///
+/// Two calls survive Pass, both only where the rung already promised values —
+/// `values` is true for the natural `3♣`/`3♦` invitations (8-9) and false for
+/// the two-way rungs and the `2♦` escape:
+///
+/// * `accept` — the invitation's own acceptance rung, where their call left
+///   room for it below `3NT`.  It is [`landy_minor_invite_answer`]'s `3NT`
+///   verbatim, so an accept that was available uncontested does not vanish
+///   because they competed.
+/// * `X` — penalty on `len(major, 4..)` and nothing else, the gate
+///   `probe-landy-opener-oracle` measured at opener's *other* seat in this
+///   lane (`1NT (2♣) X (2♥)`): `2Mx` wins every four-plus-trump bucket at both
+///   colours, on a minimum as well as a maximum, with or without a stopper,
+///   while a doubleton loses at every strength.  Two narrowings of that gate
+///   are deliberate and pre-registered as risks — the oracle priced the **two**
+///   level, so this stops at the three; and there responder had shown
+///   `hcp(8..)`, so here it rides only a rung that promises as much.
+fn landy_lia_overcalled(over: Bid, values: bool, agreements: &Agreements) -> Rules {
+    let mut rules = Rules::new();
+    if values {
+        let game = Bid::new(3, Strain::Notrump);
+        if game > over {
+            rules = rules.rule(
+                game,
+                100,
+                stopper_in(Suit::Hearts)
+                    & stopper_in(Suit::Spades)
+                    & hcp(agreements.notrump.size_ask_accept_floor..),
+            );
+        }
+        if let Some(major) = their_major(Some(over)).filter(|_| over.level.get() <= 3) {
+            rules = rules
+                .rule(Call::Double, 90, len(major, 4..))
+                .alert(LANDY_PENALTY)
+                .penalty();
+        }
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's seat when the **overcaller** re-enters over opener's §N1-lia
+/// length answer (`1NT (2♣) 2♠ - 3♣ (3♥)`, `… 2NT - 3♦ (X)`, …)
+///
+/// The seat the campaign doc's "the rest is opponents entering later" names,
+/// and the seat rotation is worth stating because it inverts the obvious
+/// reading: with `O L R A` clockwise, `2♠ - 3♣ (3♥)` indexes O L R A O **L**,
+/// so the hand that re-enters is the **overcaller**, whose partner has already
+/// passed.  It has shown 5-4-or-better in the majors and is bidding shape into
+/// a known 15-17, which is the most double-worthy call in the lane — and
+/// responder, sitting immediately after it, is the hand that plays over it.
+///
+/// Responder is also the only seat that knows which half of the two-way rung
+/// it holds, so unlike [`landy_lia_overcalled`] this table carries the
+/// committing calls:
+///
+/// * `3NT` — the game, on both of the majors they showed, exactly
+///   [`landy_bba_pick_rebid`]'s gate; opener's 15-17 and responder's
+///   `points(10..)` are 25+ between them.
+/// * `X` — penalty, [`LANDY_PENALTY`]'s claim honoured by `len(major, 4..)`,
+///   and gated on **`hcp`** rather than `points` because distribution does not
+///   defend: the `2NT` rung's weak arm reaches `points(10..)` on a seventh
+///   diamond alone, and that hand must not double.
+/// * `4m` — the finite game-forcing catch-all, so the strong half **never
+///   passes**.  This is the "no forcing channel" half of defect 1 stated as a
+///   rung: today 32% of `2♠ - 3♣ (3♥)` boards see the floor push `4♣` with no
+///   strength gate at all and 68% see it pass, game force or not.
+/// * `Pass`@0 — the weak half defends, and the catch-all the guarded
+///   registration requires.
+///
+/// * `signoff` — the misfit leg's escape, [`landy_lia_misfit_rebid`]'s
+///   `signoff`@60 kept alive under interference.  Without it `2♠ - 2NT (X)`
+///   strands the weak arm in a doubled 6-2 notrump it had an authored rescue
+///   from one call earlier: a contested tail must not delete a rung the quiet
+///   tail offers.
+///
+/// `over` is `None` for their double, which names no suit: the penalty rung
+/// drops and the rest stands, [`multi_escape_overcalled`]'s `Option<Bid>`
+/// idiom.
+fn landy_lia_contested_rebid(
+    minor: Suit,
+    floor: Bid,
+    over: Option<Bid>,
+    signoff: Option<Bid>,
+) -> Rules {
+    let game = Bid::new(3, Strain::Notrump);
+    let force = Bid::new(4, Strain::from(minor));
+    let mut rules = Rules::new();
+    if game > floor {
+        rules = rules.rule(
+            game,
+            150,
+            points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        );
+    }
+    if let Some(major) = their_major(over) {
+        rules = rules
+            .rule(Call::Double, 140, hcp(10..) & len(major, 4..))
+            .alert(LANDY_PENALTY)
+            .penalty();
+    }
+    if force > floor {
+        rules = rules.rule(force, 120, points(10..));
+    }
+    if let Some(escape) = signoff.filter(|bid| *bid > floor && *bid < force) {
+        rules = rules.rule(escape, 60, points(..=9));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's answer when the advancer raises over an N1j takeout or splinter
 /// (`1NT (2♣) 2♥ (2♠/3♥/3♠) …`)
 ///
@@ -1941,6 +2127,43 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 &format!("{OVER} {rung}"),
                 &fit.to_string(),
             ));
+            // **Defect 1, the contested surface.**  Every node in this block
+            // was authored `-`-only, so an opponent *bid* anywhere dropped the
+            // rest of the auction to the floor — and the floor does not go
+            // quiet there, it pushes: censused over package B's own arm it
+            // bids `4♣` on 72% of `2♠ (3♠)` boards.  Two seats close it, and
+            // the asymmetry between them is the design: opener cannot know
+            // which half of a two-way rung responder holds, so its table is a
+            // sit ([`landy_lia_overcalled`]); responder does know, so its
+            // table carries every committing call
+            // ([`landy_lia_contested_rebid`]) and, crucially, a finite
+            // game-forcing rung so the strong half is never stranded.
+            let four = Bid::new(4, Strain::from(minor));
+            for over in landy_lia_entries(rung) {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{rung} ({over})")),
+                    landy_lia_overcalled(over, false, agreements),
+                ));
+                // Opener sold out and so did the overcaller: responder, the
+                // seat that knows its half, places the contract.  A new
+                // position — under the unrepaired arm the floor had already
+                // bid over their entry, so it never arose.
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{rung} ({over}) - -")),
+                    landy_lia_contested_rebid(minor, over, Some(over), None),
+                ));
+                // Opener sits for responder's penalty double, and for the
+                // game-forcing `4m` — the rail the §N1o forensic bought:
+                // above a competitive four-level minor this lane's *learned*
+                // floor cue-bids on to `6♥` doubled, and here opener has
+                // published nothing that could make a slam try sound.
+                for tail in ["X", &four.to_string()] {
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{rung} ({over}) - - {tail} -")),
+                        multi_signoff_pass(),
+                    ));
+                }
+            }
             for leg in [fit, short] {
                 let misfit = leg == short;
                 let completed = format!("{rung} - {leg} -");
@@ -1951,12 +2174,59 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                     landy_bba_transfer_rebid(minor)
                 };
                 entries.extend(rows_of(Pattern::after(OVER, &completed), rebid));
-                if misfit {
-                    // The weak sign-off over the doubleton answer: opener sits.
+                // The other half of defect 1, and the larger one: the doc's
+                // "the rest is opponents entering later" is the **overcaller**
+                // re-entering over opener's length answer, its partner having
+                // already passed.  Responder sits immediately after it and is
+                // the seat that knows its half of the rung, so the whole
+                // committing table lives here.  Their double takes no room and
+                // names no suit, so it rides the same table with the penalty
+                // rung dropped — [`multi_escape_overcalled`]'s `Option<Bid>`.
+                for over in landy_lia_entries(leg).map(Some).chain([None]) {
+                    let call = over.map_or_else(|| "X".to_owned(), |bid| bid.to_string());
+                    let answered = format!("{rung} - {leg} ({call})");
                     entries.extend(rows_of(
-                        Pattern::after(OVER, &format!("{completed} {signoff} -")),
-                        multi_signoff_pass(),
+                        Pattern::after(OVER, &answered),
+                        landy_lia_contested_rebid(
+                            minor,
+                            over.unwrap_or(leg),
+                            over,
+                            misfit.then_some(signoff),
+                        ),
                     ));
+                    for tail in ["X", &four.to_string()] {
+                        entries.extend(rows_of(
+                            Pattern::after(OVER, &format!("{answered} {tail} -")),
+                            multi_signoff_pass(),
+                        ));
+                    }
+                }
+                // …and the seat one round later, where responder passed
+                // opener's length answer and the **advancer** balances.  Step
+                // 0 found it costs −5,509 (`2♠ - 3♣ - - (3♥)`) and −2,838
+                // (`… (3♦)`) plain IMPs NV — a third of the club rung's whole
+                // contested deficit, at a node no draft of this repair had
+                // reached.  Opener acts, so it is the sit table, not the
+                // captain's: responder has already refused to compete once.
+                for over in landy_lia_entries(leg) {
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{rung} - {leg} - - ({over})")),
+                        landy_lia_overcalled(over, false, agreements),
+                    ));
+                }
+                if misfit {
+                    // The weak sign-off over the doubleton answer: opener
+                    // sits, and sits through their double of it too — step 0
+                    // priced `2♠ - 2NT - 3♣ (X)` at **−10.0 IMPs/fired**, the
+                    // worst per-fired cell in the club rung outside the
+                    // four-level runaways, on a seat where responder has shown
+                    // at most nine points and opener has nothing to add.
+                    for tail in ["-", "(X)"] {
+                        entries.extend(rows_of(
+                            Pattern::after(OVER, &format!("{completed} {signoff} {tail}")),
+                            multi_signoff_pass(),
+                        ));
+                    }
                 }
                 for (held, asked) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
                     entries.extend(rows_of(
@@ -1971,7 +2241,6 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 // carries the rung; this is its answer and RKCB ladder), on
                 // the fit and misfit legs alike.
                 if agreements.competition.landy_minor_slam_answer {
-                    let four = Bid::new(4, Strain::from(minor));
                     for tail in ["-", "(X)"] {
                         let path = format!("{OVER} {completed} {four} {tail}");
                         entries.extend(rows_of(Pattern::node(&path), landy_slam_answer(minor)));
@@ -1990,6 +2259,47 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("{fit} -")),
                 landy_minor_invite_answer(agreements),
+            ));
+            // …and its contested tail, which the sentence above conceded to
+            // the floor and the census says it should not have.  The
+            // invitations are the ladder's **biggest measured win** (`3♣`
+            // +85,613 IMPs NV / +35,920 BV) and they are contested on ~22% of
+            // their traffic, where the floor answers their major by pushing
+            // `4♣` on 82-96% of boards and answers their *double* by bidding a
+            // phantom `3♦` on 73%.  Their double takes no room, so the
+            // uncontested accept re-registers verbatim (the N1f idiom); their
+            // major gets the accept compressed — the same `3NT` where it still
+            // fits, plus the penalty double the 8-9 promise makes safe.
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{fit} (X)")),
+                landy_minor_invite_answer(agreements),
+            ));
+            for over in landy_lia_entries(fit) {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{fit} ({over})")),
+                    landy_lia_overcalled(over, true, agreements),
+                ));
+                // Responder sits for opener's penalty double; it invited, it
+                // does not get to pull.
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{fit} ({over}) X -")),
+                    multi_signoff_pass(),
+                ));
+            }
+        }
+        // The weak `2♦` escape's own tail, gated with the rest of the package.
+        // It is the lane's most-contested call — 41% of its traffic — and the
+        // one rung that never even had the `(X)` arm, so today every one of
+        // those boards is the floor's, and the floor rebids `3♦` over their
+        // major on 90% of them: a level past what a `hcp(..=6)` sign-off can
+        // stand behind, and a law-of-total-tricks violation on the 5-3 fit it
+        // is usually facing.  Opener sits; responder, one seat later, keeps
+        // the table's game-forcing rung for the hands the lifted cap admits.
+        let escape = Bid::new(2, Strain::Diamonds);
+        for over in landy_lia_entries(escape) {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{escape} ({over})")),
+                landy_lia_overcalled(over, false, agreements),
             ));
         }
     } else {

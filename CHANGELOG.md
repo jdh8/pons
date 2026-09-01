@@ -47,6 +47,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1-lia package B rebuilt on its own forensic; `competition.defense_2c_landy_lia`
+  stays default off pending the A/B** (`scripts/ab-landy-lia-repair.sh`, new).
+  No user-visible behaviour change — every edit is behind the off-by-default
+  knob and `smoke-default --count 20000 --seed 1` is byte-identical against
+  `main` HEAD, verified twice. The ladder measured a loss on 2026-08-31
+  (+0.0050 NV / **−0.0384** BV plain DD) and its forensic named four defects,
+  none of them the concept. All four are now repaired, and **two of the repair
+  plan's three pre-registered decision rules came back inverted** when the
+  divergence sets were re-solved:
+
+  - **The contested tails were unauthored, and the floor that inherited them
+    does not go quiet — it bids.** Censused over the arm's own dumps, at
+    opener's seat the learned floor pushes `4♣` on **72%** of `2♠ (3♠)` boards
+    and **96%** of `3♣ (3♠)`, `4♦` on 91% of `2♦ (3♥)` and `3♦` on 91% of
+    `2♦ (2♥)` — every one a level past what the rung promised, and the source of
+    the `4♣-4♥-5♣-5♦-6♣-6♥` runaways in the arm's worst boards. The surface is
+    now authored at both seats, with the asymmetry as its design: **opener
+    sits** (it cannot know which half of a two-way rung partner holds) and
+    **responder captains** (it can, and it is the seat that plays over the
+    re-entering hand). Two nodes the plan had not named were found by pricing
+    the census and added — their four-level entries (the floor's delayed double
+    there is **−3.4 / −4.3 IMPs per fired**, the worst cells in the bucket) and
+    the balancing seat after responder passes opener's length answer (−8,347
+    plain IMPs NV on the club rung alone).
+  - **The restored invitations split on suit length.** The plan expected the
+    exactly-five cell to be the loser, and its rule ("tighten to six-plus iff
+    exactly-five quiet is negative at both colours") does not fire — but it was
+    aimed at the wrong cell. `3♦` at **six-plus** is negative in all four cells
+    (−0.910 / −0.858 IMPs per fired quiet NV/BV, −4.668 / −4.195 contested),
+    while exactly five is the package's best rung contested (+1.576 / +1.931).
+    So the N1c right-siding trade is settled per length: the natural invitation
+    wins the five-card hand and the transfer's right-siding wins the six. The
+    diamond rung takes every six-carder back (`2NT` = `len(♦, 6..) &
+    points(2..)`, the N1j transfer's own shape gate).
+  - **The starved six was a seam between two floors.** 12,956 of the 14,156
+    passed-out six-card diamond boards hold **0-4 HCP** — below the `2♦`
+    escape's five-HCP floor *and* outside `2NT`'s old quality gate — worth
+    −33,530 plain IMPs NV and −30,610 BV, and the base arm bids on 14,153 of
+    them. The same
+    one-line widening fixes it. The plan's follow-on (lifting the `2♦` cap to
+    `hcp(..=8)`) was **measured to be a no-op and is not built**.
+  - **The weak `2♠` sign-off is vulnerability-dependent**: `points(..=7) &
+    (len(♣, 6..) | !vulnerable())`. Exactly five clubs is +1.405 IMPs/fired
+    white and −0.803 red, while six and seven-plus win at both — and that one
+    cell carried 45% of the arm's whole both-vul perfect-defense deficit.
+  - **The `2♥` takeout's 2=3=4=4 merge is reverted.** Every one of its 3,069
+    divergent boards is the merged shape, at −4.074 IMPs/fired, ending in a
+    forced `5♣` or `5♦`.
+
+  Two repo-hygiene findings shipped with it: `defense_2c_landy_lia` appeared in
+  **no** `assert_package_invariants` sweep, so every §N1-lia row had shipped
+  with no totality, weight-tie or alert check (an arm is now added); and
+  `alert-sites.txt` does **not** move for a lia-gated row, contrary to the
+  repair plan, because all four of its sections are built at the knob's `false`
+  default. Full record, including the one defect deliberately left unrepaired
+  because it is shared with the control arm, in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1-lia
+  package B.
+
 - **§N1-lia package D measured a non-win; `competition.landy_notrump_no_major`
   stays default off** (`ab-landy-nt-remeasure.sh`, seed 1788191041, control
   `60115871`, 4.6M boards/arm/vul, both isolation gates 0-foreign). No

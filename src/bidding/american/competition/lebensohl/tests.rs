@@ -4,7 +4,7 @@ use super::super::tests::{
 };
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Call, RelativeVulnerability};
 
 #[test]
 fn lebensohl_forcing_three_level_is_a_book_node() {
@@ -1041,12 +1041,12 @@ fn landy_white_arm() -> Agreements {
     arm
 }
 
-/// The doubler's rebid seat with a vulnerability, which
-/// [`best_call_with`] pins to `NONE`
+/// A seat in this lane with a vulnerability, which [`best_call_with`] pins to
+/// `NONE`
 ///
-/// The `white` arm's constructive rungs are the only ones in this lane that
-/// read the context's vulnerability, so they are the only thing that needs
-/// this.
+/// Two rungs read the context's colour: §N1l's `white` arm's constructive
+/// rungs, and (since the §N1-lia package B repair) the weak `2♠` leg, whose
+/// fifth club is white-only.
 fn best_call_vul(
     agreements: &Agreements,
     vul: contract_bridge::auction::RelativeVulnerability,
@@ -1737,8 +1737,12 @@ fn landy_lia_re_rungs_the_minor_ladder() {
         "the weak natural 2♦ is untouched",
     );
 
-    // The 2=3=4=4 game force: N1j names the doubleton with 2♠; lia's only
-    // takeout is 2♥, so the split dies into it.
+    // The 2=3=4=4 game force: N1j names the spade doubleton with `2♠`, and
+    // lia has spent `2♠` on the club rung.  The first build let `2♥` absorb
+    // the shape and it became the arm's worst rung per fired (−4.074 IMPs,
+    // every one of the 3,069 divergent boards this shape, ending in a forced
+    // `5m`), so `2♥` keeps N1j's exact heart doubleton and the merged hands
+    // re-route to `3NT` by weight — which is where the base arm plays them.
     let two_suiter = "32.432.AQ32.KQ32";
     assert_eq!(
         bid_landy_bba(true, &direct, two_suiter).0,
@@ -1746,8 +1750,151 @@ fn landy_lia_re_rungs_the_minor_ladder() {
         "the shipped ladder names the spade doubleton",
     );
     let (c, floored) = bid_landy_lia(&direct, two_suiter);
-    assert_eq!(c, call(2, Strain::Hearts), "lia's takeout absorbs it");
+    assert_eq!(c, call(3, Strain::Notrump), "lia re-routes it to the game");
+    assert!(!floored, "and the re-route is authored, not the floor's");
+    let (c, floored) = bid_landy_lia(&direct, "432.32.AQ32.KQ32");
+    assert_eq!(
+        c,
+        call(2, Strain::Hearts),
+        "the heart doubleton still takes out"
+    );
     assert!(!floored);
+}
+
+/// §N1-lia package B repair, defect 1: the contested surface
+///
+/// Every lia node used to require the opponents to have passed, and the
+/// learned floor that inherited the rest does not go quiet there — censused
+/// over package B's own arm it pushes `4♣` on 72% of `2♠ (3♠)` boards and 96%
+/// of `3♣ (3♠)`, and `3♦` on 91% of `2♦ (2♥)`.  Two seats close it, and the
+/// asymmetry is the design: opener cannot know which half of a two-way rung
+/// responder holds, so it sits; responder does know, so it carries the game,
+/// the penalty double and a finite game-forcing rung.
+#[test]
+fn landy_lia_authors_the_contested_surface() {
+    let arm = landy_lia_arm();
+    let nt = call(1, Strain::Notrump);
+    let landy = call(2, Strain::Clubs);
+
+    // Opener sits over their entry, even holding four of the major they bid:
+    // the rung was two-way, so every constructive call is a guess and the
+    // guess the floor makes is the `4♣` that started the arm's runaways.
+    let jammed = [nt, landy, call(2, Strain::Spades), call(3, Strain::Spades)];
+    let (c, floored) = best_call_with(&arm, &jammed, "AQ42.KJ9.KQ6.T83");
+    assert_eq!(c, Call::Pass, "opener sells out over their raise");
+    assert!(!floored, "and the sit is authored, not the floor's push");
+
+    // Responder is the captain: the game force always has a call, and the
+    // weak half defends.
+    let entered = [
+        nt,
+        landy,
+        call(2, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        call(3, Strain::Hearts),
+    ];
+    let (c, floored) = best_call_with(&arm, &entered, "KQ5.KJ7.84.AJT96");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "both majors stopped is the game"
+    );
+    assert!(!floored, "responder's seat must come from the book");
+    assert_eq!(
+        best_call_with(&arm, &entered, "KQ5.7.K84.AJT962").0,
+        call(4, Strain::Clubs),
+        "and a stopperless game force still has a forcing rung",
+    );
+    assert_eq!(
+        best_call_with(&arm, &entered, "952.7.J843.QT962").0,
+        Call::Pass,
+        "the weak half defends",
+    );
+    assert_eq!(
+        best_call_with(&arm, &entered, "5.KJ98.K84.AJT96").0,
+        Call::Double,
+        "no spade stopper and four of their major: take the money",
+    );
+
+    // Their double of opener's doubleton answer must not delete the escape
+    // the undoubled table offers one call earlier.
+    let doubled = [
+        nt,
+        landy,
+        call(2, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Double,
+    ];
+    let (c, floored) = best_call_with(&arm, &doubled, "J5.73.862.KQ9743");
+    assert_eq!(
+        c,
+        call(3, Strain::Clubs),
+        "the weak arm still runs to its suit"
+    );
+    assert!(!floored, "the escape is authored under the double too");
+
+    // The natural invitation keeps its acceptance under interference, and
+    // gains the penalty double its 8-9 promise makes safe.
+    let invited = [nt, landy, call(3, Strain::Clubs), call(3, Strain::Hearts)];
+    assert_eq!(
+        best_call_with(&arm, &invited, "A54.KQ42.A95.K32").0,
+        call(3, Strain::Notrump),
+        "a maximum with both majors stopped still accepts",
+    );
+    let (c, floored) = best_call_with(&arm, &invited, "T54.KQJ2.A95.K32");
+    assert_eq!(
+        c,
+        Call::Double,
+        "no spade stopper, four hearts: take the money"
+    );
+    assert!(!floored, "the invitation's contested tail is authored");
+}
+
+/// §N1-lia package B repair, defect 2: the weak `2♠` leg needs a sixth club
+/// when vulnerable
+///
+/// Package B's forensic priced the uncontested weak rung by club length and it
+/// splits on *colour*, not on length alone — exactly five clubs is +1.405
+/// IMPs/fired white and −0.803 red, while six and seven-plus win at both.  So
+/// the weak leg is `points(..=7) & (len(♣, 6..) | !vulnerable())`: unchanged
+/// white, six-plus red.  Every other `bid_landy_lia` test runs at
+/// [`RelativeVulnerability::NONE`], so this is the one that has to name the
+/// colour ([`best_call_vul`]).
+#[test]
+fn landy_lia_weak_club_rung_wants_a_sixth_club_when_vulnerable() {
+    let arm = landy_lia_arm();
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let five = "432.32.432.KJ543";
+    let six = "432.32.43.KJ5432";
+    let force = "A2.32.A32.KQJ432";
+
+    for (hand, red, why) in [
+        (
+            five,
+            false,
+            "a light five-card sign-off is profitable white",
+        ),
+        (six, true, "six clubs ride the rung at both colours"),
+        (
+            force,
+            true,
+            "and the game force is not a discipline question",
+        ),
+    ] {
+        assert_eq!(
+            best_call_vul(&arm, RelativeVulnerability::NONE, &direct, hand),
+            call(2, Strain::Spades),
+            "white: {why}",
+        );
+        let c = best_call_vul(&arm, RelativeVulnerability::WE, &direct, hand);
+        if red {
+            assert_eq!(c, call(2, Strain::Spades), "red: {why}");
+        } else {
+            assert_ne!(c, call(2, Strain::Spades), "red: {why}, and ruinous red");
+        }
+    }
 }
 
 /// §N1-lia's minor rungs: opener answers by length, no forced completion
