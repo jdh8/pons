@@ -389,8 +389,29 @@ The portability dream. Last, because it needs the most prerequisites.
   through its one-hot, so natural meaning is learned from call identity as BEN
   does. Pinned by `per_call_is_empty_where_the_natural_walk_reads`.
 
-  **Owed:** the corpus dump, the fidelity gate against an equal-data MLP
-  control, then the A/B. The floor shell, the five sibling factories and
+  **Corpus dumped 2026-09-03** (`scripts/dump-v7.sh`,
+  `target/corpus-v7`): 20 shards, 6,767,120 rows, one
+  `git_sha` throughout — `load_mixture` bails when a mixture's shas disagree,
+  so **nothing may be committed while a dump runs**. Every `.seq` is exactly
+  `rows x 1121` B. Step histogram over the whole corpus: mean 5.66 prior calls,
+  0.75% of decisions sitting at the `T = 20` cap, of which ~0.47pp is real
+  truncation — about 3x the 0.14% the `bba-gen` sample predicted, the replay
+  cells and enriched draws being deeper than a plain deal draw.
+
+  **Byte-identity is per commit, and that bit us.** A v7 dump reproduces a v6
+  dump *at the same HEAD*; the corpus-v6 on disk was dumped 2026-08-18 at
+  `2931a2df`, and the book has moved since, so corpus-v7 is 1,159 rows shorter
+  and differs in every shard. The equal-data control is therefore `--arch mlp`
+  on the **v7** stems, not the shipped v6 artifact's recorded numbers. Running
+  the v6 stems through the refactored trainer anyway was worth one GPU-hour as
+  a regression check: val_ce 0.3007, top1 89.3% (constructive 88.9%, contested
+  89.6%) against the shipped artifact's 0.30098 / 89.28% / 88.90% / 89.50% —
+  reproduced to within cross-GPU rounding (that run was on the 4070 Ti, the
+  original on the 4090), so `--arch mlp` survived the refactor.
+
+  **Owed:** the fidelity gate (both arms training 2026-09-03, LSTM on GPU 0 and
+  the control on GPU 1, `--init-seed 1`, 300 epochs, identical 6,090,405/676,715
+  split), then the A/B. The floor shell, the five sibling factories and
   `american_v7` are deliberately **not** built yet — they need a trained
   artifact to `include_bytes!`, and a placeholder would be dead weight.
 - ⬜ **M5.3 Meaning encoder.** Embed each prior call's text description as a

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 
 BIN=target/release/examples/dump-evaluator
 BANK=/nfs2/jdh8/pons/22.pdd
-OUT=target/corpus-eval-v5
+OUT=${DUMP_OUT:-target/corpus-eval-v5}
 mkdir -p "$OUT"
 
 if [ ! -s "$OUT/train.json" ]; then

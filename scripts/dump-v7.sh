@@ -8,13 +8,12 @@
 # `.f32` this writes is byte-identical to corpus-v6's, so the control is the
 # same stems trained with --arch mlp.  Registered in docs/pdd-bank-ledger.md.
 #
-# Output is local, beside corpus-v6, because /nfs2/jdh8 is READ-ONLY from this
-# box: the tree is owned by jdh8's LDAP uid (133017) and this host runs him as
-# uid 1016, so the bank reads fine and nothing can be written back.  That costs
-# ~13.6 GB of a 99%-full disk (~7.6 GB of `.seq` on top of ~6.0 GB of `.f32`),
-# leaving ~30 GB.  Once the `.f32` files are `cmp`-verified against corpus-v6's,
-# hardlinking them onto their v6 twins reclaims the 6.0 GB — same filesystem,
-# byte-identical by construction.
+# Output goes to target/corpus-v7 like every other dump script.  This dump is
+# ~13.6 GB (~7.6 GB of `.seq` on top of ~6.0 GB of `.f32`), so on a box where
+# `/` is tight, point target/corpus-v7 at a data disk with a symlink (or set
+# DUMP_OUT).  Not /nfs2/jdh8: it is read-only from this box, its tree being
+# owned by jdh8's LDAP uid (133017) while this host runs him as uid 1016, so
+# the bank reads fine and nothing writes back.
 set -eu
 cd "$(dirname "$0")/.."
 
