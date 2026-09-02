@@ -1208,3 +1208,264 @@ fn features_v6_keeps_points_and_support_axes_separate() {
         &features[spades_at..spades_at + 2]
     );
 }
+
+// ── v7 sequence tokens ───────────────────────────────────────────────────────
+
+/// The default partnership and its compact cell — every v7 token test wants
+/// the same pair, and `bind` returns an owned `Partnership`, so the caller can
+/// simply hold both and borrow a context off them.
+fn v7_table() -> (crate::bidding::book::Partnership, CompactConfig) {
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, false));
+    (crate::american(&agreements).bind(), compact)
+}
+
+#[test]
+fn v7_token_layout_is_pinned() {
+    assert_eq!(LEN_INFERENCE_V6, 18);
+    assert_eq!(CALL_VARIANTS, 38);
+    assert_eq!(TOKEN_BYTES_V7, 56);
+    assert_eq!(TOKEN_LEN_V7, 98);
+    assert_eq!(SEQ_ROW_BYTES_V7, 1121);
+    assert_eq!(STATIC_LEN_V7, FEATURES_LEN_V6);
+
+    // The flag byte: two seat bits, then authored, then artificial.
+    let token = CallToken::new(Call::Pass, Relative::Partner, true, false);
+    assert_eq!(token.0[1], 2 | 0b100);
+    assert_eq!(token.seat(), Relative::Partner);
+    assert!(token.authored());
+    assert!(!token.artificial());
+
+    // ⊤ is the `[0, 1]` pattern per axis, never zeros — the same convention
+    // `push_inference` documents for the static block.
+    let floats = CallToken::new(Call::Pass, Relative::Me, false, false).floats();
+    let ends = &floats[4 + CALL_VARIANTS + 2..];
+    for block in 0..=BOXES_V7 {
+        let at = block * LEN_INFERENCE_V6;
+        for suit in 0..4 {
+            assert_eq!(ends[at + 2 * suit], 0.0);
+            assert_eq!(ends[at + 2 * suit + 1], 1.0);
+        }
+        for pair in 4..9 {
+            assert_eq!(ends[at + 2 * pair], 0.0);
+            assert_eq!(ends[at + 2 * pair + 1], 1.0);
+        }
+    }
+}
+
+#[test]
+fn v7_token_seats_are_actor_relative() {
+    // Four prior calls: the newest is RHO, then partner, then LHO, then me.
+    let (partnership, compact) = v7_table();
+    let auction = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let tokens = call_tokens_v7(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact),
+    );
+    assert_eq!(tokens.len(), 4);
+    let seats: Vec<Relative> = tokens.iter().map(CallToken::seat).collect();
+    assert_eq!(
+        seats,
+        [
+            Relative::Me,
+            Relative::Lho,
+            Relative::Partner,
+            Relative::Rho
+        ]
+    );
+    // The call one-hot names the call that was actually made.
+    for (token, &call) in tokens.iter().zip(&auction) {
+        assert_eq!(token.0[0] as usize, encode_call(call));
+        assert_eq!(token.floats()[4 + encode_call(call)], 1.0);
+    }
+}
+
+#[test]
+fn v7_token_endpoints_match_push_inference_v6_bit_for_bit() {
+    // The whole point of the byte encoding: a token's hull block must reach the
+    // net on exactly the scale `features_v6` puts the same envelope on.
+    let (partnership, compact) = v7_table();
+    let auction = [bid(1, Strain::Notrump), Call::Pass, bid(2, Strain::Hearts)];
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &auction)
+        .with_compact(&compact);
+    let tokens = call_tokens_v7(&context);
+    let inferences = context.inferences();
+
+    for (slot, token) in tokens.iter().enumerate() {
+        let Some(union) = inferences.call_union(slot) else {
+            continue;
+        };
+        let mut reference = Vec::new();
+        push_inference_v6(&mut reference, false, &union.hull());
+        let floats = token.floats();
+        let at = 4 + CALL_VARIANTS + 2;
+        assert_feature_bits::<LEN_INFERENCE_V6>(
+            floats[at..at + LEN_INFERENCE_V6]
+                .try_into()
+                .expect("one inference block"),
+            reference,
+        );
+    }
+}
+
+#[test]
+fn v7_a_single_box_union_repeats_its_hull() {
+    // Most readings are one box, where `hull() == boxes()[0]` by construction
+    // (`hull` folds `span` over one term).  The redundancy is deliberate: it is
+    // what makes a ⊤ in the box-2 slot mean "no second arm" rather than noise.
+    let (partnership, compact) = v7_table();
+    let auction = [bid(1, Strain::Spades), Call::Pass];
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &auction)
+        .with_compact(&compact);
+    let inferences = context.inferences();
+    for (slot, token) in call_tokens_v7(&context).iter().enumerate() {
+        if inferences
+            .call_union(slot)
+            .is_none_or(|union| union.boxes().len() != 1)
+        {
+            continue;
+        }
+        let at = 2;
+        assert_eq!(
+            token.0[at..at + LEN_INFERENCE_V6],
+            token.0[at + LEN_INFERENCE_V6..at + 2 * LEN_INFERENCE_V6],
+            "a one-box union's hull and box 1 must agree"
+        );
+    }
+}
+
+#[test]
+fn v7_tokens_keep_the_most_recent_calls() {
+    // A long competitive auction: past the cap, the head is dropped and every
+    // lookup still keys off the absolute auction index.
+    let (partnership, compact) = v7_table();
+    let mut auction = vec![bid(1, Strain::Clubs)];
+    for level in 1..=6 {
+        for strain in [Strain::Diamonds, Strain::Hearts, Strain::Spades] {
+            auction.push(bid(level, strain));
+        }
+        auction.push(bid(level + 1, Strain::Clubs));
+    }
+    assert!(auction.len() > MAX_STEPS_V7);
+    let len = auction.len();
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &auction)
+        .with_compact(&compact);
+    let tokens = call_tokens_v7(&context);
+
+    assert_eq!(tokens.len(), MAX_STEPS_V7);
+    let first = len - MAX_STEPS_V7;
+    for (slot, token) in tokens.iter().enumerate() {
+        let index = first + slot;
+        assert_eq!(token.0[0] as usize, encode_call(auction[index]));
+        assert_eq!(token.seat(), relative_of(len, index));
+    }
+
+    let row = seq_row_v7(&tokens);
+    assert_eq!(row[0] as usize, MAX_STEPS_V7);
+    assert_eq!(row.len(), SEQ_ROW_BYTES_V7);
+    assert_eq!(&row[1..1 + TOKEN_BYTES_V7], &tokens[0].0);
+}
+
+#[test]
+fn v7_seq_row_zero_pads_a_short_auction() {
+    let (partnership, compact) = v7_table();
+    let auction = [bid(1, Strain::Spades), Call::Pass];
+    let tokens = call_tokens_v7(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact),
+    );
+    let row = seq_row_v7(&tokens);
+    assert_eq!(row[0], 2);
+    assert!(
+        row[1 + 2 * TOKEN_BYTES_V7..].iter().all(|&b| b == 0),
+        "the tail past `steps` tokens is zero"
+    );
+    // An empty auction is a legal decision (the dealer's) and yields no tokens.
+    assert!(
+        call_tokens_v7(
+            &partnership
+                .prefixed_context(RelativeVulnerability::NONE, &[])
+                .with_compact(&compact)
+        )
+        .is_empty()
+    );
+    assert_eq!(seq_row_v7(&[])[0], 0);
+}
+
+#[test]
+fn v7_seq_row_steps_byte_is_authoritative() {
+    // The padding is NOT inert: an LSTM run over zero tokens keeps updating its
+    // state, so a reader that ignores the step count and feeds all
+    // `MAX_STEPS_V7` tokens gets different logits.  Measured against a real
+    // candle export, doing so moved 4 of 8 arg-maxes.  The count byte is the
+    // contract; this pins the round trip.
+    let (partnership, compact) = v7_table();
+    let auction = [bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Spades)];
+    let tokens = call_tokens_v7(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact),
+    );
+    let row = seq_row_v7(&tokens);
+    let steps = row[0] as usize;
+    assert_eq!(steps, tokens.len());
+    for (slot, token) in tokens.iter().enumerate() {
+        let at = 1 + slot * TOKEN_BYTES_V7;
+        assert_eq!(
+            CallToken(row[at..at + TOKEN_BYTES_V7].try_into().expect("one token")),
+            *token,
+            "token {slot} must survive the round trip"
+        );
+    }
+    // A padded slot decodes to a Pass by nobody with a ⊤ reading — legal-looking
+    // and therefore silent if consumed by mistake, which is why the count rules.
+    let pad_at = 1 + steps * TOKEN_BYTES_V7;
+    let pad = CallToken(
+        row[pad_at..pad_at + TOKEN_BYTES_V7]
+            .try_into()
+            .expect("one token"),
+    );
+    assert_eq!(pad.0[0] as usize, encode_call(Call::Pass));
+    assert!(!pad.authored() && !pad.artificial());
+}
+
+#[test]
+fn v7_blind_inference_blanks_every_reading_channel() {
+    let (partnership, compact) = v7_table();
+    let auction = [bid(1, Strain::Notrump), Call::Pass, bid(2, Strain::Hearts)];
+    let blind = DecisionProfile {
+        blind_inference: true,
+        ..DecisionProfile::default()
+    };
+    let seeing = call_tokens_v7(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact),
+    );
+    let blinded = call_tokens_v7(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact)
+            .with_profile(blind),
+    );
+    assert_eq!(seeing.len(), blinded.len());
+    let topped = CallToken::new(Call::Pass, Relative::Me, false, false);
+    for (token, seen) in blinded.iter().zip(&seeing) {
+        assert_eq!(token.0[..2], seen.0[..2], "the call and flags stay visible");
+        assert_eq!(token.0[2..], topped.0[2..], "the reading channel is ⊤");
+    }
+    assert!(
+        seeing.iter().any(|t| t.0[2..] != topped.0[2..]),
+        "the unblinded control must actually read something"
+    );
+}

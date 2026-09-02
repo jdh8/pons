@@ -14,7 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6};
+use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6, TOKEN_LEN_V7};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -171,6 +171,99 @@ static WEIGHTS_BBA_V6_THEIR: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BB
 pub fn classify_bba_v6_their(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
     forward::<IN_V6>(&WEIGHTS_BBA_V6_THEIR, features)
+}
+
+// ── The v7 sequence floor: an LSTM auction encoder feeding the v6 head ───────
+//
+// `features_v6` flattens the auction into strain bitmasks plus cumulative
+// hulls, so a transfer `2♠` and a natural `2♠` reach the net as the same float.
+// v7 keeps that vector as a *static* block and prepends a recurrence over one
+// token per prior call, each carrying the call plus the box union its authoring
+// rule projected (`features::call_tokens_v7`).  The LSTM is a pure auction
+// encoder: its final hidden state is concatenated with the static block and the
+// pair is run through the very same two-hidden-layer MLP as v6, so `forward`
+// below is reused verbatim for the head.
+//
+// See `docs/ai-bidder/plan.md` M5.2.
+
+/// Hidden width of the v7 LSTM (`h` and `c` are each this wide).
+const HL: usize = 128;
+/// One token's expanded width — what the recurrence reads per step.
+const TOK: usize = TOKEN_LEN_V7;
+/// The four gate blocks (`i`, `f`, `g̃`, `o`) share one affine map.
+const G: usize = 4 * HL;
+/// The head reads the final hidden state concatenated with the v6 vector.
+const IN_HEAD: usize = HL + IN_V6;
+
+/// Float count of a v7 net: the LSTM's two weight matrices and two biases, then
+/// the head MLP.  Mirrors `PARAM_NAMES_LSTM`'s order in `trainer/`.
+#[must_use]
+pub const fn total_lstm() -> usize {
+    G * TOK + G * HL + 2 * G + total(IN_HEAD)
+}
+
+fn sigmoid(x: f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+}
+
+/// Evaluate a v7 sequence net: `tokens` (oldest first, from
+/// [`call_tokens_v7`][super::features::call_tokens_v7]) plus the v6 static
+/// block → 38 logits.
+///
+/// One step is candle's `LSTM::step` exactly: `g = x·W_ihᵀ + b_ih + h·W_hhᵀ +
+/// b_hh`, chunked into four 128-wide blocks in candle's order — **`i`, `f`,
+/// `g̃`, `o`** — then `c ← σ(f)∘c + σ(i)∘tanh(g̃)` and `h ← σ(o)∘tanh(c)`.  An
+/// empty `tokens` leaves the zero state, which is exactly what the trainer's
+/// `gather` at index `len` returns for a row with no prior calls.
+///
+/// Weights arrive as an argument rather than an embedded artifact, so a floor
+/// can be pointed at any trained blob — including before one is embedded, which
+/// is what lets this be tested against a candle fixture with no shipped net.
+///
+/// The state is rebuilt from scratch on every decision — no incremental cache.
+/// At ten steps that is ~1.3M MACs, roughly 11× v6 and still tens of
+/// microseconds.
+///
+/// # Panics
+///
+/// Panics if `weights` is not [`total_lstm`] floats, or `features` is not the
+/// pinned v6 width.
+// ponytail: scalar `exp`/`tanh` and a from-scratch state per decision; the
+// upgrade path if this ever shows on a profile is to cache `(h, c)` per auction
+// prefix in `Context`, which is a `docs/bidding-performance-handoff.md` change,
+// not a numerics one.
+#[must_use]
+pub fn classify_lstm(weights: &[f32], features: &[f32], tokens: &[[f32; TOKEN_LEN_V7]]) -> Logits {
+    assert_eq!(weights.len(), total_lstm(), "expected a v7 weights blob");
+    assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
+    let x = features;
+    let (w_ih, rest) = weights.split_at(G * TOK);
+    let (w_hh, rest) = rest.split_at(G * HL);
+    let (b_ih, rest) = rest.split_at(G);
+    let (b_hh, head) = rest.split_at(G);
+
+    let mut h = SVector::<f32, HL>::zeros();
+    let mut c = SVector::<f32, HL>::zeros();
+    for token in tokens {
+        let input = SVectorView::<f32, TOK>::from_slice(token).into_owned();
+        // The two biases are summed, not applied once: candle adds `b_ih` to the
+        // input branch and `b_hh` to the hidden branch, and the branches are
+        // then added — so the gate pre-activation carries both.
+        let gates = affine::<G, TOK>(w_ih, b_ih, &input) + affine::<G, HL>(w_hh, b_hh, &h);
+        for i in 0..HL {
+            let input_gate = sigmoid(gates[i]);
+            let forget = sigmoid(gates[HL + i]);
+            let cell = gates[2 * HL + i].tanh();
+            let output = sigmoid(gates[3 * HL + i]);
+            c[i] = forget * c[i] + input_gate * cell;
+            h[i] = output * c[i].tanh();
+        }
+    }
+
+    let mut joined = [0.0; IN_HEAD];
+    joined[..HL].copy_from_slice(h.as_slice());
+    joined[HL..].copy_from_slice(x);
+    forward::<IN_HEAD>(head, &joined)
 }
 
 #[cfg(test)]

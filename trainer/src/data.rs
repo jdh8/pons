@@ -7,6 +7,12 @@
 //! below mirror `pons::bidding::features` and `bidding::array`; they are
 //! asserted against the sidecar so a layout/version drift fails loudly here
 //! rather than silently training on garbage.
+//!
+//! A v7 dump adds a third sibling, `<stem>.seq`: `rows` fixed-size rows of
+//! `1 + max_steps * token_bytes` bytes holding the auction as a token sequence
+//! (`[steps u8][token…][zero pad]`, oldest call first). Its geometry lives in
+//! the sidecar's `seq` block, so the loader never hard-codes 20/56/1121; a
+//! dump without the block loads exactly as before and leaves `seq_row == 0`.
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -23,6 +29,26 @@ pub const SOFTMAX_LEN: usize = 38;
 /// `features_len` is read from the dump sidecar and the model input is sized
 /// from it, so every supported version trains unchanged.
 pub const SUPPORTED_FEATURE_VERSIONS: [u32; 6] = [1, 2, 3, 4, 5, 6];
+
+/// The sidecar's `seq` block: the geometry of the `.seq` sibling. Absent (or
+/// `null`) on every dump before the LSTM corpus, which is what makes the
+/// sequence channel optional rather than a version bump.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SeqMeta {
+    /// Token-spec version (7 for the first LSTM corpus).
+    pub version: u32,
+    /// Tokens stored per row; rows shorter than this are right-padded with zeros.
+    pub max_steps: usize,
+    /// Box-union endpoints per token beyond the hull (2 today).
+    pub boxes: usize,
+    /// Bytes per token (`2 + (1 + boxes) * 18` = 56 today).
+    pub token_bytes: usize,
+    /// Bytes per `.seq` row (`1 + max_steps * token_bytes` = 1121 today).
+    pub row_bytes: usize,
+    /// Human-readable field order, carried for forensics only.
+    #[serde(default)]
+    pub layout: String,
+}
 
 /// Fields of the teacher-dump JSON sidecar that we care about (serde ignores
 /// the rest).
@@ -70,6 +96,9 @@ pub struct Meta {
     /// twin — same `conv`, same everything but row count.
     #[serde(default)]
     pub mix_kickback: bool,
+    /// Geometry of the optional `.seq` sibling; `None` on a dump that has none.
+    #[serde(default)]
+    pub seq: Option<SeqMeta>,
 }
 
 /// A loaded teacher dataset, rows still in dump order (board-by-board).
@@ -83,6 +112,14 @@ pub struct Dataset {
     pub dd: Vec<f32>,
     /// One tag per row: `1` = contested phase, `0` = constructive.
     pub tags: Vec<u8>,
+    /// `rows * seq_row` bytes, row-major: the auction token sequence, still
+    /// packed as it sits on disk. Empty when the dump has no `.seq` sibling.
+    /// Deliberately *not* expanded to `f32` here: at 1121 B/row the packed form
+    /// is 7.6 GB for the v7 corpus and the `f32` form would be 30×that, so the
+    /// trainer keeps it on the host and expands one minibatch at a time.
+    pub seq: Vec<u8>,
+    /// Bytes per `.seq` row, `0` when absent.
+    pub seq_row: usize,
     pub rows: usize,
     /// Feature-vector length for this dump, read from the sidecar (160 for v1).
     pub features_len: usize,
@@ -92,11 +129,18 @@ pub struct Dataset {
 }
 
 impl Dataset {
-    /// Load `<stem>.f32`, `<stem>.json`, and (optionally) `<stem>.tags`.
-    pub fn load(stem: &str) -> Result<Self> {
+    /// Load `<stem>.f32`, `<stem>.json`, and (optionally) `<stem>.tags` and
+    /// `<stem>.seq`.
+    ///
+    /// `want_seq` gates the sequence channel: `false` leaves `seq_row == 0` even
+    /// on a dump that has one. The MLP control trains on the *same* stems as the
+    /// LSTM, and at 1121 B/row the `.seq` sibling is ~7.6 GB it would never
+    /// read — on a shared box, twice, if the two arms run concurrently.
+    pub fn load(stem: &str, want_seq: bool) -> Result<Self> {
         let json_path = format!("{stem}.json");
         let f32_path = format!("{stem}.f32");
         let tags_path = format!("{stem}.tags");
+        let seq_path = format!("{stem}.seq");
 
         let meta: Meta = serde_json::from_slice(
             &std::fs::read(&json_path).with_context(|| format!("reading sidecar {json_path}"))?,
@@ -161,12 +205,15 @@ impl Dataset {
         }
 
         let tags = load_tags(&tags_path, rows)?;
+        let (seq, seq_row) = load_seq(&seq_path, rows, meta.seq.as_ref(), want_seq)?;
 
         Ok(Self {
             features,
             targets,
             dd,
             tags,
+            seq,
+            seq_row,
             rows,
             features_len,
             dd_len,
@@ -196,30 +243,43 @@ impl Dataset {
 ///
 /// One dump round-robins with itself, i.e. is returned unchanged, so this is
 /// the single code path.
-pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Dataset, usize)> {
+pub fn load_mixture(
+    stems: &[String],
+    val_frac: f64,
+    block: usize,
+    want_seq: bool,
+) -> Result<(Dataset, usize)> {
     let [first, rest @ ..] = stems else {
         bail!("no --data given");
     };
     let dumps = std::iter::once(first)
         .chain(rest)
-        .map(|stem| Dataset::load(stem))
+        .map(|stem| Dataset::load(stem, want_seq))
         .collect::<Result<Vec<_>>>()?;
 
     // A mixture is only a mixture if the rows are commensurable (same layout and meaning).
     let head = &dumps[0];
     for (stem, d) in stems.iter().zip(&dumps).skip(1) {
-        if (d.meta.feature_version, d.features_len, d.dd_len)
-            != (head.meta.feature_version, head.features_len, head.dd_len)
+        if (d.meta.feature_version, d.features_len, d.dd_len, d.seq_row)
+            != (
+                head.meta.feature_version,
+                head.features_len,
+                head.dd_len,
+                head.seq_row,
+            )
         {
             bail!(
-                "dump {stem} is feature v{} ({} features, dd {}) but {} is v{} ({} features, dd {})",
+                "dump {stem} is feature v{} ({} features, dd {}, seq row {}) but {} is v{} \
+                 ({} features, dd {}, seq row {})",
                 d.meta.feature_version,
                 d.features_len,
                 d.dd_len,
+                d.seq_row,
                 stems[0],
                 head.meta.feature_version,
                 head.features_len,
-                head.dd_len
+                head.dd_len,
+                head.seq_row
             );
         }
         if (
@@ -255,6 +315,7 @@ pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Da
         .collect();
 
     let (features_len, dd_len) = (dumps[0].features_len, dumps[0].dd_len);
+    let seq_row = dumps[0].seq_row;
     let rows: usize = dumps.iter().map(|d| d.rows).sum();
     let ntrain: usize = ntrain_each.iter().sum();
 
@@ -263,6 +324,8 @@ pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Da
         targets: Vec::with_capacity(rows * SOFTMAX_LEN),
         dd: Vec::with_capacity(rows * dd_len),
         tags: Vec::with_capacity(rows),
+        seq: Vec::with_capacity(rows * seq_row),
+        seq_row,
         rows,
         features_len,
         dd_len,
@@ -299,7 +362,8 @@ pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Da
 
 impl Dataset {
     /// Append rows `[from, from + n)` of `src` — every parallel array at once, so
-    /// features, targets, DD and tags cannot drift out of correspondence.
+    /// features, targets, DD, tags and the token sequence cannot drift out of
+    /// correspondence.
     fn push_rows(&mut self, src: &Dataset, from: usize, n: usize) {
         let w = self.features_len;
         self.features
@@ -311,7 +375,57 @@ impl Dataset {
             self.dd.extend_from_slice(&src.dd[from * d..(from + n) * d]);
         }
         self.tags.extend_from_slice(&src.tags[from..from + n]);
+        if self.seq_row > 0 {
+            let r = self.seq_row;
+            self.seq
+                .extend_from_slice(&src.seq[from * r..(from + n) * r]);
+        }
     }
+}
+
+/// Read the packed auction-token sidecar, or return an empty channel when the
+/// caller does not want it or the dump's JSON carries no `seq` block.
+///
+/// Three checks, because a shard killed mid-write is otherwise indistinguishable
+/// from a short corpus: the layout the sidecar *describes*
+/// (`1 + max_steps * token_bytes`) must equal the `row_bytes` it *claims*, and
+/// the file must be exactly `rows` of those.
+fn load_seq(
+    path: &str,
+    rows: usize,
+    meta: Option<&SeqMeta>,
+    want: bool,
+) -> Result<(Vec<u8>, usize)> {
+    if !want {
+        return Ok((Vec::new(), 0));
+    }
+    let Some(meta) = meta else {
+        if Path::new(path).exists() {
+            eprintln!(
+                "warning: {path} exists but the sidecar has no \"seq\" block; ignoring it \
+                 (regenerate the dump if you meant to train on the sequence channel)"
+            );
+        }
+        return Ok((Vec::new(), 0));
+    };
+    let seq_row = 1 + meta.max_steps * meta.token_bytes;
+    if seq_row != meta.row_bytes {
+        bail!(
+            "sidecar seq block is inconsistent: row_bytes {} but 1 + max_steps {} * token_bytes {} = {seq_row}",
+            meta.row_bytes,
+            meta.max_steps,
+            meta.token_bytes
+        );
+    }
+    let seq = std::fs::read(path).with_context(|| format!("reading {path}"))?;
+    if seq.len() != rows * seq_row {
+        bail!(
+            "{path} has {} bytes but {rows} rows x {seq_row} B/row = {}",
+            seq.len(),
+            rows * seq_row
+        );
+    }
+    Ok((seq, seq_row))
 }
 
 /// Read the per-row tag file, or fall back to all-zero (with a warning) if the

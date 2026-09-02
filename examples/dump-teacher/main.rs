@@ -30,7 +30,11 @@
 //! feature extractor; they version together), and a sibling `.tags` file of one
 //! `u8` per row (`1` = contested-phase decision, `0` = constructive) so the
 //! trainer can report held-out agreement split by phase. The Rust/candle trainer
-//! reads the `.f32` with a trivial loader.
+//! reads the `.f32` with a trivial loader. `--feature-version 7` adds a third
+//! sibling, `<out>.seq`: one fixed-size row per training row holding the auction
+//! as one token per prior call
+//! ([`seq_row_v7`][pons::bidding::features::seq_row_v7]) for the LSTM policy
+//! floor, while the `.f32` stays byte-identical to the v6 dump it rides beside.
 //!
 //! ```text
 //! cargo run --release --example dump-teacher -- --boards 100000 --seed 1
@@ -52,8 +56,10 @@ use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpS
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_VERSION_V3,
-    FEATURES_VERSION_V4, FEATURES_VERSION_V6, features_v3, features_v4, features_v6,
+    BOXES_V7, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6,
+    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V6, FEATURES_VERSION_V7,
+    MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7, call_tokens_v7, features_v3, features_v4,
+    features_v6, seq_row_v7,
 };
 use pons::bidding::{Bidder, Phase};
 use pons::gib;
@@ -196,6 +202,14 @@ struct Args {
     /// and serves the live authored reading, with each suit's
     /// support-point range separate from whole-hand points. Requires
     /// `--configured`.
+    ///
+    /// `7` writes exactly the same `.f32` as `6` — v7's static block *is* the
+    /// v6 vector — and adds the sibling `<out>.seq`, one
+    /// [`seq_row_v7`][pons::bidding::features::seq_row_v7] per row: the auction
+    /// as one token per prior call, which is what the LSTM policy floor reads.
+    /// Byte-identity with a `6` dump on the same seed is the point: it gives
+    /// the equal-data MLP control. Requires `--configured`, and rejects
+    /// `--bare-context`.
     #[arg(long, default_value_t = 4)]
     feature_version: u8,
     /// Read opponents as BBA's disclosed 1NT defenses while extracting features
@@ -591,8 +605,31 @@ fn main() -> anyhow::Result<()> {
             "--feature-version 6 varies table configuration, which only the \
              configured context can express — pass --configured"
         ),
-        (other, _) => anyhow::bail!("--feature-version must be 4 or 6, got {other}"),
+        // v7 is v6 plus a sequence: the static block *is* the v6 vector, so the
+        // `.f32` must stay byte-identical to a v6 dump on the same seed — that
+        // byte-identity is what gives the LSTM an equal-data MLP control.  The
+        // sequence rides in the `.seq` sibling, tracked by `seq` below.
+        (7, true) => (FEATURES_VERSION_V6, FEATURES_LEN_V6),
+        (7, false) => anyhow::bail!(
+            "--feature-version 7 dumps the v6 vector plus the call sequence, and \
+             both read the configured context — pass --configured"
+        ),
+        (other, _) => anyhow::bail!("--feature-version must be 4, 6 or 7, got {other}"),
     };
+    let seq = args.feature_version == 7;
+    // Not a clap `conflicts_with`: the conflict is with a *value* of
+    // `--feature-version`, which clap cannot express.  A bare context carries no
+    // trie prefixes, so `project_authored` silently skips every authored rule
+    // and every token's reading channel would be ⊤ — the LSTM would train on a
+    // channel that is dead at serving time.  It also keeps the F1 dump-skew fix
+    // in force for the sequence.
+    if seq && args.bare_context {
+        anyhow::bail!(
+            "--feature-version 7 cannot dump from a bare context: with no trie \
+             prefixes `project_authored` skips every authored rule, so every \
+             token's reading channel would be ⊤ — a channel dead at serving time"
+        );
+    }
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
     let row_len = features_len + SOFTMAX_LEN + dd_len;
@@ -791,8 +828,14 @@ fn main() -> anyhow::Result<()> {
     let f32_path = format!("{}.f32", args.out);
     let json_path = format!("{}.json", args.out);
     let tags_path = format!("{}.tags", args.out);
+    let seq_path = format!("{}.seq", args.out);
     let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
     let mut tags_writer = BufWriter::new(std::fs::File::create(&tags_path)?);
+    // Only under `--feature-version 7`: a v6 dump must leave no `.seq` behind,
+    // or the trainer would load a sequence the sidecar never announced.
+    let mut seq_writer = seq
+        .then(|| std::fs::File::create(&seq_path).map(BufWriter::new))
+        .transpose()?;
 
     let mut rows = 0u64;
     let mut contested = 0u64;
@@ -982,6 +1025,17 @@ fn main() -> anyhow::Result<()> {
                 }
                 let contested_row = Phase::of(&auction) != Phase::Constructive;
                 tags_writer.write_all(&[u8::from(contested_row)])?;
+                // The sequence rides on the *same* context the `.f32` row was
+                // extracted from — the prefixed one — so a token's reading is
+                // the one serving will see.
+                //
+                // ponytail: the dump has no decision cache, so `call_tokens_v7`
+                // is a second `Inferences::read` per row.  EPBot's per-decision
+                // FFI call dominates the cost of this loop by orders of
+                // magnitude; caching it would buy nothing measurable.
+                if let Some(writer) = &mut seq_writer {
+                    writer.write_all(&seq_row_v7(&call_tokens_v7(&context)))?;
+                }
                 rows += 1;
                 if contested_row {
                     contested += 1;
@@ -996,6 +1050,9 @@ fn main() -> anyhow::Result<()> {
     }
     writer.flush()?;
     tags_writer.flush()?;
+    if let Some(writer) = &mut seq_writer {
+        writer.flush()?;
+    }
 
     let git_sha = git_sha();
     let metadata = serde_json::json!({
@@ -1012,6 +1069,23 @@ fn main() -> anyhow::Result<()> {
             format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]")
         },
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
+        // `feature_version` above stays 6 — the `.f32` really is the v6 vector.
+        // This block is what tells the trainer a `.seq` sibling exists and how
+        // wide its rows are; every number is the crate's own constant, so a
+        // layout change cannot leave the sidecar lying.
+        "seq": seq.then(|| serde_json::json!({
+            "version": FEATURES_VERSION_V7,
+            "max_steps": MAX_STEPS_V7,
+            "boxes": BOXES_V7,
+            "token_bytes": TOKEN_BYTES_V7,
+            "row_bytes": SEQ_ROW_BYTES_V7,
+            "layout": format!(
+                "sibling .seq file: row = [steps u8][{MAX_STEPS_V7} tokens of {TOKEN_BYTES_V7} B, \
+                 oldest first, zero-padded]; token = [call u8][flags u8: b0-1 seat relative to the \
+                 actor, b2 authored, b3 artificial][hull][box 1][box {BOXES_V7}], each block 4 suits' \
+                 {{len min, max}} then {{points min, max}} then 4 suits' {{support min, max}}"
+            ),
+        })),
         "teacher": &args.teacher,
         "card": args.card.as_deref().unwrap_or("engine defaults"),
         // A distilled net is identified by its extractor *and* its teacher

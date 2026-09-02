@@ -1,9 +1,20 @@
-//! Distill `american()` into an MLP — AI-bidder M1.1.
+//! Distill `american()` into a policy net — AI-bidder M1.1 (MLP) and M5.2 (LSTM).
 //!
 //! Reads the teacher dump (`examples/teacher-dump`), fits a `160 -> H -> H -> 38`
 //! MLP to the teacher's softmax by soft-target cross-entropy
 //! (`-Σ teacher · log_softmax(student)`), and exports the weights + a sidecar +
 //! a parity fixture into the crate's `src/bidding/weights/` for M1.2 to embed.
+//!
+//! `--arch lstm` swaps the flat net for [`model::LstmPolicy`]: a single-layer
+//! LSTM over the auction's call tokens, whose final hidden state is
+//! concatenated with the same flat feature vector before the same head. It
+//! needs a dump with a `.seq` sibling (a `seq` block in the sidecar); `--arch
+//! mlp` stays the default and keeps the old path — it never reads `.seq`, never
+//! builds the token tables, and hands `Mlp::new` the root `VarBuilder`, so the
+//! weights blob, the six parameter names and their order, and the parity
+//! fixture are byte-identical to before. (Held-out *metrics* can move in the
+//! last ulp: `evaluate` now accumulates over minibatches, because the LSTM's
+//! per-step states will not fit on the device in one go.)
 //!
 //! This crate is its own cargo workspace (see `Cargo.toml`); it is built and run
 //! only from inside `trainer/` and never compiled by the pons build.
@@ -11,17 +22,36 @@
 mod data;
 mod model;
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 use candle_core::{D, DType, Device, Tensor};
 use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
-use clap::Parser;
-use data::SOFTMAX_LEN;
-use model::{Mlp, PARAM_NAMES};
+use clap::{Parser, ValueEnum};
+use data::{SOFTMAX_LEN, SeqMeta};
+use model::{LstmPolicy, Mlp, Policy};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
+/// Endpoint bytes per reading block: `[len min,max] x 4`, `[points min,max]`,
+/// `[support min,max] x 4` — `pons::bidding::features::LEN_INFERENCE_V6`.
+const ENDPOINTS_PER_BLOCK: usize = 18;
+/// Of those, the leading eight are suit lengths (`/13`); the other ten are
+/// point counts (`/37`). The same two divisors `push_inference_v6` uses, which
+/// is what makes a token bit-identical to the static block's encoding.
+const LENGTH_SLOTS: usize = 8;
+/// Width a flag byte expands to: seat one-hot 4, authored, artificial.
+const FLAG_LEN: usize = 6;
+
+/// Which policy to fit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum Arch {
+    /// The shipped flat net over the v6 feature vector.
+    Mlp,
+    /// LSTM auction encoder + the same head (M5.2); needs a `.seq` sibling.
+    Lstm,
+}
+
 #[derive(Parser)]
-#[command(about = "Distill american() into an MLP (AI-bidder M1.1)")]
+#[command(about = "Distill american() into a policy net (AI-bidder M1.1 / M5.2)")]
 struct Args {
     /// Teacher-dump path stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`.
     /// Repeatable: several dumps train as one mixture corpus, each contributing
@@ -31,9 +61,16 @@ struct Args {
     /// Output stem for the artifact: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`
     #[arg(long, default_value = "../src/bidding/weights/american_v1")]
     weights_out: String,
+    /// Which policy to fit: the flat `mlp` (default, the shipped path) or the
+    /// `lstm` auction encoder, which requires a dump with a `.seq` sibling.
+    #[arg(long, value_enum, default_value_t = Arch::Mlp)]
+    arch: Arch,
     /// Hidden width of both hidden layers
     #[arg(long, default_value_t = 256)]
     hidden: usize,
+    /// Hidden width of the LSTM state (`--arch lstm` only).
+    #[arg(long, default_value_t = 128)]
+    lstm_hidden: usize,
     /// Training epochs
     #[arg(long, default_value_t = 300)]
     epochs: usize,
@@ -73,6 +110,120 @@ struct Args {
     init_seed: Option<u64>,
 }
 
+/// The constant device tables that turn a packed `.seq` row into the 98-wide
+/// token sequence the LSTM eats, plus the row geometry read from the dump
+/// sidecar (nothing here is hard-coded to 20/56/1121).
+///
+/// Expansion is *not* precomputed: the packed corpus is 1121 B/row and the
+/// expanded form is 20 x 98 f32 = 7840 B/row, so the bytes stay on the host and
+/// one minibatch at a time is uploaded and expanded on the device.
+struct Seq {
+    /// Bytes per packed row, `1 + max_steps * token_bytes`.
+    row: usize,
+    max_steps: usize,
+    token_bytes: usize,
+    /// Endpoint bytes per token, `(1 + boxes) * ENDPOINTS_PER_BLOCK`.
+    endpoints: usize,
+    /// Expanded token width: `[seat 4][call 38][authored 1][artificial 1][endpoints]`.
+    token_len: usize,
+    /// `(SOFTMAX_LEN, SOFTMAX_LEN)` identity — the call one-hot, gathered by id.
+    eye: Tensor,
+    /// `(256, FLAG_LEN)` flag expansion `[seat one-hot 4, authored, artificial]`.
+    ///
+    /// Only the low nibble carries meaning, so rows repeat every 16 and the raw
+    /// byte indexes the table directly — the same thing as masking with `0x0F`,
+    /// one kernel instead of four, and out-of-range is impossible by
+    /// construction.
+    flags: Tensor,
+    /// Per-endpoint-byte divisor, `([13] * 8 ++ [37] * 10)` per block.
+    scale: Tensor,
+    device: Device,
+}
+
+impl Seq {
+    fn new(device: &Device, meta: &SeqMeta) -> Result<Self> {
+        let blocks = 1 + meta.boxes;
+        let endpoints = blocks * ENDPOINTS_PER_BLOCK;
+        if meta.token_bytes != 2 + endpoints {
+            bail!(
+                "sidecar seq block: token_bytes {} but 2 + (1 + boxes {}) * {ENDPOINTS_PER_BLOCK} = {}",
+                meta.token_bytes,
+                meta.boxes,
+                2 + endpoints
+            );
+        }
+        let mut eye = vec![0f32; SOFTMAX_LEN * SOFTMAX_LEN];
+        for i in 0..SOFTMAX_LEN {
+            eye[i * SOFTMAX_LEN + i] = 1.0;
+        }
+        let mut flags = vec![0f32; 256 * FLAG_LEN];
+        for byte in 0..256usize {
+            let f = byte & 0x0F;
+            flags[byte * FLAG_LEN + (f & 3)] = 1.0;
+            flags[byte * FLAG_LEN + 4] = f32::from((f >> 2) & 1 == 1);
+            flags[byte * FLAG_LEN + 5] = f32::from((f >> 3) & 1 == 1);
+        }
+        let mut scale = Vec::with_capacity(endpoints);
+        for _ in 0..blocks {
+            scale.extend(std::iter::repeat_n(13.0f32, LENGTH_SLOTS));
+            scale.extend(std::iter::repeat_n(
+                37.0f32,
+                ENDPOINTS_PER_BLOCK - LENGTH_SLOTS,
+            ));
+        }
+        Ok(Self {
+            row: 1 + meta.max_steps * meta.token_bytes,
+            max_steps: meta.max_steps,
+            token_bytes: meta.token_bytes,
+            endpoints,
+            token_len: 4 + SOFTMAX_LEN + 2 + endpoints,
+            eye: Tensor::from_slice(&eye, (SOFTMAX_LEN, SOFTMAX_LEN), device)?,
+            flags: Tensor::from_slice(&flags, (256, FLAG_LEN), device)?,
+            scale: Tensor::from_slice(&scale, endpoints, device)?,
+            device: device.clone(),
+        })
+    }
+
+    /// Expand packed rows `[from, from + n)` of `bytes` into
+    /// `(n, max_steps, token_len)` f32 tokens and the `(n,)` u32 step counts.
+    fn batch(&self, bytes: &[u8], from: usize, n: usize) -> Result<(Tensor, Tensor)> {
+        let raw = Tensor::from_slice(
+            &bytes[from * self.row..(from + n) * self.row],
+            (n, self.row),
+            &self.device,
+        )?;
+        let len = raw.narrow(1, 0, 1)?.squeeze(1)?.to_dtype(DType::U32)?;
+        let steps = self.max_steps;
+        let tok =
+            raw.narrow(1, 1, steps * self.token_bytes)?
+                .reshape((n, steps, self.token_bytes))?;
+        // `index_select` insists on 1-D ids, so flatten and reshape back. U32
+        // rather than the native U8: candle reads an id equal to the dtype's
+        // max as "write zeros", which would silently mangle flag byte 0xFF.
+        let ids = |at: usize| -> Result<Tensor> {
+            Ok(tok.narrow(2, at, 1)?.flatten_all()?.to_dtype(DType::U32)?)
+        };
+        let call = self
+            .eye
+            .index_select(&ids(0)?, 0)?
+            .reshape((n, steps, SOFTMAX_LEN))?;
+        let flag = self
+            .flags
+            .index_select(&ids(1)?, 0)?
+            .reshape((n, steps, FLAG_LEN))?;
+        let ends = tok
+            .narrow(2, 2, self.endpoints)?
+            .to_dtype(DType::F32)?
+            .broadcast_div(&self.scale)?;
+        // Canonical order: [seat 4][call 38][authored][artificial][hull|box1|box2].
+        let seq = Tensor::cat(
+            &[&flag.narrow(2, 0, 4)?, &call, &flag.narrow(2, 4, 2)?, &ends],
+            2,
+        )?;
+        Ok((seq, len))
+    }
+}
+
 /// Held-out metrics, split by the constructive/contested tag.
 struct Eval {
     loss: f32,
@@ -99,7 +250,12 @@ fn main() -> Result<()> {
     }
     eprintln!("device: {device:?}  init_seed: {:?}", args.init_seed);
 
-    let (ds, ntrain) = data::load_mixture(&args.data, args.val_frac, args.batch)?;
+    let (ds, ntrain) = data::load_mixture(
+        &args.data,
+        args.val_frac,
+        args.batch,
+        args.arch == Arch::Lstm,
+    )?;
     let features_len = ds.features_len;
     let nval = ds.rows - ntrain;
     eprintln!(
@@ -134,9 +290,63 @@ fn main() -> Result<()> {
         .then(|| slice(&ds.dd, ntrain, nval, dd_dim))
         .transpose()?;
 
+    // Auction tokens: host-resident bytes plus the constant expansion tables.
+    // Built only for `--arch lstm`, so the MLP path allocates nothing new and
+    // its weight draw stays exactly where it was in the RNG stream.
+    let seq = match args.arch {
+        Arch::Mlp => None,
+        Arch::Lstm => {
+            let Some(meta) = ds.meta.seq.clone() else {
+                bail!(
+                    "--arch lstm needs a dump with a .seq sibling (a \"seq\" block in the \
+                     sidecar); {:?} has none",
+                    args.data
+                );
+            };
+            let seq = Seq::new(&device, &meta)?;
+            if seq.row != ds.seq_row {
+                bail!(
+                    "seq geometry mismatch: tables say {} B/row, loader read {}",
+                    seq.row,
+                    ds.seq_row
+                );
+            }
+            eprintln!(
+                "auction tokens: v{}, {} steps x {} B -> {} f32/token ({} MB of .seq on the \
+                 host); layout {:?}",
+                meta.version,
+                seq.max_steps,
+                seq.token_bytes,
+                seq.token_len,
+                ds.seq.len() / (1 << 20),
+                meta.layout
+            );
+            Some(seq)
+        }
+    };
+    let train_seq = seq.as_ref().map(|s| (s, &ds.seq[..ntrain * s.row]));
+    let val_seq = seq.as_ref().map(|s| (s, &ds.seq[ntrain * s.row..]));
+
     let varmap = VarMap::new();
     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
-    let model = Mlp::new(features_len, args.hidden, SOFTMAX_LEN, dd_dim, vb)?;
+    let model = match &seq {
+        None => Policy::Mlp(Mlp::new(
+            features_len,
+            args.hidden,
+            SOFTMAX_LEN,
+            dd_dim,
+            vb,
+        )?),
+        Some(seq) => Policy::Lstm(LstmPolicy::new(
+            seq.token_len,
+            args.lstm_hidden,
+            features_len,
+            args.hidden,
+            SOFTMAX_LEN,
+            dd_dim,
+            vb,
+        )?),
+    };
     let mut opt = AdamW::new(
         varmap.all_vars(),
         ParamsAdamW {
@@ -152,7 +362,10 @@ fn main() -> Result<()> {
             let len = args.batch.min(ntrain - start);
             let xb = xtrain.narrow(0, start, len)?;
             let yb = ytrain.narrow(0, start, len)?;
-            let (logits, value) = model.forward(&xb)?;
+            let sb = train_seq
+                .map(|(seq, bytes)| seq.batch(bytes, start, len))
+                .transpose()?;
+            let (logits, value) = model.forward(&xb, sb.as_ref().map(|(t, l)| (t, l)))?;
             let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
             // Soft-target cross-entropy: -mean_b Σ_c teacher · log_softmax(student).
             let mut loss = yb.mul(&logp)?.sum(D::Minus1)?.mean(0)?.neg()?;
@@ -168,7 +381,15 @@ fn main() -> Result<()> {
             start += len;
         }
         if epoch == 1 || epoch % 10 == 0 || epoch == args.epochs {
-            let e = evaluate(&model, &xval, &yval, ddval.as_ref(), val_tags)?;
+            let e = evaluate(
+                &model,
+                &xval,
+                &yval,
+                ddval.as_ref(),
+                val_tags,
+                val_seq,
+                args.batch,
+            )?;
             let dd = e
                 .dd_mse
                 .map_or(String::new(), |m| format!("  val_dd_mse {m:.4}"));
@@ -186,7 +407,15 @@ fn main() -> Result<()> {
         }
     }
 
-    let final_eval = evaluate(&model, &xval, &yval, ddval.as_ref(), val_tags)?;
+    let final_eval = evaluate(
+        &model,
+        &xval,
+        &yval,
+        ddval.as_ref(),
+        val_tags,
+        val_seq,
+        args.batch,
+    )?;
     export(
         &args,
         &varmap,
@@ -196,49 +425,76 @@ fn main() -> Result<()> {
         ntrain,
         nval,
         &final_eval,
+        val_seq,
     )?;
     Ok(())
 }
 
 /// Forward over the whole validation set; report soft-CE and top-1 agreement
 /// with the teacher, split by the constructive/contested tag.
-fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, dd: Option<&Tensor>, tags: &[u8]) -> Result<Eval> {
-    let (logits, value) = model.forward(x)?;
-    let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
-    let loss = y
-        .mul(&logp)?
-        .sum(D::Minus1)?
-        .mean(0)?
-        .neg()?
-        .to_scalar::<f32>()?;
-    let dd_mse = match (value, dd) {
-        (Some(value), Some(dd)) => Some(value.sub(dd)?.sqr()?.mean_all()?.to_scalar::<f32>()?),
-        _ => None,
-    };
-    let pred = logits.argmax(D::Minus1)?.to_vec1::<u32>()?;
-    let gold = y.argmax(D::Minus1)?.to_vec1::<u32>()?;
-
+///
+/// Chunked by `batch` and accumulated as a row-weighted mean. The LSTM's
+/// per-step states are `(rows, steps, hidden)`, so a whole-validation forward
+/// would stack ~40 GB on the device; the MLP is chunked through the same path
+/// for one code path, which perturbs `val_ce` only in the summation order.
+fn evaluate(
+    model: &Policy,
+    x: &Tensor,
+    y: &Tensor,
+    dd: Option<&Tensor>,
+    tags: &[u8],
+    seq: Option<(&Seq, &[u8])>,
+    batch: usize,
+) -> Result<Eval> {
+    let rows = x.dim(0)?;
+    let (mut loss_sum, mut dd_sum, mut dd_elems) = (0f64, 0f64, 0usize);
     let (mut hit, mut hit0, mut hit1, mut n0, mut n1) = (0usize, 0usize, 0usize, 0usize, 0usize);
-    for i in 0..pred.len() {
-        let ok = usize::from(pred[i] == gold[i]);
-        hit += ok;
-        if tags[i] == 0 {
-            n0 += 1;
-            hit0 += ok;
-        } else {
-            n1 += 1;
-            hit1 += ok;
+    let mut start = 0usize;
+    while start < rows {
+        let len = batch.max(1).min(rows - start);
+        let xb = x.narrow(0, start, len)?;
+        let yb = y.narrow(0, start, len)?;
+        let sb = seq
+            .map(|(s, bytes)| s.batch(bytes, start, len))
+            .transpose()?;
+        let (logits, value) = model.forward(&xb, sb.as_ref().map(|(t, l)| (t, l)))?;
+        let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
+        loss_sum += f64::from(
+            yb.mul(&logp)?
+                .sum(D::Minus1)?
+                .sum(0)?
+                .neg()?
+                .to_scalar::<f32>()?,
+        );
+        if let (Some(value), Some(dd)) = (value, dd) {
+            let ddb = dd.narrow(0, start, len)?;
+            dd_sum += f64::from(value.sub(&ddb)?.sqr()?.sum_all()?.to_scalar::<f32>()?);
+            dd_elems += ddb.elem_count();
         }
+        let pred = logits.argmax(D::Minus1)?.to_vec1::<u32>()?;
+        let gold = yb.argmax(D::Minus1)?.to_vec1::<u32>()?;
+        for i in 0..len {
+            let ok = usize::from(pred[i] == gold[i]);
+            hit += ok;
+            if tags[start + i] == 0 {
+                n0 += 1;
+                hit0 += ok;
+            } else {
+                n1 += 1;
+                hit1 += ok;
+            }
+        }
+        start += len;
     }
     let frac = |h: usize, n: usize| if n == 0 { 0.0 } else { h as f32 / n as f32 };
     Ok(Eval {
-        loss,
-        overall: frac(hit, pred.len()),
+        loss: (loss_sum / rows.max(1) as f64) as f32,
+        overall: frac(hit, rows),
         constructive: frac(hit0, n0),
         contested: frac(hit1, n1),
         n_constructive: n0,
         n_contested: n1,
-        dd_mse,
+        dd_mse: (dd_elems > 0).then(|| (dd_sum / dd_elems as f64) as f32),
     })
 }
 
@@ -248,12 +504,13 @@ fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, dd: Option<&Tensor>, tags: &[u8
 fn export(
     args: &Args,
     varmap: &VarMap,
-    model: &Mlp,
+    model: &Policy,
     xval: &Tensor,
     ds: &data::Dataset,
     ntrain: usize,
     nval: usize,
     eval: &Eval,
+    seq: Option<(&Seq, &[u8])>,
 ) -> Result<()> {
     let stem = &args.weights_out;
     if let Some(parent) = Path::new(stem).parent() {
@@ -266,7 +523,7 @@ fn export(
     let mut total = 0usize;
     {
         let data = varmap.data().lock().expect("varmap mutex poisoned");
-        for name in PARAM_NAMES {
+        for &name in model.param_names() {
             let var = data
                 .get(name)
                 .with_context(|| format!("missing param {name}"))?;
@@ -279,17 +536,26 @@ fn export(
     }
     w.flush()?;
 
-    let sidecar = serde_json::json!({
+    let mut sidecar = serde_json::json!({
         "trainer": "pons-trainer 0.1.0",
         "feature_version": ds.meta.feature_version,
         "features_len": ds.features_len,
         "softmax_len": SOFTMAX_LEN,
         "hidden": args.hidden,
-        "arch": format!(
-            "x -> Linear({},H) -> relu -> Linear(H,H) -> relu -> Linear(H,{SOFTMAX_LEN})",
-            ds.features_len
-        ),
-        "param_order": PARAM_NAMES,
+        "arch": match model {
+            Policy::Mlp(_) => format!(
+                "x -> Linear({},H) -> relu -> Linear(H,H) -> relu -> Linear(H,{SOFTMAX_LEN})",
+                ds.features_len
+            ),
+            Policy::Lstm(_) => format!(
+                "[tokens -> LSTM({},{})].h_at_len | x -> Linear({},H) -> relu -> Linear(H,H) \
+                 -> relu -> Linear(H,{SOFTMAX_LEN})",
+                seq.map_or(0, |(s, _)| s.token_len),
+                args.lstm_hidden,
+                args.lstm_hidden + ds.features_len
+            ),
+        },
+        "param_order": model.param_names(),
         "param_shapes": shapes,
         "param_floats": total,
         "dtype": "f32-le",
@@ -320,19 +586,51 @@ fn export(
         "dd_weight": args.dd_weight,
         "val_dd_mse": eval.dd_mse,
     });
+    // Only the LSTM artifact carries these, so an `--arch mlp` sidecar keeps the
+    // exact key set it had before the sequence channel existed.
+    if let (Some((seq, _)), Some(obj)) = (seq, sidecar.as_object_mut()) {
+        obj.insert("lstm_hidden".into(), serde_json::json!(args.lstm_hidden));
+        obj.insert("max_steps".into(), serde_json::json!(seq.max_steps));
+        obj.insert("token_len".into(), serde_json::json!(seq.token_len));
+    }
     std::fs::write(format!("{stem}.json"), format!("{sidecar:#}\n"))?;
 
     let k = args.fixture.min(nval);
     if k > 0 {
         let xf = xval.narrow(0, 0, k)?;
-        let fixture = serde_json::json!({
+        let sf = seq.map(|(s, bytes)| s.batch(bytes, 0, k)).transpose()?;
+        let logits = model.forward(&xf, sf.as_ref().map(|(t, l)| (t, l)))?.0;
+        let mut fixture = serde_json::json!({
             "note": "M1.2 parity: the in-crate hand-rolled forward pass must reproduce \
                      these logits from these features (within tolerance).",
             "feature_version": ds.meta.feature_version,
             "rows": k,
             "features": xf.to_vec2::<f32>()?,
-            "logits": model.forward(&xf)?.0.to_vec2::<f32>()?,
+            "logits": logits.to_vec2::<f32>()?,
         });
+        if let (Some((seq, bytes)), Some((tokens, len)), Some(obj)) =
+            (seq, &sf, fixture.as_object_mut())
+        {
+            obj.insert(
+                "note".into(),
+                serde_json::json!(
+                    "M5.2 parity: the in-crate hand-rolled LSTM + head must reproduce these \
+                     logits from these features and tokens (within tolerance); `tokens` is the \
+                     expansion of `seq_u8` and must match the crate's own, bit for bit."
+                ),
+            );
+            obj.insert("len".into(), serde_json::json!(len.to_vec1::<u32>()?));
+            obj.insert(
+                "seq_u8".into(),
+                serde_json::json!(
+                    bytes[..k * seq.row]
+                        .chunks(seq.row)
+                        .map(<[u8]>::to_vec)
+                        .collect::<Vec<_>>()
+                ),
+            );
+            obj.insert("tokens".into(), serde_json::json!(tokens.to_vec3::<f32>()?));
+        }
         std::fs::write(format!("{stem}.fixture.json"), format!("{fixture:#}\n"))?;
     }
 

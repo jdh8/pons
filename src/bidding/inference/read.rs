@@ -179,6 +179,25 @@ pub struct Inferences {
     /// how a reading loaded from a corpus is gauged without an attached partnership.
     #[cfg_attr(feature = "serde", serde(skip, default = "ReadingProfile::default"))]
     profile: ReadingProfile,
+    /// Each prior call's own agreement union, keyed by auction index — what the
+    /// call showed *by itself*, before the seat fold above collapsed it.
+    ///
+    /// The v7 sequence floor feeds the net one token per call, and a token
+    /// wants its own call's meaning (`docs/ai-bidder/plan.md` M5.2).  ⊤ where no
+    /// authored effect resolved, which is exactly "this call says nothing on its
+    /// own" — a floor call's natural meaning reaches the net through the call
+    /// identity, as it does for BEN.  Like `control_bid` this is a fact about
+    /// the *calls*, not part of the shown-range payload, so serde skips it.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    per_call: Vec<EnvelopeUnion>,
+    /// Auction indices resolved to a live authored rule
+    /// ([`CallMasks::authored`]), as a bitset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    authored_calls: u64,
+    /// Auction indices a live authored rule alerts — the artificial calls
+    /// ([`CallMasks::artificial`]), as a bitset.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    artificial_calls: u64,
 }
 
 /// The sound legacy-`points` image of a fit-known support-scale band
@@ -246,6 +265,80 @@ impl Inferences {
         &self.announced_unions[who as usize]
     }
 
+    /// What the call at auction index `index` showed **by itself**
+    ///
+    /// The per-call twin of [`announced_union`][Self::announced_union], which
+    /// folds every call by one seat into a single union and so cannot say which
+    /// call carried which claim.  `None` when the index is past the auction, or
+    /// when the call resolved to no authored effect and therefore reads as ⊤ —
+    /// a floor call, or one the reader declined.  See the field for why ⊤ and
+    /// absent are the same answer to a caller.
+    #[must_use]
+    pub fn call_union(&self, index: usize) -> Option<&EnvelopeUnion> {
+        let union = self.per_call.get(index)?;
+        (*union != EnvelopeUnion::unknown()).then_some(union)
+    }
+
+    /// Whether the call at `index` resolved to a live authored rule
+    ///
+    /// Indices past 63 always read `false`: the mask is one `u64` (a 64-call
+    /// auction is not legal).
+    #[must_use]
+    pub const fn call_authored(&self, index: usize) -> bool {
+        index < 64 && self.authored_calls & (1 << index) != 0
+    }
+
+    /// Whether the call at `index` is one a live authored rule alerts — the
+    /// artificial calls.  Bounded like [`call_authored`][Self::call_authored].
+    #[must_use]
+    pub const fn call_artificial(&self, index: usize) -> bool {
+        index < 64 && self.artificial_calls & (1 << index) != 0
+    }
+
+    /// Re-key the per-call channel after a call was removed at `index`
+    ///
+    /// The systems-on strip reads a *shorter* auction, so the reading it
+    /// returns is keyed one index low from the stripped call onward.  Insert ⊤
+    /// for the removed call and shift the two masks' high bits up one.
+    fn reinflate_stripped_call(&mut self, index: usize) {
+        if index <= self.per_call.len() {
+            self.per_call.insert(index, EnvelopeUnion::unknown());
+        }
+        // The stripped call is the opening — the first non-pass — so `index` is
+        // at most 3 (a fourth pass ends the auction).  The guard keeps the
+        // shift total anyway; dropping bit 63 is harmless, as `CallMasks` never
+        // records past it either.
+        debug_assert!(index < 4, "the strip removes an opening, not call {index}");
+        if let Some(bit) = 1u64.checked_shl(index as u32) {
+            let low = bit - 1;
+            for mask in [&mut self.authored_calls, &mut self.artificial_calls] {
+                *mask = (*mask & low) | ((*mask & !low) << 1);
+            }
+        }
+    }
+
+    /// Stamp the per-call reading channel from a finished projection
+    ///
+    /// `blind_opponents` is applied here, not in [`assemble`][Self::assemble]:
+    /// that blanks the four *seat* arrays, and this channel is keyed by auction
+    /// index, so it would otherwise hand a blinded caller exactly the opponent
+    /// readings the knob exists to withhold.  The two masks are left alone —
+    /// an alert is disclosed at the table, so "this call is artificial" is not
+    /// what the knob hides; the *content* is.
+    fn with_calls(mut self, len: usize, per_call: Vec<EnvelopeUnion>, masks: CallMasks) -> Self {
+        self.per_call = per_call;
+        if self.profile.blind_opponents {
+            for (index, union) in self.per_call.iter_mut().enumerate() {
+                if matches!(relative_of(len, index), Relative::Lho | Relative::Rho) {
+                    *union = EnvelopeUnion::unknown();
+                }
+            }
+        }
+        self.authored_calls = masks.authored;
+        self.artificial_calls = masks.artificial;
+        self
+    }
+
     /// Assemble a reading from the natural walk's hull and the two overlays
     ///
     /// The agreement side reuses `players`, so a box it *widens* cannot show
@@ -293,6 +386,11 @@ impl Inferences {
             // the trigger-free early returns leave it false.
             pdi_latched: false,
             profile,
+            // Stamped by `with_calls` at the two `read` returns that hold a
+            // projection; every other path reads ⊤ for every call.
+            per_call: Vec::new(),
+            authored_calls: 0,
+            artificial_calls: 0,
         };
         if profile.blind_opponents {
             for who in [Relative::Lho, Relative::Rho] {
@@ -425,6 +523,19 @@ impl Inferences {
                 }
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
+            // The strip removed the opening, so every per-call channel the
+            // recursion produced is keyed one index low.  Re-inflate: ⊤ at the
+            // stripped opening (its own reading is genuinely lost — the graft
+            // never read it), and the mask bits at or above it shift up one.
+            // ponytail: the stripped opening reads ⊤; it is a 1-of-a-suit
+            // opening whose meaning the advancer's grafted 1NT structure does
+            // not consult, and the seat fold below restores the overcaller.
+            let open = context
+                .auction()
+                .iter()
+                .position(|&call| call != Call::Pass)
+                .expect("the strip found an opening");
+            reading.reinflate_stripped_call(open);
             if context.reading_profile().scope != ReadingScope::All {
                 return reading;
             }
@@ -443,16 +554,27 @@ impl Inferences {
                     &Context::new(context.vul(), context.auction()).with_profile(profile),
                 ),
             };
-            let opening = context
-                .auction()
-                .iter()
-                .position(|&call| call != Call::Pass)
-                .expect("the strip found an opening");
-            let overcaller = relative_of(context.auction().len(), opening + 1) as usize;
+            let overcaller = relative_of(context.auction().len(), open + 1) as usize;
             reading.players[overcaller] = unstripped.players[overcaller];
             reading.unions[overcaller] = unstripped.unions[overcaller].clone();
             reading.announced_players[overcaller] = unstripped.announced_players[overcaller];
             reading.announced_unions[overcaller] = unstripped.announced_unions[overcaller].clone();
+            // The grafted reading calls the overcall an opening 1NT; the seat
+            // restore above prefers the overcaller's own 15–18 authored box, so
+            // its per-call token must agree.  `unstripped` was read on the full
+            // auction, so its indices need no shift.
+            if let (Some(slot), Some(truth)) = (
+                reading.per_call.get_mut(open + 1),
+                unstripped.per_call.get(open + 1),
+            ) {
+                *slot = truth.clone();
+            }
+            if unstripped.call_authored(open + 1) {
+                reading.authored_calls |= 1 << (open + 1);
+            }
+            if unstripped.call_artificial(open + 1) {
+                reading.artificial_calls |= 1 << (open + 1);
+            }
             return reading;
         }
         let profile = context.reading_profile();
@@ -483,8 +605,8 @@ impl Inferences {
             // projection pass off the table's own Pass gate (`points(..12)` —
             // see `ReadingProfile::pass`).  The walk below needs an opening, so
             // apply the overlay here and return.
+            let projection = project_authored(context);
             if profile.pass {
-                let projection = project_authored(context);
                 for (player, projected) in players.iter_mut().zip(&projection.unions) {
                     *player = player.intersect(&projected.hull());
                 }
@@ -497,7 +619,8 @@ impl Inferences {
                 &agreement_unions,
                 control_bid,
                 profile,
-            );
+            )
+            .with_calls(len, projection.per_call, projection.masks);
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
             return Self::assemble(
@@ -576,6 +699,7 @@ impl Inferences {
         // walk; an alerted top stays suppressed as artificial.
         let projection = project_authored(context);
         let masks = projection.masks;
+        let per_call = projection.per_call;
         // Pass/double-inversion triggers, by auction index: the penalty-oriented
         // doubles the authored rules tag, plus the structural conversion passes,
         // which need no rule at all.  One mask, read directly by the post-walk
@@ -1493,7 +1617,8 @@ impl Inferences {
             &agreement_unions,
             control_bid,
             profile,
-        );
+        )
+        .with_calls(len, per_call, masks);
         this.pdi_latched = earliest_pdi_trigger(pdi_triggers, len).is_some();
         this
     }
@@ -1584,6 +1709,8 @@ fn earliest_pdi_trigger(triggers: u64, len: usize) -> Option<usize> {
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
     let projection = project_authored(context);
+    let masks = projection.masks;
+    let per_call = projection.per_call;
     let unions = projection.unions;
     let announced_unions = projection.announced_unions;
     Inferences {
@@ -1594,6 +1721,9 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
         control_bid: None,
         pdi_latched: false,
         profile: context.reading_profile(),
+        per_call,
+        authored_calls: masks.authored,
+        artificial_calls: masks.artificial,
     }
 }
 

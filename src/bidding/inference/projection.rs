@@ -361,6 +361,15 @@ pub(crate) struct AuthoredProjection {
     pub(super) unions: [EnvelopeUnion; 4],
     pub(super) announced_unions: [EnvelopeUnion; 4],
     pub(super) masks: CallMasks,
+    /// Each prior call's own agreement union, keyed by auction index — the
+    /// per-call twin of `announced_unions`, which folds the same boxes down to
+    /// one union per seat and so cannot say *which* call showed what.
+    ///
+    /// The v7 sequence floor reads one token per call, and a token wants the
+    /// meaning of its own call alone (`docs/ai-bidder/plan.md` M5.2).  ⊤ where
+    /// no authored effect resolved — a floor call, or a call the reader
+    /// declined — which is exactly "this call says nothing on its own".
+    pub(super) per_call: Vec<EnvelopeUnion>,
 }
 
 impl AuthoredProjection {
@@ -369,6 +378,14 @@ impl AuthoredProjection {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             masks: CallMasks::default(),
+            per_call: Vec::new(),
+        }
+    }
+
+    /// Widen `per_call` to cover `index`, filling the gap with ⊤.
+    fn reserve_per_call(&mut self, index: usize) {
+        if self.per_call.len() <= index {
+            self.per_call.resize_with(index + 1, EnvelopeUnion::unknown);
         }
     }
 
@@ -382,6 +399,8 @@ impl AuthoredProjection {
         let who = relative_of(len, index) as usize;
         self.announced_unions[who].intersect_assign(effect.agreement(), profile);
         self.unions[who].intersect_assign(effect.projection.as_union(), profile);
+        self.reserve_per_call(index);
+        self.per_call[index].intersect_assign(effect.agreement(), profile);
         self.masks.record(index, &effect);
     }
 }
@@ -615,6 +634,10 @@ struct AbsoluteProjection {
     unions: [EnvelopeUnion; 4],
     announced_unions: [EnvelopeUnion; 4],
     masks: CallMasks,
+    /// This category's per-call agreement unions, keyed by auction index (⊤
+    /// where this category holds no effect).  The rotation below merges the
+    /// four categories into [`AuthoredProjection::per_call`].
+    per_call: Vec<EnvelopeUnion>,
 }
 
 impl AbsoluteProjection {
@@ -623,6 +646,7 @@ impl AbsoluteProjection {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             masks: CallMasks::default(),
+            per_call: Vec::new(),
         }
     }
 
@@ -630,6 +654,10 @@ impl AbsoluteProjection {
         let seat = index % 4;
         self.unions[seat].intersect_assign(effect.projection.as_union(), profile);
         self.announced_unions[seat].intersect_assign(effect.agreement(), profile);
+        if self.per_call.len() <= index {
+            self.per_call.resize_with(index + 1, EnvelopeUnion::unknown);
+        }
+        self.per_call[index].intersect_assign(effect.agreement(), profile);
         self.masks.record(index, &effect);
     }
 
@@ -1232,6 +1260,22 @@ impl AuthoringStepCache {
                 snapshot.masks.merge(category.masks);
             }
         }
+        // `per_call` is keyed by auction index, not by seat, so it needs its own
+        // merge — no rotation applies.  An index may take a term from more than
+        // one category (`probed` composes with every other, and under
+        // `ReadingScope::All` the own walk reads the opponents' calls too), so
+        // what makes this match the one-shot driver is the *order*: own,
+        // opponents, passes, probed is the order `project_authored_with`'s
+        // walks reach the same index in.  Skipping ⊤ keeps a lone term at
+        // exactly the one `⊤ ∩ agreement` that `apply` performs.
+        snapshot.per_call = vec![EnvelopeUnion::unknown(); auction.len()];
+        for category in [&self.own, &self.opponents, &self.passes, &self.probed] {
+            for (index, union) in category.per_call.iter().enumerate() {
+                if index < snapshot.per_call.len() && *union != EnvelopeUnion::unknown() {
+                    snapshot.per_call[index].intersect_assign(union, profile);
+                }
+            }
+        }
         self.snapshot = snapshot;
         #[cfg(test)]
         {
@@ -1370,6 +1414,10 @@ pub(crate) fn assert_step_cache_projection_parity(
         "step-cache announcement differs"
     );
     assert_eq!(actual.masks, expected.masks, "step-cache call masks differ");
+    assert_eq!(
+        actual.per_call, expected.per_call,
+        "step-cache per-call unions differ"
+    );
     true
 }
 
@@ -1377,6 +1425,11 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
     let auction = context.auction();
     let len = auction.len();
     let mut projection = AuthoredProjection::unknown();
+    // Sized here, not lazily in `apply`, so an unprefixed context and a fully
+    // read one agree on `per_call.len() == auction.len()` — the step cache's
+    // rotation always sizes to the auction, and the parity assertion compares
+    // the two whole.
+    projection.per_call = vec![EnvelopeUnion::unknown(); len];
 
     let Some(prefixes) = context.prefixes() else {
         return projection;
@@ -1673,6 +1726,10 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
                 let union = EnvelopeUnion::from(box_);
                 projection.unions[who].intersect_assign(&union, profile);
                 projection.announced_unions[who].intersect_assign(&union, profile);
+                // This fold bypasses `apply`, so the per-call twin is stamped
+                // by hand (the step cache's `probed` category does it in `push`).
+                projection.reserve_per_call(index);
+                projection.per_call[index].intersect_assign(&union, profile);
             }
         }
     }

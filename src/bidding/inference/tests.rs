@@ -2297,3 +2297,231 @@ fn multi_values_double_reads_its_own_floor() {
         "the knob must fire only on the declared Multi",
     );
 }
+
+// ── The per-call reading channel (v7 tokens) ─────────────────────────────────
+
+/// Every per-call union must be *sound*: a call's own claim can only be wider
+/// than the seat fold that composed it with the rest of that seat's calls.
+///
+/// This is the invariant a v7 token rests on.  If it failed, a token would tell
+/// the net something the reading itself denies.
+#[test]
+fn per_call_unions_are_sound_against_the_seat_fold() {
+    let auctions: [&[Call]; 6] = [
+        // Stayman, then a transfer — two artificial calls with real content.
+        &[bid(1, Strain::Notrump), Call::Pass, bid(2, Strain::Clubs)],
+        &[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+        ],
+        // A natural constructive auction.
+        &[
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ],
+        // Landy over their notrump, and a Michaels cue.
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs)],
+        &[bid(1, Strain::Spades), bid(2, Strain::Spades)],
+        // The systems-on strip lane: our overcall of their opening.
+        &[
+            bid(1, Strain::Diamonds),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+        ],
+    ];
+
+    for auction in auctions {
+        let reading = read_booked(auction);
+        for index in 0..auction.len() {
+            let Some(union) = reading.call_union(index) else {
+                continue;
+            };
+            let who = relative_of(auction.len(), index);
+            let seat = reading.announced(who);
+            let hull = union.hull();
+            // The seat's fold is this call intersected with its siblings, so it
+            // is contained in this call's own claim on every axis.
+            for suit in Suit::ASC {
+                assert!(
+                    hull.length(suit).min <= seat.length(suit).min
+                        && hull.length(suit).max >= seat.length(suit).max,
+                    "call {index} of {auction:?} claims {:?} in {suit:?}, \
+                     tighter than the {who:?} fold {:?}",
+                    hull.length(suit),
+                    seat.length(suit),
+                );
+            }
+            assert!(
+                hull.strength.points.min <= seat.strength.points.min
+                    && hull.strength.points.max >= seat.strength.points.max,
+                "call {index} of {auction:?} claims {:?} points, tighter than \
+                 the {who:?} fold {:?}",
+                hull.strength.points,
+                seat.strength.points,
+            );
+        }
+    }
+}
+
+/// The channel reads each call **alone**: in `1♠ - 2♠`, the opening carries
+/// its own five spades and 11-21, the raise carries three-card support and no
+/// range, and neither is contaminated by the other.
+#[test]
+fn per_call_unions_read_each_call_alone() {
+    let auction = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let reading = read_booked(&auction);
+
+    let opening = reading
+        .call_union(0)
+        .expect("a 1♠ opening is authored")
+        .hull();
+    assert_eq!(opening.length(Suit::Spades), Range::new(5, 13));
+    assert_eq!(opening.strength.points, Range::new(11, 21));
+
+    // The raise promises support and says nothing about the opener's range —
+    // the seat fold would have carried 11-21 here; this call alone does not.
+    let raise = reading.call_union(2).expect("a raise is authored").hull();
+    assert_eq!(raise.length(Suit::Spades), Range::new(3, 13));
+    assert_eq!(raise.strength.points, Range::FULL_POINTS);
+    assert!(reading.call_authored(2) && !reading.call_artificial(2));
+
+    // A pass is never `authored` (the mask records `!is_pass`), whatever band
+    // the pass gate gave it — and here it gave one.
+    assert!(!reading.call_authored(1) && !reading.call_artificial(1));
+    assert_eq!(
+        reading
+            .call_union(1)
+            .expect("the pass gate bands a pass")
+            .hull()
+            .strength
+            .points,
+        Range::new(0, 19)
+    );
+}
+
+/// A transfer is the artificial witness: it promises a suit it did not name.
+#[test]
+fn per_call_reads_a_transfer_as_its_target_suit() {
+    let auction = [bid(1, Strain::Notrump), Call::Pass, bid(2, Strain::Hearts)];
+    let reading = read_booked(&auction);
+    let transfer = reading
+        .call_union(2)
+        .expect("a Jacoby transfer is authored")
+        .hull();
+    assert_eq!(transfer.length(Suit::Spades), Range::new(5, 13));
+    assert!(reading.call_artificial(2), "a transfer is alerted");
+}
+
+/// The channel records the **projection**, so calls the natural walk reads —
+/// notably the opponents' natural openings — contribute ⊤.
+///
+/// Our own openings resolve to authored rules and do project (the tests above);
+/// an opponent's natural opening is decoded by the mirror book only when it is
+/// conventional, so a plain `1NT` or `1♣` by them lands here as "says nothing".
+/// That is the designed fallback, not a defect: the token still names the call
+/// through its one-hot, so the net learns natural meaning from call identity
+/// exactly as BEN does, and the static block carries the cumulative announced
+/// hull.  Pinned so a reading change that closes the gap is noticed.
+#[test]
+fn per_call_is_empty_where_the_natural_walk_reads() {
+    // Length 3 puts the opening at LHO — an opponent's natural notrump.
+    let theirs = [
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Diamonds),
+    ];
+    let reading = read_booked(&theirs);
+    assert_eq!(relative_of(theirs.len(), 0), Relative::Lho);
+    assert!(
+        reading.call_union(0).is_none(),
+        "an opponent's natural 1NT opening is walk-read, so it projects nothing"
+    );
+    // ...while their *conventional* call in the same auction is decoded.
+    assert!(reading.call_artificial(2), "their transfer is still read");
+
+    // Length 4 puts the same opening at our own seat, where it does project.
+    let ours = [
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Clubs),
+        Call::Pass,
+    ];
+    let reading = read_booked(&ours);
+    assert_eq!(relative_of(ours.len(), 0), Relative::Me);
+    assert!(
+        reading.call_union(0).is_some(),
+        "our own 1NT opening resolves to an authored rule"
+    );
+}
+
+/// The systems-on strip reads a *shorter* auction, so its per-call channel
+/// comes back keyed one index low.  Re-inflation must line the channel back up
+/// with the real auction — off by one, every token past the opening would name
+/// the wrong call, which is exactly the phantom-suit failure mode.
+#[test]
+fn per_call_survives_the_systems_on_strip() {
+    // The strip needs `(len - (open + 1))` even, so this length is deliberate.
+    let auction = [
+        bid(1, Strain::Diamonds),
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    let reading = read_booked(&auction);
+    assert!(
+        reading.call_union(auction.len()).is_none(),
+        "the channel must not run past the auction"
+    );
+    // Index 3 is the transfer on the grafted 1NT structure.  Shifted by one it
+    // would land on a pass, which is never artificial — so this pins the
+    // re-inflation.
+    assert!(
+        reading.call_artificial(3),
+        "the grafted transfer must stay at its own index"
+    );
+    assert!(
+        !reading.call_artificial(2) && !reading.call_artificial(4),
+        "the passes either side of it must not inherit the alert"
+    );
+}
+
+/// `blind_opponents` withholds the opponents' *content*, and the per-call
+/// channel is keyed by auction index, so it needs the wipe the seat arrays get.
+#[test]
+fn per_call_honours_blind_opponents() {
+    let auction = [bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass];
+    let profile = crate::bidding::ReadingProfile {
+        blind_opponents: true,
+        ..crate::bidding::ReadingProfile::default()
+    };
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let partnership = crate::american(&agreements).bind();
+    let mut decision = partnership.profile();
+    decision.reading = profile;
+    let reading = Inferences::read(
+        &partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_profile(decision),
+    );
+    for index in 0..auction.len() {
+        if matches!(
+            relative_of(auction.len(), index),
+            Relative::Lho | Relative::Rho
+        ) {
+            assert!(
+                reading.call_union(index).is_none(),
+                "call {index} is an opponent's and must read as ⊤ when blinded"
+            );
+        }
+    }
+}

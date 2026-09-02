@@ -356,9 +356,43 @@ The portability dream. Last, because it needs the most prerequisites.
   (−0.016, CI [−0.039, +0.007]); floor worth preserved (+0.540 vs bare). The
   teacher is the ceiling for pure distillation — the tag inputs are now in place
   to pay off when distilling the search target (M3.2).
-- ⬜ **M5.2 Sequence-model policy.** Move Component B to a small transformer over
-  the call sequence. *Measure:* matches or beats the MLP on the harness. *Deps:*
-  M1 (as baseline).
+- 🔨 **M5.2 Sequence-model policy.** Move Component B to a recurrence over the
+  call sequence — an LSTM, not a transformer: at `T ≤ 20` steps the attention
+  has nothing to buy, and the recurrence is two gemvs per step in-crate.
+  *Measure:* matches or beats the MLP on the harness. *Deps:* M1 (as baseline).
+
+  **Prerequisites built 2026-09-03** (steps 1-5 of the plan; default build
+  byte-identical, `smoke-default --count 20000 --seed 1` unchanged at
+  `38ee1e21…`):
+  - `Inferences` retains a **per-call agreement union** keyed by auction index
+    (`call_union`, `call_authored`, `call_artificial`), carried through the
+    step-cache rotation under the existing parity assertion and re-keyed across
+    the systems-on strip.
+  - `features::call_tokens_v7` emits one 56-byte `CallToken` per prior call
+    (`[call][flags][hull][box 1][box 2]`, `T = 20`, most recent kept), expanded
+    by a single normaliser to 98 floats on `push_inference_v6`'s exact scales.
+  - `dump-teacher --feature-version 7` writes a `.seq` sibling; the `.f32` and
+    `.tags` are **byte-identical** to a v6 dump on the same seed (verified by
+    `cmp` over 422 rows), which is what makes the MLP control an equal-data one.
+  - `trainer/` gains `--arch lstm`; `neural::classify_lstm` is the in-crate
+    forward pass, matched against an independent `f64` transcription,
+    **mutation-tested** against six plausible errors (gate order, bias
+    handling, state ordering, blob split, concat order — all six caught), and
+    checked against a **real candle export**: 8/8 arg-max, max |Δ| 5.4e-7,
+    token expansion bit-identical. The `.seq` step count is authoritative —
+    running the recurrence over the padding moved 4 of 8 arg-maxes.
+
+  **Coverage note.** `per_call` records the *projection*, so calls the natural
+  walk reads contribute ⊤ — in particular the **opponents' natural openings**
+  (our own openings, raises, overcalls, doubles and every conventional call do
+  project). This is the designed fallback: the token still names the call
+  through its one-hot, so natural meaning is learned from call identity as BEN
+  does. Pinned by `per_call_is_empty_where_the_natural_walk_reads`.
+
+  **Owed:** the corpus dump, the fidelity gate against an equal-data MLP
+  control, then the A/B. The floor shell, the five sibling factories and
+  `american_v7` are deliberately **not** built yet — they need a trained
+  artifact to `include_bytes!`, and a placeholder would be dead weight.
 - ⬜ **M5.3 Meaning encoder.** Embed each prior call's text description as a
   meaning vector and feed it to the sequence-model policy, so the system enters the
   net as *meanings* rather than baked-in weights. *Measure:* matches or beats the

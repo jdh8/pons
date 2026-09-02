@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **M5.2 sequence-policy prerequisites — the auction reaches the net as calls,
+  not as a summary (2026-09-03)** — no bidding change: the default build is
+  byte-identical (`smoke-default --count 20000 --seed 1` unchanged at
+  `38ee1e21…`), and every new path is opt-in or unreferenced by the shipped
+  floor. The shipped v6 floor sees the auction only as strain bitmasks plus
+  *cumulative* announced hulls, so a transfer `2♠` and a natural `2♠` arrive as
+  the same float — the input-side diagnosis behind the refuted phantom-suit
+  rail (`docs/ai-bidder/new-suit-veto.md` §2). Four pieces now exist to fix it:
+  - `Inferences` keeps each prior call's **own** agreement union, keyed by
+    auction index (`call_union`, `call_authored`, `call_artificial`). The
+    projection already computed it per call and discarded it one line later.
+    It rides the step-cache parity assertion, is re-keyed across the systems-on
+    strip (which reads a one-call-shorter auction), and honours
+    `blind_opponents` — the seat arrays' wipe does not reach an index-keyed
+    channel, so it is applied where the channel is stamped.
+  - `features::call_tokens_v7` turns that into one 56-byte `CallToken` per call
+    — `[call][seat + authored + artificial][hull][box 1][box 2]` — expanded to
+    98 floats by a single normaliser shared by the corpus writer and serving,
+    on `push_inference_v6`'s exact `/13` and `/37` scales.
+  - `dump-teacher --feature-version 7` writes a `.seq` sibling whose `.f32` and
+    `.tags` are **byte-identical** to a v6 dump on the same seed, so the MLP
+    control trains on the same rows; `trainer/` gains `--arch lstm`.
+  - `neural::classify_lstm` is the in-crate forward pass — candle's `LSTM::step`
+    (`i, f, g̃, o` chunk order, both biases) plus the existing v6 head. It takes
+    its weights as an argument rather than an embedded artifact, so it is
+    testable before a net exists. Verified three ways: against an independent
+    `f64` transcription; **mutation-tested** against six plausible errors (gate
+    order, dropped `b_hh`, state-update ordering, blob split order, concat
+    order — all six caught); and, decisively, against a **real candle export**
+    (270,374 floats trained through `--arch lstm`) — 8/8 arg-max, max |Δ|
+    5.4e-7, with the crate's token expansion bit-identical to the trainer's on
+    every step. That last check also found the contract worth stating: the
+    `.seq` row's leading step count is authoritative, because running the
+    recurrence over the zero padding moves logits (it moved 4 of 8 arg-maxes).
+
+  The floor shell, `american_v7` and the five sibling factories are
+  deliberately **not** built: they need a trained artifact to embed, and the
+  corpus dump plus fidelity gate come first (`docs/ai-bidder/plan.md` M5.2).
+
+  *Known coverage limit:* the per-call channel records the projection, so calls
+  the natural walk reads contribute ⊤ — notably the **opponents' natural
+  openings**. Our own openings, raises, overcalls, doubles and every
+  conventional call do project. This is the designed fallback (the token still
+  names the call, so natural meaning is learned from identity as BEN does) and
+  is pinned by a test rather than left implicit.
+
 ### Changed
 
 - **`artificial_calls_are_alerted` gains a second witness — possible shortness

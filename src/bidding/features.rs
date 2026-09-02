@@ -18,9 +18,10 @@
 
 use super::agreements::Agreements;
 use super::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape};
+use super::array::{CALL_VARIANTS, encode_call};
 use super::card::Card;
 use super::context::{Context, DecisionProfile};
-use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
+use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative, relative_of};
 use super::instinct::relocating;
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -1300,6 +1301,228 @@ pub fn features_v6(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     }
     debug_assert_eq!(out.len(), FEATURES_LEN_V6);
     out
+}
+
+// ── The v7 sequence extractor: one token per prior call ──────────────────────
+//
+// `features_v6` hands the net a flat summary of the auction: strain bitmasks,
+// the last bid, and the *cumulative* announced hulls.  A transfer `2♠` and a
+// natural `2♠` therefore arrive as the same float, which is the input-side
+// diagnosis behind the refuted phantom-suit rail (`docs/ai-bidder/new-suit-veto.md`
+// §2).  v7 keeps that vector verbatim as the static block and adds a *sequence*:
+// one token per prior call, oldest first, each carrying the call itself plus the
+// box-union its authoring rule projected — the meaning of that call alone.
+//
+// See `docs/ai-bidder/plan.md` M5.2.
+
+/// Layout version tag for the sequence extractor ([`call_tokens_v7`]).
+pub const FEATURES_VERSION_V7: u32 = 7;
+
+/// Width of v7's static block — the v6 vector verbatim.  The LSTM is a pure
+/// auction encoder; the two meet only in the head.
+pub const STATIC_LEN_V7: usize = FEATURES_LEN_V6;
+
+/// How many trailing calls a v7 row keeps.
+///
+/// Measured over 819,200 `bba-gen` auctions (max 33 calls, mean 10.4): more
+/// than 18 prior calls on 0.33% of decisions, more than 20 on 0.14%.  The
+/// dropped head is not lost — the static block's strain bitmasks and cumulative
+/// hulls still remember it — and a lossless `T = 34` would cost 70% more `.seq`
+/// bytes to serve that 0.14%.
+pub const MAX_STEPS_V7: usize = 20;
+
+/// How many of a call's union boxes a token carries, after the hull.
+///
+/// Two: the hull answers "what does this call promise at worst", and two boxes
+/// separate the common disjunctions (a Multi's two hands, a weak-or-strong
+/// relay) that the hull alone flattens into ⊤.  A third box is a named ceiling
+/// — see the module's v7 note.
+pub const BOXES_V7: usize = 2;
+
+/// Bytes of endpoints a token carries: hull plus [`BOXES_V7`] boxes, each an
+/// 18-value [`push_inference_v6`] block.
+const ENDS_V7: usize = (1 + BOXES_V7) * LEN_INFERENCE_V6;
+
+/// Stored width of one [`CallToken`]: the call byte, the flag byte, then the
+/// hull and [`BOXES_V7`] boxes as 18 bytes each.
+pub const TOKEN_BYTES_V7: usize = 2 + ENDS_V7;
+
+/// Expanded width of one token as the net reads it: seat one-hot, call one-hot,
+/// the two flags, then the endpoints.
+pub const TOKEN_LEN_V7: usize = 4 + CALL_VARIANTS + 2 + ENDS_V7;
+
+/// Bytes of one `.seq` corpus row: the step count, then [`MAX_STEPS_V7`]
+/// tokens, zero-padded.
+pub const SEQ_ROW_BYTES_V7: usize = 1 + MAX_STEPS_V7 * TOKEN_BYTES_V7;
+
+/// One prior call, as the v7 sequence floor reads it
+///
+/// Endpoints are exact small integers — a length is `0..=13`, a point count
+/// `0..=37` — so they are *stored* as bytes and expanded by the single
+/// normaliser [`floats`][Self::floats].  One function, shared by the corpus
+/// writer and the serving path, is what makes a served token bit-identical to
+/// the trained one; the divisors are `push_range`'s, not new constants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CallToken(pub [u8; TOKEN_BYTES_V7]);
+
+impl CallToken {
+    /// Flag bit: the call resolved to a live authored rule.
+    const AUTHORED: u8 = 1 << 2;
+    /// Flag bit: a live authored rule alerts the call — it is artificial.
+    const ARTIFICIAL: u8 = 1 << 3;
+
+    /// Build a token for the call `call` made by relative seat `seat`.
+    fn new(call: Call, seat: Relative, authored: bool, artificial: bool) -> Self {
+        let mut bytes = [0u8; TOKEN_BYTES_V7];
+        // `encode_call` is total over `Call` and lands in `0..CALL_VARIANTS`.
+        bytes[0] = encode_call(call) as u8;
+        bytes[1] = seat as u8
+            | if authored { Self::AUTHORED } else { 0 }
+            | if artificial { Self::ARTIFICIAL } else { 0 };
+        // Every endpoint block starts at ⊤; `write_envelope` overwrites the
+        // ones the reading supplies.
+        for block in 0..=BOXES_V7 {
+            write_envelope(&mut bytes, block, &Envelope::unknown());
+        }
+        Self(bytes)
+    }
+
+    /// The seat that made this call, relative to the player about to act.
+    #[must_use]
+    pub const fn seat(&self) -> Relative {
+        match self.0[1] & 0b11 {
+            0 => Relative::Me,
+            1 => Relative::Lho,
+            2 => Relative::Partner,
+            _ => Relative::Rho,
+        }
+    }
+
+    /// Whether the call resolved to a live authored rule.
+    #[must_use]
+    pub const fn authored(&self) -> bool {
+        self.0[1] & Self::AUTHORED != 0
+    }
+
+    /// Whether a live authored rule alerts the call.
+    #[must_use]
+    pub const fn artificial(&self) -> bool {
+        self.0[1] & Self::ARTIFICIAL != 0
+    }
+
+    /// Expand to the floats the net reads: `[seat 4][call 38][authored]
+    /// [artificial][hull 18][box 1 18][box 2 18]`.
+    ///
+    /// The endpoint divisors are `push_inference_v6`'s exactly — `/13` for the
+    /// eight length slots of a block, `/37` for its ten strength slots — so a
+    /// token's bytes reach the net on the same scale as the static block's.
+    #[must_use]
+    pub fn floats(&self) -> [f32; TOKEN_LEN_V7] {
+        let mut out = [0.0; TOKEN_LEN_V7];
+        out[self.seat() as usize] = 1.0;
+        out[4 + self.0[0] as usize] = 1.0;
+        out[4 + CALL_VARIANTS] = f32::from(self.authored());
+        out[4 + CALL_VARIANTS + 1] = f32::from(self.artificial());
+        let ends = &mut out[4 + CALL_VARIANTS + 2..];
+        for (slot, (&byte, divisor)) in ends
+            .iter_mut()
+            .zip(self.0[2..].iter().zip(endpoint_divisors()))
+        {
+            *slot = f32::from(byte) / divisor;
+        }
+        out
+    }
+}
+
+/// The divisor of each of a token's [`ENDS_V7`] endpoint bytes: within one
+/// 18-byte block, `13` for the four suits' length endpoints and `37` for the
+/// points pair and the four support pairs — `push_inference_v6`'s order.
+fn endpoint_divisors() -> impl Iterator<Item = f32> {
+    (0..=BOXES_V7).flat_map(|_| {
+        std::iter::repeat_n(13.0, 2 * 4).chain(std::iter::repeat_n(37.0, 2 * (1 + 4)))
+    })
+}
+
+/// Write one [`Envelope`] into token `block` (0 = hull, 1.. = boxes), in
+/// [`push_inference_v6`]'s order: four suits' `{min, max}` lengths, then
+/// `{min, max}` points, then the four support `{min, max}` pairs.
+fn write_envelope(bytes: &mut [u8; TOKEN_BYTES_V7], block: usize, envelope: &Envelope) {
+    let mut at = 2 + block * LEN_INFERENCE_V6;
+    let mut put = |range: Range| {
+        bytes[at] = range.min;
+        bytes[at + 1] = range.max;
+        at += 2;
+    };
+    for suit in Suit::ASC {
+        put(envelope.length(suit));
+    }
+    put(envelope.strength.points);
+    for range in envelope.strength.support_points {
+        put(range);
+    }
+}
+
+/// One token per prior call, oldest first, capped at [`MAX_STEPS_V7`]
+///
+/// Keeps the **most recent** calls: the head the cap drops is the part the
+/// static block still summarises.  Each token's reading channel is that call's
+/// own agreement union ([`Inferences::call_union`]) — its hull, then its first
+/// [`BOXES_V7`] boxes — and is ⊤ where the call resolved to no authored effect,
+/// which is exactly "this call says nothing on its own".  A floor call's
+/// natural meaning then reaches the net through the call identity alone, as it
+/// does for BEN.
+///
+/// `blind_inference` blanks every reading channel here, matching the static
+/// block's `push_inference_v6`; `blind_opponents` is applied one layer down,
+/// when the reading is taken.
+#[must_use]
+pub fn call_tokens_v7(context: &Context<'_>) -> Vec<CallToken> {
+    let auction = context.auction();
+    let len = auction.len();
+    let blind = context.decision_profile().blind_inference;
+    let inferences = context.inferences();
+    // Absolute auction indices, so the reading lookups and `relative_of` all
+    // key off the same number the cap did not move.
+    (len.saturating_sub(MAX_STEPS_V7)..len)
+        .map(|index| {
+            let mut token = CallToken::new(
+                auction[index],
+                relative_of(len, index),
+                inferences.call_authored(index),
+                inferences.call_artificial(index),
+            );
+            if let Some(union) = inferences.call_union(index).filter(|_| !blind) {
+                write_envelope(&mut token.0, 0, &union.hull());
+                for (slot, box_) in union.boxes().iter().enumerate().take(BOXES_V7) {
+                    write_envelope(&mut token.0, 1 + slot, box_);
+                }
+            }
+            token
+        })
+        .collect()
+}
+
+/// Pack a decision's tokens into one fixed-size `.seq` corpus row:
+/// `[steps][tokens…]`, zero-padded to [`SEQ_ROW_BYTES_V7`].
+///
+/// # Panics
+///
+/// Panics if `tokens` is longer than [`MAX_STEPS_V7`] — [`call_tokens_v7`]
+/// never returns more.
+#[must_use]
+pub fn seq_row_v7(tokens: &[CallToken]) -> [u8; SEQ_ROW_BYTES_V7] {
+    assert!(
+        tokens.len() <= MAX_STEPS_V7,
+        "a v7 row holds at most {MAX_STEPS_V7} tokens, got {}",
+        tokens.len()
+    );
+    let mut row = [0u8; SEQ_ROW_BYTES_V7];
+    row[0] = tokens.len() as u8;
+    for (slot, token) in tokens.iter().enumerate() {
+        let at = 1 + slot * TOKEN_BYTES_V7;
+        row[at..at + TOKEN_BYTES_V7].copy_from_slice(&token.0);
+    }
+    row
 }
 
 // ── The trick-evaluator extractor (accountant session C) ─────────────────────────

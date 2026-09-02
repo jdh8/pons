@@ -130,3 +130,182 @@ fn folded_card_columns_are_exactly_zero() {
         }
     }
 }
+
+// ── v7 sequence forward pass ─────────────────────────────────────────────────
+
+/// A deterministic pseudo-random weight blob — enough structure that a wrong
+/// gate order or a transposed matrix cannot pass by symmetry.
+///
+/// The ±0.3 scale is chosen for *discrimination*, and it is a real tension.  At
+/// ±0.1 (candle's Kaiming draw) every gate pre-activation sits near zero, so
+/// every sigmoid is ≈0.5 and swapping the `i` and `f` gates changes almost
+/// nothing — a mutation test confirmed such a swap passes unnoticed there.  At
+/// ±1 the gates saturate and twenty recurrent steps amplify pure `f32`
+/// summation-order noise past any useful tolerance.  ±0.3 spans the sigmoids
+/// (pre-activations ≈ ±3) while keeping the recurrence stable, and the
+/// reference below accumulates in `f64` so the residual is the tested path's
+/// error alone.
+fn pseudo_weights(n: usize) -> Vec<f32> {
+    // A cheap LCG: reproducible across platforms, unlike hashing floats.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    (0..n)
+        .map(|_| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1);
+            (f32::from((state >> 40) as u16) / 32768.0 - 1.0) * 0.3
+        })
+        .collect()
+}
+
+/// An independent, deliberately naive transcription of candle's `LSTM::step`
+/// plus the head — written from the equations rather than from `classify_lstm`,
+/// so agreement means the shipped path is right, not that a bug was copied.
+fn reference_lstm(weights: &[f32], features: &[f32], tokens: &[[f32; TOKEN_LEN_V7]]) -> Vec<f32> {
+    let (w_ih, rest) = weights.split_at(G * TOK);
+    let (w_hh, rest) = rest.split_at(G * HL);
+    let (b_ih, rest) = rest.split_at(G);
+    let (b_hh, head) = rest.split_at(G);
+
+    let mut h = vec![0f64; HL];
+    let mut c = vec![0f64; HL];
+    for token in tokens {
+        // Row-major `(G, in)`: gate row `g` dots the whole input.
+        let gates: Vec<f64> = (0..G)
+            .map(|g| {
+                let from_input: f64 = (0..TOK)
+                    .map(|k| f64::from(w_ih[g * TOK + k]) * f64::from(token[k]))
+                    .sum::<f64>()
+                    + f64::from(b_ih[g]);
+                let from_hidden: f64 = (0..HL)
+                    .map(|k| f64::from(w_hh[g * HL + k]) * h[k])
+                    .sum::<f64>()
+                    + f64::from(b_hh[g]);
+                from_input + from_hidden
+            })
+            .collect();
+        let sig = |x: f64| 1.0 / (1.0 + (-x).exp());
+        for i in 0..HL {
+            // candle chunks the 4H block as i, f, g̃, o.
+            let (in_gate, forget, cell, out_gate) = (
+                sig(gates[i]),
+                sig(gates[HL + i]),
+                gates[2 * HL + i].tanh(),
+                sig(gates[3 * HL + i]),
+            );
+            c[i] = forget * c[i] + in_gate * cell;
+            h[i] = out_gate * c[i].tanh();
+        }
+    }
+
+    let mut joined = h;
+    joined.extend(features.iter().copied().map(f64::from));
+    assert_eq!(joined.len(), IN_HEAD);
+
+    // The head, as three explicit affine layers with ReLU between.
+    let (w1, rest) = head.split_at(HID * IN_HEAD);
+    let (b1, rest) = rest.split_at(HID);
+    let (w2, rest) = rest.split_at(N_W2);
+    let (b2, rest) = rest.split_at(HID);
+    let (w3, b3) = rest.split_at(N_W3);
+    let layer = |w: &[f32], b: &[f32], x: &[f64], out: usize| -> Vec<f64> {
+        (0..out)
+            .map(|r| {
+                (0..x.len())
+                    .map(|k| f64::from(w[r * x.len() + k]) * x[k])
+                    .sum::<f64>()
+                    + f64::from(b[r])
+            })
+            .collect()
+    };
+    let mut h1 = layer(w1, b1, &joined, HID);
+    h1.iter_mut().for_each(|v| *v = v.max(0.0));
+    let mut h2 = layer(w2, b2, &h1, HID);
+    h2.iter_mut().for_each(|v| *v = v.max(0.0));
+    layer(w3, b3, &h2, OUT)
+        .into_iter()
+        .map(|v| v as f32)
+        .collect()
+}
+
+fn pseudo_tokens(count: usize) -> Vec<[f32; TOKEN_LEN_V7]> {
+    let flat = pseudo_weights(count * TOKEN_LEN_V7);
+    flat.as_chunks::<TOKEN_LEN_V7>().0.to_vec()
+}
+
+#[test]
+fn v7_blob_layout_is_pinned() {
+    // 4·128·(98 + 128 + 2) LSTM floats, plus the (128+176)-input head.
+    assert_eq!(G * TOK + G * HL + 2 * G, 116_736);
+    assert_eq!(total_lstm(), 116_736 + total(IN_HEAD));
+    assert_eq!(IN_HEAD, 128 + 176);
+    assert_eq!(total_lstm(), 270_374);
+}
+
+#[test]
+fn v7_matches_an_independent_transcription() {
+    let weights = pseudo_weights(total_lstm());
+    let features = pseudo_weights(FEATURES_LEN_V6);
+    for steps in [0, 1, 2, 7, super::super::features::MAX_STEPS_V7] {
+        let tokens = pseudo_tokens(steps);
+        let mine = classify_lstm(&weights, &features, &tokens);
+        let reference = reference_lstm(&weights, &features, &tokens);
+        let mine: Vec<f32> = mine.into_values().collect();
+        assert_eq!(
+            argmax(&mine),
+            argmax(&reference),
+            "argmax differs at {steps}"
+        );
+        let worst = mine
+            .iter()
+            .zip(&reference)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0f32, f32::max);
+        assert!(worst < 1e-3, "logits differ by {worst} at {steps} steps");
+    }
+}
+
+#[test]
+fn v7_an_empty_auction_runs_from_the_zero_state() {
+    // The zero state must be what the head sees, i.e. the first 128 head inputs
+    // are exactly 0 — this is what makes the trainer's `gather` at index 0
+    // agree with serving a dealer's decision.
+    let weights = pseudo_weights(total_lstm());
+    let features = pseudo_weights(FEATURES_LEN_V6);
+    let empty = classify_lstm(&weights, &features, &[]);
+
+    let head = &weights[G * TOK + G * HL + 2 * G..];
+    let mut joined = vec![0f32; HL];
+    joined.extend_from_slice(&features);
+    let direct = forward::<IN_HEAD>(head, &joined);
+    assert_eq!(
+        empty.into_values().collect::<Vec<_>>(),
+        direct.into_values().collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn v7_later_calls_change_the_answer() {
+    // A recurrence that ignored its input, or that overwrote rather than
+    // accumulated state, would still pass the parity test above.
+    let weights = pseudo_weights(total_lstm());
+    let features = pseudo_weights(FEATURES_LEN_V6);
+    let tokens = pseudo_tokens(4);
+    let all: Vec<f32> = classify_lstm(&weights, &features, &tokens)
+        .into_values()
+        .collect();
+    let dropped: Vec<f32> = classify_lstm(&weights, &features, &tokens[..3])
+        .into_values()
+        .collect();
+    assert_ne!(all, dropped, "the last token must move the logits");
+
+    let mut swapped = tokens.clone();
+    swapped.swap(0, 1);
+    let reordered: Vec<f32> = classify_lstm(&weights, &features, &swapped)
+        .into_values()
+        .collect();
+    assert_ne!(
+        all, reordered,
+        "order must matter — that is the whole point"
+    );
+}
