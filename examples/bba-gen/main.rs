@@ -510,6 +510,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_competitive_accountant: bool,
 
+    /// Veto the floor's phantom suit bids for our side
+    /// (`InstinctProfile::new_suit_veto`, crate default off, under
+    /// measurement).  On, every suit bid the net ranks in a suit where we hold
+    /// at most four cards and our length plus partner's announced minimum
+    /// reaches at most five is masked — the auction has promised no playable
+    /// trump suit there.  Demotions only, no bid-identity term, notrump
+    /// untouched.  The `veto` arm of `scripts/ab-new-suit-veto.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_new_suit_veto: bool,
+
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
     /// `win | win`, plain +0.018/+0.028 by vul).  The accountant game/slam gates
@@ -2361,6 +2371,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
+    agreements.decision.instinct.new_suit_veto = args.ns_new_suit_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
@@ -3152,6 +3163,12 @@ fn main() -> anyhow::Result<()> {
     if vetoes | doubles | passes != 0 {
         eprintln!(
             "bba-gen: competitive accountant fired — {vetoes} bid vetoes, {doubles} double masks, {passes} pass demotions"
+        );
+    }
+    let [taken, masks] = pons::bidding::instinct::new_suit_counts();
+    if (taken | masks) != 0 {
+        eprintln!(
+            "bba-gen: phantom-suit rail fired — {taken} decisions whose top call it took, {masks} candidate bids masked"
         );
     }
     Ok(())

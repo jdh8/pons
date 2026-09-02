@@ -113,6 +113,8 @@ The ledgers that grew alongside the design (the shipped reality lives there):
 [`evaluator-net.md`](evaluator-net.md),
 [`competitive-accountant.md`](competitive-accountant.md) (the contested 5-level
 gate; evidence in [`doubling-calibration.md`](doubling-calibration.md)),
+[`new-suit-veto.md`](new-suit-veto.md) (the phantom-suit rail — the shell's
+second demotion-only stage, measured and refuted),
 [`sampled-projection.md`](sampled-projection.md),
 [`dsl-spec.md`](dsl-spec.md), [`21gf-ledger.md`](21gf-ledger.md), plus the
 BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in

@@ -100,6 +100,12 @@ Prove the whole pipeline by *cloning* the current system.
   (`Pass` stays finite). Five gated rails tests green. *Decision:* hand-conditioned
   game forces (a strong-NT responder who *holds* game values) are judgement the
   net is trusted with, not a hard rail.
+  *Later stages on the same shell:* the competitive accountant
+  ([competitive-accountant.md](competitive-accountant.md), shipped default-on
+  2026-08-12) and the phantom-suit rail
+  ([new-suit-veto.md](new-suit-veto.md), measured and **refuted** 2026-09-02;
+  its forensic is why M8.4's missing negative-inference axis matters) — both
+  demotion-only, both after the legality mask, neither a new milestone.
 - ✅ **M1.4 A/B measurement.** A variant of the instinct-floor example: neural
   floor vs deterministic floor vs bare books. *Deliverable:* IMPs/board numbers.
   *Measure:* parity with the deterministic floor (≈ 0 IMPs/board against it) and

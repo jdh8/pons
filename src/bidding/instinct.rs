@@ -527,6 +527,28 @@ pub struct InstinctProfile {
     /// drives to a doubled game (`1X (1Y) - (1Z) X - 2m (2Z) 3m (X) …`).  Off
     /// restores the blind raise ladder for the A/B.
     pub rein_advance_raise: bool,
+    /// Veto a floored suit bid nobody has the cards for — the **phantom-suit
+    /// rail**
+    ///
+    /// **Default off**, under measurement.  On, `new_suit_gate` masks every
+    /// suit bid the net ranks in a suit where we hold at most four cards and
+    /// our length plus partner's *announced* minimum reaches at most five.  No
+    /// eight-card fit can satisfy that, so the rail is "scoped off agreed fits"
+    /// by the predicate itself, and it carries **no bid-identity term**: an
+    /// artificial `2♠` must not make spades a suit we have bid, which is
+    /// exactly the confusion `Context::we_bid`'s raw strain bits would
+    /// introduce.
+    ///
+    /// The net cannot learn its way out of this one.  `features_v6` feeds it a
+    /// we-bid-this-strain bit set for artificial calls too
+    /// ([`push_context`][super::features]) and carries no alert column, so a
+    /// conventional `2♠` and a natural one are the same input; repairing that
+    /// is a retrain, and this rail is the output-side alternative.  Evidence:
+    /// on the §N1-lia lia3 forensic the *default system's own* floor made such
+    /// calls on 6,800 (none) / 3,844 (both) boards and lost 5.2 / 6.5 IMPs per
+    /// fired.  Designed in `docs/ai-bidder/new-suit-veto.md`, measured by
+    /// `scripts/ab-new-suit-veto.sh`.
+    pub new_suit_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -566,6 +588,7 @@ impl Default for InstinctProfile {
             two_over_one_slam_strength: true,
             keycard_minors: true,
             rein_advance_raise: true,
+            new_suit_veto: false,
         }
     }
 }
@@ -609,6 +632,7 @@ impl InstinctProfile {
             two_over_one_slam_strength: false,
             keycard_minors: false,
             rein_advance_raise: false,
+            new_suit_veto: true,
         }
     }
 }
@@ -3697,6 +3721,85 @@ static COMPETITIVE_FIRED: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
 #[must_use]
 pub fn competitive_counts() -> [u64; 3] {
     std::array::from_fn(|action| COMPETITIVE_FIRED[action].load(atomic::Ordering::Relaxed))
+}
+
+/// Mask the suit bids nobody has the cards for — the
+/// [`new_suit_veto`][InstinctProfile::new_suit_veto] stage of the learned floor
+///
+/// Runs in the floor's judgement path after the legality mask.  A suit bid is a
+/// phantom when we hold at most four cards in it *and* our length plus the
+/// minimum partner's calls have announced there reaches at most five: nobody at
+/// the table has promised a playable trump suit, so the contract is named off
+/// the bare envelope.  Every action is a demotion — the net stays the only
+/// physics, `Pass` is never touched, and a distribution always survives.
+///
+/// Deliberately hand-conditioned and free of any bid-identity term.  The strain
+/// bits on [`Context`] are side-scoped and set for artificial calls, so a
+/// transfer or a cue would read as "we bid that suit" and exempt the very calls
+/// this rail exists for.  Reading the announced minimum instead is sound in the
+/// one direction that matters (`Inferences` never over-promises length), which
+/// is why an announced eight-card fit can never trip the predicate: the rail is
+/// scoped off agreed fits without a second test for one.
+///
+/// Notrump is untouched — [`Strain::suit`] is `None` there, and a strain with
+/// no suit has no length to be phantom about.
+pub(crate) fn new_suit_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    if !pinned(context).new_suit_veto {
+        return;
+    }
+    let inferences = context.inferences();
+    let partner = inferences.announced(Relative::Partner);
+    // The net's own pick, and whether we take it away — the only count that
+    // says the rail *changed* an auction.  Compared on the pre-mask logits, so
+    // the loop stays single-pass.
+    let mut top: Option<(f32, bool)> = None;
+    let mut masked = 0;
+    for (call, logit) in logits.iter_mut() {
+        if !logit.is_finite() {
+            continue;
+        }
+        let phantom = match call {
+            Call::Bid(bid) => bid.strain.suit().is_some_and(|suit| {
+                let own = hand[suit].len();
+                own <= 4 && own + usize::from(partner.length(suit).min) <= 5
+            }),
+            _ => false,
+        };
+        if top.is_none_or(|(best, _)| *logit > best) {
+            top = Some((*logit, phantom));
+        }
+        if phantom {
+            *logit = f32::NEG_INFINITY;
+            masked += 1;
+        }
+    }
+    if masked != 0 {
+        NEW_SUIT_FIRED[1].fetch_add(masked, atomic::Ordering::Relaxed);
+        if top.is_some_and(|(_, phantom)| phantom) {
+            NEW_SUIT_FIRED[0].fetch_add(1, atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// `new_suit_gate`'s fire counts for this process
+static NEW_SUIT_FIRED: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
+
+/// How often the phantom-suit rail has acted in this process — decisions whose
+/// top call it took away, then candidate bids it masked
+///
+/// The two differ by three orders of magnitude — 36,998 against 27,260,473
+/// over the rail's A/B — and answer different questions.  Two factors compound:
+/// a floor decision with a silent partner offers a short suit at every level,
+/// so the second number counts tens of masks per decision and measures *reach*;
+/// and of the decisions that mask anything, only a minority lose the call the
+/// net actually wanted.  Only the first number says the rail changed what we
+/// bid, which is what an A/B's divergence is made of.  One `bba-gen` shard is
+/// one process, so an arm's totals are the sum over its shards.  Monotone and
+/// never reset; `Relaxed` because the counts are read after the run, not raced
+/// on.
+#[must_use]
+pub fn new_suit_counts() -> [u64; 2] {
+    std::array::from_fn(|action| NEW_SUIT_FIRED[action].load(atomic::Ordering::Relaxed))
 }
 
 /// The comparison made by a accountant trick gate

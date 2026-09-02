@@ -24,9 +24,11 @@
 //! - **Judgement** — otherwise it returns the net's logits, legality-masked: any
 //!   call the laws forbid is set to `-∞`, while `Pass` (always legal) stays
 //!   finite so a distribution always exists.  This is the vast middle the net is
-//!   here to learn.  One optional stage follows the mask: `competitive_gate`
+//!   here to learn.  Two optional stages follow the mask: `competitive_gate`
 //!   prices the contested game-level node against the score table when
-//!   `InstinctProfile::competitive_accountant` is on.  It only ever demotes, so
+//!   `InstinctProfile::competitive_accountant` is on, and `new_suit_gate` masks
+//!   a suit bid nobody has the cards for when
+//!   `InstinctProfile::new_suit_veto` is on.  Both only ever demote, so
 //!   knob-off is byte-identical and the net keeps its monopoly on introducing
 //!   calls.
 //!
@@ -42,7 +44,7 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
-use super::instinct::{competitive_gate, forced};
+use super::instinct::{competitive_gate, forced, new_suit_gate};
 use super::trie::Classifier;
 use super::{features, neural};
 use contract_bridge::Hand;
@@ -112,6 +114,7 @@ impl Classifier for ConfiguredFloorBba {
         let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
+        new_suit_gate(&mut logits, hand, context);
         logits
     }
 }
@@ -143,6 +146,7 @@ impl Classifier for ConfiguredFloorV6 {
         let mut logits = (self.2)(&features::features_v6(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
+        new_suit_gate(&mut logits, hand, context);
         logits
     }
 }

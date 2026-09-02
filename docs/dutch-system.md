@@ -89,6 +89,16 @@ estimates and the auction, none of which is system-specific, but its q was
 calibrated on american's contracts against BBA. Re-calibrating for Dutch is not
 owed until Dutch is a champion candidate.
 
+**Inherited, still default-off: the phantom-suit rail** *(2026-09-02)*. The
+same two shells carry `new_suit_gate`
+([ai-bidder/new-suit-veto.md](ai-bidder/new-suit-veto.md)), which masks a floored
+suit bid on at most four cards with at most five announced combined. It is
+`InstinctProfile::new_suit_veto`, **default off and byte-identical** while its
+A/B **refuted it on `american()` the same day** (plain DD −0.0212/−0.0164, PD a
+wash), so it stays off and no Dutch number is affected. Recorded here only so a
+future reader knows the stage exists in the shell Dutch rides, and why it is
+inert.
+
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
 `SEED_BASE`, run sequentially under `scripts/idle-run.sh`. Preemptive phases

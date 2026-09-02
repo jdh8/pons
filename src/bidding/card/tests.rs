@@ -269,4 +269,12 @@ fn a_reading_knob_leaves_the_card_alone() {
     let mut all = Agreements::default();
     all.decision.reading.scope = crate::bidding::inference::ReadingScope::All;
     assert_eq!(american_card(&all).to_string(), shipped);
+
+    // Same claim one layer down: a classify-time *floor* knob is not a rule, an
+    // alert or an envelope, so it discloses nothing either.  The card cannot
+    // express which floor is attached (`card.rs`'s own documented limitation),
+    // and a logit-mask stage is invisible to it by construction.
+    let mut rail = Agreements::default();
+    rail.decision.instinct.new_suit_veto = true;
+    assert_eq!(american_card(&rail).to_string(), shipped);
 }

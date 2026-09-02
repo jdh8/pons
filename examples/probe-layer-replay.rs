@@ -58,6 +58,10 @@ struct Args {
     /// The arm ran with `--ns-landy-lia`
     #[arg(long)]
     ns_landy_lia: bool,
+
+    /// The arm ran with `--ns-new-suit-veto`
+    #[arg(long)]
+    ns_new_suit_veto: bool,
 }
 
 #[derive(serde::Serialize)]
@@ -95,6 +99,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut agreements = vs_bba_agreements(Agreements::default());
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
+    agreements.decision.instinct.new_suit_veto = args.ns_new_suit_veto;
     let partnership = seat_floor(&args.floor, &agreements)?;
 
     let wanted: BTreeSet<usize> = std::io::BufReader::new(std::fs::File::open(&args.jsonl)?)

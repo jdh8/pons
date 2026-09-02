@@ -7,6 +7,15 @@ const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
 }
 
+/// A 2=4=3=4 bust — no honour worth a trick, no suit worth naming
+///
+/// Shared by the two stages that have to price a hopeless hand: the
+/// accountant's five-level save and the phantom-suit rail's reach row (with a
+/// silent partner every suit here is inside its predicate).  Thirteen cards,
+/// which the string it replaced was not — `Hand` parses an over-long holding
+/// without complaint, so a miscount is silent.
+const BUST: &str = "43.9862.753.J864";
+
 /// The shelled net's logits under the card the knobs currently describe
 ///
 /// The card is read per call, not once, because several tests below arm a
@@ -19,6 +28,25 @@ fn shelled_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits
     let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
         Config::symmetric(&crate::bidding::card::american_card(agreements)),
+        Arc::new(crate::bidding::instinct(agreements)),
+    );
+    let context =
+        Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision);
+    floor.classify(hand, &context)
+}
+
+/// The same, through the **shipped v6 shell**
+///
+/// `shelled_with` builds the v4 `ConfiguredFloorBba`.  The two classify bodies
+/// carry the same stage list by hand, so a stage added to one and not the other
+/// is a silent divergence no v4 test can see — this is what pins the shipped
+/// side of that pair.
+fn shelled_v6_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let floor = ConfiguredFloorV6::new(
+        crate::bidding::features::CompactConfig::symmetric(
+            &crate::bidding::features::ConventionCard::capture(agreements, false),
+        ),
         Arc::new(crate::bidding::instinct(agreements)),
     );
     let context =
@@ -335,7 +363,7 @@ fn the_competitive_gate_vetoes_the_phantom_save() {
     let mut agreements = Agreements::default();
     agreements.decision.instinct.competitive_accountant = false;
 
-    let off = shelled_with(&agreements, &auction, "43.9862.7532.J864");
+    let off = shelled_with(&agreements, &auction, BUST);
     assert!(
         off.0[five_spades].is_finite(),
         "knob-off leaves the net's own ranking alone"
@@ -343,7 +371,7 @@ fn the_competitive_gate_vetoes_the_phantom_save() {
 
     agreements.decision.instinct.competitive_accountant = true;
     let before = crate::bidding::instinct::competitive_counts()[0];
-    let bust = shelled_with(&agreements, &auction, "43.9862.7532.J864");
+    let bust = shelled_with(&agreements, &auction, BUST);
     assert!(
         crate::bidding::instinct::competitive_counts()[0] > before,
         "the veto is attributed"
@@ -404,5 +432,173 @@ fn the_accountant_pushes_no_double_over_a_slam() {
         capped.0[Call::Pass],
         shelled_with(&silent, &slam, hand).0[Call::Pass],
         "the cap skips the action rather than scaling it"
+    );
+}
+
+/// The highest finite logit's call — the pick `select_with_legal_state` makes
+fn top_call(logits: &Logits) -> Call {
+    (&logits.0)
+        .into_iter()
+        .filter(|(_, v)| v.is_finite())
+        .reduce(|best, next| if next.1 > best.1 { next } else { best })
+        .map(|(c, _)| c)
+        .expect("a distribution survives every stage")
+}
+
+/// The phantom-suit rail takes away the cue nobody has the cards for, and
+/// leaves the natural bid alone
+///
+/// `1♠ (2♥)` to the responder holding `86` in their suit: partner opened
+/// spades and has announced no hearts, so the net's `3♥` cue names a trump
+/// suit the table has promised two cards in.  The rail masks it and the
+/// takeout `X` — already in the net's own ranking — replaces it.  That is the
+/// §N1-lia forensic's worst class in miniature, and the reason the rail is
+/// output-side: `features_v6` sets a we-bid-this-strain bit for artificial
+/// calls, so the net cannot tell this cue from a natural suit bid.
+///
+/// Asserted on the logits rather than on the process-global counters wherever
+/// the claim allows it: the counters are never reset and the test harness runs
+/// tests in parallel, so only a strict increase is race-safe and none of these
+/// claims needs more than that.
+#[test]
+fn the_new_suit_gate_takes_the_phantom_cue() {
+    let auction = [call(1, Strain::Spades), call(2, Strain::Hearts)];
+    let hand = "K3.86.AQ932.KQ84";
+    let cue = call(3, Strain::Hearts);
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.new_suit_veto,
+        "the rail is default off while it is under measurement"
+    );
+
+    let off = shelled_with(&agreements, &auction, hand);
+    assert!(
+        off.0[cue].is_finite(),
+        "knob-off leaves the net's own ranking alone"
+    );
+
+    agreements.decision.instinct.new_suit_veto = true;
+    let before = crate::bidding::instinct::new_suit_counts();
+    let railed = shelled_with(&agreements, &auction, hand);
+    let after = crate::bidding::instinct::new_suit_counts();
+    assert!(after[1] > before[1], "the masks are attributed");
+    assert!(
+        after[0] > before[0],
+        "and so is the decision whose top call it took"
+    );
+    assert_eq!(
+        railed.0[cue],
+        f32::NEG_INFINITY,
+        "the phantom cue is masked"
+    );
+    assert!(railed.0[Call::Pass].is_finite(), "Pass is always legal");
+    assert!(railed.has_mass(), "a distribution survives the stage");
+    assert!(
+        railed.0[Call::Double].is_finite(),
+        "the rail never touches a call that is not a suit bid"
+    );
+    // The claim the counters cannot make race-free: the net's pick actually moved.
+    assert_ne!(
+        top_call(&off),
+        top_call(&railed),
+        "the rail changed what the floor would bid here"
+    );
+
+    let real = shelled_with(&agreements, &auction, "K3.KQT86.AQ93.K8");
+    assert!(
+        real.0[cue].is_finite(),
+        "a five-card holding is outside the rail by design"
+    );
+}
+
+/// The rail is scoped off agreed fits by its predicate alone, and it is wired
+/// into the **shipped v6 shell**, not just the v4 twin the other tests build
+///
+/// Partner opened `1♠`, so their announced spade minimum is five; three cards
+/// opposite that already reaches eight and the sum can never fall to five.  No
+/// separate `has_fit` test does this work — the arithmetic does — which is the
+/// one load-bearing claim behind "scoped off agreed fits" in the design doc.
+/// The same rows run through `ConfiguredFloorV6`, because the two shells
+/// duplicate their stage list by hand and only this pins the shipped one.
+#[test]
+fn the_new_suit_gate_spares_an_announced_fit_in_both_shells() {
+    let auction = [call(1, Strain::Spades), call(2, Strain::Hearts)];
+    // 3=2=4=4: three spades opposite partner's announced five, and hearts,
+    // diamonds and clubs all inside the predicate.
+    let hand = "K32.86.AQ93.KQ84";
+    let raise = call(2, Strain::Spades);
+    let cue = call(3, Strain::Hearts);
+    let mut agreements = Agreements::default();
+    agreements.decision.instinct.new_suit_veto = true;
+
+    for (label, logits) in [
+        ("v4", shelled_with(&agreements, &auction, hand)),
+        ("v6", shelled_v6_with(&agreements, &auction, hand)),
+    ] {
+        assert!(
+            logits.0[raise].is_finite(),
+            "{label}: a raise of partner's announced suit is never a phantom"
+        );
+        assert_eq!(
+            logits.0[cue],
+            f32::NEG_INFINITY,
+            "{label}: the unannounced side suit still is one"
+        );
+        assert!(logits.0[Call::Pass].is_finite(), "{label}: Pass is legal");
+        assert!(logits.has_mass(), "{label}: a distribution survives");
+    }
+}
+
+/// The phantom-suit rail masks a suit bid nobody has the cards for, and only
+/// for the hand that deserves it
+///
+/// `(1♥)` to the overcaller with partner silent: partner has announced no
+/// length anywhere, so a `1♠` overcall on a doubleton names a trump suit the
+/// table has promised at most two cards in and the rail masks it — while Pass
+/// keeps a finite logit, because a distribution must survive every stage.
+/// Knob-off is byte-identical by construction (the stage returns before reading
+/// anything), which the `off` row pins at the firing node itself.  Give the same
+/// seat a real five-card suit and `1♠` survives: `own <= 4` is the whole guard
+/// against vetoing a natural long-suit bid, the failure mode `net_collar` and
+/// `free_bid_quality` both died of.
+#[test]
+fn the_new_suit_gate_masks_the_phantom_overcall() {
+    let auction = [call(1, Strain::Hearts)];
+    let one_spade = call(1, Strain::Spades);
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.new_suit_veto,
+        "the rail is default off while it is under measurement"
+    );
+
+    let off = shelled_with(&agreements, &auction, BUST);
+    assert!(
+        off.0[one_spade].is_finite(),
+        "knob-off leaves the net's own ranking alone"
+    );
+
+    agreements.decision.instinct.new_suit_veto = true;
+    let before = crate::bidding::instinct::new_suit_counts();
+    let phantom = shelled_with(&agreements, &auction, BUST);
+    assert!(
+        crate::bidding::instinct::new_suit_counts()[1] > before[1],
+        "the masks are attributed"
+    );
+    assert_eq!(
+        phantom.0[one_spade],
+        f32::NEG_INFINITY,
+        "a doubleton with nothing announced opposite is a phantom suit"
+    );
+    assert!(phantom.0[Call::Pass].is_finite(), "Pass is always legal");
+    assert!(phantom.has_mass(), "a distribution survives the stage");
+    assert!(
+        phantom.0[call(1, Strain::Notrump)].is_finite(),
+        "notrump has no length to be phantom about"
+    );
+
+    let real = shelled_with(&agreements, &auction, "KQJ32.9862.75.J8");
+    assert!(
+        real.0[one_spade].is_finite(),
+        "a five-card suit is outside the rail by design"
     );
 }

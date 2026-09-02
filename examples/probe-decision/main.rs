@@ -17,6 +17,7 @@
 //! `PROBE_THEIR_2C_LANDY=1` declares their `(2♣)` Landy, and
 //! `PROBE_NS_LANDY_LIA=1` puts §N1-lia's ladder (default off) over it — inert
 //! without the first, like every other `PROBE_LANDY_*` knob.
+//! `PROBE_NEW_SUIT_VETO=1` arms the floor's phantom-suit rail (default off).
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -192,6 +193,17 @@ fn main() {
     match std::env::var("PROBE_NS_LANDY_LIA").as_deref() {
         Ok("0") | Ok("off") => agreements.competition.defense_2c_landy_lia = false,
         Ok(_) => agreements.competition.defense_2c_landy_lia = true,
+        Err(_) => {}
+    }
+
+    // The floor's phantom-suit rail (`InstinctProfile::new_suit_veto`, default
+    // off, under measurement).  The first `PROBE_*` knob on the floor's own
+    // classify-time profile rather than on the book: it masks a floored suit
+    // bid on <=4 cards with <=5 announced combined, so it only ever shows up on
+    // a seat the book left to the floor.
+    match std::env::var("PROBE_NEW_SUIT_VETO").as_deref() {
+        Ok("0") | Ok("off") => agreements.decision.instinct.new_suit_veto = false,
+        Ok(_) => agreements.decision.instinct.new_suit_veto = true,
         Err(_) => {}
     }
     // Opener's answer to the N1j Landy `4m` slam try

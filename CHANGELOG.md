@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The phantom-suit rail — an envelope-gated new-suit veto on the learned
+  floor, built default-off (`InstinctProfile::new_suit_veto`, 2026-09-02)** —
+  the general fix the §N1-lia lia3 forensic pointed at, and the second
+  demotion-only stage in the floor's shell after the competitive accountant.
+  After the legality mask, `new_suit_gate` sets `-∞` on every suit bid the net
+  ranks in a suit where we hold at most four cards and our length plus
+  partner's *announced* minimum reaches at most five — a trump suit nobody at
+  the table has promised. It never touches `Pass`, never introduces a call,
+  never leaves the shell (so the constructive `instinct()` floor and
+  `american_instinct` are untouched), and publishes nothing: no rule, no alert,
+  no envelope, no `.bbsa` row. Wired into **both** shells
+  (`ConfiguredFloorV6`, `ConfiguredFloorBba`), so Dutch inherits it.
+  The predicate carries **no bid-identity term** on purpose — `Context::we_bid`
+  is a side-scoped strain bit set for artificial calls, so consulting it would
+  exempt exactly the transfers and cues the rail exists for; and it reads the
+  announced envelope rather than the walk hull, matching the evidence
+  (`Inferences::announced` is what `features_v6` feeds the net; the two disagree
+  on lengths in 1.3% of decisions). No level gate and no fit exemption — an
+  announced eight-card fit cannot satisfy the predicate, so "scoped off agreed
+  fits" is implicit. Evidence: on the lia3 divergent boards the *default
+  system's own* floor made such calls on 6,800 (none) / 3,844 (both) boards and
+  lost 5.2 / 6.5 IMPs per fired. **Default off and byte-identical while under
+  measurement** — `smoke-default --count 20000 --seed 1` digests `38ee1e21…` at
+  `1040c84c` and at this change. Knob: `bba-gen --ns-new-suit-veto`,
+  `probe-decision PROBE_NEW_SUIT_VETO=1`, `probe-layer-replay
+  --ns-new-suit-veto`; attribution `instinct::new_suit_counts() -> [u64; 2]`
+  (decisions whose top call it took, candidate bids masked). Design
+  `docs/ai-bidder/new-suit-veto.md`, runner `scripts/ab-new-suit-veto.sh`
+  runner `scripts/ab-new-suit-veto.sh`.
+
+  **MEASURED AND REFUTED the same day — stays opt-in, default off.** Seed
+  1788352713, control `1040c84c`, 204,800 boards/arm/vul unfiltered against
+  BBA: plain DD **−0.0212 ±0.0047** (none, 6,889 fired = 3.36%) and **−0.0164
+  ±0.0057** (both, 6,181 = 3.02%), PD a wash either way (−0.0016 ±0.0056 /
+  +0.0025 ±0.0067). Plain DD was pre-registered as the arbiter because the knob
+  bids less and PD flatters that; a plain-DD loss never ships. The stage behaved
+  exactly as designed — `probe-divergence` reads **100% of first-differing calls
+  ours** and **0% "bid where the baseline passed"** at both colours — so what the
+  A/B refuted is the idea, three ways, all in §6 of the design doc: **(1) not
+  narrowable by level** (every level negative at both colours; the four-level
+  class the lia3 pool pointed at is the *least* costly per fired and destroys
+  games 301-to-29, which refutes the pool that motivated the rail); **(2) the
+  whole loss is the four-card class** (`own == 4` is −0.0178 ±0.0035 / −0.0100
+  ±0.0044 IMPs/board — 84% and 61% of the headline, and the only CI-clear slice,
+  while voids and singletons are sign-positive but far inside noise); **(3) the
+  envelope gate does no work** — partner's announced minimum was **0 on 98.2% /
+  98.4%** of fires, so `own + partner_min <= 5` collapses to `own <= 4` and the
+  rail is really "never name a suit you hold four or fewer of". The structural
+  error is that an announced minimum of zero means partner has not *spoken
+  about* the suit, not that partner is *short* in it; `Inferences` is sound, and
+  soundness is precisely why it cannot carry that inference. A successor needs
+  the negative-inference channel the reading layer lacks (an input-side retrain,
+  the axis M8.4 already names), not another output-side rail. **Consequence:**
+  §N1-lia's park had no rail to wait for — the Landy lane's disposition returns
+  to the lia3 verdict, unblocked and unhelped.
+
 - **§N1-lia package B, refined arm, measured a loss (`scripts/ab-landy-lia3.sh`,
   2026-09-02)** — `competition.defense_2c_landy_lia` stays default off, and the
   lane is **parked behind a general floor rail** rather than repaired locally.

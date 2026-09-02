@@ -1093,10 +1093,12 @@ fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
 /// bypasses the pinned [`DecisionProfile`][super::DecisionProfile] diverges
 /// here.
 ///
-/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 44
-/// fields (the 24 former foreign cells plus the other 20 value-owned fields),
-/// `InstinctProfile`'s 31 fields, and the ten scalar fields `DecisionProfile`
-/// holds directly.  The values are deliberately meaningless — this arms a system
+/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 51
+/// fields, `InstinctProfile`'s 34 fields, and the nine scalar fields
+/// `DecisionProfile` holds directly.  (The counts drift as knobs land — they
+/// are prose, not an assertion; the earlier "44 = 24 former foreign cells plus
+/// 20 value-owned" split stopped adding up long ago and is dropped rather than
+/// re-guessed.)  The values are deliberately meaningless — this arms a system
 /// nobody plays — because what is under test is only that both threads see the
 /// *same* one.
 #[test]
