@@ -196,6 +196,11 @@ path = "examples/probe-divergence/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "probe-layer-replay"
+path = "examples/probe-layer-replay.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "ab-dump-gladiator-bucket"
 path = "examples/ab-dump-gladiator-bucket/main.rs"
 required-features = ["serde"]

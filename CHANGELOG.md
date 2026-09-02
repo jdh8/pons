@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1-lia package B, refined arm, measured a loss (`scripts/ab-landy-lia3.sh`,
+  2026-09-02)** — `competition.defense_2c_landy_lia` stays default off, and the
+  lane is **parked behind a general floor rail** rather than repaired locally.
+  Seed 1788290089, control `deeb0252`, 4.608M boards/arm/vul, both gates
+  0-foreign: plain DD **−0.0056 ±0.0011 NV / −0.0254 ±0.0012 BV** IMPs/board,
+  PD −0.0331/−0.0569, SD-PD −0.0158/−0.0342 (NV plain SD +0.0058 is the
+  non-arbiter column). The forensic (VERDICT block in the runner; campaign doc
+  §N1-lia; every number re-derived by an independent twelve-claim pass) reads:
+  the diamond leg is unchanged by the re-cut (−86,528/−91,463 plain, every cell
+  losing to the baseline's wide transfer — finding 1's residue answered, the
+  INV+ gate is what has to go there); the club leg's win halved
+  (+27,990/+14,627), its INV+ rung flipping through the Max-break+ answer and
+  the contested seats handed to the floor; and the weak 4-7 band is the
+  both-vul catastrophe (`- → 2♥` −42,572 plain / −107,283 PD BV), routed
+  through opener's `3NT`@160 accept opposite four points (falsifier 2
+  **fires**: 0-7 band −14,515/−38,483, 8-9 band positive). Falsifier 1 does
+  not fire on its own terms (the shrink went to `2NT → 2♠/2♥`, and the flip's
+  2-2 hands no longer diverge, so it is unmeasured), 3 is plain-only and
+  PD-negative, 4 fires (the floor pushes `4♦` over the weak rungs' raises and
+  then phantom-cues `4♠`; lia2's sell-out cell is gone by removal, not
+  reversal), 5 partly. Two book mechanisms named by the verification pass: the
+  biggest diamond cell is the 0-4 HCP six-diamond hand no rung takes
+  (−35,552/−34,223, worse than lia2's `3♦` by −8,942/−11,608), and both INV+
+  rungs lose through the super-accept rebid's `retreat`@0 (≈ −19.2k/−21.3k
+  plain). lia doubles the boards on which the learned floor makes a
+  substantive call (86,491 vs 42,994 NV; 62,135 vs 23,066 BV). The named
+  floor class is
+  **phantom suits** — floored bids on ≤4 cards with partner's announced
+  minimum making ≤5 combined (`2♠ (3♠) 4♠` on a doubleton, −10 IMPs per
+  fired). The net reads partner as ♣6+ and bids 4♠ anyway because its input
+  vector (`features_v6`) carries a raw we-bid-this-strain bit and partner's
+  last bid, set for artificial calls too, and no alert column — so alerting
+  is not a lever. That class is a net −30,369/−33,277 plain pool on the lia
+  arm **and +35,346/+25,145 against the baseline's own floor on the same
+  boards** (5.2/6.5 IMPs per fired), so the envelope-gated new-suit veto (the
+  lane's residue since 2026-08-14) is the general fix to try first, on the
+  default system with its own A/B.
+- **`examples/probe-layer-replay`** (new, `--features serde`): re-bids every
+  divergent board of an arm through the arm's own partnership and stamps each
+  of our calls book-or-floor with the trie provenance, plus, for suit bids,
+  the bidder's own length, partner's announced length range and whether the
+  suit is new — the inputs a floor veto would read. Reproduced all 361,350
+  lia3 divergent boards bit for bit. `probe-decision` gains
+  `PROBE_NS_LANDY_LIA=1` (needs `PROBE_THEIR_2C_LANDY=1`).
 - **§N1-lia package B pre-launch completion** (knob
   `competition.defense_2c_landy_lia`, still default off; default system
   byte-identical, smoke digest verified twice against `main` HEAD). The

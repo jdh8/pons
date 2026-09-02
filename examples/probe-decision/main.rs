@@ -14,6 +14,9 @@
 //! `PROBE_THEIR_2D_MULTI=1` declares their `(2♦)` a Multi (§N4) — without it
 //! this lane silently probes the natural `(2♦)` leg — and
 //! `PROBE_MULTI_WEAK_ESCAPE=6|5` adds the default-off floorless weak escape.
+//! `PROBE_THEIR_2C_LANDY=1` declares their `(2♣)` Landy, and
+//! `PROBE_NS_LANDY_LIA=1` puts §N1-lia's ladder (default off) over it — inert
+//! without the first, like every other `PROBE_LANDY_*` knob.
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -180,6 +183,15 @@ fn main() {
     match std::env::var("PROBE_THEIR_2C_LANDY").as_deref() {
         Ok("0") => agreements.decision.their.two_clubs_landy = false,
         Ok(_) => agreements.decision.their.two_clubs_landy = true,
+        Err(_) => {}
+    }
+    // §N1-lia package B — Lia's ladder over their Landy
+    // (`competition.defense_2c_landy_lia`, default off, measured a loss twice).
+    // Needs `PROBE_THEIR_2C_LANDY` to reach anything: without the disclosure
+    // the lane resolves through the systems-on rebase and this knob is inert.
+    match std::env::var("PROBE_NS_LANDY_LIA").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.defense_2c_landy_lia = false,
+        Ok(_) => agreements.competition.defense_2c_landy_lia = true,
         Err(_) => {}
     }
     // Opener's answer to the N1j Landy `4m` slam try
