@@ -6,7 +6,7 @@
 //! the per-auction memo that keeps the replay affordable.
 
 #[cfg(test)]
-use super::envelope::Envelope;
+use super::envelope::{Envelope, Range};
 use super::envelope::{EnvelopeUnion, relative_of};
 use super::knobs::*;
 use crate::bidding::constraint::ProjectionKind;
@@ -1723,6 +1723,47 @@ pub(crate) fn artificial(projection: &Envelope, made: Call, doubled: Option<Stra
     Suit::ASC
         .into_iter()
         .any(|suit| Some(suit) != named && projection.length(suit).min >= 4)
+}
+
+/// Whether a call's projection permits shortness in the suit it **names**
+///
+/// The dual of [`artificial`], which asks whether the projection floors some
+/// *other* suit at four.  Natural is *assured length*, so its logical negation
+/// is *possible* shortness — the named suit's published range reaches down to
+/// `most` or below.  [`EnvelopeUnion::hull`][super::envelope::EnvelopeUnion::hull]
+/// reduces with [`Envelope::span`], whose `min` is the min over boxes, so the
+/// hull and the union give the same answer here and a caller may pass either.
+///
+/// The [`FULL_LENGTH`][Range::FULL_LENGTH] term is load-bearing rather than a
+/// refinement.  An unconstrained suit projects to `0..=13`, so `min == 0` means
+/// the rule said **nothing** about the suit, not that it permits shortness —
+/// and 69.6% of the shipped book's suit-naming rules say nothing about their
+/// own suit, natural `1♦` among them (its length lives in the opaque
+/// `prefers_diamonds` closure and never reaches a box).  Without the term this
+/// fires on 70% of the book: the same silence-for-shortness conflation that
+/// refuted the phantom-suit rail, one layer up (`docs/ai-bidder/new-suit-veto.md`
+/// §6.3).
+///
+/// A pass or a notrump bid names no suit and is never short.  Doubles are
+/// excluded too — `artificial`'s "named suit" for a double is the *doubled*
+/// strain, which a penalty double denies nothing about.
+///
+/// Test-only, exactly like [`artificial`]: today its sole consumer is the
+/// `artificial_calls_are_alerted` invariant, which it widens to the
+/// splinter-shaped calls the dual witness is structurally blind to (a splinter
+/// floors nothing but its own shortness, so `Some(suit) != named` is vacuously
+/// false for it).  Dropping the attribute is the whole change if a bidding
+/// consumer ever wants it.
+#[cfg(test)]
+pub(crate) fn names_short(projection: &Envelope, made: Call, most: u8) -> bool {
+    let Call::Bid(bid) = made else {
+        return false;
+    };
+    let Some(named) = bid.strain.suit() else {
+        return false;
+    };
+    let range = projection.length(named);
+    range != Range::FULL_LENGTH && range.min <= most
 }
 
 #[cfg(test)]

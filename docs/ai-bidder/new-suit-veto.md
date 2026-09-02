@@ -244,6 +244,76 @@ is an input-side change (a retrain), not another output-side rail. The `own ≤ 
 slice is the only sign-positive evidence here and is too small to justify its
 own arm on this data.
 
+### The first successor was tried and refuted the same day (2026-09-02)
+
+jdh8's redesign: artificiality is a property of a call's **meaning**, not of the
+bidder's hand — "natural = assured length, and the logical negation is
+*possible* shortness, not certain shortness". A suit call is artificial in the
+suit it *names* iff its published box union permits at most `most` cards there.
+The threshold was to be `0..=2` everywhere with a `0..=0` exception for `1♣`
+(the catch-all opening: a doubleton or tripleton there is the natural case, so
+only a possible void makes `1♣` not-clubs). Note `EnvelopeUnion::hull` reduces
+with `Envelope::span`, so `hull.length(s).min` **is** the min over boxes — the
+hull and the union give the same answer and there is nothing to choose there.
+
+The principle is sound and sits on the right side of the soundness asymmetry:
+`Inferences` never over-promises, so `min` is a sound *lower* bound and "assured
+length" is a claim the reading layer can carry — unlike "partner is short",
+the upper bound §6.3 showed it cannot. **The book, however, cannot answer it.**
+
+- Natural `1♦` (`american/openings.rs:126`) publishes `♦ 0..=13`. Its length
+  lives in `prefers_diamonds()`, a `described(...)` closure whose
+  `projection_dependencies` are the vacuous default (`constraint.rs:972`), so it
+  never reaches a box. Natural `1♣` publishes `3..` only because that rule
+  happens to spell the term out.
+- Over `american()`, `min <= 2` on the named suit fires on **70.2%** of
+  suit-naming rules, of which **69.6% is pure `0..=13` silence**. `min == 0`
+  means the rule did not *speak* about the suit — §6.3's conflation, one layer
+  up.
+- Restricted to rules that do speak (`range != FULL_LENGTH`): 508 instances at
+  13 sites at `most = 2`, **every one a natural `len(major, 2..)` doubleton
+  preference**; 256 instances and **zero unalerted sites** at `most = 1`. The
+  calls the predicate exists to catch — red transfers, Texas, Michaels, unusual
+  2NT, takeout/negative/responsive doubles, every transfer completion — are all
+  in the silent class, indistinguishable from natural `1♦`.
+- Measured directly on the invariant: widening `artificial_calls_are_alerted`
+  with this witness is **green at `most = 1`** and **red at `most = 2`** — 240
+  unalerted `american` calls, 228 Dutch, 16 Gladiator. So `0..=2` is not usable
+  against the book as it stands, and the `1♣` exception is inert on the default
+  system anyway (american's `1♣` already publishes `3..`).
+
+**The prerequisite is that natural rules publish their assured length**, which
+is the [authored-reading-handoff.md](../authored-reading-handoff.md) gap ("a
+natural bid reads as nothing") seen from the projection side. That became its
+own campaign — [publish-assured-length.md](../publish-assured-length.md) — whose
+first arm was measured the same day and refuted, with a root cause that gates
+the whole programme: **100% of the divergence is floored calls**, so a sound
+reading improvement cannot be measured against a net distilled on the
+unimproved reading. It is not free.
+`1♦`'s floor is *derivable from the rule's own terms* — both majors are capped
+at 4, so `c + d >= 5`; if `d <= 3` then `prefers_diamonds` forces `d > c`, so
+`c + d <= 2d - 1 <= 5`, hence `d = 3` — so `& len(Suit::Diamonds, 3..)` rejects
+no hand the rule accepts, and the natural walk *already* installs `3..` for a
+`1♦` opening (`inference/readers.rs:689`). It is eval-inert and duplicates the
+walk. **It still moved the shipped system**: `smoke-default --count 20000
+--seed 1` went `38ee1e21…` -> `acc4ab9d…`. A provably eval-inert term changes
+bids because it changes what the call *publishes* — the sharpest available
+demonstration of `docs/reading-drift-handoff.md`'s rule that a reading change is
+a bidding change under a neural floor. Any such program is therefore an A/B per
+rule family, not a cleanup.
+
+**What survived.** The witness itself, as `names_short`
+(`inference/projection.rs`, `#[cfg(test)]` beside `artificial`), wired into
+`artificial_calls_are_alerted` at `most = 1`. It costs no bidding change and
+closes the blind spot the dual witness has by construction: `artificial` asks
+whether the projection floors some *other* suit at four, which is vacuously
+false for a splinter, so a future unalerted splinter-shaped call would silently
+lose its decoding. Arm B — the same predicate as a floor rail — is **not
+buildable**: `new_suit_gate` runs exactly where the book gave no mass,
+`Classifier::as_rules()` is `None` for the learned floor, and an absent union
+hulls to `0..=13`, so it would mask nearly every suit bid the contested floor
+makes.
+
 ## 7. Disposition
 
 **Opt-in knob, default byte-identical** — the house rule for a rejected-but-

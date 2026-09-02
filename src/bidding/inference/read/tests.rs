@@ -678,6 +678,61 @@ fn artificial_witness_covers_doubles() {
 }
 
 #[test]
+fn names_short_ignores_silence() {
+    // The whole point of the helper, and the regression guard against
+    // re-refuting the phantom-suit rail one layer up: an unconstrained suit
+    // projects to `0..=13`, so `min == 0` means the rule said *nothing* about
+    // the suit.  Natural `1♦` is exactly this — its length lives in the opaque
+    // `prefers_diamonds` closure and never reaches a box.
+    let silent = Envelope::unknown();
+    assert_eq!(silent.length(Suit::Diamonds), Range::FULL_LENGTH);
+    assert!(!names_short(&silent, bid(1, Strain::Diamonds), 2));
+    assert!(!names_short(&silent, bid(2, Strain::Diamonds), 2));
+}
+
+#[test]
+fn names_short_reads_published_shortness() {
+    // A rule that *speaks* about the suit it names, and permits a singleton:
+    // the splinter shape the dual witness is blind to.
+    let mut short = Envelope::unknown();
+    short.narrow_length(Suit::Clubs, Range::new(0, 1));
+    assert!(names_short(&short, bid(1, Strain::Clubs), 1));
+    assert!(names_short(&short, bid(1, Strain::Clubs), 2));
+
+    // The threshold is the naturalness bar, and it is per call.  A doubleton
+    // is possible shortness at `most = 2` but assured length at `most = 1` —
+    // the split that keeps a short-club opening (Dutch `1♣` is `len(♣, 2..)`)
+    // natural while catching a Precision/Polish `1♣` that may be void.
+    let mut doubleton = Envelope::unknown();
+    doubleton.narrow_length(Suit::Clubs, Range::at_least(2, LENGTH_CAP));
+    assert!(names_short(&doubleton, bid(1, Strain::Clubs), 2));
+    assert!(!names_short(&doubleton, bid(1, Strain::Clubs), 1));
+}
+
+#[test]
+fn names_short_spares_an_assured_suit() {
+    // Natural is assured length: american's `1♣` publishes `len(♣, 3..)` and is
+    // spared at either threshold, as is any longer promise.
+    let mut three = Envelope::unknown();
+    three.narrow_length(Suit::Clubs, Range::at_least(3, LENGTH_CAP));
+    assert!(!names_short(&three, bid(1, Strain::Clubs), 1));
+    assert!(!names_short(&three, bid(1, Strain::Clubs), 2));
+}
+
+#[test]
+fn names_short_is_blind_to_strains_that_name_no_suit() {
+    // Notrump names no suit, and a pass redirects from nothing.  A double is
+    // excluded too: `artificial`'s "named" suit for one is the *doubled*
+    // strain, about whose length a penalty double promises nothing.
+    let mut short = Envelope::unknown();
+    short.narrow_length(Suit::Clubs, Range::new(0, 1));
+    assert!(!names_short(&short, bid(3, Strain::Notrump), 2));
+    assert!(!names_short(&short, Call::Pass, 2));
+    assert!(!names_short(&short, Call::Double, 2));
+    assert!(!names_short(&short, Call::Redouble, 2));
+}
+
+#[test]
 fn narrowed_points_intersects_one_player() {
     // 1NT shows 15-18; narrow the opener (here our RHO) to the upper half.
     let inf = read(&[bid(1, Strain::Notrump)]);

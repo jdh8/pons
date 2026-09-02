@@ -745,7 +745,16 @@ fn unalerted_artificial(
         |auction: &[Call], context: &Context<'_>, rule: &crate::bidding::rules::Rule| {
             let made = rule.call();
             let doubled = context.last_bid().map(|last| last.strain);
-            if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
+            // Two witnesses, both sound-sufficient and neither complete: the
+            // projection floors some *other* suit at four (a takeout double, a
+            // Landy `2♣`), or it publishes possible shortness in the suit it
+            // *names* (a splinter, which floors nothing but its own shortness
+            // and so is vacuously invisible to the first).
+            let projection = rule.project(context);
+            if (super::artificial(&projection, made, doubled)
+                || super::names_short(&projection, made, 1))
+                && rule.alert().is_none()
+            {
                 worklist.push(format!(
                     "{label}: [{}] {made}  (label: {:?})",
                     contract_bridge::auction::display_calls(auction),
@@ -787,6 +796,76 @@ fn unalerted_artificial(
         }
     }
     worklist
+}
+
+/// Census: unalerted suit-naming rules that publish **no** length in the suit
+/// they name — the worklist for the "publish assured length" campaign
+///
+/// Throwaway instrument, `#[ignore]`d.  Run with
+/// `cargo test --all-features --lib silent_natural_suits -- --ignored --nocapture`.
+#[test]
+#[ignore = "census, not an assertion"]
+fn silent_natural_suits() {
+    use crate::bidding::american::american;
+    use crate::bidding::dutch::dutch;
+    use std::collections::BTreeMap;
+
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading.envelope_union = true;
+    let profile = agreements.decision;
+
+    for (label, system) in [
+        ("american", american(&agreements)),
+        ("dutch", dutch(&agreements)),
+    ] {
+        // (call, rule label) -> (silent nodes, nodes that publish a floor)
+        let mut tally: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
+        {
+            let mut visit =
+                |_auction: &[Call], context: &Context<'_>, rule: &crate::bidding::rules::Rule| {
+                    if rule.alert().is_some() {
+                        return;
+                    }
+                    let Call::Bid(bid) = rule.call() else { return };
+                    let Some(named) = bid.strain.suit() else {
+                        return;
+                    };
+                    let range = rule.project(context).length(named);
+                    if bid.level.get() > 3 {
+                        return;
+                    }
+                    let key = (
+                        rule.call().to_string(),
+                        format!(
+                            "[{}] {}",
+                            contract_bridge::auction::display_calls(_auction),
+                            rule.label()
+                        ),
+                    );
+                    let slot = tally.entry(key).or_default();
+                    if range == crate::bidding::inference::Range::FULL_LENGTH {
+                        slot.0 += 1;
+                    } else {
+                        slot.1 += 1;
+                    }
+                };
+            for trie in [&system.constructive.0, &system.defensive.0] {
+                for_each_authored_rule(trie, profile, &mut visit);
+            }
+        }
+        let (silent, published) = tally
+            .values()
+            .fold((0usize, 0usize), |(a, b), (x, y)| (a + x, b + y));
+        println!("== {label}: {silent} silent, {published} published");
+        let mut rows: Vec<_> = tally
+            .into_iter()
+            .filter(|(_, (silent, _))| *silent > 0)
+            .collect();
+        rows.sort_by_key(|(_, (silent, _))| std::cmp::Reverse(*silent));
+        for ((call, rule), (silent, published)) in rows {
+            println!("  {silent:6} silent {published:6} pub  {call:5}  {rule}");
+        }
+    }
 }
 
 /// Assert an alert worklist is empty, listing the offenders

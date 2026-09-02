@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`artificial_calls_are_alerted` gains a second witness — possible shortness
+  in the suit a call *names* (`names_short`, 2026-09-02)** — test-only, no
+  bidding change, no public API. The existing witness is the *dual* question
+  ("does the projection floor some **other** suit at four?"), which is
+  vacuously false for a call that floors nothing but its own shortness — a
+  splinter is structurally invisible to it. The new one asks the direct
+  question instead: natural is *assured length*, so its negation is *possible*
+  shortness, and a call is artificial in its named suit when the published
+  range reaches down to `most` or below. Green over `american()` and `dutch()`
+  at `most = 1`, so a future unalerted splinter-shaped call now fails the
+  invariant rather than silently losing its decoding.
+  The `!= Range::FULL_LENGTH` term is load-bearing rather than a refinement:
+  an unconstrained suit projects to `0..=13`, so `min == 0` means the rule said
+  **nothing** about the suit. 69.6% of the shipped book's suit-naming rules say
+  nothing about their own suit — natural `1♦` among them, whose length lives in
+  the opaque `prefers_diamonds` closure and never reaches a box — so without
+  that term the witness fires on 70% of the book, the same
+  silence-for-shortness conflation that refuted the phantom-suit rail one layer
+  up (`docs/ai-bidder/new-suit-veto.md` §6.3). The threshold is measured, not
+  chosen: at `most = 2` the invariant goes red on 240 unalerted `american`
+  calls (and 228 Dutch, 16 Gladiator), every one a natural `len(major, 2..)`
+  doubleton preference, so `0..=2` is not usable against the book as it stands.
+
 - **The phantom-suit rail — an envelope-gated new-suit veto on the learned
   floor, built default-off (`InstinctProfile::new_suit_veto`, 2026-09-02)** —
   the general fix the §N1-lia lia3 forensic pointed at, and the second

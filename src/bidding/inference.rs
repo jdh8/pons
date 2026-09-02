@@ -66,6 +66,7 @@ pub(in crate::bidding) use readers::penalty_x_reading_with_profile;
 #[cfg(test)]
 pub(crate) use projection::{
     artificial, assert_compiled_authoring_projection_parity, assert_step_cache_projection_parity,
+    names_short,
 };
 #[cfg(test)]
 pub(crate) use read::authored_reading;
