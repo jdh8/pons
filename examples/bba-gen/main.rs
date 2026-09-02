@@ -520,6 +520,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_new_suit_veto: bool,
 
+    /// Publish the `1♦` opening's assured diamond length for our side
+    /// (`OpeningKnobs::one_diamond_publishes_length`, crate default off, under
+    /// measurement).  The better-minor `1♦` rule carries no diamond length
+    /// term — its length lives in the opaque `prefers_diamonds()` closure — so
+    /// the rule publishes `♦ 0..=13` while the natural walk installs `3..` for
+    /// the same call.  On, the rule says what it already means.  The term is
+    /// eval-inert (no hand it accepts is rejected), so this changes only what
+    /// the opening *discloses* — and that alone moves bids.  First arm of the
+    /// publish-assured-length campaign; the `pub` arm of
+    /// `scripts/ab-one-diamond-length.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_one_diamond_length: bool,
+
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
     /// `win | win`, plain +0.018/+0.028 by vul).  The accountant game/slam gates
@@ -2372,6 +2385,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
     agreements.decision.instinct.new_suit_veto = args.ns_new_suit_veto;
+    agreements.opening.one_diamond_publishes_length = args.ns_one_diamond_length;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;

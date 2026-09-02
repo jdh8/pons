@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Publish the `1♦` opening's assured diamond length, built default-off and
+  measured (`OpeningKnobs::one_diamond_publishes_length`, 2026-09-02)** — the
+  first arm of the publish-assured-length campaign
+  ([docs/publish-assured-length.md](docs/publish-assured-length.md)), and a
+  **refutation with a root cause worth more than the arm**. The better-minor
+  `1♦` rule carries no diamond length term: its length lives in
+  `prefers_diamonds()`, a `described(...)` closure whose projection dependencies
+  are the vacuous default, so the *rule* publishes `♦ 0..=13` while the natural
+  walk installs `3..` for the same call. On, the rule says what it already
+  means. The term is **eval-inert** — both majors are capped at four, so
+  `c + d >= 5`; if `d <= 3` then `prefers_diamonds` forces `d > c`, giving
+  `c + d <= 2d − 1 <= 5`, hence `d == 3` — proved exhaustively over shapes by
+  `one_diamond_assures_three` and over 256 dealt hands by
+  `one_diamond_publishes_length_is_opt_in`. It changes only what the opening
+  *discloses*, and the `.bbsa` card does not move either (`card.rs:566`).
+  `scripts/ab-one-diamond-length.sh` (seed 1788361323, 204,800 bd/arm/vul,
+  unfiltered vs BBA): plain DD −0.0007 ±0.0029 (none, 2,883 fired 1.41%) /
+  **−0.0041 ±0.0035** (both, 2,568 fired 1.25%), PD −0.0015 ±0.0034 /
+  **−0.0057 ±0.0042** — `wash | wash` at none, `loss | loss` at both. Stays
+  default off; `smoke-default --count 20000 --seed 1` is `38ee1e21…` unchanged.
+  The **isolation gate PASSED at both colours** (0 foreign of 2,568 / 2,883),
+  confirming eval-inertness in production.
+  The forensic is the durable part: cutting the loss by the layer that made the
+  baseline's call at the first differing index gives **floored 2,568 (100%),
+  −831 IMPs; book 0** — against a 55.6% floored base rate on the same boards.
+  The book's gates read the walk hull, which already said `3..`; the only
+  consumer of the difference is `features_v6`, and the shipped net was distilled
+  on the untightened reading. **A sound reading improvement cannot be measured
+  against a net distilled on the unimproved reading** — the A/B prices the net's
+  distribution shift, not the reading's quality. Half the loss is doubles, the
+  floor's most input-sensitive call. The campaign is therefore retrain-gated.
+
 - **`artificial_calls_are_alerted` gains a second witness — possible shortness
   in the suit a call *names* (`names_short`, 2026-09-02)** — test-only, no
   bidding change, no public API. The existing witness is the *dual* question

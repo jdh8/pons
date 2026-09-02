@@ -70,6 +70,7 @@ pub fn openings(agreements: &Agreements) -> Rules {
 /// [`NotrumpShape::Wide6322`] the experimental superset.
 #[must_use]
 pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
+    let publishes_length = agreements.opening.one_diamond_publishes_length;
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.  The `hcp` leg is exact cover
         // for the plain rule-of-N+8 opt-in scale's flat hole: a 4-3-3-3
@@ -128,6 +129,9 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
             100,
             points(12..=21)
                 & hcp(10..)
+                // Eval-inert; it publishes what `prefers_diamonds` already
+                // means.  See `OpeningKnobs::one_diamond_publishes_length`.
+                & len(Suit::Diamonds, if publishes_length { 3 } else { 0 }..)
                 & prefers_diamonds()
                 & len(Suit::Hearts, ..5)
                 & len(Suit::Spades, ..5),

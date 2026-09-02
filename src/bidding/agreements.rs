@@ -3213,6 +3213,30 @@ pub struct OpeningKnobs {
     /// **Default off** (byte-identical); on also admits 5422.  Read by the
     /// generated convention card as well as by the rules.
     pub one_notrump_offshape: bool,
+    /// Publish the `1♦` opening's assured diamond length
+    ///
+    /// **Default off** (byte-identical).  The better-minor `1♦` rule carries no
+    /// diamond length term: its length lives in `prefers_diamonds()`, a
+    /// `described(...)` closure whose projection dependencies are the vacuous
+    /// default, so the *rule* publishes `♦ 0..=13` while the natural walk
+    /// installs `3..` for the same call
+    /// ([`apply_opening`][crate::bidding::inference] — `inference/readers.rs`).
+    /// On, the rule says what it already means: `& len(Suit::Diamonds, 3..)`.
+    ///
+    /// **The term is eval-inert.**  Both majors are capped at four, so
+    /// `clubs + diamonds >= 5`; if `diamonds <= 3` then `prefers_diamonds`
+    /// forces `diamonds > clubs`, giving `clubs + diamonds <= 2·diamonds − 1
+    /// <= 5`, hence `diamonds == 3`.  No hand the rule accepts is rejected —
+    /// pinned exhaustively over shapes by `one_diamond_assures_three`.
+    ///
+    /// It still **moves bids**, because it changes what the call *publishes*:
+    /// `smoke-default --count 20000 --seed 1` reads `38ee1e21…` off and
+    /// `acc4ab9d…` on.  That is the reading-is-bidding rule
+    /// (`docs/reading-drift-handoff.md`) in its sharpest form, and the reason
+    /// this is an A/B rather than a cleanup.  First arm of the
+    /// publish-assured-length campaign (`docs/ai-bidder/new-suit-veto.md` §6),
+    /// whose worklist is the `silent_natural_suits` census.
+    pub one_diamond_publishes_length: bool,
     // --- openings/weak_two.rs
     /// Optional raw-HCP band gauging the weak-two opening
     ///
@@ -3342,6 +3366,7 @@ impl Default for OpeningKnobs {
             one_notrump_fifths: false,
             notrump_shape: NotrumpShape::Wide6322,
             one_notrump_offshape: false,
+            one_diamond_publishes_length: false,
             weak_two_hcp: None,
             weak_two_eval: None,
             weak_two_wild: false,

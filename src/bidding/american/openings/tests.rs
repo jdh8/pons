@@ -338,3 +338,82 @@ fn openings_suppress_weak_twos_in_fourth_seat() {
     assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
     assert_eq!(best(&o, &[Call::Pass; 3], "KQJ732.53.842.92"), Call::Pass,);
 }
+
+#[test]
+fn one_diamond_assures_three() {
+    // The derivation `OpeningKnobs::one_diamond_publishes_length` rests on,
+    // pinned exhaustively over shapes rather than sampled over hands: the rule
+    // caps both majors at four, so `clubs + diamonds >= 5`; if `diamonds <= 3`
+    // then `prefers_diamonds` forces `diamonds > clubs`, giving
+    // `clubs + diamonds <= 2·diamonds − 1 <= 5`, hence `diamonds == 3`.
+    //
+    // This is what makes the published term eval-inert.  If the major caps ever
+    // widen past four, the floor is no longer three and this fails first.
+    let mut seen_three = false;
+    for spades in 0..=4u8 {
+        for hearts in 0..=4u8 {
+            for diamonds in 0..=13u8 {
+                let Some(clubs) = 13u8.checked_sub(spades + hearts + diamonds) else {
+                    continue;
+                };
+                // `prefers_diamonds()`: open the longer minor; with equal
+                // length open 1♦ on four-or-more.
+                if !(diamonds > clubs || (diamonds == clubs && diamonds >= 4)) {
+                    continue;
+                }
+                assert!(
+                    diamonds >= 3,
+                    "{spades}={hearts}={diamonds}={clubs} opens 1♦ on {diamonds} diamonds"
+                );
+                seen_three |= diamonds == 3;
+            }
+        }
+    }
+    // The bound is tight — 4=4=3=2 is a real better-minor 1♦.
+    assert!(seen_three, "the floor of three is never reached");
+}
+
+#[test]
+fn one_diamond_publishes_length_is_opt_in() {
+    use crate::bidding::inference::Range;
+
+    let one_diamond = Bid::new(1, Strain::Diamonds);
+    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let named = |agreements: &Agreements| {
+        openings(agreements)
+            .rules()
+            .iter()
+            .find(|rule| rule.call() == Call::Bid(one_diamond))
+            .expect("the better-minor 1♦ opening")
+            .project(&context)
+            .length(Suit::Diamonds)
+    };
+
+    // Off — the shipped default — the rule says nothing about the suit it
+    // names, though the natural walk installs `3..` for the same call.
+    assert_eq!(named(&Agreements::default()), Range::FULL_LENGTH);
+
+    // On, it publishes the floor it already means.
+    let mut on = Agreements::default();
+    on.opening.one_diamond_publishes_length = true;
+    assert_eq!(named(&on).min, 3);
+
+    // Eval-inert: the accepted hands are identical either way.  (What moves is
+    // what the call *publishes* — see the knob's doc for the smoke digests.)
+    use contract_bridge::Seat;
+    use contract_bridge::deck::full_deal;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+    let (off_rules, on_rules) = (openings(&Agreements::default()), openings(&on));
+    let mut rng = StdRng::seed_from_u64(0x1D_0DDD);
+    for _ in 0..64 {
+        let deal = full_deal(&mut rng);
+        for hand in Seat::ALL.map(|seat| deal[seat]) {
+            assert_eq!(
+                off_rules.classify(hand, &context).0,
+                on_rules.classify(hand, &context).0,
+                "{hand} opens differently"
+            );
+        }
+    }
+}
