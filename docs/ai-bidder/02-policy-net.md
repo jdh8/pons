@@ -81,6 +81,16 @@ more information (order/path), and the substrate for cross-system play. Adopt it
 when the summary-feature MLP demonstrably bottlenecks — not before. Bigger model,
 bigger Rust forward pass, more ways to be wrong.
 
+> **Measured 2026-09-03 (M5.2): built, refuted 3/3 arms, parked.** Two
+> corrections to the paragraph above. It was built as a *recurrence*, not a
+> transformer — at `T ≤ 20` steps attention buys nothing the LSTM's two gemvs
+> per step do not. And the **adoption trigger was wrong**: it asks whether the
+> MLP bottlenecks on *fidelity*, but the sequence model carried strictly more
+> information than the MLP and still lost IMPs, because it spent the extra
+> capacity on *looser* bidding (doubled 16.9% vs 11.8%) rather than better
+> bidding. Fidelity was never the binding constraint — bidding discipline was.
+> Numbers and flip plan in [`plan.md`](plan.md) M5.2.
+
 ### Output calibration
 
 The books speak in logits where a ~3-nat gap is "near-deterministic after
@@ -232,4 +242,19 @@ and is measured.
   small distiller, the teacher-aligned `upgrade/2` is better conditioned than
   asking the net to relearn its gated nonlinear formula. `--init-seed` fixed
   the earlier unseeded ≈0.02–0.05 IMPs/board retrain variance.
+- **Fidelity is a filter, never a predictor (second instance, 2026-09-03).**
+  Round 1 saw near-identical top-1/CE fail to predict an IMP loss. M5.2 saw the
+  converse and worse: across its three arms, IMPs moved *opposite* to fidelity —
+  the highest-fidelity arm (0.2808 CE / 90.6% top-1) lost the least PD and the
+  reweighted arms lost more as their CE rose. Distillation fidelity bounds how
+  well a net can imitate the teacher; it says nothing about whether imitating
+  the teacher scores. Use it to reject an arm that failed to train, never to
+  rank arms that did.
+- **An outcome-over-par advantage rewards the opponents' mistakes
+  (2026-09-03).** `A = imps(result − par)` looks like a policy advantage and is
+  not one: a deal beats par mostly when the *other side* misbids, so `exp(β·A)`
+  upweights rows whose merit is not ours. It was correctly PD-aware and had real
+  force (sd 0.66) and still degraded the A/B monotonically. An advantage needs a
+  baseline that holds the deal fixed and varies only the policy — for us, the
+  control arm's own auction on the same deal.
 </content>

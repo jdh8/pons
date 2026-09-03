@@ -356,7 +356,8 @@ The portability dream. Last, because it needs the most prerequisites.
   (−0.016, CI [−0.039, +0.007]); floor worth preserved (+0.540 vs bare). The
   teacher is the ceiling for pure distillation — the tag inputs are now in place
   to pay off when distilling the search target (M3.2).
-- 🔨 **M5.2 Sequence-model policy.** Move Component B to a recurrence over the
+- ❌ **M5.2 Sequence-model policy — BUILT, MEASURED, REFUTED 3/3, PARKED
+  2026-09-03.** Move Component B to a recurrence over the
   call sequence — an LSTM, not a transformer: at `T ≤ 20` steps the attention
   has nothing to buy, and the recurrence is two gemvs per step in-crate.
   *Measure:* matches or beats the MLP on the harness. *Deps:* M1 (as baseline).
@@ -409,11 +410,58 @@ The portability dream. Last, because it needs the most prerequisites.
   reproduced to within cross-GPU rounding (that run was on the 4070 Ti, the
   original on the 4090), so `--arch mlp` survived the refactor.
 
-  **Owed:** the fidelity gate (both arms training 2026-09-03, LSTM on GPU 0 and
-  the control on GPU 1, `--init-seed 1`, 300 epochs, identical 6,090,405/676,715
-  split), then the A/B. The floor shell, the five sibling factories and
-  `american_v7` are deliberately **not** built yet — they need a trained
-  artifact to `include_bytes!`, and a placeholder would be dead weight.
+  **Verdict 2026-09-03 — refuted on every arm. Code parked on
+  `park/lstm-floor`;** this record and the accountant finding stay on `main`.
+  The floor shell, the sibling factories and `american_v7` were built; the net trained three times, each arm
+  a full 204,800 bd/arm/vul A/B against the shipped v6 static floor
+  (`scripts/ab-v7-floor.sh`, `ab-results/v7-{floor,adv-b010,mc-b010}`; the
+  default build stayed byte-identical throughout, `smoke-default --count 20000
+  --seed 1` = `38ee1e21…`, v7 reachable only via `--our-floor american-v7`):
+
+  | arm | val CE / top-1 | none plain | none PD | both plain | both PD |
+  | --- | --- | --- | --- | --- | --- |
+  | 1 raw distillation | 0.2808 / 90.6% | +0.0059 ±0.0103 | **−0.0239** ±0.0120 | +0.0038 ±0.0120 | −0.0134 ±0.0139 |
+  | 2 per-call `exp(0.10·A)` | 0.3082 / 90.1% | +0.0151 ±0.0105 | **−0.0344** ±0.0122 | +0.0308 ±0.0122 | −0.0089 ±0.0141 |
+  | 3 Monte-Carlo `exp(0.10·A)` | 0.3035 / 90.3% | +0.0014 ±0.0105 | **−0.0430** ±0.0123 | +0.0006 ±0.0122 | **−0.0181** ±0.0142 |
+
+  Plain-DD wash, PD loss, every arm — the decision table's never-ships signature
+  ([`../measurement.md`](../measurement.md)). No arm was close.
+
+  **Why: the sequence floor overbids.** On the 83,794 divergent (table, board)
+  pairs of arm 3's `none` cell, v7 reaches a mean contract level of 3.580 vs
+  v6's 3.475, and is **doubled 16.87% of the time against 11.78%** — 5,964
+  boards leave the 2/3-level for the 4/5/6/7-level. Plain DD prices an extra
+  undoubled undertrick at −50 against the made games the extra height also buys,
+  so the two nearly cancel; PD doubles every failing contract, so it prices the
+  height honestly. Across the three arms the doubled rate (15.70% → 16.33% →
+  16.87%) tracks the PD loss in lockstep while the mean level does **not** (arm
+  2 inflates level the most and loses the least). **The loss is the doubled-
+  contract rate, not the height.**
+
+  **Arm 1 already overbids** (15.70% vs 12.14%), so the looseness is intrinsic
+  to the sequence model, not an artifact of the reweighting — and the
+  reweighting moved it monotonically worse, never better. That is not an inert
+  signal: `A = imps(result − par)` is PD-aware and aligned with the arbiter
+  (`--double-from 1` is exactly `ns_score_pd`), and the weights had real force
+  (sd 0.66, quantiles 0.21 → 3.11). Its **positive tail** is the defect — an
+  auction beats par mainly when the *opponents* misbid, so `exp(β·A)` upweights
+  rows whose merit belongs to the other side. That is uncorrelated with our own
+  decision quality, and it spends fidelity to buy it.
+
+  **Flip plan (why this parks rather than dies).** The defect is narrow, and the
+  machinery that should have caught it is provably blind to it: the competitive
+  accountant fires at the *same* rate on both arms (2,176.8 vs 2,128.5
+  vetoes/shard, +2.3%) while v7 reaches doubled contracts 43% more often — its
+  collar is a fixed gate calibrated to v6's distribution
+  ([`competitive-accountant.md`](competitive-accountant.md)). Two independent
+  arms follow, and neither needs a new idea:
+  1. **Retune the collar against v7** until the doubled rate comes back to v6's
+     ~11.8%, then re-measure. This targets the measured defect directly instead
+     of the training objective.
+  2. **Replace par with a paired policy baseline** — the v6 arm's auction on the
+     same deal, which the A/B already produces — so `A` isolates our decision
+     rather than the board's luck, and the positive tail stops rewarding
+     opponent error.
 - ⬜ **M5.3 Meaning encoder.** Embed each prior call's text description as a
   meaning vector and feed it to the sequence-model policy, so the system enters the
   net as *meanings* rather than baked-in weights. *Measure:* matches or beats the
@@ -901,5 +949,6 @@ BBA-distilled configured v6 net retrained on honest authored readings
 live frontier is **M8** (sound search, the BEN gap), which first needs its
 machinery re-derived — the search line it planned against was deleted in the
 variant tidy-up ([`archive/sound-search.md`](archive/sound-search.md)).
-M5.2/M5.3 stay open behind their own preconditions.
+M5.2 is **parked** — built, measured, refuted 3/3 (the sequence floor
+overbids; see its milestone for the flip plan) — and M5.3 stays open behind it.
 </content>

@@ -551,6 +551,29 @@ bid is a real, if crude, action). Size it before building anything: count how
 many of the shipped arm's fired boards double an alerted call. If it is a
 material slice it belongs with arm 2, and if it is not, it is a v2 note.
 
+### The collar is calibrated to one floor's distribution *(2026-09-03)*
+
+Measured while refuting M5.2's sequence floor (see [`plan.md`](plan.md) M5.2).
+Swapping the v6 static floor for the v7 LSTM floor raised our doubled-contract
+rate on divergent boards from **11.78% to 16.87%** — 43% relative — and the
+accountant did not notice: it fired **2,176.8 vetoes/shard on the v7 arm against
+2,128.5 on the v6 control**, a 2.3% difference, with double-masks and pass
+demotions flat to three digits (290.3 vs 293.2, 376.5 vs 376.8).
+
+The gate is a *demoting collar, not an argmax bidder* (§Gate shape above), which
+is exactly why: it prices the call the floor proposes, and vetoes when that
+call's EV fails its own threshold. It has no term for how loose the proposing
+floor is, so a floor that proposes
+higher contracts gets the same veto *rate*, and the extra height passes through
+uncollared. Against the shipped v6 floor this is invisible — the thresholds were
+tuned on that distribution and the two are in equilibrium.
+
+Consequence for any future learned floor: **the accountant is not a safety net
+for a floor it was not tuned against.** A floor swap that changes the contract-
+height distribution needs the collar re-tuned in the same change, or the A/B
+measures the pair, not the floor. This is the first arm of M5.2's flip plan —
+retune against v7 until the doubled rate returns to ~11.8%, then re-measure.
+
 ## Out of scope (decided, not neglect)
 
 - **Full probabilistic par over all 20 columns** — the chartered v2. The
