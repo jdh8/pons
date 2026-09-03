@@ -309,3 +309,104 @@ fn v7_later_calls_change_the_answer() {
         "order must matter — that is the whole point"
     );
 }
+
+// ── v7 shipped artifact ──────────────────────────────────────────────────────
+
+/// The shipped v7 blob reproduces the trainer's candle logits, *through the
+/// byte path*: the fixture's raw `.seq` row is decoded by
+/// [`CallToken::floats`][super::super::features::CallToken::floats] and the
+/// result must equal the token floats candle was fed.  That second assert is
+/// the one that catches a divisor or a field-order drift between the extractor
+/// and the trainer — a mismatch there moves every logit while the matmul stays
+/// perfectly correct.
+#[test]
+fn matches_candle_fixture_bba_v7() {
+    use super::super::features::{CallToken, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7};
+
+    let fx: serde_json::Value =
+        serde_json::from_str(include_str!("../weights/american_bba_v7.fixture.json")).unwrap();
+    let to_vec = |v: &serde_json::Value| -> Vec<f32> {
+        v.as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_f64().unwrap() as f32)
+            .collect()
+    };
+
+    let rows = fx["features"].as_array().unwrap();
+    let golds = fx["logits"].as_array().unwrap();
+    let seqs = fx["seq_u8"].as_array().unwrap();
+    let toks = fx["tokens"].as_array().unwrap();
+    let lens = fx["len"].as_array().unwrap();
+    assert!(!rows.is_empty(), "fixture has no rows");
+    assert_eq!(rows.len(), golds.len());
+    assert_eq!(rows.len(), seqs.len());
+
+    let mut max_abs = 0f32;
+    for (((frow, grow), srow), (trow, len)) in
+        rows.iter().zip(golds).zip(seqs).zip(toks.iter().zip(lens))
+    {
+        // Decode the packed row exactly as serving does.
+        let bytes = to_vec(srow);
+        assert_eq!(bytes.len(), SEQ_ROW_BYTES_V7);
+        let steps = bytes[0] as usize;
+        assert_eq!(steps, len.as_u64().unwrap() as usize, "step count differs");
+        let tokens: Vec<[f32; TOKEN_LEN_V7]> = (0..steps)
+            .map(|slot| {
+                let at = 1 + slot * TOKEN_BYTES_V7;
+                let mut raw = [0u8; TOKEN_BYTES_V7];
+                for (dst, src) in raw.iter_mut().zip(&bytes[at..at + TOKEN_BYTES_V7]) {
+                    *dst = *src as u8;
+                }
+                CallToken(raw).floats()
+            })
+            .collect();
+
+        // The decode must match the token floats candle actually consumed.
+        let gold_tokens = trow.as_array().unwrap();
+        for (slot, token) in tokens.iter().enumerate() {
+            let gold = to_vec(&gold_tokens[slot]);
+            assert_eq!(
+                token.as_slice(),
+                gold.as_slice(),
+                "decoded token {slot} differs from the trainer's"
+            );
+        }
+
+        let pred: Vec<f32> = classify_bba_v7(&to_vec(frow), &tokens)
+            .into_values()
+            .collect();
+        let gold = to_vec(grow);
+        assert_eq!(pred.len(), gold.len());
+        for (p, g) in pred.iter().zip(&gold) {
+            max_abs = max_abs.max((p - g).abs());
+        }
+        assert_eq!(
+            argmax(&pred),
+            argmax(&gold),
+            "arg-max (chosen call) differs"
+        );
+    }
+    assert!(
+        max_abs < 1.0e-3,
+        "max abs logit diff {max_abs} exceeds tolerance"
+    );
+}
+
+/// Export gate, v7 flavour: the fold lands on the head's *static* half, which
+/// starts at column `HL` because the first 128 head inputs are the LSTM's
+/// hidden state — never constant, never folded.
+#[test]
+fn folded_v7_columns_are_exactly_zero() {
+    let head = &WEIGHTS_BBA_V7[G * TOK + G * HL + 2 * G..];
+    let w1 = &head[..HID * IN_HEAD];
+    let zero = (0..IN_V6)
+        .filter(|&i| (0..HID).all(|h| w1[h * IN_HEAD + HL + i].to_bits() == 0))
+        .count();
+    assert_eq!(zero, 30, "v7 artifact was not folded against its corpus");
+
+    let hidden_zero = (0..HL)
+        .filter(|&i| (0..HID).all(|h| w1[h * IN_HEAD + i].to_bits() == 0))
+        .count();
+    assert_eq!(hidden_zero, 0, "a hidden-state column was folded away");
+}

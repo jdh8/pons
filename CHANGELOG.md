@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **M5.2 sequence-policy floor (v7) — built, measured, refuted 3/3, parked
+  (2026-09-03)** — no bidding change: the default build stays byte-identical
+  (`smoke-default --count 20000 --seed 1` unchanged at `38ee1e21…`) and the LSTM
+  floor is reachable only via `--our-floor american-v7`. Adds `american_v7()`
+  and its floor shell, the recurrent classifier path, `examples/reweight-corpus`
+  (outcome-reweights a teacher corpus by double-dummy advantage over par, with
+  `--double-from 1` matching `ns_score_pd` exactly), trainer support for the
+  recurrent arch, and a generalisation of `scripts/fold-constant-inputs.py` to
+  nets whose head is not at the start of the flat blob (plain MLPs take every
+  new branch at zero and are unaffected — verified against the shipped v4 and
+  v6 metas).
+
+  Three trained arms, each a full 204,800 bd/arm/vul A/B against the shipped v6
+  static floor, all showed the never-ships signature — **plain-DD wash, PD
+  loss**: raw distillation −0.0239/−0.0134 IMPs/board PD (none/both), per-call
+  `exp(0.10·A)` −0.0344/−0.0089, Monte-Carlo `exp(0.10·A)` −0.0430/−0.0181.
+  Cause: the sequence floor **overbids** — on arm 3's 83,794 divergent (table,
+  board) pairs it is doubled 16.87% of the time against v6's 11.78%, and across
+  the three arms that doubled rate tracks the PD loss in lockstep while mean
+  contract level does not. The advantage reweighting could not fix it (and made
+  it monotonically worse) because `imps(result − par)` upweights boards where
+  the *opponents* misbid. Full record, including the flip plan, in
+  [docs/ai-bidder/plan.md](docs/ai-bidder/plan.md) M5.2.
+
 - **M5.2 sequence-policy prerequisites — the auction reaches the net as calls,
   not as a summary (2026-09-03)** — no bidding change: the default build is
   byte-identical (`smoke-default --count 20000 --seed 1` unchanged at

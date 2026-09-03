@@ -99,6 +99,11 @@ test = true
 # its system into rule-book and bilans-floor.  Interpretation only — `get_bid` is
 # never called, so no hand is ever dealt.
 [[example]]
+name = "reweight-corpus"
+path = "examples/reweight-corpus/main.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "probe-bba-book"
 path = "examples/probe-bba-book/main.rs"
 required-features = ["serde"]

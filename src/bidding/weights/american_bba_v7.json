@@ -1,0 +1,117 @@
+{
+  "arch": "[tokens -> LSTM(98,128)].h_at_len | x -> Linear(304,H) -> relu -> Linear(H,H) -> relu -> Linear(H,38)",
+  "batch": 4096,
+  "card": "engine defaults",
+  "conv": [],
+  "data_contested_rows": 4234012,
+  "data_git_sha": "47ec143d8ae9f677c1ad5f77092bd1c71c928e50",
+  "data_rows": 6767120,
+  "data_seed": 100,
+  "data_stems": [
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-0",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-1",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-2",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-3",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-4",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-5",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-6",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/uniform-7",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/enriched-0",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/enriched-1",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/enriched-2",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/enriched-3",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-0004",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-1000",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-2000",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-0002",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-4000",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-0800",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-8000",
+    "/mnt/ssd-data/jdh8/pons-corpora/corpus-v7-mc-b010/axis-0020"
+  ],
+  "dd_len": 20,
+  "dd_weight": 0.0,
+  "device": "cuda:1",
+  "dtype": "f32-le",
+  "epochs": 300,
+  "feature_version": 6,
+  "features_len": 176,
+  "folded": {
+    "c_source": "min/max scan of ['/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-0', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-1', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-2', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-3', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-4', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-5', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-6', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/uniform-7', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/enriched-0', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/enriched-1', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/enriched-2', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/enriched-3', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-0004', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-1000', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-2000', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-0002', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-4000', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-0800', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-8000', '/mnt/ssd-data/jdh8/pons-corpora/corpus-v7/axis-0020']",
+    "column_offset": 128,
+    "head_layer": "head.l1.weight",
+    "live_slots": null,
+    "script": "scripts/fold-constant-inputs.py",
+    "zeroed_columns": 30
+  },
+  "git_sha": "815094b01efe73ccacc15b7ad6fc03d95fce288c",
+  "hidden": 256,
+  "init_seed": 1,
+  "lr": 0.001,
+  "lstm_hidden": 128,
+  "max_steps": 20,
+  "mix_kickback": false,
+  "our_kickback": false,
+  "param_floats": 270374,
+  "param_order": [
+    "lstm.weight_ih_l0",
+    "lstm.weight_hh_l0",
+    "lstm.bias_ih_l0",
+    "lstm.bias_hh_l0",
+    "head.l1.weight",
+    "head.l1.bias",
+    "head.l2.weight",
+    "head.l2.bias",
+    "head.l3.weight",
+    "head.l3.bias"
+  ],
+  "param_shapes": {
+    "head.l1.bias": [
+      256
+    ],
+    "head.l1.weight": [
+      256,
+      304
+    ],
+    "head.l2.bias": [
+      256
+    ],
+    "head.l2.weight": [
+      256,
+      256
+    ],
+    "head.l3.bias": [
+      38
+    ],
+    "head.l3.weight": [
+      38,
+      256
+    ],
+    "lstm.bias_hh_l0": [
+      512
+    ],
+    "lstm.bias_ih_l0": [
+      512
+    ],
+    "lstm.weight_hh_l0": [
+      512,
+      128
+    ],
+    "lstm.weight_ih_l0": [
+      512,
+      98
+    ]
+  },
+  "softmax_len": 38,
+  "teacher": "bba",
+  "token_len": 98,
+  "train_rows": 6090405,
+  "trainer": "pons-trainer 0.1.0",
+  "val_ce": 0.30347272753715515,
+  "val_dd_mse": 43.303123474121094,
+  "val_rows": 676715,
+  "val_top1_constructive": 0.9044837355613708,
+  "val_top1_contested": 0.9019593596458435,
+  "val_top1_overall": 0.9029044508934021,
+  "wd": 0.0
+}

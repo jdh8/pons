@@ -151,6 +151,39 @@ impl Classifier for ConfiguredFloorV6 {
     }
 }
 
+/// The v7 sequence floor: the v6 static block, plus an LSTM over one token per
+/// prior call.  The tokens are read off the *configured* context, the same one
+/// the static block sees, so a cell's agreements reach both halves.
+#[derive(Clone, Debug)]
+pub struct ConfiguredFloorV7(CompactConfig, Arc<Rules>);
+
+impl ConfiguredFloorV7 {
+    /// Attach the v7 floor to one compact configuration cell and rail ladder.
+    #[must_use]
+    pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
+        Self(compact, ladder)
+    }
+}
+
+impl Classifier for ConfiguredFloorV7 {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            return self.1.classify(hand, context);
+        }
+        let configured = context.clone().with_compact(&self.0);
+        let tokens: Vec<_> = features::call_tokens_v7(&configured)
+            .iter()
+            .map(features::CallToken::floats)
+            .collect();
+        let mut logits =
+            neural::classify_bba_v7(&features::features_v6(hand, &configured), &tokens);
+        mask_illegal(&mut logits, context.auction());
+        competitive_gate(&mut logits, hand, context);
+        new_suit_gate(&mut logits, hand, context);
+        logits
+    }
+}
+
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them
 ///
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —

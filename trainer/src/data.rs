@@ -112,6 +112,10 @@ pub struct Dataset {
     pub dd: Vec<f32>,
     /// One tag per row: `1` = contested phase, `0` = constructive.
     pub tags: Vec<u8>,
+    /// One advantage weight per row, from the optional `<stem>.w` sidecar
+    /// (`examples/reweight-corpus`). All-ones when absent, which trains
+    /// identically to having no sidecar at all.
+    pub weights: Vec<f32>,
     /// `rows * seq_row` bytes, row-major: the auction token sequence, still
     /// packed as it sits on disk. Empty when the dump has no `.seq` sibling.
     /// Deliberately *not* expanded to `f32` here: at 1121 B/row the packed form
@@ -205,6 +209,7 @@ impl Dataset {
         }
 
         let tags = load_tags(&tags_path, rows)?;
+        let weights = load_weights(&format!("{stem}.w"), rows)?;
         let (seq, seq_row) = load_seq(&seq_path, rows, meta.seq.as_ref(), want_seq)?;
 
         Ok(Self {
@@ -212,6 +217,7 @@ impl Dataset {
             targets,
             dd,
             tags,
+            weights,
             seq,
             seq_row,
             rows,
@@ -324,6 +330,7 @@ pub fn load_mixture(
         targets: Vec::with_capacity(rows * SOFTMAX_LEN),
         dd: Vec::with_capacity(rows * dd_len),
         tags: Vec::with_capacity(rows),
+        weights: Vec::with_capacity(rows),
         seq: Vec::with_capacity(rows * seq_row),
         seq_row,
         rows,
@@ -375,6 +382,8 @@ impl Dataset {
             self.dd.extend_from_slice(&src.dd[from * d..(from + n) * d]);
         }
         self.tags.extend_from_slice(&src.tags[from..from + n]);
+        self.weights
+            .extend_from_slice(&src.weights[from..from + n]);
         if self.seq_row > 0 {
             let r = self.seq_row;
             self.seq
@@ -426,6 +435,25 @@ fn load_seq(
         );
     }
     Ok((seq, seq_row))
+}
+
+/// Load `<stem>.w`, or all-ones when the sidecar is absent.
+///
+/// Absent is the norm: only a corpus that has been through
+/// `examples/reweight-corpus` has one, and an all-ones vector makes the
+/// weighted loss algebraically identical to the unweighted one.
+fn load_weights(path: &str, rows: usize) -> Result<Vec<f32>> {
+    if !std::path::Path::new(path).exists() {
+        return Ok(vec![1.0; rows]);
+    }
+    let bytes = std::fs::read(path).with_context(|| format!("reading {path}"))?;
+    if bytes.len() != rows * 4 {
+        bail!("{path} has {} bytes but {rows} rows", bytes.len());
+    }
+    Ok(bytes
+        .chunks_exact(4)
+        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+        .collect())
 }
 
 /// Read the per-row tag file, or fall back to all-zero (with a warning) if the

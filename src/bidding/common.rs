@@ -9,7 +9,7 @@ use super::agreements::{Agreements, TheirDisclosures};
 use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
-use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV6};
+use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV6, ConfiguredFloorV7};
 use super::{Rules, System, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -113,6 +113,17 @@ pub(in crate::bidding) fn with_floor_v6(
 ) -> System {
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorV6::new(compact, Arc::clone(&ladder)));
+    with_floors(system, &ladder, contested)
+}
+
+/// Attach the v7 sequence floor (LSTM auction encoder over the v6 head).
+pub(in crate::bidding) fn with_floor_v7(
+    system: System,
+    compact: CompactConfig,
+    agreements: &Agreements,
+) -> System {
+    let ladder = Arc::new(instinct(agreements));
+    let contested = Fallback::classify(ConfiguredFloorV7::new(compact, Arc::clone(&ladder)));
     with_floors(system, &ladder, contested)
 }
 

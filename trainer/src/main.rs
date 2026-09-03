@@ -280,6 +280,14 @@ fn main() -> Result<()> {
     let xval = slice(&ds.features, ntrain, nval, features_len)?;
     let yval = slice(&ds.targets, ntrain, nval, SOFTMAX_LEN)?;
     let val_tags = &ds.tags[ntrain..];
+    // Advantage weights (`examples/reweight-corpus`); all-ones without a `.w`
+    // sidecar, in which case the weighted mean below is the plain mean.
+    let wtrain = Tensor::from_slice(&ds.weights[..ntrain], (ntrain,), &device)?;
+    let weighted = ds.weights.iter().any(|w| (w - 1.0).abs() > 1e-6);
+    if weighted {
+        let (lo, hi) = ds.weights.iter().fold((f32::MAX, 0f32), |(l, h), &w| (l.min(w), h.max(w)));
+        eprintln!("row weights: active, range [{lo:.3}, {hi:.3}] over {} rows", ds.rows);
+    }
 
     // Optional DD regression target (present iff the dump was fed a GIB file).
     let dd_dim = ds.dd_len;
@@ -367,8 +375,13 @@ fn main() -> Result<()> {
                 .transpose()?;
             let (logits, value) = model.forward(&xb, sb.as_ref().map(|(t, l)| (t, l)))?;
             let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
-            // Soft-target cross-entropy: -mean_b Σ_c teacher · log_softmax(student).
-            let mut loss = yb.mul(&logp)?.sum(D::Minus1)?.mean(0)?.neg()?;
+            // Soft-target cross-entropy: -mean_b Σ_c teacher · log_softmax(student),
+            // each row scaled by its advantage weight (1.0 without a `.w` sidecar,
+            // and the weights are normalised to mean 1 so this is not a stealth
+            // learning-rate change).
+            let ce = yb.mul(&logp)?.sum(D::Minus1)?.neg()?;
+            let wb = wtrain.narrow(0, start, len)?;
+            let mut loss = ce.mul(&wb)?.mean(0)?;
             // Auxiliary value head: MSE to the cached DD table.
             if let (Some(value), Some(ddtrain)) = (value, &ddtrain) {
                 let ddb = ddtrain.narrow(0, start, len)?;

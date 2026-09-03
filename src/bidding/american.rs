@@ -62,7 +62,8 @@
 
 use super::agreements::Agreements;
 use super::common::{
-    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_instinct_floor,
+    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_floor_v7,
+    with_instinct_floor,
 };
 use super::{Competitive, Constructive, Defensive, System};
 
@@ -215,6 +216,19 @@ pub fn american_with_card(
 #[must_use]
 pub fn american_v6(agreements: &Agreements) -> System {
     american(agreements)
+}
+
+/// The v7 sequence floor: same corpus and same head as [`american_v6`], with an
+/// LSTM auction encoder prepended.  Opt-in until its A/B reads a win.
+#[must_use]
+pub fn american_v7(agreements: &Agreements) -> System {
+    with_floor_v7(
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements, false,
+        )),
+        agreements,
+    )
 }
 
 /// Experimental v6 twin retrained on BBA's disclosed Multi-Landy readings.

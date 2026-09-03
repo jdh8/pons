@@ -76,7 +76,15 @@ def main():
 
     meta = json.load(open(f"{args.stem}.json"))
     shapes, order = meta["param_shapes"], meta["param_order"]
-    hidden, features = shapes["l1.weight"]
+    # A recurrent net prefixes the head with its LSTM params, so the first head
+    # layer is `head.l1.weight`, it does not start the flat blob, and its input
+    # is `[hidden state | static block]` -- the corpus's column i is head column
+    # `offset + i`.  A plain MLP takes every branch at 0 and is unaffected.
+    key = "head.l1.weight" if "head.l1.weight" in shapes else "l1.weight"
+    hidden, in_dim = shapes[key]
+    features = meta["features_len"]
+    offset = in_dim - features
+    at = sum(int(np.prod(shapes[n])) for n in order[: order.index(key)])
     total = sum(int(np.prod(shapes[name])) for name in order)
 
     flat = np.fromfile(f"{args.stem}.f32", dtype="<f4")
@@ -86,8 +94,8 @@ def main():
     if args.data:
         fold, c = scan_constants(args.data, features)
     else:
-        if shapes["l1.weight"] != [256, 368]:
-            sys.exit(f"l1.weight is {shapes['l1.weight']}, not [256, 368]; geometry mode is v4-only")
+        if shapes[key] != [256, 368]:
+            sys.exit(f"{key} is {shapes[key]}, not [256, 368]; geometry mode is v4-only")
         fold = [i for i in range(OFFSET_OUR_CARD, features) if i not in LIVE_SLOTS]
         assert len(fold) == 2 * CARD_LEN - len(LIVE_SLOTS)
 
@@ -100,13 +108,14 @@ def main():
         if not np.isin(c[fold], (0.0, 1.0)).all():
             sys.exit("a folded slot's constant is not an exact 0/1 bit")
 
-    w1 = flat[: hidden * features].reshape(hidden, features)
-    b1 = flat[hidden * features : hidden * features + hidden]
-    nonzero = int((w1[:, fold] != 0).any(axis=0).sum())
+    w1 = flat[at : at + hidden * in_dim].reshape(hidden, in_dim)
+    b1 = flat[at + hidden * in_dim : at + hidden * in_dim + hidden]
+    cols = [offset + i for i in fold]
+    nonzero = int((w1[:, cols] != 0).any(axis=0).sum())
     print(f"nonzero folded columns before: {nonzero} of {len(fold)}")
 
-    b1[:] = (b1.astype("f8") + w1[:, fold].astype("f8") @ c[fold].astype("f8")).astype("<f4")
-    w1[:, fold] = 0.0
+    b1[:] = (b1.astype("f8") + w1[:, cols].astype("f8") @ c[fold].astype("f8")).astype("<f4")
+    w1[:, cols] = 0.0
 
     flat.tofile(f"{args.stem}.f32")
     written = np.fromfile(f"{args.stem}.f32", dtype="<f4").size
@@ -121,6 +130,8 @@ def main():
         "live_slots": None if args.data else LIVE_SLOTS,
         "script": "scripts/fold-constant-inputs.py",
         "zeroed_columns": len(fold),
+        "head_layer": key,
+        "column_offset": offset,
     }
     with open(f"{args.stem}.json", "w") as f:
         json.dump(meta, f, indent=2, sort_keys=True)

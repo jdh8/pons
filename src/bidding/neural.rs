@@ -266,5 +266,28 @@ pub fn classify_lstm(weights: &[f32], features: &[f32], tokens: &[[f32; TOKEN_LE
     forward::<IN_HEAD>(head, &joined)
 }
 
+/// The shipped v7 sequence floor: the same compact-config mixture as v6, drawn
+/// through `--feature-version 7` so the `.f32` is byte-identical and only the
+/// `.seq` sibling is new.  Folded against its corpus like every shipped blob.
+static RAW_BBA_V7: &[u8] = include_bytes!("weights/american_bba_v7.f32");
+const _: () = assert!(
+    RAW_BBA_V7.len() == total_lstm() * 4,
+    "v7 sequence weights artifact size mismatch"
+);
+
+static WEIGHTS_BBA_V7: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V7));
+
+/// Evaluate the v7 BBA-distilled sequence floor: the auction's tokens (oldest
+/// first, from [`call_tokens_v7`][super::features::call_tokens_v7]) plus the
+/// 176 v6 features → 38 logits.
+///
+/// # Panics
+///
+/// Panics if `features` is not the pinned v6 width.
+#[must_use]
+pub fn classify_bba_v7(features: &[f32], tokens: &[[f32; TOKEN_LEN_V7]]) -> Logits {
+    classify_lstm(&WEIGHTS_BBA_V7, features, tokens)
+}
+
 #[cfg(test)]
 mod tests;
