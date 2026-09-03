@@ -31,8 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     94,340 authored decisions over 1,109 nodes): the two orders agree
     **91.28%** of the time, and the admissible mass falls under 1e-6 / 1e-4 /
     1e-3 / 1e-2 / 1e-1 on 0.38% / 1.34% / 2.55% / 5.02% / 9.85% of them —
-    the price of the epsilon fallback, which the design owes a default.
-    **`1e-3` is proposed, not shipped**: nothing consumes the hook yet.
+    the price of the epsilon fallback, which the design owes a default. The
+    rung also loosens with `T` (1e-3 fires 2.55% at `T = 1`, 1.02% at 1.5,
+    0.42% at 2), so it is sized at the `T` the hook will run at.
+    **`1e-4` is recommended, nothing shipped**: no consumer reads the hook yet,
+    and the two that will — the replay sampler's importance weight and the
+    rollout harness's top-3 — both degrade *into a hard rejection* at a
+    fallen-back node, which argues for the looser rung (§4).
     Agreement is far from uniform — the opening seat runs 2.1% disagreement,
     authored responses 10–30%, and the thin nodes are the same narrow
     continuations, which is the honest scope of asking the net to rank calls it

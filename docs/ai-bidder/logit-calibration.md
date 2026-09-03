@@ -349,12 +349,54 @@ distinct nodes):
 | admissible mass < 1e-6 / 1e-4 / 1e-3 / 1e-2 / 1e-1, at `T = 1` | 0.38% / 1.34% / 2.55% / 5.02% / 9.85% |
 
 The epsilon is a *statistical* threshold, not a numerical one: `f32` softmax
-does not underflow anywhere near 1e-6, so what the rung buys is refusing to
-renormalise a distribution the net has effectively declined to place. **Proposed
-default `1e-3`** — the book's one-hot answers 2.55% of authored decisions, and
-below that mass the net's order among the admissible calls is extrapolation.
-Nothing consumes the hook yet, so this is a flagged, reversible choice rather
-than a shipped constant; 1e-4 (1.34%) is the defensible looser pick.
+does not underflow anywhere near 1e-6 (a mass of 1e-4 is seven nats below the
+mode, and `exp` in `f32` reaches ~e^-88), so what the rung buys is refusing to
+renormalise a distribution the net has effectively declined to place.
+
+**It also moves with `T`**, because the mass is measured after the temperature
+divide and a flatter softmax puts more of itself on any fixed set. Same seed,
+same walk:
+
+| rung | `T = 1` | `T = 1.5` | `T = 2` |
+| --- | --- | --- | --- |
+| 1e-4 | 1.34% | 0.40% | 0.11% |
+| 1e-3 | 2.55% | 1.02% | 0.42% |
+| 1e-2 | 5.02% | 2.64% | 1.50% |
+
+So the `T = 1` column is an *upper bound* on how often the fallback fires: a
+distilled net calibrates at `T > 1` (it is over-confident, §3), and every rung
+loosens as the fitted `T` lands. Size the epsilon at the `T` the hook will run
+at — `probe-book-vs-net -t` takes it for exactly this.
+
+**Recommended `1e-4`** (jdh8's call is open). The choice between it and `1e-3`
+is 1.21% of authored
+decisions at `T = 1` (0.62% at `T = 1.5`), and the deciding argument is not the
+count but *which way the fallback errs for the consumers that exist*:
+
+* the fallback is the book's **one-hot**, so at a fallen-back node the replay
+  sampler's importance weight becomes 0 or 1 — a hard rejection of every layout
+  whose non-actor made a call other than the book's argmax. That is precisely
+  the hard `MARGIN` behaviour the importance weight was designed to replace, so
+  a *higher* epsilon reintroduces the thing being removed on more nodes.
+* in the rollout harness a one-hot proposal has no top-3: the candidate set
+  collapses to the policy's own call, the node produces no alternative to roll
+  out, and the label stays BBA's. A higher epsilon buys fewer labelled nodes.
+* the thin nodes **are** the disagreeing nodes (`1♠ - 1NT -`: 29.8% disagree,
+  27.8% thin). So epsilon is a dial on how much book/net disagreement the hook
+  is allowed to see, and raising it silences the net exactly where it dissents.
+  For an audit consumer that is self-confirming.
+
+The one consumer that prefers `1e-3` is a **display**: "the net has no opinion
+here" is honest, and a renormalised tail shown as percentages is not. If a
+display ever reads the hook it should carry its own, higher rung rather than
+raise this one.
+
+Two residues, both cheap and neither blocking: the fallback could be **uniform
+over `A`** instead of the book's one-hot (it keeps the sampler soft, and says
+"no opinion" without asserting the book's order as odds), and the rung could be
+expressed in nats below the mode rather than as an absolute mass, which would
+make it `T`-invariant by construction. Neither is built; nothing consumes the
+hook yet.
 
 The disagreement is heavily *not* uniform. The opening seat is near-agreement
 (2.1% over 37,208 decisions, the top swap our `1NT` against BBA's `1♦`), while
@@ -384,7 +426,7 @@ one comment that does mislead.
 | session | deliverables | gate | status |
 | --- | --- | --- | --- |
 | 1 (2026-09-03) | this document; display hygiene (`top3()`, practice-bidding: mask then softmax, ladder where an authored node answered the hand, odds where the floor did); `02-policy-net.md` §Output calibration and `README.md:92` rewritten; §7 flags recorded | `smoke-default --count 20000 --seed 1` = `38ee1e21…`, unchanged | **done** |
-| 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — epsilon `1e-3` *proposed*, not shipped (§4) |
+| 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — epsilon **`1e-4`** recommended (§4), awaiting jdh8; nothing consumes the hook yet |
 | 3+ | layouts per decision from the replay sampler (`sample_layouts_replay`, hard `MARGIN` as it stands) → rollout harness (top-3 ∪ own call, `M` layouts each, ours vs BBA, DD + PD, paired baseline, margin target) → retrain → A/B on both scorers; the harness is the sampler's first live search consumer, so its importance-weighted acceptance is sized against it (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers | owed |
 
 Session 2 changes no call and is provable by the hash. Everything in session
