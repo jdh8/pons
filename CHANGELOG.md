@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A temperature for the policy net, and the first book-vs-net order audit
+  (logit calibration session 2, 2026-09-03)** — no bidding change and **no
+  `src/` change at all**: `smoke-default --count 20000 --seed 1` stays
+  `38ee1e21…`. Two deliverables from the §6 ledger of
+  `docs/ai-bidder/logit-calibration.md`:
+  - `trainer/src/calibrate.rs` fits one scalar `T` on the held-out split by the
+    same soft-target cross-entropy the trainer optimises, read over `z / T`.
+    `logsumexp` is convex in `1/T` and the label term is linear, so a golden
+    section over `ln T` finds the optimum with no gradient of the net involved.
+    The training report gains `val_nll` and ECE before and after, and the
+    weights sidecar gains `temperature`, `val_nll_raw`, `val_nll_calibrated`,
+    `val_ece_raw`, `val_ece_calibrated`. **Serving reads none of them** —
+    scaling a row's logits cannot reorder it, so the argmax the driver selects
+    on is untouched; `T` moves only the spread the odds consumers want.
+  - `examples/probe-book-vs-net` puts the two orders side by side for the first
+    time: at every authored node of a self-play `american()` walk, the book's
+    argmax against `classify_bba_v6`'s argmax restricted to the calls the book
+    admits there — the net called **directly**, not through the floor shell,
+    exactly as the design's proposal hook does. First census (`-c 20000 -s 1`,
+    94,340 authored decisions over 1,109 nodes): the two orders agree
+    **91.28%** of the time, and the admissible mass falls under 1e-6 / 1e-4 /
+    1e-3 / 1e-2 / 1e-1 on 0.38% / 1.34% / 2.55% / 5.02% / 9.85% of them —
+    the price of the epsilon fallback, which the design owes a default.
+    **`1e-3` is proposed, not shipped**: nothing consumes the hook yet.
+    Agreement is far from uniform — the opening seat runs 2.1% disagreement,
+    authored responses 10–30%, and the thin nodes are the same narrow
+    continuations, which is the honest scope of asking the net to rank calls it
+    was never trained to rank at that node.
+
 - **M5.2 sequence-policy prerequisites — the auction reaches the net as calls,
   not as a summary (2026-09-03)** — no bidding change: the default build is
   byte-identical (`smoke-default --count 20000 --seed 1` unchanged at

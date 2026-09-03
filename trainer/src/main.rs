@@ -19,6 +19,7 @@
 //! This crate is its own cargo workspace (see `Cargo.toml`); it is built and run
 //! only from inside `trainer/` and never compiled by the pons build.
 
+mod calibrate;
 mod data;
 mod model;
 
@@ -416,6 +417,19 @@ fn main() -> Result<()> {
         val_seq,
         args.batch,
     )?;
+    // Post-hoc temperature: fitted on the held-out split, reported, and written
+    // to the sidecar. Serving reads the raw logits — argmax is scale-invariant,
+    // so the shipped floor is byte-identical. See `calibrate`'s module doc.
+    let cal = calibrate::fit(
+        &val_logits(&model, &xval, val_seq, args.batch)?,
+        &yval.flatten_all()?.to_vec1::<f32>()?,
+        SOFTMAX_LEN,
+    );
+    eprintln!(
+        "calibration: T {:.4} on {} held-out rows  val_nll {:.4} -> {:.4}  ECE {:.4} -> {:.4}  \
+         (argmax unchanged; serving reads raw logits)",
+        cal.temperature, cal.rows, cal.nll_before, cal.nll_after, cal.ece_before, cal.ece_after,
+    );
     export(
         &args,
         &varmap,
@@ -425,6 +439,7 @@ fn main() -> Result<()> {
         ntrain,
         nval,
         &final_eval,
+        &cal,
         val_seq,
     )?;
     Ok(())
@@ -498,6 +513,31 @@ fn evaluate(
     })
 }
 
+/// Forward the whole validation set once and return the raw logits, row-major
+/// `(rows, SOFTMAX_LEN)` — what [`calibrate::fit`] needs and [`evaluate`]
+/// reduces away. Chunked by `batch` for the same reason `evaluate` is.
+fn val_logits(
+    model: &Policy,
+    x: &Tensor,
+    seq: Option<(&Seq, &[u8])>,
+    batch: usize,
+) -> Result<Vec<f32>> {
+    let rows = x.dim(0)?;
+    let mut out = Vec::with_capacity(rows * SOFTMAX_LEN);
+    let mut start = 0usize;
+    while start < rows {
+        let len = batch.max(1).min(rows - start);
+        let sb = seq
+            .map(|(s, bytes)| s.batch(bytes, start, len))
+            .transpose()?;
+        let (logits, _) =
+            model.forward(&x.narrow(0, start, len)?, sb.as_ref().map(|(t, l)| (t, l)))?;
+        out.extend(logits.flatten_all()?.to_vec1::<f32>()?);
+        start += len;
+    }
+    Ok(out)
+}
+
 /// Write the weights (`<stem>.f32`, layer order `PARAM_NAMES`), the versioned
 /// sidecar, and a small (features, logits) parity fixture for M1.2.
 #[allow(clippy::too_many_arguments)]
@@ -510,6 +550,7 @@ fn export(
     ntrain: usize,
     nval: usize,
     eval: &Eval,
+    cal: &calibrate::Calibration,
     seq: Option<(&Seq, &[u8])>,
 ) -> Result<()> {
     let stem = &args.weights_out;
@@ -585,6 +626,11 @@ fn export(
         "dd_len": ds.dd_len,
         "dd_weight": args.dd_weight,
         "val_dd_mse": eval.dd_mse,
+        "temperature": cal.temperature,
+        "val_nll_raw": cal.nll_before,
+        "val_nll_calibrated": cal.nll_after,
+        "val_ece_raw": cal.ece_before,
+        "val_ece_calibrated": cal.ece_after,
     });
     // Only the LSTM artifact carries these, so an `--arch mlp` sidecar keeps the
     // exact key set it had before the sequence channel existed.

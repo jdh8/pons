@@ -330,11 +330,39 @@ report ECE before and after, and write a `temperature` field into the weights
 sidecar. Serving stays raw: argmax is `T`-invariant, so the default system is
 byte-identical and the smoke hash is the gate.
 
-**The audit probe.** `examples/probe-book-vs-net`: walk bank deals, and at
+**The audit probe.** `examples/probe-book-vs-net`: walk deals, and at
 every authored node compare the book's argmax with the restricted net's
 argmax; bucket the disagreements by node. This is the first place the two
 orders are ever put side by side, and it prices the epsilon fallback (how
-often is the restricted mass ~0) before any consumer depends on it.
+often is the restricted mass ~0) before any consumer depends on it. Built in
+session 2 as a self-play `american()` walk at neither vulnerable (both books
+reached), calling `classify_bba_v6` directly rather than through the floor
+shell, exactly as the hook does. Renormalising cannot reorder, so **the
+disagreement census does not depend on `T`** — only the mass does.
+
+The first census, `-c 20000 -s 1` (94,340 authored decisions over 1,109
+distinct nodes):
+
+| quantity | value |
+| --- | --- |
+| book argmax == restricted-net argmax | **91.28%** (8,231 disagreements) |
+| admissible mass < 1e-6 / 1e-4 / 1e-3 / 1e-2 / 1e-1, at `T = 1` | 0.38% / 1.34% / 2.55% / 5.02% / 9.85% |
+
+The epsilon is a *statistical* threshold, not a numerical one: `f32` softmax
+does not underflow anywhere near 1e-6, so what the rung buys is refusing to
+renormalise a distribution the net has effectively declined to place. **Proposed
+default `1e-3`** — the book's one-hot answers 2.55% of authored decisions, and
+below that mass the net's order among the admissible calls is extrapolation.
+Nothing consumes the hook yet, so this is a flagged, reversible choice rather
+than a shipped constant; 1e-4 (1.34%) is the defensible looser pick.
+
+The disagreement is heavily *not* uniform. The opening seat is near-agreement
+(2.1% over 37,208 decisions, the top swap our `1NT` against BBA's `1♦`), while
+authored responses run 10-30% and the thin nodes concentrate in the same
+places — `1♠ - 1NT -` disagrees 29.8% and is thin 27.8% of the time. Read that
+as the honest scope of the hook: at a well-populated node the two orders mostly
+agree and the odds are informative; at a narrow authored continuation the net
+is being asked about calls it was never trained to rank there.
 
 ## 5. Doc drift corrected
 
@@ -356,7 +384,7 @@ one comment that does mislead.
 | session | deliverables | gate | status |
 | --- | --- | --- | --- |
 | 1 (2026-09-03) | this document; display hygiene (`top3()`, practice-bidding: mask then softmax, ladder where an authored node answered the hand, odds where the floor did); `02-policy-net.md` §Output calibration and `README.md:92` rewritten; §7 flags recorded | `smoke-default --count 20000 --seed 1` = `38ee1e21…`, unchanged | **done** |
-| 2 | `trainer/`: fit `T` on the held-out split by NLL, ECE before/after in the training report, `temperature` field in the weights sidecar; `examples/probe-book-vs-net` (book argmax vs restricted-net argmax, disagreement bucketed by node); epsilon sized from the probe | byte-identity: serving reads no `T`, hash unchanged | owed |
+| 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — epsilon `1e-3` *proposed*, not shipped (§4) |
 | 3+ | layouts per decision from the replay sampler (`sample_layouts_replay`, hard `MARGIN` as it stands) → rollout harness (top-3 ∪ own call, `M` layouts each, ours vs BBA, DD + PD, paired baseline, margin target) → retrain → A/B on both scorers; the harness is the sampler's first live search consumer, so its importance-weighted acceptance is sized against it (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers | owed |
 
 Session 2 changes no call and is provable by the hash. Everything in session
