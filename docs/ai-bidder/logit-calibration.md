@@ -320,11 +320,12 @@ This is what M5.2's arm 3 lacked ([plan.md](plan.md) M5.2, refuted 3/3, parked o
 advantage to every decision on it, having never sampled an alternative
 auction. The harness samples the alternatives, and pairs them.
 
-*Built in session 3* as `examples/probe-rollout-label`. Four scope choices are
+*Built in session 3* as `examples/probe-rollout-label`. Five scope choices are
 explicit in its module doc. It defaults to **self-play**, because `BbaOracle`
 creates and destroys a native bot for every call (`with_bot`,
 `examples/common/oracle/mod.rs:457`) and the replay sampler selects worlds under
-our policy; `--opponent bba` remains available. It uses **`ns_score_pd`**, not
+our policy. `--opponent bba` was **measured** rather than left assumed (§4a
+below): it is affordable and it changes no conclusion. It uses **`ns_score_pd`**, not
 `ev_all`'s call-only `ns_score_bid`, because these are complete auctions that
 may contain a real double. No shipped sidecar yet carries a fitted `T`, but
 temperature cannot reorder the candidates; it changes which decisions clear
@@ -337,8 +338,11 @@ and pricing. Each layout is solved once and shared across every candidate.
 **The winner's curse is the finding.** The target rule selects the largest of
 `k` noisy `M`-layout estimates and reports that same estimate. The maximum is
 upward-biased even when every candidate is worth zero. The harness therefore
-draws **two independent pools of `M` replay layouts**: select on the first, then
-price that same call on the second. The held-out continuous mean is unbiased
+splits its layouts into **two independent pools of `M`**: select on the first,
+then price that same call on the second. Mechanically this is *one* `2M` draw
+from `sample_layouts_replay` halved at the midpoint, not two sampler calls —
+`sample_with` is plain rejection sampling, so conditional on the draw filling,
+the accepted layouts are i.i.d. and the halves are exchangeable. The held-out continuous mean is unbiased
 for that `M`-layout selector; the thresholded held-out firing rate is not itself
 an unbiased population fraction. Short replay draws are skipped rather than
 topped up from a different distribution, board and layout RNG streams occupy
@@ -396,6 +400,26 @@ admissible call (1.60/deal here versus `probe-book-vs-net`'s 4.72). At `M = 128`
 selection plus independent validation costs about 1.87 s/decision: a
 100k-decision audit is ~52 box-hours and a 2.3M-decision full pass ~50 box-days.
 Selection alone is half that price but cannot validate its own labels.
+
+**The opponent does not move the finding.** The module doc's fear — that a
+serialised `BbaOracle` makes `--opponent bba` unaffordable — is wrong, and
+measuring it costs two minutes. Same 400 deals, seed 1, `M = 8`, the *only*
+change being who bids the other three seats during the rollout:
+
+| opponent | in-sample DD | **held-out DD** | in-sample PD | **held-out PD** | both-rule held out | wall clock |
+| --- | --- | --- | --- | --- | --- | --- |
+| self-play | +0.4487 ± 0.0633 | **−0.1040 ± 0.0891** | +0.7740 ± 0.0956 | **+0.1583 ± 0.1237** | 10.62% | 92.2 s |
+| BBA | +0.5097 ± 0.0689 | **−0.0323 ± 0.0918** | +0.8354 ± 0.1019 | **+0.2074 ± 0.1316** | 12.04% | 134.8 s |
+
+Every held-out interval overlaps its twin, both scorers keep their sign, and the
+curse is the same size (0.54/0.63 against self-play's 0.55/0.62). The rollout
+phase does go 0.3 s → 39.8 s (133×, one bot spawn per opponent call), but double
+dummy still owns 69% of the clock, so the arm costs **1.46× wall clock**, not the
+feared blow-up. Both arms harvest the identical 631 decisions, because the
+opponent enters only at bid-out time: the walk, the candidate sets and the
+layouts are shared. **Session 4 does not need to re-litigate self-play versus
+BBA at this `M`** — it is decided by measurement, and cheap enough to re-check
+at whatever `M` the production gate lands on.
 
 The epsilon census is unchanged in direction: `thin` is 5/638 at `T = 1`,
 1/638 at `T = 1.5`, and 0/638 at `T = 2`. That population requires at least two
@@ -516,11 +540,14 @@ one comment that does mislead.
 | --- | --- | --- | --- |
 | 1 (2026-09-03) | this document; display hygiene (`top3()`, practice-bidding: mask then softmax, ladder where an authored node answered the hand, odds where the floor did); `02-policy-net.md` §Output calibration and `README.md:92` rewritten; §7 flags recorded | `smoke-default --count 20000 --seed 1` = `38ee1e21…`, unchanged | **done** |
 | 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — the epsilon it recommended, **`1e-4`**, was decided by jdh8 on 2026-09-03 (§4) |
-| 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short fallback, deal-clustered intervals; the `M`-series and headline census above | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
-| 4+ | specify the production label gate (including independent validation and its `M`), add the vulnerability axis, settle self-play versus BBA continuation, then relabel a corpus slice → fit `T` → retrain → A/B on both scorers. At `M = 128`, a 100k-decision selection+validation audit is ~52 box-hours; the full ~2.3M choice-bearing population is ~50 box-days. The sampler's importance-weighted acceptance is sized against the same harness (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short skip, deal-clustered intervals; the `M`-series, headline census and the `--opponent bba` arm above | byte-identity: no bidding change; the only `src/` edit widens `table::select_legal_call` to `pub` (no behaviour), `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
+| 4+ | build the corpus-fed mode (BBA's label as the baseline, on the corpus that would actually be relabelled), specify the production label gate (including independent validation and its `M`), add the vulnerability axis, then relabel a corpus slice → fit `T` → retrain → A/B on both scorers. Self-play versus BBA is **settled** by §4a and needs no further arm. At `M = 128`, a 100k-decision selection+validation audit is ~52 box-hours; the full ~2.3M choice-bearing population is ~50 box-days. The sampler's importance-weighted acceptance is sized against the same harness (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
-Sessions 2 and 3 change no call and are provable by the hash. Everything in
-session 4+ moves calls and is measured, not argued.
+Sessions 2 and 3 change no call and are provable by the hash — session 3's one
+`src/` edit widens `table::select_legal_call` to `pub` so the probes call
+production's selector rather than reimplement its tie-break, which is a
+visibility change and nothing else. Everything in session 4+ moves calls and is
+measured, not argued.
 
 **Why session 3 stops before the retrain.** The design's target rule uses the
 same `M` layouts to select and bless a label. On the 2,000-deal census that
@@ -528,10 +555,32 @@ reports +0.2499/+0.5434 DD/PD and a 20.98% both-scorer relabel rate; the same
 selected calls on independent layouts are worth only +0.0362/+0.2446 and clear
 both margins 11.01% of the time. The original labels therefore encode a large
 selection artifact. A bigger margin does not remove it. Independent validation
-does, but its threshold is a new label rule, and session 3 measured only
-self-play at neither vulnerable. Session 4 must specify that rule and add the
-missing axes before touching the corpus. `M = 128` being held-out-positive on
-both scorers is the reason to continue, not permission to skip those gates.
+does, but its threshold is a new label rule. Session 4 must specify that rule
+before touching the corpus. `M = 128` being held-out-positive on both scorers is
+the reason to continue, not permission to skip that gate.
+
+**What the probe measures, and what it does not.** The probe walks a self-play
+`american()` auction and displaces **the book's argmax** at **our** node
+distribution. §4's target rule displaces **BBA's one-hot** on the
+**BBA-generated corpus**, and reverts to BBA off the margin. Three things
+therefore differ between the census and the rule it prices: the population of
+decisions (our auctions reach different nodes than BBA's), the baseline being
+displaced, and the asymmetric BBA fallback, which has no counterpart here at
+all. This does not touch the winner's-curse result — that is a property of
+"select the max of `k` noisy estimates and report it", and holds whatever the
+baseline is, which is why the refutation stands. It does mean the **relabel
+rates** (20.98% → 11.01%, and the ~3-4%-of-authored-decisions figure derived
+from them) are proxies, not the rates the production rule would fire at.
+Closing the gap needs a corpus-fed mode: harvest decisions from the shipped
+`dump-teacher` corpus with BBA's label as the baseline, rather than from a
+self-play walk. That is session 4's first build, and it is the axis that most
+changes the numbers.
+
+**The two axes session 3 could not settle, and the one it did.** Vulnerability
+is still missing — the probe hardcodes `AbsoluteVulnerability::NONE`, and a
+relabelling run must add it, since the whole competitive book turns on it.
+Self-play versus BBA **is settled**: §4a measures both arms and finds every
+held-out interval overlapping, both signs preserved, at 1.46× wall clock.
 
 ## 7. Flagged, not fixed
 

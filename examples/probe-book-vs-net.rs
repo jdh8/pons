@@ -33,13 +33,14 @@ use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::features::{CompactConfig, ConventionCard, features_v6};
 use pons::bidding::neural::classify_bba_v6;
+use pons::bidding::table::select_legal_call;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{auction_key, first_max, seat_to_act, seeded_deals};
+use common::{auction_key, seat_to_act, seeded_deals};
 
 /// Candidate thresholds for the epsilon fallback: below one of these the net
 /// has put essentially nothing on any call the book admits, and the hook falls
@@ -86,6 +87,29 @@ impl Bucket {
             *self.swaps.entry(swap.clone()).or_default() += n;
         }
     }
+}
+
+/// The net's argmax **restricted to the book's admissible set**, breaking a tie
+/// the way production does — the *first* maximum, never the last, which is what
+/// `Iterator::max_by` would give (`select_with_legal_state`,
+/// `src/bidding/table.rs:105-119`).
+///
+/// This is not `select_legal_call`: every net logit is finite, so production's
+/// own selector over `net` would range across all *legal* calls rather than the
+/// ones the book admits. The book's own argmax goes through `select_legal_call`
+/// instead, so the two orders being compared are production's and the hook's,
+/// neither of them a local reimplementation.
+fn restricted_max(logits: &Logits, admissible: &[Call]) -> Call {
+    let mut best: Option<(Call, f32)> = None;
+    for (call, &logit) in logits.iter() {
+        if !admissible.contains(&call) {
+            continue;
+        }
+        if best.is_none_or(|(_, top)| logit > top) {
+            best = Some((call, logit));
+        }
+    }
+    best.map_or(Call::Pass, |(call, _)| call)
 }
 
 /// Share of the unrestricted `softmax(z / t)` sitting on the admissible calls
@@ -141,13 +165,13 @@ fn main() {
                     .filter(|(call, logit)| logit.is_finite() && auction.can_push(*call).is_ok())
                     .map(|(call, _)| call)
                     .collect();
-                let call = first_max(&book, &admissible);
+                let call = select_legal_call(Some(book), &auction);
                 if provenance.is_authored() && !admissible.is_empty() {
                     let context = partnership
                         .prefixed_context(rel, &auction)
                         .with_compact(&compact);
                     let net = classify_bba_v6(&features_v6(hand, &context));
-                    let pick = first_max(&net, &admissible);
+                    let pick = restricted_max(&net, &admissible);
                     let mass = admissible_mass(&net, &admissible, args.temperature);
                     let bucket = acc.entry(auction_key(&auction)).or_default();
                     bucket.seen += 1;

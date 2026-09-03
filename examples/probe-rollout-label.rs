@@ -18,9 +18,12 @@
 //! 2. **The candidate set** is the proposal's top-`k` ∪ {the policy's own
 //!    call}.  Restricting and rescaling cannot reorder, so this set — and every
 //!    count below that is not `thin` — is **`T`-invariant**.
-//! 3. **The rollout.** Two independent `--layouts`-sized pools per decision
-//!    from `sample_layouts_replay`: select on the first, validate on the second.
-//!    A short draw is counted and skipped. One double-dummy solve per layout is
+//! 3. **The rollout.** One `2 × --layouts` draw from `sample_layouts_replay`,
+//!    split at the midpoint: select on the first half, validate on the second.
+//!    `sampler::sample_with` is plain rejection sampling, so
+//!    conditional on the draw filling, its accepted layouts are i.i.d. and the
+//!    two halves are independent pools — a short draw is counted and skipped
+//!    whole rather than topped up. One double-dummy solve per layout is
 //!    **shared across every candidate**, each candidate seeded onto the real
 //!    prefix and bid out.
 //! 4. **The paired baseline** is the own call's contract on the *same* layout,
@@ -40,18 +43,19 @@
 //!
 //! # Scope choices
 //!
-//! * **Self-play, not ours-against-BBA.** §4 says "roll each out with our
-//!   policy against BBA".  BBA is FFI-bound and single-threaded by design — a
-//!   fresh native bot is created and destroyed for every *call*
+//! * **Self-play by default, `--opponent bba` measured.** §4 says "roll each
+//!   out with our policy against BBA".  BBA is FFI-bound and single-threaded by
+//!   design — a fresh native bot is created and destroyed for every *call*
 //!   ([`BbaOracle::with_bot`], `examples/common/oracle/mod.rs:457`), and
 //!   `examples/bba-gen` parallelises across *processes* — so a BBA opponent
 //!   costs `candidates × layouts × decisions × (opponent calls per bid-out)`
-//!   serialised bot spawns, the last factor being a few per rollout.
-//!   `--opponent bba` implements it anyway so the price is measured, not
-//!   assumed; the default is self-play, which is also the
-//!   model the layouts were drawn under — `sample_layouts_replay` accepts a
-//!   world by replaying **our** policy on the non-actors, so a BBA rollout
-//!   scores worlds selected by a different opponent model.
+//!   serialised bot spawns.  **Measured** at `-c 400 -s 1 -m 8`: the rollout
+//!   goes 0.3 s → 39.8 s, but double dummy still dominates, so wall clock is
+//!   only 1.46× (92.2 s → 134.8 s).  It changes no conclusion — see §4 — and
+//!   the default stays self-play, which is also the model the layouts were
+//!   drawn under: `sample_layouts_replay` accepts a world by replaying **our**
+//!   policy on the non-actors, so a BBA rollout scores worlds selected by a
+//!   different opponent model.
 //! * **`ns_score_pd`, not `ns_score_bid`.**  `ev_all` prices a bare *call* and
 //!   so synthesises the double (`ns_score_bid`).  Here both branches are real
 //!   auctions that may contain a real double, and `scoring.rs` is explicit that
@@ -66,6 +70,14 @@
 //! * **Neither vulnerable.** Session 3 diagnoses the selector without changing
 //!   bidding. A relabelling run must add the vulnerability axis before its
 //!   labels can feed a retrain.
+//! * **Our auctions and our own call, not BBA's corpus and BBA's label.** The
+//!   walk is self-play `american()`, so the baseline displaced here is *the
+//!   book's argmax* at *our* node distribution.  §4's target rule instead
+//!   relabels **BBA's one-hot** on the BBA-generated corpus, and falls back to
+//!   BBA off the margin.  This probe therefore prices the winner's curse in the
+//!   selector — which is what refuted the in-sample rule — but its relabel
+//!   *rates* are not the rates that rule would fire at.  Closing that needs a
+//!   corpus-fed mode; see §6.
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
@@ -78,6 +90,7 @@ use pons::bidding::context::relative;
 use pons::bidding::features::{CompactConfig, ConventionCard, features_v6};
 use pons::bidding::neural::classify_bba_v6;
 use pons::bidding::sampler::sample_layouts_replay;
+use pons::bidding::table::select_legal_call;
 use pons::bidding::{Bidder, Table};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -88,7 +101,7 @@ use std::collections::BTreeMap;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{auction_key, first_max, seat_to_act, seeded_deals};
+use common::{auction_key, seat_to_act, seeded_deals};
 
 /// The two brackets every result carries, in the order `docs/measurement.md`
 /// reads them: plain DD first, perfect defense second.
@@ -293,7 +306,9 @@ fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Deci
             .filter(|(call, logit)| logit.is_finite() && auction.can_push(*call).is_ok())
             .map(|(call, _)| call)
             .collect();
-        let own = first_max(&book, &admissible);
+        // Production's own selector, so the paired baseline cannot drift from
+        // the call the policy actually makes.
+        let own = select_legal_call(Some(book), &auction);
         if provenance.is_authored() && admissible.len() > 1 {
             let key = auction_key(&auction);
             // Rotate the retained auction position once per four-dealer cycle;

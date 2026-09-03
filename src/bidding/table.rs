@@ -119,8 +119,17 @@ fn select_with_legal_state(logits: Option<Logits>, legal: LegalCalls) -> Call {
     best.map_or(Call::Pass, |(call, _)| call)
 }
 
-/// Production legal-call selection exposed to the benchmark adapter.
-pub(crate) fn select_legal_call(logits: Option<Logits>, auction: &Auction) -> Call {
+/// The call a seat holding `logits` makes at `auction` — production's selector
+///
+/// Keeps only the finite logits that are legal here and takes the **first**
+/// maximum, so a tie goes to the earlier call in [`Logits`] order.  `None`
+/// logits, and a set with nothing finite and legal, both answer [`Call::Pass`].
+///
+/// Public because every probe that reports what the policy "would have bid"
+/// has to agree with this function exactly; reimplementing it locally is how a
+/// census silently drifts (`Iterator::max_by` breaks a tie the other way).
+#[must_use]
+pub fn select_legal_call(logits: Option<Logits>, auction: &Auction) -> Call {
     select_with_legal_state(logits, LegalCalls::from_auction(auction))
 }
 

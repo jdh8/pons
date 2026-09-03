@@ -10,17 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **The rollout harness, and the winner's curse it walked into (logit
-  calibration session 3, 2026-09-03)** — no bidding change and **no `src/`
-  change at all**: `smoke-default --count 20000 --seed 1` stays `38ee1e21…`.
+  calibration session 3, 2026-09-03)** — no bidding change:
+  `smoke-default --count 20000 --seed 1` stays `38ee1e21…`. The one `src/` edit
+  widens `bidding::table::select_legal_call` from `pub(crate)` to `pub`
+  (visibility and a doc comment only), so a probe reporting what the policy
+  "would have bid" calls production's selector instead of reimplementing its
+  first-max tie-break — `probe-rollout-label` and `probe-book-vs-net` both now
+  do, and their censuses are byte-identical across the swap.
   `examples/probe-rollout-label` builds §4 of
   `docs/ai-bidder/logit-calibration.md`: at every choice-bearing authored
   decision of a self-play `american()` walk it takes the restricted proposal's
   top-3 ∪ the policy's own call, selects on `M` replay-consistent layouts, and
   prices that same call on an **independent second `M`**. Every layout gets one
   shared double-dummy solve; the paired own-call baseline and both DD/PD scorers
-  see the same worlds. Replay-short decisions fall back instead of mixing in a
-  different population, RNG domains are disjoint, and intervals cluster by
-  source deal.
+  see the same worlds. Replay-short decisions are **skipped whole** rather than
+  topped up from a different population, the two `M`-pools are one `2M`
+  rejection-sampled draw halved (so they are i.i.d., not two sampler calls),
+  RNG domains are disjoint, and intervals cluster by source deal.
   - **The original in-sample target rule is not safe to retrain on.** On the
     2,000-deal `M = 32` census (3,169 usable decisions), its +0.2499/+0.5434
     DD/PD IMPs per decision shrinks to **+0.0362 ± 0.0244 / +0.2446 ± 0.0372**
@@ -34,13 +40,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     a doubling artifact. Pass is the plurality target among the headline
     in-sample node table's top swaps, but that exploratory breakdown is not
     held-out validated.
+  - **The rollout opponent does not move the finding.** `--opponent bba` was
+    measured rather than assumed: at `-c 400 -s 1 -m 8` it gives
+    +0.5097/**−0.0323 ± 0.0918** DD and +0.8354/**+0.2074 ± 0.1316** PD against
+    self-play's +0.4487/**−0.1040 ± 0.0891** and +0.7740/**+0.1583 ± 0.1237**.
+    Every held-out interval overlaps, both signs hold, and the curse is the same
+    size. The serialised bot costs 133× on the rollout phase but only **1.46×
+    wall clock**, because double dummy still owns 69% of it. Session 4 no longer
+    owes this arm.
+  - **What the census does *not* price.** The probe displaces our book's argmax
+    on our own self-play auctions; the target rule displaces BBA's one-hot on
+    the BBA corpus, with an asymmetric revert-to-BBA off the margin. The
+    winner's-curse result is a property of the selector and survives that, but
+    the relabel *rates* are proxies. A corpus-fed mode is session 4's first
+    build.
   - **Cost is a double-dummy budget**: the headline spends 1,479.2 s solving
     202,816 layouts (7.29 ms/layout, 99.7% of wall clock). That solve budget is
     independent of `k`; the small rollout remainder scales with candidate count.
     At `M = 128`, 100k decisions with independent validation cost ~52 box-hours;
     the ~2.3M choice-bearing full population costs ~50 box-days. Session 4 must
-    choose the validation rule, add the vulnerability axis, and settle self-play
-    versus BBA before relabelling.
+    choose the validation rule and add the vulnerability axis before
+    relabelling.
   - Two pre-existing defects recorded in §7, both left as-is with a reversible
     default: `examples/ab-lebensohl/main.rs:259` hands `ev_all` a keyless
     `Context`, so that A/B's PD gate sampled layouts against a vacuous
