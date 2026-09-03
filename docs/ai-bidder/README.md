@@ -89,7 +89,7 @@ these framings.
 | Rollout | Play the auction out to a contract under the current policy, then score that contract double-dummy on one sampled layout. Average rollouts → a call's EV. |
 | Test-time / inference-time search | Running the policy-improvement operator *at the table*, not only during training. The reason a slow, gated "thinking" bidder beats the fast one-matmul floor. |
 | Self-play | The system generates its own training auctions by bidding against itself, scored by the evaluator. |
-| Temperature / calibration | Scaling logits before softmax. The books use a ~3-nat gap convention; the net must match that scale. |
+| Temperature / calibration | Divide logits by one scalar `T` before softmax. A book rung is *precedence*, not odds (adjacent rungs sit 0.05-0.5 nat apart; the "~3-nat gap" is three sites); the net's `T` is fitted once on held-out rows (owed), see [logit-calibration.md](logit-calibration.md). |
 | Overfitting / generalization | Memorizing noise vs learning signal. Held-out boards measure the difference. |
 
 ## Document map
@@ -115,6 +115,8 @@ The ledgers that grew alongside the design (the shipped reality lives there):
 gate; evidence in [`doubling-calibration.md`](doubling-calibration.md)),
 [`new-suit-veto.md`](new-suit-veto.md) (the phantom-suit rail — the shell's
 second demotion-only stage, measured and refuted),
+[`logit-calibration.md`](logit-calibration.md) (what a book logit is, where
+the odds come from),
 [`sampled-projection.md`](sampled-projection.md),
 [`dsl-spec.md`](dsl-spec.md), [`21gf-ledger.md`](21gf-ledger.md), plus the
 BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in

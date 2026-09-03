@@ -38,6 +38,7 @@ scorers (measurement.md, checklist item 12).
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
 | Tuning an existing convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic; classify constructive/competitive first |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
+| Anything that reads a rule weight or a `Logits` value as a **probability** — a softmax on book logits, the replay sampler's margin, a temperature, a demotion "in nats" | [docs/ai-bidder/logit-calibration.md](docs/ai-bidder/logit-calibration.md) — a book weight is **precedence**, not odds; the consumer inventory, the three coarsenings, and the settled design (net-restricted odds at authored nodes, ladder vs masked-softmax displays) |
 | A call reads as nothing, or an `Or` projects to `0..=37` | [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md) — read a call off the *bidder*, not its rules; includes the measured 2/1 reading bug |
 | The Dutch system (champion candidate; wide non-forcing 1♣) | [docs/dutch-system.md](docs/dutch-system.md) — campaign ledger + phase plan; full bidding spec in [docs/dutch-spec.md](docs/dutch-spec.md) |
 | Envelope-union readings (the historical DNF campaign; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |

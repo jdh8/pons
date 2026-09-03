@@ -655,3 +655,130 @@ fn book_renders_the_competitive_fallbacks() {
         "a systems-on rebase renders as a note"
     );
 }
+
+/// Feedback values change scale with the node: at an authored node `top`
+/// carries the rung logit itself (nats), and at the floor it carries
+/// percentages from a softmax taken **after** illegal calls are masked — so
+/// an illegal rung, however strong, carries no mass.
+#[test]
+fn feedback_shows_the_ladder_at_an_authored_node_and_odds_at_the_floor() {
+    // (a) Human South deals: the opening node is authored, and the shown
+    // value is the raw logit of the call, not a percent.
+    let mut table = WebTable::new("12345");
+    table.deal_practice("S", "S", "none", 0);
+    let raw = {
+        let board = table.board.as_ref().expect("a board was dealt");
+        assert!(
+            board.auction.is_empty(),
+            "the human is to act at the opening"
+        );
+        board
+            .table
+            .classify(board.deal[Seat::South], &board.auction)
+            .expect("the opening node has an opinion")
+    };
+    let snap = parse(&table.bid("P"));
+    let feedback = &snap["feedback"][0];
+    assert_eq!(feedback["authored"], true, "the opening node is authored");
+    let top = feedback["top"][0].as_array().expect("a (code, value) pair");
+    let code = top[0].as_str().expect("call code");
+    let value = top[1].as_f64().expect("value is a number");
+    let call: Call = code.parse().expect("code re-parses");
+    let logit = *raw.get(call);
+    assert!(
+        (value as f32 - logit).abs() < 1e-6,
+        "shown {value} must be the raw logit {logit} of {code}, in nats",
+    );
+
+    // (b) The floor branch masks before it softmaxes: an illegal redouble at
+    // the opening, even at +10 nats, leaves the two legal calls at 50% each
+    // (softmaxing first would have shown them at ~0.005%).
+    let mut logits = Logits::new();
+    logits[Call::Pass] = 0.0;
+    logits[Call::Bid(Bid::new(1, Strain::Clubs))] = 0.0;
+    logits[Call::Redouble] = 10.0;
+    let shown = ranked(logits, &Auction::new(), false);
+    assert_eq!(shown.len(), 2, "only the legal calls rank: {shown:?}");
+    for (code, percent) in &shown {
+        assert_ne!(code, "XX", "an illegal call never ranks");
+        assert!(
+            (percent - 50.0).abs() < 1e-3,
+            "{code} shows {percent}%, expected 50%",
+        );
+    }
+}
+
+/// `authored` is a fact about the hand's answer, not about the node.  An
+/// authored node that gives the hand no mass (all `-∞`) falls through to the
+/// floor, and the floor's policy logits must then be shown as odds — the
+/// node-level `Table::authored_at` would have said "ladder" and printed the
+/// floor's logits in nats.  Responder's continuations after a completed
+/// transfer are authored, but a weak hand that only wants to pass is not
+/// among them: the node rejects it and the floor answers.
+#[test]
+fn feedback_shows_odds_when_an_authored_node_rejects_the_hand() {
+    use rand::SeedableRng as _;
+    let deal: FullDeal = "N:Q2.A98.K84.KQJT3 KT98743.J5.Q95.6 65.KQ732.T73.842 AJ.T64.AJ62.A975"
+        .parse()
+        .expect("a full PBN deal");
+    let (dealer, vul) = (Seat::North, AbsoluteVulnerability::EW);
+    let mut auction = Auction::new();
+    for call in ["1NT", "P", "2♦", "P", "2♥", "P"] {
+        auction.push(call.parse().expect("a call"));
+    }
+    let (ns, ew) = partnerships();
+    let table = Table::new(ns, ew, dealer, vul);
+    assert_eq!(table.seat_to_act(auction.len()), Seat::South);
+    let hand = deal[Seat::South];
+
+    // The node is authored, yet this hand's answer comes from the floor.
+    assert!(table.authored_at(&auction), "the node itself is authored");
+    let (logits, provenance) = table
+        .classify_with_provenance(hand, &auction)
+        .expect("the floor answers");
+    assert!(
+        !provenance.is_authored(),
+        "the node rejected the hand, so the floor answered: {provenance:?}",
+    );
+    let expected = ranked(logits, &auction, false);
+
+    let mut web = WebTable {
+        rng: StdRng::seed_from_u64(0),
+        board: Some(Board {
+            table,
+            deal,
+            dealer,
+            vul,
+            human: Some(Seat::South),
+            auction,
+            feedback: Vec::new(),
+            dd: None,
+            oracle: Oracle::default(),
+            solver: None,
+        }),
+    };
+    let snap = parse(&web.bid("P"));
+    let feedback = &snap["feedback"][0];
+    assert_eq!(
+        feedback["authored"], false,
+        "authoredness follows the answer's provenance, not the node",
+    );
+    let top = feedback["top"].as_array().expect("top is an array");
+    assert!(!top.is_empty(), "the floor has an opinion");
+    assert_eq!(top.len(), expected.len());
+    let mut total = 0.0;
+    for (entry, (code, percent)) in top.iter().zip(&expected) {
+        assert_eq!(entry[0].as_str().expect("call code"), code);
+        let value = entry[1].as_f64().expect("value is a number");
+        assert!(
+            (0.0..=100.0).contains(&value),
+            "{code} shows {value}, not a percentage",
+        );
+        assert!(
+            (value as f32 - percent).abs() < 1e-4,
+            "{code} shows {value}, expected the masked-softmax {percent}%",
+        );
+        total += value;
+    }
+    assert!(total <= 100.0 + 1e-3, "odds sum past 100%: {total}");
+}

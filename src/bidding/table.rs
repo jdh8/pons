@@ -15,6 +15,7 @@ use super::Bidder;
 use super::array::{CALL_VARIANTS, Logits, encode_call};
 use super::book::{Partnership, System};
 use super::context::relative;
+use super::trie::Provenance;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 
@@ -173,6 +174,33 @@ impl<N: Bidder, E: Bidder> Table<N, E> {
         }
     }
 
+    /// Whether the seat to act's *node* is authored rather than the floor
+    ///
+    /// The routing twin of [`Bidder::authored_at`]: same seat rotation, same
+    /// absolute-to-relative vulnerability conversion.  This is a fact about
+    /// the node, not about any hand: it names the classifier the auction
+    /// resolves to.  A hand that classifier rejects (all `-∞` — a
+    /// deliberately partial table) is served by the fallback chain instead,
+    /// so [`classify`][Self::classify] may answer from a different
+    /// classifier than this names.  A display choosing how to show a hand's
+    /// logits — the **ladder** (rung logits in nats: a precedence, not odds)
+    /// at an authored node, a policy whose masked softmax is a genuine
+    /// probability at the floor — must read that off the provenance of the
+    /// logits it shows, via
+    /// [`classify_with_provenance`][Self::classify_with_provenance] and
+    /// [`Provenance::is_authored`]; see `docs/ai-bidder/logit-calibration.md`
+    /// for why the two scales must not be shown alike.
+    #[must_use]
+    pub fn authored_at(&self, auction: &[Call]) -> bool {
+        let seat = self.seat_to_act(auction.len());
+        let vul = relative(self.vul, seat);
+
+        match seat {
+            Seat::North | Seat::South => self.north_south.authored_at(vul, auction),
+            Seat::East | Seat::West => self.east_west.authored_at(vul, auction),
+        }
+    }
+
     /// The highest-logit *legal* call, defaulting to a pass
     ///
     /// An auction the system does not cover — or covers only with illegal
@@ -235,6 +263,34 @@ impl Table<Partnership, Partnership> {
     #[must_use]
     pub fn of_systems(ns: &System, ew: &System, dealer: Seat, vul: AbsoluteVulnerability) -> Self {
         Self::new(ns.bind(), ew.bind(), dealer, vul)
+    }
+
+    /// [`classify`][Self::classify] with the resolution [`Provenance`] —
+    /// where the answer came from
+    ///
+    /// Same seat rotation and absolute-to-relative vulnerability conversion,
+    /// delegating to
+    /// [`Partnership::classify_with_provenance`][Partnership::classify_with_provenance].
+    /// The provenance is the per-hand truth about which classifier answered:
+    /// an authored node that gives `hand` no mass falls through to the
+    /// fallback chain, possibly to the keyless floor, and only the provenance
+    /// says which.  [`Provenance::is_authored`] turns it into the
+    /// ladder-or-odds choice a display needs.
+    #[must_use]
+    pub fn classify_with_provenance(
+        &self,
+        hand: Hand,
+        auction: &[Call],
+    ) -> Option<(Logits, Provenance)> {
+        let seat = self.seat_to_act(auction.len());
+        let vul = relative(self.vul, seat);
+
+        match seat {
+            Seat::North | Seat::South => self
+                .north_south
+                .classify_with_provenance(hand, vul, auction),
+            Seat::East | Seat::West => self.east_west.classify_with_provenance(hand, vul, auction),
+        }
     }
 
     /// Read what `auction` has shown, from the seat about to act

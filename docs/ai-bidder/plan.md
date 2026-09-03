@@ -462,6 +462,15 @@ The portability dream. Last, because it needs the most prerequisites.
      same deal, which the A/B already produces — so `A` isolates our decision
      rather than the board's luck, and the positive tail stops rewarding
      opponent error.
+
+  Arm 2's harness and arm 1's demotion term are designed in
+  [`logit-calibration.md`](logit-calibration.md) §4; the collar retune itself
+  stays with [`competitive-accountant.md`](competitive-accountant.md). Arm 2's
+  baseline is restated in counterfactual form: top-3 rollouts, paired to the
+  policy's *own* call on the same deal and prefix, so the advantage is the
+  regret of the call taken rather than a whole-auction difference. Arm 1's
+  collar retune restates `PASS_DEMOTION` as `3·T` nats — the demotion is a
+  margin in the net's own odds, so it is fitted once the temperature is.
 - ⬜ **M5.3 Meaning encoder.** Embed each prior call's text description as a
   meaning vector and feed it to the sequence-model policy, so the system enters the
   net as *meanings* rather than baked-in weights. *Measure:* matches or beats the

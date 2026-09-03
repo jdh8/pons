@@ -339,25 +339,44 @@ fn main() {
                 // --- Human's turn ---
                 // Snapshot the bot's opinion BEFORE pushing the human's call.
                 // (classify reads auction.len() to determine which seat acts,
-                //  so it must run before we extend the auction.)
-                let bot_logits = table.classify(human_hand, &auction);
+                //  so it must run before we extend it.)  Whether an authored
+                // node answered is read off the provenance of *these* logits:
+                // an authored node that rejects this hand falls through to
+                // the floor, whose policy must be shown as odds, not a ladder.
+                let (bot_logits, authored) =
+                    match table.classify_with_provenance(human_hand, &auction) {
+                        Some((logits, provenance)) => (Some(logits), provenance.is_authored()),
+                        None => (None, false),
+                    };
 
-                // Build the bot's ranked top-3 legal calls (finite logit only)
-                let top3: Vec<(Call, f32)> = if let Some(logits) = bot_logits.as_ref() {
+                // Build the bot's ranked top-3 legal calls (finite logit only).
+                // Illegal calls are masked to -inf BEFORE the softmax so they
+                // carry no mass.  The value is the rung logit (nats — a
+                // ladder of precedence) at an authored node and the masked
+                // softmax probability at the floor.
+                let top3: Vec<(Call, f32)> = if let Some(mut logits) = bot_logits {
+                    for (call, logit) in logits.iter_mut() {
+                        if auction.can_push(call).is_err() {
+                            *logit = f32::NEG_INFINITY;
+                        }
+                    }
                     let softmax = logits.softmax();
                     let mut scored: Vec<(Call, f32)> = logits
                         .iter()
                         .filter(|&(_, &logit)| logit.is_finite())
-                        .filter(|(call, _)| auction.can_push(*call).is_ok())
                         .map(|(call, &logit)| (call, logit))
                         .collect();
                     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits never NaN"));
                     scored
                         .into_iter()
                         .take(3)
-                        .map(|(call, _)| {
-                            let prob = softmax.as_ref().map_or(0.0, |sm| *sm.get(call));
-                            (call, prob)
+                        .map(|(call, logit)| {
+                            let value = if authored {
+                                logit
+                            } else {
+                                softmax.as_ref().map_or(0.0, |sm| *sm.get(call))
+                            };
+                            (call, value)
                         })
                         .collect()
                 } else {
@@ -415,7 +434,7 @@ fn main() {
                         human_agree += 1;
                     }
                     println!("  Bot's opinion:");
-                    for (i, (call, prob)) in top3.iter().enumerate() {
+                    for (i, (call, v)) in top3.iter().enumerate() {
                         let marker = if *call == human_call && i == 0 {
                             " ✓"
                         } else if *call == human_call {
@@ -423,7 +442,13 @@ fn main() {
                         } else {
                             ""
                         };
-                        println!("    {}: {call} ({:.0}%){marker}", i + 1, 100.0 * prob);
+                        // A ladder prints its rung logit; the floor prints odds.
+                        let shown = if authored {
+                            format!("{v:.2}")
+                        } else {
+                            format!("{:.0}%", 100.0 * v)
+                        };
+                        println!("    {}: {call} ({shown}){marker}", i + 1);
                     }
                     if !agreed && let Some(top) = bot_top1 {
                         println!("  Bot's top pick was {top}; you chose {human_call}.");

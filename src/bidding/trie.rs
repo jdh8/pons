@@ -159,6 +159,23 @@ pub struct Provenance {
     pub rebases: usize,
 }
 
+impl Provenance {
+    /// Whether this resolution names an authored node rather than the
+    /// keyless floor
+    ///
+    /// Authored rules resolve either as the exact node (`fallback: None`) or
+    /// as a guarded fallback at depth ≥ 1; only the keyless floor answers at
+    /// the depth-0 root fallback.  This is the predicate behind
+    /// [`Bidder::authored_at`][crate::bidding::Bidder::authored_at], and —
+    /// applied to the provenance that actually produced a hand's logits
+    /// ([`Table::classify_with_provenance`][crate::bidding::Table::classify_with_provenance])
+    /// — the per-hand ladder-or-odds choice a display needs.
+    #[must_use]
+    pub const fn is_authored(self) -> bool {
+        self.fallback.is_none() || self.depth > 0
+    }
+}
+
 impl Trie {
     /// Construct an empty trie
     #[must_use]

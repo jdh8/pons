@@ -161,8 +161,11 @@ function renderFeedback(s) {
   box.classList.toggle('hidden', fb.length === 0);
   box.innerHTML = fb.map((f) => {
     const mark = f.agreed ? '<span class="ok">✓</span>' : '<span class="no">✗</span>';
+    // Ladder in nats when an authored node answered this hand (a precedence),
+    // odds when the floor did — `authored` is per hand, not per node.
+    const show = (v) => (f.authored ? v.toFixed(2) : Math.round(v) + '%');
     const bot = f.top.length
-      ? 'bot: ' + f.top.map(([c, p]) => `${colorizeCalls(c)} ${Math.round(p)}%`).join(' · ')
+      ? 'bot: ' + f.top.map(([c, v]) => `${colorizeCalls(c)} ${show(v)}`).join(' · ')
       : 'book has no opinion (bot would pass)';
     return `<div class="fb-row">${mark} you: ${colorizeCalls(f.human)} · ${bot}</div>`;
   }).join('');

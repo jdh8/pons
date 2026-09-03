@@ -93,15 +93,17 @@ bigger Rust forward pass, more ways to be wrong.
 
 ### Output calibration
 
-The books speak in logits where a ~3-nat gap is "near-deterministic after
-softmax" (see `rules.rs`). The net's raw logits will be on whatever scale
-training lands. Two fixes:
-
-- For **distillation**, the net learns the teacher's *distribution*, so it
-  inherits the teacher's scale automatically — no extra work.
-- Keep a **temperature** scalar `T` (divide logits by `T` before softmax) as a
-  single post-hoc knob, tuned on held-out boards, so the floor's
-  decisiveness/mixing matches what the driver expects.
+The net inherits **no** teacher scale: every shipped floor since 2026-07-19 is
+trained on one-hot BBA labels (the README glossary's Distillation row), so its
+raw logits sit wherever cross-entropy leaves them. The books' "~3-nat gap"
+(`rules.rs`) is a claim about three sites, not a scale: argmax resolves
+overlapping rules by order at any positive gap, the shipped rungs sit 0.05-0.5
+nat apart, and nothing on the default path reads a book magnitude as odds. The
+one scalar that gives the net's softmax a meaning is a temperature `T`
+(divide logits by `T` before softmax), **fitted** on held-out NLL — temperature
+scaling, Guo et al. 2017. It is argmax-invariant, so serving stays raw; only
+the search's proposal odds and any display move. It was never built — session
+2 of [logit-calibration.md](logit-calibration.md) owes it.
 
 ### The legality + safety shell (restating the key invariant)
 

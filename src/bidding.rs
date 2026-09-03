@@ -243,7 +243,7 @@ impl Bidder for Trie {
         let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
         matches!(
             self.resolve(&context, auction),
-            Some((_, prov)) if prov.fallback.is_none() || prov.depth > 0
+            Some((_, prov)) if prov.is_authored()
         )
     }
 }

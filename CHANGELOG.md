@@ -57,6 +57,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Book logits are precedence, not odds (2026-09-03)** — no bidding change;
+  the default build is byte-identical (`smoke-default --count 20000 --seed 1`
+  unchanged at `38ee1e21…`). A rule's weight is the precedence argmax resolves
+  overlapping rules by; it is also *called* a logit and fed to
+  `Logits::softmax`, but every constraint is crisp and adjacent rungs sit
+  0.05–0.5 nat apart, so a softmax over book logits reads "near tie" almost
+  everywhere while argmax is strict. An inventory found **no default-path
+  consumer that reads a book magnitude** (`PASS_DEMOTION` reads the *net's*
+  logits, the replay sampler's 3-nat `MARGIN` is reached only by the search
+  and its probes, and every shipped corpus is one-hot `--teacher bba`), and no
+  temperature anywhere. Settled design, the coarsening argument and a
+  three-session ledger in `docs/ai-bidder/logit-calibration.md`;
+  `02-policy-net.md` §Output calibration and the README glossary row no
+  longer claim distillation inherits a scale.
+  Display hygiene: three new public items — `Table::authored_at` (the
+  routing twin of `Bidder::authored_at`, a fact about the node),
+  `Table::classify_with_provenance` (the logits plus the `Provenance` that
+  produced them) and `Provenance::is_authored` (the predicate
+  `Trie::authored_at` already applied, now shared) — let a
+  display tell whether an authored node answered *this hand*; a node that
+  rejects the hand falls through to the floor, so the node-level
+  `authored_at` alone would print the floor's odds as a ladder. The web
+  practice feedback and `examples/practice-bidding` now show the **ladder** at
+  an authored node (rung logits in nats, no percent) and **odds** only at the
+  floor — and both mask illegal calls to `-∞` **before** the softmax;
+  previously both softmaxed the unmasked array and filtered afterwards, so an
+  illegal call silently absorbed probability mass. Pinned by
+  `feedback_shows_the_ladder_at_an_authored_node_and_odds_at_the_floor` and
+  `feedback_shows_odds_when_an_authored_node_rejects_the_hand` in
+  `web/src/tests.rs`.
 - **`artificial_calls_are_alerted` gains a second witness — possible shortness
   in the suit a call *names* (`names_short`, 2026-09-02)** — test-only, no
   bidding change, no public API. The existing witness is the *dual* question

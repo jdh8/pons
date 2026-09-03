@@ -23,6 +23,7 @@ use contract_bridge::{
 };
 use pons::bidding::agreements::{Agreements, TheirDisclosures};
 use pons::bidding::american::american_book;
+use pons::bidding::array::Logits;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
 use pons::bidding::features::ConventionCard;
@@ -66,8 +67,52 @@ struct Feedback {
     human: String,
     /// Whether the human matched the bot's top pick (or passed off-book)
     agreed: bool,
-    /// The bot's top-3 legal calls as `(code, percent)`; empty off-book
+    /// Whether an authored node answered for *this hand*: `top` then carries
+    /// rung logits in nats (the ladder, a precedence); at the floor (`false`)
+    /// it carries percentages from the masked softmax.  Read off the
+    /// provenance of the logits, not the node — an authored node that
+    /// rejects the hand hands it to the floor
+    authored: bool,
+    /// The bot's top-3 legal calls as `(code, value)`; empty off-book.  The
+    /// value's scale is set by `authored`
     top: Vec<(String, f32)>,
+}
+
+/// Rank the bot's top-3 legal calls, valued by the node's scale
+///
+/// Every call `auction` cannot take is masked to `-∞` **first**; only then are
+/// the finite calls collected, sorted by logit descending, and cut to three.
+/// The value shown is the logit itself (nats) at an authored node, where the
+/// logits are a ladder of precedence, and `100 × softmax` at the floor, where
+/// they are a policy.  The softmax runs on the *masked* array — an illegal
+/// call must carry no mass, or the legal calls' odds sum to less than one and
+/// a strong illegal rung would shrink every displayed percentage.
+// ponytail: the `partial_cmp` expect cannot fire — only finite logits reach it.
+fn ranked(mut logits: Logits, auction: &Auction, authored: bool) -> Vec<(String, f32)> {
+    for (call, logit) in logits.iter_mut() {
+        if auction.can_push(call).is_err() {
+            *logit = f32::NEG_INFINITY;
+        }
+    }
+    let mut scored: Vec<(Call, f32)> = logits
+        .iter()
+        .filter(|&(_, &logit)| logit.is_finite())
+        .map(|(call, &logit)| (call, logit))
+        .collect();
+    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
+    scored.truncate(3);
+    let softmax = if authored { None } else { logits.softmax() };
+    scored
+        .into_iter()
+        .map(|(call, logit)| {
+            let value = if authored {
+                logit
+            } else {
+                100.0 * softmax.as_ref().map_or(0.0, |sm| *sm.get(call))
+            };
+            (call.to_string(), value)
+        })
+        .collect()
 }
 
 /// The legally-visible position, serialized to the JS renderer
@@ -154,31 +199,25 @@ impl Board {
         }
     }
 
-    /// The bot's ranked top-3 legal calls with softmax percentages
+    /// Whether an authored node answered, and the bot's ranked top-3 legal calls
     ///
     /// Port of the CLI feedback in `examples/practice-bidding`: finite logits
-    /// only, legal calls only, percent from the full softmax.
-    fn top3(&self) -> Vec<(String, f32)> {
+    /// only, legal calls only, valued by [`ranked`] — rung logits in nats at
+    /// an authored node, percentages from the masked softmax at the floor.
+    /// Authoredness comes from the **provenance** of the logits shown, not
+    /// from `Table::authored_at`: that names the node's classifier, but a
+    /// hand the node rejects falls through to the floor, whose policy logits
+    /// must be shown as odds.
+    fn top3(&self) -> (bool, Vec<(String, f32)>) {
         let seat = self.table.seat_to_act(self.auction.len());
-        let Some(logits) = self.table.classify(self.deal[seat], &self.auction) else {
-            return Vec::new();
+        let Some((logits, provenance)) = self
+            .table
+            .classify_with_provenance(self.deal[seat], &self.auction)
+        else {
+            return (false, Vec::new());
         };
-        let softmax = logits.softmax();
-        let mut scored: Vec<(Call, f32)> = logits
-            .iter()
-            .filter(|&(_, &logit)| logit.is_finite())
-            .filter(|(call, _)| self.auction.can_push(*call).is_ok())
-            .map(|(call, &logit)| (call, logit))
-            .collect();
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
-        scored
-            .into_iter()
-            .take(3)
-            .map(|(call, _)| {
-                let prob = softmax.as_ref().map_or(0.0, |sm| *sm.get(call));
-                (call.to_string(), 100.0 * prob)
-            })
-            .collect()
+        let authored = provenance.is_authored();
+        (authored, ranked(logits, &self.auction, authored))
     }
 
     /// All calls the seat to act may legally make, as display codes
@@ -491,7 +530,7 @@ impl WebTable {
             && board.auction.can_push(call).is_ok()
         {
             // The bot's opinion must be read before the auction grows
-            let top = board.top3();
+            let (authored, top) = board.top3();
             let agreed = match top.first() {
                 Some((best, _)) => *best == call.to_string(),
                 None => call == Call::Pass,
@@ -500,6 +539,7 @@ impl WebTable {
                 index: board.auction.len(),
                 human: call.to_string(),
                 agreed,
+                authored,
                 top,
             });
             board.auction.push(call);
