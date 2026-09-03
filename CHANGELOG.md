@@ -54,6 +54,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     winner's-curse result is a property of the selector and survives that, but
     the relabel *rates* are proxies. A corpus-fed mode is session 4's first
     build.
+  - **Session 4's next step is argued, not assumed**, in the new
+    `docs/ai-bidder/logit-calibration-session4-handoff.md`. Two doubts precede
+    its ~50 box-days: the harvest is gated on `provenance.is_authored()`, and
+    `OrElse` hands the book's logits to production whenever they have mass, so
+    every decision in the census is one production never asks the net about —
+    the payoff would have to arrive by generalisation to unauthored nodes, which
+    nothing measures; and Pass leading the relabel targets is the signature of
+    DD's blindness to obstruction. The handoff specifies the ~2-hour experiment
+    that settles both (harvest the *unauthored* nodes instead) and its decision
+    table.
   - **Cost is a double-dummy budget**: the headline spends 1,479.2 s solving
     202,816 layouts (7.29 ms/layout, 99.7% of wall clock). That solve budget is
     independent of `k`; the small rollout remainder scales with candidate count.

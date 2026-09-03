@@ -116,7 +116,8 @@ gate; evidence in [`doubling-calibration.md`](doubling-calibration.md)),
 [`new-suit-veto.md`](new-suit-veto.md) (the phantom-suit rail — the shell's
 second demotion-only stage, measured and refuted),
 [`logit-calibration.md`](logit-calibration.md) (what a book logit is, where
-the odds come from),
+the odds come from; its next step is argued in
+[`logit-calibration-session4-handoff.md`](logit-calibration-session4-handoff.md)),
 [`sampled-projection.md`](sampled-projection.md),
 [`dsl-spec.md`](dsl-spec.md), [`21gf-ledger.md`](21gf-ledger.md), plus the
 BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in
