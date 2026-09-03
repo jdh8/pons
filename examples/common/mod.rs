@@ -15,6 +15,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::agreements::Agreements;
+use pons::bidding::array::Logits;
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::ConventionCard;
@@ -184,6 +185,26 @@ pub fn seeded_deals(base: u64, count: usize) -> Vec<FullDeal> {
     (0..count)
         .map(|i| full_deal(&mut StdRng::seed_from_u64(base.wrapping_add(i as u64))))
         .collect()
+}
+
+/// First-max over `admissible`, exactly as `select_with_legal_state`
+/// (`src/bidding/table.rs:105-119`) breaks a tie — the *first* maximum, never
+/// the last, which is what `Iterator::max_by` would give.
+///
+/// `admissible` is the caller's already-filtered candidate set (finite logit,
+/// legal at the node); calls outside it are skipped whatever they score.
+#[must_use]
+pub fn first_max(logits: &Logits, admissible: &[Call]) -> Call {
+    let mut best: Option<(Call, f32)> = None;
+    for (call, &logit) in logits.iter() {
+        if !admissible.contains(&call) {
+            continue;
+        }
+        if best.is_none_or(|(_, top)| logit > top) {
+            best = Some((call, logit));
+        }
+    }
+    best.map_or(Call::Pass, |(call, _)| call)
 }
 
 /// The highest-logit *legal* call, defaulting to a pass

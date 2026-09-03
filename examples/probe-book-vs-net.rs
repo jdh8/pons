@@ -39,7 +39,7 @@ use std::collections::BTreeMap;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{auction_key, seat_to_act, seeded_deals};
+use common::{auction_key, first_max, seat_to_act, seeded_deals};
 
 /// Candidate thresholds for the epsilon fallback: below one of these the net
 /// has put essentially nothing on any call the book admits, and the hook falls
@@ -88,21 +88,6 @@ impl Bucket {
     }
 }
 
-/// First-max over the admissible calls, exactly as `select_with_legal_state`
-/// breaks ties — the *first* maximum, never the last.
-fn first_max(logits: &Logits, admissible: &[Call]) -> Call {
-    let mut best: Option<(Call, f32)> = None;
-    for (call, &logit) in logits.iter() {
-        if !admissible.contains(&call) {
-            continue;
-        }
-        if best.is_none_or(|(_, top)| logit > top) {
-            best = Some((call, logit));
-        }
-    }
-    best.map_or(Call::Pass, |(call, _)| call)
-}
-
 /// Share of the unrestricted `softmax(z / t)` sitting on the admissible calls
 fn admissible_mass(logits: &Logits, admissible: &[Call], t: f32) -> f32 {
     let beta = 1.0 / t;
@@ -123,6 +108,10 @@ fn admissible_mass(logits: &Logits, admissible: &[Call], t: f32) -> f32 {
 
 fn main() {
     let args = Args::parse();
+    assert!(
+        args.temperature.is_finite() && args.temperature > 0.0,
+        "--temperature must be finite and positive"
+    );
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
     let agreements = Agreements::default();

@@ -102,8 +102,9 @@ nat apart, and nothing on the default path reads a book magnitude as odds. The
 one scalar that gives the net's softmax a meaning is a temperature `T`
 (divide logits by `T` before softmax), **fitted** on held-out NLL — temperature
 scaling, Guo et al. 2017. It is argmax-invariant, so serving stays raw; only
-the search's proposal odds and any display move. It was never built — session
-2 of [logit-calibration.md](logit-calibration.md) owes it.
+the search's proposal odds and any display move. Session 2 of
+[logit-calibration.md](logit-calibration.md) built the held-out-NLL fitter and
+sidecar field; no shipped v6 artifact has been fitted with it yet.
 
 ### The legality + safety shell (restating the key invariant)
 

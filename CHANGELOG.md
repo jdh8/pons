@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The rollout harness, and the winner's curse it walked into (logit
+  calibration session 3, 2026-09-03)** — no bidding change and **no `src/`
+  change at all**: `smoke-default --count 20000 --seed 1` stays `38ee1e21…`.
+  `examples/probe-rollout-label` builds §4 of
+  `docs/ai-bidder/logit-calibration.md`: at every choice-bearing authored
+  decision of a self-play `american()` walk it takes the restricted proposal's
+  top-3 ∪ the policy's own call, selects on `M` replay-consistent layouts, and
+  prices that same call on an **independent second `M`**. Every layout gets one
+  shared double-dummy solve; the paired own-call baseline and both DD/PD scorers
+  see the same worlds. Replay-short decisions fall back instead of mixing in a
+  different population, RNG domains are disjoint, and intervals cluster by
+  source deal.
+  - **The original in-sample target rule is not safe to retrain on.** On the
+    2,000-deal `M = 32` census (3,169 usable decisions), its +0.2499/+0.5434
+    DD/PD IMPs per decision shrinks to **+0.0362 ± 0.0244 / +0.2446 ± 0.0372**
+    held out. Its both-scorer relabel rate falls from 20.98% to **11.01%**; those
+    sets are not nested, so the 47.5% rate drop is not a false-label fraction.
+  - The 400-deal `M` series isolates the curse. At `M = 8`, in-sample/held-out
+    is +0.449/**−0.104 ± 0.089** DD and +0.774/**+0.158 ± 0.124** PD; at
+    `M = 32`, +0.247/**+0.044 ± 0.055** and +0.519/**+0.225 ± 0.084**; at
+    `M = 128`, +0.162/**+0.105 ± 0.037** and +0.394/**+0.329 ± 0.066**. The
+    held-out signal is positive on both scorers at `M = 128`, so it is not only
+    a doubling artifact. Pass is the plurality target among the headline
+    in-sample node table's top swaps, but that exploratory breakdown is not
+    held-out validated.
+  - **Cost is a double-dummy budget**: the headline spends 1,479.2 s solving
+    202,816 layouts (7.29 ms/layout, 99.7% of wall clock). That solve budget is
+    independent of `k`; the small rollout remainder scales with candidate count.
+    At `M = 128`, 100k decisions with independent validation cost ~52 box-hours;
+    the ~2.3M choice-bearing full population costs ~50 box-days. Session 4 must
+    choose the validation rule, add the vulnerability axis, and settle self-play
+    versus BBA before relabelling.
+  - Two pre-existing defects recorded in §7, both left as-is with a reversible
+    default: `examples/ab-lebensohl/main.rs:259` hands `ev_all` a keyless
+    `Context`, so that A/B's PD gate sampled layouts against a vacuous
+    `0..=37` reading (same bare context at `probe-replay-yield.rs:207`); and
+    `bba-score --score pd` prices with `ns_score_bid`, discarding real doubles,
+    where `scoring.rs:152-164` and `docs/measurement.md` both name
+    `ns_score_pd` — the anchor pipeline does not use it, so no campaign number
+    moves.
+
 - **A temperature for the policy net, and the first book-vs-net order audit
   (logit calibration session 2, 2026-09-03)** — no bidding change and **no
   `src/` change at all**: `smoke-default --count 20000 --seed 1` stays

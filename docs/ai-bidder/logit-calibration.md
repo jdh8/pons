@@ -5,9 +5,10 @@ every recommendation accepted). Session 1 shipped the same day: this document,
 display hygiene (`web/src/lib.rs` `top3()`, `examples/practice-bidding`), and
 the two doc-drift repairs in §5. **No bidding change**: `smoke-default --count
 20000 --seed 1` is unchanged at `38ee1e21…` before and after
-([../measurement.md](../measurement.md) item 12). Sessions 2 and 3+ are owed;
-the ledger is §6. This is the calibration story the M5.2 flip plan in
-[plan.md](plan.md) M5.2 needs before its collar retune can be sized, and the
+([../measurement.md](../measurement.md) item 12). Sessions 2 and 3 shipped the
+same day and under the same gate; **session 4+ is owed**, and session 3's census
+changed the next task — the ledger is §6. This is the calibration story the
+M5.2 flip plan in [plan.md](plan.md) M5.2 needs before its collar retune can be sized, and the
 scale question [competitive-accountant.md](competitive-accountant.md) and
 [new-suit-veto.md](new-suit-veto.md) both stepped around by acting on masks
 and demotions rather than on magnitudes.
@@ -110,10 +111,12 @@ the fallback chain from depth 0. A `Logits` value is therefore *either* rungs
 *or* net outputs, never a mixture, and the "the net must match the book's
 scale" premise (§5) had no consumer that would ever compare the two.
 
-No temperature exists anywhere. `src/bidding/array.rs:373-383` `Logits::softmax`
-is max-subtracted with no scale parameter; `grep -rn temperature src/
-trainer/src web/src` finds no serving or training temperature. The routing facts
-the rest of this doc leans on: `Bidder::authored_at` (`src/bidding.rs:141-157`,
+At the session-1 audit, no temperature existed anywhere. Session 2 added the
+held-out fitter in `trainer/src/calibrate.rs` and its weights-sidecar fields;
+serving still reads neither, and `src/bidding/array.rs:373-383`
+`Logits::softmax` remains max-subtracted with no scale parameter. The routing
+facts the rest of this doc leans on: `Bidder::authored_at`
+(`src/bidding.rs:141-157`,
 default `true`; its doc says the replay sampler enforces its reading only at
 authored nodes) is overridden by `Partnership` at
 `src/bidding/book.rs:1249-1252` and by `Trie` at `src/bidding.rs:236-247`;
@@ -317,6 +320,89 @@ This is what M5.2's arm 3 lacked ([plan.md](plan.md) M5.2, refuted 3/3, parked o
 advantage to every decision on it, having never sampled an alternative
 auction. The harness samples the alternatives, and pairs them.
 
+*Built in session 3* as `examples/probe-rollout-label`. Four scope choices are
+explicit in its module doc. It defaults to **self-play**, because `BbaOracle`
+creates and destroys a native bot for every call (`with_bot`,
+`examples/common/oracle/mod.rs:457`) and the replay sampler selects worlds under
+our policy; `--opponent bba` remains available. It uses **`ns_score_pd`**, not
+`ev_all`'s call-only `ns_score_bid`, because these are complete auctions that
+may contain a real double. No shipped sidecar yet carries a fitted `T`, but
+temperature cannot reorder the candidates; it changes which decisions clear
+the epsilon gate and therefore enter the evaluated population. Finally, session
+3 is **neither-vulnerable only**; a relabelling run must add the vulnerability
+axis before training. The work runs in four phases: rayon harvest, rayon layout
+draws, one main-thread `solve_deals` over the flattened layouts, then rollout
+and pricing. Each layout is solved once and shared across every candidate.
+
+**The winner's curse is the finding.** The target rule selects the largest of
+`k` noisy `M`-layout estimates and reports that same estimate. The maximum is
+upward-biased even when every candidate is worth zero. The harness therefore
+draws **two independent pools of `M` replay layouts**: select on the first, then
+price that same call on the second. The held-out continuous mean is unbiased
+for that `M`-layout selector; the thresholded held-out firing rate is not itself
+an unbiased population fraction. Short replay draws are skipped rather than
+topped up from a different distribution, board and layout RNG streams occupy
+disjoint seed ranges, and every ± below is a 95% interval clustered by source
+deal.
+
+Same 400 deals, seed 1, `k = 3`, `M` alone moving (631 usable decisions per row;
+2 of 633 replay draws were short):
+
+| `M` | in-sample DD | **held-out DD** | curse | in-sample PD | **held-out PD** | curse |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8 | +0.449 ± 0.063 | **−0.104 ± 0.089** | 0.553 | +0.774 ± 0.096 | **+0.158 ± 0.124** | 0.616 |
+| 32 | +0.247 ± 0.045 | **+0.044 ± 0.055** | 0.203 | +0.519 ± 0.072 | **+0.225 ± 0.084** | 0.294 |
+| 128 | +0.162 ± 0.036 | **+0.105 ± 0.037** | 0.057 | +0.394 ± 0.061 | **+0.329 ± 0.066** | 0.065 |
+
+At `M = 8`, the held-out scorers disagree: DD is negative while PD is positive,
+and both intervals exclude zero. At `M = 32`, the small run finds PD regret but
+cannot distinguish the DD value from zero. At `M = 128`, both held-out intervals
+are positive and the curse has shrunk sharply. A margin can trade false
+positives for false negatives, but cannot debias reusing the selection layouts;
+**`M` and independent validation are separate constraints.** The larger
+headline census (2,000 deals, `M = 32`, 3,169 usable decisions) makes the small
+DD signal visible: in-sample +0.2499/+0.5434 DD/PD, held-out **+0.0362 ± 0.0244 /
++0.2446 ± 0.0372**.
+
+The same comparison as a relabel rate at `margin = 0.25` IMPs:
+
+| run | rule | in-sample | held-out |
+| --- | --- | --- | --- |
+| headline, `M = 32` | plain DD | 23.76% | **13.03%** |
+| | perfect defense | 38.88% | **24.61%** |
+| | both | 20.98% | **11.01%** |
+| `M = 128` | plain DD | 16.32% | **12.68%** |
+| | perfect defense | 31.06% | **27.26%** |
+| | both | 13.95% | **10.78%** |
+
+The headline both-scorer rate is **47.5% lower** on held-out layouts. The two
+firing sets are not nested, so that is a rate comparison, not a claim that 47.5%
+of particular labels are false. It puts the plausible relabelled population
+near 11% of choice-bearing decisions, about 3–4% of all authored decisions.
+
+At `M = 128` the held-out advantage is positive on **both** scorers, so the
+signal is not merely a perfect-defense doubling artifact. PD is about three
+times plain DD. The headline's **in-sample** node table has Pass as the plurality
+target among its 20 printed top swaps (56, ahead of 1NT's 36), while
+`1NT -> 1♦ x23` is the largest single entry. That exploratory breakdown is not
+held-out validated, so it does not establish where the debiased signal lies.
+
+**Cost is almost entirely double dummy.** The headline spends 0.0 s walking,
+0.6 s sampling, 4.0 s rolling out, and **1,479.2 s solving 202,816 layouts**:
+7.29 ms/layout and 99.7% of wall clock. The DD solve budget is independent of
+`k` because each solve is shared; the small rollout remainder still scales with
+the number of candidates. Only 34% of authored decisions offer more than one
+admissible call (1.60/deal here versus `probe-book-vs-net`'s 4.72). At `M = 128`,
+selection plus independent validation costs about 1.87 s/decision: a
+100k-decision audit is ~52 box-hours and a 2.3M-decision full pass ~50 box-days.
+Selection alone is half that price but cannot validate its own labels.
+
+The epsilon census is unchanged in direction: `thin` is 5/638 at `T = 1`,
+1/638 at `T = 1.5`, and 0/638 at `T = 2`. That population requires at least two
+admissible calls; `probe-book-vs-net` also counts single-rung nodes, explaining
+why its rate is higher. Six of 3,175 headline candidate decisions (0.19%)
+returned a short replay draw and were skipped explicitly.
+
 **`PASS_DEMOTION` → `3·T`.** The demotion is currently 3 raw nats on the net's
 logits, a magnitude read on an uncalibrated scale. Restating it as `3·T` nats
 makes it a fixed *probability ratio* (`e^3 ≈ 20:1` at calibrated odds) rather
@@ -368,7 +454,10 @@ distilled net calibrates at `T > 1` (it is over-confident, §3), and every rung
 loosens as the fitted `T` lands. Size the epsilon at the `T` the hook will run
 at — `probe-book-vs-net -t` takes it for exactly this.
 
-**Recommended `1e-4`** (jdh8's call is open). The choice between it and `1e-3`
+**`1e-4`, decided by jdh8 2026-09-03** (recommended in session 2, confirmed
+after session 3's census). It is the default of every consumer that reads the
+hook — today only `probe-book-vs-net -e` and `probe-rollout-label -e`, both
+`1e-4`. The choice between it and `1e-3`
 is 1.21% of authored
 decisions at `T = 1` (0.62% at `T = 1.5`), and the deciding argument is not the
 count but *which way the fallback errs for the consumers that exist*:
@@ -413,8 +502,8 @@ this session to point here.
 
 | doc | said | why wrong | says now |
 | --- | --- | --- | --- |
-| `docs/ai-bidder/02-policy-net.md:94-106` "### Output calibration" | distillation "inherits the teacher's scale automatically"; keep a temperature scalar `T` as "a single post-hoc knob, tuned on held-out boards" so the floor's decisiveness "matches what the driver expects" | every shipped floor since 2026-07-19 clones **one-hot** BBA labels (README glossary, Distillation row): a one-hot has no scale to inherit, and the target the net converges to is §3 row (ii), which owes nothing to any teacher scale. The `T` knob was never built (§2: no temperature in the tree), and the driver expects an argmax, which `T` cannot move. | no teacher scale to inherit (one-hot labels); the ~3-nat gap is the book's precedence convention; `T` fitted on held-out NLL, argmax-invariant, serving raw; never built, session 2 owes it; link here |
-| `docs/ai-bidder/README.md:92` glossary "Temperature / calibration" | "Scaling logits before softmax. The books use a ~3-nat gap convention; the net must match that scale." | the books have no scale to match: §1's rungs are 5-50 centinats apart and crisp, and §2 finds no consumer that ever compares a book logit with a net logit (they never share a `Logits`). "Must match" named an obligation with no reader. | one scalar `T` before softmax; the books' ~3-nat gaps are precedence, not odds; `T` fitted once on held-out rows (owed); link here. The document map's ledgers paragraph (`README.md:110-123`) gains this page. |
+| `docs/ai-bidder/02-policy-net.md:94-106` "### Output calibration" | distillation "inherits the teacher's scale automatically"; keep a temperature scalar `T` as "a single post-hoc knob, tuned on held-out boards" so the floor's decisiveness "matches what the driver expects" | every shipped floor since 2026-07-19 clones **one-hot** BBA labels (README glossary, Distillation row): a one-hot has no scale to inherit, and the target the net converges to is §3 row (ii), which owes nothing to any teacher scale. At the session-1 audit the `T` knob had not been built, and the driver expects an argmax, which `T` cannot move. | no teacher scale to inherit (one-hot labels); the ~3-nat gap is the book's precedence convention; session 2 built the held-out-NLL fitter and sidecar field; argmax-invariant serving remains raw; link here |
+| `docs/ai-bidder/README.md:92` glossary "Temperature / calibration" | "Scaling logits before softmax. The books use a ~3-nat gap convention; the net must match that scale." | the books have no scale to match: §1's rungs are 5-50 centinats apart and crisp, and §2 finds no consumer that ever compares a book logit with a net logit (they never share a `Logits`). "Must match" named an obligation with no reader. | one scalar `T` before softmax; the books' ~3-nat gaps are precedence, not odds; session 2 built the held-out fitter, and each new artifact still has to run it; link here. The document map's ledgers paragraph (`README.md:110-123`) gains this page. |
 
 The `rules.rs:1-23` module doc's "300 is near-deterministic after softmax" is
 left as written: it is true as arithmetic, and the doc's own sentences about
@@ -426,16 +515,60 @@ one comment that does mislead.
 | session | deliverables | gate | status |
 | --- | --- | --- | --- |
 | 1 (2026-09-03) | this document; display hygiene (`top3()`, practice-bidding: mask then softmax, ladder where an authored node answered the hand, odds where the floor did); `02-policy-net.md` §Output calibration and `README.md:92` rewritten; §7 flags recorded | `smoke-default --count 20000 --seed 1` = `38ee1e21…`, unchanged | **done** |
-| 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — epsilon **`1e-4`** recommended (§4), awaiting jdh8; nothing consumes the hook yet |
-| 3+ | layouts per decision from the replay sampler (`sample_layouts_replay`, hard `MARGIN` as it stands) → rollout harness (top-3 ∪ own call, `M` layouts each, ours vs BBA, DD + PD, paired baseline, margin target) → retrain → A/B on both scorers; the harness is the sampler's first live search consumer, so its importance-weighted acceptance is sized against it (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers | owed |
+| 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — the epsilon it recommended, **`1e-4`**, was decided by jdh8 on 2026-09-03 (§4) |
+| 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short fallback, deal-clustered intervals; the `M`-series and headline census above | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
+| 4+ | specify the production label gate (including independent validation and its `M`), add the vulnerability axis, settle self-play versus BBA continuation, then relabel a corpus slice → fit `T` → retrain → A/B on both scorers. At `M = 128`, a 100k-decision selection+validation audit is ~52 box-hours; the full ~2.3M choice-bearing population is ~50 box-days. The sampler's importance-weighted acceptance is sized against the same harness (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
-Session 2 changes no call and is provable by the hash. Everything in session
-3+ moves calls and is measured, not argued.
+Sessions 2 and 3 change no call and are provable by the hash. Everything in
+session 4+ moves calls and is measured, not argued.
+
+**Why session 3 stops before the retrain.** The design's target rule uses the
+same `M` layouts to select and bless a label. On the 2,000-deal census that
+reports +0.2499/+0.5434 DD/PD and a 20.98% both-scorer relabel rate; the same
+selected calls on independent layouts are worth only +0.0362/+0.2446 and clear
+both margins 11.01% of the time. The original labels therefore encode a large
+selection artifact. A bigger margin does not remove it. Independent validation
+does, but its threshold is a new label rule, and session 3 measured only
+self-play at neither vulnerable. Session 4 must specify that rule and add the
+missing axes before touching the corpus. `M = 128` being held-out-positive on
+both scorers is the reason to continue, not permission to skip those gates.
 
 ## 7. Flagged, not fixed
 
-Two findings from the inventory that are wrong on paper and harmless in
+Findings from the inventory that are wrong on paper and (mostly) harmless in
 production. Each carries a reversible default so nothing is silently resolved.
+The first two are session 3's; the rest are session 1's.
+
+**A keyless `Context` before `ev_all`, so the rollout samples against nothing.**
+`examples/ab-lebensohl/main.rs:259` builds `Context::new(relative(vul, seat),
+auction)` and hands it to `ev_all` at `:262`. A bare context carries no system
+and no prefixes, so `Table::infer`'s doc applies — it "silently skips every
+projection-based reading and hands back a vacuous `0..=37`" — and `ev_all`'s
+`within_ranges` half then accepts **every** layout. Only the rule-replay half
+(`rules_accept`, which reads the policy and the auction directly, not the
+inferences) still constrains, and it abstains at every unauthored node. So that
+A/B's PD relay gate ran on a materially weaker sampler than the design intends.
+The correct constructor is `Partnership::prefixed_context`
+(`src/bidding/book.rs:958`), which is what `probe-book-vs-net` and
+`probe-rollout-label` use. `examples/probe-replay-yield.rs:207` has the same bare
+context, which makes its "range fill" column meaningless as a baseline (a
+vacuous reading fills 100% by construction) — the "replay fill" column and the
+ratio's *direction* survive. **Default: leave both.** The Lebensohl verdict was
+taken and its re-measure is a separate decision; fix the context in the same
+change that re-measures it.
+
+**`bba-score --score pd` prices with `ns_score_bid`, not `ns_score_pd`.**
+`examples/bba-score/main.rs:158` maps the reached contract down to its `Bid`
+before scoring, which **discards any real double or redouble on the table** and
+re-derives the penalty from whether the contract fails double dummy. That is the
+call-evaluation scorer; `src/scoring.rs:152-164` says in as many words to use
+`ns_score_pd` instead "to score a duplicate A/B once a side may *defend* by
+passing", and [../measurement.md](../measurement.md) names `ns_score_pd` as the
+PD bracket. The anchor pipeline does not go through it —
+`bba-decompose/main.rs:562-564` and `ab-dump-diff/main.rs:183,207` both use
+`ns_score_pd` — so no campaign number is affected. **Default: leave.** Switch it
+the first time a verdict is read off `bba-score --score pd`, and note that doing
+so will move that binary's historical PD numbers.
 
 **`max_by` returns the last maximum.** `Iterator::max_by` breaks a tie in
 favour of the *last* element, the opposite of production's first-max
