@@ -109,6 +109,22 @@ struct Args {
     /// variance sweep reproducible.
     #[arg(long)]
     init_seed: Option<u64>,
+    /// Load `<stem>.f32` and skip training: evaluate, fit `T`, and export.
+    ///
+    /// The calibration fitter runs at the end of a training job, so a *shipped*
+    /// artifact has no temperature until something loads it back. This is that
+    /// mode — `--weights-in ../src/bidding/weights/american_bba_v6` over the
+    /// same dumps and the same `--val-frac` reads `T` off the same held-out
+    /// tail v6 was gated on. Point `--weights-out` at a scratch stem: the
+    /// export is a full artifact write, and the fitted `T` belongs in the
+    /// shipped sidecar only by a deliberate edit.
+    ///
+    /// Only the six `PARAM_NAMES` are in the blob, so the auxiliary DD value
+    /// head loads at its random init and `val_dd_mse` is reported as null. The
+    /// policy head — everything the calibration fit and `val_top1` read — is
+    /// exact: re-exporting a loaded artifact is byte-identical.
+    #[arg(long)]
+    weights_in: Option<String>,
 }
 
 /// The constant device tables that turn a packed `.seq` row into the 98-wide
@@ -357,7 +373,18 @@ fn main() -> Result<()> {
         },
     )?;
 
-    for epoch in 1..=args.epochs {
+    // `--weights-in` swaps the fit for a load: same model, same held-out tail,
+    // no optimizer steps. Everything downstream — evaluate, calibrate, export —
+    // is untouched, which is the point: the temperature is fitted by exactly the
+    // code that would have fitted it at the end of the original run.
+    let epochs = if let Some(stem) = &args.weights_in {
+        load_weights(stem, &varmap, &model, &device)?;
+        eprintln!("loaded {stem}.f32; training skipped");
+        0
+    } else {
+        args.epochs
+    };
+    for epoch in 1..=epochs {
         let (mut start, mut running, mut steps) = (0usize, 0f32, 0usize);
         while start < ntrain {
             let len = args.batch.min(ntrain - start);
@@ -395,7 +422,7 @@ fn main() -> Result<()> {
                 .dd_mse
                 .map_or(String::new(), |m| format!("  val_dd_mse {m:.4}"));
             eprintln!(
-                "epoch {epoch:>4}: train_loss {:.4}  val_ce {:.4}  top1 {:.1}%{dd}  \
+                "epoch {epoch:>4}/{epochs}: train_loss {:.4}  val_ce {:.4}  top1 {:.1}%{dd}  \
                  (constructive {:.1}% / {}, contested {:.1}% / {})",
                 running / steps as f32,
                 e.loss,
@@ -538,6 +565,50 @@ fn val_logits(
     Ok(out)
 }
 
+/// Read a flat `<stem>.f32` blob back into `varmap`, in `param_names()` order
+///
+/// The exact inverse of [`export`]'s weight write — same order, same
+/// little-endian f32 layout — so a shipped artifact round-trips. The float
+/// count is the only cheap consistency check there is, and it is precisely what
+/// a wrong `--hidden`, `--arch`, or a dump with a different `dd_len` looks
+/// like, so it is reported with both numbers rather than read as a truncation.
+fn load_weights(stem: &str, varmap: &VarMap, model: &Policy, device: &Device) -> Result<()> {
+    let path = format!("{stem}.f32");
+    let bytes = std::fs::read(&path).with_context(|| format!("reading {path}"))?;
+    let (words, tail) = bytes.as_chunks::<4>();
+    if !tail.is_empty() {
+        bail!("{path}: {} bytes is not a whole number of f32", bytes.len());
+    }
+    let floats: Vec<f32> = words.iter().copied().map(f32::from_le_bytes).collect();
+    let data = varmap.data().lock().expect("varmap mutex poisoned");
+    let mut vars = Vec::with_capacity(model.param_names().len());
+    for &name in model.param_names() {
+        vars.push(
+            data.get(name)
+                .with_context(|| format!("missing param {name}"))?,
+        );
+    }
+    let want: usize = vars.iter().map(|var| var.elem_count()).sum();
+    if floats.len() != want {
+        bail!(
+            "{path} holds {} floats but this model wants {want}; check --arch, --hidden \
+             and the dump's dd_len against the artifact's sidecar",
+            floats.len(),
+        );
+    }
+    let mut at = 0;
+    for var in vars {
+        let n = var.elem_count();
+        var.set(&Tensor::from_slice(
+            &floats[at..at + n],
+            var.dims().to_vec(),
+            device,
+        )?)?;
+        at += n;
+    }
+    Ok(())
+}
+
 /// Write the weights (`<stem>.f32`, layer order `PARAM_NAMES`), the versioned
 /// sidecar, and a small (features, logits) parity fixture for M1.2.
 #[allow(clippy::too_many_arguments)]
@@ -612,7 +683,7 @@ fn export(
         "data_contested_rows": ds.meta.contested_rows,
         "train_rows": ntrain,
         "val_rows": nval,
-        "epochs": args.epochs,
+        "epochs": if args.weights_in.is_some() { 0 } else { args.epochs },
         "lr": args.lr,
         "wd": args.wd,
         "batch": args.batch,
@@ -625,13 +696,21 @@ fn export(
         "val_top1_contested": eval.contested,
         "dd_len": ds.dd_len,
         "dd_weight": args.dd_weight,
-        "val_dd_mse": eval.dd_mse,
+        // The value head is auxiliary and `PARAM_NAMES` does not export it, so a
+        // `--weights-in` model runs it at its random init: the metric would be
+        // noise, not a measurement of the artifact.
+        "val_dd_mse": if args.weights_in.is_some() { None } else { eval.dd_mse },
         "temperature": cal.temperature,
         "val_nll_raw": cal.nll_before,
         "val_nll_calibrated": cal.nll_after,
         "val_ece_raw": cal.ece_before,
         "val_ece_calibrated": cal.ece_after,
     });
+    // Both blocks add keys only on the path that needs them, so an ordinary
+    // `--arch mlp` training run's sidecar keeps the exact key set it had.
+    if let (Some(stem), Some(obj)) = (&args.weights_in, sidecar.as_object_mut()) {
+        obj.insert("weights_in".into(), serde_json::json!(stem));
+    }
     // Only the LSTM artifact carries these, so an `--arch mlp` sidecar keeps the
     // exact key set it had before the sequence channel existed.
     if let (Some((seq, _)), Some(obj)) = (seq, sidecar.as_object_mut()) {

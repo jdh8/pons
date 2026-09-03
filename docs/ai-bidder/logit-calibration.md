@@ -435,6 +435,38 @@ than a fixed logit gap. This lands inside the flip plan's collar-retune A/B
 not before: it moves calls, so it needs the decision table, and it shares the
 retune's measurement.
 
+**The `T` that restatement needs is now measured: `T = 1.1298` for the shipped
+`american_bba_v6`** (session 4, 2026-09-04), so `3·T` = **3.389 nats** — a 13%
+deepening of the demotion, not the 2-3× a badly over-confident net would have
+implied. Session 2's fitter runs at the *end* of a training job, so a shipped
+artifact had no temperature until something loaded it back; `--weights-in` on
+the trainer is that mode. It reads `<stem>.f32` into the same model, skips
+training, and runs the existing evaluate → fit → export path, so the number is
+produced by exactly the code that would have produced it in the original run:
+
+```sh
+cd trainer && ./target/release/pons-trainer \
+  $(python3 -c "import json;print(' '.join('--data '+s for s in \
+     json.load(open('../src/bidding/weights/american_bba_v6.json'))['data_stems']))") \
+  --weights-in ../src/bidding/weights/american_bba_v6 \
+  --weights-out /tmp/v6-cal --fixture 0
+```
+
+On v6's own held-out tail (676,829 rows, the split the sidecar records), the fit
+reads **NLL 0.3010 → 0.2984** and **ECE 0.0117 → 0.0015**, an 8× calibration
+improvement for a 13% rescale. The load is provably the shipped artifact:
+re-exporting it is byte-identical, and `val_top1` reproduces the sidecar's
+0.8928 / 0.8890 / 0.8950 exactly (`val_ce` moves in the last ulp only, from
+`evaluate`'s minibatched accumulation). The auxiliary DD value head is **not** in
+`PARAM_NAMES` and therefore not in the blob, so it loads at its random init and
+a `--weights-in` sidecar reports `val_dd_mse` as null rather than as noise.
+
+The shipped `american_bba_v6.json` is deliberately **left untouched**: it is a
+provenance record of a training run that did not fit a temperature, and quietly
+back-filling four calibration fields into it would make a later fit look like
+that run's own output. The number lives here; folding it into the sidecar is a
+one-line edit if jdh8 wants it there.
+
 **Trainer side.** After training, fit `T` on the held-out split by NLL,
 report ECE before and after, and write a `temperature` field into the weights
 sidecar. Serving stays raw: argmax is `T`-invariant, so the default system is
@@ -519,6 +551,173 @@ as the honest scope of the hook: at a well-populated node the two orders mostly
 agree and the odds are informative; at a narrow authored continuation the net
 is being asked about calls it was never trained to rank there.
 
+## 4b. The gate flip: pricing the population production actually asks the net about
+
+[logit-calibration-session4-handoff.md](logit-calibration-session4-handoff.md)
+refused to spend §6's ~50 box-days until two doubts were answered, and specified
+a ~2-hour experiment to answer them. This is that experiment, run 2026-09-04 at
+seed 1 with `scripts/idle-run.sh`, one arm at a time.
+
+**D1 — §4's census prices decisions production never asks the net about.** The
+harvest gated on `Provenance::is_authored`, and a book node with finite mass
+*shadows* the floor (the architecture's iron rule; mechanically
+`Trie::classify_floored` over the depth-0 root fallback `with_floors` installs —
+not `Bidder::or_else`, which has no non-test caller, so the handoff's
+`compose.rs:74-79` citation names the wrong mechanism for the right behaviour).
+So at **100%** of §4's population, production bids the book. Relabelling those
+decisions moves the net's weights but not the policy at those nodes; the payoff
+would have to arrive entirely by generalisation, and the census measures that at
+zero decisions.
+
+**D2 — Pass as the plurality relabel target may be double dummy's signature.**
+[../measurement.md](../measurement.md)'s iron rule is that DD is blind to
+obstruction and concealment, and an oracle that cannot price what a bid conceals
+prefers passing. §4's node table has Pass as the plurality target, and PD runs
+~3× plain DD throughout.
+
+### What the flip changes
+
+`probe-rollout-label` gains `--population {authored,net-served}`. `authored` is
+§4's arm, unchanged and kept so its numbers reproduce from one binary.
+`net-served` harvests only what the floor shell's net answers. `!is_authored()`
+is necessary but not sufficient — the root fallback resolves to **three** floors
+([`common.rs`](../../src/bidding/common.rs) `with_floors`), and the
+deterministic `instinct()` ladder answers two of them:
+
+| where the unauthored decision lands | who answers | net evaluated? |
+| --- | --- | --- |
+| constructive book (`Phase::Constructive`) | the `instinct()` ladder | no |
+| contested book, `forced(context)` | the same ladder, as a rail | no |
+| contested book, not forced | `classify_bba_v6` → mask → both gates | **yes** |
+
+so the predicate is `!is_authored() && Phase::of(&auction) != Phase::Constructive
+&& !forced(&context) && admissible.len() > 1`. `instinct::forced` is widened
+`pub(crate)` → `pub` for it — a visibility change and a doc comment, the same
+move session 3 made for `select_legal_call`.
+
+**The proposal is the shell's logits, not a second forward pass.** At a
+net-served node the `Logits` `classify_with_provenance` returns *are* the
+production distribution: the net after `mask_illegal`, `competitive_gate` (with
+`PASS_DEMOTION`) and `new_suit_gate`. Using them directly means the own call is
+the shell's argmax by construction, and a gate-vetoed call is `-∞` and can never
+be a candidate — correct, because a retrained net's preference for it could not
+reach the table through those same gates either. Two consequences: the legality
+mask leaves the admissible mass at 1, so `--epsilon` never fires and `thin` is
+identically 0; and with `k = 3` over ≥ 2 finite calls the candidate set always
+holds an alternative, so `flat` is 0 too. Both columns are still printed.
+`--vul` was added in the same change (the playbook's two cells); the raw-net-
+versus-shell question — are the gates costing IMPs? — is a separate arm and is
+deliberately not folded in.
+
+**The refactor is provably inert on §4's population.** `--population authored
+-c 400 -s 1 -m 8` reproduces §4a's row to the last digit: 638 choice-bearing
+decisions, `thin` 5, 631 rolled out, 2 of 633 draws short, held-out
+**−0.1040 ± 0.0891** DD and **+0.1583 ± 0.1237** PD, both-rule held out 10.62%.
+
+### The population is three times *denser*, not thinner
+
+The handoff expected the net-served slice to be thin ("contested, unauthored,
+unforced"). It is the opposite: **4.81–4.87 choice-bearing decisions per deal**
+against the authored census's 1.60. The walk is self-play, so it harvests all
+four seats, and the defensive book — *they* opened, we act — is the thinnest
+part of the authored system, so most of its decisions fall to the floor. The
+`M = 128` rows therefore needed `-c 200`, not the ~1,500 deals the handoff
+budgeted against a guessed-lower density.
+
+### The rows
+
+Seed 1, `k = 3`, `margin = 0.25` IMPs, self-play, ± is a 95% interval clustered
+by source deal.
+
+| population | `M` | deals | decisions | in-sample DD | **held-out DD** | in-sample PD | **held-out PD** | curse DD/PD |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| authored (§4a) | 8 | 400 | 631 | +0.4487 ± 0.0633 | **−0.1040 ± 0.0891** | +0.7740 ± 0.0956 | **+0.1583 ± 0.1237** | 0.553 / 0.616 |
+| authored (§4) | 128 | 400 | 631 | +0.162 ± 0.036 | **+0.105 ± 0.037** | +0.394 ± 0.061 | **+0.329 ± 0.066** | 0.057 / 0.065 |
+| net-served, none | 8 | 400 | 1,931 | +1.1066 ± 0.0750 | **+0.4476 ± 0.0968** | +0.9544 ± 0.0837 | **+0.2520 ± 0.1034** | 0.659 / 0.702 |
+| net-served, none | 128 | 200 | 956 | +0.7175 ± 0.0844 | **+0.6134 ± 0.0821** | +0.5483 ± 0.0912 | **+0.4641 ± 0.0874** | 0.104 / 0.084 |
+| net-served, both | 128 | 200 | 919 | +0.7838 ± 0.1115 | **+0.6841 ± 0.1066** | +0.6456 ± 0.1065 | **+0.5626 ± 0.1011** | 0.100 / 0.083 |
+
+Both `M = 128` cells land in the **first row** of the handoff's verdict table:
+positive on both scorers, every interval excluding zero, the two vulnerability
+cells overlapping each other (so the signal is not the competitive book's
+vulnerability axis), and the D2 line clean. The `M = 32` tie-break row the
+handoff queued "only if the two `M = 128` rows disagree" was therefore **not
+run**. The reading is: **the net's own population carries the signal, and it is
+about six times the size of the signal on the population §4 measured**
+(+0.61/+0.68 held-out DD against +0.105). Session 4 earns its double dummy —
+restricted to the net-served slice, which is the whole point of D1.
+
+Two things the table does not say. The `M = 8` net-served row is 400 deals and
+the `M = 128` rows are 200, so the within-population `M` comparison is not on
+identical deals (the authored rows are all 400). And the held-out relabel rates
+are much higher here than on the authored population — 17.15% / 19.59% under the
+both-scorer rule against 10.78% — so the slice is not only denser in decisions
+but denser in *labelled* decisions, which is what the 50-box-day estimate was
+priced against.
+
+### D2, answered — and it inverts across the two populations
+
+The report adds, per rule, the Pass share of the held-out relabel *targets*
+against the Pass share of the own calls they displace, over the population's own
+base rate. A relabel needs `winner != own`, so the two columns are disjoint per
+decision: read them as a **flow into and out of Pass**.
+
+| population, `M = 128` unless noted | rolled-out decisions already passing | rule | → Pass | Pass → |
+| --- | --- | --- | --- | --- |
+| authored, `M = 8` | **1 of 631 (0.16%)** | plain DD | 46.67% | 0.00% |
+| | | perfect defense | **64.44%** | 0.00% |
+| | | both | 47.76% | 0.00% |
+| net-served, none | **764 of 956 (79.92%)** | plain DD | 9.04% | 78.25% |
+| | | perfect defense | 27.88% | 57.96% |
+| | | both | 18.29% | 65.24% |
+| net-served, both | **752 of 919 (81.83%)** | plain DD | 13.31% | 74.35% |
+| | | perfect defense | 28.63% | 59.83% |
+| | | both | 22.22% | 65.56% |
+
+On the **authored** population D2's fear is confirmed outright: essentially
+nothing passes there (1 decision in 631), yet Pass is the target of 46.7% of
+plain-DD relabels and **64.4%** of perfect-defense ones. That is the blind spot
+exactly as [../measurement.md](../measurement.md) predicts it, and PD — the
+scorer that also gets to double — is the worse offender. §4's "Pass is the
+plurality target" line was not an artifact of the in-sample breakdown.
+
+On the **net-served** population the flow reverses. Four in five of those
+decisions already pass, and the relabels overwhelmingly move *out* of Pass: DD
+targets Pass on 9.0% of relabels while displacing a Pass on 78.3%. Even PD's
+27.9% target share sits far below the 79.9% base rate. The signal here is not
+"pass more"; it is "the floor is passing where the table can compete", which is
+a floor gap, not an oracle artifact.
+
+The two other order-reversals point the same way. On the authored population PD
+runs about 3× plain DD; on the net-served population **plain DD is the larger of
+the two** (+0.613 vs +0.464 at `M = 128`, neither vulnerable), so the value is
+not a perfect-defense doubling artifact. And the winner's curse is smaller here
+at every `M` (0.10/0.08 against 0.06/0.07 authored at `M = 128`, but 0.66/0.70
+against 0.55/0.62 at `M = 8`), because the per-decision signal is larger.
+
+### Where the mass sits
+
+Both `M = 128` node tables are dominated by fourth-seat decisions over an
+opponent's **1NT** auction — `1NT - 2♥`, `1NT - 2♠ - 2NT`, `1NT - 2♦ - 2♥`,
+`1NT - 2♣` — with `P -> X` and `P -> 3m` as the recurring swaps. Both-vulnerable
+adds a strong-club cluster (`2♣`, `2♣ - 2♦`, both `P -> 2♠`) and the `1NT 2♥ X`
+lane of [../one-notrump-competitive.md](../one-notrump-competitive.md). Read against
+the self-play walk this is our own defensive book being asked to compete over
+our own 1NT structure, and passing. It is a **floor-gap report** as much as a
+calibration result, and it belongs to
+[../competitive-book.md](../competitive-book.md) and
+[../one-notrump-competitive.md](../one-notrump-competitive.md) whatever the
+relabelling programme does next.
+
+### Cost
+
+`M = 8` at 400 deals: 30,896 layouts, 303.6 s. `M = 128` at 200 deals: 244,736
+layouts in 2,248.4 s neither-vulnerable and 235,264 in 1,753.0 s both — 9.2 and
+7.5 ms/layout, the spread being how busy the shared box was, against §4's
+quiet-box 7.29 ms. Double dummy is 99.2% of wall clock, as §4 found. The whole
+sequence — sizing row, two `M = 128` cells, and the authored regression check —
+cost about **76 minutes**, inside the handoff's two-hour budget.
+
 ## 5. Doc drift corrected
 
 Two documents described a mechanism that never existed. Both are rewritten
@@ -541,7 +740,8 @@ one comment that does mislead.
 | 1 (2026-09-03) | this document; display hygiene (`top3()`, practice-bidding: mask then softmax, ladder where an authored node answered the hand, odds where the floor did); `02-policy-net.md` §Output calibration and `README.md:92` rewritten; §7 flags recorded | `smoke-default --count 20000 --seed 1` = `38ee1e21…`, unchanged | **done** |
 | 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — the epsilon it recommended, **`1e-4`**, was decided by jdh8 on 2026-09-03 (§4) |
 | 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short skip, deal-clustered intervals; the `M`-series, headline census and the `--opponent bba` arm above | byte-identity: no bidding change; the only `src/` edit widens `table::select_legal_call` to `pub` (no behaviour), `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
-| 4+ | **read [logit-calibration-session4-handoff.md](logit-calibration-session4-handoff.md) first** — it argues the ~2-hour gate-flip experiment that decides whether this row is worth its double dummy. Then: build the corpus-fed mode (BBA's label as the baseline, on the corpus that would actually be relabelled), specify the production label gate (including independent validation and its `M`), add the vulnerability axis, then relabel a corpus slice → fit `T` → retrain → A/B on both scorers. Self-play versus BBA is **settled** by §4a and needs no further arm. At `M = 128`, a 100k-decision selection+validation audit is ~52 box-hours; the full ~2.3M choice-bearing population is ~50 box-days. The sampler's importance-weighted acceptance is sized against the same harness (`probe-replay-yield` sizes the variance); `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| 4 (2026-09-04) | the **gate-flip experiment** the session-4 handoff demanded before spending §6's double dummy (§4b): `probe-rollout-label --population {authored,net-served}` with the three-way net-served predicate, the floor shell's own logits as the proposal, `--vul`, and the D2 Pass census; `instinct::forced` widened to `pub`; the trainer's `--weights-in`, which fits `T` for a *shipped* artifact without retraining | byte-identity: no bidding change; the only `src/` edit widens `instinct::forced` from `pub(crate)` to `pub` (visibility and a doc comment). The refactor is separately proven inert by re-running §4a's row through the new binary: 631 decisions, held-out −0.1040 ± 0.0891 / +0.1583 ± 0.1237, digit-for-digit | **done** — the net-served population is **positive on both scorers at both vulnerabilities** (held-out DD +0.613/+0.684, PD +0.464/+0.563), ~6× §4's authored signal, D2 clean and inverted; and **`T` = 1.1298** for `american_bba_v6`, so `PASS_DEMOTION` → `3·T` = 3.389 nats |
+| 5+ | build the corpus-fed mode **on the net-served slice first** (BBA's label as the baseline, on the corpus that would actually be relabelled), specify the production label gate (including independent validation and its `M`), then relabel the slice → fit `T` → retrain → A/B on both scorers. Self-play versus BBA is **settled** by §4a and needs no further arm; the vulnerability axis is **settled** by §4b, which finds the two cells agreeing. At `M = 128` and the measured 4.8 decisions/deal, the slice is denser than the 50-box-day estimate assumed — re-price it against §4b's rows before committing. `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1), now that `T` exists | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
 Sessions 2 and 3 change no call and are provable by the hash — session 3's one
 `src/` edit widens `table::select_legal_call` to `pub` so the probes call
@@ -573,14 +773,19 @@ rates** (20.98% → 11.01%, and the ~3-4%-of-authored-decisions figure derived
 from them) are proxies, not the rates the production rule would fire at.
 Closing the gap needs a corpus-fed mode: harvest decisions from the shipped
 `dump-teacher` corpus with BBA's label as the baseline, rather than from a
-self-play walk. That is session 4's first build, and it is the axis that most
-changes the numbers.
+self-play walk. That is session 5's first build, and it is the remaining axis
+that most changes the numbers — the *population* half is answered in §4b, which
+also settles which slice the corpus pass should spend its budget on.
 
-**The two axes session 3 could not settle, and the one it did.** Vulnerability
-is still missing — the probe hardcodes `AbsoluteVulnerability::NONE`, and a
-relabelling run must add it, since the whole competitive book turns on it.
-Self-play versus BBA **is settled**: §4a measures both arms and finds every
-held-out interval overlapping, both signs preserved, at 1.46× wall clock.
+**The two axes session 3 could not settle, and the one it did.** Self-play
+versus BBA **is settled**: §4a measures both arms and finds every held-out
+interval overlapping, both signs preserved, at 1.46× wall clock. Vulnerability
+**is settled by §4b**: `--vul` is now a flag, and the two `M = 128` net-served
+cells agree on sign and overlap on interval, so the signal is not living in the
+competitive book's vulnerability axis. What session 3 could not settle and
+session 4 did is the *population*: §4b shows the authored census was pricing
+decisions production never asks the net about, and the slice it does ask about
+carries a signal about six times larger.
 
 ## 7. Flagged, not fixed
 

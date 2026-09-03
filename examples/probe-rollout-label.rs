@@ -6,15 +6,57 @@
 //! *evidence*.  This probe supplies the evidence, by rolling the disagreement
 //! out and pricing it in IMPs.
 //!
-//! At every authored decision of a self-play `american()` walk:
+//! # Which decisions — `--population`
 //!
-//! 1. **The proposal.** `classify_bba_v6` called directly (never through the
-//!    floor shell, which at a constructive node delegates to the very rung
-//!    ladder the odds replace), softmaxed at `--temperature`, **restricted** to
-//!    the calls the book admits and the auction allows, renormalised over that
+//! The axis the session-4 handoff's **D1** turns on, and the reason this probe
+//! has two arms rather than one:
+//!
+//! * **`authored`** (`--population authored`) — §4's census, kept so its numbers
+//!   stay reproducible from one binary.  The book answered, and
+//!   `Trie::classify_floored` takes the book's logits whenever they have mass —
+//!   the floor is a *depth-0 root fallback* on the trie (`with_floors`), not an
+//!   `OrElse` layer; `Bidder::or_else` has no non-test caller, so the handoff's
+//!   `compose.rs` citation names the wrong mechanism for the same behaviour —
+//!   so at **100%** of this population
+//!   production bids the book and the net is *never evaluated*.  Relabelling
+//!   here can only pay by generalising to nodes the floor serves.  The proposal
+//!   is therefore the raw net — `classify_bba_v6` called directly, never
+//!   through the floor shell, which at a constructive node delegates to the
+//!   very rung ladder the odds replace.
+//! * **`net-served`** (the default) — the nodes production actually consults
+//!   the net at.  `!Provenance::is_authored` is necessary but not sufficient:
+//!   the root fallback resolves to **three** floors (`common.rs`,
+//!   `with_floors`), and the deterministic `instinct()` ladder answers both the
+//!   constructive book and — as a rail inside the shell — every `forced`
+//!   context.  So the harvest predicate is unauthored **and**
+//!   `Phase::of != Constructive` **and** `!forced(context)`.  Harvesting either
+//!   of the other two rows would repeat D1's mistake one layer down.
+//!
+//! At a net-served node the `Logits` `classify_with_provenance` returns **are**
+//! the production distribution — the net after `mask_illegal`,
+//! `competitive_gate` (`PASS_DEMOTION` included) and `new_suit_gate` — so they
+//! are the proposal directly, and the census prices the shell as shipped.  A
+//! call the gates veto is `-∞` and can never be a candidate, which is correct:
+//! a retrained net's preference for it could not reach the table through those
+//! same gates either.  Two columns go quiet as a result — the mask leaves the
+//! admissible mass at 1, so nothing is ever `thin` and `--epsilon` never fires;
+//! and with two finite calls and `k ≥ 2` the candidate set always holds an
+//! alternative, so `flat` counts only gate-starved nodes.  Both are still
+//! printed, so the two censuses read side by side.
+//!
+//! The raw-net-versus-shell question — are the gates costing IMPs? — is a
+//! *separate* arm with its own retrain-free payoff, and is deliberately not
+//! folded in here.
+//!
+//! # The measurement
+//!
+//! At every harvested decision of a self-play `american()` walk:
+//!
+//! 1. **The proposal**, softmaxed at `--temperature`, **restricted** to the
+//!    admissible calls (finite logit, legal here) and renormalised over that
 //!    set.  Below `--epsilon` of unrestricted mass the hook declines and the
-//!    node is counted `thin`, never evaluated — the design's fallback is the
-//!    book's one-hot, which has no top-k.
+//!    node is counted `thin`, never evaluated — the `authored` arm's fallback
+//!    is the book's one-hot, which has no top-k.
 //! 2. **The candidate set** is the proposal's top-`k` ∪ {the policy's own
 //!    call}.  Restricting and rescaling cannot reorder, so this set — and every
 //!    count below that is not `thin` — is **`T`-invariant**.
@@ -35,10 +77,14 @@
 //! The census then prices the target rule: a decision **relabels** when some
 //! candidate's advantage clears `--margin` IMPs.  Three rules are counted at
 //! once — plain DD alone, PD alone, and both — so the choice of arbiter is
-//! priced rather than assumed.
+//! priced rather than assumed.  Each rule also reports the **Pass share** of
+//! its held-out relabel targets against the base rate at the same decisions:
+//! the handoff's **D2** check, since a double-dummy oracle cannot price what a
+//! bid conceals and so systematically prefers passing.
 //!
 //! ```sh
-//! cargo run --release --example probe-rollout-label -- -c 500 -s 1
+//! cargo run --release --example probe-rollout-label -- -c 400 -s 1 -m 8
+//! cargo run --release --example probe-rollout-label -- -c 200 -s 1 -m 128 --vul both
 //! ```
 //!
 //! # Scope choices
@@ -67,9 +113,11 @@
 //!   epsilon gate and therefore the evaluated population. A distilled net is
 //!   expected to calibrate at `T > 1`, loosening every epsilon rung, so the
 //!   census reports the sensitivity instead of waiting on a fitted value.
-//! * **Neither vulnerable.** Session 3 diagnoses the selector without changing
-//!   bidding. A relabelling run must add the vulnerability axis before its
-//!   labels can feed a retrain.
+//! * **Vulnerability is a flag, not a phase.** `--vul` takes the measurement
+//!   playbook's two cells. The net-served population is contested by
+//!   construction, and both the competitive book and `competitive_gate` read
+//!   vulnerability, so the axis matters more here than it did for the authored
+//!   census — run `none` and `both` and keep them separate.
 //! * **Our auctions and our own call, not BBA's corpus and BBA's label.** The
 //!   walk is self-play `american()`, so the baseline displaced here is *the
 //!   book's argmax* at *our* node distribution.  §4's target rule instead
@@ -88,10 +136,11 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::features::{CompactConfig, ConventionCard, features_v6};
+use pons::bidding::instinct::forced;
 use pons::bidding::neural::classify_bba_v6;
 use pons::bidding::sampler::sample_layouts_replay;
 use pons::bidding::table::select_legal_call;
-use pons::bidding::{Bidder, Table};
+use pons::bidding::{Bidder, Phase, Table};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -118,7 +167,11 @@ struct Args {
     /// Layouts per selection/validation pool (the rollout's `M`; 2M are drawn)
     #[arg(short = 'm', long, default_value_t = 32)]
     layouts: usize,
-    /// Proposal calls to roll out, before the union with the own call
+    /// Proposal calls to roll out, before the union with the own call.  In the
+    /// net-served arm the own call *is* the proposal's argmax (both are the
+    /// shell's first-max over the same logits), so `k` buys `k - 1`
+    /// alternatives and `k = 1` prices nothing; the authored arm's own call is
+    /// the book's, which need not head the net's order at all.
     #[arg(short = 'k', long, default_value_t = 3)]
     top_k: usize,
     /// Admissible-mass rung below which the hook declines (the epsilon fallback)
@@ -138,9 +191,41 @@ struct Args {
     /// Who bids the other side during a rollout
     #[arg(long, value_enum, default_value_t = Opponent::SelfPlay)]
     opponent: Opponent,
+    /// Which decisions to harvest: the book's own nodes, or the ones the floor
+    /// shell's net actually answers
+    #[arg(long, value_enum, default_value_t = Population::NetServed)]
+    population: Population,
+    /// Board vulnerability; the playbook's two cells are `none` and `both`.
+    /// `ns`/`ew` parse and are honest boards, but the walk harvests all four
+    /// seats, so only the symmetric cells hold *relative* vulnerability fixed
+    /// across the census.
+    #[arg(long, default_value = "none")]
+    vul: AbsoluteVulnerability,
     /// Relabelling nodes to list
     #[arg(long, default_value_t = 20)]
     nodes: usize,
+}
+
+/// Which decisions the census walks — the session-4 handoff's D1 axis
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Population {
+    /// Nodes the book answers. Production bids the book here, so the net is
+    /// never evaluated and a relabelling pays only by generalising elsewhere.
+    Authored,
+    /// Nodes the floor shell's net answers: unauthored, contested, and not a
+    /// `forced` rail. The policy's own call is the shell's argmax.
+    #[value(name = "net-served")]
+    NetServed,
+}
+
+impl Population {
+    /// The `--population` spelling, for the report header
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Authored => "authored",
+            Self::NetServed => "net-served",
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -155,7 +240,7 @@ enum Opponent {
     Bba,
 }
 
-/// One authored decision, harvested before any solver runs
+/// One harvested decision, taken before any solver runs
 struct Decision {
     /// Source deal, for deal-clustered uncertainty
     deal: usize,
@@ -178,8 +263,8 @@ struct Decision {
 /// What one node accumulated
 #[derive(Default)]
 struct Bucket {
-    /// Authored decisions seen — counted *after* `--stride`, since `harvest`
-    /// only emits the decisions the stride kept
+    /// In-population decisions seen — counted *after* `--stride`, since
+    /// `harvest` only emits the decisions the stride kept
     seen: usize,
     /// Declined by the epsilon fallback
     thin: usize,
@@ -194,6 +279,15 @@ struct Bucket {
     /// The same three rules read off the held-out half. The continuous estimate
     /// is unbiased for the first-half selector; thresholding it is not.
     held_out_relabel: [usize; 3],
+    /// The D2 check, per rule: of the held-out relabels, how many put **Pass**
+    /// in the target slot, and how many already had Pass as the own call.  A
+    /// relabel needs `winner != own`, so the two are **disjoint** — read them as
+    /// a flow into and out of Pass, against [`Bucket::priced_pass`], which is
+    /// the population base rate neither column is.
+    held_out_pass: [[usize; 2]; 3],
+    /// Rolled-out decisions whose own call is Pass — the population base rate
+    /// both D2 columns are read against.
+    priced_pass: usize,
     /// `own -> winner` swaps under the `both` rule, by count
     swaps: BTreeMap<String, usize>,
     /// Best candidate advantage on the selection pool, per bracket, in IMPs
@@ -208,12 +302,18 @@ impl Bucket {
         self.thin += other.thin;
         self.flat += other.flat;
         self.priced += other.priced;
+        self.priced_pass += other.priced_pass;
         self.deals.extend(other.deals);
         for (ours, theirs) in self.relabel.iter_mut().zip(other.relabel) {
             *ours += theirs;
         }
         for (ours, theirs) in self.held_out_relabel.iter_mut().zip(other.held_out_relabel) {
             *ours += theirs;
+        }
+        for (ours, theirs) in self.held_out_pass.iter_mut().zip(other.held_out_pass) {
+            for (ours, theirs) in ours.iter_mut().zip(theirs) {
+                *ours += theirs;
+            }
         }
         for (swap, n) in other.swaps {
             *self.swaps.entry(swap).or_default() += n;
@@ -285,13 +385,13 @@ fn restricted(logits: &Logits, admissible: &[Call], t: f32) -> (Vec<(Call, f32)>
     (odds, inside / total)
 }
 
-/// Walk one deal's self-play auction, harvesting every authored decision whose
-/// proposal offers a live alternative to the policy's own call.
+/// Walk one deal's self-play auction, harvesting every in-population decision
+/// whose proposal offers a live alternative to the policy's own call.
 fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Decision> {
     let dealer = Seat::ALL[index % 4];
     let mut auction = Auction::new();
     let mut out = Vec::new();
-    let mut authored = 0usize;
+    let mut kept = 0usize;
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let hand = deal[seat];
@@ -309,18 +409,41 @@ fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Deci
         // Production's own selector, so the paired baseline cannot drift from
         // the call the policy actually makes.
         let own = select_legal_call(Some(book), &auction);
-        if provenance.is_authored() && admissible.len() > 1 {
+        // The population gate. `is_authored` does not partition into "book" and
+        // "net": an unauthored constructive decision, and an unauthored
+        // contested one inside a `forced` rail, are both answered by the
+        // `instinct()` ladder, so the net is not consulted there either.
+        let in_population = admissible.len() > 1
+            && match args.population {
+                Population::Authored => provenance.is_authored(),
+                Population::NetServed => {
+                    !provenance.is_authored()
+                        && Phase::of(&auction) != Phase::Constructive
+                        && !forced(&ctx.policy.prefixed_context(rel, &auction))
+                }
+            };
+        if in_population {
             let key = auction_key(&auction);
             // Rotate the retained auction position once per four-dealer cycle;
             // resetting the phase on every deal would always keep early calls.
-            let take = (index / Seat::ALL.len() + authored).is_multiple_of(args.stride);
-            authored += 1;
-            let context = ctx
-                .policy
-                .prefixed_context(rel, &auction)
-                .with_compact(&ctx.compact);
-            let net = classify_bba_v6(&features_v6(hand, &context));
-            let (odds, mass) = restricted(&net, &admissible, args.temperature);
+            let take = (index / Seat::ALL.len() + kept).is_multiple_of(args.stride);
+            kept += 1;
+            let (odds, mass) = match args.population {
+                // The book shadows the net here, so the net has to be asked
+                // directly — the shell would answer with the book's own logits.
+                Population::Authored => {
+                    let context = ctx
+                        .policy
+                        .prefixed_context(rel, &auction)
+                        .with_compact(&ctx.compact);
+                    let net = classify_bba_v6(&features_v6(hand, &context));
+                    restricted(&net, &admissible, args.temperature)
+                }
+                // `book` *is* the net here: masked, gated, demoted — production's
+                // own distribution. Re-running the raw net would price a policy
+                // that cannot reach the table.
+                Population::NetServed => restricted(&book, &admissible, args.temperature),
+            };
             // Three outcomes, all reported so the denominators stay honest:
             // the hook declines (`thin`); it proposes nothing the policy was
             // not already going to do (`flat`); or there is a live alternative.
@@ -485,7 +608,7 @@ fn main() {
     let agreements = Agreements::default();
     let ctx = Shared {
         policy: american(&agreements).bind(),
-        vul: AbsoluteVulnerability::NONE,
+        vul: args.vul,
         compact: CompactConfig::symmetric(&ConventionCard::capture(&agreements, false)),
     };
 
@@ -595,6 +718,7 @@ fn main() {
         let decision = &decisions[index];
         let mut bucket = Bucket {
             priced: 1,
+            priced_pass: usize::from(decision.own == Call::Pass),
             ..Bucket::default()
         };
         bucket.deals.push(decision.deal);
@@ -633,6 +757,16 @@ fn main() {
             && in_sample[0] > args.margin
             && in_sample[1] > args.margin;
         bucket.relabel[2] = usize::from(agreed);
+        // D2: what the held-out relabels are *targeting*, against the base rate
+        // of Pass among the own calls they displace.
+        for rule in 0..3 {
+            if bucket.held_out_relabel[rule] > 0 {
+                // The `both` rule fired only with `winner[0] == winner[1]`.
+                let target = winner[rule.min(1)];
+                bucket.held_out_pass[rule][0] = usize::from(target == Call::Pass);
+                bucket.held_out_pass[rule][1] = usize::from(decision.own == Call::Pass);
+            }
+        }
         if agreed {
             *bucket
                 .swaps
@@ -650,18 +784,22 @@ fn main() {
         total(&|b: &Bucket| b.priced),
     );
     println!(
-        "seed {base}  deals {}  M {} (2M draws)  k {}  eps {:.0e}  T {}  margin {:.2} IMPs  opponent {}  vulnerability none",
+        "seed {base}  deals {}  population {}  M {} (2M draws)  k {}  eps {:.0e}  T {}  margin {:.2} IMPs  opponent {}  vulnerability {}",
         args.count,
+        args.population.name(),
         args.layouts,
         args.top_k,
         args.epsilon,
         args.temperature,
         args.margin,
         if oracle.is_some() { "bba" } else { "self" },
+        ctx.vul,
     );
+    #[allow(clippy::cast_precision_loss)] // a density, not money
+    let density = seen as f64 / args.count.max(1) as f64;
     println!(
-        "authored decisions with a choice {seen} (stride {})  thin {thin}  \
-         no alternative {flat}  rolled out {priced_n}  distinct nodes {}",
+        "in-population decisions with a choice {seen} ({density:.2} per deal, stride {})  \
+         thin {thin}  no alternative {flat}  rolled out {priced_n}  distinct nodes {}",
         args.stride,
         nodes.len(),
     );
@@ -701,6 +839,32 @@ fn main() {
             pct(total(&|b: &Bucket| b.relabel[rule])),
             total(&|b: &Bucket| b.held_out_relabel[rule]),
             pct(total(&|b: &Bucket| b.held_out_relabel[rule])),
+        );
+    }
+
+    // D2 — a double-dummy oracle cannot price what a bid conceals, so it prefers
+    // passing. Pass over-represented among the PD-only targets but not the
+    // both-scorer ones is the doubling artifact; over-represented in both is the
+    // blind spot, and a reason to distrust the sign whatever the interval says.
+    let priced_pass = total(&|b: &Bucket| b.priced_pass);
+    println!(
+        "\nPass among held-out relabel targets, against its rate among the calls they \
+         displace — {priced_pass} of {priced_n} rolled-out decisions ({:.2}%) already pass:",
+        pct(priced_pass),
+    );
+    for (label, rule) in BRACKETS.iter().chain(["both"].iter()).zip(0..3) {
+        let fired = total(&|b: &Bucket| b.held_out_relabel[rule]);
+        #[allow(clippy::cast_precision_loss)] // census counts, not money
+        let share = |n: usize| 100.0 * n as f64 / fired.max(1) as f64;
+        let (target, displaced) = (
+            total(&|b: &Bucket| b.held_out_pass[rule][0]),
+            total(&|b: &Bucket| b.held_out_pass[rule][1]),
+        );
+        println!(
+            "  {label:>15}  relabels {fired:>6}   target Pass {target:>6} {:>6.2}%   \
+             own Pass {displaced:>6} {:>6.2}%",
+            share(target),
+            share(displaced),
         );
     }
 

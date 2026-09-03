@@ -4273,7 +4273,7 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 /// An auction-determined forced situation: partner's live takeout double, a
 /// prior call committing our side to game, partner's just-made transfer over
 /// our strong notrump, or a live keycard conversation
-/// ([`keycard_conversation_now`])
+/// (`keycard_conversation_now`)
 ///
 /// Hand-independent — it follows from the calls alone.  The neural safety shell
 /// consults it to decide when to delegate to the deterministic [`instinct()`]
@@ -4281,7 +4281,34 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 /// middle, but never these forced rails.  Hand-conditioned forces (a
 /// strong-notrump responder who holds game values) are deliberately excluded —
 /// they are judgement the net is trusted with, measured on the harness.
-pub(crate) fn forced(context: &Context<'_>) -> bool {
+///
+/// Public because it is half of the *net-served* predicate: an unauthored
+/// contested decision is answered by the ladder rail, not the net, exactly when
+/// this returns `true`.  A census that means to price the net's own population
+/// has to see the same rail the shell does
+/// (`examples/probe-rollout-label.rs`, `--population net-served`).
+///
+/// ```
+/// use contract_bridge::auction::{Call, RelativeVulnerability};
+/// use contract_bridge::{Bid, Strain};
+/// use pons::american;
+/// use pons::bidding::agreements::Agreements;
+/// use pons::bidding::instinct::forced;
+///
+/// let policy = american(&Agreements::default()).bind();
+/// let forced_at = |auction: &[Call]| {
+///     forced(&policy.prefixed_context(RelativeVulnerability::NONE, auction))
+/// };
+///
+/// let notrump = Call::Bid(Bid::new(1, Strain::Notrump));
+/// let transfer = Call::Bid(Bid::new(2, Strain::Hearts));
+/// assert!(!forced_at(&[]));
+/// // `1NT - 2♥ -`: opener owes the completion, so the shell hands this
+/// // decision to the ladder rail rather than to the net.
+/// assert!(forced_at(&[notrump, Call::Pass, transfer, Call::Pass]));
+/// ```
+#[must_use]
+pub fn forced(context: &Context<'_>) -> bool {
     advancing_a_double_now(context)
         || context.interpretation().forced_to_game
         || TRANSFERS

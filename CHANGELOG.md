@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The gate flip: the relabelling programme priced on the population that can
+  pay for it (logit calibration session 4, 2026-09-04)** — no bidding change.
+  The one `src/` edit widens `bidding::instinct::forced` from `pub(crate)` to
+  `pub` (visibility plus a doc comment and a doctest), so an example can see the
+  same forced-rail decision the neural floor shell makes; session 3 made the
+  identical move for `select_legal_call`.
+  - **`probe-rollout-label --population {authored,net-served}`.** §4's census
+    harvested authored book nodes — but a book node with finite mass shadows the
+    floor, so production bids the book at **100%** of them and never evaluates
+    the net there. `net-served` harvests only what the floor shell's net answers:
+    unauthored **and** `Phase::of != Constructive` **and** not `forced` (the root
+    fallback resolves to three floors, and the deterministic `instinct()` ladder
+    owns two of them). At those nodes the logits `classify_with_provenance`
+    returns *are* production's distribution — net, legality mask,
+    `competitive_gate` with its `PASS_DEMOTION`, `new_suit_gate` — so they are
+    the proposal directly and the census prices the shell as shipped.
+    `--vul` was added in the same change, and the report gained the Pass-flow
+    census that the handoff's D2 asked for.
+  - **The net-served population is where the signal is.** At `M = 128`, seed 1,
+    held-out advantage per decision is **+0.6134 ± 0.0821** DD / **+0.4641 ±
+    0.0874** PD neither-vulnerable and **+0.6841 ± 0.1066** / **+0.5626 ±
+    0.1011** both — positive on both scorers in both cells, intervals excluding
+    zero and overlapping each other, against §4's authored **+0.105 ± 0.037** DD.
+    The winner's curse is 0.10/0.08 IMPs. The vulnerability axis is settled by
+    the agreement, so the queued `M = 32` tie-break row was not run.
+  - **D2 answered, and it inverts between the two populations.** On authored
+    nodes 1 of 631 decisions passes, yet Pass is the relabel target 46.7% (DD) /
+    **64.4%** (PD) of the time — double dummy's obstruction blind spot, exactly
+    as `docs/measurement.md` predicts, and worse under the scorer that also
+    doubles. On net-served nodes ~80% already pass and the flow reverses: targets
+    are Pass 9-13% (DD) while *displacing* a Pass 74-78%. Plain DD is also the
+    larger scorer there, reversing §4's 3×-PD ratio.
+  - **Sizing, measured not guessed.** The net-served slice runs **4.8
+    choice-bearing decisions per deal** against the authored census's 1.60 —
+    three times denser, not thinner as the handoff assumed — so the `M = 128`
+    rows needed 200 deals. The ~50-box-day estimate for a full corpus pass has to
+    be re-priced against this before it is spent.
+  - **The refactor is proven inert on §4's population**: `--population authored
+    -c 400 -s 1 -m 8` reproduces §4a digit-for-digit — 638 choice-bearing
+    decisions, `thin` 5, 631 rolled out, 2 of 633 draws short, held-out
+    −0.1040 ± 0.0891 DD and +0.1583 ± 0.1237 PD, both-rule 10.62%.
+  - **`--weights-in` on the trainer** loads a shipped `<stem>.f32` back into the
+    same model, skips training, and runs the existing evaluate → calibrate →
+    export path, so an artifact trained before session 2's fitter existed can
+    still be given a temperature. **`T` = 1.1298 for `american_bba_v6`** on its
+    own 676,829-row held-out tail (NLL 0.3010 → 0.2984, ECE 0.0117 → 0.0015), so
+    `PASS_DEMOTION` → `3·T` is **3.389 nats** — the input plan.md's M5.2 collar
+    retune was waiting on. The load is provably the shipped artifact: re-export
+    is byte-identical and `val_top1` reproduces the sidecar exactly. The
+    auxiliary DD value head is not in `PARAM_NAMES`, so a `--weights-in` sidecar
+    reports `val_dd_mse` as null rather than as noise. `american_bba_v6.json` is
+    left untouched — back-filling calibration fields would make a post-hoc fit
+    look like that training run's own output.
+  - Full write-up in `docs/ai-bidder/logit-calibration.md` §4b, ledger row in §6.
+
 - **The rollout harness, and the winner's curse it walked into (logit
   calibration session 3, 2026-09-03)** — no bidding change:
   `smoke-default --count 20000 --seed 1` stays `38ee1e21…`. The one `src/` edit
