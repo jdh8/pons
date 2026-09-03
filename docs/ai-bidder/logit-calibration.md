@@ -718,6 +718,238 @@ quiet-box 7.29 ms. Double dummy is 99.2% of wall clock, as §4 found. The whole
 sequence — sizing row, two `M = 128` cells, and the authored regression check —
 cost about **76 minutes**, inside the handoff's two-hour budget.
 
+## 4c. The corpus population: BBA's walk, BBA's label, and the re-priced pass
+
+§4b bought the right to spend double dummy on the net-served slice. Session 5
+spends the first hour of it on the population that would actually be
+relabelled, then specifies the rule and re-prices the pass.
+
+### The walk *is* the corpus, so there is no corpus reader
+
+The session-4 handoff assumed a corpus-fed mode meant reading `.f32` rows back.
+It cannot: a v6 row carries a ten-float *disclosable* hand summary and no board
+id (`src/bidding/features.rs:1287-1304`), so neither the hand nor the deal is
+recoverable from a row. What makes the mode tractable is the other direction —
+`dump-teacher`'s walk is exactly reproducible:
+
+* deals come from the `.pdd` bank strictly in order, `deal index == board index`
+  (`examples/dump-teacher/main.rs:920-937`);
+* dealer and vulnerability are two `StdRng` draws per board, taken *before* the
+  enrich filter can skip anything (`:826`, `:924-925`), and `rand` is pinned at
+  `0.10.2` across HEAD and both corpus shas;
+* the auction advances by the teacher's legal argmax, and under `--teacher bba`
+  the target is a strict one-hot — so **the row's label is the call that
+  advances the walk** (`:964-980`, `:1044-1047`).
+
+`probe-rollout-label`'s pricing half never needed the corpus either: it consumes
+only *(hand, seat, dealer, prefix)*, because `sample_layouts_replay` re-draws
+the other three hands from our own inferences. So the corpus-fed mode is one
+flag on the **walk**, not a file format.
+
+`--walk {self,teacher}`, default `self` so §4 and §4b reproduce. Under
+`teacher` the auction advances by BBA's legal argmax at all four seats —
+`dump-teacher`'s own walk — and `own`, the paired baseline, is **BBA's call**:
+the label a relabel would overwrite. BBA's call may fall outside `admissible`
+(our floor gives it `-inf`); that is legal, informative, and all `advantages`
+needs. The binary also gained the four-way **slice histogram** over every
+choice-bearing decision, which is the denominator a corpus pass is priced
+against.
+
+### The slice mix
+
+Every choice-bearing decision resolves through one of four floors, and only the
+last consults the net. Paired: seed 1, the same 400 deals, both walks.
+
+| walk | choice-bearing/deal | authored | constructive-floor | forced-rail | **net-served** |
+| --- | --- | --- | --- | --- | --- |
+| self | 6.71 | 23.8% (1.59/deal) | 1.6% | 2.1% | **72.5%** (4.87/deal) |
+| teacher | 7.09 | 20.9% (1.49/deal) | 3.8% | 1.7% | **73.6%** (5.22/deal) |
+
+The self row reproduces §4b's 4.81–4.87 net-served decisions/deal and §4's 1.60
+authored ones exactly. The headline `M = 128` runs at 200 deals agree (74.7% /
+5.28 neither vulnerable, 74.0% / 5.21 both).
+
+**The corpus walk is denser, but only slightly.** BBA's auctions carry 5.7% more
+choice-bearing decisions per board and 7.2% more net-served ones, and the
+*share* barely moves (72.5% → 73.6%). What changes between the walks is not the
+size of the slice but its shape — two sections down.
+
+### The rows
+
+Same seed, same deals, same `M`, same `k = 3` and `margin = 0.25` IMPs as §4b —
+the only change is who advances the auction and whose call is the baseline. ±
+is a 95% interval clustered by source deal.
+
+| walk, vul | decisions | priced | in-sample DD | **held-out DD** | in-sample PD | **held-out PD** | curse DD/PD | both-rule held out |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| self, none (§4b) | 956 | 956 | +0.7175 ± 0.0844 | **+0.6134 ± 0.0821** | +0.5483 ± 0.0912 | **+0.4641 ± 0.0874** | 0.104 / 0.084 | 17.15% |
+| self, both (§4b) | 919 | 919 | +0.7838 ± 0.1115 | **+0.6841 ± 0.1066** | +0.6456 ± 0.1065 | **+0.5626 ± 0.1011** | 0.100 / 0.083 | 19.59% |
+| **teacher, none** | 1,056 | 881 | +0.8091 ± 0.1265 | **+0.7483 ± 0.1311** | +0.5855 ± 0.1064 | **+0.5163 ± 0.1095** | 0.061 / 0.069 | 16.57% |
+| **teacher, both** | 1,043 | 872 | +0.8962 ± 0.1527 | **+0.8074 ± 0.1496** | +0.6868 ± 0.1292 | **+0.6163 ± 0.1336** | 0.089 / 0.071 | 17.55% |
+
+**The value survives the move to the corpus population, and grows.** Both
+teacher cells land in the handoff's first verdict row — positive on both
+scorers, every interval excluding zero, the two vulnerability cells overlapping.
+Plain DD is again the larger scorer, so the signal is not a perfect-defense
+doubling artifact, and the winner's curse is *smaller* here than on the
+self-play walk (0.06/0.07 against 0.10/0.08) because the per-decision signal is
+larger. D2 stays clean and inverted: 75.60% of priced decisions already
+pass, while plain DD targets Pass on only 7.00% of its held-out relabels and
+displaces a Pass on 76.68%.
+
+This is the measurement the ledger asked for, and it answers the last standing
+doubt about the programme's premise. §4b priced relabelling *our* call in *our*
+auctions; a reader could object that BBA's label in BBA's auctions is a
+different, harder target. It is not — it is a slightly better one.
+
+### The corpus population is diffuse, and that is the argument for the floor
+
+The two §4b node tables were dominated by a handful of lanes: fourth-seat
+actions over our own 1NT (`1NT - 2♥`, `1NT - 2♦ - 2♥`, `1NT - 2♣`). The teacher
+walk's is not. Its 881 priced decisions sit at **918 distinct nodes** — more
+nodes than decisions. The self-play walk's own `M = 8` row puts 1,931 decisions
+at 1,561 nodes, so scaled to a common decision count the teacher walk is about
+20% more diffuse again — and its nodes are spread across the opponents' full BBA
+constructive repertoire in the balancing and fourth seats:
+`1NT - 2♣ - 2♦ - 2NT`, `1♦ - 1♥ - 2♥`, `1♠ - 1NT`, `1♣ 1♠ - - X`. The swaps are the same story as §4b
+(`P -> X`, `P -> 3♣`, `P -> 2♠`: the floor passes where the table can compete),
+but the *shape* is different, and it settles a design question. Under a
+self-play walk both sides bid our system, so the contested nodes the census
+visits cluster in our own defensive book and look authorable. Under the corpus's
+own walk they do not: **918 nodes for 881 decisions cannot be closed by
+authoring**, and the architecture's own rule — a book node with finite mass
+shadows the floor — says authoring them would only take the decisions away from
+the net. Improving the floor is the only move that scales here, which is exactly
+what a relabel is.
+
+### The production label gate
+
+Settled by §4a, §4b and this section; the remaining dials are `M` and `margin`.
+
+| stage | rule | why |
+| --- | --- | --- |
+| population | net-served only: `!is_authored() && Phase != Constructive && !forced(context)` | D1 — a book node with finite mass shadows the floor, so relabelling elsewhere buys only generalisation |
+| proposal | the floor shell's own gated logits (`mask_illegal` → `competitive_gate` → `new_suit_gate`) restricted to the legal set, softmax at `T = 1.1298`; top `k = 3` ∪ BBA's call | re-running the raw net would price a policy that cannot reach the table |
+| decline | restricted mass < `1e-4` → keep BBA's label | jdh8's epsilon, 2026-09-03 (§4); both consumers already default to it |
+| pricing | `2M` layouts from `sample_layouts_replay`; **select** the argmax advantage on the first `M`, **validate** the same call on the second `M`; both scorers | session 3's iron finding — never relabel from the in-sample estimate |
+| fire | the same call wins under both scorers, differs from BBA's, and clears `margin` **on the validation half** under both | measurement.md's non-inferiority reading, applied to a label |
+| else | keep BBA's one-hot | a false negative costs only opportunity; a false positive corrupts the target |
+
+Two notes on the shape. The gate is **precision-biased on purpose**: BBA's label
+is the status-quo baseline, so a missed relabel is free and a wrong one is not.
+And `k` is free — the DD solve is shared across candidates, so raising `k` costs
+only rollout time (0.4% of wall clock here); it stays at 3 because more
+candidates buys more winner's curse, not more cost.
+
+**Cross-fitting is available and not recommended yet.** Running the rule in both
+directions (select on A/validate on B *and* select on B/validate on A, fire only
+on agreement) costs no extra double dummy and is strictly stricter than the rule
+above. It is the dial to reach for if the first retrain's A/B reads a loss
+attributable to label noise; until then it only shrinks an already-small
+perturbation and forfeits the unbiased self-estimate of the relabel rate. This
+answers the session-4 handoff's open call 2 (cross-fitting versus a larger `M`):
+**neither — a smaller `M`**, for the reason below.
+
+### The re-priced pass
+
+§4 estimated `2.3M decisions × 1.87 s = ~50 box-days`. Three inputs move, and
+the net effect is *worse*, not better.
+
+Cost is `2M × 7.3 ms` per decision and double dummy is 99.2% of wall clock
+(measured here: 1,684.9 s solving 225,536 layouts, **7.47 ms/layout**), so
+
+    box-seconds = decisions × 2M × 7.3 ms
+
+A v6-sized corpus is **6,768,279 rows over 636,837 boards — 10.63 rows/board**
+(`uniform-0`: 332,124 rows from 31,250 boards), 62.6% of them contested by
+`.tags`. At the measured **5.22 net-served decisions/board**, that is
+**3.32M decisions, 49% of corpus rows** — not §4's 2.3M/34%, which was the
+choice-bearing rate of the *authored* population on a self-play walk.
+
+| `M` | s/decision | full pass | held-out DD | IMPs per box-hour |
+| --- | --- | --- | --- | --- |
+| 8 | 0.117 | **4.5 box-days** | +0.4476 | **13,815** |
+| 32 | 0.467 | 18.0 box-days | not measured | — |
+| 128 | 1.866 | **71.8 box-days** | +0.6134 | 1,183 |
+
+So the density finding raises the `M = 128` bill from 50 to **72 box-days**, and
+the lever that pays is not the population — it is `M`. Value per decision is
+sublinear in `M` (§4b: `M = 8` retains 73% of `M = 128`'s held-out DD) while
+cost is exactly linear, so **`M = 8` buys 11.7× more IMPs per box-hour** and
+takes the same full pass to **4.5 box-days**. The corpus is not the scarce
+resource — more boards can always be dumped — so the right operating point is
+the smallest `M` whose labels still hold up, and `M = 128` was never it.
+
+**Owed before committing the pass: extend the `M`-series downward** on the
+net-served slice (`M = 2, 4, 8, 16` at a fixed deal count) and read where the
+held-out advantage starts to fall away. That is under an hour of box time and it
+is the single number that sets the budget.
+
+### How the pass runs
+
+Relabelling the shipped corpus in place is possible — rewriting 38 target floats
+per row leaves the sidecar, `.tags` and `.seq` untouched and row-aligned, so the
+trainer's commensurability gate still passes — but it requires re-walking
+`corpus-v6`, which is byte-reproducible only at its dump commit `2931a2df`. The
+cheaper route is to make the relabel decision **inside `dump-teacher`**, where
+the deal is still in scope, and dump a fresh corpus at one commit: ~10 minutes
+for the dump, the DD budget above, then 6–8 minutes to retrain (not the "one
+GPU-hour" plan.md:405-411 records), fit `T`, and take it to the A/B.
+
+### `3·T` fixes the units and inherits an arbitrary number
+
+`PASS_DEMOTION`'s own doc comment (`src/bidding/instinct.rs:3569-3572`) says it
+is **"sized in the book's ~3-nat convention"** — and §1 is the finding that the
+book's ~3-nat gaps are *precedence, not odds*. Restating the demotion as `3·T`
+is therefore right about the **units** (it makes the gate a fixed probability
+ratio, `e⁻³ ≈ 1:20` against Pass, instead of a fixed logit gap on an
+uncalibrated scale) while inheriting a **number that never meant odds**. There
+is no derivation behind the 3; it was borrowed from a rung convention this
+document exists to correct, and §5 has already fixed two other documents for the
+same import.
+
+The A/B has to run either way and a `bba-gen` cell is single-digit minutes, so
+the recommendation changes from *rescale* to **sweep**: run the arm at
+`{1, 2, 3, 4}·T` nats (1.13 / 2.26 / 3.39 / 4.52) with `3.0` as control. Four
+arms × two vulnerabilities is roughly 17 minutes of box time and converts a
+units fix into an actual calibration of the collar. The blocker is code, not
+clock: `PASS_DEMOTION` is a private `const`, so the arm needs an
+`InstinctProfile` field, an `Agreements` route, a `bba-gen` flag and — because
+`web/` consumes knobs as setter/getter pairs — a `web/` pair. It stays scheduled
+inside the collar retune (plan.md M5.2 flip plan arm 1), whose own finding is
+that the collar is calibrated to *one floor's distribution*; a sweep against v6
+answers the v6 question only.
+
+### Residues
+
+* **The sampler starves on BBA's auctions.** Under a self-play walk the replay
+  sampler returns a short draw on 0.3–0.8% of decisions (measured this session on
+  the same deals: 2 of 633 authored, 16 of 1,947 net-served). Under the teacher
+  walk it starves on **16.4–16.6%** (175 of 1,056 neither vulnerable, 171 of
+  1,043 both),
+  because the layouts are drawn from *our* inferences about *BBA's* calls. Those
+  decisions are dropped, so a relabel pass systematically skips the auctions we
+  read worst — a reading-coverage report as much as a sampling one, and one that
+  belongs beside [sampled-projection.md](sampled-projection.md). It is not a
+  budget tax — a short draw is discarded *before* the solve, so it costs sampling
+  time only — but it is a 17% hole in the slice's **coverage**, and the hole is
+  not random.
+* **How often is BBA's own call `-inf` in our floor?** The teacher walk makes
+  this measurable for the first time (`own` need not be in `admissible`), but the
+  report does not yet count it. One line, owed.
+* **The corpus is six cells, three of them Dutch.** `scripts/dump-v6.sh`'s
+  uniform shards rotate `cells[board % 6]`, so the slice mix above is measured on
+  the `american` default and approximates the corpus's own mix.
+* **`corpus-v7`'s `.f32` is *not* byte-identical to `corpus-v6`'s**, contrary to
+  [../pdd-bank-ledger.md](../pdd-bank-ledger.md) and three other places:
+  `uniform-0` is 332,041 rows against 332,124, `axis-0004` differs in size, and
+  even the same-size `enriched-0` files differ by md5. A dump is byte-reproducible
+  only at its own commit. **Flagged, not fixed** — the ledger row needs a
+  correction, and this is a further reason to relabel into a fresh corpus.
+* **A retrain costs 6–8 minutes, not plan.md:405-411's "one GPU-hour."** The
+  whole 6.09M × 176 feature tensor uploads in one `Tensor::from_slice` (~4.3 GB).
+  Flagged; it changes how cheap a relabel experiment's tail is.
+
 ## 5. Doc drift corrected
 
 Two documents described a mechanism that never existed. Both are rewritten
@@ -741,7 +973,8 @@ one comment that does mislead.
 | 2 (2026-09-03) | `trainer/src/calibrate.rs`: `T` fitted on the held-out split by golden section on the same soft-target cross-entropy, NLL and ECE before/after in the training report, `temperature` + the four metrics in the weights sidecar; `examples/probe-book-vs-net` and its census (§4) | byte-identity: no `src/` change at all, `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — the epsilon it recommended, **`1e-4`**, was decided by jdh8 on 2026-09-03 (§4) |
 | 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short skip, deal-clustered intervals; the `M`-series, headline census and the `--opponent bba` arm above | byte-identity: no bidding change; the only `src/` edit widens `table::select_legal_call` to `pub` (no behaviour), `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
 | 4 (2026-09-04) | the **gate-flip experiment** the session-4 handoff demanded before spending §6's double dummy (§4b): `probe-rollout-label --population {authored,net-served}` with the three-way net-served predicate, the floor shell's own logits as the proposal, `--vul`, and the D2 Pass census; `instinct::forced` widened to `pub`; the trainer's `--weights-in`, which fits `T` for a *shipped* artifact without retraining | byte-identity: no bidding change; the only `src/` edit widens `instinct::forced` from `pub(crate)` to `pub` (visibility and a doc comment). The refactor is separately proven inert by re-running §4a's row through the new binary: 631 decisions, held-out −0.1040 ± 0.0891 / +0.1583 ± 0.1237, digit-for-digit | **done** — the net-served population is **positive on both scorers at both vulnerabilities** (held-out DD +0.613/+0.684, PD +0.464/+0.563), ~6× §4's authored signal, D2 clean and inverted; and **`T` = 1.1298** for `american_bba_v6`, so `PASS_DEMOTION` → `3·T` = 3.389 nats |
-| 5+ | build the corpus-fed mode **on the net-served slice first** (BBA's label as the baseline, on the corpus that would actually be relabelled), specify the production label gate (including independent validation and its `M`), then relabel the slice → fit `T` → retrain → A/B on both scorers. Self-play versus BBA is **settled** by §4a and needs no further arm; the vulnerability axis is **settled** by §4b, which finds the two cells agreeing. At `M = 128` and the measured 4.8 decisions/deal, the slice is denser than the 50-box-day estimate assumed — re-price it against §4b's rows before committing. `PASS_DEMOTION` = `3·T` inside the collar retune (plan.md M5.2 flip plan arm 1), now that `T` exists | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| 5 (2026-09-04) | §4c: `probe-rollout-label --walk {self,teacher}` — the **corpus-fed mode**, which needs no corpus reader (a v6 row has no board id, but the pricing half only ever consumed *(hand, seat, dealer, prefix)*); the four-way **slice histogram**; the two `M = 128` teacher cells; the production **label gate** spec; the **re-priced pass** | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The refactor is proven inert by re-running §4a's authored row *and* §4b's `M = 8` net-served row through the new binary: 631 decisions at +0.4487 ± 0.0633 / −0.1040 ± 0.0891 / +0.7740 ± 0.0956 / +0.1583 ± 0.1237, and 1,931 at +1.1066 ± 0.0750 / +0.4476 ± 0.0968 / +0.9544 ± 0.0837 / +0.2520 ± 0.1034 — both digit-for-digit | **done** — the value **survives the move to the corpus population and grows**: held-out DD +0.7483 ± 0.1311 (none) / +0.8074 ± 0.1496 (both), PD +0.5163 ± 0.1095 / +0.6163 ± 0.1336, against §4b's self-play +0.613/+0.684 and +0.464/+0.563, with a *smaller* winner's curse. The slice is 49% of corpus rows, so `M = 128` costs **72 box-days, not 50** — and `M = 8` buys 11.7× more IMPs per box-hour, taking the same pass to **4.5 box-days** |
+| 6+ | **extend the `M`-series downward** (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
 Sessions 2 and 3 change no call and are provable by the hash — session 3's one
 `src/` edit widens `table::select_legal_call` to `pub` so the probes call
@@ -791,7 +1024,31 @@ carries a signal about six times larger.
 
 Findings from the inventory that are wrong on paper and (mostly) harmless in
 production. Each carries a reversible default so nothing is silently resolved.
-The first two are session 3's; the rest are session 1's.
+The first two are session 5's, then session 3's, then session 1's.
+
+**`corpus-v7`'s `.f32` is not byte-identical to `corpus-v6`'s.**
+[../pdd-bank-ledger.md](../pdd-bank-ledger.md):139 and three other places in the
+tree say it is. On disk `corpus-v7/uniform-0` holds 332,041 rows against
+`corpus-v6/uniform-0`'s 332,124, `axis-0004` differs in file size, and even the
+same-size `enriched-0` pair differs by md5; a 40-board re-run at HEAD's flags
+reproduces the v7 bytes and diverges from v6 at row 256. The cause is that a
+dump is byte-reproducible only at **its own commit** — `corpus-v6` at
+`2931a2df`, `corpus-v7` at `47ec143d` — which plan.md:400-404 already records for
+row counts without drawing the conclusion. Nothing shipped depends on the claim:
+`american_bba_v6` names its own 20 stems and its sidecar pins the sha.
+**Default: leave the corpora; correct the ledger row** in the same change that
+next touches it, and dump a relabel corpus fresh at one commit rather than
+rewriting a shipped one in place (§4c).
+
+**A retrain costs 6–8 minutes, not "one GPU-hour".** plan.md:405-411 budgets a
+regression retrain at a GPU-hour. The on-disk logs say otherwise —
+`american_bba_v6_their` 6 min 08 s, the v6-stems reproduction 7 min 54 s — because
+the whole 6.09M × 176 feature tensor uploads in a single `Tensor::from_slice`
+(~4.3 GB) and the epoch loop never shuffles. The LSTM arm is the one that costs
+hours (2 h 34 min). **Default: leave plan.md's prose**, which is load-bearing
+only as a discouragement; correct it when M5.2 next moves. It matters here
+because it makes a relabel experiment's tail nearly free, which is what §4c's
+budget assumes.
 
 **A keyless `Context` before `ev_all`, so the rollout samples against nothing.**
 `examples/ab-lebensohl/main.rs:259` builds `Context::new(relative(vul, seat),

@@ -9,6 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The corpus population, priced: BBA's walk and BBA's label (logit calibration
+  session 5, 2026-09-04)** — no bidding change and **no `src/` edit at all**; the
+  whole session lands in `examples/` and `docs/`.
+  - **`probe-rollout-label --walk {self,teacher}`.** The session-4 handoff's
+    corpus-fed mode turns out to need no corpus reader: a v6 row carries a
+    ten-float disclosable hand summary and no board id, so nothing is recoverable
+    from a row — but the pricing half only ever consumed *(hand, seat, dealer,
+    prefix)*, since `sample_layouts_replay` re-draws the other three hands. Under
+    `--walk teacher` the auction advances by BBA's legal argmax at all four seats
+    (`dump-teacher`'s own walk, hence the corpus population) and the paired
+    baseline `own` is **BBA's call** — the label a relabel would overwrite. The
+    default stays `self`, so §4 and §4b reproduce.
+  - **A four-way slice histogram** over every choice-bearing decision — authored,
+    constructive-floor, forced-rail, net-served — which is the denominator a
+    corpus pass is priced against. The corpus walk is denser and more contested
+    than self-play: 7.09 choice-bearing decisions/board against 6.71, and 5.22 net-served against
+    4.87 — but the *share* barely moves (73.6% against 72.5%). What changes is the
+    slice's shape, not its size.
+  - **The value survives the move to the corpus population, and grows.** Seed 1,
+    200 deals, `M = 128`, `k = 3`, margin 0.25 IMPs, both scorers, both
+    vulnerabilities. Neither vulnerable, held-out **DD +0.7483 ± 0.1311** and
+    **PD +0.5163 ± 0.1095** against §4b's self-play +0.6134/+0.4641; the
+    winner's curse is *smaller* (0.06/0.07 against 0.10/0.08). D2 stays clean and
+    inverted — plain DD targets Pass on 7.0% of held-out relabels while displacing
+    a Pass on 76.7%, against a 75.6% base rate.
+  - **The corpus population is diffuse.** 881 priced decisions sit at 918 distinct
+    nodes, spread over the opponents' full BBA constructive repertoire in the
+    balancing and fourth seats, where §4b's self-play census clustered in our own
+    1NT defense. More nodes than decisions cannot be closed by authoring — and the
+    architecture's own rule says authoring them would only take the decisions away
+    from the net. It is a floor-gap report that only a better floor can answer.
+  - **The pass is re-priced, and it is worse at `M = 128`, not better.** At the
+    measured 5.28 net-served decisions/board a v6-sized corpus holds 3.36M of
+    them, half its rows, against §4's assumed 2.3M: `M = 128` costs **73 box-days,
+    not 50**. The lever that pays is `M`, not the population — value per decision
+    is sublinear in `M` while cost is exactly linear, so `M = 8` buys **11.7×
+    more IMPs per box-hour** and takes the full pass to **4.5 box-days**. Extending
+    the `M`-series downward is now the one measurement that sets the budget.
+  - **Both vulnerabilities agree and the refactor is inert.** Both vulnerable,
+    held-out DD +0.8074 ± 0.1496 and PD +0.6163 ± 0.1336. `--walk self` is the
+    default, and re-running §4a's authored row *and* §4b's `M = 8` net-served row
+    through the new binary reproduces both digit-for-digit (631 decisions at
+    −0.1040 ± 0.0891 / +0.1583 ± 0.1237; 1,931 at +0.4476 ± 0.0968 /
+    +0.2520 ± 0.1034).
+  - **Three flags, none resolved silently.** `corpus-v7`'s `.f32` is *not*
+    byte-identical to `corpus-v6`'s despite four places saying so (a dump is
+    reproducible only at its own commit); a retrain costs 6–8 minutes, not
+    plan.md's "one GPU-hour"; and `PASS_DEMOTION`'s own doc comment sizes it "in
+    the book's ~3-nat convention", so restating it as `3·T` fixes the units and
+    inherits a number that never meant odds — the recommendation becomes a
+    `{1,2,3,4}·T` sweep, still inside M5.2's collar retune.
+
 - **The gate flip: the relabelling programme priced on the population that can
   pay for it (logit calibration session 4, 2026-09-04)** — no bidding change.
   The one `src/` edit widens `bidding::instinct::forced` from `pub(crate)` to

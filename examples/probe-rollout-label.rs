@@ -156,6 +156,15 @@ use common::{auction_key, seat_to_act, seeded_deals};
 /// reads them: plain DD first, perfect defense second.
 const BRACKETS: [&str; 2] = ["plain DD", "perfect defense"];
 
+/// The four floors a choice-bearing decision can resolve through, in the order
+/// `harvest` counts them.  Only the last consults the net.
+const SLICES: [&str; 4] = [
+    "authored",
+    "constructive-floor",
+    "forced-rail",
+    "net-served",
+];
+
 #[derive(Parser)]
 struct Args {
     /// Deals to bid
@@ -204,6 +213,32 @@ struct Args {
     /// Relabelling nodes to list
     #[arg(long, default_value_t = 20)]
     nodes: usize,
+    /// Who advances the harvested auction — us, or the corpus's own teacher
+    #[arg(long, value_enum, default_value_t = Walk::SelfPlay)]
+    walk: Walk,
+}
+
+/// Which auctions the census visits, and whose call it prices against
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Walk {
+    /// Our policy at all four seats, `own` = its own call. §4/§4b's population.
+    #[value(name = "self")]
+    SelfPlay,
+    /// BBA's legal argmax at all four seats, `own` = **BBA's call** — the walk
+    /// `dump-teacher` runs, so this is the corpus population and the paired
+    /// baseline is the label a relabel would actually overwrite.  Serialised
+    /// alongside the rollout's own convention.
+    Teacher,
+}
+
+impl Walk {
+    /// The `--walk` spelling, for the report header
+    const fn name(self) -> &'static str {
+        match self {
+            Self::SelfPlay => "self",
+            Self::Teacher => "teacher",
+        }
+    }
 }
 
 /// Which decisions the census walks — the session-4 handoff's D1 axis
@@ -385,20 +420,38 @@ fn restricted(logits: &Logits, admissible: &[Call], t: f32) -> (Vec<(Call, f32)>
     (odds, inside / total)
 }
 
-/// Walk one deal's self-play auction, harvesting every in-population decision
-/// whose proposal offers a live alternative to the policy's own call.
-fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Decision> {
+/// Walk one deal's auction, harvesting every in-population decision whose
+/// proposal offers a live alternative to the call that advances the walk.
+///
+/// Returns the decisions and the four-way slice histogram over every
+/// choice-bearing node, in [`SLICES`] order — the denominator that prices a
+/// corpus pass, since only the net-served slice is worth relabelling.
+fn harvest(
+    deal: &FullDeal,
+    index: usize,
+    args: &Args,
+    ctx: &Shared,
+    teacher: Option<&common::oracle::BbaOracle>,
+) -> (Vec<Decision>, [u64; SLICES.len()]) {
     let dealer = Seat::ALL[index % 4];
     let mut auction = Auction::new();
     let mut out = Vec::new();
+    let mut slices = [0u64; SLICES.len()];
     let mut kept = 0usize;
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let hand = deal[seat];
         let rel = relative(ctx.vul, seat);
+        // Under a teacher walk the auction is BBA's, so a position our book
+        // declines still has to advance by BBA's call, not by a pass.
+        let advance = |auction: &Auction| match teacher {
+            Some(t) => common::oracle::next_call(t, hand, seat, ctx.vul, auction),
+            None => Call::Pass,
+        };
         let Some((book, provenance)) = ctx.policy.classify_with_provenance(hand, rel, &auction)
         else {
-            auction.push(Call::Pass);
+            let call = advance(&auction);
+            auction.push(call);
             continue;
         };
         let admissible: Vec<Call> = book
@@ -406,23 +459,36 @@ fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Deci
             .filter(|(call, logit)| logit.is_finite() && auction.can_push(*call).is_ok())
             .map(|(call, _)| call)
             .collect();
-        // Production's own selector, so the paired baseline cannot drift from
-        // the call the policy actually makes.
-        let own = select_legal_call(Some(book), &auction);
-        // The population gate. `is_authored` does not partition into "book" and
-        // "net": an unauthored constructive decision, and an unauthored
-        // contested one inside a `forced` rail, are both answered by the
-        // `instinct()` ladder, so the net is not consulted there either.
-        let in_population = admissible.len() > 1
-            && match args.population {
-                Population::Authored => provenance.is_authored(),
-                Population::NetServed => {
-                    !provenance.is_authored()
-                        && Phase::of(&auction) != Phase::Constructive
-                        && !forced(&ctx.policy.prefixed_context(rel, &auction))
-                }
-            };
-        if in_population {
+        // The paired baseline: production's own selector under a self-play
+        // walk, BBA's own call — the label a relabel overwrites — under a
+        // teacher walk.  BBA's call may sit outside `admissible`; that is
+        // itself a finding, and `advantages` only needs it to be legal.
+        let own = match teacher {
+            Some(_) => advance(&auction),
+            None => select_legal_call(Some(book), &auction),
+        };
+        // The slice. `is_authored` does not partition into "book" and "net":
+        // an unauthored constructive decision, and an unauthored contested one
+        // inside a `forced` rail, are both answered by the `instinct()` ladder,
+        // so the net is not consulted there either.  Only slice 3 is net-served.
+        let slice = (admissible.len() > 1).then(|| {
+            if provenance.is_authored() {
+                0
+            } else if Phase::of(&auction) != Phase::Constructive {
+                usize::from(!forced(&ctx.policy.prefixed_context(rel, &auction))) + 2
+            } else {
+                1
+            }
+        });
+        if let Some(slice) = slice {
+            slices[slice] += 1;
+        }
+        if slice
+            == Some(match args.population {
+                Population::Authored => 0,
+                Population::NetServed => 3,
+            })
+        {
             let key = auction_key(&auction);
             // Rotate the retained auction position once per four-dealer cycle;
             // resetting the phase on every deal would always keep early calls.
@@ -477,7 +543,7 @@ fn harvest(deal: &FullDeal, index: usize, args: &Args, ctx: &Shared) -> Vec<Deci
         }
         auction.push(own);
     }
-    out
+    (out, slices)
 }
 
 /// Everything the walk and the rollout share, built once
@@ -612,16 +678,45 @@ fn main() {
         compact: CompactConfig::symmetric(&ConventionCard::capture(&agreements, false)),
     };
 
+    // One bot serves both the teacher walk and the BBA rollout arm.
+    let rollout_bba = args.opponent == Opponent::Bba;
+    let oracle = (rollout_bba || args.walk == Walk::Teacher).then(|| {
+        common::oracle::BbaOracle::load(
+            common::oracle::DEFAULT_LIB,
+            common::oracle::SYSTEM_2_OVER_1,
+            Vec::new(),
+        )
+        .expect("libEPBot.so loads (see examples/common/oracle)")
+    });
+    let teacher = (args.walk == Walk::Teacher).then(|| oracle.as_ref().expect("loaded above"));
+
     let deals = seeded_deals(base, args.count);
     let started = std::time::Instant::now();
 
     // Phase 1 — walk every auction and harvest the decisions.  Pure bidding, so
-    // rayon owns the pool; nothing here touches the solver.
-    let decisions: Vec<Decision> = deals
-        .par_iter()
-        .enumerate()
-        .flat_map(|(index, deal)| harvest(deal, index, &args, &ctx))
-        .collect();
+    // rayon owns the pool; nothing here touches the solver.  A teacher walk
+    // runs one bot at a time, like the BBA rollout arm.
+    let harvested: Vec<(Vec<Decision>, [u64; SLICES.len()])> = match teacher {
+        Some(t) => deals
+            .iter()
+            .enumerate()
+            .map(|(index, deal)| harvest(deal, index, &args, &ctx, Some(t)))
+            .collect(),
+        None => deals
+            .par_iter()
+            .enumerate()
+            .map(|(index, deal)| harvest(deal, index, &args, &ctx, None))
+            .collect(),
+    };
+    let mut slices = [0u64; SLICES.len()];
+    let mut decisions: Vec<Decision> = Vec::new();
+    for (found, counted) in harvested {
+        decisions.extend(found);
+        for (total, one) in slices.iter_mut().zip(counted) {
+            *total += one;
+        }
+    }
+    let decisions = decisions;
     let walked = started.elapsed();
 
     // Phase 2 — draw the layouts. Still no solver, still rayon. Layout streams
@@ -661,18 +756,6 @@ fn main() {
 
     // Phase 4 — bid out and price.  BBA's FFI is not thread-safe, so its arm
     // runs sequentially; self-play fans out.
-    let oracle = if args.opponent == Opponent::Bba {
-        Some(
-            common::oracle::BbaOracle::load(
-                common::oracle::DEFAULT_LIB,
-                common::oracle::SYSTEM_2_OVER_1,
-                Vec::new(),
-            )
-            .expect("libEPBot.so loads (see examples/common/oracle)"),
-        )
-    } else {
-        None
-    };
     let mut offsets = Vec::with_capacity(sampled.len());
     let mut at = 0usize;
     for layouts in &sampled {
@@ -683,9 +766,10 @@ fn main() {
         let decision = &decisions[priced[slot]];
         let layouts = &sampled[slot];
         let start = offsets[slot];
-        let theirs: &dyn Bidder = oracle
-            .as_ref()
-            .map_or(&ctx.policy as &dyn Bidder, |o| o as &dyn Bidder);
+        let theirs: &dyn Bidder = match oracle.as_ref().filter(|_| rollout_bba) {
+            Some(bba) => bba,
+            None => &ctx.policy,
+        };
         let advantage = advantages(
             decision,
             layouts,
@@ -696,7 +780,7 @@ fn main() {
         );
         (priced[slot], advantage)
     };
-    let scored: Vec<(usize, Vec<Advantage>)> = if oracle.is_some() {
+    let scored: Vec<(usize, Vec<Advantage>)> = if rollout_bba {
         (0..priced.len()).map(price).collect()
     } else {
         (0..priced.len()).into_par_iter().map(price).collect()
@@ -784,16 +868,34 @@ fn main() {
         total(&|b: &Bucket| b.priced),
     );
     println!(
-        "seed {base}  deals {}  population {}  M {} (2M draws)  k {}  eps {:.0e}  T {}  margin {:.2} IMPs  opponent {}  vulnerability {}",
+        "seed {base}  deals {}  walk {}  population {}  M {} (2M draws)  k {}  eps {:.0e}  T {}  margin {:.2} IMPs  opponent {}  vulnerability {}",
         args.count,
+        args.walk.name(),
         args.population.name(),
         args.layouts,
         args.top_k,
         args.epsilon,
         args.temperature,
         args.margin,
-        if oracle.is_some() { "bba" } else { "self" },
+        if rollout_bba { "bba" } else { "self" },
         ctx.vul,
+    );
+    // The corpus-pass denominator: what fraction of a walk's choice-bearing
+    // decisions the net actually answers, hence what fraction is worth pricing.
+    let walked_slices: u64 = slices.iter().sum();
+    #[allow(clippy::cast_precision_loss)] // a share, not money
+    let share = |n: u64| 100.0 * n as f64 / walked_slices.max(1) as f64;
+    #[allow(clippy::cast_precision_loss)] // a density, not money
+    let per_deal = |n: u64| n as f64 / args.count.max(1) as f64;
+    println!(
+        "slice mix over {walked_slices} choice-bearing decisions ({:.2} per deal): {}",
+        per_deal(walked_slices),
+        SLICES
+            .iter()
+            .zip(slices)
+            .map(|(name, n)| format!("{name} {n} ({:.1}%, {:.2}/deal)", share(n), per_deal(n)))
+            .collect::<Vec<_>>()
+            .join("  "),
     );
     #[allow(clippy::cast_precision_loss)] // a density, not money
     let density = seen as f64 / args.count.max(1) as f64;
