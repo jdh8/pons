@@ -6,8 +6,8 @@ display hygiene (`web/src/lib.rs` `top3()`, `examples/practice-bidding`), and
 the two doc-drift repairs in §5. **No bidding change**: `smoke-default --count
 20000 --seed 1` is unchanged at `38ee1e21…` before and after
 ([../measurement.md](../measurement.md) item 12). Sessions 2 and 3 shipped the
-same day and under the same gate; **session 4+ is owed**, and session 3's census
-changed the next task — the ledger is §6. This is the calibration story the
+same day and under the same gate; sessions 4, 5 and 6 followed on 2026-09-04 and
+each moved the next task — **session 7 is owed**, and the ledger is §6. This is the calibration story the
 M5.2 flip plan in [plan.md](plan.md) M5.2 needs before its collar retune can be sized, and the
 scale question [competitive-accountant.md](competitive-accountant.md) and
 [new-suit-veto.md](new-suit-veto.md) both stepped around by acting on masks
@@ -861,6 +861,9 @@ Cost is `2M × 7.3 ms` per decision and double dummy is 99.2% of wall clock
     box-seconds = decisions × 2M × 7.3 ms
 
 A v6-sized corpus is **6,768,279 rows over 636,837 boards — 10.63 rows/board**
+(§4d corrects this: the board count is derived circularly from `uniform-0`'s own
+ratio, the counted denominator is **619,076 auctions**, and the starvation
+discount is missing — the corrected pass is 3.6 / 14.6 / 58.3 box-days)
 (`uniform-0`: 332,124 rows from 31,250 boards), 62.6% of them contested by
 `.tags`. At the measured **5.22 net-served decisions/board**, that is
 **3.32M decisions, 49% of corpus rows** — not §4's 2.3M/34%, which was the
@@ -883,7 +886,9 @@ the smallest `M` whose labels still hold up, and `M = 128` was never it.
 **Owed before committing the pass: extend the `M`-series downward** on the
 net-served slice (`M = 2, 4, 8, 16` at a fixed deal count) and read where the
 held-out advantage starts to fall away. That is under an hour of box time and it
-is the single number that sets the budget.
+is the single number that sets the budget. **Run in §4d**, which answers
+`M = 32`, not `M = 8`: perfect defense is the `M`-limiting scorer, and the
+margin gate does not tighten as the estimator gets noisier.
 
 ### How the pass runs
 
@@ -935,8 +940,8 @@ answers the v6 question only.
   time only — but it is a 17% hole in the slice's **coverage**, and the hole is
   not random.
 * **How often is BBA's own call `-inf` in our floor?** The teacher walk makes
-  this measurable for the first time (`own` need not be in `admissible`), but the
-  report does not yet count it. One line, owed.
+  this measurable for the first time (`own` need not be in `admissible`).
+  **Counted in §4d: 2 of 1,056 (0.19%)** — closed.
 * **The corpus is six cells, three of them Dutch.** `scripts/dump-v6.sh`'s
   uniform shards rotate `cells[board % 6]`, so the slice mix above is measured on
   the `american` default and approximates the corpus's own mix.
@@ -949,6 +954,211 @@ answers the v6 question only.
 * **A retrain costs 6–8 minutes, not plan.md:405-411's "one GPU-hour."** The
   whole 6.09M × 176 feature tensor uploads in one `Tensor::from_slice` (~4.3 GB).
   Flagged; it changes how cheap a relabel experiment's tail is.
+
+## 4d. The `M`-series: the budget number, and a re-priced pass
+
+§4c named the one measurement that sets the budget — extend the `M`-series
+downward and read where the held-out advantage falls away — and priced it at
+under an hour. This is that hour: **57 minutes for seven rungs**, seed 1, 200
+deals, `--walk teacher --population net-served --vul none`, `k = 3`,
+`margin = 0.25` IMPs — plus 12 more for the two both-vulnerable confirmations
+below.
+
+**The ladder is paired.** Every rung runs the same seed over the same 200
+deals, and the harvest is `M`-invariant by construction — the proposal, the
+candidate set and the slice predicate never see `M`, only the rollout does. All
+seven rows report 1,056 net-served decisions at 918 distinct nodes, reproducing
+§4c's teacher/none census exactly. So this is the within-population `M`
+comparison §4b could not make: its `M = 8` row was 400 deals against the
+`M = 128` rows' 200, and §4c's "`M = 8` retains 73% of `M = 128`" compared a
+*self-play* row to a *self-play* row and then spent the ratio on the corpus
+population. On the corpus population, on identical deals, it retains **52%**.
+
+The `M = 128` rung is also the refactor's inertness proof: it reproduces §4c's
+teacher/none row digit-for-digit — 881 priced, in-sample +0.8091 ± 0.1265 and
++0.5855 ± 0.1064, held out **+0.7483 ± 0.1311** and **+0.5163 ± 0.1095**,
+both-rule 16.57% — so this session's one `src/`-free probe addition (the
+`own_inadmissible` counter below) moves nothing.
+
+### The rows
+
+± is a 95% interval clustered by source deal. "fire" is the production gate of
+§4c: the same call wins under both scorers, differs from BBA's, and clears the
+margin **on the validation half**. "pass" is the corrected full-corpus cost of
+§4c's relabel, re-derived below.
+
+| `M` | priced | starved | **held-out DD** | **held-out PD** | curse DD | fire | pass | IMPs/box-hr |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2 | 885 | 16.19% | +0.1497 ± 0.2140 | **−0.1350 ± 0.2148** | 1.902 | 11.86% | 0.9 bd | 18,476 |
+| 4 | 884 | 16.29% | +0.3733 ± 0.2069 | **+0.0665 ± 0.2051** | 1.196 | 12.90% | 1.8 bd | 23,035 |
+| 8 | 884 | 16.29% | +0.3917 ± 0.1360 | +0.1721 ± 0.1408 | 0.859 | 11.09% | 3.6 bd | 12,089 |
+| 16 | 883 | 16.38% | +0.5137 ± 0.1446 | +0.2584 ± 0.1345 | 0.497 | 13.25% | 7.3 bd | 7,927 |
+| **32** | 882 | 16.48% | **+0.6235 ± 0.1311** | **+0.4632 ± 0.1136** | 0.250 | 13.83% | **14.6 bd** | 4,811 |
+| 64 | 882 | 16.48% | +0.7305 ± 0.1304 | +0.5222 ± 0.1114 | 0.091 | 17.23% | 29.1 bd | 2,818 |
+| 128 | 881 | 16.57% | +0.7483 ± 0.1311 | +0.5163 ± 0.1095 | 0.061 | 16.57% | 58.3 bd | 1,443 |
+
+Four readings. The first fixes the top of the ladder, the next two are the
+reason the answer is not the bottom of it.
+
+**The curve saturates at `M = 64`.** `M = 64` and `M = 128` are statistically
+indistinguishable on both scorers (+0.7305 ± 0.1304 against +0.7483 ± 0.1311 DD,
++0.5222 ± 0.1114 against +0.5163 ± 0.1095 PD) at **half** the cost, and their
+winner's curse is already down to 0.09 and 0.06 IMPs. So `M = 128` — the rung
+§4b and §4c did all their headline work at — buys nothing at all over `M = 64`,
+and the asymptote of this estimator is reached by 64 layouts. Everything below
+is quoted against `M = 64` as the asymptote rather than against `M = 128`.
+
+**Perfect defense is the `M`-limiting scorer.** As a fraction of the asymptote,
+plain DD reaches 20 / 51 / 54 / 70 / 85% at `M` = 2 / 4 / 8 / 16 / 32;
+perfect defense reaches **−26 / 13 / 33 / 49 / 89%**. PD needs roughly four
+times the layouts DD does to reach the same fraction of its asymptote, which is
+what a scorer that also gets to double should look like: the doubled swings are
+the high-variance tail, and a small pool misses them. This matters because the
+production gate is a **both-scorer** rule, so the noisier half sets the rung.
+At `M = 2` PD's interval sits **below zero**, and at `M = 4` it straddles it —
+so on [../measurement.md](../measurement.md)'s own reading, applied to a label,
+neither rung produces a defensible one at any price. The first rung that clears
+both scorers is `M = 8`, and it clears PD by 0.03 IMPs.
+
+**The margin gate does not tighten as the estimator gets noisier.** Fire rate
+runs 11.86 → 12.90 → 11.09 → 13.25 → 13.83 → 17.23% from `M = 2` to `M = 64`
+— a 45% rise — while the held-out advantage rises 390%. So a low-`M` pass
+relabels very nearly the same *volume* of decisions as a high-`M` one, on
+labels worth a fifth as much. §4c calls the gate "precision-biased on purpose",
+and it is — but the bias is against **BBA's baseline** (a candidate must beat
+it by `margin`), not against **estimator noise**, and nothing in the rule scales
+with the pool it was estimated from. The winner's curse column is the same fact
+from the other side: 1.90 IMPs of selection bias at `M = 2` against 0.06 at
+`M = 128`, and the gate is blind to all of it.
+
+**IMPs per box-hour is a degenerate objective.** It peaks at `M = 4` and would
+peak at `M = 1`, because value per decision is sublinear in `M` while cost is
+exactly linear — §4c's own observation, followed to its conclusion. The reason
+not to follow it is that the ratio silently assumes the two ways of spending a
+box-hour are interchangeable, and they are not: relabelling twice as many
+decisions at half the pool needs twice the corpus (cheap — more boards can
+always be dumped) but yields labels that are *wrong* more often, and §4c's own
+gate design says why that is not symmetric — "a false negative costs only
+opportunity; a false positive corrupts the target." The corpus is extensible;
+the retrain is one shot.
+
+### The pass, re-priced again — and §4c's denominator was circular
+
+Two independent corrections, both downward.
+
+**The board count is not a corpus quantity.** §4c reads "6,768,279 rows over
+636,837 boards — 10.63 rows/board". The 636,837 is `6,768,279 ÷ 10.628`, where
+10.628 is `uniform-0`'s own rows/board — the ratio is assumed corpus-wide and
+the board count then derived back out of it, so the figure confirms nothing.
+The 20 sidecars in `target/corpus-v6/` say the corpus is **910,000 boards**
+(8 × 31,250 uniform + 8 × 20,000 axis + 4 × 125,000 enriched). The right
+denominator is neither: the twelve `replay = true` shards bid **two cells per
+board** and the eight uniform shards bid one (`cells[board % 6]`), and the
+enriched shards keep only 24,538 of their 500,000 attempts. So the corpus is
+
+    250,000 (uniform) + 320,000 (axis) + 49,076 (enriched) = 619,076 auctions
+
+and **10.93 rows/auction**, not 10.63 rows/board. At §4c's measured 5.22
+net-served decisions per auction that is **3.23M decisions, 47.7% of corpus
+rows** — close to §4c's 49%, but now resting on a counted quantity.
+
+**Starved decisions cost no double dummy.** A short replay draw is discarded
+*before* the solve, so the 16.5% the sampler starves on never reaches the
+solver. §4c's formula multiplies decisions, not priced decisions. Applying the
+discount leaves **2.70M priced decisions**, and
+
+    box-seconds = 2,698,367 × 2M × 7.29 ms   →   0.455 box-days per unit of M
+
+| `M` | §4c | corrected |
+| --- | --- | --- |
+| 8 | 4.5 box-days | **3.6** |
+| 32 | 18.0 | **14.6** |
+| 128 | 71.8 | **58.3** |
+
+A box-day is a wall-clock day of this whole 32-core box: the probe solves
+through one `Solver::lock(None)` batch, which auto-detects every core, so the
+7.29 ms/layout is already the fully-parallel rate and the figure does **not**
+divide by adding processes on one machine. It divides only across machines.
+
+### The vulnerability axis, at the rung that matters
+
+§4b settled vulnerability at `M = 128`; the recommendation below lives at
+`M = 32`, so it is confirmed there rather than assumed. Same seed, same 200
+deals, `--vul both`:
+
+| `M`, vul | priced | **held-out DD** | **held-out PD** | fire |
+| --- | --- | --- | --- | --- |
+| 16, none | 883 | +0.5137 ± 0.1446 | +0.2584 ± 0.1345 | 13.25% |
+| 16, both | 875 | +0.6465 ± 0.1787 | +0.4221 ± 0.1574 | 13.94% |
+| 32, none | 882 | +0.6235 ± 0.1311 | +0.4632 ± 0.1136 | 13.83% |
+| 32, both | 873 | +0.7423 ± 0.1620 | +0.5480 ± 0.1387 | 15.58% |
+
+Both-vulnerable runs a little richer at each rung and every interval overlaps
+its `none` partner, exactly as §4b and §4c found at `M = 128`. The axis stays
+settled, and `none` stays the binding cell — which is the conservative one to
+have chosen the rung on.
+
+### The verdict
+
+**`M = 32`, at 14.6 box-days.** It is the first rung where perfect defense is
+solid rather than marginal (+0.4632 ± 0.1136, clear of zero by 0.35 IMPs
+against `M = 8`'s 0.03), it captures **85% of the asymptote's plain-DD value and
+89% of its perfect-defense value at half the asymptote's cost**, and it holds on
+both scorers at both vulnerabilities. The step to `M = 64` buys the last
+15% / 11% for another 14.6 box-days; the step beyond that buys nothing at all.
+
+The fallbacks are priced, which is the point of having the ladder:
+
+* **`M = 64`, 29.1 box-days** if a second machine halves the wall clock. It is
+  the asymptote, and it is the *only* reason to spend above `M = 32`.
+* **`M = 16`, 7.3 box-days** if 14.6 wall-clock days on one box is not
+  available and no second machine is. It keeps 70% / 49% of the value and PD
+  still clears zero — and at both-vulnerable it is already worth
+  +0.6465 / +0.4221.
+* **`M = 8`, 3.6 box-days** is the floor of defensibility, not a
+  recommendation: it is the smallest rung that clears both scorers at all, and
+  it clears PD by 0.03 IMPs.
+* `M = 2` and `M = 4` are **excluded on the measurement rule**, not on cost.
+
+This supersedes §4c's "`M = 8` … and `M = 128` was never it". `M = 128` is
+still not it — and now for a second reason, that `M = 64` matches it for half
+the money. Neither is `M = 8`.
+
+### Residues
+
+* **The owed count is answered, and it is small.** §4c owed one line: how often
+  is BBA's own call `-inf` in our floor? The teacher walk makes it measurable
+  because `own` need not be in `admissible`. It is **2 of 1,056 (0.19%)**, at
+  every rung. Our floor can represent essentially every call BBA's walk makes;
+  the coverage problem is the sampler's, not the book's.
+* **The sampler's 16.5% hole is infeasibility, not budget — settled here for
+  free.** A short draw from a *draw-cap* limit scales with `M`: the effective
+  acceptance floor is `2M / REPLAY_DRAW_CAP`, which moves 16× from `M = 8` to
+  `M = 128`. A short draw from a **zero-measure** accept region does not move at
+  all. Measured across a 64× span of `M`: 16.19 / 16.29 / 16.29 / 16.38 /
+  16.48 / 16.48 / 16.57%. Flat. So raising `REPLAY_DRAW_CAP` or `REPLAY_DRY_LIMIT`
+  recovers nothing, and the hole is what §4c suspected — our inferences about
+  *BBA's* calls are jointly infeasible on those auctions. It belongs to
+  [sampled-projection.md](sampled-projection.md), and it is a **reading**
+  repair, not a sampling one.
+* **The fired subset's own advantage cannot be read off this probe.** The gate
+  fires on `held_out > margin` and the report averages that same half, so the
+  *unconditional* held-out mean (the column above, and the one §4c's budget
+  uses) is unbiased for "relabel every decision to the selector's pick", but the
+  mean *among fired* decisions is selected-on-sample and would overstate. Under
+  a gate with any skill the unconditional mean is a **lower** bound on the
+  pass's value, so the budget above is conservative. Reading the gated value
+  honestly needs a three-way split (select on `M`, gate on `M`, price on a third
+  `M`) at 1.5× the layouts. **Flagged, not built** — it changes no decision
+  here, because every rung is scored the same way.
+* **A cascade is the obvious next idea and it does not obviously win.** Price
+  every decision at a cheap `M`, then re-price only the survivors at a dear one.
+  It beats a flat `M = 32` only if the cheap filter keeps under ~19% of
+  decisions while retaining the asymptote's recall, and `M = 8`'s own DD-alone rate
+  is 28.4% — so on the numbers here it lands at ~20 box-days, worse. What would
+  settle it is the per-decision agreement between the `M = 8` and `M = 128`
+  selections, which these seven runs contain but do not print. **Flagged**; a
+  `--dump-decisions` flag is the cheap way to look.
 
 ## 5. Doc drift corrected
 
@@ -974,7 +1184,9 @@ one comment that does mislead.
 | 3 (2026-09-03) | `examples/probe-rollout-label`: top-`k` ∪ own call from the restricted proposal, independent `M`-layout selection and validation pools from the replay sampler, one shared solve per layout, both scorers, paired baseline, replay-short skip, deal-clustered intervals; the `M`-series, headline census and the `--opponent bba` arm above | byte-identity: no bidding change; the only `src/` edit widens `table::select_legal_call` to `pub` (no behaviour), `smoke-default --count 20000 --seed 1` = `38ee1e21…` unchanged | **done** — never relabel from the in-sample estimate: at `M = 32` its +0.250/+0.543 DD/PD shrinks to +0.036/+0.245 held out, while `M = 128` confirms that a smaller real signal exists on both scorers |
 | 4 (2026-09-04) | the **gate-flip experiment** the session-4 handoff demanded before spending §6's double dummy (§4b): `probe-rollout-label --population {authored,net-served}` with the three-way net-served predicate, the floor shell's own logits as the proposal, `--vul`, and the D2 Pass census; `instinct::forced` widened to `pub`; the trainer's `--weights-in`, which fits `T` for a *shipped* artifact without retraining | byte-identity: no bidding change; the only `src/` edit widens `instinct::forced` from `pub(crate)` to `pub` (visibility and a doc comment). The refactor is separately proven inert by re-running §4a's row through the new binary: 631 decisions, held-out −0.1040 ± 0.0891 / +0.1583 ± 0.1237, digit-for-digit | **done** — the net-served population is **positive on both scorers at both vulnerabilities** (held-out DD +0.613/+0.684, PD +0.464/+0.563), ~6× §4's authored signal, D2 clean and inverted; and **`T` = 1.1298** for `american_bba_v6`, so `PASS_DEMOTION` → `3·T` = 3.389 nats |
 | 5 (2026-09-04) | §4c: `probe-rollout-label --walk {self,teacher}` — the **corpus-fed mode**, which needs no corpus reader (a v6 row has no board id, but the pricing half only ever consumed *(hand, seat, dealer, prefix)*); the four-way **slice histogram**; the two `M = 128` teacher cells; the production **label gate** spec; the **re-priced pass** | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The refactor is proven inert by re-running §4a's authored row *and* §4b's `M = 8` net-served row through the new binary: 631 decisions at +0.4487 ± 0.0633 / −0.1040 ± 0.0891 / +0.7740 ± 0.0956 / +0.1583 ± 0.1237, and 1,931 at +1.1066 ± 0.0750 / +0.4476 ± 0.0968 / +0.9544 ± 0.0837 / +0.2520 ± 0.1034 — both digit-for-digit | **done** — the value **survives the move to the corpus population and grows**: held-out DD +0.7483 ± 0.1311 (none) / +0.8074 ± 0.1496 (both), PD +0.5163 ± 0.1095 / +0.6163 ± 0.1336, against §4b's self-play +0.613/+0.684 and +0.464/+0.563, with a *smaller* winner's curse. The slice is 49% of corpus rows, so `M = 128` costs **72 box-days, not 50** — and `M = 8` buys 11.7× more IMPs per box-hour, taking the same pass to **4.5 box-days** |
-| 6+ | **extend the `M`-series downward** (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| 6 (2026-09-04) | §4d: the **`M`-series** on the corpus population, seven rungs paired on identical deals (`M` = 2/4/8/16/32/64/128, seed 1, 200 deals, teacher walk, net-served, `--vul none`) plus two both-vulnerable confirmations at `M` = 16/32, 69 minutes of box time; the `own_inadmissible` counter that closes §4c's owed line; the corpus denominator re-counted from the 20 sidecars; the starvation discount applied to the budget | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The one probe addition is proven inert by the `M = 128` rung reproducing §4c's teacher/none row digit-for-digit — 881 priced, +0.8091 ± 0.1265 / **+0.7483 ± 0.1311** / +0.5855 ± 0.1064 / **+0.5163 ± 0.1095**, both-rule 16.57% | **done** — the answer is **`M = 32` at 14.6 box-days**, not `M = 8`. The curve **saturates at `M = 64`** (indistinguishable from `M = 128` on both scorers at half the cost), so the rung §4b and §4c did their headline work at buys nothing. Perfect defense is the `M`-limiting scorer (it reaches 33% of its `M = 128` value at `M = 8` where plain DD reaches 52%), and the margin gate is nearly volume-neutral in `M` (fire 11.9 → 16.6% while value rises 400%), so it filters against BBA's baseline but **not** against estimator noise. IMPs-per-box-hour is degenerate — it peaks at `M = 4` and would peak at `M = 1`. §4c's denominator was **circular** (636,837 "boards" is `6,768,279 ÷ 10.628`); the counted figure is **619,076 auctions**, and with the missing starvation discount the pass re-prices to **3.6 / 14.6 / 58.3** box-days at `M` = 8 / 32 / 128. The sampler's 16.5% hole is settled as **zero-measure infeasibility, not budget** — flat across a 64× span of `M` — so it is a reading repair, not a cap raise |
+| 7+ | **relabel inside `dump-teacher`** at `M = 32` → fresh corpus at one commit → fit `T` → retrain → A/B. Build design and its two traps below. `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| ~~6+~~ | ~~**extend the `M`-series downward**~~ (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
 Sessions 2 and 3 change no call and are provable by the hash — session 3's one
 `src/` edit widens `table::select_legal_call` to `pub` so the probes call
@@ -1024,7 +1236,63 @@ carries a signal about six times larger.
 
 Findings from the inventory that are wrong on paper and (mostly) harmless in
 production. Each carries a reversible default so nothing is silently resolved.
-The first two are session 5's, then session 3's, then session 1's.
+The first four are session 6's, then session 5's, then session 3's, then session 1's.
+
+**`dump-teacher`'s reader is built symmetric while the row it writes is
+asymmetric — inert today, load-bearing the moment a relabel lands.**
+`examples/dump-teacher/main.rs:778-782` builds the per-side reader with
+`american(&agreements).bind()` / `dutch(&agreements).bind()`, and both hard-wire
+`CompactConfig::symmetric(...)` into their v6 floor
+(`src/bidding/american.rs:148-156`, `src/bidding/dutch.rs:51-57`). The **row's**
+compact block is the asymmetric `CompactConfig::new(&ours, &theirs)`
+(`:796-802`, applied at `:1010`). Today nothing notices: the module doc at
+`:10-13` records that a floor projects nothing (`Classifier::as_rules` is
+`None`), so the floor's own config cannot reach the features. **A relabel makes
+it load-bearing** — the proposal would come from a floor conditioned on
+`symmetric(ours)` while the features the trainer sees say `(ours, theirs)`, i.e.
+the two halves of the row would disagree about the regime. It bites in 2 of the
+6 `DEFAULT_CELLS` (`:520-527`: the mixed `(A_ON, A_OFF)` and `(A_OFF, D_OFF)`)
+plus their mirrors. This is exactly the sibling-factory rule of
+[card-manifold.md](card-manifold.md) — a system name must reach the same net on
+its declared and undeclared paths — biting where that document predicted.
+**Default: leave `dump-teacher` alone until the relabel is built; then build the
+reader per *pair*** with the entry points that already exist and take a
+`theirs: &ConventionCard` — `american_with_card` (`american.rs:200-212`) and
+`dutch_with_card` (`dutch.rs:84-90`) — gated behind the relabel flag so a
+non-relabelling dump stays byte-identical, and record which was used in the
+sidecar.
+
+**`probe-rollout-label`'s doc comment claims the teacher walk *is*
+`dump-teacher`'s walk. It is not, for any real corpus shard.**
+`examples/probe-rollout-label.rs:227-231` says `--walk teacher` runs "the walk
+`dump-teacher` runs, so this is the corpus population". The probe loads
+`BbaOracle::load(DEFAULT_LIB, SYSTEM_2_OVER_1, Vec::new())` with **no convention
+card and no `with_opponents`**, holds our side at `american(&Agreements::default())`
+with no `--system` flag at all, and pins vulnerability with `--vul`.
+`corpus-v6` spans **14 distinct table configurations** across its 20 shards, with
+cards disclosed and vulnerability drawn per board. So §4c's 5.22 net-served
+decisions per auction — the multiplier the whole budget rests on — is measured
+in one configuration and applied to fourteen. **Default: leave the code, reword
+the comment**, and treat the budget's decision count as ±1 cell of uncertainty
+rather than a measured constant. The cheap check, if it is ever worth one, is a
+`--system`/`--their-system` pair on the probe and a re-run of the slice
+histogram on two or three of the mixed cells.
+
+**The uniform shards' sidecars say `american` for rows the Dutch book bid.**
+`dump-teacher/main.rs:1113-1116` writes `our_system` / `their_system` from
+`args.system` / `args.their_system` regardless of `--cell`, while the eight
+uniform shards rotate `cells[board % 6]` (`:520-527`) — of which 2.5 of 6 are
+Dutch-acting, so **41.7% of uniform rows are bid by a book the sidecar does not
+name**. Nothing is lost: `cells` is written alongside at `:1108-1111`, so the
+information is recoverable, and no shipped artifact reads `our_system`.
+**Default: leave.** Correct the field the next time the dump script moves, or
+document it in [../pdd-bank-ledger.md](../pdd-bank-ledger.md).
+
+**`knobs.rs:540` names an A/B binary that does not exist.** The `rule_accept`
+doc points at `ab-search-floor --no-rule-accept`; there is no `ab-search-floor`
+among the 131 entries in `examples/`, and `--no-rule-accept` appears in no source
+file. Stale doc, no reader. **Default: leave; drop the sentence when the knob is
+next touched.**
 
 **`corpus-v7`'s `.f32` is not byte-identical to `corpus-v6`'s.**
 [../pdd-bank-ledger.md](../pdd-bank-ledger.md):139 and three other places in the

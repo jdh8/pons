@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The `M`-series, and the budget it sets (logit calibration session 6,
+  2026-09-04)** — no bidding change and **no `src/` edit at all**; the session
+  lands in `examples/` and `docs/`. The `M = 128` rung reproduces session 5's
+  teacher/none row digit-for-digit (881 priced, held out **+0.7483 ± 0.1311** DD
+  and **+0.5163 ± 0.1095** PD, both-rule 16.57%), which is the inertness proof
+  for the one probe addition.
+  - **Seven rungs paired on identical deals** (`M` = 2/4/8/16/32/64/128, seed 1,
+    200 deals, `--walk teacher --population net-served --vul none`), plus two
+    both-vulnerable confirmations at `M` = 16/32 — 69 minutes of box time. The
+    harvest is `M`-invariant — 1,056 net-served decisions at 918 distinct nodes
+    on every row — so this is the within-population comparison session 4 could
+    not make.
+  - **The curve saturates at `M = 64`.** It is statistically indistinguishable
+    from `M = 128` on both scorers (+0.7305 ± 0.1304 against +0.7483 ± 0.1311
+    DD) at half the cost, so the rung sessions 4 and 5 did all their headline
+    work at buys nothing over half its price.
+  - **The answer is `M = 32` at 14.6 box-days, not `M = 8`.** Perfect defense is
+    the `M`-limiting scorer: at `M = 8` it reaches 33% of its `M = 128` value
+    where plain DD reaches 52%, and at `M = 2` its held-out interval sits *below
+    zero*. Since the production label gate is a both-scorer rule, the noisier
+    half sets the rung. `M = 32` captures 83% / 90% of `M = 128`'s DD / PD value
+    at a quarter of the cost; the step above buys 20% / 11% more for 4× the
+    price.
+  - **The margin gate does not tighten as the estimator gets noisier.** Fire rate
+    runs 11.9 → 16.6% from `M = 2` to `M = 128` — a 40% rise — while the
+    held-out advantage rises 400%. The gate's precision bias is against BBA's
+    baseline, not against estimator noise, so a low-`M` pass relabels nearly the
+    same volume on labels worth a fifth as much.
+  - **The pass re-prices to 3.6 / 14.6 / 58.3 box-days** at `M` = 8 / 32 / 128,
+    from two independent corrections. Session 5's "636,837 boards" was circular
+    (`6,768,279 ÷ 10.628`, `uniform-0`'s own ratio inverted); the counted
+    denominator, from the 20 sidecars, is **619,076 auctions** at 10.93
+    rows/auction, because the twelve `replay = true` shards bid two cells per
+    board. And starved decisions are discarded *before* the solve, so the missing
+    16.5% starvation discount was inflating every cell.
+  - **`probe-rollout-label` counts when the baseline is outside `admissible`** —
+    how often our floor gives the call that advances the walk `-inf`. It is
+    **2 of 1,056 (0.19%)**, closing the line session 5 owed.
+  - **The sampler's 16.5% starvation is zero-measure infeasibility, not a draw
+    budget.** A cap-limited short draw scales with `M` (the acceptance floor is
+    `2M / REPLAY_DRAW_CAP`, 16× from `M = 8` to `M = 128`); an infeasible one does
+    not. Measured across a 64× span: 16.19 / 16.29 / 16.29 / 16.38 / 16.48 /
+    16.57%. Flat — so raising the caps recovers nothing and the repair is a
+    reading one.
+  - **Four new flags in §7**, the load-bearing one being that `dump-teacher`
+    builds its reader with `american(&agreements)` — which hard-wires
+    `CompactConfig::symmetric` — while the row it writes carries the asymmetric
+    `(ours, theirs)` block. Inert today (a floor projects nothing into features),
+    it would silently mis-condition a relabel's proposal in 2 of the 6 default
+    cells; `american_with_card` / `dutch_with_card` already exist as the repair.
+
 - **The corpus population, priced: BBA's walk and BBA's label (logit calibration
   session 5, 2026-09-04)** — no bidding change and **no `src/` edit at all**; the
   whole session lands in `examples/` and `docs/`.

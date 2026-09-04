@@ -293,6 +293,11 @@ struct Decision {
     /// The hook declined: the net put under `--epsilon` of its mass on the
     /// calls the book admits here
     thin: bool,
+    /// The paired baseline is not in `admissible`: our floor gives the call
+    /// that advances the walk `-inf`.  Zero by construction under a self-play
+    /// walk (`own` is the floor's own selection); under a teacher walk it
+    /// counts the auctions our floor cannot even represent BBA's label in.
+    own_inadmissible: bool,
 }
 
 /// What one node accumulated
@@ -538,6 +543,7 @@ fn harvest(
                     own,
                     candidates,
                     thin,
+                    own_inadmissible: !admissible.contains(&own),
                 });
             }
         }
@@ -909,6 +915,13 @@ fn main() {
         "replay-sampler starvation: {underfilled} of {attempted_n} decisions \
          returned fewer than 2M layouts and were skipped ({:.2}%)",
         100.0 * underfilled as f64 / attempted_n.max(1) as f64,
+    );
+    let outside = decisions.iter().filter(|d| d.own_inadmissible).count();
+    #[allow(clippy::cast_precision_loss)] // a share, not money
+    let outside_pct = 100.0 * outside as f64 / seen.max(1) as f64;
+    println!(
+        "baseline outside `admissible`: {outside} of {seen} ({outside_pct:.2}%) \
+         — our floor gives the call that advances the walk `-inf`",
     );
     println!(
         "walk {:.1}s  sample {:.1}s  solve {:.1}s ({} layouts)  roll {:.1}s",
