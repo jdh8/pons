@@ -59,6 +59,7 @@ provision)
 	for h in "${hosts[@]}"; do
 		echo "== $h: checkout $sha, build, install unit"
 		remote "$h" "git fetch -q origin && git checkout -q --detach $sha && \
+			git submodule update -q --init --recursive && \
 			cargo build -q --release --example dump-teacher --features dd && \
 			mkdir -p ~/.config/systemd/user ~/.config/pons && \
 			cp scripts/pons-worker@.service ~/.config/systemd/user/ && systemctl --user daemon-reload"
