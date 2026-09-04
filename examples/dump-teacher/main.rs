@@ -61,6 +61,7 @@ use pons::bidding::features::{
     MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7, call_tokens_v7, features_v3, features_v4,
     features_v6, seq_row_v7,
 };
+use pons::bidding::instinct::forced;
 use pons::bidding::{Bidder, Phase};
 use pons::gib;
 use pons::{american, american_instinct, dutch, dutch_instinct};
@@ -70,6 +71,7 @@ use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::io::{BufWriter, Write};
 use std::os::raw::c_int;
+use std::path::{Path, PathBuf};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -78,6 +80,8 @@ use common::oracle::{
     BbaOracle, DEFAULT_LIB, EpbotCard, KNOWN_UNSTICKY, SYSTEM_2_OVER_1, load_bbsa,
 };
 use common::slam_ish;
+
+mod relabel;
 
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
@@ -280,6 +284,50 @@ struct Args {
     /// slice trains, it never scores.
     #[arg(long, value_parser = parse_enrich, value_name = "HCP:FIT")]
     enrich: Option<(u8, u8)>,
+    /// Price every net-served decision by rollout and store the raw per-layout
+    /// returns in `<out>.ret` — the `M`-series relabel of
+    /// [docs/ai-bidder/logit-calibration.md](../../docs/ai-bidder/logit-calibration.md) §4d.
+    ///
+    /// The rows are written exactly as without this flag; the labels are cut
+    /// later by `--cut M`.  An existing `<out>.ret` is **extended** to
+    /// `--layouts` (only the new layouts are solved), so a chunk can be
+    /// deepened from `M = 32` to `M = 64` without repeating the first pass.
+    /// Requires `--configured` (the net-served slice is a fact about *our*
+    /// reader) and a prefixed context.  Under this flag the per-board stream
+    /// (dealer, vulnerability) and every layout stream are seeded from the
+    /// **bank index**, so chunks of one window concatenate byte-identically
+    /// however the window is split — `--skip` also offsets random boards.
+    #[arg(long, requires = "configured", conflicts_with = "bare_context")]
+    relabel: bool,
+    /// `--relabel`: layouts drawn per decision — `2M` for the largest `M` a
+    /// cut may ask for
+    #[arg(long, default_value_t = 64)]
+    layouts: usize,
+    /// `--relabel`: proposal calls to roll out, before the union with the own call
+    #[arg(long, default_value_t = 3)]
+    top_k: usize,
+    /// `--relabel`: admissible-mass rung below which the hook declines
+    #[arg(long, default_value_t = 1e-4)]
+    epsilon: f32,
+    /// `--relabel`: proposal softmax temperature (ordering-invariant; moves
+    /// only the epsilon population)
+    #[arg(long, default_value_t = 1.0)]
+    temperature: f32,
+    /// Cut labels at this `M` from stored chunks instead of dumping:
+    /// `--chunks <root>...` are read, `<out>` is an output **directory**, and
+    /// each `<root>/<shard>/chunk-<c>` set becomes `<out>/<shard>.{f32,tags,seq,json}`.
+    /// Sidecars must agree (same commit, walk and geometry), chunks must tile
+    /// their shard's window contiguously, and every chunk must store `≥ 2M`
+    /// layouts.
+    #[arg(long, value_name = "M", conflicts_with = "relabel")]
+    cut: Option<usize>,
+    /// `--cut`: roots holding `<shard>/chunk-<c>.*` (repeatable; a shard's
+    /// chunks may be spread across roots)
+    #[arg(long, requires = "cut")]
+    chunks: Vec<PathBuf>,
+    /// `--cut`: relabel margin in IMPs a candidate must clear held out
+    #[arg(long, default_value_t = 0.25)]
+    margin: f64,
 }
 
 /// `HCP:FIT`, the raw-hand acceptance thresholds of an enriched draw.
@@ -594,7 +642,23 @@ const VULS: [AbsoluteVulnerability; 4] = [
 ];
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    run(Args::parse())
+}
+
+fn run(args: Args) -> anyhow::Result<()> {
+    if let Some(m) = args.cut {
+        anyhow::ensure!(
+            !args.chunks.is_empty(),
+            "--cut needs at least one --chunks root"
+        );
+        return relabel::cut(&args.chunks, Path::new(&args.out), m, args.margin);
+    }
+    let knobs = args.relabel.then_some(relabel::Knobs {
+        layouts: args.layouts,
+        top_k: args.top_k,
+        epsilon: args.epsilon,
+        temperature: args.temperature,
+    });
     let (feature_version, features_len) = match (args.feature_version, args.configured) {
         // `4` is "today's meaning", not a forced v4: a bare (v3) invocation
         // under the default flag value must stay byte-identical.
@@ -829,13 +893,19 @@ fn main() -> anyhow::Result<()> {
     let json_path = format!("{}.json", args.out);
     let tags_path = format!("{}.tags", args.out);
     let seq_path = format!("{}.seq", args.out);
-    let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
-    let mut tags_writer = BufWriter::new(std::fs::File::create(&tags_path)?);
+    let ret_path = format!("{}.ret", args.out);
+    // Every output lands as `<path>.tmp` and is renamed once the whole dump is
+    // done, so a killed run leaves the previous chunk intact and no partial
+    // file a resume gate could mistake for a finished one.
+    let tmp = |path: &str| format!("{path}.tmp");
+    let mut writer = BufWriter::new(std::fs::File::create(tmp(&f32_path))?);
+    let mut tags_writer = BufWriter::new(std::fs::File::create(tmp(&tags_path))?);
     // Only under `--feature-version 7`: a v6 dump must leave no `.seq` behind,
     // or the trainer would load a sequence the sidecar never announced.
     let mut seq_writer = seq
-        .then(|| std::fs::File::create(&seq_path).map(BufWriter::new))
+        .then(|| std::fs::File::create(tmp(&seq_path)).map(BufWriter::new))
         .transpose()?;
+    let mut decisions: Vec<relabel::Decision> = Vec::new();
 
     let mut rows = 0u64;
     let mut contested = 0u64;
@@ -916,13 +986,23 @@ fn main() -> anyhow::Result<()> {
         };
 
         // File deals (with their DD table) when `--deals` is set, else a fresh
-        // random board with no table.
+        // random board with no table.  Under `--relabel` the board's stream is
+        // its own, seeded by bank index, so a window's rows do not depend on
+        // where the window starts; otherwise the historical shared stream.
+        let deal_index = args.skip + board as u64;
+        let mut board_rng = StdRng::seed_from_u64(relabel::board_seed(args.seed, deal_index));
+        let rng: &mut StdRng = if knobs.is_some() {
+            &mut board_rng
+        } else {
+            &mut rng
+        };
         let (deal, table) = match file_iter.next() {
             Some((deal, table)) => (deal, Some(table)),
-            None => (full_deal(&mut rng), None),
+            None => (full_deal(rng), None),
         };
         let dealer = rng.random_range(0..4usize);
         let vul = VULS[rng.random_range(0..4usize)];
+        let mut ordinal = 0u32;
 
         // The enriched draw's acceptance test.  Raw hands only, and applied
         // before a single call is classified, so a kept deal is bid exactly as
@@ -1036,13 +1116,63 @@ fn main() -> anyhow::Result<()> {
                 if let Some(writer) = &mut seq_writer {
                     writer.write_all(&seq_row_v7(&call_tokens_v7(&context)))?;
                 }
+                // Advance the auction by the teacher's legal argmax.
+                let next = argmax_legal(&logits);
+
+                // The relabel harvest: a net-served node — unauthored in *our*
+                // reader, contested, not a `forced` rail — whose floor-shell
+                // proposal offers a live alternative to the teacher's call.
+                // The row is written as usual; only the `.ret` remembers it.
+                if let Some(knobs) = knobs {
+                    let partnership = acting_reader.expect("--relabel requires a prefixed reader");
+                    if let Some((book, provenance)) =
+                        partnership.classify_with_provenance(hand, rel, &auction)
+                    {
+                        let admissible: Vec<Call> = book
+                            .iter()
+                            .filter(|(call, logit)| {
+                                logit.is_finite() && auction.can_push(*call).is_ok()
+                            })
+                            .map(|(call, _)| call)
+                            .collect();
+                        let net_served = admissible.len() > 1
+                            && !provenance.is_authored()
+                            && contested_row
+                            && !forced(&context);
+                        if net_served {
+                            let candidates = common::rollout::candidates(
+                                &book,
+                                &admissible,
+                                next,
+                                knobs.top_k,
+                                knobs.epsilon,
+                                knobs.temperature,
+                            );
+                            if !candidates.is_empty() {
+                                let (ours, theirs) = acting.expect("configured rows are cell rows");
+                                decisions.push(relabel::Decision {
+                                    row: u32::try_from(rows)?,
+                                    deal_index,
+                                    ordinal,
+                                    hand,
+                                    seat,
+                                    dealer: Seat::ALL[dealer],
+                                    vul,
+                                    prefix: auction.iter().copied().collect(),
+                                    candidates,
+                                    ours: ours.label(),
+                                    theirs: theirs.label(),
+                                });
+                            }
+                        }
+                    }
+                    ordinal += 1;
+                }
                 rows += 1;
                 if contested_row {
                     contested += 1;
                 }
 
-                // Advance the auction by the teacher's legal argmax.
-                let next = argmax_legal(&logits);
                 *call_hist.entry(format!("{next}")).or_insert(0) += 1;
                 auction.push(next);
             }
@@ -1053,6 +1183,48 @@ fn main() -> anyhow::Result<()> {
     if let Some(writer) = &mut seq_writer {
         writer.flush()?;
     }
+    drop((writer, tags_writer, seq_writer));
+
+    // The rollout: draw, solve once per new layout, price every candidate.
+    // An existing `.ret` of this chunk is extended, never recomputed.
+    let relabel_meta = match knobs {
+        Some(knobs) => {
+            let existing = Path::new(&ret_path)
+                .exists()
+                .then(|| relabel::read_ret(Path::new(&ret_path)))
+                .transpose()?;
+            let started = std::time::Instant::now();
+            let (priced, extended) = relabel::price(
+                &decisions,
+                |label| &per_side[label].1,
+                knobs,
+                args.seed,
+                existing,
+            )?;
+            relabel::write_ret(Path::new(&tmp(&ret_path)), &priced)?;
+            let starved = priced
+                .iter()
+                .filter(|p| usize::from(p.layouts) < knobs.layouts)
+                .count();
+            eprintln!(
+                "teacher-dump: relabel priced {} decisions ({extended} extended, {starved} starved                  below {} layouts) in {:.0}s",
+                priced.len(),
+                knobs.layouts,
+                started.elapsed().as_secs_f64(),
+            );
+            Some(serde_json::json!({
+                "layouts": knobs.layouts,
+                "top_k": knobs.top_k,
+                "epsilon": knobs.epsilon,
+                "temperature": knobs.temperature,
+                "decisions": priced.len(),
+                "extended": extended,
+                "starved": starved,
+                "ret": "sibling .ret file: per net-served decision, [candidate][layout] swings over the own call in IMPs, [plain DD, PD]; cut with --cut M",
+            }))
+        }
+        None => None,
+    };
 
     let git_sha = git_sha();
     let metadata = serde_json::json!({
@@ -1122,8 +1294,20 @@ fn main() -> anyhow::Result<()> {
         "rows": rows,
         "contested_rows": contested,
         "forced_pass_decisions": forced_pass,
+        "relabel": relabel_meta,
     });
-    std::fs::write(&json_path, format!("{metadata:#}\n"))?;
+    std::fs::write(tmp(&json_path), format!("{metadata:#}\n"))?;
+    for (path, live) in [
+        (&f32_path, true),
+        (&tags_path, true),
+        (&seq_path, seq),
+        (&ret_path, knobs.is_some()),
+        (&json_path, true),
+    ] {
+        if live {
+            std::fs::rename(tmp(path), path)?;
+        }
+    }
 
     let pct = |n: u64| {
         if rows == 0 {

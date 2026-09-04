@@ -1,0 +1,52 @@
+# Toggleable M-series relabel worker for a shared box. Instance = run name:
+# `pons-worker@m` reads ~/.config/pons/relabel-m.env and runs
+# scripts/relabel-worker.sh under the idle scheduling class (the same policy as
+# scripts/idle-run.sh — see docs/shared-machine-data-gen.md). Boxes partition
+# the chunk list by STRIDE/OFFSETS from the env file; no coordinator.
+#
+# Install (per-user, zero privilege; scripts/fleet-relabel.sh provision does it):
+#   cargo build --release --example dump-teacher --features dd
+#   cp scripts/pons-worker@.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now pons-worker@m
+#   loginctl enable-linger "$USER"        # keep running while logged out
+# Toggle / status:
+#   systemctl --user stop pons-worker@m      # now; the chunk in flight is redone later
+#   systemctl --user restart pons-worker@m   # drains: finishes the chunk first
+#   journalctl --user -u pons-worker@m -f
+#
+# TERM stops, HUP drains — KillMode=mixed sends each to the *script* only, so a
+# HUP lets bash finish the running chunk (its trap fires when the child exits)
+# and TERM kills bash at once, after which the orphaned solver is SIGKILLed.
+# Every chunk file is tmp+rename inside the binary, so neither path leaves a
+# partial chunk for the existence gate to mistake.
+
+[Unit]
+Description=pons M-series relabel worker (%i)
+# Cap restart storms: a chunk that fails deterministically must not hammer a
+# shared box unattended. Clear a tripped limiter with `reset-failed`.
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=%h/src/pons
+EnvironmentFile=%h/.config/pons/relabel-%i.env
+ExecStart=%h/src/pons/scripts/relabel-worker.sh
+# Idle class: runs only on otherwise-free cores, yields instantly. Nice= is
+# ignored by SCHED_IDLE — it's set only so htop shows the worker blue.
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+Nice=19
+# Backstop only: a chunk is ~100 MB of layouts and tables, far below this.
+MemoryMax=50%
+KillSignal=SIGTERM
+RestartKillSignal=SIGHUP
+KillMode=mixed
+TimeoutStopSec=infinity
+# Crash => restart resumes via the existence gate; chunk list done => stays off.
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

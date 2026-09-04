@@ -133,23 +133,19 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
-use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::features::{CompactConfig, ConventionCard, features_v6};
 use pons::bidding::instinct::forced;
 use pons::bidding::neural::classify_bba_v6;
-use pons::bidding::sampler::sample_layouts_replay;
 use pons::bidding::table::select_legal_call;
-use pons::bidding::{Bidder, Phase, Table};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
+use pons::bidding::{Bidder, Phase};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
+use common::rollout::{restricted, sample_for, swings};
 use common::{auction_key, seat_to_act, seeded_deals};
 
 /// The two brackets every result carries, in the order `docs/measurement.md`
@@ -399,32 +395,6 @@ fn clustered_mean_with_ci(values: &[(usize, f64)]) -> (f64, f64) {
     (mean, 1.96 * variance.sqrt())
 }
 
-/// The proposal hook: `softmax(z / t)` restricted to `admissible` and
-/// renormalised over it, paired with the share of the *unrestricted* mass that
-/// set holds (what `--epsilon` thresholds).
-fn restricted(logits: &Logits, admissible: &[Call], t: f32) -> (Vec<(Call, f32)>, f32) {
-    let beta = 1.0 / t;
-    let max = logits
-        .iter()
-        .map(|(_, &z)| z)
-        .fold(f32::NEG_INFINITY, f32::max);
-    let (mut inside, mut total) = (0.0, 0.0);
-    let mut odds = Vec::with_capacity(admissible.len());
-    for (call, &z) in logits.iter() {
-        let w = (beta * (z - max)).exp();
-        total += w;
-        if admissible.contains(&call) {
-            inside += w;
-            odds.push((call, w));
-        }
-    }
-    for (_, w) in &mut odds {
-        *w /= inside;
-    }
-    odds.sort_by(|a, b| b.1.total_cmp(&a.1));
-    (odds, inside / total)
-}
-
 /// Walk one deal's auction, harvesting every in-population decision whose
 /// proposal offers a live alternative to the call that advances the walk.
 ///
@@ -559,23 +529,6 @@ struct Shared {
     compact: CompactConfig,
 }
 
-/// Draw the decision's layouts from the replay sampler.
-fn layouts_for(decision: &Decision, layouts: usize, ctx: &Shared, seed: u64) -> Vec<FullDeal> {
-    let rel = relative(ctx.vul, decision.seat);
-    let inferences = ctx.policy.infer(rel, &decision.prefix);
-    let mut rng = StdRng::seed_from_u64(seed);
-    sample_layouts_replay(
-        decision.hand,
-        decision.seat,
-        &ctx.policy,
-        rel,
-        &decision.prefix,
-        &inferences,
-        &mut rng,
-        layouts,
-    )
-}
-
 /// One candidate's advantage over the own call, in IMPs, on two independent
 /// layout pools
 ///
@@ -590,7 +543,7 @@ struct Advantage {
 }
 
 /// Every candidate's advantage over the own call, priced on the same layouts
-/// and the same double-dummy solves.
+/// and the same double-dummy solves ([`swings`]), averaged per pool.
 ///
 /// One entry per candidate, own call first — so its own advantage is exactly
 /// zero on every bracket and every half, by construction.
@@ -602,41 +555,17 @@ fn advantages(
     theirs: &dyn Bidder,
     vul: AbsoluteVulnerability,
 ) -> Vec<Advantage> {
-    let actor_is_ns = matches!(decision.seat, Seat::North | Seat::South);
-    let (ns, ew): (&dyn Bidder, &dyn Bidder) = if actor_is_ns {
-        (ours, theirs)
-    } else {
-        (theirs, ours)
-    };
-    let table = Table::new(ns, ew, decision.dealer, vul);
-    let sign = if actor_is_ns { 1 } else { -1 };
-
-    let priced: Vec<Vec<[i64; 2]>> = decision
-        .candidates
-        .iter()
-        .map(|&call| {
-            layouts
-                .iter()
-                .zip(tables)
-                .map(|(layout, tricks)| {
-                    let mut seed = Auction::new();
-                    seed.try_extend(decision.prefix.iter().copied())
-                        .expect("a prior table auction is legal");
-                    // Every candidate came from `admissible`, which already
-                    // tested `can_push` against this same prefix.
-                    seed.try_push(call).expect("a candidate is legal here");
-                    let reached =
-                        final_contract(&table.bid_out_from(layout, seed), decision.dealer);
-                    [
-                        sign * ns_score_contract(reached, tricks, vul),
-                        sign * ns_score_pd(reached, tricks, vul),
-                    ]
-                })
-                .collect()
-        })
-        .collect();
-
-    let base = priced[0].clone();
+    let priced = swings(
+        &decision.candidates,
+        &decision.prefix,
+        decision.dealer,
+        decision.seat,
+        layouts,
+        tables,
+        ours,
+        theirs,
+        vul,
+    );
     let half = layouts.len() / 2;
     #[allow(clippy::cast_precision_loss)] // IMP sums are small integers
     let mean = |sum: i64, n: usize| if n == 0 { 0.0 } else { sum as f64 / n as f64 };
@@ -646,12 +575,11 @@ fn advantages(
             let mut advantage = Advantage::default();
             for bracket in 0..2 {
                 let (mut lo, mut hi) = (0i64, 0i64);
-                for (index, (got, want)) in candidate.iter().zip(&base).enumerate() {
-                    let swing = imps(got[bracket] - want[bracket]);
+                for (index, swing) in candidate.iter().enumerate() {
                     if index < half {
-                        lo += swing;
+                        lo += swing[bracket];
                     } else {
-                        hi += swing;
+                        hi += swing[bracket];
                     }
                 }
                 advantage.first[bracket] = mean(lo, half);
@@ -734,10 +662,14 @@ fn main() {
     let drawn: Vec<Vec<FullDeal>> = attempted
         .par_iter()
         .map(|&i| {
-            layouts_for(
-                &decisions[i],
+            let decision = &decisions[i];
+            sample_for(
+                decision.hand,
+                decision.seat,
+                &ctx.policy,
+                ctx.vul,
+                &decision.prefix,
                 draws_per_decision,
-                &ctx,
                 base.wrapping_add(args.count as u64).wrapping_add(i as u64),
             )
         })

@@ -408,6 +408,71 @@ the Mac sleeps and resumes after wake. Running continuously before login or
 after logout instead requires a root-installed LaunchDaemon with an explicit
 `UserName`; that privileged setup is intentionally outside this per-user recipe.
 
+## The relabel fleet (the `M`-series)
+
+The `M`-series relabel of
+[ai-bidder/logit-calibration.md](ai-bidder/logit-calibration.md) §4d is
+double-dummy bound — ~2.7M net-served decisions × 2M layouts × 7.29 ms — and
+that cost **divides only across machines**: one `Solver::lock(None)` batch
+already takes every core of a box. At `M = 32` it is 14.6 box-days on the
+32-core box alone. The fleet below spreads it with the same model as the poker
+solver's: no dispatcher, no queue, a stride/offset partition, an existence
+gate, tmp+rename publication, a mop-up pass, and one systemd user unit per
+box under `SCHED_IDLE`. Host names live in `~/.config/pons/hosts`, never in
+the tree.
+
+**The unit of work is a chunk**: a `CHUNK`-deal window of a corpus shard
+(`scripts/dump-v6.sh`'s recipe, walked in order by
+[`scripts/relabel-worker.sh`](../scripts/relabel-worker.sh)), written as
+`<root>/<shard>/chunk-<c>.{f32,tags,json,ret}`. Chunk `g` (a global counter
+over shards) belongs to the box whose `OFFSETS` contain `g mod STRIDE`;
+`STRIDE` is the sum of the hosts' weights, so a box with weight 4 owns four
+residues. Under `--relabel`, `dump-teacher` seeds the per-board stream and
+every decision's layout stream from the **bank index**, so a chunk's bytes do
+not depend on where its window starts: chunks written on four boxes cut into
+the corpus one box would have written, byte for byte (the identity is a unit
+test).
+
+**Returns, not labels.** A chunk stores `[candidate][layout] → (plain DD,
+PD)` swings over BBA's call in its `.ret`; the label is cut afterwards
+(`dump-teacher --cut M`), so `M` is chosen after the double dummy is spent.
+The replay sampler's accepted sequence is prefix-stable in its stream and its
+budgets do not scale with the request, so a chunk at 64 layouts is
+**extended** to 128 by re-drawing (cheap, rayon) and solving only the new 64 —
+no solve repeated, and `--cut 32` reads the same bytes before and after.
+
+The run, driven from one box by
+[`scripts/fleet-relabel.sh`](../scripts/fleet-relabel.sh) over the hosts file
+(`<ssh host> <weight> <chunk root> [<bank path>]`, first host = mop-up box,
+`localhost` = the driving box):
+
+```sh
+scripts/fleet-relabel.sh provision            # fetch + checkout HEAD's SHA + build + install the unit, everywhere
+scripts/fleet-relabel.sh start 64             # stop poker workers, write env files, restart pons-worker@m (2M = 64)
+scripts/fleet-relabel.sh status               # daily: unit state + finished chunks per box
+scripts/fleet-relabel.sh collect              # when every chunk exists: push this box's chunks to the first host
+scripts/fleet-relabel.sh mopup 64             # first host, stride 1, reverse order, skip-if-exists
+dump-teacher --cut 32 --chunks <root>... --out target/corpus-relabel-m32   # on the first host
+```
+
+`start` refuses a host whose `git rev-parse HEAD` is not the pinned SHA, and
+the cut refuses chunks whose sidecars disagree (commit, geometry, walk), a
+shard whose chunks do not tile its window contiguously, or a chunk short of
+`2M` layouts — the retired `merge.sh` contract. Boxes that share a filesystem
+write straight into the shared root; the mop-up box lists every other root in
+`EXTRA_OUT` so its existence gate sees them read-only, and a chunk it finds
+there short of the requested layouts is left for its owner to extend. A second
+pass (`start 128`, then `collect`, `mopup 128`, `--cut 64`) deepens every
+chunk in place.
+
+The unit is [`scripts/pons-worker@.service`](../scripts/pons-worker@.service),
+a copy of the poker worker's: `KillMode=mixed`, so `stop` (SIGTERM) kills the
+script at once and the solver is SIGKILLed with nothing published, while
+`restart` (SIGHUP) lets the script finish the chunk in flight (`bash` runs a
+trap only after the foreground child returns) and exit 0. `start` stops every
+`poker-worker@*` unit on every host and leaves them stopped — restart them by
+hand when the relabel is done.
+
 ## Etiquette
 
 Check who is on first (`w` / `who`), prefer nights/weekends for full-throttle

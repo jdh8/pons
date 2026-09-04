@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The `M`-series relabel build and its fleet (logit calibration session 7,
+  2026-09-04)** — no bidding change and **no `src/` edit at all**; the session
+  lands in `examples/`, `scripts/` and `docs/`. It builds the owed item of
+  `docs/ai-bidder/logit-calibration.md` §6 ("relabel inside `dump-teacher` at
+  `M = 32`"); the run itself is not launched.
+  - **`dump-teacher --relabel`** harvests every net-served decision of the
+    corpus walk and rolls it out through the pricer now shared with
+    `probe-rollout-label` (`examples/common/rollout.rs`; the probe prints the
+    same output before and after the move). It stores **raw per-layout
+    returns**, not labels — `[candidate][layout] → (plain DD, PD)` swings over
+    BBA's call in a `.ret` sibling — so `M` is chosen after the double dummy is
+    spent. Per-board and per-decision streams are seeded from the **bank
+    index**, so chunks of one window concatenate byte-identically however the
+    window is split, and an existing `.ret` is **extended** to a deeper
+    `--layouts` with no solve repeated.
+  - **`dump-teacher --cut M`** reads the chunks, selects on `[0, M)`, validates
+    on `[M, 2M)`, overwrites the one-hot where the same call clears the margin
+    on both scorers held out (§4c's gate), and emits the trainer's
+    `.f32`/`.tags`/`.seq`/`.json` per shard. It refuses sidecars that disagree
+    (commit, geometry, walk), non-contiguous tilings, and chunks short of `2M`.
+  - **The fleet**: `scripts/relabel-worker.sh` (one box's stride/offset share
+    of the v6 recipe, existence gate, SIGHUP drain), `scripts/pons-worker@.service`
+    (`SCHED_IDLE`, `KillMode=mixed`), and `scripts/fleet-relabel.sh`
+    (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`,
+    which refuses a box off the pinned SHA). Documented in
+    `docs/shared-machine-data-gen.md` § "The relabel fleet".
+  - Three tests pin the contract: split-then-cut equals whole-then-cut, an
+    extended draw cuts like a native one, and the cut refuses a foreign SHA, a
+    short chunk and a gap.
 - **The `M`-series, and the budget it sets (logit calibration session 6,
   2026-09-04)** — no bidding change and **no `src/` edit at all**; the session
   lands in `examples/` and `docs/`. The `M = 128` rung reproduces session 5's

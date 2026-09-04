@@ -8,6 +8,8 @@
 
 #[allow(dead_code)]
 pub mod oracle;
+#[allow(dead_code)]
+pub mod rollout;
 
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
