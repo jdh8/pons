@@ -48,7 +48,8 @@ env_file() { # host index, extra lines...
 	local i=$1 out=${outs[$1]} other=() j
 	shift
 	for j in "${!outs[@]}"; do [[ $j != "$i" ]] && other+=("${outs[$j]}"); done
-	printf 'OUT=%s\nBANK=%s\nLAYOUTS=%s\nEXTRA_OUT=%s\n%s\n' "$out" "${banks[$i]}" "$LAYOUTS" "$(IFS=:; echo "${other[*]}")" "$*"
+	printf 'OUT=%s\nBANK=%s\nLAYOUTS=%s\nEXTRA_OUT=%s\n' "$out" "${banks[$i]}" "$LAYOUTS" "$(IFS=:; echo "${other[*]}")"
+	printf '%s\n' "$@" # one assignment per line; a value with spaces arrives already quoted
 }
 
 cmd=${1:-}
@@ -75,7 +76,7 @@ start)
 		echo "== $h: stride $stride offsets [$residues] → ${outs[$i]}"
 		remote "$h" "systemctl --user stop 'poker-worker@*' 2>/dev/null || true; \
 			cat >~/.config/pons/relabel-$RUN.env <<'EOF'
-$(env_file "$i" "STRIDE=$stride" "OFFSETS=$residues")
+$(env_file "$i" "STRIDE=$stride" "OFFSETS=\"$residues\"")
 EOF
 			mkdir -p '${outs[$i]}' && systemctl --user restart pons-worker@$RUN"
 	done
