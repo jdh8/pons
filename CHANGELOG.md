@@ -34,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`SCHED_IDLE`, `KillMode=mixed`), and `scripts/fleet-relabel.sh`
     (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`,
     which refuses a box off the pinned SHA). Documented in
-    `docs/shared-machine-data-gen.md` § "The relabel fleet".
+    `docs/shared-machine-data-gen.md` § "The relabel fleet". `start` also
+    `enable`s the unit and the user's linger (2026-09-05), so an accidental
+    reboot resumes the box's share through the existence gate instead of
+    idling it until someone notices; the running pass 1 was enabled by hand.
   - Three tests pin the contract: split-then-cut equals whole-then-cut, an
     extended draw cuts like a native one, and the cut refuses a foreign SHA, a
     short chunk and a gap.

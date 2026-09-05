@@ -14,7 +14,7 @@
 #
 # Usage:
 #   scripts/fleet-relabel.sh provision [SHA]   fetch, checkout SHA (default: HEAD here), build, install the unit
-#   scripts/fleet-relabel.sh start LAYOUTS     stop poker workers, write env files, (re)start pons-worker@m everywhere
+#   scripts/fleet-relabel.sh start LAYOUTS     stop poker workers, write env files, enable + (re)start pons-worker@m everywhere
 #   scripts/fleet-relabel.sh status            unit state and finished-chunk count per box
 #   scripts/fleet-relabel.sh collect           rsync this box's chunks into the first host's root
 #   scripts/fleet-relabel.sh mopup LAYOUTS     start pons-worker@m-mopup on the first host (stride 1, reverse order)
@@ -79,7 +79,8 @@ start)
 			cat >~/.config/pons/relabel-$RUN.env <<'EOF'
 $(env_file "$i" "STRIDE=$stride" "OFFSETS=\"$residues\"")
 EOF
-			mkdir -p '${outs[$i]}' && systemctl --user restart pons-worker@$RUN"
+			mkdir -p '${outs[$i]}' && loginctl enable-linger \$USER 2>/dev/null; \
+			systemctl --user enable --now pons-worker@$RUN && systemctl --user restart pons-worker@$RUN"
 	done
 	echo "poker-worker units are stopped on every host and stay stopped; restart them by hand when the relabel is done."
 	;;
