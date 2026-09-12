@@ -132,6 +132,7 @@ scores a net on deals it was fitted to.
 
 | bank | rows | fitted models |
 | --- | --- | --- |
+| `22.pdd` | 3,250,000..4,160,000 | `american_bba_v6_relabel_m32` candidate (registered 2026-09-13): the v6 recipe, 188 fleet chunks at `39318c7f`, 910,000 bank draws and 6,766,821 rows. The `M = 32`, margin 0.25 cut replaces 460,341 labels. Deliberate training overlap with v6; evaluation must use fresh deals. Run and artifact record: [logit-calibration.md §6](ai-bidder/logit-calibration.md#6-ledger). |
 | `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4`, Phase-5 `evaluator_v5_honest` (train 0..450k, held-out 450k..500k), and their `_dnf`/`_exclusion` variants (drawn `--count` from the front: 100k, 400k, 500k and 1M deals across campaigns) |
 | `22.pdd` | 2,000,000..2,220,000 | **no fit** — configured-net corpus instrumentation (`dump-teacher --replay`, the 400/20k/20k slices behind the pair-rate numbers in `docs/ai-bidder/configured-net.md`). Recorded so the same rows are not later mistaken for a training draw |
 | `22.pdd` | 2,500,000..3,250,000 | `american_bba_v4` — the configured net's mixture corpus (250k uniform + 500k drawn enriched, 3,362,892 rows). Its two gates score on freshly generated deals, never here |

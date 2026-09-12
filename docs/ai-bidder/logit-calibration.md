@@ -7,7 +7,9 @@ the two doc-drift repairs in §5. **No bidding change**: `smoke-default --count
 20000 --seed 1` is unchanged at `38ee1e21…` before and after
 ([../measurement.md](../measurement.md) item 12). Sessions 2 and 3 shipped the
 same day and under the same gate; sessions 4, 5 and 6 followed on 2026-09-04 and
-each moved the next task — **session 7 is owed**, and the ledger is §6. This is the calibration story the
+each moved the next task. Session 7 built the relabel fleet; its first corpus
+completed on 2026-09-13. Training and the remaining A/B gate are recorded in §6.
+This is the calibration story the
 M5.2 flip plan in [plan.md](plan.md) M5.2 needs before its collar retune can be sized, and the
 scale question [competitive-accountant.md](competitive-accountant.md) and
 [new-suit-veto.md](new-suit-veto.md) both stepped around by acting on masks
@@ -1185,9 +1187,84 @@ one comment that does mislead.
 | 4 (2026-09-04) | the **gate-flip experiment** the session-4 handoff demanded before spending §6's double dummy (§4b): `probe-rollout-label --population {authored,net-served}` with the three-way net-served predicate, the floor shell's own logits as the proposal, `--vul`, and the D2 Pass census; `instinct::forced` widened to `pub`; the trainer's `--weights-in`, which fits `T` for a *shipped* artifact without retraining | byte-identity: no bidding change; the only `src/` edit widens `instinct::forced` from `pub(crate)` to `pub` (visibility and a doc comment). The refactor is separately proven inert by re-running §4a's row through the new binary: 631 decisions, held-out −0.1040 ± 0.0891 / +0.1583 ± 0.1237, digit-for-digit | **done** — the net-served population is **positive on both scorers at both vulnerabilities** (held-out DD +0.613/+0.684, PD +0.464/+0.563), ~6× §4's authored signal, D2 clean and inverted; and **`T` = 1.1298** for `american_bba_v6`, so `PASS_DEMOTION` → `3·T` = 3.389 nats |
 | 5 (2026-09-04) | §4c: `probe-rollout-label --walk {self,teacher}` — the **corpus-fed mode**, which needs no corpus reader (a v6 row has no board id, but the pricing half only ever consumed *(hand, seat, dealer, prefix)*); the four-way **slice histogram**; the two `M = 128` teacher cells; the production **label gate** spec; the **re-priced pass** | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The refactor is proven inert by re-running §4a's authored row *and* §4b's `M = 8` net-served row through the new binary: 631 decisions at +0.4487 ± 0.0633 / −0.1040 ± 0.0891 / +0.7740 ± 0.0956 / +0.1583 ± 0.1237, and 1,931 at +1.1066 ± 0.0750 / +0.4476 ± 0.0968 / +0.9544 ± 0.0837 / +0.2520 ± 0.1034 — both digit-for-digit | **done** — the value **survives the move to the corpus population and grows**: held-out DD +0.7483 ± 0.1311 (none) / +0.8074 ± 0.1496 (both), PD +0.5163 ± 0.1095 / +0.6163 ± 0.1336, against §4b's self-play +0.613/+0.684 and +0.464/+0.563, with a *smaller* winner's curse. The slice is 49% of corpus rows, so `M = 128` costs **72 box-days, not 50** — and `M = 8` buys 11.7× more IMPs per box-hour, taking the same pass to **4.5 box-days** |
 | 6 (2026-09-04) | §4d: the **`M`-series** on the corpus population, seven rungs paired on identical deals (`M` = 2/4/8/16/32/64/128, seed 1, 200 deals, teacher walk, net-served, `--vul none`) plus two both-vulnerable confirmations at `M` = 16/32, 69 minutes of box time; the `own_inadmissible` counter that closes §4c's owed line; the corpus denominator re-counted from the 20 sidecars; the starvation discount applied to the budget | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The one probe addition is proven inert by the `M = 128` rung reproducing §4c's teacher/none row digit-for-digit — 881 priced, +0.8091 ± 0.1265 / **+0.7483 ± 0.1311** / +0.5855 ± 0.1064 / **+0.5163 ± 0.1095**, both-rule 16.57% | **done** — the answer is **`M = 32` at 14.6 box-days**, not `M = 8`. The curve **saturates at `M = 64`** (indistinguishable from `M = 128` on both scorers at half the cost), so the rung §4b and §4c did their headline work at buys nothing. Perfect defense is the `M`-limiting scorer (it reaches 33% of its `M = 128` value at `M = 8` where plain DD reaches 52%), and the margin gate is nearly volume-neutral in `M` (fire 11.9 → 16.6% while value rises 400%), so it filters against BBA's baseline but **not** against estimator noise. IMPs-per-box-hour is degenerate — it peaks at `M = 4` and would peak at `M = 1`. §4c's denominator was **circular** (636,837 "boards" is `6,768,279 ÷ 10.628`); the counted figure is **619,076 auctions**, and with the missing starvation discount the pass re-prices to **3.6 / 14.6 / 58.3** box-days at `M` = 8 / 32 / 128. The sampler's 16.5% hole is settled as **zero-measure infeasibility, not budget** — flat across a 64× span of `M` — so it is a reading repair, not a cap raise |
-| 7 (2026-09-04) | the **relabel build and its fleet**: `dump-teacher --relabel` harvests the net-served decisions of the corpus walk (our reader's provenance, `Phase`, `forced`), rolls each out through the shared pricer (`examples/common/rollout.rs`, lifted out of `probe-rollout-label`) and stores **raw per-layout returns** — `[candidate][layout] → (DD, PD)` swings over BBA's call — in a `.ret` sibling; `--cut M` reads every chunk, selects on `[0, M)`, validates on `[M, 2M)`, and overwrites the one-hot where §4c's gate fires, refusing sidecars that disagree, non-contiguous tilings, and chunks short of `2M`. Streams are seeded from the **bank index** (per board and per decision), so chunks split anyhow concatenate byte-identically; an existing `.ret` is **extended** (only new layouts solved). Fleet: `scripts/relabel-worker.sh` (stride/offset over the v6 recipe, existence gate, SIGHUP drain), `scripts/pons-worker@.service`, `scripts/fleet-relabel.sh` (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`); the section in [../shared-machine-data-gen.md](../shared-machine-data-gen.md) | byte-identity: **no `src/` edit at all**. The probe refactor is inert — `probe-rollout-label -c 40 -s 1 -m 4 --walk teacher` prints the same 42 lines before and after. Three tests pin the build: split-then-cut = whole-then-cut, an extended draw cuts like a native one (at the old `M` and the new), and the cut refuses a foreign SHA / a short chunk / a gap | **built, run owed** — the corpus pass (`start 64` → `--cut 32`, ~7 days on the four-box fleet) has not been launched |
-| 7+ | **the run**: `fleet-relabel.sh provision` → `start 64` → `collect` → `mopup 64` → `--cut 32` → fit `T` → retrain (`trainer --weights-in`) → A/B; pass 2 (`start 128` … `--cut 64`) only if the A/B is marginal. Then `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+| 7 (2026-09-04) | the **relabel build and its fleet**: `dump-teacher --relabel` harvests the net-served decisions of the corpus walk (our reader's provenance, `Phase`, `forced`), rolls each out through the shared pricer (`examples/common/rollout.rs`, lifted out of `probe-rollout-label`) and stores **raw per-layout returns** — `[candidate][layout] → (DD, PD)` swings over BBA's call — in a `.ret` sibling; `--cut M` reads every chunk, selects on `[0, M)`, validates on `[M, 2M)`, and overwrites the one-hot where §4c's gate fires, refusing sidecars that disagree, non-contiguous tilings, and chunks short of `2M`. Streams are seeded from the **bank index** (per board and per decision), so chunks split anyhow concatenate byte-identically; an existing `.ret` is **extended** (only new layouts solved). Fleet: `scripts/relabel-worker.sh` (stride/offset over the v6 recipe, existence gate, SIGHUP drain), `scripts/pons-worker@.service`, `scripts/fleet-relabel.sh` (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`); the section in [../shared-machine-data-gen.md](../shared-machine-data-gen.md) | byte-identity: **no `src/` edit at all**. The probe refactor is inert — `probe-rollout-label -c 40 -s 1 -m 4 --walk teacher` prints the same 42 lines before and after. Three tests pin the build: split-then-cut = whole-then-cut, an extended draw cuts like a native one (at the old `M` and the new), and the cut refuses a foreign SHA / a short chunk / a gap | **corpus complete 2026-09-13** — all 188 chunks at 64 layouts; the `M = 32` cut and training are recorded below |
+| 7+ | **the run**: `fleet-relabel.sh provision` → `start 64` → `collect` → `mopup 64` → `--cut 32` → retrain (omit `--weights-in`; fits `T` automatically) → constant-input fold → fixture check → A/B; pass 2 (`start 128` … `--cut 64`) only if the A/B is marginal. Then `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | **candidate trained 2026-09-13; A/B owed** |
 | ~~6+~~ | ~~**extend the `M`-series downward**~~ (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
+
+**2026-09-13 — fleet complete, first production cut.** All 188 expected
+chunks are present across the 20 shards, at corpus commit
+`39318c7f2a38db773b629746200b70a7c7fcae4f`: 910,000 bank draws from
+`22.pdd` rows 3,250,000..4,160,000, yielding **6,766,821 rows**
+(4,234,169 contested). At `M = 32`, margin **0.25 IMP**, the cut visits
+3,272,629 net-served decisions; 2,649,972 have all 64 layouts and
+**460,341 labels change** (17.37% of eligible decisions, 6.80% of all rows).
+Recorded proposal settings are top-3, epsilon `1e-4`, temperature **1.0**. The
+remaining decisions retain BBA's labels. No additional solve was needed.
+
+The cut is `target/corpus-relabel-m32` on the collection/training host;
+`target/relabel-training/manifest.json` preserves the original chunk sidecars,
+normalized-path provenance, cut counts, ordered corpus stems, training command,
+and input/artifact hashes. Both copies of `22.pdd` hash to
+`27e593a65a855bfef9de1d321cfdfdccffa51b4a332b85ff7cbbb0fd29bb42e4`.
+The candidate artifact stem is
+`target/relabel-training/american_bba_v6_relabel_m32`.
+
+**Training recipe:** the existing v6 MLP, `176 → 256 → 256 → 38`, on the
+RTX 4090, 300 epochs, learning rate 0.001, weight decay 0, batch 4096,
+validation fraction 0.10, DD loss weight 0, init seed 1. Stem order matches
+the shipped v6 sidecar: uniform 0..7, enriched 0..3, then axes
+0004/1000/2000/0002/4000/0800/8000/0020. The trainer fits temperature after
+training; `fold-constant-inputs.py --data ...` scans all 20 stems afterward,
+and the folded export is checked against its Candle fixture. The artifact
+remains a candidate until the fresh-deal A/B passes both scorers and
+vulnerabilities, including the Dutch factory that shares this floor.
+
+**Training completed at 06:28 Taipei**, 6m16s for the train/export/fold/check
+pipeline, after rebuilding `pons-trainer` with `--features cuda` using CUDA
+12.8. The split contains **6,090,135 training / 676,686 validation rows**.
+Final held-out CE is **0.4163194**; top-1 agreement is **85.3049%** overall,
+**89.0780%** constructive and **83.0421%** contested. The fitted candidate
+temperature is **T = 1.0914695**, taking held-out NLL 0.4163194 → 0.4143806
+and ECE 0.0131932 → 0.0023645. These are scores against the new labels,
+not a comparison with the shipped artifact's old-target CE.
+
+The full-corpus scan folded **30 constant columns**, leaving 146 live
+inputs. The independent NumPy forward pass matches all **8/8 fixture
+argmaxes** after folding, maximum absolute logit difference **0.000732421875**
+(the existing fixture tolerance is `1e-3`). The artifact contains 120,870
+floats / 483,480 bytes; its folded `.f32` SHA-256 is
+`4cf86cef3e6c427ef9fb0bce12a0f70224624ad85dd4ac9d72698bd936153017`.
+The manifest also pins the sidecar/fixture hashes, trainer binary, sources,
+lockfile, toolchain and all cut corpus files. Unfolded exports are retained
+beside the candidate. **A/B is still owed; no embedded weight or bidding
+source changed.**
+
+**Handoff discrepancies found before this run; reversible defaults used:**
+
+- The fleet used the CLI default proposal **T = 1.0**, whereas §4c specifies
+  **1.1298**. Keep the generated corpus and train this explicitly identified
+  candidate. Temperature preserves mathematical ranking, but do not claim
+  complete corpus equivalence without checking the actual proposal path's
+  mass gate and finite-precision selection. Fitting the candidate's own
+  temperature afterward does not change the proposal temperature used to
+  generate its labels.
+- The ledger's former “retrain (`--weights-in`)” command skips training.
+  Omit that flag for the fit; use it only for evaluate/calibrate/export.
+- `cut()` compares bank path strings within each shard. The fleet uses a
+  local bank copy on one host, so identical bank bytes still fail that gate.
+  After verifying both hashes, normalize only copied staging sidecars and
+  link their data siblings to the immutable originals; preserve original
+  paths in the manifest. The original chunks and cut implementation stay intact.
+- `cut()` checks adjacency among present chunks, not the complete recipe's
+  first/last boundaries or missing whole shards. Check all 188 expected
+  `(shard, chunk, skip, boards, seed)` entries before cutting.
+- The trainer drops the corpus `relabel` metadata on export; retain it in
+  the companion manifest. Its “board-disjoint” split is actually a contiguous
+  row tail per shard and can bisect one board. Keep the historical split for
+  this run; held-out CE is diagnostic, and the release gate uses fresh deals.
+- `trainer/README.md` still calls v4 the shipped input. This run follows the
+  current v6 sidecar and source geometry (176 inputs), leaving that broader
+  historical README rewrite for a trainer documentation pass.
 
 Sessions 2 and 3 change no call and are provable by the hash — session 3's one
 `src/` edit widens `table::select_legal_call` to `pub` so the probes call

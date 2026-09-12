@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **M32 relabel candidate trained (2026-09-13)** — the complete 188-chunk
+  fleet corpus yields 6,766,821 rows and 460,341 changed labels. The v6 MLP
+  completed 300 epochs (held-out CE 0.4163, agreement 85.30%, fitted
+  temperature 1.0915); constant-input folding and all eight export fixture
+  argmaxes pass. Corpus provenance, bank registration and handoff corrections
+  are recorded in `docs/ai-bidder/logit-calibration.md` §6. The artifact stays
+  in scratch storage pending fresh-deal A/B; shipped bidding is unchanged.
+
 - **The `M`-series relabel build and its fleet (logit calibration session 7,
   2026-09-04)** — no bidding change and **no `src/` edit at all**; the session
   lands in `examples/`, `scripts/` and `docs/`. It builds the owed item of
