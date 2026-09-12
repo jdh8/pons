@@ -1188,7 +1188,7 @@ one comment that does mislead.
 | 5 (2026-09-04) | §4c: `probe-rollout-label --walk {self,teacher}` — the **corpus-fed mode**, which needs no corpus reader (a v6 row has no board id, but the pricing half only ever consumed *(hand, seat, dealer, prefix)*); the four-way **slice histogram**; the two `M = 128` teacher cells; the production **label gate** spec; the **re-priced pass** | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The refactor is proven inert by re-running §4a's authored row *and* §4b's `M = 8` net-served row through the new binary: 631 decisions at +0.4487 ± 0.0633 / −0.1040 ± 0.0891 / +0.7740 ± 0.0956 / +0.1583 ± 0.1237, and 1,931 at +1.1066 ± 0.0750 / +0.4476 ± 0.0968 / +0.9544 ± 0.0837 / +0.2520 ± 0.1034 — both digit-for-digit | **done** — the value **survives the move to the corpus population and grows**: held-out DD +0.7483 ± 0.1311 (none) / +0.8074 ± 0.1496 (both), PD +0.5163 ± 0.1095 / +0.6163 ± 0.1336, against §4b's self-play +0.613/+0.684 and +0.464/+0.563, with a *smaller* winner's curse. The slice is 49% of corpus rows, so `M = 128` costs **72 box-days, not 50** — and `M = 8` buys 11.7× more IMPs per box-hour, taking the same pass to **4.5 box-days** |
 | 6 (2026-09-04) | §4d: the **`M`-series** on the corpus population, seven rungs paired on identical deals (`M` = 2/4/8/16/32/64/128, seed 1, 200 deals, teacher walk, net-served, `--vul none`) plus two both-vulnerable confirmations at `M` = 16/32, 69 minutes of box time; the `own_inadmissible` counter that closes §4c's owed line; the corpus denominator re-counted from the 20 sidecars; the starvation discount applied to the budget | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The one probe addition is proven inert by the `M = 128` rung reproducing §4c's teacher/none row digit-for-digit — 881 priced, +0.8091 ± 0.1265 / **+0.7483 ± 0.1311** / +0.5855 ± 0.1064 / **+0.5163 ± 0.1095**, both-rule 16.57% | **done** — the answer is **`M = 32` at 14.6 box-days**, not `M = 8`. The curve **saturates at `M = 64`** (indistinguishable from `M = 128` on both scorers at half the cost), so the rung §4b and §4c did their headline work at buys nothing. Perfect defense is the `M`-limiting scorer (it reaches 33% of its `M = 128` value at `M = 8` where plain DD reaches 52%), and the margin gate is nearly volume-neutral in `M` (fire 11.9 → 16.6% while value rises 400%), so it filters against BBA's baseline but **not** against estimator noise. IMPs-per-box-hour is degenerate — it peaks at `M = 4` and would peak at `M = 1`. §4c's denominator was **circular** (636,837 "boards" is `6,768,279 ÷ 10.628`); the counted figure is **619,076 auctions**, and with the missing starvation discount the pass re-prices to **3.6 / 14.6 / 58.3** box-days at `M` = 8 / 32 / 128. The sampler's 16.5% hole is settled as **zero-measure infeasibility, not budget** — flat across a 64× span of `M` — so it is a reading repair, not a cap raise |
 | 7 (2026-09-04) | the **relabel build and its fleet**: `dump-teacher --relabel` harvests the net-served decisions of the corpus walk (our reader's provenance, `Phase`, `forced`), rolls each out through the shared pricer (`examples/common/rollout.rs`, lifted out of `probe-rollout-label`) and stores **raw per-layout returns** — `[candidate][layout] → (DD, PD)` swings over BBA's call — in a `.ret` sibling; `--cut M` reads every chunk, selects on `[0, M)`, validates on `[M, 2M)`, and overwrites the one-hot where §4c's gate fires, refusing sidecars that disagree, non-contiguous tilings, and chunks short of `2M`. Streams are seeded from the **bank index** (per board and per decision), so chunks split anyhow concatenate byte-identically; an existing `.ret` is **extended** (only new layouts solved). Fleet: `scripts/relabel-worker.sh` (stride/offset over the v6 recipe, existence gate, SIGHUP drain), `scripts/pons-worker@.service`, `scripts/fleet-relabel.sh` (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`); the section in [../shared-machine-data-gen.md](../shared-machine-data-gen.md) | byte-identity: **no `src/` edit at all**. The probe refactor is inert — `probe-rollout-label -c 40 -s 1 -m 4 --walk teacher` prints the same 42 lines before and after. Three tests pin the build: split-then-cut = whole-then-cut, an extended draw cuts like a native one (at the old `M` and the new), and the cut refuses a foreign SHA / a short chunk / a gap | **corpus complete 2026-09-13** — all 188 chunks at 64 layouts; the `M = 32` cut and training are recorded below |
-| 7+ | **the run**: `fleet-relabel.sh provision` → `start 64` → `collect` → `mopup 64` → `--cut 32` → retrain (omit `--weights-in`; fits `T` automatically) → constant-input fold → fixture check → A/B; pass 2 (`start 128` … `--cut 64`) only if the A/B is marginal. Then `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | **candidate trained 2026-09-13; A/B owed** |
+| 7+ | **the run**: `fleet-relabel.sh provision` → `start 64` → `collect` → `mopup 64` → `--cut 32` → retrain (omit `--weights-in`; fits `T` automatically) → constant-input fold → fixture check → A/B; pass 2 (`start 128` … `--cut 64`) only if the A/B is marginal. Then `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | **trained and BBA-qualified 2026-09-13** — American wash/win and Dutch win/win at both vulnerabilities; artifact remains a candidate, embedded defaults unchanged |
 | ~~6+~~ | ~~**extend the `M`-series downward**~~ (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
 **2026-09-13 — fleet complete, first production cut.** All 188 expected
@@ -1236,8 +1236,99 @@ floats / 483,480 bytes; its folded `.f32` SHA-256 is
 `4cf86cef3e6c427ef9fb0bce12a0f70224624ad85dd4ac9d72698bd936153017`.
 The manifest also pins the sidecar/fixture hashes, trainer binary, sources,
 lockfile, toolchain and all cut corpus files. Unfolded exports are retained
-beside the candidate. **A/B is still owed; no embedded weight or bidding
-source changed.**
+beside the candidate. The fresh-deal A/B below subsequently qualified this
+artifact against BBA; **no embedded default or bidding source changed**.
+
+**Fresh-deal A/B, completed 2026-09-13, 06:52:59–07:23:22 Taipei
+(30m23s).** The training record
+is committed on `main` as `d1cf6803`. On dl02, two frozen `bba-gen` binaries
+were built from that revision with only the v6 weight, metadata and fixture
+files substituted for the candidate. The embedded weight therefore reaches
+every American/Dutch sibling using the shipped v6 floor through the existing
+shared classifier. The working tree and ordinary target binaries
+were restored before generation. Artifact replacement uses fresh mtimes
+(preserving older artifact timestamps let Cargo reuse a stale binary), and
+each frozen bidder is checked for the exact intended weight bytes before
+generation. All 25 neural/floor tests pass with the candidate, including the
+Rust export fixture and constant-column check.
+Declared/undeclared same-system self-play is identical on 2,000 boards,
+seed 424242, for each system in each binary. The restored default's 20k-board
+seed-1 smoke hash is `38ee1e21…`; the candidate's is `7b854b38…`.
+
+The run is `ab-results/relabel-m32-20260913` on dl02, backed by
+`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-20260913`. Its `manifest.json`
+pins the source, artifacts, frozen binaries, scratch runner and preflight.
+`run.py` runs under `scripts/idle-run.sh` in the transient user unit
+`pons-ab-relabel-m32-20260913`: **32 × 6,400 = 204,800 boards per arm/cell**,
+fresh seeds **1789253406 through 1789253437**, shared across American/Dutch and
+none/both vulnerability. Arms run sequentially; no build occurs in flight.
+Each child must exit successfully and every shard must match the expected
+seed/count/arguments before publication. `ab-dump-diff --score both` scores
+the same divergent deals once for plain DD and PD; positive means
+**candidate minus shipped v6**, using `table_a` against BBA. Reports live in
+`scores/{american,dutch}-{none,both}.{plain,pd}.txt`.
+
+All eight arms and reports completed, the unit exited 0, and the paused poker
+worker was restored. The raw dumps remain on dl02; reports, manifest and
+scratch scripts are also copied to the local `pons/ab-results/` run directory.
+The table reports candidate − control IMPs/board with **95% CI half-widths
+(`1.96·SE`)**; the last column gives IMPs per changed final contract. Each
+row has 204,800 paired boards across 32 fresh shard seeds; do not pool the
+four rows as independent deal sets.
+
+| system / vulnerability | changed auctions | changed contracts | plain DD | PD | DD / PD per changed contract |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| American / none | 51,821 | 38,885 (18.99%) | −0.0108 ± 0.0116 | +0.0426 ± 0.0134 | −0.057 / +0.224 |
+| American / both | 46,505 | 34,553 (16.87%) | −0.0041 ± 0.0140 | +0.0543 ± 0.0161 | −0.025 / +0.322 |
+| Dutch / none | 52,720 | 39,575 (19.32%) | +0.0126 ± 0.0115 | +0.0631 ± 0.0134 | +0.065 / +0.326 |
+| Dutch / both | 47,367 | 35,432 (17.30%) | +0.0182 ± 0.0139 | +0.0718 ± 0.0162 | +0.105 / +0.415 |
+
+**Verdict: all four cells pass the BBA decision table.** American is a
+plain-DD wash / PD win at each vulnerability; Dutch wins both scorers at
+each vulnerability. The American/none plain interval only narrowly crosses
+zero; this is a non-loss verdict, not evidence of a plain-DD improvement.
+
+This is the per-fix BBA gate. The [BEN campaign](../ben-gap-campaign.md)'s
+milestone/routing validation remains separate; these results alone cannot
+establish improvement against BEN. The candidate remains outside the
+embedded defaults; this commit records the completed qualification, not a
+default swap. The collar sweep and raw-net ablation remain separate work.
+
+**American/none tail trace.** All 51,821 first auction divergences are in our
+NS seats (25,908 North, 25,913 South). Bid→Pass occurs 16,220 times versus
+11,954 Pass→bid; Pass→X occurs 7,690 times versus 3,156 X→Pass. Including
+all call classes, 19,585 first changes introduce Pass and 19,758 replace it:
+the tail is not evidence that the candidate simply bids more everywhere.
+Of 38,885 changed final contracts, 15,152 change declarer side, 27,918 change
+level and 9,728 change doubling; these counts overlap.
+
+Five worst-tail deals were matched to the raw dumps, including dealer and
+the first changed seat. Shard/index below are zero-based within the run's
+American/none arm. Hands are spades.hearts.diamonds.clubs; final contracts
+are candidate → control. These are selected-tail observations, not a
+population attribution or a provenance replay.
+
+| shard:index | first changed decision; acting hand | final contracts | IMPs |
+| --- | --- | --- | --- |
+| 11:3833 | South, 2♠ instead of Pass over their 2♥; `875.9752.K9432.T` (3 HCP) | 5♥XX S → 6♠ E | −24 DD/PD |
+| 28:3391 | North, 5♦ instead of Pass over their 4NT; `AQJ652.975.83.KQ` | 5♦XX N → 6♥ E | −24 DD/PD |
+| 27:810 | South, 4NT instead of Pass over their 4♥; `95.AT9432.Q7.763` (6 HCP) | 4NTXX S → 4♠ W | −23 DD/PD |
+| 15:3768 | North, 5♦ instead of X over their 5♣ answer; `65.943.32.KQ9853` | 5♦ N → 6♦ E | −22 PD |
+| 20:5177 | North, 4NT instead of 2NT over their 2♣; `2.AKJT53.AKT972.` | 5♣X S (two-card fit) → 4♥X N (nine-card fit) | −22 DD/PD |
+
+All five initiating bids fall outside `competitive_gate`'s bid-veto
+coverage: the first and last occur below its four-level trigger, and the
+others introduce strains NS has not named. Only the cheapest bid in a
+previously named strain is priced; `new_suit_veto` remains default-off.
+This makes interaction with the floor shell a follow-up hypothesis, not a
+demonstrated cause of the aggregate result. The later XX on 27:810 could
+be the deterministic zero-keycard ROPI answer; do not attribute that redouble
+to the learned policy without replaying provenance.
+
+**Flagged doc/code discrepancy:** `competitive_gate`'s comment says the whole
+gate requires our side to have named a strain. The code restricts only bid
+pricing that way; double masking and Pass demotion can still run without it.
+Keep behavior unchanged and clarify that comment when collar work resumes.
 
 **Handoff discrepancies found before this run; reversible defaults used:**
 
