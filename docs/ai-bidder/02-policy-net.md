@@ -3,9 +3,10 @@
 The half that does the floor's actual job: `(hand, auction) → Logits` over 38
 calls, learned instead of hand-written.
 
-> Status (2026-08-10): built, twice over. Phase 1 executed with a different
-> teacher — the shipped floors hard-clone the BBA/EPBot oracle (current: v5,
-> [`card-manifold.md`](card-manifold.md)), not `american()` self-distillation.
+> Status (2026-09-13): built, twice over. Phase 1 used one-hot BBA/EPBot
+> labels. The current M32 v6 floor trains on those targets with **460,341**
+> replaced by qualified rollout selections; it is no longer a pure BBA clone.
+> See [`logit-calibration.md`](logit-calibration.md) §6 for its provenance and gates.
 > Phase 2's search was built as M2/M3 (`american_search`, `search_floor.rs`)
 > and then **deleted** in the variant tidy-up
 > ([`archive/sound-search.md`](archive/sound-search.md)); re-deriving it is
@@ -93,18 +94,22 @@ bigger Rust forward pass, more ways to be wrong.
 
 ### Output calibration
 
-The net inherits **no** teacher scale: every shipped floor since 2026-07-19 is
-trained on one-hot BBA labels (the README glossary's Distillation row), so its
-raw logits sit wherever cross-entropy leaves them. The books' "~3-nat gap"
+The net inherits **no** teacher scale: the current M32 v6 targets remain
+one-hot — BBA labels with **460,341 rollout replacements** — so its raw
+logits sit wherever cross-entropy leaves them. The books' "~3-nat gap"
 (`rules.rs`) is a claim about three sites, not a scale: argmax resolves
 overlapping rules by order at any positive gap, the shipped rungs sit 0.05-0.5
-nat apart, and nothing on the default path reads a book magnitude as odds. The
-one scalar that gives the net's softmax a meaning is a temperature `T`
-(divide logits by `T` before softmax), **fitted** on held-out NLL — temperature
-scaling, Guo et al. 2017. It is argmax-invariant, so serving stays raw; only
-the search's proposal odds and any display move. Session 2 of
-[logit-calibration.md](logit-calibration.md) built the held-out-NLL fitter and
-sidecar field; no shipped v6 artifact has been fitted with it yet.
+nat apart, and nothing on the default path reads a book magnitude as odds.
+
+Temperature scaling divides logits by a positive scalar `T` before softmax,
+fitted on held-out NLL (Guo et al. 2017). M32's sidecar records
+**`T = 1.0914695`**, fitted on the **unmasked** raw logits over all 38 calls.
+It is a diagnostic of that distribution, not a calibration of the legal-call
+probabilities a consumer would use. Serving does not consume this fitted `T`,
+and legal-set calibration remains deferred. Positive scaling preserves argmax;
+the existing shell and Pass demotion stay fixed.
+The fitter, discrepancy and deferred masked fit are recorded in
+[logit-calibration.md](logit-calibration.md) §3 and §6.
 
 ### The legality + safety shell (restating the key invariant)
 
@@ -145,7 +150,8 @@ downstream: it proves the representation carries enough signal, the Rust forward
 pass is correct (its logits should track the teacher's), and the harness wiring
 works — *before* we introduce the much noisier search signal. It also yields a
 fast, smooth, **sampleable** policy (the teacher is a hard `Rules` ladder; the
-net is a calibrated distribution), which is itself useful as a sampling prior.
+net produces a distribution), which can be calibrated over legal calls for use
+as a sampling prior.
 
 ### Phase 2 — Search (beat the teacher)
 

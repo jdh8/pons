@@ -114,6 +114,7 @@ required-features = ["serde"]
 name = "ben-gen"
 path = "examples/ben-gen/main.rs"
 required-features = ["serde"]
+test = true
 
 [[example]]
 name = "bba-score"

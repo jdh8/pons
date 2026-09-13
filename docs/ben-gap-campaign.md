@@ -1,9 +1,12 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 1 complete; Tier-S anchor `0d8b755` retained (2026-08-10) — pons is
-−1.163 plain / −1.032 PD IMPs/board behind BEN Tier S** (20k boards; was
-−1.906 / −1.860 at `119675f`, so **+0.74 plain / +0.83 PD** since the first
-anchor — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
+**Status: Phase 1 complete; the M32 floor milestone qualified against BEN and
+was promoted on 2026-09-13. Retained headline — Tier-S anchor `0d8b755`
+(2026-08-10 snapshot, predating M32): pons was −1.163 plain / −1.032 PD
+IMPs/board behind BEN Tier S** (20k boards; was −1.906 / −1.860 at
+`119675f`, so **+0.74 plain / +0.83 PD** since the first anchor — see trail
+below). This headline remains the historical Tier-S snapshot; it is not a new
+M32 anchor. Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
@@ -398,6 +401,50 @@ knob) make a sized Tier-F arm a ~1–4 h batch job.
 engine BBA measured). Per-fix verdicts read at Tier F; the periodic Tier-S
 anchor is the truth. If shipped Tier-F wins stop moving the Tier-S anchor,
 stop and re-examine the tier gap (Phase 1 measures it once, same seeds).
+
+## M32 floor milestone validation — qualified and promoted 2026-09-13
+
+The rollout-relabelled M32 floor passed its per-fix BBA gate, then completed the
+BEN Tier-F milestone in all four American/Dutch × none/both cells. This is a
+milestone check, not a new per-fix BEN requirement. The full training and BBA
+record is [logit-calibration.md §6](ai-bidder/logit-calibration.md#6-ledger).
+
+The fixed run used **25,600 paired boards per system/vulnerability cell**
+(16 fixed servers on ports 8085–8100 × 1,600), eight sequential generation
+arms, and seeds **1789283437..1789283452** shared across every cell. It ran on
+dl02 from **15:29:55 to 21:31:36 Taipei** under
+`pons-ab-m32-ben-20260913.service` and exited 0 with `SUCCESS`; artifacts,
+source, runtime configuration, process identities and preflight are pinned in
+`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-ben-20260913/manifest.json`.
+Positive means candidate minus the previous shared v6 on `table_a`; plain DD
+and PD score the same changed contracts. Intervals are 95% CI half-widths
+(`1.96·SE`). Do not pool the cells as independent deal sets; the sample was
+not extended to obtain a favorable verdict.
+
+| system / vulnerability | changed contracts | plain DD IMPs/board | PD IMPs/board | DD / PD per changed | verdict |
+| --- | ---: | ---: | ---: | ---: | --- |
+| American / none | 5,222 (20.40%) | +0.0028 ±0.0311 | +0.0816 ±0.0383 | +0.014 / +0.400 | wash / win |
+| American / both | 4,778 (18.66%) | +0.0249 ±0.0388 | +0.1014 ±0.0469 | +0.133 / +0.544 | wash / win |
+| Dutch / none | 5,282 (20.63%) | +0.0349 ±0.0309 | +0.0983 ±0.0382 | +0.169 / +0.476 | win / win |
+| Dutch / both | 4,821 (18.83%) | +0.0635 ±0.0387 | +0.1148 ±0.0472 | +0.337 / +0.610 | win / win |
+
+All four cells pass the decision table: American is a plain-DD wash with a PD
+win at each vulnerability, and Dutch wins both scorers at each vulnerability.
+The American plain-DD confidence intervals straddle zero; **wash is not
+equivalence** and does not establish that the policies are identical. All
+paired deals and dealers, shard metadata and report hashes were checked. Every
+first auction divergence was made by our NS pair, with no observed
+BEN-initiated divergence.
+
+The exact M32 `american_bba_v6.{f32,json,fixture.json}` trio is now the shared v6
+artifact used by the American and Dutch siblings. Two old-model continuation
+goldens were updated to M32's choices, retaining their floor-provenance checks;
+they now pass. Post-promotion formatting, the full all-features test suite,
+nightly Clippy with `-D warnings`, and strict rustdoc passed at **21:42:45
+Taipei**. The 20k seed-1 default smoke replay exactly reproduces the qualified
+M32 hash `7b854b38…`; the embedded trio matches the frozen candidate hashes.
+Public Rust APIs remain unchanged. Verification logs are retained in the
+run directory's `post-promotion/` subtree.
 
 ## Phases
 

@@ -5,6 +5,8 @@
 > [`authored-reading-handoff.md`](../authored-reading-handoff.md#phase-5--honest-reading-retrain-shipped-2026-08-18).
 > The 2026-08-18 closeout removed the v5 serving path, artifacts, and harnesses;
 > all v5 names and commands below are historical.
+> M32 replaced the shared v6 weights on 2026-09-13 while retaining the same
+> factories and regime interface; see [logit-calibration.md §6](logit-calibration.md#6-ledger).
 
 **Status: the fold is SHIPPED, all three experiments ran, and the v5 retrain
 is TRAINED and WIRED (2026-08-08). E1 ✓ E2 ✓ (cell A → 0 fired); E3 = plain

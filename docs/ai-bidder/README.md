@@ -4,7 +4,9 @@
 > crate's default floor **is** a learned net — the BBA-distilled configured
 > v6 net retrained on honest authored readings since 2026-08-18
 > ([`../authored-reading-handoff.md`](../authored-reading-handoff.md)) — and the
-> sampler, evaluator net, and DSL compiler are live. Milestone status is in
+> sampler, evaluator net, and DSL compiler are live. The M32 rollout-relabelled
+> weights shipped on 2026-09-13 ([`logit-calibration.md`](logit-calibration.md#6-ledger)).
+> Milestone status is in
 > [`plan.md`](plan.md); this file and `01`–`04` keep the original design and
 > the ML glossary. Where execution diverged from the plan (notably the
 > distillation teacher — see the glossary row), the shipped record wins.
@@ -82,14 +84,14 @@ these framings.
 | Attention (transformer) | For each position, a weighted average of all positions' vectors; the weights are `softmax` of learned dot-products. A differentiable, content-addressable lookup. |
 | Deep Sets / equivariance | If the input is a set (the 4 suits are exchangeable), apply one shared per-element function, then pool (sum/mean). Bakes the symmetry into the architecture. |
 | CNN | A small filter slid across positions; assumes *translation invariance*. Bad fit for card ranks (an Ace is not "a Two shifted up"). |
-| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. As designed the teacher was `american_instinct()` (never the net-floored `american()`, which would be circular); as shipped, every default floor since 2026-07-19 clones the external **BBA/EPBot oracle** instead (`dump-teacher --teacher bba`; see [`bba-floor.md`](bba-floor.md)). |
+| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. As designed the teacher was `american_instinct()` (never the net-floored `american()`, which would be circular). Shipped floors began using the external **BBA/EPBot oracle**'s one-hot labels on 2026-07-19 (`dump-teacher --teacher bba`; see [`bba-floor.md`](bba-floor.md)); M32 replaces 460,341 of those labels with rollout-selected calls ([logit-calibration.md §6](logit-calibration.md#6-ledger)). |
 | Policy | A function: state → distribution over actions. **Your floor is already a (deterministic) policy.** The net is a learned one. |
 | Policy improvement / search | Use a slow accurate evaluator (DD over sampled layouts) to score each candidate call, then nudge the policy toward the higher-EV one. Iterate. Run it **at training time** (to make targets) *and* **at play time** (net+search beats the raw net). |
 | Prior policy | The cheap policy (the net's softmax) used to *propose* which calls are worth evaluating — search only the top-`k`. "Net proposes, search disposes." |
 | Rollout | Play the auction out to a contract under the current policy, then score that contract double-dummy on one sampled layout. Average rollouts → a call's EV. |
 | Test-time / inference-time search | Running the policy-improvement operator *at the table*, not only during training. The reason a slow, gated "thinking" bidder beats the fast one-matmul floor. |
 | Self-play | The system generates its own training auctions by bidding against itself, scored by the evaluator. |
-| Temperature / calibration | Divide logits by one scalar `T` before softmax. A book rung is *precedence*, not odds (adjacent rungs sit 0.05-0.5 nat apart; the "~3-nat gap" is three sites); the net's `T` is fitted once on held-out rows (owed), see [logit-calibration.md](logit-calibration.md). |
+| Temperature / calibration | Divide logits by one scalar `T` before softmax. A book rung is *precedence*, not odds (adjacent rungs sit 0.05-0.5 nat apart; the "~3-nat gap" is three sites). M32's `T = 1.0914695` is fitted on held-out **unmasked** logits and remains diagnostic; a legal-set fit and temperature consumption are deferred. See [logit-calibration.md](logit-calibration.md). |
 | Overfitting / generalization | Memorizing noise vs learning signal. Held-out boards measure the difference. |
 
 ## Document map

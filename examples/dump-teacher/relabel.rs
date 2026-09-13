@@ -275,7 +275,9 @@ pub fn read_ret(path: &Path) -> anyhow::Result<Vec<Priced>> {
         let layouts = u16::from_le_bytes(take(2)?.try_into()?);
         let count = ncand.saturating_sub(1) * usize::from(layouts);
         let swings = take(count * 2)?
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|s| [i8::from_le_bytes([s[0]]), i8::from_le_bytes([s[1]])])
             .collect();
         out.push(Priced {

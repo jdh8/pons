@@ -8,7 +8,9 @@ the two doc-drift repairs in §5. **No bidding change**: `smoke-default --count
 ([../measurement.md](../measurement.md) item 12). Sessions 2 and 3 shipped the
 same day and under the same gate; sessions 4, 5 and 6 followed on 2026-09-04 and
 each moved the next task. Session 7 built the relabel fleet; its first corpus
-completed on 2026-09-13. Training and the remaining A/B gate are recorded in §6.
+completed on 2026-09-13. Training and the completed BBA qualification are
+recorded in §6; the exact M32 artifact passed BEN milestone validation and
+was promoted to the shared v6 default on 2026-09-13.
 This is the calibration story the
 M5.2 flip plan in [plan.md](plan.md) M5.2 needs before its collar retune can be sized, and the
 scale question [competitive-accountant.md](competitive-accountant.md) and
@@ -187,12 +189,16 @@ this across architectures and found one scalar fixes most of it:
 p = softmax(z / T)        T > 0, one scalar per net
 ```
 
-fitted by minimising held-out negative log-likelihood over `T` alone — on the
-legality-masked logits, the distribution every consumer in §4 reads (the
-trainer's cross-entropy is unmasked: the label is legal by construction, the
-net's illegal-call mass is not). One scalar cannot overfit a split of this
-size, but the ECE reported *after* the fit is in-sample for `T`; report it on
-fresh deals ([../pdd-bank-ledger.md](../pdd-bank-ledger.md)). Dividing
+fitted by minimising held-out negative log-likelihood over `T` alone. The
+intended fit uses legality-masked logits, the distribution consumers in §4
+read. **Implementation discrepancy, verified 2026-09-13:**
+`trainer/src/main.rs` passes raw validation logits to `calibrate::fit`, whose
+normalizer includes all 38 calls. The recorded temperatures, NLL and ECE
+therefore describe the **unmasked raw net**, not its legal-set probabilities.
+The labels are legal by construction; the net can still assign illegal mass.
+Keep the qualified M32 artifact exact and defer the masked fit until an odds
+consumer is chosen. The ECE reported *after* fitting is in-sample for `T`;
+report it on fresh deals ([../pdd-bank-ledger.md](../pdd-bank-ledger.md)). Dividing
 every logit by the same positive `T` leaves the order unchanged, so **argmax is
 `T`-invariant** and serving needs nothing new; only a consumer that reads a
 magnitude (a margin, a demotion, a percentage) sees `T`. `T > 1` flattens
@@ -257,9 +263,10 @@ floor), the display shows the **ladder**: the legal finite calls in precedence
 order with their rung values in nats, no percentages, because a percentage there
 would be a softmax of an order. Where the floor answered, it shows percentages
 from a softmax taken **after** masking illegal calls to `-inf`, so the
-denominator holds only calls the seat can make, and at temperature `T` once
-session 2 has fitted one — until then the percentages are the raw softmax,
-over-confident by the amount §3 describes: hygiene, not yet odds. This is the
+denominator holds only calls the seat can make. These percentages still use
+the raw masked softmax. The existing unmasked diagnostic fits do not qualify
+this legal-set distribution; fitting and consuming its temperature remain
+deferred to the chosen probability-consumer task: hygiene, not yet odds. This is the
 session-1 fix to `top3()` and the practice-bidding block, and it is hygiene, not
 a bidding change: the selector never read the display.
 
@@ -437,14 +444,19 @@ than a fixed logit gap. This lands inside the flip plan's collar-retune A/B
 not before: it moves calls, so it needs the decision table, and it shares the
 retune's measurement.
 
-**The `T` that restatement needs is now measured: `T = 1.1298` for the shipped
-`american_bba_v6`** (session 4, 2026-09-04), so `3·T` = **3.389 nats** — a 13%
+**Historical pre-M32 fit: `T = 1.1298` for the then-shipped
+`american_bba_v6`** (session 4, 2026-09-04; artifact SHA-256
+`e172dd6297f36d0f2d33714e751df3d68ec2c1f3bf516fb9259d59943e26210c`).
+For that artifact, `3·T` = **3.389 nats** — a 13%
 deepening of the demotion, not the 2-3× a badly over-confident net would have
 implied. Session 2's fitter runs at the *end* of a training job, so a shipped
 artifact had no temperature until something loaded it back; `--weights-in` on
 the trainer is that mode. It reads `<stem>.f32` into the same model, skips
 training, and runs the existing evaluate → fit → export path, so the number is
-produced by exactly the code that would have produced it in the original run:
+produced by exactly the code that would have produced it in the original run.
+The historical command below addresses the live weight stem. Reproducing
+these old numbers requires the pre-M32 weights and sidecar identified above,
+retained as `base.f32` and `base.json` in the BEN run directory (§6).
 
 ```sh
 cd trainer && ./target/release/pons-trainer \
@@ -454,20 +466,20 @@ cd trainer && ./target/release/pons-trainer \
   --weights-out /tmp/v6-cal --fixture 0
 ```
 
-On v6's own held-out tail (676,829 rows, the split the sidecar records), the fit
+On that artifact's held-out tail (676,829 rows, the split the sidecar records), the fit
 reads **NLL 0.3010 → 0.2984** and **ECE 0.0117 → 0.0015**, an 8× calibration
-improvement for a 13% rescale. The load is provably the shipped artifact:
+improvement for a 13% rescale. The load was proven to match that artifact:
 re-exporting it is byte-identical, and `val_top1` reproduces the sidecar's
 0.8928 / 0.8890 / 0.8950 exactly (`val_ce` moves in the last ulp only, from
 `evaluate`'s minibatched accumulation). The auxiliary DD value head is **not** in
 `PARAM_NAMES` and therefore not in the blob, so it loads at its random init and
 a `--weights-in` sidecar reports `val_dd_mse` as null rather than as noise.
 
-The shipped `american_bba_v6.json` is deliberately **left untouched**: it is a
-provenance record of a training run that did not fit a temperature, and quietly
-back-filling four calibration fields into it would make a later fit look like
-that run's own output. The number lives here; folding it into the sidecar is a
-one-line edit if jdh8 wants it there.
+Session 4 deliberately **left the pre-M32 `american_bba_v6.json` untouched**:
+it records a training run that did not fit a temperature, and back-filling
+calibration fields would make a later fit look like that run's own output.
+The old fit remains recorded here; M32 has its own training-time fitted
+unmasked diagnostic temperature (§6).
 
 **Trainer side.** After training, fit `T` on the held-out split by NLL,
 report ECE before and after, and write a `temperature` field into the weights
@@ -1188,7 +1200,7 @@ one comment that does mislead.
 | 5 (2026-09-04) | §4c: `probe-rollout-label --walk {self,teacher}` — the **corpus-fed mode**, which needs no corpus reader (a v6 row has no board id, but the pricing half only ever consumed *(hand, seat, dealer, prefix)*); the four-way **slice histogram**; the two `M = 128` teacher cells; the production **label gate** spec; the **re-priced pass** | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The refactor is proven inert by re-running §4a's authored row *and* §4b's `M = 8` net-served row through the new binary: 631 decisions at +0.4487 ± 0.0633 / −0.1040 ± 0.0891 / +0.7740 ± 0.0956 / +0.1583 ± 0.1237, and 1,931 at +1.1066 ± 0.0750 / +0.4476 ± 0.0968 / +0.9544 ± 0.0837 / +0.2520 ± 0.1034 — both digit-for-digit | **done** — the value **survives the move to the corpus population and grows**: held-out DD +0.7483 ± 0.1311 (none) / +0.8074 ± 0.1496 (both), PD +0.5163 ± 0.1095 / +0.6163 ± 0.1336, against §4b's self-play +0.613/+0.684 and +0.464/+0.563, with a *smaller* winner's curse. The slice is 49% of corpus rows, so `M = 128` costs **72 box-days, not 50** — and `M = 8` buys 11.7× more IMPs per box-hour, taking the same pass to **4.5 box-days** |
 | 6 (2026-09-04) | §4d: the **`M`-series** on the corpus population, seven rungs paired on identical deals (`M` = 2/4/8/16/32/64/128, seed 1, 200 deals, teacher walk, net-served, `--vul none`) plus two both-vulnerable confirmations at `M` = 16/32, 69 minutes of box time; the `own_inadmissible` counter that closes §4c's owed line; the corpus denominator re-counted from the 20 sidecars; the starvation discount applied to the budget | byte-identity: **no `src/` edit at all**, so `smoke-default` cannot move. The one probe addition is proven inert by the `M = 128` rung reproducing §4c's teacher/none row digit-for-digit — 881 priced, +0.8091 ± 0.1265 / **+0.7483 ± 0.1311** / +0.5855 ± 0.1064 / **+0.5163 ± 0.1095**, both-rule 16.57% | **done** — the answer is **`M = 32` at 14.6 box-days**, not `M = 8`. The curve **saturates at `M = 64`** (indistinguishable from `M = 128` on both scorers at half the cost), so the rung §4b and §4c did their headline work at buys nothing. Perfect defense is the `M`-limiting scorer (it reaches 33% of its `M = 128` value at `M = 8` where plain DD reaches 52%), and the margin gate is nearly volume-neutral in `M` (fire 11.9 → 16.6% while value rises 400%), so it filters against BBA's baseline but **not** against estimator noise. IMPs-per-box-hour is degenerate — it peaks at `M = 4` and would peak at `M = 1`. §4c's denominator was **circular** (636,837 "boards" is `6,768,279 ÷ 10.628`); the counted figure is **619,076 auctions**, and with the missing starvation discount the pass re-prices to **3.6 / 14.6 / 58.3** box-days at `M` = 8 / 32 / 128. The sampler's 16.5% hole is settled as **zero-measure infeasibility, not budget** — flat across a 64× span of `M` — so it is a reading repair, not a cap raise |
 | 7 (2026-09-04) | the **relabel build and its fleet**: `dump-teacher --relabel` harvests the net-served decisions of the corpus walk (our reader's provenance, `Phase`, `forced`), rolls each out through the shared pricer (`examples/common/rollout.rs`, lifted out of `probe-rollout-label`) and stores **raw per-layout returns** — `[candidate][layout] → (DD, PD)` swings over BBA's call — in a `.ret` sibling; `--cut M` reads every chunk, selects on `[0, M)`, validates on `[M, 2M)`, and overwrites the one-hot where §4c's gate fires, refusing sidecars that disagree, non-contiguous tilings, and chunks short of `2M`. Streams are seeded from the **bank index** (per board and per decision), so chunks split anyhow concatenate byte-identically; an existing `.ret` is **extended** (only new layouts solved). Fleet: `scripts/relabel-worker.sh` (stride/offset over the v6 recipe, existence gate, SIGHUP drain), `scripts/pons-worker@.service`, `scripts/fleet-relabel.sh` (`provision`/`start`/`status`/`collect`/`mopup` over `~/.config/pons/hosts`); the section in [../shared-machine-data-gen.md](../shared-machine-data-gen.md) | byte-identity: **no `src/` edit at all**. The probe refactor is inert — `probe-rollout-label -c 40 -s 1 -m 4 --walk teacher` prints the same 42 lines before and after. Three tests pin the build: split-then-cut = whole-then-cut, an extended draw cuts like a native one (at the old `M` and the new), and the cut refuses a foreign SHA / a short chunk / a gap | **corpus complete 2026-09-13** — all 188 chunks at 64 layouts; the `M = 32` cut and training are recorded below |
-| 7+ | **the run**: `fleet-relabel.sh provision` → `start 64` → `collect` → `mopup 64` → `--cut 32` → retrain (omit `--weights-in`; fits `T` automatically) → constant-input fold → fixture check → A/B; pass 2 (`start 128` … `--cut 64`) only if the A/B is marginal. Then `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1). Also queued by §4b: the **raw-net-versus-shell** arm (are the gates costing IMPs?) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | **trained and BBA-qualified 2026-09-13** — American wash/win and Dutch win/win at both vulnerabilities; artifact remains a candidate, embedded defaults unchanged |
+| 7+ | **Production M32:** fleet → cut → retrain and fit diagnostic `T` → constant-input fold → fixture checks → BBA qualification → fixed BEN milestone validation → promote the exact shared v6 artifact. M64, collar/Pass tuning, raw-net ablation, LSTM and legal-set probability work are deferred. | both scorers, American/Dutch, none/both; fixed BEN sample and gate below | **promoted 2026-09-13** — BBA and BEN each show American wash/win and Dutch win/win at both vulnerabilities |
 | ~~6+~~ | ~~**extend the `M`-series downward**~~ (`M = 2, 4, 8, 16` on the net-served slice, under an hour) — it is the one number that sets the budget; then relabel inside `dump-teacher` → fresh corpus → fit `T` → retrain → A/B. The population axis is **settled** by §4c, the opponent axis by §4a, the vulnerability axis by §4b. Cross-fitting is **declined** in favour of a smaller `M` (§4c). `PASS_DEMOTION` as a **`{1,2,3,4}·T` sweep**, not a `3·T` rescale (§4c), inside the collar retune (plan.md M5.2 flip plan arm 1) | the [../measurement.md](../measurement.md) decision table, both scorers and both vulnerabilities | owed |
 
 **2026-09-13 — fleet complete, first production cut.** All 188 expected
@@ -1212,12 +1224,13 @@ The candidate artifact stem is
 **Training recipe:** the existing v6 MLP, `176 → 256 → 256 → 38`, on the
 RTX 4090, 300 epochs, learning rate 0.001, weight decay 0, batch 4096,
 validation fraction 0.10, DD loss weight 0, init seed 1. Stem order matches
-the shipped v6 sidecar: uniform 0..7, enriched 0..3, then axes
+the pre-M32 v6 sidecar: uniform 0..7, enriched 0..3, then axes
 0004/1000/2000/0002/4000/0800/8000/0020. The trainer fits temperature after
 training; `fold-constant-inputs.py --data ...` scans all 20 stems afterward,
 and the folded export is checked against its Candle fixture. The artifact
-remains a candidate until the fresh-deal A/B passes both scorers and
-vulnerabilities, including the Dutch factory that shares this floor.
+remained a candidate pending fresh-deal qualification on both scorers and
+vulnerabilities, including the Dutch factory that shares this floor; the
+completed BBA and BEN gates and promotion are recorded below.
 
 **Training completed at 06:28 Taipei**, 6m16s for the train/export/fold/check
 pipeline, after rebuilding `pons-trainer` with `--features cuda` using CUDA
@@ -1265,7 +1278,7 @@ none/both vulnerability. Arms run sequentially; no build occurs in flight.
 Each child must exit successfully and every shard must match the expected
 seed/count/arguments before publication. `ab-dump-diff --score both` scores
 the same divergent deals once for plain DD and PD; positive means
-**candidate minus shipped v6**, using `table_a` against BBA. Reports live in
+**candidate minus pre-M32 v6**, using `table_a` against BBA. Reports live in
 `scores/{american,dutch}-{none,both}.{plain,pd}.txt`.
 
 All eight arms and reports completed, the unit exited 0, and the paused poker
@@ -1288,13 +1301,124 @@ plain-DD wash / PD win at each vulnerability; Dutch wins both scorers at
 each vulnerability. The American/none plain interval only narrowly crosses
 zero; this is a non-loss verdict, not evidence of a plain-DD improvement.
 
-This is the per-fix BBA gate. The [BEN campaign](../ben-gap-campaign.md)'s
-milestone/routing validation remains separate; these results alone cannot
-establish improvement against BEN. The candidate remains outside the
-embedded defaults; this commit records the completed qualification, not a
-default swap. The collar sweep and raw-net ablation remain separate work.
+This was the per-fix BBA gate; these results alone did not establish
+improvement against BEN. Defaults stayed unchanged at that milestone. The
+separate [BEN campaign](../ben-gap-campaign.md) validation and subsequent
+promotion are recorded below. The collar sweep and raw-net ablation remain
+separate work.
 
-**American/none tail trace.** All 51,821 first auction divergences are in our
+**BEN milestone qualification and promotion, 2026-09-13.** The fixed Tier-F
+run on dl02 completed from **15:29:55 to 21:31:36 Taipei** (6h01m41s):
+American/Dutch × none/both vulnerability, **16 × 1,600 = 25,600 paired
+boards per cell**, eight generation arms. Fresh shard seeds are
+**1789283437 through 1789283452**. The run lives at
+`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-ben-20260913` on
+`dl02.skymizer.com`; development continues on `main` in
+`/home/jdh8/src/pons-dev` there. Its manifest pins the source snapshot at
+`e82327e2` plus the BEN selector patch, exact artifacts,
+frozen binaries, BEN configuration, and runtime patches.
+
+Frozen source commit: `e82327e231a5de2875a8c6b05c9295c42dead085`. BEN is **v0.8.8.4**
+with the recorded limiter patch and DDS compatibility shim. These SHA-256 hashes identify the measured inputs
+and binaries; filenames refer to the run directory. The manifest also
+records individual runtime-file hashes, server identities and report hashes.
+
+| Frozen input / binary | SHA-256 |
+| --- | --- |
+| `source archive` | `3f27d111585d97a215c1265d6640e5dd58c0ebbfd36f29f44f0f0ad0f8fcb9da` |
+| `harness patch` | `c342317d39d093792a7d4e3d44dd709aa018480a005aff13845bf0d3efbae11e` |
+| `overlay: Cargo.toml` | `1a2fd9f5c6b9894a7809872ad7ca8a67ef89ccd0583e2392f43cb9eca799cb1c` |
+| `overlay: examples/ben-gen/main.rs` | `ebd50492f41881c713f11d0d27733e4d35e613cff929a0a6607e8e0da9e58738` |
+| `overlay: examples/ben-gen/tests.rs` | `f91f0ba1107b17510b0336a974e52ba960130cbae9bb99b57dbb0cc6f090a218` |
+| `BEN-21GF-F.conf` | `b48c0845f2482896944de92b8bf9ad615bac52cf7383a88f9aea3dada99d9e97` |
+| `BEN runtime patch` | `d3e1ba573807c9d0be50ff24fae032b1c03778ac2e18ba250475d208792e8c67` |
+| `base.f32` | `e172dd6297f36d0f2d33714e751df3d68ec2c1f3bf516fb9259d59943e26210c` |
+| `base.json` | `de4af19590d8ada3d70d71323e1fa6a0876d461dfb0cb669d23e3bea1e627e41` |
+| `base.fixture.json` | `dace0043792bd88b134f2a359bbe082f3a052e9c9398120f2eefc4e8ded192d2` |
+| `candidate.f32` | `4cf86cef3e6c427ef9fb0bce12a0f70224624ad85dd4ac9d72698bd936153017` |
+| `candidate.json` | `12021450b84d05d5b902e77e7d84f04aae964c1ee7d4bcbd7536632cfb1c2778` |
+| `candidate.fixture.json` | `cb3c09b489ac151a51b937ce608a2e17025c2d7f8a8422958aca3c4f88153079` |
+| `ben-gen-legacy` | `25d0da456c4faee9e2da8679f6f11b9313d2f89de538063a3752124a2815dc4e` |
+| `ben-gen-base` | `45801982c7b43e0f139081419577844979c6cdd3c7c785a6ec6668ca8b712950` |
+| `bba-gen-base` | `fb7ab465af3ceb37bdd536dd8da9c0b07a68b76698a724beccd7c1d9898d283c` |
+| `smoke-default-base` | `4c30f2f309fdf2b7f751a1f9325bd576bbfea0238f49ccad9519877df85e8bef` |
+| `ben-gen-candidate` | `5aacd46045ea63c66f3a82dc921e23ee0fcf777c6687189e3af6e0b657c586d9` |
+| `bba-gen-candidate` | `f2ee638be8c6b30422a97d3dac309ebf67b73b1c98ac12d5e34525e4adfb96e7` |
+| `smoke-default-candidate` | `c827bd4da2cd06d7ee0f6483efe780944fb2d5b701469d1724e7031bada8d0ea` |
+| `ab-dump-diff` | `65bcfd4da239b30ccf3bfe1612810d57bade60e219cb23bab47220a63861c513` |
+
+`ben-gen --our-floor american|dutch` uses the same `seat_floor` factories
+as the BBA qualification and keeps the existing American opponent reader
+with European notrump minors. Control and candidate smoke hashes reproduce
+`38ee1e21…` and `7b854b38…`; each passes the 25 neural/floor tests.
+The repository's full test, nightly Clippy and strict rustdoc gates pass.
+Nightly exposed an existing fixed-chunk lint in the offline `.ret` reader;
+its equivalent `as_chunks::<2>()` iteration passes the repeated full suite
+and does not enter either frozen bidder.
+
+Score candidate minus control on `table_a` using both DD brackets. Accept
+wash or win in **every** system/vulnerability/scorer cell; a CI-clear loss
+leaves M32 a candidate and triggers worst-divergence forensics. A wash is
+not a proof of equivalence. Do not extend this sample merely to obtain a
+favorable verdict. The current shell and its 3.0-nat Pass demotion stay fixed;
+M64, shell tuning, the raw-net ablation, LSTM work, and masked probability
+calibration remain separate decisions. All live preflight checks passed: declared/undeclared sibling parity on
+2,000 boards per artifact/system; legacy/implicit/explicit American routing
+on 64 boards at each vulnerability; deterministic replay for every
+artifact/system/vulnerability; and a 16-port, eight-board-per-shard runner
+check. BEN process IDs, command lines, and start times are pinned and checked
+for every arm. **All four BEN cells pass.** Each row has 25,600 paired
+boards; intervals are 95% CI
+half-widths, and “changed” means a changed final contract.
+
+| System / vulnerability | DD IMPs/board | PD IMPs/board | Changed contracts | DD IMPs/changed | PD IMPs/changed | Verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| American / none | +0.0028 ± 0.0311 | +0.0816 ± 0.0383 | 5,222 (20.40%) | +0.014 | +0.400 | wash / win |
+| American / both | +0.0249 ± 0.0388 | +0.1014 ± 0.0469 | 4,778 (18.66%) | +0.133 | +0.544 | wash / win |
+| Dutch / none | +0.0349 ± 0.0309 | +0.0983 ± 0.0382 | 5,282 (20.63%) | +0.169 | +0.476 | win / win |
+| Dutch / both | +0.0635 ± 0.0387 | +0.1148 ± 0.0472 | 4,821 (18.83%) | +0.337 | +0.610 | win / win |
+
+**Verdict: promote the exact M32 artifact.** American is wash/win and Dutch
+win/win at both vulnerabilities. Neither American cell establishes a
+plain-DD improvement; a wash is not equivalence. The sample was not extended.
+All eight arms and reports validated, the unit exited 0, its BEN servers
+stopped, and the paused worker was restored. Every pair matches in each
+cell. All first auction divergences were initiated by our North/South seats:
+7,133 / 6,530 / 7,156 / 6,565 in table order, with zero BEN-initiated first
+divergences. Per-cell audits and report hashes are retained in the run directory.
+
+The exact `candidate.f32`, `candidate.json` and `candidate.fixture.json`
+replace `src/bidding/weights/american_bba_v6.{f32,json,fixture.json}` together.
+This moves every existing shared-v6 American/Dutch factory, including its
+declared and undeclared siblings and direct `ConfiguredFloorV6` consumers,
+without changing Rust APIs. The competitive shell and 3.0-nat Pass demotion
+are retained. The separate `_their` artifact and legacy v4 `*_with_config`
+paths retain their behavior. A sibling audit flagged stale prose describing
+`dutch_with_config` as the current mixed-table entry point and v4 as the
+shipped/only net; preserve these legacy paths and correct their prose in a
+separate follow-up, rather than moving extra factories.
+
+The initial post-promotion suite found two model-specific continuation
+goldens in `defense/overcall/tests.rs`: M32 raises to 3♥ after `(1♦) 2♥ -`
+with `A42.T94.AKJ2.Q63`, and passes after `(1♣) 2♦ -` with the same hand.
+Both positions deliberately belong to the floor; their authored-call,
+disjointness, alert and exact-reading checks passed. The prior v6 promotion
+(`9fb333f5`) had updated these same goldens. Their expectations now record
+M32, with floor-provenance assertions retained and checked first. No
+production rule or shell changed. The first-attempt logs are preserved in
+`post-promotion-attempt1/`. The full verification rerun **passed at 21:42:45
+Taipei**: `cargo fmt`, `cargo test --all-features` (972 library tests passed,
+5 existing ignores; every example and doctest suite passed), nightly
+`clippy --all-targets --all-features -- -D warnings`, and strict rustdoc with
+`RUSTDOCFLAGS="-D warnings"`. Public Rust APIs did not change.
+The fresh release `smoke-default --count 20000 --seed 1` reproduces the
+qualified candidate's exact SHA-256
+`7b854b385e0f49793163ce156ed86b27e1836aa463879b82f7a856da15946818`.
+The final embedded trio matches all three candidate hashes above. Logs,
+smoke output and `verification.json` live in `post-promotion/`; its unit
+exited 0 and restored the paused worker.
+
+**BBA American/none tail trace.** All 51,821 first auction divergences are in our
 NS seats (25,908 North, 25,913 South). Bid→Pass occurs 16,220 times versus
 11,954 Pass→bid; Pass→X occurs 7,690 times versus 3,156 X→Pass. Including
 all call classes, 19,585 first changes introduce Pass and 19,758 replace it:

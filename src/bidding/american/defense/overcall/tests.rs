@@ -263,14 +263,14 @@ fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
         ],
         "A42.T94.AKJ2.Q63",
     );
-    assert_eq!(
-        advance,
-        Call::Pass,
-        "the shipped v6 floor settles this exact weak-jump continuation"
-    );
     assert!(
         advance_floored,
         "a natural preempt deliberately advances through the general floor"
+    );
+    assert_eq!(
+        advance,
+        call(3, Strain::Hearts),
+        "the M32 floor settles this exact weak-jump continuation"
     );
 }
 
@@ -365,12 +365,12 @@ fn direct_minor_weak_jump_is_exactly_one_club_two_diamonds() {
         ],
         "A42.T94.AKJ2.Q63",
     );
+    assert!(floored, "the preempt continuation belongs to the floor");
     assert_eq!(
         advance,
-        call(3, Strain::Diamonds),
-        "the shipped v6 floor chooses the natural preempt continuation",
+        Call::Pass,
+        "the M32 floor chooses the natural preempt continuation",
     );
-    assert!(floored, "the preempt continuation belongs to the floor");
 }
 
 #[test]

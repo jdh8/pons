@@ -9,18 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **M32 floor promoted after BBA and BEN qualification (2026-09-13)** — the
+  exact rollout-relabelled artifact replaces the shared embedded v6 weights
+  for American and Dutch, including all existing declared/undeclared siblings.
+  The competitive shell and Pass demotion are retained; two model-specific
+  continuation goldens now pin M32 while retaining their floor-provenance checks.
+  BEN Tier F used
+  25,600 paired boards per cell: American none/both is DD wash with PD
+  **+0.0816/+0.1014 IMPs/board**; Dutch wins DD **+0.0349/+0.0635** and PD
+  **+0.0983/+0.1148**. Every cell passes both scorers; a wash is not equivalence.
+  Confidence intervals, changed-contract rates and frozen hashes are in
+  `docs/ai-bidder/logit-calibration.md` §6. The fitted temperature is an
+  **unmasked diagnostic**; legal-set calibration and consumption remain deferred.
+
+- **BEN generation supports the Dutch system** — `ben-gen --our-floor
+  american|dutch` selects the existing factories and records the system while
+  retaining the BEN opponent reader. American remains the default; explicit
+  selection is rejected in EPBot-calibration and BEN self-play modes. CLI
+  tests now run in the standard suite. The offline relabel reader also uses
+  equivalent fixed-array iteration to satisfy current nightly Clippy.
+
 - **M32 relabel candidate trained and BBA-qualified (2026-09-13)** — the complete 188-chunk
   fleet corpus yields 6,766,821 rows and 460,341 changed labels. The v6 MLP
   completed 300 epochs (held-out CE 0.4163, agreement 85.30%, fitted
-  temperature 1.0915); constant-input folding and all eight export fixture
+  unmasked temperature 1.0915); constant-input folding and all eight export fixture
   argmaxes pass. Corpus provenance, bank registration and handoff corrections
   are recorded in `docs/ai-bidder/logit-calibration.md` §6. Fresh-deal A/B
   (204,800 paired boards per cell, 32 seeds) passes at both vulnerabilities:
   American is a plain-DD wash with PD +0.0426/+0.0543 IMPs/board;
   Dutch wins plain DD +0.0126/+0.0182 and PD +0.0631/+0.0718 (none/both).
-  The ledger includes confidence intervals, loss traces and the remaining
-  BEN milestone validation. The artifact stays in scratch storage;
-  shipped bidding is unchanged.
+  The ledger includes confidence intervals and loss traces. Defaults remained
+  unchanged at this BBA-only milestone; subsequent BEN qualification and
+  promotion are recorded above.
 
 - **The `M`-series relabel build and its fleet (logit calibration session 7,
   2026-09-04)** — no bidding change and **no `src/` edit at all**; the session

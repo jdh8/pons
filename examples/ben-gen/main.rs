@@ -1,5 +1,6 @@
 //! The **BEN gap campaign**'s generation half — bids a duplicate A/B match of
-//! our [`american`] floor against **BEN** (lorserker/ben, pinned v0.8.8.4)
+//! our [`american`][pons::american] or [`dutch`][pons::dutch] floor against
+//! **BEN** (lorserker/ben, pinned v0.8.8.4)
 //! over its REST `/bid` endpoint, writing the same `Dump` every downstream
 //! consumer of `bba-gen` already reads (`bba-score`, `ab-dump-diff`,
 //! `ab-dump-sd`, `bba-decompose`).  See `docs/ben-gen-design.md` for the
@@ -40,14 +41,18 @@ use std::time::Duration;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
+
+#[cfg(test)]
+mod tests;
+
 use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, one_hot};
-use common::{Board, Dump};
+use common::{Board, Dump, seat_floor};
 
 /// The pinned BEN release the servers must be running (recorded in labels;
 /// re-pinning is a campaign decision — see docs/ben-gap-campaign.md).
 const BEN_TAG: &str = "v0.8.8.4";
 
-/// Bid our 2/1 floor against BEN's 21GF card over REST and write the boards
+/// Bid our American or Dutch floor against BEN's 21GF card over REST and write the boards
 /// (the generation half of the A/B duplicate match; `bba-score` scores them)
 #[derive(Parser)]
 struct Args {
@@ -76,6 +81,15 @@ struct Args {
     /// server's config, so this MUST match what `ben-servers.sh` started.
     #[arg(short, long, default_value = "f")]
     tier: String,
+
+    /// Our system, using its shipped neural floor
+    #[arg(
+        long,
+        default_value = "american",
+        value_parser = ["american", "dutch"],
+        conflicts_with_all = ["calibrate_epbot", "self_play"]
+    )]
+    our_floor: String,
 
     /// Seat the vendored EPBot at our chairs instead of pons (harness
     /// validation vs BBA's published EPBot-vs-BEN table; no pons in the loop)
@@ -441,9 +455,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // american() = the shipped net floor, by design: measure the real us vs BEN.
-    // The gap lives off-book/contested, exactly where the net floor differs from
-    // american_instinct(); the -1.906 Tier-S anchor (119675f) predates the swap.
+    // Both system names select their shipped net floor: measure the real us vs BEN.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.cue = !args.no_ns_cue_reading;
     agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
@@ -464,18 +476,17 @@ fn main() -> anyhow::Result<()> {
     // `notrump_minors` keeps that mechanism from firing.
     let mut theirs = agreements;
     theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
-    let our_floor = american(&agreements)
-        .bind()
-        .with_opponents(&american(&theirs).bind());
+    let our_floor =
+        seat_floor(&args.our_floor, &agreements)?.with_opponents(&american(&theirs).bind());
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)
     } else {
         None
     };
-    let (ours, our_label): (&dyn Bidder, &str) = match &epbot {
-        Some(oracle) => (oracle, "EPBot 2/1 (vendored)"),
-        None => (&our_floor, "our american floor"),
+    let (ours, our_label): (&dyn Bidder, String) = match &epbot {
+        Some(oracle) => (oracle, "EPBot 2/1 (vendored)".into()),
+        None => (&our_floor, format!("our {} floor", args.our_floor)),
     };
     let their_label = format!("BEN {BEN_TAG} 21GF/{}", args.tier.to_uppercase());
 
@@ -499,7 +510,7 @@ fn main() -> anyhow::Result<()> {
         .collect();
 
     let dump = Dump {
-        our_label: our_label.into(),
+        our_label,
         their_label,
         vulnerability: args.vulnerability,
         seed: Some(seed),
