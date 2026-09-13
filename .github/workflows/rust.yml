@@ -85,4 +85,7 @@ jobs:
     - name: Install Rust ${{ matrix.rust }}
       run: rustup toolchain install ${{ matrix.rust }} --profile minimal && rustup default ${{ matrix.rust }}
     - name: Test (all features)
+      env:
+        # Clap's generated bba-gen parser exceeds the Windows test-thread stack.
+        RUST_MIN_STACK: "8388608"
       run: cargo test --all-features --verbose

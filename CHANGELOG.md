@@ -625,6 +625,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows CI test stack overflow** — the Rust test matrix now sets
+  `RUST_MIN_STACK=8388608` (8 MiB) so Clap's generated `bba-gen` parser can
+  run the default-agreements regression test in debug builds. The failure
+  predates M32; bidding behavior is unchanged.
+
 - **A failed isolation gate is no longer sticky across a resume**
   (`scripts/ab-lib.sh`). `gatepair`'s skip guard tested only that its output
   file was non-empty, but `probe-divergence` prints the `isolation gate FAILED`
