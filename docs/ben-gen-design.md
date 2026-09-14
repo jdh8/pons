@@ -175,6 +175,24 @@ Scoring/DD is untouched: divergence-only DD solve on the main thread via
 
 ## Throughput budget (estimates — smoke run calibrates)
 
+**Splitting an existing match shard (2026-09-14).** `ben-gen --seed S
+--start-board N --count C` skips `N` RNG-generated deals before bidding the
+next `C`, preserving their original dealer rotation. A chunk boundary need
+not be divisible by four. Concatenate chunks in offset order and check their
+deals and dealers against the original stream before seed/index-based anchor
+reporting; an unmerged chunk's array indices are local to that chunk. Keep
+one client per BEN server.
+The offset requires an explicit seed and is unavailable in self-play mode.
+This leaves stock BEN's search unchanged and makes a failed 1,250-board shard
+parallelizable without changing the anchor's sample.
+
+Validation: the seeded iterator test compares concatenated chunks against the
+old generator's RNG/dealer loop. A live Tier-S check at M32 compared the old
+binary's first four boards with new 1+3 chunks on separate servers and with
+the preserved completed shard (`1784237747`); an offset-313 two-board chunk
+also matched the preserved shard exactly, including both auctions. Evidence:
+`ab-results/ben-anchor/2026-09-13-daa8bf4a/parallel-checks/`.
+
 Per board, BEN bids ~half the calls at each of two tables ≈ one full
 auction's worth of BEN calls, so README-speed's per-board figures apply
 roughly per matched board. With 8 instances/shards:

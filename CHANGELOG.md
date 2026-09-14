@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Split existing BEN shards across workers** — `ben-gen --seed S
+  --start-board N --count C` bids a contiguous slice of the original deal
+  stream while preserving dealer rotation. This allows parallel retries of
+  fixed-seed anchors without drawing replacement deals. The default starts
+  at board zero; self-play rejects this match-only option. Seeded regression
+  tests and live old-versus-split BEN checks preserve deals, dealer rotation,
+  and auctions, including an offset not divisible by four.
+
+- **M32 reanchors (2026-09-14)** — at `daa8bf4a`, the shipped American
+  system scores **−0.537 plain / −0.424 PD IMPs/board**, versus
+  −0.525 / −0.525 at the previous anchor. All four 204,800-board cells replay
+  exactly. The same-HEAD paired floor margin over instinct is
+  **+0.236 plain / +0.353 PD**. Shipping losses now rank constructive opening
+  first by plain DD and constructive round-2 first by PD. These are batch
+  anchor movements, not isolated M32 attribution; the updated buckets and
+  confidence intervals are in `docs/bba-gap-campaign.md`.
+  The complete 20,000-board BEN Tier-S anchor scores
+  **−1.031 plain / −0.755 PD**, versus −1.163 / −1.032 previously.
+  Two shards required a reversible BEN `PASS` token compatibility repair;
+  all original deals and dealers and the 14 reused dumps were verified.
+  BEN bucket rankings remain unavailable: the decomposer's opponent-reading
+  configuration mismatches 2,457 of 105,922 nonvulnerable calls. Direct
+  headline scores are valid; vulnerability splits, confidence intervals and
+  repair provenance are in `docs/ben-gap-campaign.md`.
+
 - **M32 floor promoted after BBA and BEN qualification (2026-09-13)** — the
   exact rollout-relabelled artifact replaces the shared embedded v6 weights
   for American and Dutch, including all existing declared/undeclared siblings.

@@ -72,6 +72,16 @@ struct Args {
     #[arg(long)]
     seed: Option<u64>,
 
+    /// Skip deals in the seeded match stream, preserving dealer rotation.
+    /// Together with --count, splits an existing shard into smaller chunks.
+    #[arg(
+        long,
+        default_value_t = 0,
+        requires = "seed",
+        conflicts_with = "self_play"
+    )]
+    start_board: usize,
+
     /// Port of the BEN server instance this shard talks to
     #[arg(short, long, default_value_t = 8085)]
     port: u16,
@@ -388,6 +398,12 @@ fn contested(deal: &FullDeal) -> bool {
         && best_fit(Seat::East, Seat::West) >= 8
 }
 
+/// The match's seeded deals and their original rotating dealers.
+fn match_deals(seed: u64) -> impl Iterator<Item = (FullDeal, Seat)> {
+    let mut rng = StdRng::seed_from_u64(seed);
+    std::iter::repeat_with(move || full_deal(&mut rng)).zip(Seat::ALL.into_iter().cycle())
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     anyhow::ensure!(
@@ -491,21 +507,18 @@ fn main() -> anyhow::Result<()> {
     let their_label = format!("BEN {BEN_TAG} 21GF/{}", args.tier.to_uppercase());
 
     let seed = args.seed.unwrap_or_else(rand::random);
-    let mut rng = StdRng::seed_from_u64(seed);
 
     // Bid every board at both tables, dealer rotating per board.  Sequential
     // by design: the server serializes bids behind a lock anyway — parallelism
     // is one ben-gen process per server instance (ports 8085+i).
-    let boards = (0..args.count)
-        .map(|index| {
-            let deal = full_deal(&mut rng);
-            let dealer = Seat::ALL[index % 4];
-            Board {
-                table_a: bid_out(ours, &ben, true, dealer, args.vulnerability, &deal),
-                table_b: bid_out(ours, &ben, false, dealer, args.vulnerability, &deal),
-                deal,
-                dealer,
-            }
+    let boards = match_deals(seed)
+        .skip(args.start_board)
+        .take(args.count)
+        .map(|(deal, dealer)| Board {
+            table_a: bid_out(ours, &ben, true, dealer, args.vulnerability, &deal),
+            table_b: bid_out(ours, &ben, false, dealer, args.vulnerability, &deal),
+            deal,
+            dealer,
         })
         .collect();
 

@@ -1,12 +1,14 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 1 complete; the M32 floor milestone qualified against BEN and
-was promoted on 2026-09-13. Retained headline — Tier-S anchor `0d8b755`
-(2026-08-10 snapshot, predating M32): pons was −1.163 plain / −1.032 PD
-IMPs/board behind BEN Tier S** (20k boards; was −1.906 / −1.860 at
-`119675f`, so **+0.74 plain / +0.83 PD** since the first anchor — see trail
-below). This headline remains the historical Tier-S snapshot; it is not a new
-M32 anchor. Phase 0 is complete: the EPBot-vs-BEN calibration
+**Status: Phase 1 complete; M32 Tier-S reanchor complete at `daa8bf4a`
+(2026-09-14): pons is −1.031 plain / −0.755 PD IMPs/board behind BEN Tier S**
+(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level compatibility patch
+for two recovered shards). The pooled gap improved by **+0.13255
+plain / +0.27675 PD** since the 2026-08-10 anchor. This is the whole intervening
+batch, not isolated M32 attribution. Direct scoring is complete; BEN bucket
+rankings remain unavailable because the decomposer's replay gate failed
+(details below).
+Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
@@ -618,11 +620,74 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | --- | --- | --- | --- | --- |
 | 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). Pre-floor-swap (deterministic floor). |
 | 2026-08-10 | `0d8b755` | **−1.163** (none −0.998 [−1.088, −0.909], both −1.328 [−1.442, −1.214]) | **−1.032** (none −0.837 [−0.941, −0.733], both −1.226 [−1.358, −1.094]) | **+0.743 plain / +0.829 PD** vs the first row. Covers three floor generations (v3 distilled → v4 configured → **v5, `american()`'s default since 2026-08-08**) plus the reading-drift and competitive-book tails. Divergence 65%/64%, down from 71%/70%. BEN pinned v0.8.8.4, conf sha256 `503b026a…`. |
+| 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
 
-> **Reading the delta.** This row is paired with the first only by *deal*
-> (shared `SEED_BASE`), not by BEN's replies — BEN re-bids each auction, so
-> its side moves too. It bundles ~3½ weeks of ships; it attributes nothing.
-> Attribution is the Tier-F decompose's job.
+> **Reading the deltas.** Rows share *deals* (`SEED_BASE`), while BEN re-bids
+> each auction and its replies can change. Each window bundles intervening
+> ships; isolated attribution requires the per-fix A/B. The per-vulnerability
+> CIs below are not combined as independent samples: both arms reuse deals.
+
+### M32 Tier-S reanchor: complete (2026-09-14)
+
+The frozen `daa8bf4a` run used the retained seed `1784237746`, eight shards of
+1,250 boards per vulnerability, BEN `v0.8.8.4` (`60979359`), and unchanged
+stock config SHA-256 `503b026a21bc59a98fbdd6622a3c69152c0b76121e0d0967ed88ee77cf7f92e4`.
+Artifacts are in `ab-results/ben-anchor/2026-09-13-daa8bf4a/` (UTC snapshot
+date). Completion: **2026-09-14 18:12:41 Taipei** (`10:12:41Z`),
+`parallel-exit-status = 0`; all 16 shards' seeds, deals and dealers match the
+historical anchor. All 14 initially completed dumps retain their original
+SHA-256 hashes (`parallel-preserved.sha256`).
+
+| vulnerability | boards | contract-divergent | plain total IMPs | plain IMPs/board [95% CI] | PD total IMPs | PD IMPs/board [95% CI] |
+| --- | --- | --- | --- | --- | --- | --- |
+| none | 10,000 | 6,623 (66.23%) | −8,528 | −0.8528 [−0.946, −0.760] | −5,297 | −0.5297 [−0.638, −0.422] |
+| both | 10,000 | 6,507 (65.07%) | −12,087 | −1.2087 [−1.328, −1.090] | −9,800 | −0.9800 [−1.117, −0.843] |
+
+Pooled: **−20,615/20,000 = −1.03075 plain** and
+**−15,097/20,000 = −0.75485 PD** IMPs/board. Reports:
+`score-{none,both}-{plain,pd}.txt`. These are complete direct DD scores of the
+stored contracts; the movement since August is a batch result, not an isolated
+M32 A/B or a new ship verdict.
+
+**Failure and recovery provenance.** The original runner exited 1 after all
+eight nonvulnerable shards and six vulnerable shards. The two missing shards
+(`both/shard-0`, seed `1784237746`; `both/shard-6`, seed `1784237752`) both hit
+BEN's `PASS` parsing exception after a `5NT -` continuation:
+`botbidder.py::get_bid_candidates` applies its existing grand-slam filter to
+canonical `PASS`, but `bidding.py::get_level` tried `int("P")`. HTTP 400
+aborted generation before either whole-shard dump was written.
+
+The reversible compatibility repair extends the helper's guard to
+`if bid in ("P", "PASS", "X", "XX"):`. It preserves all 35 contract-level
+results and existing zero-level calls; previously exceptional `PASS` now gets
+zero. The actual candidate method failed on both contexts before the repair
+and passed afterward, retaining the six-level candidate and suppressing the
+grand slam. Both original HTTP requests then returned `6NT`
+(`resume-probes.txt`). The run retains `pass-level.patch`, `bidding.py.before`,
+`pass-level-repro.py`, and red/green outputs; patched `bidding.py` SHA-256:
+`e1df3090df83f4b7cdd7129981f254e8fc73321295098d1312089c642ef49bf6`.
+Thus the recovered reference is **BEN v0.8.8.4 + PASS-level compatibility
+patch**, with the same config, weights and previously recorded runtime setup.
+The original failure record remains intact.
+
+Eight workers completed the two missing seeds with `ben-gen --start-board`:
+windows 0/313/626/938, counts 313/313/312/312 per seed. Live checks against a
+completed M32 shard matched the old binary, split binary and retained auctions,
+including offset 313. `parallel-harness.patch` records this generator-only
+change; `parallel-meta.txt` pins both binaries and the BEN runtime. Chunks
+were validated and reassembled into full shards in offset order, preserving
+seed/index identities; raw chunks remain outside scorer inputs. The final
+runner log confirms full historical deal/dealer identity, the 14 preserved
+hashes, and frozen binary/config/model checks.
+
+**No valid BEN bucket ranking from this snapshot.** `decompose.log` records
+**2,457/105,922 nonvulnerable our-side calls mismatched (2.32%)**, so the exact
+replay gate stopped decomposition. The known configuration discrepancy is
+that `ben-gen` declares BEN's European minor-transfer readings through
+`with_opponents`, while `bba-decompose --our-floor american` binds plain
+defaults for BEN labels. The direct scorer needs no bidder replay and its
+headline remains valid. Aligning the replay configuration and passing the
+100% gate is still required before publishing any BEN buckets.
 
 **Tier-F calibration trail:**
 
@@ -631,7 +696,7 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-07-17 | `74d783d` | fresh seed `1784294370`, 102.4k/arm | −0.879 none / −1.092 both | −1.122 / −1.519 | Historical first Tier-F result; different deals and a pre-v5 system, so preserve it but do not subtract it from the current Tier-S anchor. |
 | 2026-08-11 | `42454d2` | anchor seed `1784237746`, 10k/vul | **−0.295** [−0.379, −0.212] none / **−0.330** [−0.438, −0.222] both; pooled **−0.313** | **−0.292** [−0.392, −0.192] / **−0.367** [−0.495, −0.238]; pooled **−0.329** | Current shipped-v5 same-deal calibration, exactly eight unchanged `21GF/F` servers; divergence 63%/62%. Raw shards and scorer reports: `ab-results/ben-anchor/2026-08-10-tier-f-42454d2/`. |
 
-Against the retained `0d8b755` Tier-S row on the same deals, Tier F minus
+Against the historical `0d8b755` Tier-S row on the same deals, Tier F minus
 Tier S is **+0.703/+0.998 plain** and **+0.545/+0.859 PD** for none/both
 (equal-weight pooled **+0.850/+0.702**). This quantifies how much easier the
 policy-only reference is at this checkpoint; it does not attribute the delta
@@ -646,7 +711,7 @@ is nonlinear across deal streams, which the design doc anticipated. The
 vul-both arm is ~0.5 worse than vul-none, the same skew the BBA series
 shows.
 
-**The spread is widening — watch it.** Both anchors compare like with like
+**Historical spread warning (2026-08-10).** Both anchors compare like with like
 (2026-07-17: deterministic floor on both series; 2026-08-10: v5 on both),
 and between those dates the BBA gap closed by **1.05** (−1.68 → −0.627
 plain) while the BEN gap closed by **0.74**. BEN went from ≈0.2 to ≈0.54
@@ -658,6 +723,11 @@ pipelines, and 0.3 is within what deal-stream nonlinearity has already been
 seen to do. Treat it as a live hypothesis for the next re-anchor: if the
 spread widens again while BBA keeps improving, the BBA metric has stopped
 being a proxy for bridge.
+
+At M32 the plain Tier-S gap is approximately 0.494 IMPs/board larger than the
+BBA gap (−1.031 versus −0.537), compared with approximately 0.536 in August.
+The spread did not widen in this window; the differing deal streams and
+reference runtime caveat still preclude an isolated attribution.
 
 ## Tier-F distillation probe — how ruly is BEN's policy? (2026-07-18)
 
