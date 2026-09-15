@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`[profile.dev] opt-level = 1`** — the crate itself now compiles with basic
+  optimizations under `cargo test` (dependencies were already at level 2).
+  The lib's 972 unit tests drop from 2260 to 689 CPU-seconds (the two
+  projection-soundness sweeps from 132 s / 110 s to under 10 s) at no
+  compile-time cost; levels 2 and 3 measured identical test time with slower
+  builds.  On the 4-vCPU CI runners the lib tests were 14 of the test job's
+  22 minutes.  Debug assertions, overflow checks and bounds checks are
+  separate profile knobs and stay on; float results are IEEE-strict at every
+  level, so seeded byte-identities are unaffected.
+
 ## [0.11.0] — 2026-09-16
 
 ### Highlights
