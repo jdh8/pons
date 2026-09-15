@@ -163,6 +163,9 @@ Mirror `bba-gen`'s anatomy; everything non-EPBot is reused as-is:
   One cosmetic fix while here: `bba-decompose` hardcodes
   `"our american floor"`/`"BBA 2/1"` in its report headline — read
   `Dump.{our,their}_label` instead.
+  `bba-decompose` replays BEN dumps with `--european-minors` derived from that
+  label (`BEN` → on), matching the `with_opponents` binding below; pass
+  `false` for pre-2026-08-13 dumps.
 - **Calibration mode**: `ben-gen --calibrate-epbot` wires **EPBot vs BEN**
   (no pons at either table: table_a EPBot-NS/BEN-EW, table_b mirrored),
   reusing `BbaOracle` from bba-gen (factor it into `examples/common/` or a

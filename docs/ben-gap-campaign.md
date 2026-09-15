@@ -543,6 +543,29 @@ the targeted defensive round-1 book bucket improves by +10,282 plain /
 
 ### Phase 2 — the loop
 
+**Entry point (2026-09-16): `Defensive / book / round-1`.**  The BEN top-8 is
+almost the same bucket set as the BBA shipping arm's, in almost the same
+order, and BEN's whole gap is ~2× BBA's (−1.031 vs −0.537), so absolute totals
+alone do not discriminate.  Per divergent board, against the BBA shipping arm:
+
+| bucket | BEN plain / PD | BBA ship plain / PD | ratio |
+| --- | --- | --- | --- |
+| Constructive / book / opening | −1.41 / −0.85 | −0.73 / −0.26 | 1.9× / 3.3× |
+| **Defensive / book / round-1** | **−1.46 / −1.35** | **−0.59 / −0.67** | **2.5× / 2.0×** |
+| Constructive / book / round-2 | −1.58 / −1.75 | −1.03 / −1.22 | 1.5× / 1.4× |
+| Defensive / floor / round-1 | −2.03 / −1.20 | −0.74 / −0.34 | 2.7× / 3.5× |
+
+Trace `Defensive / book / round-1` first: it is #2 by absolute total on **both**
+scorers, the only top bucket that leads on both, and it is 2.0–2.5× worse per
+board than the same bucket against BBA — above the uniform ~2× BEN strength
+gap on plain DD, and with no PD softening.  Constructive/opening is larger on
+plain DD but its PD ratio (3.3×) sits on a small PD base (−0.26/div vs BBA), and
+BBA-side mining there has already refuted the light-open and weak-two levers.
+`Defensive / floor / round-1` has the worst ratio but only 759 boards; it is the
+floor-side follow-on, and the lane docs for the book side
+([defensive-overcalls.md](defensive-overcalls.md) →
+[takeout-double-layers.md](takeout-double-layers.md)) already exist.
+
 Same steady-state loop as the BBA campaign, re-aimed:
 
 ```text
@@ -680,14 +703,62 @@ seed/index identities; raw chunks remain outside scorer inputs. The final
 runner log confirms full historical deal/dealer identity, the 14 preserved
 hashes, and frozen binary/config/model checks.
 
-**No valid BEN bucket ranking from this snapshot.** `decompose.log` records
-**2,457/105,922 nonvulnerable our-side calls mismatched (2.32%)**, so the exact
-replay gate stopped decomposition. The known configuration discrepancy is
-that `ben-gen` declares BEN's European minor-transfer readings through
-`with_opponents`, while `bba-decompose --our-floor american` binds plain
-defaults for BEN labels. The direct scorer needs no bidder replay and its
-headline remains valid. Aligning the replay configuration and passing the
-100% gate is still required before publishing any BEN buckets.
+### The first Tier-S bucket ranking (2026-09-16)
+
+The gate failure recorded above — **2,457/105,922 nonvulnerable our-side calls
+mismatched (2.32%)**, kept in `decompose.log` — was exactly the suspected
+configuration discrepancy: `ben-gen` declares BEN's European minor-transfer
+reading through `with_opponents`, while `bba-decompose` bound plain defaults
+for any non-BBA label. `bba-decompose` now takes `--european-minors`, derived
+from the dump's opponent label (`BEN` → on) and passable as `false` for the
+pre-2026-08-13 Tier-F corpus. **Both arms now replay at 100.00%** (0 of 105,922
+none, 0 of 104,330 both). No BEN regeneration was needed; the 16 shards under
+`ab-results/ben-anchor/2026-09-13-daa8bf4a/{none,both}/` were reused and 7,334
+DD tables solved fresh into `dd-cache.json`.
+
+Divergence: **87% auction-divergent / 66% contract-divergent** (none),
+**86% / 65%** (both); 4,224 of the contract-divergent boards are
+right-siding-only (same contract, different auction).
+
+**Top 8 buckets** (both arms pooled, 13,130 divergent boards):
+
+| bucket | boards | plain total | plain /board | PD total | PD /board |
+| --- | --- | --- | --- | --- | --- |
+| Constructive / book / opening | 2384 | −3357 | −1.41 | −2025 | −0.85 |
+| Defensive / book / round-1 | 2199 | −3218 | −1.46 | −2963 | −1.35 |
+| Constructive / book / round-2 | 1574 | −2488 | −1.58 | −2749 | −1.75 |
+| Defensive / floor / round-2 | 1076 | −1801 | −1.67 | −1367 | −1.27 |
+| Defensive / floor / round-1 | 759 | −1542 | −2.03 | −909 | −1.20 |
+| Competitive / book / round-1 | 710 | −1451 | −2.04 | −969 | −1.36 |
+| Competitive / floor / round-2 | 586 | −1200 | −2.05 | −984 | −1.68 |
+| Constructive / book / round-1 | 1182 | −1164 | −0.98 | −992 | −0.84 |
+
+By phase: Constructive −8192 (5814 boards), Defensive −7604 (4782),
+Competitive −4819 (2534).  By provenance: book −13244 (8890), floor −5689
+(3369), everything else under −350 each.  By family: round-2 −7971, round-1
+−7835, opening −3357, deep −761, balancing −691.
+
+**This is the first Tier-S ranking.** It is not comparable to the Tier-F
+2026-08-10 table: different tier, and the bucket columns there were produced
+from a different corpus. Full report and rows:
+`ab-results/ben-anchor/2026-09-13-daa8bf4a/{report.md,boards.jsonl}`.
+
+**Flagged discrepancy — the two PD scorers disagree.** `bba-score --score pd`
+prices PD with [`ns_score_bid`][], which discards the auction's own double (a
+*made* doubled contract scores undoubled); `bba-decompose` uses
+[`ns_score_pd`][], which keeps it and only upgrades an undoubled failing
+contract. Plain DD agrees to the IMP (−8528 none / −12087 both, identical
+divergent counts), so the contracts are identical; PD does not: **−5297/−9800
+(scorer, pooled −0.755) vs −5884/−10578 (decomposer, pooled −0.823)**, ≈0.07
+IMPs/board. The committed BEN headline uses the scorer; the BBA anchor headline
+comes from the decompose report, so the two campaigns' PD columns are on
+different definitions. Nothing here is resolved silently — proposed reversible
+default: make `bba-score --score pd` call `ns_score_pd` (matching the
+decomposer and the plain-DD convention of pricing the auction as bid), keeping
+the present behaviour reachable as `--score bid`. Decision owed.
+
+[`ns_score_bid`]: ../src/scoring.rs
+[`ns_score_pd`]: ../src/scoring.rs
 
 **Tier-F calibration trail:**
 

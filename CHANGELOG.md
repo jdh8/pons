@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`bba-decompose` replays BEN dumps under `ben-gen`'s opponent binding** —
+  the new `--european-minors` declares BEN's European minor-transfer reading
+  as the opponent book, derived from the dump's opponent label (`BEN` → on;
+  pass `false` for dumps generated before 2026-08-13). Without it 2.32% of our
+  side's calls failed the exact-replay gate, so the M32 BEN snapshot could not
+  be decomposed. Both arms now replay at 100.00%, and the **first BEN Tier-S
+  bucket ranking** exists: constructive/opening −3357 plain, defensive/round-1
+  −3218 plain and −2963 PD lead it (`docs/ben-gap-campaign.md`). The BBA path
+  is untouched — the flag derives `false` for BBA labels.
+
 ### Added
 
 - **Split existing BEN shards across workers** — `ben-gen --seed S
@@ -29,10 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **−1.031 plain / −0.755 PD**, versus −1.163 / −1.032 previously.
   Two shards required a reversible BEN `PASS` token compatibility repair;
   all original deals and dealers and the 14 reused dumps were verified.
-  BEN bucket rankings remain unavailable: the decomposer's opponent-reading
-  configuration mismatches 2,457 of 105,922 nonvulnerable calls. Direct
-  headline scores are valid; vulnerability splits, confidence intervals and
-  repair provenance are in `docs/ben-gap-campaign.md`.
+  Vulnerability splits, confidence intervals and repair provenance are in
+  `docs/ben-gap-campaign.md`.
 
 - **M32 floor promoted after BBA and BEN qualification (2026-09-13)** — the
   exact rollout-relabelled artifact replaces the shared embedded v6 weights
