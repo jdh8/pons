@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CI caches dependencies** — `Swatinem/rust-cache` in the clippy, doc,
+  minimal-versions, web and test jobs.  Keyed on lockfile + toolchain + job,
+  it keeps only third-party artifacts (the workspace's own are pruned), so
+  the ~2 minutes each job spent compiling dependencies and the ddss C++
+  build become a cache download.
 - **`[profile.dev] opt-level = 1`** — the crate itself now compiles with basic
   optimizations under `cargo test` (dependencies were already at level 2).
   The lib's 972 unit tests drop from 2260 to 689 CPU-seconds (the two
