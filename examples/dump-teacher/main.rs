@@ -303,6 +303,16 @@ struct Args {
     /// cut may ask for
     #[arg(long, default_value_t = 64)]
     layouts: usize,
+    /// `--relabel`: draw the layouts into `<out>.dd` as pending rows and stop
+    /// — no solve, no `.ret`.  Fill the sidecar anywhere with `--fill-dd`,
+    /// then a plain `--relabel` pass prices from it and solves nothing.
+    #[arg(long, requires = "relabel")]
+    draw_only: bool,
+    /// Solve every pending row of these `.dd` sidecars in place, the offline
+    /// solver half of `--draw-only`.  Needs no bank, no net and no matching
+    /// commit: a table is a fact about 52 cards alone.
+    #[arg(long, num_args = 1.., value_name = "DD", conflicts_with_all = ["relabel", "cut", "diff"])]
+    fill_dd: Vec<PathBuf>,
     /// `--relabel`: proposal calls to roll out, before the union with the own call
     #[arg(long, default_value_t = 3)]
     top_k: usize,
@@ -657,6 +667,9 @@ fn run(args: Args) -> anyhow::Result<()> {
         println!("{drift}");
         return Ok(());
     }
+    if !args.fill_dd.is_empty() {
+        return relabel::fill(&args.fill_dd);
+    }
     if let Some(m) = args.cut {
         anyhow::ensure!(
             !args.chunks.is_empty(),
@@ -669,6 +682,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         top_k: args.top_k,
         epsilon: args.epsilon,
         temperature: args.temperature,
+        draw_only: args.draw_only,
     });
     let (feature_version, features_len) = match (args.feature_version, args.configured) {
         // `4` is "today's meaning", not a forced v4: a bare (v3) invocation
@@ -1236,21 +1250,33 @@ fn run(args: Args) -> anyhow::Result<()> {
                 existing,
                 &mut tables,
             )?;
-            relabel::write_ret(Path::new(&tmp(&ret_path)), &priced)?;
+            if !knobs.draw_only {
+                relabel::write_ret(Path::new(&tmp(&ret_path)), &priced)?;
+            }
             relabel::write_dd(Path::new(&tmp(&dd_path)), &tables)?;
             let starved = priced
                 .iter()
                 .filter(|p| usize::from(p.layouts) < knobs.layouts)
                 .count();
-            eprintln!(
-                "teacher-dump: relabel priced {} decisions ({} extended, {starved} starved below {} layouts; {} layouts solved, {} from .dd) in {:.0}s",
-                priced.len(),
-                pricing.extended,
-                knobs.layouts,
-                pricing.solved,
-                pricing.cached,
-                started.elapsed().as_secs_f64(),
-            );
+            if knobs.draw_only {
+                eprintln!(
+                    "teacher-dump: relabel drew {} decisions ({} layouts pending, {} already in .dd) in {:.0}s; fill with --fill-dd {dd_path}",
+                    priced.len(),
+                    pricing.pending,
+                    pricing.cached,
+                    started.elapsed().as_secs_f64(),
+                );
+            } else {
+                eprintln!(
+                    "teacher-dump: relabel priced {} decisions ({} extended, {starved} starved below {} layouts; {} layouts solved, {} from .dd) in {:.0}s",
+                    priced.len(),
+                    pricing.extended,
+                    knobs.layouts,
+                    pricing.solved,
+                    pricing.cached,
+                    started.elapsed().as_secs_f64(),
+                );
+            }
             Some(serde_json::json!({
                 "layouts": knobs.layouts,
                 "top_k": knobs.top_k,
@@ -1260,6 +1286,7 @@ fn run(args: Args) -> anyhow::Result<()> {
                 "extended": pricing.extended,
                 "solved": pricing.solved,
                 "cached": pricing.cached,
+                "pending": pricing.pending,
                 "starved": starved,
                 "ret": "sibling .ret file: per net-served decision, [candidate][layout] swings over the own call in IMPs, [plain DD, PD]; cut with --cut M; trusted only at git_sha",
                 "dd": "sibling .dd file: per decision (deal_index, ordinal), every layout solved for it as a .pdd row; reused by any re-price of this window",
@@ -1342,7 +1369,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         (&f32_path, true),
         (&tags_path, true),
         (&seq_path, seq),
-        (&ret_path, knobs.is_some()),
+        (&ret_path, knobs.is_some_and(|k| !k.draw_only)),
         (&dd_path, knobs.is_some()),
         (&json_path, true),
     ] {

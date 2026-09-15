@@ -41,8 +41,18 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 fn dump(out: &Path, skip: u64, boards: usize, layouts: usize, seed: u64) {
+    dump_with(out, skip, boards, layouts, seed, &[]);
+}
+
+fn dump_with(out: &Path, skip: u64, boards: usize, layouts: usize, seed: u64, extra: &[&str]) {
     std::fs::create_dir_all(out.parent().expect("a shard dir")).expect("mkdir");
-    let args = Args::parse_from([
+    let (skip, boards, layouts, seed) = (
+        skip.to_string(),
+        boards.to_string(),
+        layouts.to_string(),
+        seed.to_string(),
+    );
+    let mut argv = vec![
         "dump-teacher",
         "--relabel",
         "--configured",
@@ -53,17 +63,18 @@ fn dump(out: &Path, skip: u64, boards: usize, layouts: usize, seed: u64) {
         "--cell",
         "a-off/a-off",
         "--skip",
-        &skip.to_string(),
+        &skip,
         "--boards",
-        &boards.to_string(),
+        &boards,
         "--layouts",
-        &layouts.to_string(),
+        &layouts,
         "--seed",
-        &seed.to_string(),
+        &seed,
         "--out",
         out.to_str().expect("utf-8 path"),
-    ]);
-    run(args).expect("dump succeeds");
+    ];
+    argv.extend_from_slice(extra);
+    run(Args::parse_from(argv)).expect("dump succeeds");
 }
 
 fn cut(roots: &[&Path], out: &Path, m: usize) -> anyhow::Result<()> {
@@ -223,6 +234,56 @@ fn a_reprice_at_another_commit_solves_nothing_it_cached() {
     assert_eq!(
         bytes(stem.with_extension("ret")),
         bytes(dir.join("native/s/chunk-0.ret"))
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// The offline split: a `--draw-only` pass writes pending `.dd` rows and no
+/// `.ret`; `--fill-dd` solves them with nothing but the file; the pricing
+/// pass then solves nothing and writes the `.ret` a native pass would have.
+#[test]
+fn draw_fill_price_equals_a_native_pass() {
+    let dir = scratch("fill");
+    let stem = dir.join("split/s/chunk-0");
+    dump_with(&stem, 0, 8, 4, 11, &["--draw-only"]);
+    let json = stem.with_extension("json");
+    let pending = relabel_meta(json.clone(), "pending");
+    assert!(pending > 0, "the draw records pending layouts");
+    assert_eq!(relabel_meta(json.clone(), "solved"), 0);
+    assert!(
+        !stem.with_extension("ret").exists(),
+        "no swings before a solve"
+    );
+
+    let dd = stem.with_extension("dd");
+    run(Args::parse_from([
+        "dump-teacher",
+        "--fill-dd",
+        dd.to_str().expect("utf-8"),
+    ]))
+    .expect("fill succeeds");
+    assert!(
+        relabel::read_dd(&dd)
+            .expect("readable")
+            .values()
+            .flatten()
+            .all(|(_, t)| t.is_some()),
+        "every row is solved"
+    );
+
+    dump(&stem, 0, 8, 4, 11);
+    assert_eq!(
+        relabel_meta(json.clone(), "solved"),
+        0,
+        "priced from the filled .dd"
+    );
+    assert_eq!(relabel_meta(json.clone(), "cached"), pending);
+    assert_eq!(relabel_meta(json, "pending"), 0);
+    dump(&dir.join("native/s/chunk-0"), 0, 8, 4, 11);
+    assert_eq!(
+        bytes(stem.with_extension("ret")),
+        bytes(dir.join("native/s/chunk-0.ret")),
+        "same layouts, same tables, same swings"
     );
     let _ = std::fs::remove_dir_all(dir);
 }

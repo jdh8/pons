@@ -33,6 +33,14 @@
 //! only layouts the sampler now draws differently.  The `.ret` swings are
 //! trusted only at the commit that wrote them.
 //!
+//! **Offline solving.** `--relabel --draw-only` stops after the draw: the
+//! `.dd` holds every layout with a *pending* table and no `.ret` is written.
+//! `dump-teacher --fill-dd <chunk>.dd...` solves the pending rows in place —
+//! a pure file transform needing no bank, no net and no matching commit, so
+//! the sidecars travel to any box with the binary and come back filled.  A
+//! plain `--relabel` pass then prices from the tables and solves nothing (a
+//! sidecar still pending is simply solved live, as before).
+//!
 //! * **Diff** (`dump-teacher --diff A B`): the drift census of two dumps of
 //!   one window — rows whose features moved, decisions that entered or left
 //!   the net-served slice, candidate sets that changed.  Near zero means a
@@ -42,7 +50,7 @@
 use anyhow::{Context as _, bail, ensure};
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, Solver, TrickCountRow, TrickCountTable};
 use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
 use pons::pdd;
@@ -95,15 +103,26 @@ pub struct Knobs {
     pub top_k: usize,
     pub epsilon: f32,
     pub temperature: f32,
+    /// Draw and record the layouts, solve nothing, write no `.ret`
+    pub draw_only: bool,
 }
 
-/// The solved layouts of one chunk, as they sit in the `.dd` file: per
-/// decision (by its bank address `(deal_index, ordinal)`), every layout ever
-/// solved for it with its table, in draw order.
+/// The layouts of one chunk, as they sit in the `.dd` file: per decision (by
+/// its bank address `(deal_index, ordinal)`), every layout ever drawn for it
+/// in draw order, with its table or `None` while it is still pending a solve.
 ///
 /// ponytail: a linear scan per lookup — a decision holds at most a few
 /// hundred layouts, and the solve it saves is 7 ms.
-pub type Tables = BTreeMap<(u64, u32), Vec<(FullDeal, TrickCountTable)>>;
+pub type Tables = BTreeMap<(u64, u32), Vec<(FullDeal, Option<TrickCountTable>)>>;
+
+/// Record `table` for `deal` under `key`: fill its pending slot, or append.
+fn remember(tables: &mut Tables, key: (u64, u32), deal: FullDeal, table: Option<TrickCountTable>) {
+    let layouts = tables.entry(key).or_default();
+    match layouts.iter_mut().find(|(l, _)| *l == deal) {
+        Some(slot) => slot.1 = slot.1.or(table),
+        None => layouts.push((deal, table)),
+    }
+}
 
 const RET_MAGIC: &[u8; 4] = b"PRET";
 const RET_VERSION: u32 = 1;
@@ -146,6 +165,8 @@ pub struct Pricing {
     pub solved: usize,
     /// Layouts whose table came out of the `.dd` cache
     pub cached: usize,
+    /// Layouts recorded without a table (`draw_only`), owed to `--fill-dd`
+    pub pending: usize,
 }
 
 /// Price every decision: draw, look each new layout up in `tables`, solve
@@ -221,7 +242,9 @@ pub fn price<'p>(
             let known = tables.get(&(d.deal_index, d.ordinal));
             layouts
                 .iter()
-                .map(|deal| known.and_then(|k| k.iter().find(|(l, _)| l == deal).map(|(_, t)| *t)))
+                .map(|deal| {
+                    known.and_then(|k| k.iter().find(|(l, _)| l == deal).and_then(|(_, t)| *t))
+                })
                 .collect()
         })
         .collect();
@@ -235,7 +258,18 @@ pub fn price<'p>(
         extended: 0,
         solved: misses.len(),
         cached: found.iter().flatten().filter(|t| t.is_some()).count(),
+        pending: 0,
     };
+    if knobs.draw_only {
+        for (d, layouts) in decisions.iter().zip(&fresh) {
+            for deal in layouts {
+                remember(tables, (d.deal_index, d.ordinal), *deal, None);
+            }
+        }
+        summary.pending = misses.len();
+        summary.solved = 0;
+        return Ok((priced, summary));
+    }
     let solved = if misses.is_empty() {
         Vec::new()
     } else {
@@ -246,10 +280,7 @@ pub fn price<'p>(
         for (deal, slot) in layouts.iter().zip(f.iter_mut()) {
             if slot.is_none() {
                 let table = solved.next().expect("one table per miss");
-                tables
-                    .entry((d.deal_index, d.ordinal))
-                    .or_default()
-                    .push((*deal, table));
+                remember(tables, (d.deal_index, d.ordinal), *deal, Some(table));
                 *slot = Some(table);
             }
         }
@@ -306,8 +337,33 @@ pub fn price<'p>(
     Ok((priced, summary))
 }
 
+/// A pending row is a [`pdd`] row whose ten table bytes are all `0xFF` — no
+/// trick nibble is ever 15, so it cannot collide with a solved table.
+const PENDING: [u8; pdd::ROW_LEN - 24] = [0xFF; pdd::ROW_LEN - 24];
+
+fn encode_dd_row(deal: &FullDeal, table: Option<TrickCountTable>) -> [u8; pdd::ROW_LEN] {
+    let mut row = pdd::encode_row(
+        deal,
+        &table.unwrap_or(TrickCountTable([TrickCountRow::new(0, 0, 0, 0); 5])),
+    );
+    if table.is_none() {
+        row[24..].copy_from_slice(&PENDING);
+    }
+    row
+}
+
+fn decode_dd_row(row: &[u8; pdd::ROW_LEN]) -> Option<(FullDeal, Option<TrickCountTable>)> {
+    if row[24..] == PENDING {
+        let mut zeroed = *row;
+        zeroed[24..].fill(0);
+        return pdd::decode_row(&zeroed).map(|(deal, _)| (deal, None));
+    }
+    pdd::decode_row(row).map(|(deal, table)| (deal, Some(table)))
+}
+
 /// The `.dd` cache: magic, version, record count, then per decision its bank
-/// address, a layout count and that many [`pdd`] rows (deal + table, 34 B).
+/// address, a layout count and that many [`pdd`] rows (deal + table, 34 B;
+/// table all `0xFF` while pending).
 pub fn write_dd(path: &Path, tables: &Tables) -> anyhow::Result<()> {
     let mut w = BufWriter::new(std::fs::File::create(path)?);
     w.write_all(DD_MAGIC)?;
@@ -318,7 +374,7 @@ pub fn write_dd(path: &Path, tables: &Tables) -> anyhow::Result<()> {
         w.write_all(&ordinal.to_le_bytes())?;
         w.write_all(&u32::try_from(layouts.len())?.to_le_bytes())?;
         for (deal, table) in layouts {
-            w.write_all(&pdd::encode_row(deal, table))?;
+            w.write_all(&encode_dd_row(deal, *table))?;
         }
     }
     w.flush()?;
@@ -353,7 +409,7 @@ pub fn read_dd(path: &Path) -> anyhow::Result<Tables> {
         for _ in 0..count {
             let row: &[u8; pdd::ROW_LEN] = take(pdd::ROW_LEN)?.try_into()?;
             layouts.push(
-                pdd::decode_row(row)
+                decode_dd_row(row)
                     .with_context(|| format!("{}: a row is not a deal", path.display()))?,
             );
         }
@@ -365,6 +421,41 @@ pub fn read_dd(path: &Path) -> anyhow::Result<Tables> {
     }
     ensure!(at == bytes.len(), "{}: trailing bytes", path.display());
     Ok(out)
+}
+
+/// `--fill-dd`: solve every pending row of each `.dd` in place (tmp +
+/// rename), the offline half of a `--draw-only` pass.  Needs the binary and
+/// the file, nothing else.  A file with nothing pending is left untouched.
+pub fn fill(paths: &[PathBuf]) -> anyhow::Result<()> {
+    for path in paths {
+        let mut tables = read_dd(path)?;
+        let pending: Vec<FullDeal> = tables
+            .values()
+            .flatten()
+            .filter(|(_, t)| t.is_none())
+            .map(|(d, _)| *d)
+            .collect();
+        if pending.is_empty() {
+            eprintln!("{}: nothing pending", path.display());
+            continue;
+        }
+        let started = std::time::Instant::now();
+        let solved = Solver::lock(None).solve_deals(&pending, NonEmptyStrainFlags::ALL);
+        let mut solved = solved.into_iter();
+        for slot in tables.values_mut().flatten().filter(|(_, t)| t.is_none()) {
+            slot.1 = Some(solved.next().expect("one table per pending row"));
+        }
+        let tmp = path.with_extension("dd.tmp");
+        write_dd(&tmp, &tables)?;
+        std::fs::rename(&tmp, path)?;
+        eprintln!(
+            "{}: solved {} pending layouts in {:.0}s",
+            path.display(),
+            pending.len(),
+            started.elapsed().as_secs_f64()
+        );
+    }
+    Ok(())
 }
 
 /// The drift census of two dumps of one window (`--diff`)

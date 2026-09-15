@@ -23,6 +23,10 @@
 #   CHUNK      deals per chunk; default 5000 (~3 box-hours on 32 cores at 64 layouts)
 #   REVERSE    1 = walk the chunk list backwards (the mop-up pass); default 0
 #   EXTRA_OUT  colon-separated other roots the existence gate also consults
+#   DRAW_ONLY  1 = draw the layouts as pending .dd rows and solve nothing (the
+#              offline split: fill the .dd files anywhere with
+#              `dump-teacher --fill-dd`, then run the worker again without
+#              DRAW_ONLY to price from them); default 0
 #   DUMP_COMMON  override the recipe's common flags (default: the v6 recipe's)
 #   RECIPE_FILE  override the shard recipe with a file of `name skip boards seed [flags]` lines
 #
@@ -39,6 +43,7 @@ LAYOUTS=${LAYOUTS:-64}
 CHUNK=${CHUNK:-5000}
 REVERSE=${REVERSE:-0}
 EXTRA_OUT=${EXTRA_OUT:-}
+DRAW_ONLY=${DRAW_ONLY:-0}
 BIN=target/release/examples/dump-teacher
 COMMON=${DUMP_COMMON:-"--deals $BANK --teacher bba --configured --feature-version 6"}
 
@@ -80,19 +85,23 @@ chunks() {
 	done < <(recipe)
 }
 
-# Layouts a finished chunk records and the commit that priced it (0 and -
-# when none): "<root> <layouts> <sha>".  A chunk priced at another commit is
-# redone: its .ret is stale there, its .dd tables are reused by the binary.
+# Layouts a finished chunk records, the commit that priced it and its pending
+# (unsolved, draw-only) layouts (0, - and 0 when none): "<root> <layouts> <sha>
+# <pending>".  A chunk priced at another commit is redone: its .ret is stale
+# there, its .dd tables are reused by the binary.  A chunk with pending
+# layouts is redone by a pricing pass (the binary prices from the filled .dd,
+# or solves live what is still pending) and skipped by a draw-only one.
 recorded() {
 	local root json
 	for root in "$OUT" ${EXTRA_OUT//:/ }; do
 		json=$root/$1/chunk-$2.json
 		[[ -r $json ]] || continue
 		echo "$root $(sed -n 's/^ *"layouts": \([0-9]*\),*$/\1/p' "$json" | head -1) \
-			$(sed -n 's/^ *"git_sha": "\([0-9a-f]*\)",*$/\1/p' "$json" | head -1)"
+			$(sed -n 's/^ *"git_sha": "\([0-9a-f]*\)",*$/\1/p' "$json" | head -1) \
+			$(sed -n 's/^ *"pending": \([0-9]*\),*$/\1/p' "$json" | head -1)"
 		return
 	done
-	echo "- 0 -"
+	echo "- 0 - 0"
 }
 HEAD_SHA=$(git rev-parse HEAD)
 
@@ -100,8 +109,8 @@ list=$(chunks)
 [[ $REVERSE = 1 ]] && list=$(tac <<<"$list")
 while read -r g name c skip boards seed extra; do
 	case " $OFFSETS " in *" $((g % STRIDE)) "*) ;; *) continue ;; esac
-	read -r root have sha < <(recorded "$name" "$c")
-	if ((have >= LAYOUTS)) && [[ $sha == "$HEAD_SHA" ]]; then
+	read -r root have sha pending < <(recorded "$name" "$c")
+	if ((have >= LAYOUTS)) && [[ $sha == "$HEAD_SHA" ]] && { [[ $DRAW_ONLY = 1 ]] || ((${pending:-0} == 0)); }; then
 		continue
 	elif [[ $root != "$OUT" && $root != - ]]; then
 		echo "chunk $g $name/$c: $root has $have layouts at ${sha:0:8}; its owner extends or re-prices it — skipped"
@@ -111,7 +120,8 @@ while read -r g name c skip boards seed extra; do
 	echo "chunk $g $name/$c: skip $skip boards $boards seed $seed → $LAYOUTS layouts (have $have)"
 	# shellcheck disable=SC2086
 	$BIN $COMMON --skip "$skip" --boards "$boards" --seed "$seed" \
-		--relabel --layouts "$LAYOUTS" --out "$OUT/$name/chunk-$c" $extra
+		--relabel --layouts "$LAYOUTS" --out "$OUT/$name/chunk-$c" \
+		$([[ $DRAW_ONLY = 1 ]] && echo --draw-only) $extra
 	if ((drain)); then
 		echo "relabel-worker: drained after chunk $g"
 		exit 0

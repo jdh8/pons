@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The relabel solve travels as files** — `dump-teacher --relabel
+  --draw-only` draws every layout into the `.dd` sidecar as a *pending* row
+  (table bytes `0xFF`) and writes no `.ret`; `dump-teacher --fill-dd
+  <chunk>.dd...` solves the pending rows in place with nothing but the binary
+  and the file — no bank, no net, no matching commit — and a plain `--relabel`
+  pass then prices from the filled sidecar and solves nothing.
+  `scripts/relabel-worker.sh` gains `DRAW_ONLY=1` and its gate redoes a chunk
+  whose sidecar records `pending > 0`.  So the fleet-week of double dummy can
+  be run offline on any box and merged by copying `.dd` files back; recipe in
+  `docs/shared-machine-data-gen.md`.  No bidding change; the split's `.ret`
+  is byte-identical to a native pass's (`draw_fill_price_equals_a_native_pass`).
 - **Relabel solves are cached, so a re-price is bidding-bound** —
   `dump-teacher --relabel` now writes a `.dd` sibling holding every solved
   layout per decision (a `.pdd` row each, keyed by the decision's bank

@@ -488,6 +488,33 @@ the sampler draws the same layouts and nothing is solved; under a changed one
 only the decisions whose inference box moved draw new cards. The sidecar
 records `solved` and `cached` per pass.
 
+### The offline split: draw here, solve anywhere, price here (2026-09-16)
+
+The live fleet couples the solve to a box that has the bank, the net and the
+commit. Only the draw and the price need those; the solve needs the cards.
+So a relabel pass splits into three, and the middle one travels as files:
+
+```sh
+# 1. draw — one box, bidding-bound, hours: every chunk's .dd holds its
+#    layouts as *pending* rows (table bytes 0xFF), and no .ret is written
+DRAW_ONLY=1 OUT=<root> scripts/relabel-worker.sh
+# 2. solve — any box with the binary, any commit, no bank, no NFS: carry the
+#    .dd files over, fill them in place (tmp + rename, idempotent), carry back
+target/release/examples/dump-teacher --fill-dd <root>/*/chunk-*.dd
+# 3. price — the plain worker: the gate sees `pending > 0`, redoes the chunk,
+#    finds every layout in the .dd, solves nothing, writes the .ret
+OUT=<root> scripts/relabel-worker.sh
+```
+
+A `.dd` is 34 B per layout, ~30 MB per 5000-deal chunk at 64 layouts, and each
+file is independent, so the partition is the file list — hand any box any
+subset and merge by copying back. Step 3 is correct on a sidecar that came
+back half-filled: what is still pending is solved live, as before the split.
+A draw-only re-run over a drawn chunk skips it; a pricing run at a new commit
+re-draws and either finds the layouts or leaves them pending for step 2.
+`draw_fill_price_equals_a_native_pass` in `examples/dump-teacher/tests.rs` is
+the byte-identity: the split's `.ret` equals a native pass's.
+
 **The 188 chunks priced before 2026-09-16 have no `.dd`.** Their first re-price
 at a new commit pays the full 64 layouts once — the same fleet-week an M64
 extension would cost, but it also delivers labels under the current book — and
