@@ -25,7 +25,19 @@
 //! a prefix-stable function of its stream, so a chunk stored at `L` layouts is
 //! extended to `L' > L` by re-drawing, solving only `[L, L')`, and appending —
 //! no solve is repeated, and a cut at any `2M ≤ L` is byte-identical before
-//! and after.
+//! and after.  **Re-pricing.** A chunk's `.dd` sibling keeps every solved
+//! layout under its decision's bank address, and a double-dummy table is a
+//! fact about 52 cards alone — never about the book, the net or the
+//! candidates.  So a walk at another commit (a convention changed, a net
+//! promoted) re-draws, re-bids and re-prices from the stored tables, solving
+//! only layouts the sampler now draws differently.  The `.ret` swings are
+//! trusted only at the commit that wrote them.
+//!
+//! * **Diff** (`dump-teacher --diff A B`): the drift census of two dumps of
+//!   one window — rows whose features moved, decisions that entered or left
+//!   the net-served slice, candidate sets that changed.  Near zero means a
+//!   change owes the frozen net nothing; large means it moved readings the
+//!   net consumes, and a re-price is owed before its A/B is a verdict.
 
 use anyhow::{Context as _, bail, ensure};
 use contract_bridge::auction::Call;
@@ -33,8 +45,10 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
+use pons::pdd;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -83,8 +97,18 @@ pub struct Knobs {
     pub temperature: f32,
 }
 
+/// The solved layouts of one chunk, as they sit in the `.dd` file: per
+/// decision (by its bank address `(deal_index, ordinal)`), every layout ever
+/// solved for it with its table, in draw order.
+///
+/// ponytail: a linear scan per lookup — a decision holds at most a few
+/// hundred layouts, and the solve it saves is 7 ms.
+pub type Tables = BTreeMap<(u64, u32), Vec<(FullDeal, TrickCountTable)>>;
+
 const RET_MAGIC: &[u8; 4] = b"PRET";
 const RET_VERSION: u32 = 1;
+const DD_MAGIC: &[u8; 4] = b"PDDC";
+const DD_VERSION: u32 = 1;
 
 /// The `Logits` order, so a call round-trips through one byte
 fn calls() -> Vec<Call> {
@@ -113,16 +137,29 @@ pub fn board_seed(seed: u64, deal_index: u64) -> u64 {
     layout_seed(seed, deal_index, 0xFFFF)
 }
 
-/// Price every decision: draw, solve once per new layout, bid out every
-/// candidate, and return the stored form.  `existing` (an earlier `.ret` of
-/// this same chunk) is extended rather than recomputed.
+/// What one pricing pass did, for the sidecar
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Pricing {
+    /// Decisions that gained layouts
+    pub extended: usize,
+    /// Layouts solved — the double dummy actually spent
+    pub solved: usize,
+    /// Layouts whose table came out of the `.dd` cache
+    pub cached: usize,
+}
+
+/// Price every decision: draw, look each new layout up in `tables`, solve
+/// only the misses (and remember them), bid out every candidate, and return
+/// the stored form.  `existing` (an earlier `.ret` of this same chunk, at
+/// this same commit) is extended rather than recomputed.
 pub fn price<'p>(
     decisions: &[Decision],
     side: impl Fn(&str) -> &'p Partnership + Sync,
     knobs: Knobs,
     seed: u64,
     existing: Option<Vec<Priced>>,
-) -> anyhow::Result<(Vec<Priced>, usize)> {
+    tables: &mut Tables,
+) -> anyhow::Result<(Vec<Priced>, Pricing)> {
     let mut priced: Vec<Priced> = match existing {
         Some(existing) => {
             ensure!(
@@ -156,6 +193,9 @@ pub fn price<'p>(
         .par_iter()
         .zip(&priced)
         .map(|(d, p)| {
+            if usize::from(p.layouts) >= knobs.layouts {
+                return Vec::new();
+            }
             let drawn = sample_for(
                 d.hand,
                 d.seat,
@@ -171,15 +211,53 @@ pub fn price<'p>(
         })
         .collect();
 
-    // One solve per new layout, on this thread: the solver owns the core pool.
-    let all: Vec<FullDeal> = fresh.iter().flatten().copied().collect();
-    let tables = Solver::lock(None).solve_deals(&all, NonEmptyStrainFlags::ALL);
-    let mut offsets = Vec::with_capacity(fresh.len());
-    let mut at = 0usize;
-    for layouts in &fresh {
-        offsets.push(at);
-        at += layouts.len();
+    // Look up, then one solve per miss, on this thread: the solver owns the
+    // core pool.  A hit is the same 52 cards solved by an earlier pass of this
+    // chunk, whatever book or net that pass walked under.
+    let mut found: Vec<Vec<Option<TrickCountTable>>> = decisions
+        .iter()
+        .zip(&fresh)
+        .map(|(d, layouts)| {
+            let known = tables.get(&(d.deal_index, d.ordinal));
+            layouts
+                .iter()
+                .map(|deal| known.and_then(|k| k.iter().find(|(l, _)| l == deal).map(|(_, t)| *t)))
+                .collect()
+        })
+        .collect();
+    let misses: Vec<FullDeal> = fresh
+        .iter()
+        .zip(&found)
+        .flat_map(|(layouts, f)| layouts.iter().zip(f).filter(|(_, t)| t.is_none()))
+        .map(|(deal, _)| *deal)
+        .collect();
+    let mut summary = Pricing {
+        extended: 0,
+        solved: misses.len(),
+        cached: found.iter().flatten().filter(|t| t.is_some()).count(),
+    };
+    let solved = if misses.is_empty() {
+        Vec::new()
+    } else {
+        Solver::lock(None).solve_deals(&misses, NonEmptyStrainFlags::ALL)
+    };
+    let mut solved = solved.into_iter();
+    for ((d, layouts), f) in decisions.iter().zip(&fresh).zip(&mut found) {
+        for (deal, slot) in layouts.iter().zip(f.iter_mut()) {
+            if slot.is_none() {
+                let table = solved.next().expect("one table per miss");
+                tables
+                    .entry((d.deal_index, d.ordinal))
+                    .or_default()
+                    .push((*deal, table));
+                *slot = Some(table);
+            }
+        }
     }
+    let tables: Vec<Vec<TrickCountTable>> = found
+        .into_iter()
+        .map(|f| f.into_iter().map(|t| t.expect("filled above")).collect())
+        .collect();
 
     // Bid out and price, rayon again.
     let new_swings: Vec<Vec<Vec<[i64; 2]>>> = decisions
@@ -190,14 +268,13 @@ pub fn price<'p>(
             if layouts.is_empty() {
                 return Vec::new();
             }
-            let tables: &[TrickCountTable] = &tables[offsets[i]..offsets[i] + layouts.len()];
             swings(
                 &d.candidates,
                 &d.prefix,
                 d.dealer,
                 d.seat,
                 layouts,
-                tables,
+                &tables[i],
                 side(&d.ours),
                 side(&d.theirs),
                 d.vul,
@@ -205,12 +282,11 @@ pub fn price<'p>(
         })
         .collect();
 
-    let mut extended = 0usize;
     for (p, new) in priced.iter_mut().zip(new_swings) {
         if new.is_empty() {
             continue;
         }
-        extended += 1;
+        summary.extended += 1;
         let old = usize::from(p.layouts);
         let added = new[0].len();
         let alternatives = p.candidates.len() - 1;
@@ -227,7 +303,180 @@ pub fn price<'p>(
         p.swings = merged;
         p.layouts = u16::try_from(old + added).expect("layouts fit u16");
     }
-    Ok((priced, extended))
+    Ok((priced, summary))
+}
+
+/// The `.dd` cache: magic, version, record count, then per decision its bank
+/// address, a layout count and that many [`pdd`] rows (deal + table, 34 B).
+pub fn write_dd(path: &Path, tables: &Tables) -> anyhow::Result<()> {
+    let mut w = BufWriter::new(std::fs::File::create(path)?);
+    w.write_all(DD_MAGIC)?;
+    w.write_all(&DD_VERSION.to_le_bytes())?;
+    w.write_all(&u32::try_from(tables.len())?.to_le_bytes())?;
+    for (&(deal_index, ordinal), layouts) in tables {
+        w.write_all(&deal_index.to_le_bytes())?;
+        w.write_all(&ordinal.to_le_bytes())?;
+        w.write_all(&u32::try_from(layouts.len())?.to_le_bytes())?;
+        for (deal, table) in layouts {
+            w.write_all(&pdd::encode_row(deal, table))?;
+        }
+    }
+    w.flush()?;
+    Ok(())
+}
+
+pub fn read_dd(path: &Path) -> anyhow::Result<Tables> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?.read_to_end(&mut bytes)?;
+    let mut at = 0usize;
+    let mut take = |n: usize| -> anyhow::Result<&[u8]> {
+        let slice = bytes
+            .get(at..at + n)
+            .with_context(|| format!("{}: truncated", path.display()))?;
+        at += n;
+        Ok(slice)
+    };
+    ensure!(take(4)? == DD_MAGIC, "{}: not a .dd file", path.display());
+    let version = u32::from_le_bytes(take(4)?.try_into()?);
+    ensure!(
+        version == DD_VERSION,
+        "{}: .dd version {version}",
+        path.display()
+    );
+    let n = u32::from_le_bytes(take(4)?.try_into()?) as usize;
+    let mut out = Tables::new();
+    for _ in 0..n {
+        let deal_index = u64::from_le_bytes(take(8)?.try_into()?);
+        let ordinal = u32::from_le_bytes(take(4)?.try_into()?);
+        let count = u32::from_le_bytes(take(4)?.try_into()?) as usize;
+        let mut layouts = Vec::with_capacity(count);
+        for _ in 0..count {
+            let row: &[u8; pdd::ROW_LEN] = take(pdd::ROW_LEN)?.try_into()?;
+            layouts.push(
+                pdd::decode_row(row)
+                    .with_context(|| format!("{}: a row is not a deal", path.display()))?,
+            );
+        }
+        ensure!(
+            out.insert((deal_index, ordinal), layouts).is_none(),
+            "{}: decision ({deal_index}, {ordinal}) stored twice",
+            path.display()
+        );
+    }
+    ensure!(at == bytes.len(), "{}: trailing bytes", path.display());
+    Ok(out)
+}
+
+/// The drift census of two dumps of one window (`--diff`)
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Drift {
+    pub rows: usize,
+    /// Rows whose feature block differs — readings the net consumes moved
+    pub features_moved: usize,
+    /// Rows whose one-hot differs — the teacher's walk itself moved
+    pub labels_moved: usize,
+    /// Net-served decisions in the first dump, and in the second
+    pub decisions: [usize; 2],
+    /// Rows net-served in one dump only
+    pub entered: usize,
+    pub left: usize,
+    /// Rows net-served in both whose candidate set differs
+    pub recandidated: usize,
+}
+
+impl fmt::Display for Drift {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[allow(clippy::cast_precision_loss)] // counts, for a percentage
+        let pct = |n: usize, d: usize| 100.0 * n as f64 / d.max(1) as f64;
+        writeln!(
+            f,
+            "rows {}: features moved {} ({:.2}%), labels moved {}",
+            self.rows,
+            self.features_moved,
+            pct(self.features_moved, self.rows),
+            self.labels_moved
+        )?;
+        write!(
+            f,
+            "decisions {} → {}: entered {}, left {}, recandidated {} ({:.2}% of the first)",
+            self.decisions[0],
+            self.decisions[1],
+            self.entered,
+            self.left,
+            self.recandidated,
+            pct(
+                self.entered + self.left + self.recandidated,
+                self.decisions[0]
+            )
+        )
+    }
+}
+
+/// Compare two chunk stems written from the same bank window and seed
+pub fn diff(a: &Path, b: &Path) -> anyhow::Result<Drift> {
+    let meta = |stem: &Path| -> anyhow::Result<serde_json::Value> {
+        let path = stem.with_extension("json");
+        Ok(serde_json::from_str(
+            &std::fs::read_to_string(&path).with_context(|| path.display().to_string())?,
+        )?)
+    };
+    let (ma, mb) = (meta(a)?, meta(b)?);
+    for key in [
+        "skip",
+        "boards",
+        "seed",
+        "rows",
+        "features_len",
+        "row_bytes",
+    ] {
+        ensure!(
+            ma[key] == mb[key],
+            "the dumps are not of one window: {key} is {} vs {}",
+            ma[key],
+            mb[key]
+        );
+    }
+    let rows = ma["rows"].as_u64().context("rows")? as usize;
+    let features = ma["features_len"].as_u64().context("features_len")? as usize * 4;
+    let row_bytes = ma["row_bytes"].as_u64().context("row_bytes")? as usize;
+    let (fa, fb) = (
+        std::fs::read(a.with_extension("f32"))?,
+        std::fs::read(b.with_extension("f32"))?,
+    );
+    ensure!(
+        fa.len() == rows * row_bytes && fb.len() == rows * row_bytes,
+        "a .f32 is not {rows} × {row_bytes} bytes"
+    );
+    let mut drift = Drift {
+        rows,
+        ..Drift::default()
+    };
+    let label = features..features + SOFTMAX_LEN * 4;
+    for (ra, rb) in fa.chunks(row_bytes).zip(fb.chunks(row_bytes)) {
+        drift.features_moved += usize::from(ra[..features] != rb[..features]);
+        drift.labels_moved += usize::from(ra[label.clone()] != rb[label.clone()]);
+    }
+    let served = |stem: &Path| -> anyhow::Result<BTreeMap<u32, Vec<u8>>> {
+        let path = stem.with_extension("ret");
+        if !path.exists() {
+            return Ok(BTreeMap::new());
+        }
+        Ok(read_ret(&path)?
+            .into_iter()
+            .map(|p| (p.row, p.candidates))
+            .collect())
+    };
+    let (sa, sb) = (served(a)?, served(b)?);
+    drift.decisions = [sa.len(), sb.len()];
+    drift.entered = sb.keys().filter(|row| !sa.contains_key(row)).count();
+    for (row, candidates) in &sa {
+        match sb.get(row) {
+            None => drift.left += 1,
+            Some(other) if other != candidates => drift.recandidated += 1,
+            Some(_) => {}
+        }
+    }
+    Ok(drift)
 }
 
 pub fn write_ret(path: &Path, priced: &[Priced]) -> anyhow::Result<()> {
@@ -401,7 +650,15 @@ pub fn cut(roots: &[PathBuf], out: &Path, m: usize, margin: f64) -> anyhow::Resu
                 meta.as_object_mut().map(|o| o.remove(key));
             }
             if let Some(r) = meta.get_mut("relabel").and_then(|r| r.as_object_mut()) {
-                for key in ["layouts", "decisions", "priced", "starved", "extended"] {
+                for key in [
+                    "layouts",
+                    "decisions",
+                    "priced",
+                    "starved",
+                    "extended",
+                    "solved",
+                    "cached",
+                ] {
                     r.remove(key);
                 }
             }

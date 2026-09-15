@@ -328,6 +328,12 @@ struct Args {
     /// `--cut`: relabel margin in IMPs a candidate must clear held out
     #[arg(long, default_value_t = 0.25)]
     margin: f64,
+    /// The drift census: compare two chunk stems dumped from one bank window
+    /// and seed (typically the fleet's chunk and a `--relabel --layouts 0`
+    /// re-walk at HEAD) and report the rows whose features moved and the
+    /// net-served decisions that entered, left or changed candidates.
+    #[arg(long, num_args = 2, value_name = "STEM", conflicts_with_all = ["relabel", "cut"])]
+    diff: Vec<PathBuf>,
 }
 
 /// `HCP:FIT`, the raw-hand acceptance thresholds of an enriched draw.
@@ -646,6 +652,11 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn run(args: Args) -> anyhow::Result<()> {
+    if let [a, b] = args.diff.as_slice() {
+        let drift = relabel::diff(a, b)?;
+        println!("{drift}");
+        return Ok(());
+    }
     if let Some(m) = args.cut {
         anyhow::ensure!(
             !args.chunks.is_empty(),
@@ -894,6 +905,8 @@ fn run(args: Args) -> anyhow::Result<()> {
     let tags_path = format!("{}.tags", args.out);
     let seq_path = format!("{}.seq", args.out);
     let ret_path = format!("{}.ret", args.out);
+    let dd_path = format!("{}.dd", args.out);
+    let git_sha = git_sha();
     // Every output lands as `<path>.tmp` and is renamed once the whole dump is
     // done, so a killed run leaves the previous chunk intact and no partial
     // file a resume gate could mistake for a finished one.
@@ -1186,30 +1199,56 @@ fn run(args: Args) -> anyhow::Result<()> {
     drop((writer, tags_writer, seq_writer));
 
     // The rollout: draw, solve once per new layout, price every candidate.
-    // An existing `.ret` of this chunk is extended, never recomputed.
+    // An existing `.ret` of this chunk is extended at the commit that wrote
+    // it; at any other commit its swings are stale (the book that bid them out
+    // may have moved) and are re-priced from the `.dd` tables, which are a
+    // fact about the cards alone.
     let relabel_meta = match knobs {
         Some(knobs) => {
-            let existing = Path::new(&ret_path)
+            let wrote = std::fs::read_to_string(&json_path)
+                .ok()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .and_then(|m| m["git_sha"].as_str().map(str::to_owned));
+            let existing = match wrote {
+                Some(sha) if sha == git_sha => Path::new(&ret_path)
+                    .exists()
+                    .then(|| relabel::read_ret(Path::new(&ret_path)))
+                    .transpose()?,
+                Some(sha) => {
+                    eprintln!(
+                        "teacher-dump: chunk was priced at {sha}; re-pricing at {git_sha} from its .dd tables"
+                    );
+                    None
+                }
+                None => None,
+            };
+            let mut tables = Path::new(&dd_path)
                 .exists()
-                .then(|| relabel::read_ret(Path::new(&ret_path)))
-                .transpose()?;
+                .then(|| relabel::read_dd(Path::new(&dd_path)))
+                .transpose()?
+                .unwrap_or_default();
             let started = std::time::Instant::now();
-            let (priced, extended) = relabel::price(
+            let (priced, pricing) = relabel::price(
                 &decisions,
                 |label| &per_side[label].1,
                 knobs,
                 args.seed,
                 existing,
+                &mut tables,
             )?;
             relabel::write_ret(Path::new(&tmp(&ret_path)), &priced)?;
+            relabel::write_dd(Path::new(&tmp(&dd_path)), &tables)?;
             let starved = priced
                 .iter()
                 .filter(|p| usize::from(p.layouts) < knobs.layouts)
                 .count();
             eprintln!(
-                "teacher-dump: relabel priced {} decisions ({extended} extended, {starved} starved                  below {} layouts) in {:.0}s",
+                "teacher-dump: relabel priced {} decisions ({} extended, {starved} starved below {} layouts; {} layouts solved, {} from .dd) in {:.0}s",
                 priced.len(),
+                pricing.extended,
                 knobs.layouts,
+                pricing.solved,
+                pricing.cached,
                 started.elapsed().as_secs_f64(),
             );
             Some(serde_json::json!({
@@ -1218,15 +1257,17 @@ fn run(args: Args) -> anyhow::Result<()> {
                 "epsilon": knobs.epsilon,
                 "temperature": knobs.temperature,
                 "decisions": priced.len(),
-                "extended": extended,
+                "extended": pricing.extended,
+                "solved": pricing.solved,
+                "cached": pricing.cached,
                 "starved": starved,
-                "ret": "sibling .ret file: per net-served decision, [candidate][layout] swings over the own call in IMPs, [plain DD, PD]; cut with --cut M",
+                "ret": "sibling .ret file: per net-served decision, [candidate][layout] swings over the own call in IMPs, [plain DD, PD]; cut with --cut M; trusted only at git_sha",
+                "dd": "sibling .dd file: per decision (deal_index, ordinal), every layout solved for it as a .pdd row; reused by any re-price of this window",
             }))
         }
         None => None,
     };
 
-    let git_sha = git_sha();
     let metadata = serde_json::json!({
         "feature_version": feature_version,
         "features_len": features_len,
@@ -1302,6 +1343,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         (&tags_path, true),
         (&seq_path, seq),
         (&ret_path, knobs.is_some()),
+        (&dd_path, knobs.is_some()),
         (&json_path, true),
     ] {
         if live {

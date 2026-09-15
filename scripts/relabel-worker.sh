@@ -8,9 +8,11 @@
 # counter over shards in recipe order) belongs to the box whose OFFSETS
 # contain g mod STRIDE.  A chunk whose sidecar already records >= LAYOUTS is
 # skipped; one recorded short is extended in place (no solve repeated); one
-# found under EXTRA_OUT (another box's tree, read-only here) is always
-# skipped.  Outputs are tmp+rename inside the binary, so a killed chunk leaves
-# nothing behind and is simply redone.
+# priced at another commit is re-priced in place (its .dd tables reused, only
+# layouts the sampler now draws differently are solved); one found under
+# EXTRA_OUT (another box's tree, read-only here) is always skipped.  Outputs
+# are tmp+rename inside the binary, so a killed chunk leaves nothing behind
+# and is simply redone.
 #
 # Environment (systemd reads it from ~/.config/pons/relabel-<run>.env):
 #   OUT        chunk root, written as $OUT/<shard>/chunk-<c>.{f32,tags,json,ret}
@@ -78,27 +80,31 @@ chunks() {
 	done < <(recipe)
 }
 
-# Layouts a finished chunk records (0 when none): "<root> <layouts>"
+# Layouts a finished chunk records and the commit that priced it (0 and -
+# when none): "<root> <layouts> <sha>".  A chunk priced at another commit is
+# redone: its .ret is stale there, its .dd tables are reused by the binary.
 recorded() {
 	local root json
 	for root in "$OUT" ${EXTRA_OUT//:/ }; do
 		json=$root/$1/chunk-$2.json
 		[[ -r $json ]] || continue
-		echo "$root $(sed -n 's/^ *"layouts": \([0-9]*\),*$/\1/p' "$json" | head -1)"
+		echo "$root $(sed -n 's/^ *"layouts": \([0-9]*\),*$/\1/p' "$json" | head -1) \
+			$(sed -n 's/^ *"git_sha": "\([0-9a-f]*\)",*$/\1/p' "$json" | head -1)"
 		return
 	done
-	echo "- 0"
+	echo "- 0 -"
 }
+HEAD_SHA=$(git rev-parse HEAD)
 
 list=$(chunks)
 [[ $REVERSE = 1 ]] && list=$(tac <<<"$list")
 while read -r g name c skip boards seed extra; do
 	case " $OFFSETS " in *" $((g % STRIDE)) "*) ;; *) continue ;; esac
-	read -r root have < <(recorded "$name" "$c")
-	if ((have >= LAYOUTS)); then
+	read -r root have sha < <(recorded "$name" "$c")
+	if ((have >= LAYOUTS)) && [[ $sha == "$HEAD_SHA" ]]; then
 		continue
 	elif [[ $root != "$OUT" && $root != - ]]; then
-		echo "chunk $g $name/$c: $root has $have < $LAYOUTS layouts; its owner extends it — skipped"
+		echo "chunk $g $name/$c: $root has $have layouts at ${sha:0:8}; its owner extends or re-prices it — skipped"
 		continue
 	fi
 	mkdir -p "$OUT/$name"

@@ -473,6 +473,47 @@ trap only after the foreground child returns) and exit 0. `start` stops every
 `poker-worker@*` unit on every host and leaves them stopped — restart them by
 hand when the relabel is done.
 
+### Re-pricing a chunk, and the drift census (2026-09-16)
+
+The fleet-week is the double dummy, and a double-dummy table is a fact about
+52 cards alone — never about the book, the net or the candidates. Since
+2026-09-16 every pass writes a `.dd` sibling beside the `.ret`: per decision
+(by its bank address `(deal_index, ordinal)`), every layout ever solved for it
+as a `.pdd` row (deal + table, 34 B). A chunk whose sidecar carries another
+`git_sha` is **re-priced, not extended**: the worker no longer skips it, the
+binary discards its `.ret` swings (the book that bid them out may have moved),
+re-draws, looks each layout up in the `.dd`, solves only the misses, and
+re-bids every candidate against the current book. Under an unchanged reading
+the sampler draws the same layouts and nothing is solved; under a changed one
+only the decisions whose inference box moved draw new cards. The sidecar
+records `solved` and `cached` per pass.
+
+**The 188 chunks priced before 2026-09-16 have no `.dd`.** Their first re-price
+at a new commit pays the full 64 layouts once — the same fleet-week an M64
+extension would cost, but it also delivers labels under the current book — and
+every pass after that is bidding-bound. An extension at the *same* commit
+(`start 128`) still reuses their `.ret` swings and solves only `[64, 128)`.
+
+Before spending that week, take the **drift census**: does the change move
+anything the net consumes? Re-walk a few chunks at HEAD with no double dummy
+and diff them against the fleet's:
+
+```sh
+OUT=/tmp/drift LAYOUTS=0 STRIDE=188 OFFSETS="0 47 94 141" scripts/relabel-worker.sh
+for c in /tmp/drift/*/chunk-*.json; do
+    c=${c%.json}; target/release/examples/dump-teacher --diff "<root>/${c#/tmp/drift/}" "$c"
+done
+```
+
+`--diff` reports rows whose feature block moved (readings the net reads),
+rows whose one-hot moved (must be 0 — BBA's walk does not depend on our
+book), and net-served decisions that entered, left or changed candidates.
+Near zero: the change owes the frozen net nothing, and its A/B with the
+shipped weights is the verdict. Large: it moved readings the net consumes,
+a pre-retrain loss is a floor and not a verdict
+([../docs/reading-drift-handoff.md](reading-drift-handoff.md)), and the
+re-price above is owed before the A/B decides.
+
 ## Etiquette
 
 Check who is on first (`w` / `who`), prefer nights/weekends for full-throttle

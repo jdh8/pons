@@ -167,3 +167,110 @@ fn the_cut_refuses_a_foreign_or_short_chunk() {
     assert!(err.to_string().contains("not contiguous"), "{err}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+fn relabel_meta(json: PathBuf, key: &str) -> u64 {
+    let meta: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(json).expect("sidecar")).expect("json");
+    meta["relabel"][key]
+        .as_u64()
+        .unwrap_or_else(|| panic!("relabel.{key}"))
+}
+
+fn set_sha(json: &Path, sha: &str) {
+    let mut meta: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(json).expect("sidecar")).expect("json");
+    meta["git_sha"] = sha.into();
+    std::fs::write(json, format!("{meta:#}\n")).expect("write");
+}
+
+/// A chunk priced at another commit is re-priced from its `.dd` tables: no
+/// layout is solved twice, the swings come out the same under an unchanged
+/// book, and a later extension still solves only the new layouts and matches
+/// a native draw.
+#[test]
+fn a_reprice_at_another_commit_solves_nothing_it_cached() {
+    let dir = scratch("reprice");
+    let stem = dir.join("ext/s/chunk-0");
+    dump(&stem, 0, 8, 4, 11);
+    let json = stem.with_extension("json");
+    let first = relabel_meta(json.clone(), "solved");
+    assert!(first > 0, "the first pass solves");
+    assert_eq!(relabel_meta(json.clone(), "cached"), 0);
+    let ret = bytes(stem.with_extension("ret"));
+
+    set_sha(&json, "0000000000000000000000000000000000000000");
+    dump(&stem, 0, 8, 4, 11);
+    assert_eq!(
+        relabel_meta(json.clone(), "solved"),
+        0,
+        "every layout was cached"
+    );
+    assert_eq!(relabel_meta(json.clone(), "cached"), first);
+    assert_eq!(
+        bytes(stem.with_extension("ret")),
+        ret,
+        "same book, same swings"
+    );
+
+    dump(&stem, 0, 8, 8, 11);
+    assert_eq!(
+        relabel_meta(json.clone(), "cached"),
+        0,
+        "an extension draws only new layouts"
+    );
+    assert!(relabel_meta(json, "solved") > 0);
+    dump(&dir.join("native/s/chunk-0"), 0, 8, 8, 11);
+    assert_eq!(
+        bytes(stem.with_extension("ret")),
+        bytes(dir.join("native/s/chunk-0.ret"))
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// The drift census reads zero against the same dump, counts a moved feature
+/// row and a decision that left, and refuses two different windows.
+#[test]
+fn the_diff_counts_moved_rows_and_lost_decisions() {
+    let dir = scratch("diff");
+    let a = dir.join("a/s/chunk-0");
+    dump(&a, 0, 6, 2, 5);
+    let same = relabel::diff(&a, &a).expect("diff with itself");
+    assert!(same.rows > 0 && same.decisions[0] > 0, "{same:?}");
+    assert_eq!(
+        same,
+        relabel::Drift {
+            rows: same.rows,
+            decisions: [same.decisions[0]; 2],
+            ..relabel::Drift::default()
+        }
+    );
+
+    let c = dir.join("c/s/chunk-0");
+    std::fs::create_dir_all(c.parent().expect("dir")).expect("mkdir");
+    for ext in ["f32", "tags", "json", "ret"] {
+        std::fs::copy(a.with_extension(ext), c.with_extension(ext)).expect("copy");
+    }
+    let mut f32 = bytes(c.with_extension("f32"));
+    f32[0] ^= 0x80; // row 0, feature 0: a moved reading
+    std::fs::write(c.with_extension("f32"), f32).expect("write");
+    let mut priced = relabel::read_ret(&c.with_extension("ret")).expect("ret");
+    priced.pop();
+    relabel::write_ret(&c.with_extension("ret"), &priced).expect("write");
+    let drift = relabel::diff(&a, &c).expect("diff");
+    assert_eq!(
+        (drift.features_moved, drift.labels_moved),
+        (1, 0),
+        "{drift:?}"
+    );
+    assert_eq!(
+        (drift.left, drift.entered, drift.recandidated),
+        (1, 0, 0),
+        "{drift:?}"
+    );
+
+    let b = dir.join("b/s/chunk-0");
+    dump(&b, 6, 6, 2, 5);
+    let err = relabel::diff(&a, &b).expect_err("another window");
+    assert!(err.to_string().contains("not of one window"), "{err}");
+    let _ = std::fs::remove_dir_all(dir);
+}

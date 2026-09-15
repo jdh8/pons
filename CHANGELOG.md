@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Relabel solves are cached, so a re-price is bidding-bound** —
+  `dump-teacher --relabel` now writes a `.dd` sibling holding every solved
+  layout per decision (a `.pdd` row each, keyed by the decision's bank
+  address).  A chunk whose sidecar carries another `git_sha` is re-priced
+  from those tables — `.ret` swings are trusted only at the commit that wrote
+  them — solving only layouts the sampler now draws differently, and
+  `scripts/relabel-worker.sh` no longer skips such a chunk.  The sidecar
+  records `solved` and `cached`.  `dump-teacher --diff A B` is the drift
+  census of two dumps of one window (features moved, decisions entered /
+  left / recandidated), the cheap gate that says whether a convention change
+  owes the frozen net a re-price at all.  No bidding change; the 188 fleet
+  chunks predate the cache and pay their 64 layouts once more on first
+  re-price.  Recipe in `docs/shared-machine-data-gen.md`; M64 declined in
+  `docs/ai-bidder/logit-calibration.md` §6.
+
 ### Changed
 
 - **CI caches dependencies** — `Swatinem/rust-cache` in the clippy, doc,
