@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Highlights
+
+Two months and ~700 commits of bidding work. The entries below are the
+working log; this is the short version.
+
+- **M32 learned floor** — the rollout-relabelled MLP replaces the v6 weights
+  under both the American and Dutch books, qualified against BBA and BEN on
+  both scorers (American PD +0.04–0.10 IMPs/board, Dutch DD and PD wins).
+- **BEN harness** — `ben-gen` plays the shipped systems against BEN, shards a
+  fixed-seed anchor across workers, and `bba-decompose` replays its dumps;
+  BEN is the new north star with a first Tier-S bucket ranking.
+- **Dutch system** — a wide non-forcing `1♣` system with Multi `2♦`, playable
+  end to end as a second `Agreements` factory (`docs/dutch-system.md`).
+- **Contested 1NT** — full Landy `1NT (2♣)` and Multi `1NT (2♦)` counter
+  trees on both sides, Kokish–Kraft doubler answers, a minor-transfer `4m`
+  slam rung, all shipped default-on after A/Bs.
+- **Competitive book as declarative rows** — most defensive and competitive
+  sections now speak the `rows.rs` grammar; tombstoned calls ("no agreement,
+  and not advised") and pass/double-inversion tags are new book primitives.
+- **Competitive accountant** — the contested game-level and sacrifice
+  decision priced from P(double) and par, with doubling calibration.
+- **Convention cards** — `.bbsa` cards are generated from the live knob state.
+- **Book logits are precedence, not odds** — the logit-calibration program:
+  net-restricted odds at authored nodes and fitted temperatures.
+- Dozens of measured-but-parked treatments remain as opt-in `set_*` knobs
+  with the default system byte-identical.
+
 ### Fixed
 
 - **`bba-decompose` replays BEN dumps under `ben-gen`'s opponent binding** —

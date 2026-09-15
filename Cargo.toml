@@ -20,7 +20,7 @@ keywords = ["bridge"]
 # harness (`scripts`), the tracked leftover result files (`ab-results`, mostly
 # gitignored but a pre-ignore subset is still tracked), and the Claude skill
 # docs (`.claude`, `.agents`).
-exclude = ["trainer", "vendor", "web", "ab-results", "scripts", ".claude", ".agents"]
+exclude = ["trainer", "vendor", "web", "docs", "ab-results", "scripts", ".claude", ".agents"]
 
 [package.metadata.docs.rs]
 all-features = true
