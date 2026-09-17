@@ -1235,12 +1235,20 @@ fn landy_opener_doubles_four_of_their_advanced_major() {
     );
     assert!(!floored, "and the sit is authored");
 
-    // Off — the default — leaves the whole seat to the floor.
-    let mut off = Agreements::default();
-    off.decision.their.two_clubs_landy = true;
+    // The package is the default since 2026-09-16, so the plain default arm
+    // authors the same double; the off-switch is what hands the seat back.
+    let mut default_arm = Agreements::default();
+    default_arm.decision.their.two_clubs_landy = true;
+    assert!(
+        !best_call_with(&default_arm, &seat, "AQ32.J432.AQ3.K3").1,
+        "the shipped default authors this seat",
+    );
+    let mut off = default_arm;
+    off.competition.landy_opener_px = false;
+    off.competition.landy_opener_rungs = false;
     assert!(
         best_call_with(&off, &seat, "AQ32.J432.AQ3.K3").1,
-        "the default arm keeps the floor-owned seat",
+        "and turning it off keeps the floor-owned seat",
     );
 }
 

@@ -479,6 +479,14 @@ fn walk_landy_doubler_arm(
 ) {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.their.two_clubs_landy = true;
+    // §N1m owns the seat one call *before* every walk below, and shipped
+    // default-on 2026-09-16: opener doubles four of their major, and its
+    // `3NT`@135 takes a stopped sixteen.  Both fire on the opener hands these
+    // §N1l walks use, so the doubler's rebid seat would never be reached.
+    // Start each walk from the lane it pins and let the caller arm §N1m back —
+    // which is what the `landy_opener_*` tests below do.
+    agreements.competition.landy_opener_px = false;
+    agreements.competition.landy_opener_rungs = false;
     arm(&mut agreements.competition);
     let system = american(&agreements).bind();
 

@@ -1347,7 +1347,15 @@ pub struct CompetitionKnobs {
     /// Authoring it also repairs a flagged instinct-floor defect: that floor's
     /// takeout double here reads to partner as penalty.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
+    /// **On by default — measured 2026-09-16** (`scripts/ab-landy-opener.sh`,
+    /// `SEED_BASE 1789547524`, 4 608 000 boards/arm/vul), but **only together
+    /// with [`Self::landy_opener_rungs`]**, which is the shipped unit: the
+    /// package reads +0.0140 / +0.0220 IMPs/board plain DD and +0.0095 /
+    /// +0.0135 SD-PD (none / both).  This knob **alone** wins plain DD at both
+    /// colours (+0.0099 / +0.0249) and loses the single-dummy bracket
+    /// non-vulnerable (−0.0234 sd-plain, −0.0075 SD-PD), because without the
+    /// rungs above it the `Pass`@0 rail silences the floor on 85.8% of the
+    /// divergent boards.  Do not turn it on by itself.
     /// Inert while their `2♣` is undeclared or natural.
     pub landy_opener_px: bool,
     /// Opener's two notrump rungs below the penalty double
@@ -1373,7 +1381,13 @@ pub struct CompetitionKnobs {
     /// +0.008, `2NT` −0.583 IMPs/board over the direct leg) except the 16–17
     /// with a stopper, which is exactly what `3NT`@135 keeps.
     ///
-    /// **Off by default — the A/B is owed** (`scripts/ab-landy-opener.sh`).
+    /// **On by default — measured 2026-09-16** (`scripts/ab-landy-opener.sh`,
+    /// `SEED_BASE 1789547524`).  Against [`Self::landy_opener_px`] alone the
+    /// rungs are the half that carries the package on the honest-lead scorers:
+    /// +1.819 / +1.923 IMPs per fired sd-plain and +1.261 / +0.939 SD-PD (none
+    /// / both), while DD reads ≈0.  That answers the runner's falsifier 3 —
+    /// §N1k's geometry is genuinely repaired by putting the `X` above the
+    /// rungs, rather than the ≤3-trump cap having been the whole story.
     pub landy_opener_rungs: bool,
     /// `3NT` over their Landy denies a four-card major (§N1p)
     ///
@@ -1756,8 +1770,8 @@ impl Default for CompetitionKnobs {
             landy_doubler_rebids: false,
             landy_doubler_px: true,
             landy_doubler_white: false,
-            landy_opener_px: false,
-            landy_opener_rungs: false,
+            landy_opener_px: true,
+            landy_opener_rungs: true,
             landy_notrump_no_major: false,
             landy_major_jam: true,
             defense_2c_landy_lia: false,

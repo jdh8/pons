@@ -174,7 +174,8 @@ const fn not_defined() -> usize {
 //
 // `comp:landy-penalty` (the doubler's own penalty `X` of their advance,
 // `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
-// sibling one seat earlier): same record as the `comp:landy-*` family above —
+// sibling one seat earlier, `competition.landy_opener_px`, default since
+// 2026-09-16): same record as the `comp:landy-*` family above —
 // keyed on the opponents' disclosed Landy `2♣`, which EPBot's schema cannot
 // name, so a `.bbsa` row would have nowhere to land.  One ceiling was
 // specific to this tag: the alert used to publish **four-plus of the major

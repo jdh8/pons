@@ -73,10 +73,28 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-opener)
 log "=== landy-opener SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
+# MEASURED 2026-09-16, SEED_BASE=1789547524, sha 00c0421e, 4,608,000 bd/arm/vul,
+# isolation gate 0 foreign on all six pairs.  The `rungs` package SHIPPED
+# default-on; `px` alone did not, so both knobs now carry off-switches and the
+# arms below are spelled in that direction.
+#
+#   pair                 DD plain    DD-PD      sd-plain   SD-PD
+#   px    vs base  none  +0.0099     +0.0307    -0.0234    -0.0075
+#   px    vs base  both  +0.0249     +0.0438    -0.0077    +0.0081
+#   rungs vs base  none  +0.0140     +0.0251    +0.0004    +0.0095
+#   rungs vs base  both  +0.0220     +0.0341    +0.0030    +0.0135
+#   rungs vs px    none  +0.0023     -0.0077    +0.0224    +0.0156
+#   rungs vs px    both  -0.0030     -0.0096    +0.0100    +0.0049
+#
+# Falsifier 3 answered: the rungs repair §N1k's geometry rather than the
+# ≤3-trump cap being the whole story — they carry the package on the
+# honest-lead scorers (+1.82 / +1.92 IMPs per fired sd-plain over `px`).
+# Falsifier 4 held in the other direction than expected: plain DD liked `px`
+# alone at both colours, and the sd bracket is what refused it.
 for v in none both; do
-    arm base  "$v" --filter-landy
-    arm px    "$v" --filter-landy --ns-landy-opener-px
-    arm rungs "$v" --filter-landy --ns-landy-opener-px --ns-landy-opener-rungs
+    arm base  "$v" --filter-landy --no-ns-landy-opener-px --no-ns-landy-opener-rungs
+    arm px    "$v" --filter-landy --no-ns-landy-opener-rungs
+    arm rungs "$v" --filter-landy
 
     for a in px rungs; do
         gatepair "$a" base "$v"

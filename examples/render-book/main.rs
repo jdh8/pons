@@ -131,13 +131,13 @@ struct Args {
     ns_landy_doubler: String,
 
     /// Which §N1m rungs **opener's** own seat carries (`1NT (2♣) X (2♥)`),
-    /// default `off`
+    /// default `rungs` — the package shipped on 2026-09-16
     ///
     /// `px` is `competition.landy_opener_px` — the penalty `X`@150 on
     /// four-plus of their major and the `Pass`@0 catch-all; `rungs` adds
-    /// `landy_opener_rungs`' two notrump bids below it.  Needs
-    /// `--their-2c-landy` to do anything.
-    #[arg(long, default_value = "off", value_name = "off|px|rungs")]
+    /// `landy_opener_rungs`' two notrump bids below it.  `off` hands the seat
+    /// back to the floor.  Needs `--their-2c-landy` to do anything.
+    #[arg(long, default_value = "rungs", value_name = "off|px|rungs")]
     ns_landy_opener: String,
 
     /// Which §N1p arm **responder's** direct table carries (`1NT (2♣)`),
@@ -225,12 +225,12 @@ fn main() {
         other => panic!("--ns-landy-doubler must be off|px|white|full, got {other}"),
     }
     match args.ns_landy_opener.as_str() {
-        "off" => {}
-        "px" => agreements.competition.landy_opener_px = true,
-        "rungs" => {
-            agreements.competition.landy_opener_px = true;
-            agreements.competition.landy_opener_rungs = true;
+        "off" => {
+            agreements.competition.landy_opener_px = false;
+            agreements.competition.landy_opener_rungs = false;
         }
+        "px" => agreements.competition.landy_opener_rungs = false,
+        "rungs" => {}
         other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
     }
     match args.ns_landy_responder.as_str() {

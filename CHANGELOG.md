@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1m: opener's own rebid over their Landy advance, SHIPPED DEFAULT-ON** —
+  `1NT (2♣) X (2♥)` and `X (2♠)`, the seat §N1k lost at in August and gave back
+  to the floor, is ours again as a **package**: `competition.landy_opener_px`'s
+  penalty `X`@150 on four-plus of the major their advance named, plus
+  `landy_opener_rungs`' `3NT`@135 (`hcp(16..) & stopper_in`) and `2NT`@120
+  (fifteen, white only) underneath it.  Both knobs default-on, off-switches
+  `--no-ns-landy-opener-px` and `--no-ns-landy-opener-rungs`.  Measured
+  2026-09-16 (`scripts/ab-landy-opener.sh`, `SEED_BASE=1789547524`, sha
+  `00c0421e`, 4,608,000 boards/arm/vul, all six isolation gates 0 foreign):
+  against `main` the package is **+0.0140 / +0.0220 IMPs/board plain DD**
+  (none / both), +0.0251 / +0.0341 DD-PD, +0.0004 / +0.0030 sd-plain and
+  **+0.0095 / +0.0135 SD-PD** — non-negative on all four scorers at both
+  colours.  **The double alone does not ship**: plain DD, the pre-registered
+  arbiter for a doubling knob, likes it at both colours (+0.0099 / +0.0249)
+  while the single-dummy bracket refuses it white (−0.0234 sd-plain, −0.0075
+  SD-PD), because its `Pass`@0 catch-all reads "passed where the baseline bid"
+  on 85.8% of divergent boards — the §N1l-flip catch-all defect, one seat
+  earlier.  The runner's falsifier 3 is answered affirmative: `rungs vs px` is
+  +1.819 / +1.923 IMPs per fired sd-plain and positive on SD-PD at both colours
+  while DD reads ≈0, so the notrump rungs are what carry the package on the
+  honest-lead scorers and the `X` above them is the ≤3-trump cap §N1k's
+  length-blind `has_stopper` could not express.  User impact: against an
+  opponent playing Landy over our 1NT, opener now defends their major doubled
+  holding four of it and declares the stopped game on three, instead of leaving
+  the seat to the floor.  Full verdict, residues and the oracle it was designed
+  off in `docs/one-notrump-competitive.md` §N1m.
 - **The relabel solve travels as files** — `dump-teacher --relabel
   --draw-only` draws every layout into the `.dd` sidecar as a *pending* row
   (table bytes `0xFF`) and writes no `.ret`; `dump-teacher --fill-dd

@@ -903,29 +903,34 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_white: bool,
 
-    /// Author **opener's** own rebid over their Landy advance
-    /// (`1NT (2♣) X (2♥)` / `X (2♠)`), §N1m's `px` arm
+    /// Give **opener's** own rebid over their Landy advance
+    /// (`1NT (2♣) X (2♥)` / `X (2♠)`) back to the floor (§N1m)
     ///
-    /// `competition.landy_opener_px`, default **off**: a penalty `X`@150 on
-    /// four-plus of the major their advance named, `Pass`@0 otherwise, and
-    /// opener's sit over the double.  The gate is the oracle's —
-    /// `probe-landy-opener-oracle` prices `2Mx` the winner of every
-    /// four-plus-trump bucket at both vulnerabilities (+2.8…+8.1 IMPs/board)
-    /// with a flat PD column, and −0.7…−4.5 on two or three trumps.  A pure
-    /// doubling knob: read it on plain DD.
+    /// `competition.landy_opener_px`, default **on** since 2026-09-16 as half
+    /// of §N1m's shipped package: a penalty `X`@150 on four-plus of the major
+    /// their advance named, `Pass`@0 otherwise, and opener's sit over the
+    /// double.  The gate is the oracle's — `probe-landy-opener-oracle` prices
+    /// `2Mx` the winner of every four-plus-trump bucket at both vulnerabilities
+    /// (+2.8…+8.1 IMPs/board) with a flat PD column, and −0.7…−4.5 on two or
+    /// three trumps.  Off drops the notrump rungs with it, since they hang
+    /// under this node.
     #[arg(long, default_value_t = false)]
-    ns_landy_opener_px: bool,
+    no_ns_landy_opener_px: bool,
 
-    /// Add opener's two notrump rungs below that double (§N1m's `rungs` arm)
+    /// Drop opener's two notrump rungs below that double, keeping the `X`
+    /// (§N1m's `px`-alone arm)
     ///
-    /// `competition.landy_opener_rungs`, default **off** and only effective
-    /// with `--ns-landy-opener-px`: `3NT`@135 on `hcp(16..) & stopper_in` and
-    /// `2NT`@120 on `hcp(15..) & stopper_in & !vulnerable()`.  The `X` above
-    /// them supplies the ≤3-trump cap that §N1k's length-blind `has_stopper`
-    /// could not.  The natural `3m` and `3OM` rungs the plan sketched are
-    /// absent: the oracle prices both below notrump on their own boards.
+    /// `competition.landy_opener_rungs`, default **on** since 2026-09-16 and
+    /// only effective with the double above it: `3NT`@135 on `hcp(16..) &
+    /// stopper_in` and `2NT`@120 on `hcp(15..) & stopper_in & !vulnerable()`.
+    /// The `X` above them supplies the ≤3-trump cap that §N1k's length-blind
+    /// `has_stopper` could not, and they in turn are what keeps the `Pass`@0
+    /// rail from silencing the floor — this flag reproduces the `px`-alone arm,
+    /// which loses the single-dummy bracket non-vulnerable.  The natural `3m`
+    /// and `3OM` rungs the plan sketched are absent: the oracle prices both
+    /// below notrump on their own boards.
     #[arg(long, default_value_t = false)]
-    ns_landy_opener_rungs: bool,
+    no_ns_landy_opener_rungs: bool,
 
     /// Restrict `3NT` over their Landy so it denies a four-card major (§N1p)
     ///
@@ -2487,8 +2492,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
-    agreements.competition.landy_opener_px = args.ns_landy_opener_px;
-    agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
+    agreements.competition.landy_opener_px = !args.no_ns_landy_opener_px;
+    agreements.competition.landy_opener_rungs = !args.no_ns_landy_opener_rungs;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;

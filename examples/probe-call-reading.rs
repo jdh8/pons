@@ -79,15 +79,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_doubler_white: bool,
 
-    /// Arm §N1m's `px` arm (`competition.landy_opener_px`): opener's own
-    /// penalty `X` over their Landy advance
+    /// Turn **off** §N1m's shipped package (`competition.landy_opener_px`,
+    /// default on): opener's own penalty `X` over their Landy advance, and the
+    /// two notrump rungs that hang under it
     #[arg(long, default_value_t = false)]
-    ns_landy_opener_px: bool,
+    no_ns_landy_opener_px: bool,
 
-    /// Arm §N1m's `rungs` arm (`competition.landy_opener_rungs`): opener's two
-    /// notrump rungs below that double
+    /// Turn **off** §N1m's notrump rungs alone
+    /// (`competition.landy_opener_rungs`, default on), keeping the `X`: the
+    /// `px`-alone arm, which lost the single-dummy bracket non-vulnerable
     #[arg(long, default_value_t = false)]
-    ns_landy_opener_rungs: bool,
+    no_ns_landy_opener_rungs: bool,
 
     /// Arm §N1p (`competition.landy_notrump_no_major`): `3NT` over their Landy
     /// denies a four-card major, so the values `X` stops reading `points 8..9`
@@ -249,8 +251,8 @@ fn main() {
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
-    agreements.competition.landy_opener_px = args.ns_landy_opener_px;
-    agreements.competition.landy_opener_rungs = args.ns_landy_opener_rungs;
+    agreements.competition.landy_opener_px = !args.no_ns_landy_opener_px;
+    agreements.competition.landy_opener_rungs = !args.no_ns_landy_opener_rungs;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
