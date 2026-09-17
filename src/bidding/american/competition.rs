@@ -230,6 +230,22 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
+/// Landy weak both-minors takeout — `2♥` over their `(2♣)` Landy under §N1q
+/// ([`CompetitionKnobs::defense_2c_landy_strength_majors`][crate::bidding::agreements::CompetitionKnobs::defense_2c_landy_strength_majors]):
+/// **five-four or better in the minors, at most seven points**.  It claims no
+/// major shortness at all — §N1q sorts the two-level majors by strength, so
+/// the bid major is a label for the band and says nothing about the hand's
+/// holding in it.  Opener answers by minor length only; there is no notrump
+/// rung above a band that starts at zero.
+const LANDY_MINORS_WEAK: Alert = Alert("comp:landy-minors-weak");
+/// Landy strong both-minors takeout — `2♠` over their `(2♣)` Landy under
+/// §N1q: **four-plus in each minor, invitational or better** (`points(8..)`,
+/// unlimited above — the game force arrives with responder's rebid, not with
+/// this call).  Like its weak twin it claims nothing about the majors; the
+/// `3♥`/`3♠` splinters above it are what a short major bids.  Opener answers
+/// `2NT` on both stoppers, a four-card minor, or `3NT` from the top of the
+/// range.
+const LANDY_MINORS_INV: Alert = Alert("comp:landy-minors-inv");
 /// Landy penalty double — our side's `X` of the major their advance has named,
 /// at either of the two seats that can make it: **opener's**, immediately over
 /// the advance (`1NT (2♣) X (2♥)`, `competition.landy_opener_px`), and the

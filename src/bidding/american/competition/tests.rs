@@ -471,6 +471,16 @@ pub(super) fn bid_landy_lia(auction: &[Call], hand: &str) -> (Call, bool) {
     best_call_with(&arm, auction, hand)
 }
 
+/// As [`bid_landy`] on the shipped N1j ladder, with §N1q's strength-sorted
+/// two-level majors on and optionally its opener doubles
+pub(super) fn bid_landy_strength(doubles: bool, auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_strength_majors = true;
+    arm.competition.defense_2c_landy_strength_doubles = doubles;
+    best_call_with(&arm, auction, hand)
+}
+
 /// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure pinned on
 /// at the default A/B floors
 pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {

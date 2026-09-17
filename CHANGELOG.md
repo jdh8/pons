@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1q: the Landy counter's two-level majors sorted by strength, not by
+  shortness** — two opt-in knobs, both **default off, A/B owed**.
+  `competition.defense_2c_landy_strength_majors` re-cuts the N1j table's
+  `2♥`/`2♠`: `2♠`@177 becomes the whole both-minors **invitational-or-better**
+  band (4+♣ 4+♦, four-four allowed, `points(8..)` and unlimited above,
+  `comp:landy-minors-inv`) sitting above the transfers, and `2♥`@141 becomes the
+  **weak five-four** band down beside the `2♦` escape it outranks, carrying that
+  escape's `natural_floor` bounds (`comp:landy-minors-weak`); the `3♥`/`3♠`
+  splinters move to 179/178 above them.  Neither rung claims anything about the
+  majors any more, so the shortness ask and the `3M` cue over it are gone and
+  both answer tables are new — minors only over `2♥` (no notrump rung: a game
+  try opposite a possible five-count is what the §N1-lia lia3 arm lost
+  both-vulnerable on), and `3NT`@160 / `2NT`@150 / `3♣`@100 / `3♦`@99 over
+  `2♠`, with responder passing `2NT` on a flat 8-9 and signing off only on a
+  ninth trump.  `competition.defense_2c_landy_strength_doubles` adds opener's
+  two polarities as explicit rules: takeout `X`@120 (3+3+ minors, no spade
+  stopper) over their `(2♠)` raise of our weak `2♥`, and penalty `X`@140
+  (`comp:landy-penalty`, `.penalty()`, four-plus of the raised major) over their
+  raise of our `2♠`.  Flags `--ns-landy-strength` / `--ns-landy-strength-doubles`
+  (`bba-gen`, `probe-call-reading`) and `--ns-landy-responder
+  strength|strength-doubles` (`render-book`); runner
+  `scripts/ab-landy-strength.sh`, three arms sequential.  What the hole was,
+  measured: on 4,608,000 boards of the lia3 control arm, `1NT (2♣)` reaches
+  responder on 17.83% of boards, and the **weak five-four band is 1.77% of all
+  boards** (passing 59.6% of the time today) while the **invitational
+  four-four-or-better band is 2.67%** — of which 28.0% *doubles* today, which is
+  why this arm's perfect-defense column is read straight rather than waved
+  through as the auto-double artifact.  Read only under
+  `defense_2c_landy_bba` and inert under `defense_2c_landy_lia` (the two are
+  alternative re-cuts of the same rungs).  Defaults byte-identical with both
+  knobs off (`smoke-default --count 20000 --seed 1`), and the pre-launch reading
+  gate passes: `2♠` reads back as 8+ with 4+ in each minor, `2♥` as 5-7 with 4-5
+  in each, and the values `X` gains a shape reading (≤5 in each minor) it never
+  had.  User impact: none by default; against an opponent playing Landy over our
+  1NT the arm gives the weak and invitational both-minor hands a call they have
+  never had.  Design, census and pre-registered falsifiers in
+  `docs/one-notrump-competitive.md` §N1q.
 - **§N1m: opener's own rebid over their Landy advance, SHIPPED DEFAULT-ON** —
   `1NT (2♣) X (2♥)` and `X (2♠)`, the seat §N1k lost at in August and gave back
   to the floor, is ours again as a **package**: `competition.landy_opener_px`'s

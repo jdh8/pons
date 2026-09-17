@@ -1050,6 +1050,21 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.landy_texas = true;
         profiles.push(("their-landy-lia-texas", a));
     }
+    // §N1q: the strength-sorted two-level majors and their opener doubles —
+    // two new slugs on responder's side and the penalty tag one seat later.
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.defense_2c_landy_strength_majors = true;
+        profiles.push(("their-landy-strength", a));
+    }
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        a.competition.defense_2c_landy_strength_majors = true;
+        a.competition.defense_2c_landy_strength_doubles = true;
+        profiles.push(("their-landy-strength-doubles", a));
+    }
     {
         let mut a = base;
         a.decision.their.two_clubs_landy = true;

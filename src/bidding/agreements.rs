@@ -1530,6 +1530,52 @@ pub struct CompetitionKnobs {
     /// refinement's own A/B is owed**; a permutation, so it cannot be
     /// decomposed.  Inert while their `2♣` is undeclared or natural.
     pub defense_2c_landy_lia: bool,
+    /// Sort the Landy counter's two-level majors by **strength**, not by
+    /// major shortness (§N1q)
+    ///
+    /// The N1j table gives the both-minors hand two game-forcing takeouts
+    /// (`2♥`/`2♠`, 4+♦ 4+♣ with *exactly* a doubleton in the bid major) and two
+    /// game-forcing splinters (`3♥`/`3♠`, 0-1 there).  A **weak** both-minor
+    /// hand has no call at all, and an **invitational** 4-4 hand has none
+    /// either.  This knob re-sorts the two two-level rungs by how much the hand
+    /// holds instead:
+    ///
+    /// * `2♥`@141 — 4+♦ 4+♣ **five-four or better**, at most seven points, in
+    ///   the low block beside the `2♦` escape it outranks (so 5♦-4♣ takes out
+    ///   and single-suited diamonds keep the escape).  Carries the escape's
+    ///   `natural_floor` bounds.  Opener answers with a minor only — the weak
+    ///   band has no notrump rung.
+    /// * `2♠`@177 — 4+♦ 4+♣, four-four allowed, invitational or better
+    ///   (`points(8..)`), above the transfers so a 6-4 hand shows the picture.
+    ///   Opener answers `2NT`/`3♣`/`3♦`/`3NT`, and responder's rebid carries
+    ///   the game force; there is no shortness left to ask about, so both
+    ///   answer tables are new.
+    /// * `3♥`/`3♠` — the N1j splinters unchanged, re-weighted to 179/178 above
+    ///   `2♠` (the strength rung's shape contains theirs, as under
+    ///   [`Self::defense_2c_landy_lia`]).
+    ///
+    /// The census that sized it (4.608M boards of the lia3 control arm,
+    /// `1NT (2♣)` reached at responder on 17.8%): the weak 5-4 band is
+    /// **1.77% of all boards** and passes 59.6% of the time today, and the
+    /// invitational-or-better 4-4 band is **2.67%**, of which 28.0% doubles
+    /// today and 12.8% passes.
+    ///
+    /// Read only under [`Self::defense_2c_landy_bba`] and **inert** under
+    /// [`Self::defense_2c_landy_lia`], which re-cuts the same two rungs.  **Off
+    /// by default — A/B owed.**
+    pub defense_2c_landy_strength_majors: bool,
+    /// Opener's later double in the §N1q lane: takeout after the weak `2♥`,
+    /// penalty after the strong `2♠`
+    ///
+    /// A modifier of [`Self::defense_2c_landy_strength_majors`], measured as
+    /// its own arm.  Over their cheap `(2♠)` raise of our weak `2♥`, opener's
+    /// `X`@120 is **takeout** — three-plus in each minor and no spade stopper,
+    /// so responder picks a minor; over their raise of our strong `2♠`,
+    /// opener's `X`@140 is **penalty** (`comp:landy-penalty`, `.penalty()`),
+    /// four-plus of the major they raised.  The polarity is the lane's house
+    /// rule and nothing mechanises it, so both are authored as explicit rules
+    /// (`docs/pdi.md`).  Off, both seats keep only the picks and the `Pass`@0.
+    pub defense_2c_landy_strength_doubles: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia, package A — **on** preserves the shipped `px` arm)
     ///
@@ -1775,6 +1821,8 @@ impl Default for CompetitionKnobs {
             landy_notrump_no_major: false,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
+            defense_2c_landy_strength_majors: false,
+            defense_2c_landy_strength_doubles: false,
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,
             landy_doubler_three_small: true,

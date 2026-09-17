@@ -112,6 +112,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 
+    /// Arm §N1q's strength-sorted two-level majors
+    /// (`competition.defense_2c_landy_strength_majors`): `2♠` = 4+♣ 4+♦
+    /// invitational or better, `2♥` = the weak five-four band.  Needs
+    /// `--their-2c-landy`, and is inert with `--ns-landy-lia`
+    #[arg(long, default_value_t = false)]
+    ns_landy_strength: bool,
+
+    /// Author opener's §N1q doubles
+    /// (`competition.defense_2c_landy_strength_doubles`): takeout over their
+    /// `(2♠)` raise of our weak `2♥`, penalty over their raise of our `2♠`
+    #[arg(long, default_value_t = false)]
+    ns_landy_strength_doubles: bool,
+
     /// Restore the Landy doubler-rebid `Pass`@0 catch-all
     /// (`competition.landy_doubler_catchall`, default off since 2026-08-30 —
     /// §N1-lia package A's historical `px` arm)
@@ -256,12 +269,14 @@ fn main() {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
+    agreements.competition.defense_2c_landy_strength_majors = args.ns_landy_strength;
+    agreements.competition.defense_2c_landy_strength_doubles = args.ns_landy_strength_doubles;
     // The 2026-09-02 pre-launch review lost an afternoon to this flag probing
     // the wrong lane; warn instead of silently answering from the rebase.
-    if args.ns_landy_lia && !args.their_2c_landy {
+    if (args.ns_landy_lia || args.ns_landy_strength) && !args.their_2c_landy {
         eprintln!(
-            "warning: --ns-landy-lia is inert without --their-2c-landy; \
-             this run probes the systems-on default lane"
+            "warning: --ns-landy-lia / --ns-landy-strength are inert without \
+             --their-2c-landy; this run probes the systems-on default lane"
         );
     }
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;

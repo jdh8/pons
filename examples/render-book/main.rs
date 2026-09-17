@@ -164,7 +164,18 @@ struct Args {
     /// sign-offs over a `2♦` escape capped at eight HCP.
     ///
     /// Needs `--their-2c-landy` to do anything.
-    #[arg(long, default_value = "off", value_name = "off|nt|jam|jam-only|lia")]
+    /// `strength` is §N1q's strength-sorted two-level majors
+    /// (`competition.defense_2c_landy_strength_majors`): `2♠`@177 is the whole
+    /// 4+♣ 4+♦ invitational-or-better band above the transfers, `2♥`@141 the
+    /// weak five-four band beside the `2♦` escape, the splinters at 179/178.
+    /// `strength-doubles` adds the opener doubles
+    /// (`defense_2c_landy_strength_doubles`): takeout over their `(2♠)` raise
+    /// of our `2♥`, penalty over their raise of our `2♠`.
+    #[arg(
+        long,
+        default_value = "off",
+        value_name = "off|nt|jam|jam-only|lia|strength|strength-doubles"
+    )]
     ns_landy_responder: String,
 
     /// Disarm §N1-lia's package C (`competition.landy_texas`, default on): the
@@ -245,7 +256,15 @@ fn main() {
         }
         "jam-only" => agreements.competition.landy_major_jam = true,
         "lia" => agreements.competition.defense_2c_landy_lia = true,
-        other => panic!("--ns-landy-responder must be off|nt|jam|jam-only|lia, got {other}"),
+        "strength" => agreements.competition.defense_2c_landy_strength_majors = true,
+        "strength-doubles" => {
+            agreements.competition.defense_2c_landy_strength_majors = true;
+            agreements.competition.defense_2c_landy_strength_doubles = true;
+        }
+        other => panic!(
+            "--ns-landy-responder must be off|nt|jam|jam-only|lia|strength|strength-doubles, \
+             got {other}"
+        ),
     }
     agreements.competition.landy_texas = !args.no_ns_landy_texas;
     let system = american_book(&agreements);

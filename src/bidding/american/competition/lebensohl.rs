@@ -210,6 +210,27 @@ fn landy_lia(agreements: &Agreements) -> bool {
     landy_bba(agreements) && agreements.competition.defense_2c_landy_lia
 }
 
+/// Whether the N1j ladder's two-level majors are sorted by **strength**
+/// ([`CompetitionKnobs::defense_2c_landy_strength_majors`][crate::bidding::agreements::CompetitionKnobs::defense_2c_landy_strength_majors])
+///
+/// Another modifier of the BBA ladder, and **inert under [`landy_lia`]**,
+/// which re-cuts the same two rungs — the two are alternative answers to the
+/// same question, so arming both would measure a permutation of a permutation.
+fn landy_strength(agreements: &Agreements) -> bool {
+    landy_bba(agreements)
+        && !landy_lia(agreements)
+        && agreements.competition.defense_2c_landy_strength_majors
+}
+
+/// Whether §N1q's opener doubles are authored
+/// ([`CompetitionKnobs::defense_2c_landy_strength_doubles`][crate::bidding::agreements::CompetitionKnobs::defense_2c_landy_strength_doubles])
+///
+/// A modifier of [`landy_strength`], so it is inert unless that table is the
+/// one in play.
+fn landy_strength_doubles(agreements: &Agreements) -> bool {
+    landy_strength(agreements) && agreements.competition.defense_2c_landy_strength_doubles
+}
+
 /// Whether the §N1-lia four-level rides South African Texas
 /// ([`CompetitionKnobs::landy_texas`][crate::bidding::agreements::CompetitionKnobs::landy_texas])
 ///
@@ -1307,9 +1328,29 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // game-forcing 0-1 major makes the more descriptive call.  N1j's exact
     // doubletons stay disjoint from the splinters, so its order is free and
     // is left as shipped.
+    //
+    // **§N1q** ([`landy_strength`]) sorts the same two rungs by *strength*
+    // instead: `2♠`@177 is the whole invitational-or-better band (4-4 allowed,
+    // `points(8..)`, unlimited above) and the weak five-four hand takes `2♥`
+    // down in the low block, where it outranks the `2♦` escape.  Its shape
+    // contains the splinters' too, so the splinters move up with it exactly as
+    // under lia.
     let lia = landy_lia(agreements);
-    let (splinter_hearts, splinter_spades) = if lia { (179, 178) } else { (176, 175) };
-    if !lia {
+    let strength = landy_strength(agreements);
+    let (splinter_hearts, splinter_spades) = if lia || strength {
+        (179, 178)
+    } else {
+        (176, 175)
+    };
+    if strength {
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Spades),
+                177,
+                both_minors.clone() & points(8..),
+            )
+            .alert(LANDY_MINORS_INV);
+    } else if !lia {
         rules = rules
             .rule(
                 Bid::new(2, Strain::Hearts),
@@ -1524,6 +1565,7 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // possible").  The `weak_2d_cap` knob keeps governing the base arm only:
     // it caps a rung this ladder has re-cut, so crossing them would measure
     // two edits at once.
+    let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
     if lia {
         rules = rules
             .rule(
@@ -1550,8 +1592,29 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
                 141,
                 len(Suit::Clubs, 6..) & points(..=7),
             );
+    } else if strength {
+        // §N1q's weak band, and the one rung of the package that sits under
+        // the double.  Five-four or better, because the four-four weak hand is
+        // the one this lane has always passed and nothing here changes that:
+        // it has no second suit to run to and the escape is a level cheaper for
+        // the diamond half of it.  Priced at @141 it outranks the `2♦`
+        // escape@140, so 5♦-4♣ takes out and single-suited diamonds keep the
+        // escape; it takes the escape's `floors` for the same reason the escape
+        // does — a bust that bids at the two level over a live overcall wants
+        // the same trick floor either way.  `points(..=7)` makes it disjoint
+        // from both the `2♠` rung above and the `X`@145 (whose `hcp(8..)`
+        // cannot be reached at seven points).
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Hearts),
+                141,
+                both_minors.clone()
+                    & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                    & points(..=7)
+                    & floors.clone(),
+            )
+            .alert(LANDY_MINORS_WEAK);
     }
-    let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
     rules = if lia {
         rules.rule(escape, 140, len(Suit::Diamonds, 5..) & hcp(..=8) & floors)
     } else if agreements.competition.defense_2c_landy_weak_2d_cap {
@@ -1666,6 +1729,159 @@ fn landy_bba_takeout_answer(short: Suit, over: Bid) -> Rules {
     // on `smoke-default --count 20000 --seed 1` and does not move the
     // published reading at `1N (2C) 2H - 2N -`.
     rules
+}
+
+// --- §N1q: the strength-sorted two-level majors --------------------------
+
+/// Opener's answer to §N1q's weak both-minors takeout (`1NT (2♣) 2♥ -`)
+///
+/// Minors only, cheapest first — there is **no notrump rung** and no stopper
+/// question.  Responder holds at most seven points and five-four or better in
+/// the minors, so every contract this table can reach is a minor partscore in
+/// a guaranteed fit or close to one; a `2NT` on stoppers would be a game try
+/// opposite a possible zero-count, and that was the lia3 arm's both-vul
+/// catastrophe (the weak `2♥` routed through a `3NT` accept, −42,572 plain).
+/// The `3♣`@0 catch-all carries opener's 3-3 minors onto the shorter of
+/// responder's two, which is still a seven-card fit.
+fn landy_strength_weak_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 4..))
+        .rule(Bid::new(3, Strain::Diamonds), 99, len(Suit::Diamonds, 4..))
+        .rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
+}
+
+/// Opener's answer to §N1q's invitational-or-better takeout
+/// (`1NT (2♣) 2♠ -`)
+///
+/// Responder promised 8+ and four-plus in each minor and nothing about the
+/// majors, so opener owns the size decision exactly as it does over
+/// §N1-lia's invitational rung ([`landy_lia_accept`], the same gate and the
+/// same knob): `3NT` from the top of the range with both of their majors
+/// stopped, `2NT` with both stoppers below it, else the cheapest four-card
+/// minor.  `3♣`@0 is the catch-all for the minor-less minimum, which opposite
+/// a guaranteed four is still a seven-card fit.
+///
+/// There is no stopper *ask* in this table and no `3M` cue over it: §N1q's
+/// rungs claim nothing about the majors, so neither hand can name a suit the
+/// other is missing.  Responder's own rebid carries the game force
+/// ([`landy_strength_inv_rebid`]).
+fn landy_strength_inv_answer(agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            160,
+            landy_lia_accept(agreements.notrump.size_ask_accept_floor),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            150,
+            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 4..))
+        .rule(Bid::new(3, Strain::Diamonds), 99, len(Suit::Diamonds, 4..))
+        .rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
+}
+
+/// Responder's placement over opener's `2NT` (`1NT (2♣) 2♠ - 2NT -`)
+///
+/// Opener holds a minimum with both of their majors stopped and denied no
+/// four-card minor — the `2NT` rung sits above the picks, so it is a
+/// *description*, not a minor-less claim.  Ten-plus raises to the game;
+/// everything else passes, which is the whole point of running the band down
+/// from a game force.
+///
+/// The two sign-offs are gated at **five** cards, cheapest first, and that is a
+/// correction to the design sketch's `len(♣, 4..)`: responder is four-four or
+/// better in the minors by the rung's own constraint, so a four-card gate fires
+/// on every hand in the band and the `Pass`@0 below it would be dead
+/// registration.  Leaving a made `2NT` at 23-26 combined needs a *ninth* trump,
+/// not an eighth.
+fn landy_strength_inv_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 120, points(10..))
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            100,
+            len(Suit::Clubs, 5..) & points(8..=9),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            99,
+            len(Suit::Diamonds, 5..) & points(8..=9),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's seat when their advancer raises over §N1q's weak `2♥`
+/// (`1NT (2♣) 2♥ (2♠)`)
+///
+/// The one contested tail this band gets.  Their cheap `(2♠)` is the only
+/// raise cheap enough to answer below the three level in the minor responder
+/// is long in; over `(3♥)`/`(3♠)` the seat goes to the floor, because the lia2
+/// forensic convicted the `Pass`@0 sell-outs there and found the floor was
+/// *right* on that class.
+///
+/// Under [`landy_strength_doubles`] the takeout `X`@120 tops it: three-plus in
+/// each minor and no spade stopper is the hand that wants responder to name
+/// the fit rather than guess the level.  It is authored as an explicit rule,
+/// not inferred — nothing in this lane mechanises the pass/double polarity
+/// (`docs/pdi.md`), and an unalerted double after our own weak call would read
+/// as the takeout of a suit nobody holds.  Off, the picks and the `Pass`@0 are
+/// the whole table.
+fn landy_strength_weak_overcalled(agreements: &Agreements) -> Rules {
+    let mut rules = Rules::new();
+    if landy_strength_doubles(agreements) {
+        rules = rules.rule(
+            Call::Double,
+            120,
+            len(Suit::Clubs, 3..) & len(Suit::Diamonds, 3..) & !stopper_in(Suit::Spades),
+        );
+    }
+    rules
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 4..))
+        .rule(Bid::new(3, Strain::Diamonds), 99, len(Suit::Diamonds, 4..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's pick over opener's takeout double (`1NT (2♣) 2♥ (2♠) X -`)
+///
+/// Cheapest of the long minors — responder is five-four or better, so `3♣`
+/// takes the five-five hand too and `3♦` is left for exactly the four-five.
+/// The `3♣`@0 catch-all is unreachable given the rung's own shape gate and is
+/// there because every table needs a finite one.
+fn landy_strength_weak_pick() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 5..))
+        .rule(Bid::new(3, Strain::Diamonds), 99, len(Suit::Diamonds, 5..))
+        .rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
+}
+
+/// Opener's seat when their advancer raises over §N1q's `2♠`
+/// (`1NT (2♣) 2♠ (3♥/3♠)`)
+///
+/// [`landy_bba_takeout_overcalled`]'s doctrine with the shortness question
+/// removed and the polarity added: `3NT` holding the raised major, else — under
+/// [`landy_strength_doubles`] — the **penalty** double on four-plus of it, else
+/// the cheapest four-card minor, else pass.  Responder promised 8+ and may be
+/// unlimited, so the `Pass`@0 is safe in the compressed ladder's own sense:
+/// this band always speaks again.
+fn landy_strength_inv_overcalled(over: Bid, agreements: &Agreements) -> Rules {
+    let raised = Suit::try_from(over.strain).expect("their raise names a major");
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 150, stopper_in(raised));
+    if landy_strength_doubles(agreements) {
+        rules = rules
+            .rule(Call::Double, 140, len(raised, 4..))
+            .alert(LANDY_PENALTY)
+            .penalty();
+    }
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(
+            cheapest_above(Strain::from(minor), over),
+            weight,
+            len(minor, 4..),
+        );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's placement over opener's notrump answer (`1NT (2♣) 2M - 2NT -`)
@@ -2690,8 +2906,15 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     // splinters (re-weighted, not re-ruled) and drops the `2♠` takeout, so
     // `2♥` is the only one; its answer priority reverses and gains the game
     // acceptance the invitational band needs ([`landy_lia_takeout_answer`]).
+    //
+    // **§N1q** takes *both* two-level rungs out of this loop: neither names a
+    // short major any more, so neither can use the shortness-keyed answer or
+    // its compressed contested ladder.  Only the splinters stay.
     let lia = landy_lia(agreements);
-    let takeouts: &[(Suit, u8)] = if lia {
+    let strength = landy_strength(agreements);
+    let takeouts: &[(Suit, u8)] = if strength {
+        &[(Suit::Hearts, 3), (Suit::Spades, 3)]
+    } else if lia {
         &[(Suit::Hearts, 2), (Suit::Hearts, 3), (Suit::Spades, 3)]
     } else {
         &[
@@ -2748,6 +2971,73 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                     landy_bba_takeout_overcalled(short, over),
                 ));
             }
+        }
+    }
+
+    // §N1q's own subtree: both two-level rungs, their answers, their
+    // placements and the two contested tails they keep.  The weak `2♥` keeps
+    // only the cheap `(2♠)` raise — over `(3♥)`/`(3♠)` the seat goes to the
+    // floor, the lia2 handoff — and the `2♠` keeps both three-level raises,
+    // whose compressed ladder its `points(8..)` floor still satisfies.
+    if strength {
+        for (rung, answer) in [
+            ("2♠", landy_strength_inv_answer(agreements)),
+            ("2♥", landy_strength_weak_answer()),
+        ] {
+            let call: Bid = rung.parse().expect("a two-level major");
+            for suffix in ["-", "(X)"] {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{rung} {suffix}")),
+                    answer.clone(),
+                ));
+            }
+            entries.push(systems_on_over_double(
+                &format!("{OVER} {rung}"),
+                &cheapest_above(Strain::Notrump, call).to_string(),
+            ));
+        }
+        // The weak band's placements are all sits: opener picked a minor in a
+        // fit responder guaranteed, and the band caps at seven points.
+        // Unauthored these are the floor's, and the floor reads an artificial
+        // `2♥` as hearts bid (the lia3 phantom-suit class).
+        for minor in [Suit::Clubs, Suit::Diamonds] {
+            let pick = Bid::new(3, Strain::from(minor));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("2♥ - {pick} -")),
+                multi_signoff_pass(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("2♠ - {pick} -")),
+                landy_lia_pick_rebid(minor),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("2♠ - 2NT - {pick} -")),
+                multi_signoff_pass(),
+            ));
+        }
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2♠ - 2NT -"),
+            landy_strength_inv_rebid(),
+        ));
+        // Opener accepted from the top of its range with both majors stopped;
+        // responder has 4-4 minors and no shape to improve on the game.
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2♠ - 3NT -"),
+            multi_signoff_pass(),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2♥ (2♠)"),
+            landy_strength_weak_overcalled(agreements),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, "2♥ (2♠) X -"),
+            landy_strength_weak_pick(),
+        ));
+        for over in [Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)] {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("2♠ ({over})")),
+                landy_strength_inv_overcalled(over, agreements),
+            ));
         }
     }
 
@@ -2813,7 +3103,7 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 landy_lia_pick_rebid(minor),
             ));
         }
-    } else {
+    } else if !strength {
         for (short, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
             let tko = Bid::new(2, Strain::from(short));
             entries.extend(rows_of(

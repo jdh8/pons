@@ -1,6 +1,6 @@
 use super::super::tests::{
     best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_lia, bid_landy_n1,
-    bid_landy_n1p, bid_landy_transfer, bid_transfer, call,
+    bid_landy_n1p, bid_landy_strength, bid_landy_transfer, bid_transfer, call,
 };
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
@@ -2507,5 +2507,199 @@ fn landy_lia_rungs_publish_their_shapes() {
         ask.get(Relative::Partner).length(Suit::Spades).min <= 2,
         "the alerted ask adds no spade claim past the balanced opening (got {:?})",
         ask.get(Relative::Partner).length(Suit::Spades),
+    );
+}
+
+/// §N1q's arm: their `2♣` disclosed as Landy, the strength-sorted majors on
+fn landy_strength_arm(doubles: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_strength_majors = true;
+    arm.competition.defense_2c_landy_strength_doubles = doubles;
+    arm
+}
+
+/// §N1q's direct seat: the two-level majors sorted by strength, not shortness
+///
+/// `competition.defense_2c_landy_strength_majors`, default off (A/B owed).
+/// N1j spends both two-level rungs naming which major is the doubleton and
+/// gates both at `points(10..)`, which leaves the weak both-minor hand and the
+/// invitational four-four hand with no call at all — 1.77% and 2.67% of boards
+/// on the lia3 control census.  This knob spends them on the strength split
+/// instead.
+#[test]
+fn landy_strength_sorts_the_two_level_majors() {
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // The weak band: five-four or better in the minors, at most seven points.
+    let (c, floored) = bid_landy_strength(false, &direct, "32.43.K432.Q5432");
+    assert_eq!(c, call(2, Strain::Hearts), "the weak five-four takes out");
+    assert!(!floored, "the rung must come from the book");
+    // Four-four weak still passes — it has no second suit to run to, and the
+    // diamond half of it has the escape a level cheaper.
+    let (c, _) = bid_landy_strength(false, &direct, "32.432.K432.Q432");
+    assert_eq!(c, Call::Pass);
+    // A yarborough five-four passes too: the rung carries the escape's
+    // `natural_floor`, so a bust does not bid at the two level over a live
+    // overcall.
+    let (c, _) = bid_landy_strength(false, &direct, "32.43.8432.97432");
+    assert_eq!(c, Call::Pass);
+    // Single-suited diamonds keep the escape — the weak rung needs both minors.
+    let (c, _) = bid_landy_strength(false, &direct, "432.43.KQ432.432");
+    assert_eq!(c, call(2, Strain::Diamonds));
+
+    // The invitational band, four-four allowed.  N1j has no rung for it: the
+    // takeouts are `points(10..)`, so this hand doubles instead.
+    let inv = "K43.Q4.KJ32.8432";
+    let (c, floored) = bid_landy_strength(false, &direct, inv);
+    assert_eq!(c, call(2, Strain::Spades), "the invitational four-four");
+    assert!(!floored, "the rung must come from the book");
+    let (c, _) = bid_landy_bba(false, &direct, inv);
+    assert_eq!(
+        c,
+        Call::Double,
+        "which the shipped ladder reaches only as X"
+    );
+
+    // The splinters are unchanged and re-weighted above the new `2♠`: a
+    // game-forcing hand with a short major makes the more descriptive call.
+    let (c, _) = bid_landy_strength(false, &direct, "4.K432.KQ32.A432");
+    assert_eq!(c, call(3, Strain::Spades));
+    let (c, _) = bid_landy_strength(false, &direct, "K432.4.KQ32.A432");
+    assert_eq!(c, call(3, Strain::Hearts));
+}
+
+/// §N1q's answer tables: minors only over the weak rung, size over the strong
+#[test]
+fn landy_strength_answers_split_by_band() {
+    let weak = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    // Opener picks a minor.  There is no notrump rung: the band starts at
+    // zero, and a `2NT` on stoppers would be a game try opposite a bust —
+    // the lia3 arm's both-vul catastrophe.
+    let (c, floored) = bid_landy_strength(false, &weak, "AQ4.KQ4.A432.K32");
+    assert_eq!(c, call(3, Strain::Diamonds));
+    assert!(!floored, "the answer must come from the book");
+    let (c, _) = bid_landy_strength(false, &weak, "AQ4.KQ43.A32.K432");
+    assert_eq!(c, call(3, Strain::Clubs), "cheapest with both");
+
+    let strong = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+    ];
+    // A maximum with both of their majors stopped accepts at once.
+    let (c, floored) = bid_landy_strength(false, &strong, "AQ4.KQ4.A432.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the acceptance must come from the book");
+    // A minimum with both stopped describes `2NT` and leaves the size to
+    // responder, who passes on 8-9 and raises on ten.
+    let minimum = "AQ4.KQ4.A432.432";
+    let (c, _) = bid_landy_strength(false, &strong, minimum);
+    assert_eq!(c, call(2, Strain::Notrump));
+    let placed = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_strength(false, &placed, "K43.Q4.KJ32.8432");
+    assert_eq!(c, Call::Pass, "the four-four invitational hand sits");
+    let (c, _) = bid_landy_strength(false, &placed, "K43.4.KJ32.87432");
+    assert_eq!(
+        c,
+        call(3, Strain::Clubs),
+        "a ninth trump is worth leaving 2NT"
+    );
+    let (c, _) = bid_landy_strength(false, &placed, "K43.Q4.KJ32.AQ32");
+    assert_eq!(c, call(3, Strain::Notrump), "ten-plus raises");
+}
+
+/// §N1q's second knob: opener's doubles, takeout over the weak rung and
+/// penalty over the strong one
+#[test]
+fn landy_strength_doubles_carry_both_polarities() {
+    // Their advancer raises over our weak `2♥`.  Opener holds three-plus in
+    // each minor and no spade stopper: the takeout asks responder to name the
+    // fit rather than guess the level.
+    let weak_raised = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+    ];
+    let takeout = "432.AKQ.AQ32.K32";
+    let (c, floored) = bid_landy_strength(true, &weak_raised, takeout);
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the takeout must come from the book");
+    // Off, the same hand picks its minor instead.
+    let (c, _) = bid_landy_strength(false, &weak_raised, takeout);
+    assert_eq!(c, call(3, Strain::Diamonds));
+    // Responder names the cheapest of its long minors over the takeout.
+    let picked = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+        Call::Double,
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_strength(true, &picked, "32.43.K432.Q5432");
+    assert_eq!(c, call(3, Strain::Clubs));
+
+    // Their raise over our `2♠` is the opposite polarity: four of the major
+    // they raised, with no stopper in it, is a penalty double.
+    let strong_raised = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        call(3, Strain::Hearts),
+    ];
+    let penalty = "AQ2.9843.KQ3.KQ2";
+    let (c, floored) = bid_landy_strength(true, &strong_raised, penalty);
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the penalty double must come from the book");
+    let (c, _) = bid_landy_strength(false, &strong_raised, penalty);
+    assert_ne!(c, Call::Double, "off, the seat has no double at all");
+}
+
+/// §N1q is a modifier of the BBA ladder and an alternative to §N1-lia's, so
+/// it is inert without the first and under the second
+#[test]
+fn landy_strength_is_inert_off_its_own_ladder() {
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let inv = "K43.Q4.KJ32.8432";
+
+    // Without the BBA ladder the knob reaches nothing.
+    let mut no_ladder = landy_strength_arm(true);
+    no_ladder.competition.defense_2c_landy_bba = false;
+    assert_ne!(
+        best_call_with(&no_ladder, &direct, inv).0,
+        call(2, Strain::Spades)
+    );
+
+    // Under §N1-lia, which re-cuts the same two rungs, it is inert: `2♠` is
+    // that ladder's six-card club rung and this hand has four.
+    let mut both = landy_strength_arm(true);
+    both.competition.defense_2c_landy_lia = true;
+    assert_eq!(
+        best_call_with(&both, &direct, inv).0,
+        bid_landy_lia(&direct, inv).0,
+        "lia wins the overlap, byte for byte",
+    );
+
+    // And their `2♣` must be disclosed as Landy for any of it to exist.
+    let mut undeclared = landy_strength_arm(true);
+    undeclared.decision.their.two_clubs_landy = false;
+    assert_eq!(
+        best_call_with(&undeclared, &direct, inv).0,
+        bid(&direct, inv).0,
     );
 }
