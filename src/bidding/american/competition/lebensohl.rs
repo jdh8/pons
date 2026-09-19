@@ -1330,11 +1330,20 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // is left as shipped.
     //
     // **§N1q** ([`landy_strength`]) sorts the same two rungs by *strength*
-    // instead: `2♠`@177 is the whole invitational-or-better band (4-4 allowed,
+    // instead: `2♠`@177 is the invitational-or-better band (4-4 allowed,
     // `points(8..)`, unlimited above) and the weak five-four hand takes `2♥`
     // down in the low block, where it outranks the `2♦` escape.  Its shape
     // contains the splinters' too, so the splinters move up with it exactly as
     // under lia.
+    //
+    // The invitational half of the band (8-9) needs a **short major** and
+    // **no six-card minor** — the first A/B's `X → 2♠` cell lost monotone in
+    // responder's short major (2-2 −0.76, 2-3 −1.16 IMPs/fired at both-vul
+    // against 0-4 +1.31), so the balanced-ish eight-count keeps the values
+    // `X`; and the six-carders lost their transfer's nine-card fit to opener's
+    // four-four pick, so they keep the transfers.  Ten-plus is N1j's
+    // game-forcing takeout band and is unchanged: with four-four minors and no
+    // short major the majors are 2-2 or 2-3, exactly N1j's doubletons.
     let lia = landy_lia(agreements);
     let strength = landy_strength(agreements);
     let (splinter_hearts, splinter_spades) = if lia || strength {
@@ -1343,11 +1352,13 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
         (176, 175)
     };
     if strength {
+        let short_major = len(Suit::Hearts, ..=1) | len(Suit::Spades, ..=1);
+        let no_six = len(Suit::Clubs, ..=5) & len(Suit::Diamonds, ..=5);
         rules = rules
             .rule(
                 Bid::new(2, Strain::Spades),
                 177,
-                both_minors.clone() & points(8..),
+                both_minors.clone() & (points(10..) | (points(8..) & short_major & no_six)),
             )
             .alert(LANDY_MINORS_INV);
     } else if !lia {
@@ -1753,25 +1764,26 @@ fn landy_strength_weak_answer() -> Rules {
 /// Opener's answer to §N1q's invitational-or-better takeout
 /// (`1NT (2♣) 2♠ -`)
 ///
-/// Responder promised 8+ and four-plus in each minor and nothing about the
-/// majors, so opener owns the size decision exactly as it does over
-/// §N1-lia's invitational rung ([`landy_lia_accept`], the same gate and the
-/// same knob): `3NT` from the top of the range with both of their majors
-/// stopped, `2NT` with both stoppers below it, else the cheapest four-card
+/// Responder promised 8+ and four-plus in each minor and, at 8-9, a short
+/// major: `2NT` with both of their majors stopped, else the cheapest four-card
 /// minor.  `3♣`@0 is the catch-all for the minor-less minimum, which opposite
 /// a guaranteed four is still a seven-card fit.
 ///
+/// **No `3NT` accept.**  The first build had §N1-lia's `3NT`@160
+/// ([`landy_lia_accept`], a maximum with both stoppers) on top, and the A/B
+/// convicted it: opposite every 8-9 donor at both-vul the accepted game failed
+/// on 1,434 of 2,009 boards (−5.2 IMPs/fired on the `X → 2♠` cell, −2.2 even
+/// with responder's short major), because 24-26 combined with both of their
+/// majors known and one of them short in dummy is not a notrump game.  So
+/// opener *describes* and responder, who knows both hands' sizes, raises
+/// `2NT` on ten-plus ([`landy_strength_inv_rebid`]).  Reversible: the rung is
+/// one line, gated `hcp(17..)` if a stronger accept is wanted.
+///
 /// There is no stopper *ask* in this table and no `3M` cue over it: §N1q's
 /// rungs claim nothing about the majors, so neither hand can name a suit the
-/// other is missing.  Responder's own rebid carries the game force
-/// ([`landy_strength_inv_rebid`]).
-fn landy_strength_inv_answer(agreements: &Agreements) -> Rules {
+/// other is missing.  Responder's own rebid carries the game force.
+fn landy_strength_inv_answer() -> Rules {
     Rules::new()
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            160,
-            landy_lia_accept(agreements.notrump.size_ask_accept_floor),
-        )
         .rule(
             Bid::new(2, Strain::Notrump),
             150,
@@ -1809,6 +1821,30 @@ fn landy_strength_inv_rebid() -> Rules {
             99,
             len(Suit::Diamonds, 5..) & points(8..=9),
         )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's placement over opener's minor pick (`1NT (2♣) 2♠ - 3m -`)
+///
+/// [`landy_lia_pick_rebid`] with the `5m` gate raised from ten to **thirteen**.
+/// The first build reused lia's table verbatim, and its `5m`@100 on
+/// `points(10..)` was the whole of the `2♥ → 2♠` cell's loss (`2♠ - 3m - 5m`
+/// −3.2 IMPs/fired at both colours): opener picked a four-card minor in a
+/// four-four fit and denied both stoppers, so ten opposite 15-17 is a
+/// three-level partscore, not an eleven-trick game.  `3NT`@120 on ten-plus
+/// with both of their majors held in responder's own hand and the `4m`@110
+/// slam move at fourteen are lia's, unchanged; the `5m`@100 now takes
+/// exactly the thirteen-count below the slam move, and `Pass`@0 the rest.
+fn landy_strength_pick_rebid(minor: Suit) -> Rules {
+    let strain = Strain::from(minor);
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            120,
+            points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(4, strain), 110, points(14..))
+        .rule(Bid::new(5, strain), 100, points(13..))
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -2981,7 +3017,7 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     // whose compressed ladder its `points(8..)` floor still satisfies.
     if strength {
         for (rung, answer) in [
-            ("2♠", landy_strength_inv_answer(agreements)),
+            ("2♠", landy_strength_inv_answer()),
             ("2♥", landy_strength_weak_answer()),
         ] {
             let call: Bid = rung.parse().expect("a two-level major");
@@ -3008,7 +3044,7 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             ));
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("2♠ - {pick} -")),
-                landy_lia_pick_rebid(minor),
+                landy_strength_pick_rebid(minor),
             ));
             entries.extend(rows_of(
                 Pattern::after(OVER, &format!("2♠ - 2NT - {pick} -")),
@@ -3018,12 +3054,6 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         entries.extend(rows_of(
             Pattern::after(OVER, "2♠ - 2NT -"),
             landy_strength_inv_rebid(),
-        ));
-        // Opener accepted from the top of its range with both majors stopped;
-        // responder has 4-4 minors and no shape to improve on the game.
-        entries.extend(rows_of(
-            Pattern::after(OVER, "2♠ - 3NT -"),
-            multi_signoff_pass(),
         ));
         entries.extend(rows_of(
             Pattern::after(OVER, "2♥ (2♠)"),

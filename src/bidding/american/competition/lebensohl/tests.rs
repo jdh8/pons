@@ -2548,9 +2548,9 @@ fn landy_strength_sorts_the_two_level_majors() {
     let (c, _) = bid_landy_strength(false, &direct, "432.43.KQ432.432");
     assert_eq!(c, call(2, Strain::Diamonds));
 
-    // The invitational band, four-four allowed.  N1j has no rung for it: the
-    // takeouts are `points(10..)`, so this hand doubles instead.
-    let inv = "K43.Q4.KJ32.8432";
+    // The invitational band, four-four allowed, needs a short major.  N1j has
+    // no rung for it: the takeouts are `points(10..)`, so this hand doubles.
+    let inv = "4.K432.QJ32.Q432";
     let (c, floored) = bid_landy_strength(false, &direct, inv);
     assert_eq!(c, call(2, Strain::Spades), "the invitational four-four");
     assert!(!floored, "the rung must come from the book");
@@ -2560,6 +2560,18 @@ fn landy_strength_sorts_the_two_level_majors() {
         Call::Double,
         "which the shipped ladder reaches only as X"
     );
+    // The balanced-ish eight-count keeps the values double: the first A/B's
+    // `X → 2♠` cell lost monotone in the short major.
+    let (c, _) = bid_landy_strength(false, &direct, "K43.Q4.KJ32.8432");
+    assert_eq!(c, Call::Double, "two-two majors defend at 8-9");
+    // Ten-plus is N1j's game-forcing band, majors unconstrained.
+    let (c, floored) = bid_landy_strength(false, &direct, "K43.Q4.KJ32.A432");
+    assert_eq!(c, call(2, Strain::Spades), "the game force takes out");
+    assert!(!floored, "the rung must come from the book");
+    // A six-card minor at 8-9 keeps its transfer: the nine-card fit beats
+    // opener's four-four pick.
+    let (c, _) = bid_landy_strength(false, &direct, "43.2.KQ5432.Q432");
+    assert_eq!(c, call(3, Strain::Clubs), "six diamonds transfer");
 
     // The splinters are unchanged and re-weighted above the new `2♠`: a
     // game-forcing hand with a short major makes the more descriptive call.
@@ -2593,14 +2605,14 @@ fn landy_strength_answers_split_by_band() {
         call(2, Strain::Spades),
         Call::Pass,
     ];
-    // A maximum with both of their majors stopped accepts at once.
+    // Both of their majors stopped describes `2NT` at any strength and leaves
+    // the size to responder, who passes on 8-9 and raises on ten.  There is
+    // no `3NT` accept: the first A/B convicted it (the accepted game failed
+    // on 1,434 of 2,009 `X → 2♠` boards at both-vul).
     let (c, floored) = bid_landy_strength(false, &strong, "AQ4.KQ4.A432.K32");
-    assert_eq!(c, call(3, Strain::Notrump));
-    assert!(!floored, "the acceptance must come from the book");
-    // A minimum with both stopped describes `2NT` and leaves the size to
-    // responder, who passes on 8-9 and raises on ten.
-    let minimum = "AQ4.KQ4.A432.432";
-    let (c, _) = bid_landy_strength(false, &strong, minimum);
+    assert_eq!(c, call(2, Strain::Notrump), "a maximum describes too");
+    assert!(!floored, "the answer must come from the book");
+    let (c, _) = bid_landy_strength(false, &strong, "AQ4.KQ4.A432.432");
     assert_eq!(c, call(2, Strain::Notrump));
     let placed = [
         call(1, Strain::Notrump),
@@ -2620,6 +2632,34 @@ fn landy_strength_answers_split_by_band() {
     );
     let (c, _) = bid_landy_strength(false, &placed, "K43.Q4.KJ32.AQ32");
     assert_eq!(c, call(3, Strain::Notrump), "ten-plus raises");
+
+    // Over opener's minor pick the eleven-trick game needs thirteen: the
+    // first build's `5m` on ten was the `2♥ → 2♠` cell's whole loss.
+    let picked = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_strength(false, &picked, "4.K432.KQ32.Q432");
+    assert_eq!(c, Call::Pass, "ten without both stoppers sits in the fit");
+    assert!(!floored, "the sit must come from the book");
+    let (c, _) = bid_landy_strength(false, &picked, "43.K4.KQ32.KJ432");
+    assert_eq!(c, call(5, Strain::Clubs), "thirteen bids the game");
+    let (c, _) = bid_landy_strength(false, &picked, "43.K4.KQ32.AJ432");
+    assert_eq!(
+        c,
+        call(4, Strain::Clubs),
+        "fourteen-plus makes the slam move"
+    );
+    let (c, _) = bid_landy_strength(false, &picked, "K43.A4.KJ32.Q432");
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "both stoppers held bid the game"
+    );
 }
 
 /// §N1q's second knob: opener's doubles, takeout over the weak rung and

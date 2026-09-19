@@ -1562,7 +1562,16 @@ pub struct CompetitionKnobs {
     ///
     /// Read only under [`Self::defense_2c_landy_bba`] and **inert** under
     /// [`Self::defense_2c_landy_lia`], which re-cuts the same two rungs.  **Off
-    /// by default — A/B owed.**
+    /// by default.**  The first build (the whole 8+ band at `2♠`, opener's
+    /// `3NT`@160 accept, `5m` on ten over the pick) measured a loss 2026-09-18
+    /// (−0.0029 plain both-vul); the flip arm — a short major and no six-card
+    /// minor at 8-9, no accept, `5m` on thirteen — is what the knob now
+    /// switches on, and it measured a **non-win** 2026-09-19: plain +0.0067
+    /// NV / +0.0006 both-vul, PD −0.0031 / −0.0076 (the win|loss doubling-
+    /// artifact row NV, wash|loss vulnerable); the weak `2♥` rung carries the
+    /// whole PD deficit and the 8-9 takeout loses vulnerable through opener's
+    /// `2NT`.  Closed as measured twice (`docs/one-notrump-competitive.md`
+    /// §N1q).
     pub defense_2c_landy_strength_majors: bool,
     /// Opener's later double in the §N1q lane: takeout after the weak `2♥`,
     /// penalty after the strong `2♠`

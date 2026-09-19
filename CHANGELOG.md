@@ -10,7 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
-  shortness** — two opt-in knobs, both **default off, A/B owed**.
+  shortness** — two opt-in knobs, both **default off; measured twice
+  2026-09-18 and a non-win both times**.  Run 1 (`str` vs base plain −0.0029
+  both-vul / +0.0056 NV, PD −0.0192 / −0.0115) lost in the `X → 2♠` cell
+  through opener's notrump answers.  The **flip arm** on the same knob — the
+  8-9 half of `2♠` needs a singleton-or-void major and no six-card minor,
+  opener's `3NT`@160 accept over `2♠` is gone, the `5m` over opener's minor
+  pick needs thirteen — is what the knob now switches on and measured plain
+  **+0.0067 ±0.0006 NV / +0.0006 ±0.0007 both-vul**, PD **−0.0031 / −0.0076**
+  (sd-lead +0.0109/+0.0050 plain, +0.0026/−0.0023 PD): the decision table's
+  win|loss doubling-artifact row NV, wash|loss both-vul.  The flip cured what
+  it named (`3♣ → 2♠` gone, `2♦ → 2♠` positive, `X → 2♠` +410 plain / +6,148
+  PD NV) but the pre-registered falsifier fired vulnerable (`X → 2♠` −7,409
+  plain, all through opener's `2NT`), the ten-plus raise of `2NT` to `3NT`
+  loses −4.25/fired, and the whole PD deficit is the weak `2♥` rung at the
+  three level (`2♥ - 3♣` PD −20,624 / −25,128).  `strx` +0.0002 / +0.0003 on
+  its own base, moot.  Full forensic and the two unbuilt third-arm ideas in
+  §N1q; the shared `2NT - 3♣ - 3M - 3NT -` pull to `4♣` is flagged there as
+  the base lane's hole.
   `competition.defense_2c_landy_strength_majors` re-cuts the N1j table's
   `2♥`/`2♠`: `2♠`@177 becomes the whole both-minors **invitational-or-better**
   band (4+♣ 4+♦, four-four allowed, `points(8..)` and unlimited above,
