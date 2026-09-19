@@ -124,6 +124,15 @@ struct Record {
     /// `on − off`, present only under `--imps`
     imps_plain: Option<i64>,
     imps_pd: Option<i64>,
+    /// Plain-DD NS scores of each arm's contract, present only under `--imps`
+    score_on: Option<i64>,
+    score_off: Option<i64>,
+    /// Declarer's double-dummy tricks in each arm's contract (`null` pass-out)
+    tricks_on: Option<u8>,
+    tricks_off: Option<u8>,
+    /// The whole DD table, `c:N,E,S,W;d:…;h:…;s:…;n:…` — so a forensic can price
+    /// the contract *not* reached without re-solving
+    dd: Option<String>,
 }
 
 /// Whether a contract is game or better
@@ -216,7 +225,35 @@ fn classify(index: usize, on: &Board, off: &Board, contracts: (Reached, Reached)
         fit_off: fit(&off.deal, contracts.1),
         imps_plain: None,
         imps_pd: None,
+        score_on: None,
+        score_off: None,
+        tricks_on: None,
+        tricks_off: None,
+        dd: None,
     }
+}
+
+/// Declarer's DD tricks in a reached contract
+fn tricks_in(reached: Reached, table: &ddss::TrickCountTable) -> Option<u8> {
+    reached.map(|(contract, declarer)| u8::from(table[contract.bid.strain].get(declarer)))
+}
+
+/// The DD table as `c:N,E,S,W;d:…;h:…;s:…;n:…`
+fn dd_string(table: &ddss::TrickCountTable) -> String {
+    [
+        ('c', Strain::Clubs),
+        ('d', Strain::Diamonds),
+        ('h', Strain::Hearts),
+        ('s', Strain::Spades),
+        ('n', Strain::Notrump),
+    ]
+    .map(|(tag, strain)| {
+        let row = [Seat::North, Seat::East, Seat::South, Seat::West]
+            .map(|seat| u8::from(table[strain].get(seat)).to_string())
+            .join(",");
+        format!("{tag}:{row}")
+    })
+    .join(";")
 }
 
 /// One bucket line: count, share of the divergent set, and what it means
@@ -353,9 +390,22 @@ fn main() -> anyhow::Result<()> {
             ns_score_contract,
         );
         let pd = score_solved(&contracts, divergent, tables, vul, ns_score_pd);
+        let position: std::collections::HashMap<usize, usize> = plain
+            .divergent
+            .iter()
+            .enumerate()
+            .map(|(pos, &index)| (index, pos))
+            .collect();
         for record in &mut records {
             record.imps_plain = Some(plain.board_imps[record.index]);
             record.imps_pd = Some(pd.board_imps[record.index]);
+            let table = &plain.tables[position[&record.index]];
+            let (on_reached, off_reached) = contracts[record.index];
+            record.score_on = Some(ns_score_contract(on_reached, table, vul));
+            record.score_off = Some(ns_score_contract(off_reached, table, vul));
+            record.tricks_on = tricks_in(on_reached, table);
+            record.tricks_off = tricks_in(off_reached, table);
+            record.dd = Some(dd_string(table));
         }
     }
 

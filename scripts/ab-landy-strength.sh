@@ -172,20 +172,27 @@
 # falsifier FIRED both-vul: `X → 2♠` −7,409 plain, all of it through opener's
 # `2NT`@150 (−7,753 on 4,845 boards; pass −1.81/fired, pull to 3♣ −1.62, to
 # 3♦ −1.43) while the direct picks read +1.00 (3♦) / −0.68 (3♣); donors are
-# the 1-4-4-4s (−1.87/fired) and the 1-3 shapes.  Two more: (i) `2♥ → 2♠` grew
-# to −6,290/−2,792 plain, all at 10-12 — `2♠ - 2NT - 3NT` (the raise on ten)
-# −3,251/−2,136 at −4.25/−1.89 per fired, and `2♠ - 3♣ - -` (pass under the
-# thirteen-point 5m gate) −1,823/−883: fix (c) over-corrected and leaves 25-28
-# combined in a partscore where N1j's ten-plus takeout reaches game; (ii) the
-# whole PD deficit is the WEAK rung — class `2♥ - 3♣` PD −20,624/−25,128 while
-# plain wins it — a 5-7 count at the three level opposite 15-17 is what a
-# competent doubler punishes.  Flagged, not fixed: the shared, unauthored
+# the 1-4-4-4s (−1.87/fired) and the 1-3 shapes — the boards where OFF's
+# values X is converted by §N1m's penalty double of their advance (2♥x/2♠x
+# −2/−3 at −9/−12 a board).  The SCORED RE-SOLVE (2026-09-19, `imps2-*.jsonl`,
+# probe-divergence now writes score/tricks/DD; `scripts/divergence-sit.py`)
+# puts the rest in THREE FAMILIES OF FLOOR PHANTOMS at unauthored nodes, not
+# in the convention's contracts: (i) our 3NT in the weak rung's contested
+# tails (`2♥ (3♥) X - 3NT`, `2♥ - 3♣ - - (X) - - 3♦ - 3NT`, …: 3,103/4,243
+# boards, PD −27,292/−28,263 — more than the rung's whole deficit; the quiet
+# 3m is +13,525/+12,535 plain, −3,300/+1,822 PD); (ii) opener's 4♣ over the
+# MAKING 3NT raise at `2♠ - 2NT - 3NT -` (860/1,105 boards, −5,006/−4,398
+# plain; sat +171/+332) — the whole `2♥ → 2♠` loss, not fix (c); (iii)
+# responder's 3NT at 8-9 over their raise of 2♠ (1,448/2,754 boards, PD
+# −7,499/−9,349; sat +2,785/+4,102).  Sat together (--sit 3NT@0-9 --sit
+# 4♣@10-13 --sit 4♦@10-13): NV +0.0075/+0.0055, both +0.0029/−0.0005.
+# Flagged, not fixed: the shared, unauthored
 # `2NT - 3♣ - 3M - 3NT -` node pulls to 4♣ in the ON arm only (`- → 4♣`
 # −2,795/−2,781, −6.7/−5.5 per fired; run 1 had the same ~400 boards) — the
 # floor reading the knob's regime input, owned by the base lane.
-# Third-arm ideas recorded in the doc's Owed, none built: the 8-9 half colour-
-# gated to NV, ten-plus routed through N1j's answers — which is the knob
-# reduced to "NV 8-9 takeout + the weak 2♥", and the weak 2♥ is the PD loser.
+# THIRD ARM (credible, not built, the user's call): Pass rails at the three
+# phantom families; a colour gate on the 8-9 band is the fallback for the
+# vulnerable `X → 2♠` residual.  Details in the doc's §N1q.
 # NOTE: this file was edited while run 2 executed it (the header grew), so dash
 # resumed at a stale offset after the last `log` and ran a comment fragment as
 # `se` — the `exited 127` in landy-strength2.log is that, results complete.

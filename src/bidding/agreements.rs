@@ -1568,10 +1568,13 @@ pub struct CompetitionKnobs {
     /// minor at 8-9, no accept, `5m` on thirteen — is what the knob now
     /// switches on, and it measured a **non-win** 2026-09-19: plain +0.0067
     /// NV / +0.0006 both-vul, PD −0.0031 / −0.0076 (the win|loss doubling-
-    /// artifact row NV, wash|loss vulnerable); the weak `2♥` rung carries the
-    /// whole PD deficit and the 8-9 takeout loses vulnerable through opener's
-    /// `2NT`.  Closed as measured twice (`docs/one-notrump-competitive.md`
-    /// §N1q).
+    /// artifact row NV, wash|loss vulnerable).  The scored re-solve puts the
+    /// deficit in three families of floor phantoms at unauthored nodes (our
+    /// `3NT` in the weak rung's contested tails, opener's `4♣` over the making
+    /// `3NT` raise, responder's `3NT` at 8-9 over their raise) — sat, the arm
+    /// reads +0.0075 / +0.0055 NV — plus the vulnerable 8-9 takeout losing to
+    /// §N1m's penalty double of their advance.  A third arm of `Pass` rails
+    /// is owed if wanted (`docs/one-notrump-competitive.md` §N1q).
     pub defense_2c_landy_strength_majors: bool,
     /// Opener's later double in the §N1q lane: takeout after the weak `2♥`,
     /// penalty after the strong `2♠`

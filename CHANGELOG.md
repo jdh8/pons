@@ -21,13 +21,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (sd-lead +0.0109/+0.0050 plain, +0.0026/−0.0023 PD): the decision table's
   win|loss doubling-artifact row NV, wash|loss both-vul.  The flip cured what
   it named (`3♣ → 2♠` gone, `2♦ → 2♠` positive, `X → 2♠` +410 plain / +6,148
-  PD NV) but the pre-registered falsifier fired vulnerable (`X → 2♠` −7,409
-  plain, all through opener's `2NT`), the ten-plus raise of `2NT` to `3NT`
-  loses −4.25/fired, and the whole PD deficit is the weak `2♥` rung at the
-  three level (`2♥ - 3♣` PD −20,624 / −25,128).  `strx` +0.0002 / +0.0003 on
-  its own base, moot.  Full forensic and the two unbuilt third-arm ideas in
-  §N1q; the shared `2NT - 3♣ - 3M - 3NT -` pull to `4♣` is flagged there as
-  the base lane's hole.
+  PD NV) but the pre-registered falsifier fired vulnerable: `X → 2♠` −7,409
+  plain, the boards where OFF's values `X` is converted by §N1m's penalty
+  double of their advance.  The scored re-solve (2026-09-19) puts the rest of
+  the deficit in **three families of floor phantoms at unauthored nodes**,
+  not in the convention's contracts: our `3NT` in the weak rung's contested
+  tails (PD −27,292 / −28,263, more than the rung's whole deficit; its quiet
+  `3m` reads +13,525 / +12,535 plain and −3,300 / +1,822 PD), opener's `4♣`
+  over the *making* `3NT` raise at `2♠ - 2NT - 3NT -` (−5,006 / −4,398), and
+  responder's `3NT` at 8-9 over their raise.  With those seats sitting the
+  arm reads +0.0075 / +0.0055 NV and +0.0029 / −0.0005 both-vul, so a third
+  arm of `Pass` rails is credible and recorded, not built.  `strx` +0.0002 /
+  +0.0003 on its own base, moot.  The shared `2NT - 3♣ - 3M - 3NT -` pull to
+  `4♣` is flagged as the base lane's hole.  Forensic tooling that came out of
+  it: `probe-divergence --imps --jsonl` now writes `score_on/off`,
+  `tricks_on/off` and the DD table per board, and
+  `scripts/divergence-sit.py` prices the *sit* counterfactual (our phantom
+  call replaced by `Pass`) off those fields.
   `competition.defense_2c_landy_strength_majors` re-cuts the N1j table's
   `2♥`/`2♠`: `2♠`@177 becomes the whole both-minors **invitational-or-better**
   band (4+♣ 4+♦, four-four allowed, `points(8..)` and unlimited above,
