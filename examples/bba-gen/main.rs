@@ -965,20 +965,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_lia: bool,
 
-    /// Sort the Landy counter's two-level majors by strength (§N1q)
+    /// Turn **off** the Landy counter's strength-sorted two-level majors (§N1q)
     ///
-    /// `competition.defense_2c_landy_strength_majors`, default **off**:
+    /// `competition.defense_2c_landy_strength_majors`, default **on** since
+    /// 2026-09-20:
     /// `2♠`@177 is 4+♣ 4+♦ invitational-or-better (four-four allowed) above
     /// the transfers, `2♥`@141 is the weak five-four band beside the `2♦`
     /// escape it outranks, and the `3♥`/`3♠` splinters move to 179/178.  Inert
     /// with `--ns-landy-lia`, which re-cuts the same two rungs.
     #[arg(long, default_value_t = false)]
-    ns_landy_strength: bool,
+    no_ns_landy_strength: bool,
 
     /// Author opener's doubles in the §N1q lane
     ///
     /// `competition.defense_2c_landy_strength_doubles`, default **off** and a
-    /// modifier of `--ns-landy-strength`: takeout `X`@120 over their `(2♠)`
+    /// modifier of the §N1q majors: takeout `X`@120 over their `(2♠)`
     /// raise of our weak `2♥`, penalty `X`@140 over their raise of our `2♠`.
     #[arg(long, default_value_t = false)]
     ns_landy_strength_doubles: bool,
@@ -2515,7 +2516,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
-    agreements.competition.defense_2c_landy_strength_majors = args.ns_landy_strength;
+    agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;
     agreements.competition.defense_2c_landy_strength_doubles = args.ns_landy_strength_doubles;
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;

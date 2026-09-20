@@ -245,7 +245,10 @@ fn main() {
         other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
     }
     match args.ns_landy_responder.as_str() {
-        "off" => agreements.competition.landy_major_jam = false,
+        "off" => {
+            agreements.competition.landy_major_jam = false;
+            agreements.competition.defense_2c_landy_strength_majors = false;
+        }
         "nt" => {
             agreements.competition.landy_notrump_no_major = true;
             agreements.competition.landy_major_jam = false;

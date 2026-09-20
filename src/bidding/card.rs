@@ -172,6 +172,13 @@ const fn not_defined() -> usize {
 // N1j's alignment claim is structural, not literal readability — see
 // `docs/one-notrump-competitive.md` §N1j.
 //
+// `comp:landy-minors-inv` / `comp:landy-minors-weak` (§N1q's strength-sorted
+// two-level majors, `competition.defense_2c_landy_strength_majors`, default
+// since 2026-09-20; they retire `comp:landy-tko` from the default counter and
+// keep `comp:landy-spl`): same no-schema-name record and the same `Transfers
+// if RHO bids clubs` ceiling as the N1j family above — EPBot reads our `2♥` /
+// `2♠` as Jacoby transfers whatever we author.
+//
 // `comp:landy-penalty` (the doubler's own penalty `X` of their advance,
 // `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
 // sibling one seat earlier, `competition.landy_opener_px`, default since

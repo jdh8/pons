@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
-  shortness** — two opt-in knobs, both **default off; measured twice
-  2026-09-18 and a non-win both times**.  Run 1 (`str` vs base plain −0.0029
+  shortness** — two knobs, built default off and **measured twice 2026-09-18,
+  a non-win both times** (the third arm shipped the majors 2026-09-20 — see
+  Changed).  Run 1 (`str` vs base plain −0.0029
   both-vul / +0.0056 NV, PD −0.0192 / −0.0115) lost in the `X → 2♠` cell
   through opener's notrump answers.  The **flip arm** on the same knob — the
   8-9 half of `2♠` needs a singleton-or-void major and no six-card minor,
@@ -127,6 +128,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1q: the Landy counter's strength-sorted two-level majors SHIP
+  DEFAULT-ON** (`competition.defense_2c_landy_strength_majors`, 2026-09-20) on
+  the **third arm**: `Pass` rails at the nodes where run 2's floor bid a
+  phantom — opener at `2♠ - 2NT - 3NT -` (it pulled the *making* `3NT` raise
+  to `4♣`), opener at `2♥ (3♥)` / `2♥ (3♠)` (its floor double was the phantom,
+  not just responder's pull to `3NT`), opener over their three-level major
+  above a minor pick, opener over responder's run from the balancing double,
+  and no responder `XX` — plus opener's authored `3NT` over their raise of
+  `2♠` gated at `hcp(17..)` with a stopper `Pass`@145 below it.  `str` vs base,
+  4,608,000 boards/arm/vul, all gates 0 foreign: plain **+0.0078 ±0.0006 NV /
+  +0.0050 ±0.0007 both-vul**, PD **+0.0070 ±0.0007 / +0.0026 ±0.0008**, sd-lead
+  +0.0096 / +0.0075 plain and +0.0087 / +0.0054 PD (+0.56 / +0.44 IMPs per
+  fired board, plain) — win|win at both colours, against run 2's +0.0067 /
+  +0.0006 plain and −0.0031 / −0.0076 PD.  Per tail: `2♠ - 2NT - 3NT -` −3,049
+  → **+4,706** plain both-vul, `2♥ (3♥)` PD −9,780 → +1,587.  One
+  pre-registered falsifier fired inside the win — vulnerable `X → 2♠` is still
+  −8,563 plain against §N1m's penalty conversion — so a colour gate on the 8-9
+  band is the next arm, against the new default.
+  `defense_2c_landy_strength_doubles` **stays off**: NV +0.0004 plain, a wash
+  both-vul, with two tails unauthored (`2♥ (2♠) X (XX)` passed out in `2♠xx`,
+  opener's `4♣` at `2♥ (2♠) X - 3m (3♠)`).  The flag flips with the default:
+  `--ns-landy-strength` is now `--no-ns-landy-strength` (`bba-gen`,
+  `probe-call-reading`), `render-book --ns-landy-responder off` turns it off,
+  and the runner's control arm names the knob.  Cards unchanged (EPBot's
+  schema has no row for a counter keyed on their `2♣`);
+  `tests/fixtures/alert-sites.txt` re-blessed (`comp:landy-minors-inv` /
+  `-weak` in, `comp:landy-tko` out of the default counter).  User impact:
+  against an opponent who discloses Landy over our 1NT, the weak five-four and
+  the invitational-or-better both-minor hands now have a call by default.
+  Verdict and per-tail table in `docs/one-notrump-competitive.md` §N1q.
 - **CI caches dependencies** — `Swatinem/rust-cache` in the clippy, doc,
   minimal-versions, web and test jobs.  Keyed on lockfile + toolchain + job,
   it keeps only third-party artifacts (the workspace's own are pruned), so

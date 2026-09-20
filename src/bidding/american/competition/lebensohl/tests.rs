@@ -762,8 +762,9 @@ fn landy_declaration_engages_the_default_counter() {
     let (c, _) = best_call_with(&arm, &auction, "43.432.J32.AK432");
     assert_eq!(c, Call::Double);
 
-    // The doubled 2♥ (stack: the club cue; ladder: the GF takeout) is
-    // answered 2NT from the book either way, not floored.
+    // The doubled 2♥ (stack: the club cue; ladder: the GF takeout; since the
+    // 2026-09-20 flip §N1q's weak both-minor rung) is answered from the book
+    // under each, not floored — a minor pick now, `2NT` before.
     let doubled_cue = [
         call(1, Strain::Notrump),
         call(2, Strain::Clubs),
@@ -771,7 +772,7 @@ fn landy_declaration_engages_the_default_counter() {
         Call::Double,
     ];
     let (c, floored) = best_call_with(&arm, &doubled_cue, "AQ32.KQ2.A432.32");
-    assert_eq!(c, call(2, Strain::Notrump));
+    assert_eq!(c, call(3, Strain::Diamonds));
     assert!(!floored, "the default counter answers the doubled call");
 }
 
@@ -2708,6 +2709,111 @@ fn landy_strength_doubles_carry_both_polarities() {
     assert!(!floored, "the penalty double must come from the book");
     let (c, _) = bid_landy_strength(false, &strong_raised, penalty);
     assert_ne!(c, Call::Double, "off, the seat has no double at all");
+}
+
+/// §N1q's third arm: the seats where run 2's floor bid a phantom all sit from
+/// the book
+#[test]
+fn landy_strength_rails_sit() {
+    let over = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+    ];
+    let pass = Call::Pass;
+    let opener = "AQ4.KQ4.A432.K32";
+    let auctions: [(&[Call], &str); 5] = [
+        // Opener over responder's raise of its own `2NT`.
+        (
+            &[
+                pass,
+                call(2, Strain::Notrump),
+                pass,
+                call(3, Strain::Notrump),
+                pass,
+            ],
+            opener,
+        ),
+        // Opener over their balancing `3♠` of its pick.
+        (
+            &[
+                pass,
+                call(3, Strain::Clubs),
+                pass,
+                pass,
+                call(3, Strain::Spades),
+            ],
+            opener,
+        ),
+        // A stopper below the maximum defends their raise.
+        (&[call(3, Strain::Hearts)], "AQ4.KQ4.A432.432"),
+        (&[call(3, Strain::Spades)], "AQ4.KQ4.A432.432"),
+        (&[call(3, Strain::Spades)], "KQ4.AQ4.A432.432"),
+    ];
+    for (tail, hand) in auctions {
+        let auction: Vec<Call> = over.iter().chain(tail).copied().collect();
+        let (c, floored) = bid_landy_strength(false, &auction, hand);
+        assert_eq!(c, pass, "{auction:?}");
+        assert!(!floored, "{auction:?} must sit from the book");
+    }
+    // The maximum still bids the game over their raise.
+    let raised = [over[0], over[1], over[2], call(3, Strain::Hearts)];
+    assert_eq!(
+        bid_landy_strength(false, &raised, opener).0,
+        call(3, Strain::Notrump)
+    );
+
+    // The weak rung: opener sits over their jump raise, over their three-level
+    // call above its pick, and over responder's run from the balancing double;
+    // responder does not redouble that double.
+    let weak = [over[0], over[1], call(2, Strain::Hearts)];
+    let responder = "32.43.K5432.Q432";
+    let auctions: [(&[Call], &str); 5] = [
+        (&[call(3, Strain::Hearts)], opener),
+        (&[call(3, Strain::Spades)], opener),
+        (
+            &[
+                pass,
+                call(3, Strain::Clubs),
+                call(3, Strain::Spades),
+                pass,
+                pass,
+            ],
+            opener,
+        ),
+        (
+            &[
+                pass,
+                call(3, Strain::Clubs),
+                pass,
+                pass,
+                Call::Double,
+                pass,
+                pass,
+                call(3, Strain::Diamonds),
+                pass,
+            ],
+            opener,
+        ),
+        (
+            &[
+                pass,
+                call(3, Strain::Diamonds),
+                pass,
+                pass,
+                Call::Double,
+                pass,
+                pass,
+            ],
+            responder,
+        ),
+    ];
+    for (tail, hand) in auctions {
+        let auction: Vec<Call> = weak.iter().chain(tail).copied().collect();
+        let (c, floored) = bid_landy_strength(true, &auction, hand);
+        assert_eq!(c, pass, "{auction:?}");
+        assert!(!floored, "{auction:?} must sit from the book");
+    }
 }
 
 /// §N1q is a modifier of the BBA ladder and an alternative to §N1-lia's, so

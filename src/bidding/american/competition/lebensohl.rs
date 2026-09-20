@@ -1851,11 +1851,12 @@ fn landy_strength_pick_rebid(minor: Suit) -> Rules {
 /// Opener's seat when their advancer raises over §N1q's weak `2♥`
 /// (`1NT (2♣) 2♥ (2♠)`)
 ///
-/// The one contested tail this band gets.  Their cheap `(2♠)` is the only
-/// raise cheap enough to answer below the three level in the minor responder
-/// is long in; over `(3♥)`/`(3♠)` the seat goes to the floor, because the lia2
-/// forensic convicted the `Pass`@0 sell-outs there and found the floor was
-/// *right* on that class.
+/// The one contested tail this band gets a table for.  Their cheap `(2♠)` is
+/// the only raise cheap enough to answer below the three level in the minor
+/// responder is long in; over `(3♥)`/`(3♠)` opener sits.  The first two builds
+/// left that seat to the floor on lia2's verdict (the `Pass`@0 sell-outs lost
+/// there), and run 2 found this floor *doubling* instead, with responder
+/// pulling to `3NT` — so the third arm rails it.
 ///
 /// Under [`landy_strength_doubles`] the takeout `X`@120 tops it: three-plus in
 /// each minor and no spade stopper is the hand that wants responder to name
@@ -1896,14 +1897,27 @@ fn landy_strength_weak_pick() -> Rules {
 /// (`1NT (2♣) 2♠ (3♥/3♠)`)
 ///
 /// [`landy_bba_takeout_overcalled`]'s doctrine with the shortness question
-/// removed and the polarity added: `3NT` holding the raised major, else — under
-/// [`landy_strength_doubles`] — the **penalty** double on four-plus of it, else
-/// the cheapest four-card minor, else pass.  Responder promised 8+ and may be
+/// removed and the polarity added: holding the raised major, `3NT` on a maximum
+/// and a sit below it; else — under [`landy_strength_doubles`] — the
+/// **penalty** double on four-plus of it, else the cheapest four-card minor,
+/// else pass.  Responder promised 8+ and may be
 /// unlimited, so the `Pass`@0 is safe in the compressed ladder's own sense:
 /// this band always speaks again.
 fn landy_strength_inv_overcalled(over: Bid, agreements: &Agreements) -> Rules {
     let raised = Suit::try_from(over.strain).expect("their raise names a major");
-    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 150, stopper_in(raised));
+    // The third arm's gate.  Ungated, this `3NT` read −207 / +423 plain and
+    // **−1,054 / −1,456 PD** (both-vul / NV, run 2) against +138 / +23 and
+    // +230 / +853 sitting: the band's 8-9 end is a six-count with a short
+    // major, and a stopper in the suit they raised is a trump trick on
+    // defense.  Only the maximum bids the game; the rest of the stopper hands
+    // defend rather than fall through to a four-level minor.
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            stopper_in(raised) & hcp(17..),
+        )
+        .rule(Call::Pass, 145, stopper_in(raised));
     if landy_strength_doubles(agreements) {
         rules = rules
             .rule(Call::Double, 140, len(raised, 4..))
@@ -3011,10 +3025,10 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
     }
 
     // §N1q's own subtree: both two-level rungs, their answers, their
-    // placements and the two contested tails they keep.  The weak `2♥` keeps
-    // only the cheap `(2♠)` raise — over `(3♥)`/`(3♠)` the seat goes to the
-    // floor, the lia2 handoff — and the `2♠` keeps both three-level raises,
-    // whose compressed ladder its `points(8..)` floor still satisfies.
+    // placements and the two contested tails they keep.  The weak `2♥` gets a
+    // table only over the cheap `(2♠)` raise — over `(3♥)`/`(3♠)` opener sits,
+    // the third arm's rails below — and the `2♠` keeps both three-level
+    // raises, whose compressed ladder its `points(8..)` floor still satisfies.
     if strength {
         for (rung, answer) in [
             ("2♠", landy_strength_inv_answer()),
@@ -3068,6 +3082,38 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 Pattern::after(OVER, &format!("2♠ ({over})")),
                 landy_strength_inv_overcalled(over, agreements),
             ));
+        }
+        // The third arm: `Pass` rails at the nodes where run 2's forensic
+        // found the floor bidding a phantom (`docs/one-notrump-competitive.md`
+        // §N1q, "Third arm").  Each is a seat whose hand is already described
+        // and whose partner has placed the contract or sold out.
+        let mut sits = vec![
+            // Opener pulled responder's *making* raise to `4♣`.
+            "2♠ - 2NT - 3NT -".to_owned(),
+            // Responder redoubled the balancing double of opener's pick.
+            "2♥ - 3♦ - - (X) - -".to_owned(),
+            // Opener bid `3NT` over responder's run from that double.
+            "2♥ - 3♣ - - (X) - - 3♦ -".to_owned(),
+        ];
+        for major in ["3♥", "3♠"] {
+            // Their jump raise over the weak rung: the floor *doubles* here
+            // and responder pulls to `3NT` (−1,213 / −359 plain, −3,441 /
+            // −2,836 PD; no double reads +245 / −35 and +332 / +12, sitting
+            // the double −2,645).  lia2's sell-out verdict was the floor
+            // passing; this floor does not.
+            sits.push(format!("2♥ ({major})"));
+            for minor in ["3♣", "3♦"] {
+                sits.push(format!("2♥ - {minor} ({major}) - -"));
+                sits.push(format!("2♥ - {minor} - - ({major})"));
+                sits.push(format!("2♠ - {minor} - - ({major})"));
+            }
+        }
+        for minor in ["3♣", "3♦"] {
+            sits.push(format!("2♥ (2♠) {minor} -"));
+            sits.push(format!("2♥ (2♠) {minor} (3♠) - -"));
+        }
+        for sit in sits {
+            entries.extend(rows_of(Pattern::after(OVER, &sit), multi_signoff_pass()));
         }
     }
 

@@ -25,6 +25,12 @@
 #         minor; opener's `3NT`@160 accept over `2♠` is GONE; the `5m` over
 #         opener's minor pick needs thirteen, not ten.  Run 1's build is the
 #         VERDICT block's.
+#         RUN 3 (the third arm, 2026-09-19, `ab-results/landy-strength3`):
+#         `Pass` rails at the nodes where run 2's floor bid a phantom (opener
+#         at `2♠ - 2NT - 3NT -`, at `2♥ (3M)`, over their three-level call
+#         above a pick, over responder's run from the balancing double; no
+#         responder `XX`), and opener's `3NT` over their raise of `2♠` needs
+#         seventeen.  Pre-registration in the doc's "Third arm — built".
 #   strx  `+ defense_2c_landy_strength_doubles`: opener's `X`@120 over their
 #         `(2♠)` raise of our weak `2♥` is TAKEOUT (3+3+ minors, no spade
 #         stopper), and opener's `X`@140 over their `(3♥)`/`(3♠)` raise of our
@@ -84,7 +90,7 @@
 #   weak band never speaks again after them.
 #
 # READING GATE (pre-launch, 2026-09-18): PASSED.  `probe-call-reading
-# --their-2c-landy --ns-landy-strength "1N (2C) 2S P" "1N (2C) 2H P"
+# --their-2c-landy "1N (2C) 2S P" "1N (2C) 2H P"
 # "1N (2C) 3H P" "1N (2C) X P" "1N (2C) 2N P"` — read at OPENER's seat, which
 # is the four-call spelling; the three-call one reads the ADVANCER's partner
 # and answers about their overcall, which is the trap the lia3 gate documented.
@@ -109,7 +115,7 @@
 #   ./target/release/examples/probe-divergence \
 #       $R/str-both $R/base-both --imps --jsonl $R/imps-both.jsonl
 #   ./target/release/examples/probe-layer-replay $R/str-both \
-#       --jsonl $R/imps-both.jsonl --out $R/layers-both.jsonl --ns-landy-strength
+#       --jsonl $R/imps-both.jsonl --out $R/layers-both.jsonl
 #   python3 scripts/divergence-buckets.py $R/imps-both.jsonl
 #   python3 scripts/divergence-layers.py  $R/imps-both.jsonl $R/layers-both.jsonl [veto]
 #
@@ -158,6 +164,12 @@
 # `2♠` -> points 8.. ♣4.. ♦4.. (the Or projects to its hull — sound, not
 # tight), every other call byte-identical to run 1's gate.
 #
+# RUN 3 — the third arm (Pass rails + the seventeen-point `3NT` gate) —
+# LAUNCHED 2026-09-19 16:04Z, SEED_BASE=1789833845, sha 4647befa-dirty (the rails uncommitted),
+# JOBS=30, 4,608,000 bd/arm/vul, `ab-results/landy-strength3`, seed in
+# `$R/landy-strength.seed`.  Reading gate re-run and PASSED, both rungs
+# byte-identical to run 2's.
+#
 # RUN 2 VERDICT (2026-09-19, all four gates 0 foreign) — a NON-WIN; both knobs
 # stay off, §N1q closes as measured twice.
 #   str  vs base  NV    plain +0.0067 ±0.0006  PD −0.0031 ±0.0008  sd +0.0109 / +0.0026
@@ -193,6 +205,27 @@
 # THIRD ARM (credible, not built, the user's call): Pass rails at the three
 # phantom families; a colour gate on the 8-9 band is the fallback for the
 # vulnerable `X → 2♠` residual.  Details in the doc's §N1q.
+# RUN 3 VERDICT (2026-09-20, all four gates 0 foreign) — `str` WINS ALL FOUR
+# CELLS and SHIPS DEFAULT-ON; `strx` stays off.
+#   str  vs base  NV    plain +0.0078 ±0.0006  PD +0.0070 ±0.0007  sd +0.0096 / +0.0087
+#   str  vs base  both  plain +0.0050 ±0.0007  PD +0.0026 ±0.0008  sd +0.0075 / +0.0054
+#   strx vs str   NV    plain +0.0004 ±0.0001  PD +0.0003 ±0.0001  sd +0.0006 / +0.0005
+#   strx vs str   both  plain +0.0000 ±0.0001  PD −0.0001 ±0.0001  sd +0.0003 / +0.0002
+# Landed on the sit counterfactual's plain prediction and beat its PD one
+# (both-vul −0.0005 predicted).  Per tail, run 2 -> run 3 (both/NV, plain|PD):
+# `2♠ - 2NT - 3NT -` −3,049/−1,633 -> +4,706/+6,020; `2♥ (3♥)` −3,422|−9,780 /
+# −930|−7,858 -> +485|+1,587 / −151|+393; `2♠ (3M)` PD −3,753/−3,372 ->
+# +2,432/+2,867 for NV plain +4,402 -> +148 (falsifier 3 not fired on the
+# pair; the NV `(3♥)` cell alone is plain −3,798 / PD +2,897).  Sat now moves
+# nothing (374/1,002 boards).  FALSIFIER 2 FIRED: vulnerable `X → 2♠` −8,563
+# plain (−759 PD; NV −1,887 / +8,222) — the colour gate on the 8-9 band is the
+# next arm, on top of a shipped parent.  Residue: responder's run from the
+# balancing double, `2♥ - 3♣ - - (X) - - 3♦` −4,972|−12,041 / −2,912|−9,798
+# (left to the floor: sitting 3♣x is plain-worse), and the shared-node `- → 4♣`
+# drift above (−3,099/−2,882), now live in the default.  `strx` is a doubling
+# knob, arbitrated on plain: NV win, both-vul wash, with two unauthored tails
+# in its worst boards — `2♥ (2♠) X (XX)` passed out in 2♠xx, and opener's 4♣ at
+# `2♥ (2♠) X - 3m (3♠)`; it stays opt-in until those are authored.
 # NOTE: this file was edited while run 2 executed it (the header grew), so dash
 # resumed at a stale offset after the last `log` and ran a comment fragment as
 # `se` — the `exited 127` in landy-strength2.log is that, results complete.
@@ -208,9 +241,12 @@ log "=== landy-strength SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHAR
 # Plain-DD first, sd second — the §N1-lia two-pass order: the primary cells
 # land first and the lead-model column follows only if the headline earns it.
 for v in none both; do
-    arm base "$v" --filter-landy
-    arm str  "$v" --filter-landy --ns-landy-strength
-    arm strx "$v" --filter-landy --ns-landy-strength --ns-landy-strength-doubles
+    # The knob ships on since 2026-09-20, so the control arm is the one that
+    # names it (`--no-ns-landy-strength`); runs 1-3 spelled `str` with the
+    # retired `--ns-landy-strength`.
+    arm base "$v" --filter-landy --no-ns-landy-strength
+    arm str  "$v" --filter-landy
+    arm strx "$v" --filter-landy --ns-landy-strength-doubles
 
     gatepair str  base "$v"
     gatepair strx str  "$v"

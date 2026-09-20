@@ -512,7 +512,9 @@ fn landy_doubler_penalizes_the_major_their_advance_chose() {
     // floor bids `3NT` on these same four trumps.
     walk_landy_doubler(
         "AQ32.J432.AQ3.K3", // 16 balanced: it waits for the suit to be named
-        "5.KQ98.KT32.T543", // 9, four good hearts sitting over the overcaller
+        // A doubleton spade on purpose: since §N1q shipped (2026-09-20) the
+        // short-major four-four hand bids `2♠`, and only this shape still doubles.
+        "65.KQ98.KT32.J54", // 9, four good hearts sitting over the overcaller
         &[
             call(2, Strain::Clubs),
             call(2, Strain::Hearts),
@@ -566,7 +568,7 @@ fn landy_doubler_px_keeps_the_double_and_drops_the_invitation() {
     walk_landy_doubler_arm(
         px,
         "AQ32.J432.AQ3.K3",
-        "5.KQ98.KT32.T543",
+        "65.KQ98.KT32.J54",
         &[
             call(2, Strain::Clubs),
             call(2, Strain::Hearts),
@@ -661,7 +663,7 @@ fn landy_opener_penalizes_the_major_their_advance_named() {
     walk_landy_doubler_arm(
         |knobs| knobs.landy_opener_px = true,
         "AQ32.J432.AQ3.K3", // 16 with four of their hearts
-        "5.KQ98.KT32.T543", // 9, four good hearts of its own
+        "65.KQ98.KT32.J54", // 9, four good hearts of its own
         &[call(2, Strain::Clubs), call(2, Strain::Hearts), Call::Pass],
         &[
             Call::Double, // responder: values
@@ -683,7 +685,7 @@ fn landy_opener_rungs_declare_the_stopped_game() {
             knobs.landy_opener_rungs = true;
         },
         "AQ32.AJ3.Q432.K3", // 16, three hearts headed by the ace
-        "5.KQ98.KT32.T543",
+        "65.KQ98.KT32.J54",
         &[call(2, Strain::Clubs), call(2, Strain::Hearts), Call::Pass],
         &[
             Call::Double,

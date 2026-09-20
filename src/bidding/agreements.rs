@@ -1561,8 +1561,8 @@ pub struct CompetitionKnobs {
     /// today and 12.8% passes.
     ///
     /// Read only under [`Self::defense_2c_landy_bba`] and **inert** under
-    /// [`Self::defense_2c_landy_lia`], which re-cuts the same two rungs.  **Off
-    /// by default.**  The first build (the whole 8+ band at `2♠`, opener's
+    /// [`Self::defense_2c_landy_lia`], which re-cuts the same two rungs.  **On
+    /// by default since 2026-09-20** (third arm, below).  The first build (the whole 8+ band at `2♠`, opener's
     /// `3NT`@160 accept, `5m` on ten over the pick) measured a loss 2026-09-18
     /// (−0.0029 plain both-vul); the flip arm — a short major and no six-card
     /// minor at 8-9, no accept, `5m` on thirteen — is what the knob now
@@ -1573,8 +1573,14 @@ pub struct CompetitionKnobs {
     /// `3NT` in the weak rung's contested tails, opener's `4♣` over the making
     /// `3NT` raise, responder's `3NT` at 8-9 over their raise) — sat, the arm
     /// reads +0.0075 / +0.0055 NV — plus the vulnerable 8-9 takeout losing to
-    /// §N1m's penalty double of their advance.  A third arm of `Pass` rails
-    /// is owed if wanted (`docs/one-notrump-competitive.md` §N1q).
+    /// §N1m's penalty double of their advance.  The third arm authored those
+    /// nodes — `Pass` rails at the phantoms, and opener's `3NT` over their
+    /// raise of `2♠` gated at seventeen with a stopper `Pass` below — and won
+    /// all four cells 2026-09-20 (4.608M boards/arm/vul): plain **+0.0078 NV /
+    /// +0.0050 both-vul**, PD **+0.0070 / +0.0026**, sd-lead +0.0096 / +0.0075
+    /// plain and +0.0087 / +0.0054 PD.  The vulnerable 8-9 takeout is still a
+    /// losing cell inside that win (−8,563 IMPs plain); a colour gate on the
+    /// band is the next arm (`docs/one-notrump-competitive.md` §N1q).
     pub defense_2c_landy_strength_majors: bool,
     /// Opener's later double in the §N1q lane: takeout after the weak `2♥`,
     /// penalty after the strong `2♠`
@@ -1587,6 +1593,9 @@ pub struct CompetitionKnobs {
     /// four-plus of the major they raised.  The polarity is the lane's house
     /// rule and nothing mechanises it, so both are authored as explicit rules
     /// (`docs/pdi.md`).  Off, both seats keep only the picks and the `Pass`@0.
+    /// **Off by default**: on the shipped parent it read plain +0.0004 NV and
+    /// a wash both-vul (PD +0.0003 / −0.0001), with two tails still unauthored
+    /// — `2♥ (2♠) X (XX)` and opener's seat at `2♥ (2♠) X - 3m (3♠)`.
     pub defense_2c_landy_strength_doubles: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia, package A — **on** preserves the shipped `px` arm)
@@ -1833,7 +1842,7 @@ impl Default for CompetitionKnobs {
             landy_notrump_no_major: false,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
-            defense_2c_landy_strength_majors: false,
+            defense_2c_landy_strength_majors: true,
             defense_2c_landy_strength_doubles: false,
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,

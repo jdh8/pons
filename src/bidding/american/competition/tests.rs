@@ -440,11 +440,13 @@ pub(super) fn bid_landy_n1(
 }
 
 /// As [`bid_landy`], with the N1j BBA ladder on (optionally with the weak-2♦
-/// `hcp(..=6)` cap).  The N1b–N1i stack knobs are inert under it.
+/// `hcp(..=6)` cap).  The N1b–N1i stack knobs are inert under it, and §N1q's
+/// strength-sorted majors (default on since 2026-09-20) are pinned off.
 pub(super) fn bid_landy_bba(cap: bool, auction: &[Call], hand: &str) -> (Call, bool) {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_bba = true;
+    arm.competition.defense_2c_landy_strength_majors = false;
     arm.competition.defense_2c_landy_weak_2d_cap = cap;
     best_call_with(&arm, auction, hand)
 }
