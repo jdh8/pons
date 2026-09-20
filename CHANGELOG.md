@@ -29,6 +29,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1q colour gate** — `competition.defense_2c_landy_strength_nv_invite`
+  (default **off**, A/B owed; `bba-gen` / `probe-call-reading`
+  `--ns-landy-strength-nv-invite`, runner
+  `scripts/ab-landy-strength-residue.sh`).
+  On, the 8-9 half of the strength-sorted `2♠` carries `!vulnerable()`, so the
+  vulnerable short-major eight-count returns to the values `X` that feeds
+  §N1m's penalty conversion — the cell that read −8,563 plain inside run 3's
+  win.  Ten-plus and the non-vulnerable table are unchanged; the default system
+  is byte-identical.  Pre-registration in `docs/one-notrump-competitive.md`
+  §N1q.
+- **§N1q shared-node rail** — `competition.landy_recue_signoff` (default
+  **off**, A/B owed; `--ns-landy-recue-signoff`): responder passes opener's
+  `3NT` answer to its stopper cue (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -` and the
+  diamond twin), a seat where the floor pulled to `4♣` for ≈ −3,000 plain per
+  colour once the §N1q majors shipped.
+- **§N1q `_doubles` tails** — under the still-off
+  `defense_2c_landy_strength_doubles`, responder now picks a minor over
+  `2♥ (2♠) X (XX)` instead of passing out `2♠xx`, and opener sits
+  `2♥ (2♠) X - 3m (3♠)`.  Re-measure owed; the default is byte-identical.
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
   shortness** — two knobs, built default off and **measured twice 2026-09-18,
   a non-win both times** (the third arm shipped the majors 2026-09-20 — see

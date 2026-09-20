@@ -1354,13 +1354,17 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     if strength {
         let short_major = len(Suit::Hearts, ..=1) | len(Suit::Spades, ..=1);
         let no_six = len(Suit::Clubs, ..=5) & len(Suit::Diamonds, ..=5);
-        rules = rules
-            .rule(
-                Bid::new(2, Strain::Spades),
-                177,
-                both_minors.clone() & (points(10..) | (points(8..) & short_major & no_six)),
-            )
-            .alert(LANDY_MINORS_INV);
+        // The colour gate (`defense_2c_landy_strength_nv_invite`): vulnerable,
+        // the 8-9 hand keeps the values `X` for §N1m's penalty conversion.
+        let invite = points(8..) & short_major & no_six;
+        let call = Bid::new(2, Strain::Spades);
+        rules = if agreements.competition.defense_2c_landy_strength_nv_invite {
+            let band = points(10..) | (invite & !vulnerable());
+            rules.rule(call, 177, both_minors.clone() & band)
+        } else {
+            rules.rule(call, 177, both_minors.clone() & (points(10..) | invite))
+        }
+        .alert(LANDY_MINORS_INV);
     } else if !lia {
         rules = rules
             .rule(
@@ -2935,6 +2939,17 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                     ),
                     landy_recue_answer(minor, asked),
                 ));
+                // Opener's `3NT` places the contract; unauthored, the floor
+                // pulls it to `4♣` under §N1q's regime input.
+                if agreements.competition.landy_recue_signoff {
+                    entries.extend(rows_of(
+                        Pattern::after(
+                            OVER,
+                            &format!("{completed} {} - 3NT -", Bid::new(3, Strain::from(held))),
+                        ),
+                        multi_signoff_pass(),
+                    ));
+                }
             }
             // The `4m` slam try's answer and its RKCB ladder.  The rung itself
             // has shipped since N1; only this seat is new, and without it the
@@ -3111,6 +3126,19 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         for minor in ["3♣", "3♦"] {
             sits.push(format!("2♥ (2♠) {minor} -"));
             sits.push(format!("2♥ (2♠) {minor} (3♠) - -"));
+        }
+        // The takeout `X`@120's two tails (run 3's worst `strx` boards): their
+        // redouble left responder passing out `2♠xx`, and over their `(3♠)`
+        // the floor bid opener's `4♣` into a double.  Reached only through
+        // the double, so they ride its knob.
+        if landy_strength_doubles(agreements) {
+            entries.extend(rows_of(
+                Pattern::after(OVER, "2♥ (2♠) X (XX)"),
+                landy_strength_weak_pick(),
+            ));
+            for minor in ["3♣", "3♦"] {
+                sits.push(format!("2♥ (2♠) X - {minor} (3♠)"));
+            }
         }
         for sit in sits {
             entries.extend(rows_of(Pattern::after(OVER, &sit), multi_signoff_pass()));

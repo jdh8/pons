@@ -2967,10 +2967,13 @@ stays opt-in until both are railed and re-measured on the shipped parent.
 * ~~The third arm~~ — built 2026-09-19, **measured 2026-09-20, a win in all
   four cells; `defense_2c_landy_strength_majors` shipped default-on**.
 * **The colour gate** (falsifier 2): `!vulnerable()` on the 8-9 half of `2♠`,
-  against the new default.
+  against the new default.  **Built 2026-09-21, A/B owed** — pre-registration
+  below.
 * **`_doubles`' two tails**: `2♥ (2♠) X (XX)` (responder must pick) and
-  opener's `Pass` at `2♥ (2♠) X - 3m (3♠)`; then re-measure `strx`.
-* **The shared-node rail** at `2NT - 3♣ - 3M - 3NT -`, its own A/B.
+  opener's `Pass` at `2♥ (2♠) X - 3m (3♠)`; then re-measure `strx`.  **Built
+  2026-09-21, A/B owed.**
+* **The shared-node rail** at `2NT - 3♣ - 3M - 3NT -`, its own A/B.  **Built
+  2026-09-21 as `landy_recue_signoff`, A/B owed.**
 * ~~The A/B~~ — **run 2026-09-18, measured loss; verdict above.**
 * ~~A reading gate before launch~~ — **run 2026-09-18, PASSED**.  Read at
   *opener's* seat (the four-call spelling `"1N (2C) 2S P"`; the three-call one
@@ -2980,6 +2983,79 @@ stays opt-in until both are railed and re-measured on the shipped parent.
   `X` gains a **shape** half it never had — `points 8..9 ♣..5 ♦..5` — because
   the four-four-at-8+ hand now bids `2♠`; that falls out of `bid_exclusion`, so
   no new slug and no disclosure decision, exactly as §N1p's `points 8..9` did.
+
+#### The residue arms — pre-registration (2026-09-21, A/B owed)
+
+Three independent knobs, all against the same control (`main`), so one runner
+with a shared `base` arm: `scripts/ab-landy-strength-residue.sh`, results
+`ab-results/landy-strength4`, arms `nv` / `strx` / `rail`.  They touch
+disjoint nodes and none is measured on top of another; each verdict is its own.
+
+##### `nv` — the colour gate
+
+Knob `competition.defense_2c_landy_strength_nv_invite` (default **off**, a
+modifier of the shipped majors); `bba-gen` / `probe-call-reading`
+`--ns-landy-strength-nv-invite`.  On, the
+8-9 half of the `2♠` rule carries `!vulnerable()`; ten-plus is unchanged at
+both colours.  Unit test `landy_strength_nv_invite_gates_the_invitation` pins
+the fallback: vulnerable, the 8-9 short-major hand is the values `X` again —
+not `Pass`, not a transfer.
+
+**Reading.**  Unchanged with the knob on: `2♠` → `points 8.. ♣4.. ♦4..` at
+opener's seat.  `vulnerable()` projects nothing and the probe pins `NONE`, so
+vulnerable the hull is *sound, not tight* (the truth is `10..`).  Accepted
+as-is: a colour-keyed reading is a bidding knob under a neural floor
+([reading-drift-handoff](reading-drift-handoff.md)) and would confound this
+arm; it is a follow-up only if the gate ships.
+
+**Arbiter**: plain DD.  The knob *adds doubles* (the vulnerable 8-9 hand
+returns to the values `X`), so PD is a blind column here (measurement.md,
+domain addendum).
+
+**Prediction.**  Both-vul: `X → 2♠` inverts into a `2♠ → X` cell of roughly
+the 8-9 share of run 3's 9,625 boards, and the arm gains up to **+0.0019
+plain/board**.  NV: **zero divergent boards** — the isolation gate is the
+check, and any divergence there is a build bug, not a result.
+
+**Falsifier.**  Run 3's vulnerable `X → 2♠` was −8,563 plain; the ten-plus
+remainder is what this arm leaves in place.  If that remainder (run 3's cell
+minus this arm's `2♠ → X` cell, same sign convention) is itself below −3,000
+vulnerable, the problem is opener's `2NT`@150 answer, not the band — the next
+look is a `2NT`-answer gate, not a wider colour gate.  And if `2♠ → X` reads
+plain-negative outright, §N1m's penalty machine is not what run 2's re-solve
+said it was: the gate stays off and the cell is closed as *leave it*.
+
+##### `strx` — `_doubles` with its two tails authored
+
+Inside `if landy_strength_doubles`: `2♥ (2♠) X (XX)` takes
+`landy_strength_weak_pick` (responder names its five-card minor instead of
+passing out `2♠xx`), and `2♥ (2♠) X - 3m (3♠)` takes the `Pass` rail (the floor
+bid opener's `4♣` into a double).  Test
+`landy_strength_doubles_tails_are_authored`.  **Arbiter plain** (it adds
+doubles).  Run 3 read NV +0.0004 / both-vul +0.0000 plain.  **Ship rule**: a
+plain win NV and a plain non-loss both-vul.  **Falsifier**: if the two cells
+are repaired (no `2♠xx` pass-outs, no `4♣` at that seat in the worst boards)
+and both-vul plain is still a wash, the takeout `X`@120 itself is worth
+nothing vulnerable and the knob closes as opt-in, no further tails.
+
+##### `rail` — the shared-node rail (`competition.landy_recue_signoff`)
+
+`multi_signoff_pass()` at `2NT - 3♣ - 3M - 3NT -` **and its diamond twin**
+`3♣ - 3♦ - 3M - 3NT -` (same table, same wiring loop; only the club node is
+measured evidence — −3,099 / −2,882 plain on 426 / 510 boards — so a diamond
+cell that reads negative is an over-broad trigger and gets cut).  Home is the
+N1j transfer wiring beside `landy_recue_answer`, not the `if strength` block:
+the node is unauthored under either knob state and the floor's pull to `4♣`
+arrives through the regime input.  `bba-gen --ns-landy-recue-signoff`; test
+`landy_recue_signoff_sits_the_game`.  **Flagged cost**: `3M`@150 outranks the
+`4m`@130 slam try, so a thirteen-plus six-card hand with exactly one major
+stopper cues first and now *passes* `3NT` — no slam continuation exists at that
+seat either way (an unauthored `4m` reads as nothing,
+[minor-transfer-slam](minor-transfer-slam.md)), so the rail costs only what
+the floor's `4♣` was winning there.  **Prediction**: recovers most of the ≈
++3,000 plain per colour, PD same sign.  **Falsifier**: if `4♣ → -` reads
+plain-negative on the thirteen-plus six-card subset by more than the rest
+gains, the seat wants a `4m` rung with an authored answer, not a rail.
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 

@@ -1597,6 +1597,27 @@ pub struct CompetitionKnobs {
     /// a wash both-vul (PD +0.0003 / −0.0001), with two tails still unauthored
     /// — `2♥ (2♠) X (XX)` and opener's seat at `2♥ (2♠) X - 3m (3♠)`.
     pub defense_2c_landy_strength_doubles: bool,
+    /// Gate the 8-9 half of the §N1q `2♠` to non-vulnerable
+    ///
+    /// A modifier of [`Self::defense_2c_landy_strength_majors`], measured as
+    /// its own arm.  Run 3's vulnerable `X → 2♠` cell read −8,563 plain on
+    /// 9,625 boards: vulnerable, the 8-9 short-major hand is worth more as the
+    /// values `X` feeding §N1m's penalty conversion than as a both-minors
+    /// takeout.  On, that half of the rule carries `!vulnerable()` and the
+    /// hand falls back to the ladder's `X`; ten-plus is unchanged at both
+    /// colours.  **Off by default** (A/B owed).
+    pub defense_2c_landy_strength_nv_invite: bool,
+    /// Responder sits opener's `3NT` answer to its stopper cue
+    /// (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -`, and the diamond twin)
+    ///
+    /// The seat is unauthored, and with §N1q's majors on (the default since
+    /// 2026-09-20) the floor pulls the `3NT` to `4♣` — 426 / 510 boards at
+    /// −3,099 / −2,882 plain, identical across §N1q's three runs.  The knob is
+    /// not in the book there: the floor reads it through its regime input
+    /// (`docs/ai-bidder/card-manifold.md`).  On, a `Pass` rail owns the seat:
+    /// responder cued the stopper it holds and opener supplied the other.
+    /// **Off by default** (A/B owed).
+    pub landy_recue_signoff: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia, package A — **on** preserves the shipped `px` arm)
     ///
@@ -1844,6 +1865,8 @@ impl Default for CompetitionKnobs {
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,
             defense_2c_landy_strength_doubles: false,
+            defense_2c_landy_strength_nv_invite: false,
+            landy_recue_signoff: false,
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,
             landy_doubler_three_small: true,

@@ -984,6 +984,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_strength_doubles: bool,
 
+    /// Gate the 8-9 half of the §N1q `2♠` to non-vulnerable
+    ///
+    /// `competition.defense_2c_landy_strength_nv_invite`, default **off** and
+    /// a modifier of the §N1q majors.
+    #[arg(long, default_value_t = false)]
+    ns_landy_strength_nv_invite: bool,
+
+    /// Responder sits opener's `3NT` answer to its Landy stopper cue
+    /// (`competition.landy_recue_signoff`, default off)
+    #[arg(long, default_value_t = false)]
+    ns_landy_recue_signoff: bool,
+
     /// Restore the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia package A's historical `px` arm)
     ///
@@ -2518,6 +2530,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;
     agreements.competition.defense_2c_landy_strength_doubles = args.ns_landy_strength_doubles;
+    agreements.competition.defense_2c_landy_strength_nv_invite = args.ns_landy_strength_nv_invite;
+    agreements.competition.landy_recue_signoff = args.ns_landy_recue_signoff;
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
     agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;

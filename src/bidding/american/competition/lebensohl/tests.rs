@@ -2582,6 +2582,108 @@ fn landy_strength_sorts_the_two_level_majors() {
     assert_eq!(c, call(3, Strain::Hearts));
 }
 
+/// §N1q's colour gate: vulnerable, the 8-9 short-major hand is the values `X`
+///
+/// `competition.defense_2c_landy_strength_nv_invite`, default off (A/B owed).
+#[test]
+fn landy_strength_nv_invite_gates_the_invitation() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let mut gated = landy_strength_arm(false);
+    gated.competition.defense_2c_landy_strength_nv_invite = true;
+    let open = landy_strength_arm(false);
+
+    let inv = "4.K432.QJ32.Q432";
+    let gf = "K43.Q4.KJ32.A432";
+    for vul in [RelativeVulnerability::NONE, RelativeVulnerability::WE] {
+        let red = vul == RelativeVulnerability::WE;
+        assert_eq!(
+            best_call_vul(&gated, vul, &direct, inv),
+            if red {
+                Call::Double
+            } else {
+                call(2, Strain::Spades)
+            },
+            "the gated invitation is `X` again vulnerable, not Pass or a transfer",
+        );
+        assert_eq!(
+            best_call_vul(&open, vul, &direct, inv),
+            call(2, Strain::Spades)
+        );
+        assert_eq!(
+            best_call_vul(&gated, vul, &direct, gf),
+            call(2, Strain::Spades),
+            "ten-plus is unchanged at both colours",
+        );
+    }
+}
+
+/// `_doubles`' two tails: responder picks over their redouble, opener sits
+/// over their `(3♠)` above the pick
+#[test]
+fn landy_strength_doubles_tails_are_authored() {
+    let doubled = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+        Call::Double,
+    ];
+    let redoubled: Vec<Call> = doubled.iter().copied().chain([Call::Redouble]).collect();
+    let (c, floored) = bid_landy_strength(true, &redoubled, "32.43.K5432.Q432");
+    assert_eq!(c, call(3, Strain::Diamonds), "the pick, not 2♠xx");
+    assert!(!floored);
+    let (c, _) = bid_landy_strength(true, &redoubled, "32.43.K432.Q5432");
+    assert_eq!(c, call(3, Strain::Clubs));
+
+    for minor in [Strain::Clubs, Strain::Diamonds] {
+        let auction: Vec<Call> = doubled
+            .iter()
+            .copied()
+            .chain([Call::Pass, call(3, minor), call(3, Strain::Spades)])
+            .collect();
+        let (c, floored) = bid_landy_strength(true, &auction, "432.AQ4.KQ32.AJ2");
+        assert_eq!(c, Call::Pass, "{auction:?}");
+        assert!(!floored, "{auction:?} must sit from the book");
+    }
+}
+
+/// The shared-node rail: responder sits opener's `3NT` answer to its cue
+///
+/// `competition.landy_recue_signoff`, default off (A/B owed).
+#[test]
+fn landy_recue_signoff_sits_the_game() {
+    let mut arm = landy_strength_arm(false);
+    arm.competition.landy_recue_signoff = true;
+    for (transfer, done) in [
+        (call(2, Strain::Notrump), call(3, Strain::Clubs)),
+        (call(3, Strain::Clubs), call(3, Strain::Diamonds)),
+    ] {
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            transfer,
+            Call::Pass,
+            done,
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        let hand = if done == call(3, Strain::Clubs) {
+            "432.AQ.43.KJ5432"
+        } else {
+            "432.AQ.KJ5432.43"
+        };
+        let (c, floored) = best_call_with(&arm, &auction, hand);
+        assert_eq!(c, Call::Pass, "{auction:?}");
+        assert!(!floored, "{auction:?} must sit from the book");
+        let (_, floored) = best_call_with(&landy_strength_arm(false), &auction, hand);
+        assert!(floored, "off, the seat is the floor's");
+    }
+}
+
 /// §N1q's answer tables: minors only over the weak rung, size over the strong
 #[test]
 fn landy_strength_answers_split_by_band() {
