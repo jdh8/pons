@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Benchmarks
 
+- **Bidding speed versus BBA (2026-09-20, `6e77c369`)**: the shipping M32 v6
+  engine takes 23.164 / 22.420 µs per decision on the Ryzen 7950X3D's V-cache /
+  frequency CCD, versus wrapper-inclusive BBA's 159.419 / 200.059 µs
+  (**6.88× / 8.92× faster**). Fixed 512-position corpus, two warmups and ten
+  measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
+  and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
+  Protocol and limitations: `docs/bidding-performance-handoff.md`.
 - **BBA re-anchor (2026-09-20, `c3bb94a7`)**: shipping `american()` scores
   **−0.5367 plain / −0.4230 perfect-defense IMPs/board**; deterministic
   `american_instinct()` scores −0.9922 / −1.1197. Four cells of 204,800 boards,

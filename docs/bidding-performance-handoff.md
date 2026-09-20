@@ -8,6 +8,43 @@
 
 ## Summary
 
+### Current shipping speed versus BBA (2026-09-20)
+
+Revision `6e77c369` (bidding code `c3bb94a7`, shipped M32 v6), BBA submodule
+`2969bbf9`, Rust 1.98.1, Ryzen 9 7950X3D. Ran
+`scripts/idle-run.sh scripts/bench-bidding-performance.sh`: CPUs 4 and 14
+sequentially, SMT sibling checks enabled, two warmups and ten measured
+repetitions, eight traversals of the same frozen 512-position corpus per
+repetition. Half the positions come from each engine, balanced across auction
+depths 2/4/8/12. Partnership construction is outside Pons timing; BBA is
+**wrapper-inclusive**, constructing a bot and replaying the prefix per decision.
+
+| Metric | CPU 4, 96 MB V-cache CCD | CPU 14, 32 MB frequency CCD |
+| --- | ---: | ---: |
+| Pons median decision | 23.164 µs | 22.420 µs |
+| Wrapped BBA median decision | 159.419 µs | 200.059 µs |
+| BBA/Pons median-time speedup | 6.88× | 8.92× |
+| Pons decisions/s (inverse median) | 43,170 | 44,603 |
+| Paired Pons/BBA time ratio, 95% CI | 0.1437–0.1463 | 0.1101–0.1127 |
+| Pons / BBA timing CV | 0.77% / 0.68% | 1.15% / 0.88% |
+| Pons whole-deal median | 154.456 µs | 148.002 µs |
+| Pons deals/s (inverse median) | 6,474 | 6,757 |
+
+Whole-deal timing uses 64 seeded self-play deals (`seed=1`), balanced dealers
+and vulnerabilities; it is not a BBA whole-deal comparison. Cached/legacy
+hot-position and whole-auction parity passed, both cache speed gates passed,
+and every timing CV was below 2%. Rust allocations were 49.816 allocations /
+8,737.0 requested bytes per Pons decision. Hardware counters were unavailable;
+the allocation counter does not observe native BBA allocations.
+
+The August Stage-6 timings below are historical, not a same-session regression
+control: the intervening bidding/readings/net changes and machine conditions
+are not isolated by this run. This benchmark measures today's shipping engine
+against BBA; it does not attribute a timing delta to the net alone.
+Raw log: `ab-results/speed-2026-09-20-6e77c369.log` (untracked).
+
+### Original recovery objective
+
 Recover Pons’s bidding throughput without disabling accountant, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
 
 Pre-stage-2 pinned-core baseline:
