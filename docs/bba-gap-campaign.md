@@ -1,7 +1,7 @@
 # The BBA gap campaign — the pons↔BBA anchor and its bucket ranking
 
-**Standing at M32 `daa8bf4a` (2026-09-14 Taipei; snapshot dated 2026-09-13 UTC):
-−0.537 plain / −0.424 PD IMPs/board for
+**Standing at M32 `c3bb94a7` (2026-09-20):
+−0.537 plain / −0.423 PD IMPs/board for
 what ships (`american()`), −0.992 / −1.120 for the deterministic side
 (`american_instinct()`) whose buckets the series decomposes.** Persistent seed
 `1783375064`, 204,800 boards per vulnerability per arm, all four arms replay
@@ -171,7 +171,7 @@ guarded fallback at depth d, `floor` (shipping arm) the net's off-book call.
 `boards.jsonl`'s `board` is an index within its shard, paired with that shard's
 `seed`; the emitted actor `hand` (S.H.D.C) is canonical.
 
-## Current ranking (`daa8bf4a`, 2026-09-14 Taipei)
+## Current ranking (`c3bb94a7`, 2026-09-20)
 
 **Instinct arm** — the decompose series (`boards` = contract-divergent).
 The previous caption said auction-divergent; the report excludes same-contract
@@ -179,8 +179,8 @@ divergences, as described in rule 6. No ranking method changed.
 
 | # | bucket | boards | plain | /div | PD | /div | lane |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Defensive / book / round-1 | 47,808 | −67,886 | −1.42 | −81,788 | −1.71 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
-| 2 | Constructive / book / opening | 53,312 | −61,653 | −1.16 | −43,726 | −0.82 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
+| 1 | Defensive / book / round-1 | 47,810 | −67,840 | −1.42 | −81,725 | −1.71 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
+| 2 | Constructive / book / opening | 53,312 | −61,600 | −1.16 | −43,617 | −0.82 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
 | 3 | Competitive / book / round-1 | 15,339 | −34,729 | −2.26 | −38,304 | −2.50 | [one-notrump-competitive.md](one-notrump-competitive.md) — totals unchanged from `3237e037` |
 | 4 | Constructive / book / round-2 | 35,820 | −34,620 | −0.97 | −40,039 | −1.12 | mined: extras ladder + major jump-rebid shipped; residual is RKCB slam accuracy |
 | 5 | Constructive / book / round-1 | 25,310 | −27,083 | −1.07 | −33,932 | −1.34 | mined: `1♥ → 1♠` compression is a measured null; splinter-slam residual |
@@ -188,31 +188,31 @@ divergences, as described in rule 6. No ranking method changed.
 | 7 | Competitive / book / round-2 | 7,351 | −14,562 | −1.98 | −18,017 | −2.45 | [competitive-book.md](competitive-book.md) |
 | 8 | Defensive / floor#3 / round-1 | 6,195 | −14,288 | −2.31 | −7,889 | −1.27 | as 6 |
 
-By phase: Defensive −164,866 (101,521 bd) > Constructive −130,340 (128,730) >
-Competitive −111,286 (50,116). By provenance: `book` −247,326, `floor#3` −55,690,
+By phase: Defensive −164,837 (101,525 bd) > Constructive −130,287 (128,730) >
+Competitive −111,286 (50,116). By provenance: `book` −247,244, `floor#3` −55,690,
 `floor#382` −15,213, nothing else below −8k. The top two have held their order
 since the first anchor; the top eight retain their `3237e037` order. Only the
-first two buckets' totals changed in this window (+19 / −9 and −7 / −18
-plain / PD IMPs respectively).
+first two of these eight buckets changed in this window (+46 / +63 and
++53 / +109 plain / PD IMPs respectively, versus `daa8bf4a`).
 
 **Shipping arm** (`american()`):
 
 | # | bucket | boards | plain | /div | PD | /div |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Constructive / book / opening | 53,425 | −38,794 | −0.73 | −14,116 | −0.26 |
+| 1 | Constructive / book / opening | 53,425 | −38,753 | −0.73 | −14,030 | −0.26 |
 | 2 | Constructive / book / round-2 | 37,116 | −38,128 | −1.03 | −45,145 | −1.22 |
-| 3 | Defensive / book / round-1 | 47,751 | −28,322 | −0.59 | −31,945 | −0.67 |
+| 3 | Defensive / book / round-1 | 47,765 | −28,230 | −0.59 | −31,802 | −0.67 |
 | 4 | Constructive / book / round-1 | 25,679 | −22,262 | −0.87 | −24,503 | −0.95 |
 | 5 | Defensive / floor / round-2 | 19,048 | −20,203 | −1.06 | −13,321 | −0.70 |
 | 6 | Competitive / book / round-1 | 14,702 | −15,773 | −1.07 | −9,546 | −0.65 |
 | 7 | Competitive / floor / round-2 | 11,208 | −11,445 | −1.02 | −7,637 | −0.68 |
 | 8 | Defensive / floor / round-1 | 13,293 | −9,771 | −0.74 | −4,500 | −0.34 |
 
-By phase: Constructive −105,706 > Defensive −69,060 > Competitive −45,195; by
-provenance `book` −155,512, `floor` −52,797. The net floor more than halves
-def-r1 (−67.9k → −28.3k plain). The shipped head is now constructive on both
+By phase: Constructive −105,665 > Defensive −68,979 > Competitive −45,195; by
+provenance `book` −155,390, `floor` −52,797. The net floor more than halves
+def-r1 (−67.8k → −28.2k plain). The shipped head remains constructive on both
 scorers: opening is #1 by plain DD, round-2 is #1 by PD (−45,145), ahead of
-def-r1 (−31,945). The instinct arm still has def-r1 #1 on both scorers.
+def-r1 (−31,802). The instinct arm still has def-r1 #1 on both scorers.
 Auction divergence vs BBA: 89% (instinct) / 88–87% (shipping).
 
 **The net floor's paired worth** (`ab-dump-diff`, `american` −
@@ -227,6 +227,13 @@ Auction divergence vs BBA: 89% (instinct) / 88–87% (shipping).
 | v6 | `c5fbee11` | paired | +0.246 | +0.307 |
 | v6 | `3237e037` | paired | +0.246 | +0.307 |
 | M32 v6 | `daa8bf4a` | paired | +0.236 | +0.353 |
+| M32 v6 | `c3bb94a7` | paired | +0.236 | +0.353 |
+
+Latest cells at `c3bb94a7` (2026-09-20): +0.2102 ±0.0138 / +0.2921 ±0.0164
+NV (56,676/204,800 fired, 27.67%; +0.760 / +1.056 IMPs/fired),
++0.2622 ±0.0174 / +0.4129 ±0.0204 vul (53,501/204,800 fired, 26.12%;
++1.004 / +1.580 IMPs/fired). Pooled +0.2362 plain / +0.3525 PD, essentially
+unchanged from the previous anchor. These compare both floors at the same HEAD.
 
 M32 v6 cells at `daa8bf4a`: +0.2103 ±0.0138 / +0.2921 ±0.0164 NV
 (56,701/204,800 fired, 27.69%; +0.760 / +1.055 IMPs/fired),
@@ -267,6 +274,18 @@ at `62cf5c5`); replay 100% unless noted.
 | 08-25 | `c5fbee11` | −0.994 / −1.121 | −0.526 / −0.526 | 55 commits, and **one bucket** accounts for all of it: def-r1 +1,464 plain / +3,958 PD (+0.0036 / +0.0097 per board vs headline deltas +0.0026 / +0.0101), which is the `(1NT) 2x` M1+M2 overcall ship. N3, N4e, N4-KK, the reading repairs and the mirror book are all below anchor resolution |
 | 08-27 | `3237e037` | −0.992 / −1.120 | −0.525 / −0.525 | N4-KK's answer table (the doubler's other major, the two notrump outs) + the 1NT minor-transfer slam tries. Paired to `c5fbee11` on the same boards: **305 of 409,600 boards changed auction** (0.07%), worth +601 plain / +514 PD on the instinct arm, and joining the two `boards.jsonl` on those boards attributes *all* of it — 1NT minor-transfer `4m` slam try 263 bd +441 / +419, N4-KK `1NT (2♦) X` 37 bd +143 / +74, other `1NT (2♦)` 5 bd +17 / +21. Every competitive bucket is byte-identical. Two things this pins: **PDI, `union_hull` and the latch detector changed zero boards** in 819,200 table-auctions (their inert A/Bs confirmed at anchor scale), and the K–K lane's ceiling is structural — `1NT (2♦)` fires on 1.17% of table-auctions, `1NT (2♦) X` on 0.29%, its answer table on 0.06%, so no N4-KK ship can ever clear the ±0.02 headline CI |
 | 09-14 Taipei (09-13 UTC snapshot) | `daa8bf4a` | −0.992 / −1.120 | −0.537 / −0.424 | M32 promoted; all four arms replay 100.00% / 0 mismatches. Window versus `3237e037`: instinct +12 / −27 total IMPs (effectively flat), shipping −5,045 / +41,415 (−0.0123 / +0.1011 per board). Shipping opening becomes #1 plain, constructive round-2 #1 PD. This is the whole anchor window, not an isolated M32 effect; its ship evidence is in [logit-calibration.md §6](ai-bidder/logit-calibration.md#6-ledger). Snapshot `ab-results/anchor/2026-09-13-daa8bf4a/`. |
+| 09-20 | `c3bb94a7` | −0.992 / −1.120 | −0.537 / −0.423 | Re-anchor after the Landy book changes; the shipped M32 v6 weights are unchanged since `daa8bf4a`. All four arms replay 100.00% / 0 mismatches. Window: instinct +82 / +155 total IMPs, shipping +122 / +218 (+0.00030 / +0.00053 per board), effectively flat; top-eight rankings unchanged. Snapshot `ab-results/anchor/2026-09-20-c3bb94a7/`. |
+
+September 20 shipping cells (204,800 boards each; 95% CIs):
+
+| vulnerability | plain IMPs/board | PD IMPs/board | contract-divergent |
+| --- | --- | --- | --- |
+| none | −0.4950 [−0.5157, −0.4743] | −0.3572 [−0.3812, −0.3331] | 137,639 (67.21%) |
+| both | −0.5784 [−0.6046, −0.5522] | −0.4888 [−0.5192, −0.4585] | 135,380 (66.10%) |
+
+This is a longitudinal benchmark of the current defaults, not an isolated net
+retrain A/B or a new ship verdict. BBA submodule `2969bbf9`; generated disclosure;
+32 shards × 6,400 boards per cell, persistent seed `1783375064`.
 
 ## Worked buckets (verdicts; the prose is in the archive)
 

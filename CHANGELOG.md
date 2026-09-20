@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Benchmarks
+
+- **BBA re-anchor (2026-09-20, `c3bb94a7`)**: shipping `american()` scores
+  **−0.5367 plain / −0.4230 perfect-defense IMPs/board**; deterministic
+  `american_instinct()` scores −0.9922 / −1.1197. Four cells of 204,800 boards,
+  seed `1783375064`, generated disclosure, all replayed at 100% with zero
+  mismatches. Shipping improves just +0.00030 / +0.00053 versus `daa8bf4a`;
+  the top-eight loss rankings are unchanged. M32 v6 weights are unchanged
+  since that snapshot, so this measures the intervening engine/book window,
+  not a new net in isolation. The same-HEAD paired net gain over instinct is
+  +0.2362 plain / +0.3525 PD IMPs/board. Full cells and ranking:
+  `docs/bba-gap-campaign.md`.
+
 ### Added
 
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
