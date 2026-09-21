@@ -976,13 +976,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_strength: bool,
 
-    /// Author opener's doubles in the §N1q lane
+    /// Turn off opener's doubles in the §N1q lane
     ///
-    /// `competition.defense_2c_landy_strength_doubles`, default **off** and a
+    /// `competition.defense_2c_landy_strength_doubles`, default **on** since
+    /// 2026-09-21 and a
     /// modifier of the §N1q majors: takeout `X`@120 over their `(2♠)`
     /// raise of our weak `2♥`, penalty `X`@140 over their raise of our `2♠`.
     #[arg(long, default_value_t = false)]
-    ns_landy_strength_doubles: bool,
+    no_ns_landy_strength_doubles: bool,
 
     /// Gate the 8-9 half of the §N1q `2♠` to non-vulnerable
     ///
@@ -991,10 +992,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_strength_nv_invite: bool,
 
-    /// Responder sits opener's `3NT` answer to its Landy stopper cue
-    /// (`competition.landy_recue_signoff`, default off)
+    /// Turn off responder's sit of opener's `3NT` answer to its Landy stopper
+    /// cue (`competition.landy_recue_signoff`, default on since 2026-09-21)
     #[arg(long, default_value_t = false)]
-    ns_landy_recue_signoff: bool,
+    no_ns_landy_recue_signoff: bool,
 
     /// Restore the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia package A's historical `px` arm)
@@ -2529,9 +2530,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;
-    agreements.competition.defense_2c_landy_strength_doubles = args.ns_landy_strength_doubles;
+    agreements.competition.defense_2c_landy_strength_doubles = !args.no_ns_landy_strength_doubles;
     agreements.competition.defense_2c_landy_strength_nv_invite = args.ns_landy_strength_nv_invite;
-    agreements.competition.landy_recue_signoff = args.ns_landy_recue_signoff;
+    agreements.competition.landy_recue_signoff = !args.no_ns_landy_recue_signoff;
     agreements.competition.landy_doubler_catchall = args.ns_landy_doubler_catchall;
     agreements.competition.landy_doubler_three_honors = !args.no_ns_landy_doubler_three_honors;
     agreements.competition.landy_doubler_three_small = !args.no_ns_landy_doubler_three_small;

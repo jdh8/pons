@@ -1355,11 +1355,13 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
         let short_major = len(Suit::Hearts, ..=1) | len(Suit::Spades, ..=1);
         let no_six = len(Suit::Clubs, ..=5) & len(Suit::Diamonds, ..=5);
         // The colour gate (`defense_2c_landy_strength_nv_invite`): vulnerable,
-        // the 8-9 hand keeps the values `X` for §N1m's penalty conversion.
+        // the 8-9 hand keeps the values `X` for §N1m's penalty conversion —
+        // but only a hand the `X`@145 (`hcp(8..)`) will take: run 4 gated on
+        // `points` alone and 9,529 seven-count shape hands fell to `Pass`.
         let invite = points(8..) & short_major & no_six;
         let call = Bid::new(2, Strain::Spades);
         rules = if agreements.competition.defense_2c_landy_strength_nv_invite {
-            let band = points(10..) | (invite & !vulnerable());
+            let band = points(10..) | (invite & (!vulnerable() | hcp(..=7)));
             rules.rule(call, 177, both_minors.clone() & band)
         } else {
             rules.rule(call, 177, both_minors.clone() & (points(10..) | invite))

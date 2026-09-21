@@ -30,24 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **§N1q colour gate** — `competition.defense_2c_landy_strength_nv_invite`
-  (default **off**, A/B owed; `bba-gen` / `probe-call-reading`
+  (default **off**; `bba-gen` / `probe-call-reading`
   `--ns-landy-strength-nv-invite`, runner
   `scripts/ab-landy-strength-residue.sh`).
-  On, the 8-9 half of the strength-sorted `2♠` carries `!vulnerable()`, so the
-  vulnerable short-major eight-count returns to the values `X` that feeds
-  §N1m's penalty conversion — the cell that read −8,563 plain inside run 3's
-  win.  Ten-plus and the non-vulnerable table are unchanged; the default system
-  is byte-identical.  Pre-registration in `docs/one-notrump-competitive.md`
-  §N1q.
-- **§N1q shared-node rail** — `competition.landy_recue_signoff` (default
-  **off**, A/B owed; `--ns-landy-recue-signoff`): responder passes opener's
-  `3NT` answer to its stopper cue (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -` and the
-  diamond twin), a seat where the floor pulled to `4♣` for ≈ −3,000 plain per
-  colour once the §N1q majors shipped.
-- **§N1q `_doubles` tails** — under the still-off
-  `defense_2c_landy_strength_doubles`, responder now picks a minor over
-  `2♥ (2♠) X (XX)` instead of passing out `2♠xx`, and opener sits
-  `2♥ (2♠) X - 3m (3♠)`.  Re-measure owed; the default is byte-identical.
+  On, the vulnerable 8-9 short-major hand **with 8+ HCP** returns from the
+  strength-sorted `2♠` to the values `X` that feeds §N1m's penalty conversion.
+  Run 4 (2026-09-21) confirmed the cell — `2♠ → X` **+9,238 ±1,609 plain** on
+  9,550 both-vul boards — and exposed a build defect that cancelled it: the
+  gate cut on `points` while the `X` wants `hcp(8..)`, so 9,529 seven-counts
+  fell to `Pass` (−9,234).  Repaired (`| hcp(..=7)`); the `nv2` A/B is owed and
+  the default system is byte-identical.
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
   shortness** — two knobs, built default off and **measured twice 2026-09-18,
   a non-win both times** (the third arm shipped the majors 2026-09-20 — see
@@ -166,6 +158,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/ai-bidder/logit-calibration.md` §6.
 
 ### Changed
+
+- **§N1q residue: `landy_recue_signoff` and
+  `defense_2c_landy_strength_doubles` ship default-on (2026-09-21).**  Run 4
+  (`ab-results/landy-strength4`, seed 1789929046, 4.608M bd/arm/vul, gates 0
+  foreign).  *The rail*: responder passes opener's `3NT` answer to its stopper
+  cue (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -` and the diamond twin) instead of the
+  floor pulling to `4♣` — plain **+0.00116 ±0.00013 both-vul / +0.00095
+  ±0.00012 NV** (+5.3 / +3.7 IMPs per fired), PD +0.00134 / +0.00117, sd-lead
+  agreeing.  *The doubles*, now with `2♥ (2♠) X (XX)` and
+  `2♥ (2♠) X - 3m (3♠)` authored: plain **+0.00010 ±0.00010 NV**, +0.00004
+  ±0.00010 both-vul (non-loss), sd-lead positive in all four columns; zero
+  `2♠xx` pass-outs.  `--ns-landy-recue-signoff` and
+  `--ns-landy-strength-doubles` become `--no-ns-…`; `alert-sites.txt`
+  re-blessed (`comp:landy-penalty` 56 → 64); cards unchanged.
 
 - **§N1q: the Landy counter's strength-sorted two-level majors SHIP
   DEFAULT-ON** (`competition.defense_2c_landy_strength_majors`, 2026-09-20) on

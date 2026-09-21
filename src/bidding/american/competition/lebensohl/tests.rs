@@ -2615,6 +2615,11 @@ fn landy_strength_nv_invite_gates_the_invitation() {
             call(2, Strain::Spades),
             "ten-plus is unchanged at both colours",
         );
+        assert_eq!(
+            best_call_vul(&gated, vul, &direct, "4.K432.QJ32.J432"),
+            call(2, Strain::Spades),
+            "a seven-count the `X` refuses is not gated (run 4: it fell to Pass)",
+        );
     }
 }
 
@@ -2679,8 +2684,10 @@ fn landy_recue_signoff_sits_the_game() {
         let (c, floored) = best_call_with(&arm, &auction, hand);
         assert_eq!(c, Call::Pass, "{auction:?}");
         assert!(!floored, "{auction:?} must sit from the book");
-        let (_, floored) = best_call_with(&landy_strength_arm(false), &auction, hand);
+        arm.competition.landy_recue_signoff = false;
+        let (_, floored) = best_call_with(&arm, &auction, hand);
         assert!(floored, "off, the seat is the floor's");
+        arm.competition.landy_recue_signoff = true;
     }
 }
 

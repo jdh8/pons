@@ -244,9 +244,11 @@ for v in none both; do
     # The knob ships on since 2026-09-20, so the control arm is the one that
     # names it (`--no-ns-landy-strength`); runs 1-3 spelled `str` with the
     # retired `--ns-landy-strength`.
+    # `_doubles` ships on since 2026-09-21 too, so `str` names it off and
+    # `strx` is plain default.
     arm base "$v" --filter-landy --no-ns-landy-strength
-    arm str  "$v" --filter-landy
-    arm strx "$v" --filter-landy --ns-landy-strength-doubles
+    arm str  "$v" --filter-landy --no-ns-landy-strength-doubles
+    arm strx "$v" --filter-landy
 
     gatepair str  base "$v"
     gatepair strx str  "$v"

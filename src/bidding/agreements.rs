@@ -1593,9 +1593,10 @@ pub struct CompetitionKnobs {
     /// four-plus of the major they raised.  The polarity is the lane's house
     /// rule and nothing mechanises it, so both are authored as explicit rules
     /// (`docs/pdi.md`).  Off, both seats keep only the picks and the `Pass`@0.
-    /// **Off by default**: on the shipped parent it read plain +0.0004 NV and
-    /// a wash both-vul (PD +0.0003 / −0.0001), with two tails still unauthored
-    /// — `2♥ (2♠) X (XX)` and opener's seat at `2♥ (2♠) X - 3m (3♠)`.
+    /// **On by default since 2026-09-21**: with its two tails authored
+    /// (`2♥ (2♠) X (XX)` and opener's seat at `2♥ (2♠) X - 3m (3♠)`) it read
+    /// plain +0.00010 ±0.00010 NV and +0.00004 ±0.00010 both-vul, sd-lead
+    /// positive in all four cells (run 4, `ab-results/landy-strength4`).
     pub defense_2c_landy_strength_doubles: bool,
     /// Gate the 8-9 half of the §N1q `2♠` to non-vulnerable
     ///
@@ -1605,7 +1606,10 @@ pub struct CompetitionKnobs {
     /// values `X` feeding §N1m's penalty conversion than as a both-minors
     /// takeout.  On, that half of the rule carries `!vulnerable()` and the
     /// hand falls back to the ladder's `X`; ten-plus is unchanged at both
-    /// colours.  **Off by default** (A/B owed).
+    /// colours, and so is a hand under 8 HCP, which the `X` (`hcp(8..)`)
+    /// would refuse — run 4 gated on `points` alone and the `2♠ → X` cell's
+    /// +9,238 plain was cancelled by 9,529 seven-counts falling to `Pass`.
+    /// **Off by default** (the repaired arm's A/B is owed).
     pub defense_2c_landy_strength_nv_invite: bool,
     /// Responder sits opener's `3NT` answer to its stopper cue
     /// (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -`, and the diamond twin)
@@ -1616,7 +1620,8 @@ pub struct CompetitionKnobs {
     /// not in the book there: the floor reads it through its regime input
     /// (`docs/ai-bidder/card-manifold.md`).  On, a `Pass` rail owns the seat:
     /// responder cued the stopper it holds and opener supplied the other.
-    /// **Off by default** (A/B owed).
+    /// **On by default since 2026-09-21**: plain +0.0012 both-vul / +0.0009 NV,
+    /// PD +0.0013 / +0.0012, sd-lead agreeing (run 4).
     pub landy_recue_signoff: bool,
     /// Keep the `Pass`@0 catch-all on the Landy doubler's rebid ladder
     /// (§N1-lia, package A — **on** preserves the shipped `px` arm)
@@ -1864,9 +1869,9 @@ impl Default for CompetitionKnobs {
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,
-            defense_2c_landy_strength_doubles: false,
+            defense_2c_landy_strength_doubles: true,
             defense_2c_landy_strength_nv_invite: false,
-            landy_recue_signoff: false,
+            landy_recue_signoff: true,
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,
             landy_doubler_three_small: true,
