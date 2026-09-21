@@ -125,10 +125,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_strength_doubles: bool,
 
-    /// Gate the 8-9 half of the §N1q `2♠` to non-vulnerable
+    /// Turn off the non-vulnerable gate on the 8-9 half of the §N1q `2♠`
     /// (`competition.defense_2c_landy_strength_nv_invite`)
     #[arg(long, default_value_t = false)]
-    ns_landy_strength_nv_invite: bool,
+    no_ns_landy_strength_nv_invite: bool,
 
     /// Turn off responder's sit of opener's `3NT` answer to its Landy stopper
     /// cue (`competition.landy_recue_signoff`, default on since 2026-09-21)
@@ -281,7 +281,8 @@ fn main() {
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;
     agreements.competition.defense_2c_landy_strength_doubles = !args.no_ns_landy_strength_doubles;
-    agreements.competition.defense_2c_landy_strength_nv_invite = args.ns_landy_strength_nv_invite;
+    agreements.competition.defense_2c_landy_strength_nv_invite =
+        !args.no_ns_landy_strength_nv_invite;
     agreements.competition.landy_recue_signoff = !args.no_ns_landy_recue_signoff;
     // The 2026-09-02 pre-launch review lost an afternoon to this flag probing
     // the wrong lane; warn instead of silently answering from the rebase.

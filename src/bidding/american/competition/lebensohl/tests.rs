@@ -2584,14 +2584,14 @@ fn landy_strength_sorts_the_two_level_majors() {
 
 /// §N1q's colour gate: vulnerable, the 8-9 short-major hand is the values `X`
 ///
-/// `competition.defense_2c_landy_strength_nv_invite`, default off (A/B owed).
+/// `competition.defense_2c_landy_strength_nv_invite`, default on since 2026-09-21.
 #[test]
 fn landy_strength_nv_invite_gates_the_invitation() {
     use contract_bridge::auction::RelativeVulnerability;
     let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
-    let mut gated = landy_strength_arm(false);
-    gated.competition.defense_2c_landy_strength_nv_invite = true;
-    let open = landy_strength_arm(false);
+    let gated = landy_strength_arm(false);
+    let mut open = landy_strength_arm(false);
+    open.competition.defense_2c_landy_strength_nv_invite = false;
 
     let inv = "4.K432.QJ32.Q432";
     let gf = "K43.Q4.KJ32.A432";

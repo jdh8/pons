@@ -1609,7 +1609,9 @@ pub struct CompetitionKnobs {
     /// colours, and so is a hand under 8 HCP, which the `X` (`hcp(8..)`)
     /// would refuse — run 4 gated on `points` alone and the `2♠ → X` cell's
     /// +9,238 plain was cancelled by 9,529 seven-counts falling to `Pass`.
-    /// **Off by default** (the repaired arm's A/B is owed).
+    /// **On by default since 2026-09-21**: the repaired arm read plain +0.0018
+    /// ±0.0003 both-vul on 9,623 boards, PD a wash, sd-lead plain +0.0013
+    /// ±0.0004 (run 5, `ab-results/landy-strength5`).
     pub defense_2c_landy_strength_nv_invite: bool,
     /// Responder sits opener's `3NT` answer to its stopper cue
     /// (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -`, and the diamond twin)
@@ -1870,7 +1872,7 @@ impl Default for CompetitionKnobs {
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,
             defense_2c_landy_strength_doubles: true,
-            defense_2c_landy_strength_nv_invite: false,
+            defense_2c_landy_strength_nv_invite: true,
             landy_recue_signoff: true,
             landy_doubler_catchall: false,
             landy_doubler_three_honors: true,

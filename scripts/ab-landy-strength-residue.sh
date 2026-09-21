@@ -38,6 +38,12 @@
 # here is the *new* `main`, and the old arms are spelled with `--no-…` on the
 # control side.  Runs 5+ build only `base2` / `nv2`, both-vul first.
 #
+# RUN 5 VERDICT (2026-09-21, ab-results/landy-strength5, seed 1789977169):
+#   nv2   SHIPPED default-on.  both-vul plain +0.0018 ±0.0003 on 9,623 boards,
+#         PD +0.0000 ±0.0004; sd-lead plain +0.0013 ±0.0004 (falsifier: CI-clear
+#         negative — did not fire); NV 0 divergent.  The flag flipped with it:
+#         `base2` now carries `--no-ns-landy-strength-nv-invite`.
+#
 R=${1:?usage: ab-landy-strength-residue.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -48,8 +54,8 @@ log "=== landy-strength-residue SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $
 # Run 4's arms (`nv` / `strx` / `rail` against `base`) are retired with the
 # flip: their ON flags no longer exist.  The run-4 loop is in git at a28d2784.
 for v in both none; do
-    arm base2 "$v" --filter-landy
-    arm nv2   "$v" --filter-landy --ns-landy-strength-nv-invite
+    arm base2 "$v" --filter-landy --no-ns-landy-strength-nv-invite
+    arm nv2   "$v" --filter-landy
     # `none` must read zero divergent boards; the gate may balk at that.
     gatepair nv2 base2 "$v" || log "nv2 $v gate exited non-zero — read $R/gate.nv2.vs.base2.$v.txt"
     [ "$v" = both ] || continue

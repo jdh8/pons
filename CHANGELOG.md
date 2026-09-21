@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **§N1q colour gate** — `competition.defense_2c_landy_strength_nv_invite`
-  (default **off**; `bba-gen` / `probe-call-reading`
+  (built default off; `bba-gen` / `probe-call-reading`
   `--ns-landy-strength-nv-invite`, runner
   `scripts/ab-landy-strength-residue.sh`).
   On, the vulnerable 8-9 short-major hand **with 8+ HCP** returns from the
@@ -38,8 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Run 4 (2026-09-21) confirmed the cell — `2♠ → X` **+9,238 ±1,609 plain** on
   9,550 both-vul boards — and exposed a build defect that cancelled it: the
   gate cut on `points` while the `X` wants `hcp(8..)`, so 9,529 seven-counts
-  fell to `Pass` (−9,234).  Repaired (`| hcp(..=7)`); the `nv2` A/B is owed and
-  the default system is byte-identical.
+  fell to `Pass` (−9,234).  Repaired (`| hcp(..=7)`); the `nv2` re-measure shipped it
+  default-on the same day — see Changed.
 - **§N1q: the Landy counter's two-level majors sorted by strength, not by
   shortness** — two knobs, built default off and **measured twice 2026-09-18,
   a non-win both times** (the third arm shipped the majors 2026-09-20 — see
@@ -159,6 +159,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **§N1q colour gate: `defense_2c_landy_strength_nv_invite` ships default-on
+  (2026-09-21).**  Vulnerable, the 8-9 short-major hand with 8+ HCP makes the
+  values `X` of their Landy `2♣` (feeding §N1m's penalty conversion) instead
+  of the both-minors `2♠`; non-vulnerable and ten-plus are unchanged.  Run 5
+  (`ab-results/landy-strength5`, seed 1789977169, 4.608M bd/arm/vul, gate 0
+  foreign): both-vul **plain +0.0018 ±0.0003** on 9,623 boards, PD +0.0000
+  ±0.0004, sd-lead plain **+0.0013 ±0.0004** (the pre-registered falsifier,
+  CI-clear negative, did not fire); NV **0 divergent**.  CLI:
+  `--ns-landy-strength-nv-invite` becomes `--no-ns-landy-strength-nv-invite`;
+  cards and alert sites unchanged.
 - **§N1q residue: `landy_recue_signoff` and
   `defense_2c_landy_strength_doubles` ship default-on (2026-09-21).**  Run 4
   (`ab-results/landy-strength4`, seed 1789929046, 4.608M bd/arm/vul, gates 0
