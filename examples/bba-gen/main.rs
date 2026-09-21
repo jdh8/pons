@@ -943,6 +943,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_notrump_no_major: bool,
 
+    /// Disable the favourable-only `3NT` major denial over their Landy (§N1r)
+    ///
+    /// `competition.landy_notrump_no_major_favourable`, default **on** since
+    /// 2026-09-22: `--ns-landy-notrump-no-major` applied only when they are
+    /// vulnerable and we are not.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_notrump_no_major_favourable: bool,
+
     /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
     /// `competition.landy_major_jam`, default **on** since it swept its
@@ -2527,6 +2535,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_opener_px = !args.no_ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = !args.no_ns_landy_opener_rungs;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
+    agreements.competition.landy_notrump_no_major_favourable =
+        !args.no_ns_landy_notrump_no_major_favourable;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;

@@ -2623,6 +2623,45 @@ fn landy_strength_nv_invite_gates_the_invitation() {
     }
 }
 
+/// §N1r step 0: `3NT` denies a four-card major at favourable only
+///
+/// `competition.landy_notrump_no_major_favourable`, default on since 2026-09-22.
+#[test]
+fn landy_notrump_no_major_favourable_gates_on_colour() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let direct = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let gated = landy_strength_arm(false);
+    let mut open = landy_strength_arm(false);
+    open.competition.landy_notrump_no_major_favourable = false;
+
+    let hand = "KQ32.K54.J432.Q3";
+    for vul in [
+        RelativeVulnerability::NONE,
+        RelativeVulnerability::WE,
+        RelativeVulnerability::THEY,
+        RelativeVulnerability::ALL,
+    ] {
+        let favourable = vul == RelativeVulnerability::THEY;
+        assert_eq!(
+            best_call_vul(&gated, vul, &direct, hand),
+            if favourable {
+                Call::Double
+            } else {
+                call(3, Strain::Notrump)
+            },
+        );
+        assert_eq!(
+            best_call_vul(&open, vul, &direct, hand),
+            call(3, Strain::Notrump)
+        );
+        assert_eq!(
+            best_call_vul(&gated, vul, &direct, "K32.K54.QJ32.Q32"),
+            call(3, Strain::Notrump),
+            "three-three in the majors declares at every colour",
+        );
+    }
+}
+
 /// `_doubles`' two tails: responder picks over their redouble, opener sits
 /// over their `(3♠)` above the pick
 #[test]

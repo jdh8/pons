@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1r step 0 — `3NT` denies a four-card major at favourable** —
+  `competition.landy_notrump_no_major_favourable`, **default on**
+  (`bba-gen --no-ns-landy-notrump-no-major-favourable`).  Over their Landy
+  `(2♣)`, when they are vulnerable and we are not, a game hand holding four-plus
+  of a major they showed makes the values `X` instead of declaring `3NT`.
+  `scripts/ab-landy-nt-vs-x.sh` priced the all-colour knob per vulnerability
+  (seed `1789977169`, control `ab8bc884`, 4.608M bd/arm/vul, gates 0 foreign):
+  favourable **+0.0147 plain / +0.0127 PD / +0.0042 sd-lead plain / +0.0023
+  sd-lead PD IMPs/board**, every CI excluding zero; unfavourable loses on all
+  four (−0.0107 … −0.0235) and none / both lose on sd-lead, so they keep the
+  ungated `3NT`.  The gate is a pair of complementary `Rules::face` rules — a
+  colour term inside the constraint drifted the `X`'s exclusion reading at every
+  colour — and a seeded identity check reads it byte-identical to the measured
+  arm at favourable and to the previous default elsewhere.  The all-colour
+  `landy_notrump_no_major` stays off.
+
 - **§N1q colour gate** — `competition.defense_2c_landy_strength_nv_invite`
   (built default off; `bba-gen` / `probe-call-reading`
   `--ns-landy-strength-nv-invite`, runner

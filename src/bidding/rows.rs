@@ -1456,7 +1456,16 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 // the entry deliberately: a *fifth* `2♣` rule at 150 is a new claim on the
 // partition and must come back for its own disjointness argument.
 #[cfg(test)]
-const KNOWN_WEIGHT_TIES: [&str; 1] = ["one-nt-base: \"P* 1NT -\" — 2♣ at weight 150, 4 rules"];
+const KNOWN_WEIGHT_TIES: [&str; 3] = [
+    "one-nt-base: \"P* 1NT -\" — 2♣ at weight 150, 4 rules",
+    // `landy_notrump_no_major_favourable`: each pair is one rung split by
+    // complementary `face` gates (favourable / not), so exactly one rule is
+    // live on any auction and the reader skips the other.  Neither carries an
+    // alert or a label.  A constraint-level colour term instead drifted the
+    // values `X`'s exclusion reading at every colour.
+    "lebensohl: \"P* 1NT (2♣)\" — 3NT at weight 180, 2 rules",
+    "lebensohl: \"P* 1NT (2♣)\" — 3NT at weight 168, 2 rules",
+];
 
 /// Every pair of rules in one table justifying the same call at the same weight
 ///

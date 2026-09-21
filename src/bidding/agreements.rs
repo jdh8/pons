@@ -1423,8 +1423,23 @@ pub struct CompetitionKnobs {
     /// −0.0076 vulnerable on plain DD, −0.0012 on the SD-PD arbiter, with the
     /// positive DD-PD column an auto-double artifact.  Kept as an opt-in knob,
     /// not deleted, because it is a single-dummy re-measure candidate.  Inert
-    /// while their `2♣` is undeclared or natural.
+    /// while their `2♣` is undeclared or natural.  Re-measured per colour
+    /// 2026-09-21 (§N1r step 0): only favourable wins, and that cell ships as
+    /// [`Self::landy_notrump_no_major_favourable`].
     pub landy_notrump_no_major: bool,
+    /// [`Self::landy_notrump_no_major`] at favourable vulnerability only (§N1r)
+    ///
+    /// The same restriction on both `3NT` rungs, applied only when they are
+    /// vulnerable and we are not — `3NT` is 400 there and down two doubled is
+    /// 500.  Inert when [`Self::landy_notrump_no_major`] is on (that knob
+    /// applies the restriction at every colour).
+    ///
+    /// **On by default — measured 2026-09-21** (`scripts/ab-landy-nt-vs-x.sh`,
+    /// the all-colour knob priced per vulnerability): at favourable plain DD
+    /// +0.0147, PD +0.0127, sd-lead +0.0042 / +0.0023 IMPs/board, every CI
+    /// excluding zero; the other three colours lose on sd-lead, so they keep
+    /// the ungated `3NT`.
+    pub landy_notrump_no_major_favourable: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1868,6 +1883,7 @@ impl Default for CompetitionKnobs {
             landy_opener_px: true,
             landy_opener_rungs: true,
             landy_notrump_no_major: false,
+            landy_notrump_no_major_favourable: true,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

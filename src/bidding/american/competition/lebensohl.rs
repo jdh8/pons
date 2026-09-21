@@ -1277,7 +1277,9 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 /// [`CompetitionKnobs::landy_major_jam`][crate::bidding::agreements::CompetitionKnobs::landy_major_jam]
 /// as well, a *strong* six-card major jams the auction with `4M` instead — weak
 /// six-carders keep defending.  The jam is **on by default** (it swept its
-/// standalone A/B); `landy_notrump_no_major` stays off (measured loss).
+/// standalone A/B); `landy_notrump_no_major` stays off (measured loss), and
+/// its one winning colour ships as
+/// [`CompetitionKnobs::landy_notrump_no_major_favourable`][crate::bidding::agreements::CompetitionKnobs::landy_notrump_no_major_favourable].
 ///
 /// **§N1-lia** ([`landy_lia`]) re-rungs this table to Lia's own counter, as
 /// refined on the lia2 forensic — six-card minors invitational-or-better at
@@ -1299,8 +1301,21 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // instead of burying it.  Spelled as paired `rule` calls, like
     // `landy_doubler_rebid`'s colour gate, because the two constraints are
     // different types.
+    //
+    // §N1r step 0 priced the same restriction per colour: a CI-clear win on
+    // all four scorers at favourable, a loss or an SD loss everywhere else —
+    // `3NT` is 400 there and their doubled undertricks are 500.  So
+    // `landy_notrump_no_major_favourable` applies it at that colour only.
     let deny_major = agreements.competition.landy_notrump_no_major;
+    let deny_favourable = agreements.competition.landy_notrump_no_major_favourable;
     let no_major = || len(Suit::Hearts, ..=3) & len(Suit::Spades, ..=3);
+    // A face gate, not a constraint: a dead face is skipped by the reader, so
+    // each colour reads exactly the one rule it bids by.  A `vulnerable()`
+    // term inside the constraint drifted the `X`'s exclusion reading at every
+    // colour.
+    let favourable = |context: &Context<'_>| {
+        context.vul() == contract_bridge::auction::RelativeVulnerability::THEY
+    };
 
     // The gated 3NT — the stack's rung verbatim (see `landy_responder` for
     // why it outranks everything and takes no stopper gate on clubs).
@@ -1312,6 +1327,12 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
         & len(Suit::Diamonds, ..=5);
     let mut rules = if deny_major {
         Rules::new().rule(game, 180, gated & no_major())
+    } else if deny_favourable {
+        Rules::new()
+            .rule(game, 180, gated.clone() & no_major())
+            .face(favourable)
+            .rule(game, 180, gated)
+            .face(move |context| !favourable(context))
     } else {
         Rules::new().rule(game, 180, gated)
     };
@@ -1519,6 +1540,12 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     }
     rules = if deny_major {
         rules.rule(game, 168, points(10..) & no_major())
+    } else if deny_favourable {
+        rules
+            .rule(game, 168, points(10..) & no_major())
+            .face(favourable)
+            .rule(game, 168, points(10..))
+            .face(move |context| !favourable(context))
     } else {
         rules.rule(game, 168, points(10..))
     };
