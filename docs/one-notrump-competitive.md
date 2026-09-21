@@ -3149,6 +3149,37 @@ by another route.)  Worst boards are the floor's contested tails after the
 `X` (`X (2♠) X (3♠) 4♦ - 4♠`, our `3NT` over `X (2M) - - 3♣`) — the usual
 unauthored-seat noise, no single cell large enough to author.
 
+### N1r — idea queue for `1NT (2♣) 3♦`+ (**collected 2026-09-21; nothing built, nothing measured**)
+
+The shipped table above `3♣`: **`3♦` is idle** (no rule bids it, and the
+`Pass`@0 catch-all means the floor never does either); `3♥`/`3♠` GF both-minor
+splinters @179/178; `3NT`@180 (both stoppers) and @168 (ungated); Texas
+`4♣`/`4♦` on 6+ major 10+; direct `4♥`/`4♠` NF slam try at **exactly** 15 HCP;
+`4NT` and up unassigned.  Sources:
+[landy-2c-counter-defense-research.md](ai-bidder/landy-2c-counter-defense-research.md).
+Ranked by frequency × DD-visibility, each with the census that kills it for
+free:
+
+| # | Idea | Why it might pay | Step 0 (before any authoring) |
+| --- | --- | --- | --- |
+| 1 | **Finish the splinter.** Opener's answer is `3NT`@150 on *any* `stopper_in(M)` or no minor fit, else `4m`; above `4m` the floor owns a disturbed four level (no RKCB — [minor-transfer-slam.md](minor-transfer-slam.md)'s survey rows). Two halves: (a) gate the `3NT` on **wastage** — a double stopper / two top honours, not `Axx` opposite a stiff with a five-card suit on lead; (b) author the fit path: opener's `4M` cue = fit, no wastage, maximum vs `4m` = ordinary; responder `5m` / `4NT` RKCB by a `points` floor, controls not HCP on the accept (ledger row P6) | The splinters were 17.1% + 15.2% of the 8+ both-minor band in the §N1q census ≈ **0.86% of all boards** — about 30× Texas's firing rate, and both halves are pure DD (game placement, slam) | From any existing arm dump: splinter boards, split by opener's holding in `M` (no stopper / single / wasted) × final contract × DD of `3NT` vs `5m` vs `6m` |
+| 2 | **`3♦` = game values, major-stopper trouble** (the Bessis sheet's artificial `3♦`; Kokish–Kraft and Cohen solve the same thing by making direct `3NT` *deny* full stoppers). Opener: `3NT` both stopped, `3♥`/`3♠` = that major only, `4m` neither. Takes hands out of `3NT`@168 only | `3NT`@168 is ungated opposite a known nine-plus majors on lead; fully DD-visible. **Not** §N1p's `nt` arm — that one rerouted to the `X` and stopped us declaring; this one keeps declaring | `3NT`@168 boards by responder's stopper count (0/1/2) × DD `3NT` vs best minor contract. If the 0-stopper cell still makes as often as the alternative, the idea dies here — honest prior: opener holds both stoppers most of the time and `5m` on 25 is no bargain |
+| 3 | **Transfer splinters** (Merienne–Martel): `3♦` = short ♥, `3♥` = short ♠, `3♠` = 5-5 minors. Buys opener one step (`3M` = "doubtful stopper, your call") below `3NT` | Only if #1's census shows the `3NT`/`5m` decision is the leak and wastage alone cannot separate it. Competes with #2 for the `3♦` slot | #1's census |
+| 4 | **Direct `4♥` when short in spades.** Texas's recorded residue: every worst board is `4♣ - 4♥ - - (4♠)` — the transfer gives the overcaller a second turn; the mirror never happens to `4♦`→♠. Gate: `len(♥, 6..) & len(♠, ..=1)` jams directly, reclaiming the near-dead exactly-15 `4♥` | Evidence is already measured (52 / 37 boards, 33 / 30 doubles, zero the other way); gain capped at roughly a fifth of Texas's +0.0002/bd | none owed — the Package C reports hold it |
+| 5 | **Quantitative `4NT`** `hcp(16..=17)` balanced, authored answer. Both `3NT` rungs are uncapped, so a 17-count opposite 15-17 plays game | One rule + one answer; but responder 16+ over a Landy overcall is vanishing | count `3NT` boards with responder `hcp(16..)` |
+| 6 | `4♠` = both minors, long (K–K weak; BBA plays it 5-5, 3-17 HCP, 0.445%) | Low: at 10+ a 5-5 is **always** a splinter (five cards left for two majors), so only the weak band is new, and a preempt opposite a strong notrump guards a game they rarely have — obstruction the harness cannot price anyway | — |
+| 7 | `3♦` natural, INV six-card (Cohen) or GF one five-card major (*Jean Christophe*, opener relays) | Low: the natural `3♦` measured a wash on 26 bd in N1 and **negative at 6+** in lia; a 5-3 major fit into a known 4-1/5-0 break is the wrong game | — |
+| 8 | The `4m` rung above the §N1q rail | already owed above, ≈ 0.0001/bd | — |
+
+Recommended order: **row 1's census first** (it also decides row 3), then
+row 2's.  Row 4 is the only one that needs no census.
+
+**Flagged discrepancy:** `render-book --their-2c-landy` defaults
+`--ns-landy-responder off`, which renders the **N1j** table (shortness `2M`, no
+jam, no Texas) — not the shipped system; `strength-doubles` is the spelling
+that matches today's defaults.  Proposed reversible default: make the flag
+optional and leave the knobs at `Agreements::default()` when it is absent.
+
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
 Knob `competition.nt_high_overcall_responses` (the table, **default on since
