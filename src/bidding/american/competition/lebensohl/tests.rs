@@ -3072,3 +3072,73 @@ fn landy_splinter_rebids_pass_notrump_and_raise_minor() {
         "off, responder's rebid over 3NT is the floor's: {provenance:?}"
     );
 }
+
+/// §N1r row 1 arm 2: opener's `3NT` over the splinter needs a double stopper
+///
+/// `competition.landy_splinter_stopper`, default off (A/B owed).
+#[test]
+fn landy_splinter_stopper_single_stopper_picks_the_minor() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let mut arm = landy_strength_arm(false);
+    arm.competition.landy_splinter_stopper = true;
+    let off = landy_strength_arm(false);
+    let spades = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Spades),
+        Call::Pass,
+    ];
+    let hearts = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Hearts),
+        Call::Pass,
+    ];
+    let best = |a: &Agreements, auction: &[Call], hand: &str| {
+        best_call_vul(a, RelativeVulnerability::NONE, auction, hand)
+    };
+    for (hand, want, why) in [
+        (
+            "A43.K54.KJ32.AQ2",
+            call(4, Strain::Diamonds),
+            "single stopper, four diamonds",
+        ),
+        (
+            "A43.KQ4.KJ3.QJ32",
+            call(4, Strain::Clubs),
+            "single stopper, four clubs",
+        ),
+        (
+            "A43.KQ54.KJ3.Q32",
+            call(3, Strain::Notrump),
+            "single stopper, no four-card minor",
+        ),
+        (
+            "AQ3.K54.KJ32.Q32",
+            call(3, Strain::Notrump),
+            "two top honours: double stopper",
+        ),
+        (
+            "KQ3.A54.KJ32.Q32",
+            call(3, Strain::Notrump),
+            "K-Q is a double stopper too",
+        ),
+        (
+            "543.AK4.KJ32.AQ2",
+            call(4, Strain::Diamonds),
+            "no stopper picks the minor as before",
+        ),
+    ] {
+        assert_eq!(best(&arm, &spades, hand), want, "{why}: {hand}");
+    }
+    assert_eq!(
+        best(&off, &spades, "A43.K54.KJ32.AQ2"),
+        call(3, Strain::Notrump),
+        "off, any stopper declares"
+    );
+    assert_eq!(
+        best(&arm, &hearts, "K54.A43.KJ32.AQ2"),
+        call(4, Strain::Diamonds),
+        "the heart splinter mirrors"
+    );
+}

@@ -58,6 +58,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the follow-up: their balancing `(4M)` over the passed `3NT` (≈ 4,400 boards
   at none; the floor sits or bids `5m`, never doubles) and their double of it
   (≈ 1,100 at both; the floor redoubles on half).
+- **§N1r row 1 arm 2 — opener's `3NT` over our Landy splinter needs a double
+  stopper** — `competition.landy_splinter_stopper`, **default off**, opt-in
+  (`bba-gen --ns-landy-splinter-stopper`): two of A-K-Q in the short major or
+  no four-card minor, else `4m`.  `scripts/ab-landy-splinter-stopper.sh` (seed
+  `1789977169`, control `1abbb254`, 4.608M bd/arm/vul, gates 0 foreign): DD
+  plain / PD **+0.0020 / +0.0022** at none and **+0.0019 / +0.0029** at both,
+  every CI clear, but sd-lead **−0.0003 / −0.0004** and **−0.0008 / −0.0002** —
+  the clairvoyant-lead seam against the `3NT` the knob stops declaring (§N1-lia
+  D's mechanism), which this lane arbitrates on sd-lead.  A measured non-win;
+  the default system is byte-identical.
 - **§N1r step 0 — `3NT` denies a four-card major at favourable** —
   `competition.landy_notrump_no_major_favourable`, **default on**
   (`bba-gen --no-ns-landy-notrump-no-major-favourable`).  Over their Landy

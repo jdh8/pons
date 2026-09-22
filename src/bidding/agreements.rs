@@ -1472,6 +1472,33 @@ pub struct CompetitionKnobs {
     /// the floor redoubles on half).  Inert while their `2♣` is undeclared or
     /// natural.
     pub landy_splinter_rebids: bool,
+    /// §N1r row 1 arm 2 — opener's `3NT` over our Landy splinter needs a
+    /// **double** stopper in the short major (two of A-K-Q), or no four-card
+    /// minor; a single stopper with a four-card minor answers `4m`
+    ///
+    /// The row 1 census (`examples/probe-landy-splinter-oracle`, 2026-09-23)
+    /// reversed the sign of the "wastage" idea: two top honours opposite the
+    /// splinter's shortness are where `3NT` is *best* (+1.21 / +1.26 IMPs per
+    /// seat board over live at none), and the one bucket where `5m` beats
+    /// `3NT` is a single stopper with a four-card minor (+0.50 / +0.93 per
+    /// seat board at none, +0.69 / +1.18 at both — ≈ +0.002 / +0.003 per
+    /// board).  Only the splinter answers move; N1j's two-level takeout
+    /// answers keep the plain stopper.  Rides on
+    /// [`Self::landy_splinter_rebids`]: responder raises the `4m` to game.
+    ///
+    /// **Off by default — measured 2026-09-23 as a non-win**
+    /// (`scripts/ab-landy-splinter-stopper.sh`, seed 1789977169, 4.608M
+    /// boards per arm per colour, gates 0 foreign): DD plain / PD **+0.0020 /
+    /// +0.0022** at none and **+0.0019 / +0.0029** at both, every CI clear —
+    /// and sd-lead **−0.0003 / −0.0004** and **−0.0008 / −0.0002**, two of the
+    /// four CIs touching zero.  The DD win is the clairvoyant-lead seam
+    /// against the `3NT` the knob stops declaring — §N1-lia D's mechanism
+    /// exactly — so by this lane's rule sd-lead arbitrates and the knob stays
+    /// opt-in.  Refinement candidate: the census class is A-K-Q count, so a
+    /// bare `A`, `Kx`, `Qxx` and `Jxxx` share a bucket; a cut by exact stopper
+    /// type is the next arm if the seat is reopened.  Inert while their `2♣`
+    /// is undeclared or natural.
+    pub landy_splinter_stopper: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1917,6 +1944,7 @@ impl Default for CompetitionKnobs {
             landy_notrump_no_major: false,
             landy_notrump_no_major_favourable: true,
             landy_splinter_rebids: true,
+            landy_splinter_stopper: false,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

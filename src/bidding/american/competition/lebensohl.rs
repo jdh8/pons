@@ -1754,10 +1754,25 @@ fn landy_slam_answer(minor: Suit) -> Rules {
 /// the unknown, and the minor-less branch doubles as the forced catch-all —
 /// it leaves opener with seven-plus major cards, stopper-rich.  A minor pick
 /// is 4+ (cheaper first with both) and denies the short-major stopper.
-fn landy_bba_takeout_answer(short: Suit, over: Bid) -> Rules {
+///
+/// `double_stopper` (§N1r row 1 arm 2,
+/// [`CompetitionKnobs::landy_splinter_stopper`][crate::bidding::agreements::CompetitionKnobs::landy_splinter_stopper])
+/// raises the notrump rung's bar to **two of A-K-Q** in the short major: a
+/// single stopper with a four-card minor picks the minor instead, and the
+/// pick then denies the double stopper rather than any stopper.
+fn landy_bba_takeout_answer(short: Suit, over: Bid, double_stopper: bool) -> Rules {
     let notrump = cheapest_above(Strain::Notrump, over);
     let no_minor = len(Suit::Clubs, ..=3) & len(Suit::Diamonds, ..=3);
-    let mut rules = Rules::new().rule(notrump, 150, stopper_in(short) | no_minor);
+    let mut rules = Rules::new();
+    rules = if double_stopper {
+        rules.rule(
+            notrump,
+            150,
+            (stopper_in(short) & top_honors(short, 2..)) | no_minor,
+        )
+    } else {
+        rules.rule(notrump, 150, stopper_in(short) | no_minor)
+    };
     for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
         rules = rules.rule(
             cheapest_above(Strain::from(minor), over),
@@ -3035,7 +3050,11 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         let answer = if lia_takeout {
             landy_lia_takeout_answer(agreements)
         } else {
-            landy_bba_takeout_answer(short, call)
+            landy_bba_takeout_answer(
+                short,
+                call,
+                level == 3 && agreements.competition.landy_splinter_stopper,
+            )
         };
         entries.extend(rows_of(
             Pattern::after(OVER, &format!("{call} -")),
