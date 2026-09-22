@@ -1775,6 +1775,17 @@ fn landy_bba_takeout_answer(short: Suit, over: Bid) -> Rules {
     rules
 }
 
+/// Responder's raise of opener's `4m` answer to the splinter
+/// (`1NT (2♣) 3M - 4m -`, §N1r row 1)
+///
+/// The splinter was a game force and opener's `4m` names a four-plus minor
+/// opposite responder's four-plus, so the raise to game is the only call: a
+/// catch-all, no slam rung (the census priced `6m` above `3NT` only at
+/// responder 15+, ≈ 150 boards a colour).
+fn landy_splinter_raise(minor: Suit) -> Rules {
+    Rules::new().rule(Bid::new(5, Strain::from(minor)), 0, hcp(0..))
+}
+
 // --- §N1q: the strength-sorted two-level majors --------------------------
 
 /// Opener's answer to §N1q's weak both-minors takeout (`1NT (2♣) 2♥ -`)
@@ -3038,6 +3049,27 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             &format!("{OVER} {call}"),
             &cheapest_above(Strain::Notrump, call).to_string(),
         ));
+        // §N1r row 1: responder's rebid over opener's answer to the splinter.
+        // Unauthored, the floor rebids the splinter suit over `3NT` (a spade
+        // void reads as spades bid — the lia3 phantom-suit class) and passes
+        // the `4m` game-force answer; see
+        // [`CompetitionKnobs::landy_splinter_rebids`][crate::bidding::agreements::CompetitionKnobs::landy_splinter_rebids].
+        if level == 3 && agreements.competition.landy_splinter_rebids {
+            let notrump = cheapest_above(Strain::Notrump, call);
+            for suffix in ["-", "(X)"] {
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{call} - {notrump} {suffix}")),
+                    multi_signoff_pass(),
+                ));
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    let pick = cheapest_above(Strain::from(minor), call);
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{call} - {pick} {suffix}")),
+                        landy_splinter_raise(minor),
+                    ));
+                }
+            }
+        }
         // Their raise: `(2♠)` exists over `2♥` only, the 3M raises over
         // whatever sits below them; the four level stays the floor's.
         //

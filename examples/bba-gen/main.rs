@@ -951,6 +951,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_notrump_no_major_favourable: bool,
 
+    /// Disable responder's rebids over opener's answer to our Landy splinter
+    /// (§N1r row 1)
+    ///
+    /// `competition.landy_splinter_rebids`, default **on** since 2026-09-23:
+    /// `Pass` over opener's `3NT`, `5m` over opener's `4m`, at
+    /// `1NT (2♣) 3♥/3♠ - …`.  Unauthored, the floor rebids the splinter suit
+    /// over `3NT`.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_splinter_rebids: bool,
+
     /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
     /// `competition.landy_major_jam`, default **on** since it swept its
@@ -2537,6 +2547,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_notrump_no_major_favourable =
         !args.no_ns_landy_notrump_no_major_favourable;
+    agreements.competition.landy_splinter_rebids = !args.no_ns_landy_splinter_rebids;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;

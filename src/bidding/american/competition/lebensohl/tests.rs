@@ -2997,3 +2997,78 @@ fn landy_strength_is_inert_off_its_own_ladder() {
         bid(&direct, inv).0,
     );
 }
+
+/// §N1r row 1: responder's rebids over opener's answer to the splinter
+///
+/// `competition.landy_splinter_rebids`, default on since 2026-09-23.  The
+/// census board: `.Q6.A98765.KQ973` splintered `3♠` and the floor rebid `4♠`
+/// over opener's `3NT` on the void.
+#[test]
+fn landy_splinter_rebids_pass_notrump_and_raise_minor() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let arm = landy_strength_arm(false);
+    assert!(arm.competition.landy_splinter_rebids, "default on");
+    let best = |auction: &[Call], hand: &str| {
+        best_call_vul(&arm, RelativeVulnerability::NONE, auction, hand)
+    };
+    let p = Call::Pass;
+    let void = ".Q6.A98765.KQ973";
+    for splinter in [call(3, Strain::Hearts), call(3, Strain::Spades)] {
+        let open = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            splinter,
+            p,
+        ];
+        let over = |answer: Call, then: Call| {
+            let mut auction = open.to_vec();
+            auction.push(answer);
+            auction.push(then);
+            auction
+        };
+        for then in [p, Call::Double] {
+            assert_eq!(
+                best(&over(call(3, Strain::Notrump), then), void),
+                p,
+                "the game is reached: sit over {splinter} - 3NT {then}"
+            );
+            assert_eq!(
+                best(&over(call(3, Strain::Notrump), then), "A.Q6.A9876.KQ973"),
+                p,
+                "a stiff in the splinter suit sits too"
+            );
+            assert_eq!(
+                best(&over(call(4, Strain::Clubs), then), void),
+                call(5, Strain::Clubs),
+                "opener's 4♣ is a game-force answer: raise"
+            );
+            assert_eq!(
+                best(&over(call(4, Strain::Diamonds), then), void),
+                call(5, Strain::Diamonds),
+                "opener's 4♦ is a game-force answer: raise"
+            );
+        }
+    }
+    // Off, the node is the floor's.  Assert the provenance, not the floor's
+    // pick (the census saw `4♠`; a retrain may change that, the leak is that
+    // the seat is unauthored at all).
+    let mut off = landy_strength_arm(false);
+    off.competition.landy_splinter_rebids = false;
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Spades),
+        p,
+        call(3, Strain::Notrump),
+        p,
+    ];
+    let hand: contract_bridge::Hand = void.parse().expect("valid test hand");
+    let (_, provenance) = crate::bidding::american::american(&off)
+        .bind()
+        .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
+        .expect("a legal auction classifies");
+    assert!(
+        provenance.fallback.is_some(),
+        "off, responder's rebid over 3NT is the floor's: {provenance:?}"
+    );
+}

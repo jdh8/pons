@@ -1440,6 +1440,38 @@ pub struct CompetitionKnobs {
     /// excluding zero; the other three colours lose on sd-lead, so they keep
     /// the ungated `3NT`.
     pub landy_notrump_no_major_favourable: bool,
+    /// §N1r row 1 — responder's rebids over opener's answer to our Landy
+    /// both-minors splinter (`1NT (2♣) 3♥/3♠ - 3NT -` and `… - 4m -`)
+    ///
+    /// The splinter table authors opener's answer and its doubled twin and
+    /// nothing for responder afterwards, so both nodes were the floor's.  The
+    /// row 1 census (`examples/probe-landy-splinter-oracle`, 2026-09-23) found
+    /// the floor rebidding **`4♠` over `3NT` on a spade void or singleton** —
+    /// the suit responder just splintered in, read as spades bid because the
+    /// floor's vector carries no alert column (lia3's phantom-suit class) —
+    /// on 2,234 boards at none and 1,140 at both, and passing opener's `4m`
+    /// game-force answer on 518 more.  This knob authors the two nodes:
+    /// `Pass` over `3NT` (a catch-all — the game is reached, and the floor's
+    /// `5♣` pulls priced net negative, its `6♦` pulls roughly break-even), and
+    /// the raise to `5m` over `4m` (the game force's completion in an
+    /// eight-plus fit).  The `(X)` twins of both nodes carry the same tables.
+    /// Contract-level oracle price of the pass alone: +0.0063 / +0.0082
+    /// IMPs/board plain / PD at none, +0.0036 / +0.0045 at both.
+    ///
+    /// The alternative was a `Trie::tombstone` on `4♠` leaving the floor the
+    /// rest; the census priced the whole-node pass higher, so the node is
+    /// authored (a finite catch-all shadows the floor entirely there).
+    ///
+    /// **On by default — measured 2026-09-23** (`scripts/ab-landy-splinter-rebids.sh`,
+    /// seed 1789977169, 4.608M boards per arm per colour, gates 0 foreign):
+    /// none **+0.0055 plain / +0.0078 PD**, both **+0.0039 / +0.0047**
+    /// IMPs/board, every CI ±0.0003–0.0004; +3.0 / +3.0 IMPs per fired board.
+    /// Residual tails the pass exposes, both floor-owned: their balancing
+    /// `(4M)` over the passed `3NT` (≈ 4,400 boards at none, the floor sits
+    /// or bids `5m`, never doubles) and their double of it (≈ 1,100 at both,
+    /// the floor redoubles on half).  Inert while their `2♣` is undeclared or
+    /// natural.
+    pub landy_splinter_rebids: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1884,6 +1916,7 @@ impl Default for CompetitionKnobs {
             landy_opener_rungs: true,
             landy_notrump_no_major: false,
             landy_notrump_no_major_favourable: true,
+            landy_splinter_rebids: true,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

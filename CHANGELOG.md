@@ -41,6 +41,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain / PD if it simply passed. Nothing shipped; the default system is
   untouched.
 
+- **§N1r row 1 arm 1 — responder's rebids over opener's answer to our Landy
+  splinter** — `competition.landy_splinter_rebids`, **default on**
+  (`bba-gen --no-ns-landy-splinter-rebids`).  At `1NT (2♣) 3♥/3♠ - 3NT -`
+  responder now passes (a catch-all: the game is reached) and at `… - 4m -`
+  raises to `5m` (the game force's completion); the `(X)` twins carry the same
+  tables.  Both nodes were the floor's, and the floor rebid **`4♠` over `3NT`
+  on the spade void it had just splintered in** (2,234 boards at none, the
+  lia3 phantom-suit class) and passed opener's `4m` on 518 more.
+  `scripts/ab-landy-splinter-rebids.sh` (seed `1789977169`, control
+  `d0f7222c`, base arms reused from step 0, 4.608M bd/arm/vul, gates 0
+  foreign): none **+0.0055 plain / +0.0078 PD**, both **+0.0039 / +0.0047
+  IMPs/board**, every CI ±0.0003–0.0004, +3.0 IMPs per fired board at both
+  colours; sd-lead **+0.0053 / +0.0072** (none) and **+0.0035 / +0.0042** (both) — a
+  win on all eight columns.  Two floor tails the pass newly exposes are
+  the follow-up: their balancing `(4M)` over the passed `3NT` (≈ 4,400 boards
+  at none; the floor sits or bids `5m`, never doubles) and their double of it
+  (≈ 1,100 at both; the floor redoubles on half).
 - **§N1r step 0 — `3NT` denies a four-card major at favourable** —
   `competition.landy_notrump_no_major_favourable`, **default on**
   (`bba-gen --no-ns-landy-notrump-no-major-favourable`).  Over their Landy
