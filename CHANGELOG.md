@@ -45,6 +45,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arm at favourable and to the previous default elsewhere.  The all-colour
   `landy_notrump_no_major` stays off.
 
+- **§N1r step 0b — the misfit-only `3NT` gate, measured loss; not shipped,
+  code dropped** (no knob, no flag, no runner survive — the verdict lives in
+  `docs/one-notrump-competitive.md` §N1r step 0b).  The narrowed arm: whenever they are
+  vulnerable, `3NT` over their Landy `(2♣)` denies only three-plus in both
+  majors with four-plus in one, so a short-major hand keeps declaring.
+  Seed `1789977169`, control `cfa536b7`, 4.608M bd/arm/vul, gates 0 foreign;, IMPs/board plain / PD / sd-lead plain /
+  sd-lead PD: at both vulnerable vs the ungated `3NT` **+0.0002 / −0.0065 /
+  −0.0017 / −0.0069**; at favourable vs the shipped full gate **−0.0100 /
+  −0.0118 / −0.0022 / −0.0034**.  Two lessons: the short-major hand is the
+  *larger* half of the favourable win (the runout lands in its five-card major
+  and the reopening double collects), and at both vulnerable 64% of the
+  divergence is opener's continuation moving under the widened `X` reading on
+  an unchanged `X` — a reading tax the synthetic census could not see.  The
+  tax is an unauthored tail: a 10–11 doubler holding the other major has no
+  book rebid over their runout, so the floor signs off in the weak hand's
+  `3♣` and opener over-reads it.  But the tax-free direct half itself scores
+  −0.0020 / −0.0020 on sd-lead at both vulnerable (+0.0104 / +0.0105 on DD):
+  the penalty against their `2Mx` is a double-dummy-lead mirage at that
+  colour.  Both vulnerable is closed; `_favourable` stands, and the doubler's
+  rebids over the runout are queued as a favourable-only increment.
+
 - **§N1q colour gate** — `competition.defense_2c_landy_strength_nv_invite`
   (built default off; `bba-gen` / `probe-call-reading`
   `--ns-landy-strength-nv-invite`, runner
