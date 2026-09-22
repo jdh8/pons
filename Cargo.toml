@@ -188,6 +188,11 @@ path = "examples/probe-landy-opener-oracle/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "probe-landy-splinter-oracle"
+path = "examples/probe-landy-splinter-oracle/main.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "probe-decision"
 path = "examples/probe-decision/main.rs"
 

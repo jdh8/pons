@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-landy-splinter-oracle` (2026-09-23)**: the §N1r row 1
+  census at opener's seat over our Landy both-minors splinter
+  (`1NT (2♣) 3♥/3♠`) — prices `3NT` / `4m` / `5m` / `6m` against the live
+  contract and par by opener's stopper class in the short major. Verdict in
+  `docs/one-notrump-competitive.md` §N1r: the wastage gate is sign-reversed
+  (a single stopper with a fit wants `5m`, ≈ +0.002 / +0.003 IMPs/board), the
+  slam path is dead by frequency, and responder's **floor `4♠` over opener's
+  `3NT` after the spade splinter** is an unauthored phantom-suit rebid worth
+  **+0.0051 / +0.0072** (none) and **+0.0033 / +0.0043** (both) IMPs/board
+  plain / PD if it simply passed. Nothing shipped; the default system is
+  untouched.
+
 - **§N1r step 0 — `3NT` denies a four-card major at favourable** —
   `competition.landy_notrump_no_major_favourable`, **default on**
   (`bba-gen --no-ns-landy-notrump-no-major-favourable`).  Over their Landy
