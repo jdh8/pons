@@ -599,6 +599,11 @@ fn landy_responder(agreements: &Agreements) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Whether we are at favourable vulnerability — the colour §N1r's gates face on
+fn favourable(context: &Context<'_>) -> bool {
+    context.vul() == contract_bridge::auction::RelativeVulnerability::THEY
+}
+
 /// Opener's answer to the Landy values double — sit for it
 ///
 /// The double is values, not a question, so opener has nothing to answer and
@@ -759,12 +764,24 @@ fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder, agreements: &Agreemen
             .alert(LANDY_PENALTY)
             .penalty();
     }
+    let game = Bid::new(3, Strain::Notrump);
     if ladder != DoublerLadder::Px {
-        rules = rules.rule(
-            Bid::new(3, Strain::Notrump),
-            150,
-            points(10..) & stopper_in(major),
-        );
+        rules = rules.rule(game, 150, points(10..) & stopper_in(major));
+    }
+    // §N1r row 9, favourable only: the game hand with a short major bids the
+    // `3NT` it was diverted from (no stopper gate, like the direct `3NT`@168),
+    // and the 8–9 hand's natural minors are authored so that `X – 3m` reads
+    // `8..9` by sibling exclusion — the floor's own `3♣` reads nothing.
+    // Face-gated, so the other colours keep the ladder they measured.
+    if agreements.competition.landy_doubler_game && ladder == DoublerLadder::Px {
+        rules = rules.rule(game, 150, points(10..)).face(favourable);
+        for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+            rules = rules
+                .rule(Bid::new(3, Strain::from(minor)), weight, len(minor, 5..))
+                .face(favourable);
+        }
+    }
+    if ladder != DoublerLadder::Px {
         // The invitation, and below it the naturals — the whole constructive
         // family, gated on colour outside the full ladder.  Spelled as paired
         // `rule` calls rather than one conditional constraint because the two
@@ -881,14 +898,26 @@ fn landy_opener_rebid(major: Suit, rungs: bool) -> Rules {
 /// [`kokish_kraft_invite_answer`], one rung higher and carrying the stopper
 /// test the invitation would have made.  Everything else passes the part-score
 /// in the known eight-card-or-better minor fit.  Total.
-fn landy_minor_rebid_answer(major: Suit) -> Rules {
-    Rules::new()
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            100,
-            hcp(16..) & stopper_in(major),
-        )
-        .rule(Call::Pass, 0, hcp(0..))
+///
+/// `favourable_only` face-gates both rules for §N1r row 9, whose exact nodes
+/// hand the other colours back to the floor.
+fn landy_minor_rebid_answer(major: Suit, favourable_only: bool) -> Rules {
+    let rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        100,
+        hcp(16..) & stopper_in(major),
+    );
+    let rules = if favourable_only {
+        rules.face(favourable)
+    } else {
+        rules
+    };
+    let rules = rules.rule(Call::Pass, 0, hcp(0..));
+    if favourable_only {
+        rules.face(favourable)
+    } else {
+        rules
+    }
 }
 
 /// Opener's answer to the counter's weak sign-offs — pass, always
@@ -1313,9 +1342,6 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
     // each colour reads exactly the one rule it bids by.  A `vulnerable()`
     // term inside the constraint drifted the `X`'s exclusion reading at every
     // colour.
-    let favourable = |context: &Context<'_>| {
-        context.vul() == contract_bridge::auction::RelativeVulnerability::THEY
-    };
 
     // The gated 3NT — the stack's rung verbatim (see `landy_responder` for
     // why it outranks everything and takes no stopper gate on clubs).
@@ -1332,7 +1358,7 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
             .rule(game, 180, gated.clone() & no_major())
             .face(favourable)
             .rule(game, 180, gated)
-            .face(move |context| !favourable(context))
+            .face(|context| !favourable(context))
     } else {
         Rules::new().rule(game, 180, gated)
     };
@@ -1545,7 +1571,7 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
             .rule(game, 168, points(10..) & no_major())
             .face(favourable)
             .rule(game, 168, points(10..))
-            .face(move |context| !favourable(context))
+            .face(|context| !favourable(context))
     } else {
         rules.rule(game, 168, points(10..))
     };
@@ -2680,7 +2706,23 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                             OVER,
                             &format!("{path} {} -", Bid::new(3, Strain::from(minor))),
                         ),
-                        landy_minor_rebid_answer(major),
+                        landy_minor_rebid_answer(major, false),
+                    ));
+                }
+            }
+            // §N1r row 9's answers, favourable only: opener passes the game
+            // and answers the 8–9 minor.  Exact nodes, so the dead faces at
+            // the other colours reject and fall through to the floor.
+            if agreements.competition.landy_doubler_game && ladder == DoublerLadder::Px {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{OVER} {path} 3NT -")),
+                    multi_signoff_pass().face(favourable),
+                ));
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    let call = Bid::new(3, Strain::from(minor));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{OVER} {path} {call} -")),
+                        landy_minor_rebid_answer(major, true),
                     ));
                 }
             }

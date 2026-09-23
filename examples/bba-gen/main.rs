@@ -977,6 +977,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_splinter_tails: bool,
 
+    /// Disable the values doubler's favourable rebids over their `(2M)`
+    /// runout (§N1r row 9)
+    ///
+    /// `competition.landy_doubler_game`, default **on** since 2026-09-23:
+    /// `3NT` on `points(10..)` and a natural `3♣`/`3♦` at `1NT (2♣) X (2M) -
+    /// -`, opener passes the game and answers the minor.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_doubler_game: bool,
+
     /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
     /// `competition.landy_major_jam`, default **on** since it swept its
@@ -2566,6 +2575,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_splinter_rebids = !args.no_ns_landy_splinter_rebids;
     agreements.competition.landy_splinter_stopper = args.ns_landy_splinter_stopper;
     agreements.competition.landy_splinter_tails = !args.no_ns_landy_splinter_tails;
+    agreements.competition.landy_doubler_game = !args.no_ns_landy_doubler_game;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;

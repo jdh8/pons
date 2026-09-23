@@ -58,6 +58,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the follow-up: their balancing `(4M)` over the passed `3NT` (≈ 4,400 boards
   at none; the floor sits or bids `5m`, never doubles) and their double of it
   (≈ 1,100 at both; the floor redoubles on half).
+- **§N1r row 9 — the Landy values doubler's rebids over their `(2M)` runout
+  at favourable** — `competition.landy_doubler_game`, **default on**
+  (`bba-gen --no-ns-landy-doubler-game`).  At favourable the values `X` carries
+  the 10+ hand holding a four-card major (step 0's gate); over their runout
+  a short-trump game hand now bids `3NT`, the 8–9 hand's five-card `3♣`/`3♦`
+  is authored, opener passes the game and bids `3NT` over the minor on 16+
+  with their major stopped.  The floor bid the weak hand's `3♣` with the game
+  hand too, and opener, reading it as unlimited, jumped to `5m`.  Face-gated,
+  so the other colours are byte-identical.  `scripts/ab-landy-doubler-game.sh`
+  (seed `1790142988`, control `9d6a51ae`, 4.608M bd/arm at `ew`, gate 0
+  foreign): DD **+0.0085 plain / +0.0117 PD**, sd-lead **+0.0078 / +0.0103
+  IMPs/board**, every CI clear; +3.5 / +4.8 IMPs per fired board on DD.
 - **§N1r row 1 tails — our calls when they act over the passed splinter
   `3NT`** — `competition.landy_splinter_tails`, **default on**
   (`bba-gen --no-ns-landy-splinter-tails`).  At `1NT (2♣) 3♥/3♠ - 3NT - - (X)`

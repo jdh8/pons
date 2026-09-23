@@ -3170,7 +3170,7 @@ free:
 | 6 | `4♠` = both minors, long (K–K weak; BBA plays it 5-5, 3-17 HCP, 0.445%) | Low: at 10+ a 5-5 is **always** a splinter (five cards left for two majors), so only the weak band is new, and a preempt opposite a strong notrump guards a game they rarely have — obstruction the harness cannot price anyway | — |
 | 7 | `3♦` natural, INV six-card (Cohen) or GF one five-card major (*Jean Christophe*, opener relays) | Low: the natural `3♦` measured a wash on 26 bd in N1 and **negative at 6+** in lia; a 5-3 major fit into a known 4-1/5-0 break is the wrong game | — |
 | 8 | The `4m` rung above the §N1q rail | already owed above, ≈ 0.0001/bd | — |
-| 9 | **The values doubler's rebids over their `(2M)` runout under the favourable gate** — `3NT` / natural three-level suit / penalty `X` for the 10+ hand, `3♣` sign-off or pass for the 8–9 hand. Today only the penalty `X` (4+ of their suit) is authored; the floor bids the weak hand's `3♣` with the game hand, and opener reads `X - 3♣` as 8–11 instead of 8–9 and jumps to `5♣` | Step 0b's tax, measured −0.0034 sd at `both` on the full gate; the shipped `ew` gate carries the same tax inside its +0.0042 / +0.0023 sd | none — the tax node census and probes are in step 0b; build, then A/B at `ew` only |
+| 9 | **The values doubler's rebids over their `(2M)` runout under the favourable gate** (**SHIPPED DEFAULT-ON 2026-09-23** — [verdict](#row-9-verdict--the-values-doublers-rebids-over-their-2m-runout-landy_doubler_game-shipped-default-on-2026-09-23)) — `3NT` / natural three-level suit / penalty `X` for the 10+ hand, `3♣` sign-off or pass for the 8–9 hand. Today only the penalty `X` (4+ of their suit) is authored; the floor bids the weak hand's `3♣` with the game hand, and opener reads `X - 3♣` as 8–11 instead of 8–9 and jumps to `5♣` | Step 0b's tax, measured −0.0034 sd at `both` on the full gate; the shipped `ew` gate carries the same tax inside its +0.0042 / +0.0023 sd | none — the tax node census and probes are in step 0b; build, then A/B at `ew` only |
 
 Recommended order: **row 1's census first** (it also decides row 3), then
 row 2's.  Row 4 is the only one that needs no census.
@@ -3341,6 +3341,57 @@ at both, so no re-measure could revive it.  To rebuild, the gate was
 `gated & no_misfit()` faced on `vul().contains(THEY)`, with the ungated rule
 on the complementary face, at both `3NT` rungs (@180 and @168).
 `_favourable` stands.
+
+#### Row 9 verdict — the values doubler's rebids over their `(2M)` runout (**`landy_doubler_game` SHIPPED DEFAULT-ON 2026-09-23**)
+
+Step 0b's tax, repaired at the one colour that carries it.  At favourable the
+values `X` holds the 10+ hand with a four-card major that `3NT` now denies;
+over `1NT (2♣) X (2M) - -` (and the two `X (2♦) - (2M)` legs) the penalty `X`
+takes it when the major is theirs, and otherwise it had no authored call.
+
+**The build finding: authoring the game hand alone does not fix the
+reading.**  With `3NT`@150 on `points(10..)` in place, `probe-decision` still
+read the floor's `X – 3♣` as `8..37`: sibling exclusion narrows only
+*authored* calls, so a floor call at a node that rejected the hand keeps
+the prior envelope.  The 8–9 hand's five-card `3♣`@100 / `3♦`@99 had to be
+authored too — then `X – 3♣` reads `8..9` with at most three of their major.
+The general gap (a floor call at a rejecting exact node could read as the
+prior minus every live authored rule there) is a reader change in every lane,
+so it is left as its own follow-up, not folded in here.
+
+**Authored**, all behind `face(favourable)` and only under the shipped `px`
+ladder: `3NT`@150 on `points(10..)` (no stopper gate, like the direct
+`3NT`@168 it was diverted from), `3♣`/`3♦` on five cards; opener passes the
+`3NT` and answers the minor with `landy_minor_rebid_answer` (`3NT` on 16+
+with their major stopped, else pass), on exact nodes so the dead faces fall
+through to the floor.  A seeded identity check (`bba-gen --count 3000 --seed 7
+--filter-landy`) reads none / both and `ns` table A byte-identical; only
+favourable seats move.
+
+`scripts/ab-landy-doubler-game.sh`, `SEED_BASE=1790142988`, control
+`9d6a51ae` + the knob, 4,608,000 bd/arm, gate 0 foreign.  IMPs/board,
+`game` − `base`:
+
+| colour | fired | DD plain | DD PD | sd-lead plain | sd-lead PD | reads |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `ew` | 0.25% | **+0.0085** ±0.0003 | **+0.0117** ±0.0004 | **+0.0078** ±0.0004 | **+0.0103** ±0.0004 | win on all four; +3.45 / +4.76 DD per fired |
+
+* **No lead seam this time**: DD and sd-lead agree within 0.0015, unlike
+  step 0 (≈ 0.011).  The arm mostly *stops* overbidding rather than trading a
+  game for a penalty.
+* **Where it diverges** (11,444 boards, by first differing call): opener's
+  `5m` over `X – 3m` becomes a pass on 33.5% (`2♠` 20.3%, `2♥` 8.2%, `3♦`
+  5.0%); the doubler's `3NT` replaces the floor's second `X` on 21.0% and
+  the floor's `3♣`/`3♦` on 14.1%; the authored `3♦` replaces a pass or a
+  second `X` on 11.4% and the floor's `3♣` on 4.5%; opener's `4♣` over their
+  balancing `(3M)` replaces `5♣` on 6.4%.
+* **Pre-registered falsifier did not fire in aggregate**: the floor's second
+  `X` on the short-trump game hand is 21% of the divergence and the arm still
+  wins every column.  **Worst boards** are its tail — `X (2♠) - - 3NT (4♠)`
+  where the off arm collected from `X (3♠) X`, −15 each — and their balancing
+  `(3M)` over our `3♣` (opener's floor `4♣` where `5♣` pushed them to a
+  doubled `5M`).  Both are floor tails over their four-level action; not
+  authored.
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
@@ -5609,6 +5660,7 @@ reason to take it.
 | **N1r row 1 arm 1** responder's rebids over opener's answer to the splinter | `competition.landy_splinter_rebids` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `rebids` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **none +0.0055 / +0.0078 / +0.0053 / +0.0072; both +0.0039 / +0.0047 / +0.0035 / +0.0042**, DD CIs ±0.0003–0.0004. Seed 1789977169, control `d0f7222c`, base arms reused from step 0, 4.608M bd/arm/vul, gates 0 foreign | `Pass` over opener's `3NT`, `5m` over `4m`, `(X)` twins; the floor's phantom `4♠` on the spade void is gone. Oracle predicted +0.0063 / +0.0082 and +0.0036 / +0.0045. Residual: their balancing `(4M)` and their `X` of the passed `3NT` are floor tails (sits, `5m`, a redouble) | [arm 1 verdict](#row-1-arm-1-verdict--responders-rebids-over-openers-answer-landy_splinter_rebids-shipped-default-on-2026-09-23); `scripts/ab-landy-splinter-rebids.sh` |
 | **N1r row 1 arm 2** opener's `3NT` over the splinter needs a double stopper | `competition.landy_splinter_stopper` (**off**) | **MEASURED NON-WIN 2026-09-23**, stays opt-in | `stopper` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: none +0.0020 / +0.0022 / −0.0003 / −0.0004; both +0.0019 / +0.0029 / −0.0008 / −0.0002 (DD CIs ±0.0003–0.0004, sd ±0.0003–0.0004). Seed 1789977169, control `1abbb254`, base arms = arm 1's on arms, 4.608M bd/arm/vul, gates 0 foreign | The census's DD prediction held and was erased on sd-lead: a declare-less-`3NT` knob, §N1-lia D's mechanism, so sd-lead arbitrates (as for D and step 0's `both`). One default line if the lead seam is judged unrealistic in this seat. Refinement: cut by exact stopper type | [arm 2 verdict](#row-1-arm-2-verdict--openers-3nt-needs-a-double-stopper-landy_splinter_stopper-measured-non-win-2026-09-23-stays-opt-in-default-off); `scripts/ab-landy-splinter-stopper.sh` |
 | **N1r row 1 tails** their `(X)` / `(4M)` over the passed splinter `3NT` | `competition.landy_splinter_tails` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `tails` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **none +0.0030 / +0.0024 / +0.0009 / +0.0003; both +0.0006 / +0.0007 / +0.0003 / +0.0004**, every CI clear. Seed 1789977169, control `5c3ee25c` + knob, base arms = arm 1's on arms, 4.608M bd/arm/vul, gates 0 foreign; round 2 (opener's pass over the run added after round 1's worst boards) | Over `(X)`: sit, the void runs to the longer minor, opener passes the run — the floor redoubled half; over `(4M)`: opener's penalty `X`, responder passes — the floor never doubled. Residual: `X` of `(4M)` when `6♦` makes | [tails verdict](#row-1-tails-verdict--their-action-over-the-passed-3nt-landy_splinter_tails-shipped-default-on-2026-09-23); `scripts/ab-landy-splinter-tails.sh`, `examples/probe-landy-splinter-tails` |
+| **N1r row 9** the values doubler's rebids over their `(2M)` runout at favourable | `competition.landy_doubler_game` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `game` vs base at `ew`, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **+0.0085 / +0.0117 / +0.0078 / +0.0103**, every CI clear. Seed 1790142988, control `9d6a51ae`, 4.608M bd/arm, gate 0 foreign; other colours byte-identical by face gate | `3NT`@150 `points(10..)` for the short-trump game hand, authored five-card `3♣`/`3♦` for the 8–9 hand so `X – 3m` reads `8..9` (a floor call reads no sibling exclusion), opener passes `3NT` and answers `3m`. A third of the divergence is opener's `5m` becoming a pass. Residual: their four-level action over our `3NT` / their `(3M)` over `3♣` | [row 9 verdict](#row-9-verdict--the-values-doublers-rebids-over-their-2m-runout-landy_doubler_game-shipped-default-on-2026-09-23); `scripts/ab-landy-doubler-game.sh` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

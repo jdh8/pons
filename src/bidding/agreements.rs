@@ -1524,6 +1524,28 @@ pub struct CompetitionKnobs {
     /// IMPs/board, every CI clear.  Inert while their `2♣` is undeclared or
     /// natural.
     pub landy_splinter_tails: bool,
+    /// §N1r row 9 — the values doubler's game rebid over their `(2M)` runout
+    /// (`1NT (2♣) X (2♥) - -` and its three siblings)
+    ///
+    /// At favourable vulnerability [`Self::landy_notrump_no_major_favourable`]
+    /// sends the ten-plus hand holding a four-card major through the values
+    /// `X` instead of `3NT`.  Over their runout the penalty `X` takes it when
+    /// the major is theirs; with a short one it had no authored rebid, so the
+    /// floor bid the 8–9 hand's `3♣` with it and opener, reading `X – 3♣` as
+    /// `8..11`, jumped to `5♣` (§N1r step 0b's tax census).  On, `3NT`@150 on
+    /// `points(10..)` claims those hands and opener passes it; the floor's
+    /// `3♣` reads `8..9` again by sibling exclusion.  Dead everywhere but
+    /// favourable, where `3NT`@168 caps the double at nine.  The 8–9 hand's
+    /// natural `3♣`/`3♦` are authored too, since the floor's own call reads
+    /// no sibling exclusion; opener answers them.  All face-gated on
+    /// favourable, and only under [`Self::landy_doubler_px`]'s ladder.
+    ///
+    /// **On by default — measured 2026-09-23** (`scripts/ab-landy-doubler-game.sh`,
+    /// seed 1790142988, 4.608M boards per arm at `ew`, gate 0 foreign): DD
+    /// plain / PD **+0.0085 / +0.0117**, sd-lead **+0.0078 / +0.0103**
+    /// IMPs/board, every CI clear.  Other colours byte-identical by face
+    /// gate.  Inert while their `2♣` is undeclared or natural.
+    pub landy_doubler_game: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1971,6 +1993,7 @@ impl Default for CompetitionKnobs {
             landy_splinter_rebids: true,
             landy_splinter_stopper: false,
             landy_splinter_tails: true,
+            landy_doubler_game: true,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

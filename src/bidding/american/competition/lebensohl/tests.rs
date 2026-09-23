@@ -3222,3 +3222,65 @@ fn landy_splinter_stopper_single_stopper_picks_the_minor() {
         "the heart splinter mirrors"
     );
 }
+
+/// §N1r row 9 (`competition.landy_doubler_game`): at favourable the values
+/// `X` carries the ten-plus hand that holds a four-card major, so over their
+/// runout a short-trump game hand bids `3NT` and the 8–9 hand's natural minor
+/// is authored — which is what makes `X – 3♣` read `8..9` again.  Every other
+/// colour keeps the floor, by face gate.
+#[test]
+fn landy_doubler_game_is_favourable_only() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_doubler_game = true;
+    let seat = landy_doubler_seat();
+    let classify = |vul, auction: &[Call], hand: &str| {
+        let (logits, prov) = crate::bidding::american::american(&arm)
+            .bind()
+            .classify_with_provenance(hand.parse().expect("valid test hand"), vul, auction)
+            .expect("a legal auction classifies");
+        let best = (&logits.0)
+            .into_iter()
+            .reduce(|best, next| if next.1 > best.1 { next } else { best })
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        (best, prov.depth == 0 && prov.fallback.is_some())
+    };
+    let fav = RelativeVulnerability::THEY;
+
+    // Ten points, two hearts, four spades: the hand `3NT` denied at favourable.
+    let game = "KQ54.J8.K43.QT54";
+    assert_eq!(
+        classify(fav, &seat, game),
+        (call(3, Strain::Notrump), false)
+    );
+    // Eight points, five clubs, short hearts: the authored sign-off.
+    let minor = "K543.8.J83.KJ954";
+    assert_eq!(classify(fav, &seat, minor), (call(3, Strain::Clubs), false));
+    // Four hearts still doubles — the rung above both.
+    assert_eq!(classify(fav, &seat, "A54.KJ98.Q43.J54").0, Call::Double);
+
+    // Elsewhere the seat is the floor's, as before.
+    for vul in [RelativeVulnerability::NONE, RelativeVulnerability::ALL] {
+        assert!(classify(vul, &seat, minor).1, "{vul:?}: the floor keeps it");
+    }
+
+    // Opener: passes the game, and reads `3♣` as the capped 8–9 hand.
+    let after = |rung: Call| [seat.as_slice(), &[rung, Call::Pass]].concat();
+    let opener = "AQ54.A65.KQ4.Q83";
+    assert_eq!(
+        classify(fav, &after(call(3, Strain::Notrump)), opener),
+        (Call::Pass, false)
+    );
+    let clubs = after(call(3, Strain::Clubs));
+    assert_eq!(
+        classify(fav, &clubs, opener),
+        (call(3, Strain::Notrump), false)
+    );
+    let read = crate::bidding::american::american(&arm)
+        .bind()
+        .infer(fav, &clubs);
+    assert_eq!(read.partner().strength.hcp.max, 9, "X – 3♣ is 8–9 again");
+    assert!(classify(RelativeVulnerability::NONE, &clubs, opener).1);
+}

@@ -254,6 +254,12 @@ fn main() {
         Ok(_) => agreements.competition.landy_notrump_no_major = true,
         Err(_) => {}
     }
+    // §N1r row 9 — the doubler's favourable rebids over their runout (default on).
+    match std::env::var("PROBE_LANDY_DOUBLER_GAME").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.landy_doubler_game = false,
+        Ok(_) => agreements.competition.landy_doubler_game = true,
+        Err(_) => {}
+    }
     match std::env::var("PROBE_LANDY_MAJOR_JAM").as_deref() {
         Ok("0") | Ok("off") => agreements.competition.landy_major_jam = false,
         Ok(_) => agreements.competition.landy_major_jam = true,
