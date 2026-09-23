@@ -3342,68 +3342,6 @@ at both, so no re-measure could revive it.  To rebuild, the gate was
 on the complementary face, at both `3NT` rungs (@180 and @168).
 `_favourable` stands.
 
-#### Row 9 verdict — the values doubler's rebids over their `(2M)` runout (**`landy_doubler_game` SHIPPED DEFAULT-ON 2026-09-23**)
-
-Step 0b's tax, repaired at the one colour that carries it.  At favourable the
-values `X` holds the 10+ hand with a four-card major that `3NT` now denies;
-over `1NT (2♣) X (2M) - -` (and the two `X (2♦) - (2M)` legs) the penalty `X`
-takes it when the major is theirs, and otherwise it had no authored call.
-
-**The build finding: authoring the game hand alone does not fix the
-reading.**  With `3NT`@150 on `points(10..)` in place, `probe-decision` still
-read the floor's `X – 3♣` as `8..37`: sibling exclusion narrows only
-*authored* calls, so a floor call at a node that rejected the hand keeps
-the prior envelope.  The 8–9 hand's five-card `3♣`@100 / `3♦`@99 had to be
-authored too — then `X – 3♣` reads `8..9` with at most three of their major.
-The general gap (a floor call at a rejecting exact node could read as the
-prior minus every live authored rule there) is a reader change in every lane,
-so it is left as its own follow-up, not folded in here.
-
-**Authored**, all behind `face(favourable)` and only under the shipped `px`
-ladder: `3NT`@150 on `points(10..)` (no stopper gate, like the direct
-`3NT`@168 it was diverted from), `3♣`/`3♦` on five cards; opener passes the
-`3NT` and answers the minor with `landy_minor_rebid_answer` (`3NT` on 16+
-with their major stopped, else pass), on exact nodes so the dead faces fall
-through to the floor.  A seeded identity check (`bba-gen --count 3000 --seed 7
---filter-landy`) reads none / both and `ns` table A byte-identical; only
-favourable seats move.
-
-`scripts/ab-landy-doubler-game.sh`, `SEED_BASE=1790142988`, control
-`9d6a51ae` + the knob, 4,608,000 bd/arm, gate 0 foreign.  IMPs/board,
-`game` − `base`:
-
-| colour | fired | DD plain | DD PD | sd-lead plain | sd-lead PD | reads |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| `ew` | 0.25% | **+0.0085** ±0.0003 | **+0.0117** ±0.0004 | **+0.0078** ±0.0004 | **+0.0103** ±0.0004 | win on all four; +3.45 / +4.76 DD per fired |
-
-* **No lead seam this time**: DD and sd-lead agree within 0.0015, unlike
-  step 0 (≈ 0.011).  The arm mostly *stops* overbidding rather than trading a
-  game for a penalty.
-* **Where it diverges** (11,444 boards, by first differing call): opener's
-  `5m` over `X – 3m` becomes a pass on 33.5% (`2♠` 20.3%, `2♥` 8.2%, `3♦`
-  5.0%); the doubler's `3NT` replaces the floor's second `X` on 21.0% and
-  the floor's `3♣`/`3♦` on 14.1%; the authored `3♦` replaces a pass or a
-  second `X` on 11.4% and the floor's `3♣` on 4.5%; opener's `4♣` over their
-  balancing `(3M)` replaces `5♣` on 6.4%.
-* **Pre-registered falsifier did not fire in aggregate**: the floor's second
-  `X` on the short-trump game hand is 21% of the divergence and the arm still
-  wins every column.  **Worst boards** are its tail — `X (2♠) - - 3NT (4♠)`
-  where the off arm collected from `X (3♠) X`, −15 each — and their balancing
-  `(3M)` over our `3♣` (opener's floor `4♣` where `5♣` pushed them to a
-  doubled `5M`).  Both are floor tails over their four-level action; not
-  authored.
-
-## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
-
-Knob `competition.nt_high_overcall_responses` (the table, **default on since
-2026-08-18**) and `competition.nt_3c_transfers` (the `(3♣)` transfer variant,
-default off); `bba-gen --ns-nt-high-overcall` / `--ns-nt-3c-transfers`, plus the new
-`--ns-direct-3nt-stopper` for the gate arm. Code:
-[nt_high_overcall.rs](../src/bidding/american/competition/nt_high_overcall.rs),
-a sibling of `high_overcall.rs` keyed `P* 1NT (3x)`. Runner:
-`scripts/ab-nt-high-overcall.sh`.
-
-
 #### Row 1 step 0 verdict — the splinter census (**2026-09-23: wastage is the wrong axis; the leak is responder's floor `4♠` over opener's `3NT`**)
 
 `examples/probe-landy-splinter-oracle` on step 0's `base-none` / `base-both`
@@ -3592,6 +3530,67 @@ bd/arm/vul, gates 0 foreign.  IMPs/board, `tails` − `base` (round 2):
   would need responder's shape and opener's fit at once; not authored.
 * **The seat is done** except for arm 2's flagged judgment call and the
   direct `3M - 3NT (4♥)` tail (29 boards at none, left to the floor).
+
+#### Row 9 verdict — the values doubler's rebids over their `(2M)` runout (**`landy_doubler_game` SHIPPED DEFAULT-ON 2026-09-23**)
+
+Step 0b's tax, repaired at the one colour that carries it.  At favourable the
+values `X` holds the 10+ hand with a four-card major that `3NT` now denies;
+over `1NT (2♣) X (2M) - -` (and the two `X (2♦) - (2M)` legs) the penalty `X`
+takes it when the major is theirs, and otherwise it had no authored call.
+
+**The build finding: authoring the game hand alone does not fix the
+reading.**  With `3NT`@150 on `points(10..)` in place, `probe-decision` still
+read the floor's `X – 3♣` as `8..37`: sibling exclusion narrows only
+*authored* calls, so a floor call at a node that rejected the hand keeps
+the prior envelope.  The 8–9 hand's five-card `3♣`@100 / `3♦`@99 had to be
+authored too — then `X – 3♣` reads `8..9` with at most three of their major.
+The general gap (a floor call at a rejecting exact node could read as the
+prior minus every live authored rule there) is a reader change in every lane,
+so it is left as its own follow-up, not folded in here.
+
+**Authored**, all behind `face(favourable)` and only under the shipped `px`
+ladder: `3NT`@150 on `points(10..)` (no stopper gate, like the direct
+`3NT`@168 it was diverted from), `3♣`/`3♦` on five cards; opener passes the
+`3NT` and answers the minor with `landy_minor_rebid_answer` (`3NT` on 16+
+with their major stopped, else pass), on exact nodes so the dead faces fall
+through to the floor.  A seeded identity check (`bba-gen --count 3000 --seed 7
+--filter-landy`) reads none / both and `ns` table A byte-identical; only
+favourable seats move.
+
+`scripts/ab-landy-doubler-game.sh`, `SEED_BASE=1790142988`, control
+`9d6a51ae` + the knob, 4,608,000 bd/arm, gate 0 foreign.  IMPs/board,
+`game` − `base`:
+
+| colour | fired | DD plain | DD PD | sd-lead plain | sd-lead PD | reads |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `ew` | 0.25% | **+0.0085** ±0.0003 | **+0.0117** ±0.0004 | **+0.0078** ±0.0004 | **+0.0103** ±0.0004 | win on all four; +3.45 / +4.76 DD per fired |
+
+* **No lead seam this time**: DD and sd-lead agree within 0.0015, unlike
+  step 0 (≈ 0.011).  The arm mostly *stops* overbidding rather than trading a
+  game for a penalty.
+* **Where it diverges** (11,444 boards, by first differing call): opener's
+  `5m` over `X – 3m` becomes a pass on 33.5% (`2♠` 20.3%, `2♥` 8.2%, `3♦`
+  5.0%); the doubler's `3NT` replaces the floor's second `X` on 21.0% and
+  the floor's `3♣`/`3♦` on 14.1%; the authored `3♦` replaces a pass or a
+  second `X` on 11.4% and the floor's `3♣` on 4.5%; opener's `4♣` over their
+  balancing `(3M)` replaces `5♣` on 6.4%.
+* **Pre-registered falsifier did not fire in aggregate**: the floor's second
+  `X` on the short-trump game hand is 21% of the divergence and the arm still
+  wins every column.  **Worst boards** are its tail — `X (2♠) - - 3NT (4♠)`
+  where the off arm collected from `X (3♠) X`, −15 each — and their balancing
+  `(3M)` over our `3♣` (opener's floor `4♣` where `5♣` pushed them to a
+  doubled `5M`).  Both are floor tails over their four-level action; not
+  authored.
+
+## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
+
+Knob `competition.nt_high_overcall_responses` (the table, **default on since
+2026-08-18**) and `competition.nt_3c_transfers` (the `(3♣)` transfer variant,
+default off); `bba-gen --ns-nt-high-overcall` / `--ns-nt-3c-transfers`, plus the new
+`--ns-direct-3nt-stopper` for the gate arm. Code:
+[nt_high_overcall.rs](../src/bidding/american/competition/nt_high_overcall.rs),
+a sibling of `high_overcall.rs` keyed `P* 1NT (3x)`. Runner:
+`scripts/ab-nt-high-overcall.sh`.
 
 ### What was wrong
 
