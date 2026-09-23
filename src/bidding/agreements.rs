@@ -1499,6 +1499,31 @@ pub struct CompetitionKnobs {
     /// type is the next arm if the seat is reopened.  Inert while their `2♣`
     /// is undeclared or natural.
     pub landy_splinter_stopper: bool,
+    /// §N1r row 1 item 1–2 — our side's calls when they act over the passed
+    /// `3NT` answer to our Landy splinter (`1NT (2♣) 3♥/3♠ - 3NT - - …`)
+    ///
+    /// - **Their `(X)`**: opener passes; responder runs to five of its longer
+    ///   minor (clubs on a tie) on a **void** in the splintered major, else
+    ///   passes; opener passes the run.  The floor redoubled half of these at
+    ///   both vulnerable.
+    /// - **Their `(4M)`** (either major): opener doubles for penalty,
+    ///   responder passes it; responder also doubles `(4M)` when the
+    ///   overcaller pulls the double (`… (X) - (4M)`).  The floor sat or bid
+    ///   `5m` and never doubled a sacrifice against our game force.
+    ///
+    /// The tails census (`examples/probe-landy-splinter-tails`, 2026-09-23)
+    /// priced, IMPs per seat board over live, plain / PD: sitting `3NTx`
+    /// +0.96 / +2.01 (none), +1.90 / +2.85 (both); the void run over sitting
+    /// +2.9 / +1.5 (none), +2.1 / +0.2 (both); doubling `4M` +2.5 to +3.5
+    /// plain in every bucket.  Rides on [`Self::landy_splinter_rebids`].
+    ///
+    /// **On by default — measured 2026-09-23** (`scripts/ab-landy-splinter-tails.sh`,
+    /// seed 1789977169, 4.608M boards per arm per colour, gates 0 foreign):
+    /// DD plain / PD **+0.0030 / +0.0024** at none and **+0.0006 / +0.0007**
+    /// at both, sd-lead **+0.0009 / +0.0003** and **+0.0003 / +0.0004**
+    /// IMPs/board, every CI clear.  Inert while their `2♣` is undeclared or
+    /// natural.
+    pub landy_splinter_tails: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1945,6 +1970,7 @@ impl Default for CompetitionKnobs {
             landy_notrump_no_major_favourable: true,
             landy_splinter_rebids: true,
             landy_splinter_stopper: false,
+            landy_splinter_tails: true,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

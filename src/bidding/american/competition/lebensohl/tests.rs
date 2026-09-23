@@ -3073,6 +3073,86 @@ fn landy_splinter_rebids_pass_notrump_and_raise_minor() {
     );
 }
 
+/// §N1r row 1 tails: their action over the passed splinter `3NT`
+///
+/// `competition.landy_splinter_tails`, default on since 2026-09-23.
+#[test]
+fn landy_splinter_tails_sit_run_on_void_double_sacrifice() {
+    use contract_bridge::auction::RelativeVulnerability;
+    let arm = landy_strength_arm(false);
+    assert!(arm.competition.landy_splinter_tails, "default on");
+    let best = |auction: &[Call], hand: &str| {
+        best_call_vul(&arm, RelativeVulnerability::NONE, auction, hand)
+    };
+    let p = Call::Pass;
+    let x = Call::Double;
+    let passed = |splinter: Strain, tail: &[Call]| {
+        let mut auction = vec![
+            call(1, Strain::Notrump),
+            call(2, Strain::Clubs),
+            call(3, splinter),
+            p,
+            call(3, Strain::Notrump),
+            p,
+            p,
+        ];
+        auction.extend_from_slice(tail);
+        auction
+    };
+    let opener = "KQ4.A54.KJ3.QJ32";
+    assert_eq!(
+        best(&passed(Strain::Spades, &[x]), opener),
+        p,
+        "opener sits"
+    );
+    for (splinter, hand, want, why) in [
+        (
+            Strain::Spades,
+            ".Q6.A98765.KQ973",
+            call(5, Strain::Diamonds),
+            "void, longer diamonds",
+        ),
+        (
+            Strain::Hearts,
+            "Q6..KQ973.A98765",
+            call(5, Strain::Clubs),
+            "void, longer clubs",
+        ),
+        (
+            Strain::Hearts,
+            "Q9632..AK98.KQ97",
+            call(5, Strain::Clubs),
+            "void, 4-4: clubs",
+        ),
+        (Strain::Spades, "A.Q6.A9876.KQ973", p, "a singleton sits"),
+    ] {
+        assert_eq!(best(&passed(splinter, &[x, p, p]), hand), want, "{why}");
+    }
+    let run = [x, p, p, call(5, Strain::Clubs), p];
+    assert_eq!(
+        best(&passed(Strain::Hearts, &run), "KQ4.A54.KJ32.Q32"),
+        p,
+        "opener sits the run, even with four diamonds"
+    );
+    for sac in [call(4, Strain::Hearts), call(4, Strain::Spades)] {
+        assert_eq!(
+            best(&passed(Strain::Spades, &[sac]), opener),
+            x,
+            "opener doubles {sac}"
+        );
+        assert_eq!(
+            best(&passed(Strain::Spades, &[sac, x, p]), ".Q6.A98765.KQ973"),
+            p,
+            "responder leaves the double of {sac} in"
+        );
+        assert_eq!(
+            best(&passed(Strain::Spades, &[x, p, sac]), ".Q6.A98765.KQ973"),
+            x,
+            "responder doubles the pulled {sac}"
+        );
+    }
+}
+
 /// §N1r row 1 arm 2: opener's `3NT` over the splinter needs a double stopper
 ///
 /// `competition.landy_splinter_stopper`, default off (A/B owed).

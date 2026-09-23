@@ -968,6 +968,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_landy_splinter_stopper: bool,
 
+    /// Disable our calls over their action after the passed splinter `3NT`
+    /// (§N1r row 1 tails)
+    ///
+    /// `competition.landy_splinter_tails`, default **on** since 2026-09-23:
+    /// over their `(X)` opener passes and responder runs to `5m` on a void,
+    /// else passes; over their `(4M)` opener doubles and responder passes.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_splinter_tails: bool,
+
     /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
     /// `competition.landy_major_jam`, default **on** since it swept its
@@ -2556,6 +2565,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         !args.no_ns_landy_notrump_no_major_favourable;
     agreements.competition.landy_splinter_rebids = !args.no_ns_landy_splinter_rebids;
     agreements.competition.landy_splinter_stopper = args.ns_landy_splinter_stopper;
+    agreements.competition.landy_splinter_tails = !args.no_ns_landy_splinter_tails;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;

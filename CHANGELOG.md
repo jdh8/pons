@@ -58,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the follow-up: their balancing `(4M)` over the passed `3NT` (≈ 4,400 boards
   at none; the floor sits or bids `5m`, never doubles) and their double of it
   (≈ 1,100 at both; the floor redoubles on half).
+- **§N1r row 1 tails — our calls when they act over the passed splinter
+  `3NT`** — `competition.landy_splinter_tails`, **default on**
+  (`bba-gen --no-ns-landy-splinter-tails`).  At `1NT (2♣) 3♥/3♠ - 3NT - - (X)`
+  opener passes, responder runs to five of its longer minor on a void in the
+  splintered major and sits otherwise, and opener passes the run; over their
+  balancing `(4♥)`/`(4♠)` opener doubles for penalty and responder leaves it
+  in.  The floor redoubled half the doubled `3NT`s and never doubled a
+  sacrifice against our game force.  Census: new
+  `examples/probe-landy-splinter-tails`.  `scripts/ab-landy-splinter-tails.sh`
+  (seed `1789977169`, control `5c3ee25c`, 4.608M bd/arm/vul, gates 0
+  foreign): none **+0.0030 plain / +0.0024 PD**, both **+0.0006 / +0.0007
+  IMPs/board**; sd-lead **+0.0009 / +0.0003** and **+0.0003 / +0.0004** — a
+  win on all eight columns, +2.7 to +4.1 IMPs per fired board on DD.
 - **§N1r row 1 arm 2 — opener's `3NT` over our Landy splinter needs a double
   stopper** — `competition.landy_splinter_stopper`, **default off**, opt-in
   (`bba-gen --ns-landy-splinter-stopper`): two of A-K-Q in the short major or

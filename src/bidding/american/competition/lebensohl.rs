@@ -1801,6 +1801,35 @@ fn landy_splinter_raise(minor: Suit) -> Rules {
     Rules::new().rule(Bid::new(5, Strain::from(minor)), 0, hcp(0..))
 }
 
+/// Responder over their pass-out double of the passed splinter `3NT`
+/// (`1NT (2♣) 3M - 3NT - - (X) - -`, §N1r row 1 tails)
+///
+/// A void in the splintered major runs to five of the longer minor (clubs on
+/// a tie — opener's `3NT` said nothing about its minors); anything else sits.
+/// The census priced the run over sitting at a void only; with a singleton
+/// sitting wins on PD.
+fn landy_splinter_doubled_run(short: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(5, Strain::Diamonds),
+            101,
+            // Diamonds strictly longer: 5-4, 6-5 or 7+ (a void leaves at
+            // most six clubs beside seven diamonds).
+            len(short, ..=0)
+                & (len(Suit::Diamonds, 5..) & len(Suit::Clubs, ..=4)
+                    | len(Suit::Diamonds, 6..) & len(Suit::Clubs, ..=5)
+                    | len(Suit::Diamonds, 7..)),
+        )
+        .rule(Bid::new(5, Strain::Clubs), 100, len(short, ..=0))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Our double of their four-level major sacrifice against the splinter's
+/// game force (`1NT (2♣) 3M - 3NT - - (4M)`, §N1r row 1 tails): a catch-all.
+fn landy_splinter_sacrifice_double() -> Rules {
+    Rules::new().rule(Call::Double, 0, hcp(0..)).penalty()
+}
+
 // --- §N1q: the strength-sorted two-level majors --------------------------
 
 /// Opener's answer to §N1q's weak both-minors takeout (`1NT (2♣) 2♥ -`)
@@ -3085,6 +3114,48 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                     entries.extend(rows_of(
                         Pattern::after(OVER, &format!("{call} - {pick} {suffix}")),
                         landy_splinter_raise(minor),
+                    ));
+                }
+            }
+            // …and their action over the passed `3NT`; see
+            // [`CompetitionKnobs::landy_splinter_tails`][crate::bidding::agreements::CompetitionKnobs::landy_splinter_tails].
+            if agreements.competition.landy_splinter_tails {
+                let passed = format!("{call} - {notrump} - -");
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{passed} (X)")),
+                    multi_signoff_pass(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(OVER, &format!("{passed} (X) - -")),
+                    landy_splinter_doubled_run(short),
+                ));
+                // Opener sits the run: unauthored, the floor jumped to six of
+                // the other minor on two thirds of them.
+                for minor in [Strain::Clubs, Strain::Diamonds] {
+                    for suffix in ["-", "(X)"] {
+                        entries.extend(rows_of(
+                            Pattern::after(
+                                OVER,
+                                &format!("{passed} (X) - - {} {suffix}", Bid::new(5, minor)),
+                            ),
+                            multi_signoff_pass(),
+                        ));
+                    }
+                }
+                for major in [Suit::Hearts, Suit::Spades] {
+                    let sac = Bid::new(4, Strain::from(major));
+                    for node in [
+                        format!("{passed} ({sac})"),
+                        format!("{passed} (X) - ({sac})"),
+                    ] {
+                        entries.extend(rows_of(
+                            Pattern::after(OVER, &node),
+                            landy_splinter_sacrifice_double(),
+                        ));
+                    }
+                    entries.extend(rows_of(
+                        Pattern::after(OVER, &format!("{passed} ({sac}) X -")),
+                        multi_signoff_pass(),
                     ));
                 }
             }

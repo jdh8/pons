@@ -3162,7 +3162,7 @@ free:
 
 | # | Idea | Why it might pay | Step 0 (before any authoring) |
 | --- | --- | --- | --- |
-| 1 | **Finish the splinter** (**census 2026-09-23**, **arm 1 shipped default-on 2026-09-23**, **arm 2 measured non-win 2026-09-23** — [arm 2 verdict](#row-1-arm-2-verdict--openers-3nt-needs-a-double-stopper-landy_splinter_stopper-measured-non-win-2026-09-23-stays-opt-in-default-off); [arm 1 verdict](#row-1-arm-1-verdict--responders-rebids-over-openers-answer-landy_splinter_rebids-shipped-default-on-2026-09-23); census:  [verdict](#row-1-step-0-verdict--the-splinter-census-2026-09-23-wastage-is-the-wrong-axis-the-leak-is-responders-floor-4-over-openers-3nt): half (a) sign-reversed, half (b) dead, and a floor `4♠` leak worth more than both). Opener's answer is `3NT`@150 on *any* `stopper_in(M)` or no minor fit, else `4m`; above `4m` the floor owns a disturbed four level (no RKCB — [minor-transfer-slam.md](minor-transfer-slam.md)'s survey rows). Two halves: (a) gate the `3NT` on **wastage** — a double stopper / two top honours, not `Axx` opposite a stiff with a five-card suit on lead; (b) author the fit path: opener's `4M` cue = fit, no wastage, maximum vs `4m` = ordinary; responder `5m` / `4NT` RKCB by a `points` floor, controls not HCP on the accept (ledger row P6) | The splinters were 17.1% + 15.2% of the 8+ both-minor band in the §N1q census ≈ **0.86% of all boards** — about 30× Texas's firing rate, and both halves are pure DD (game placement, slam) | From any existing arm dump: splinter boards, split by opener's holding in `M` (no stopper / single / wasted) × final contract × DD of `3NT` vs `5m` vs `6m` |
+| 1 | **Finish the splinter** (**census 2026-09-23**, **arm 1 shipped default-on 2026-09-23**, **arm 2 measured non-win 2026-09-23**, **tails shipped default-on 2026-09-23** — [tails verdict](#row-1-tails-verdict--their-action-over-the-passed-3nt-landy_splinter_tails-shipped-default-on-2026-09-23); [arm 2 verdict](#row-1-arm-2-verdict--openers-3nt-needs-a-double-stopper-landy_splinter_stopper-measured-non-win-2026-09-23-stays-opt-in-default-off); [arm 1 verdict](#row-1-arm-1-verdict--responders-rebids-over-openers-answer-landy_splinter_rebids-shipped-default-on-2026-09-23); census:  [verdict](#row-1-step-0-verdict--the-splinter-census-2026-09-23-wastage-is-the-wrong-axis-the-leak-is-responders-floor-4-over-openers-3nt): half (a) sign-reversed, half (b) dead, and a floor `4♠` leak worth more than both). Opener's answer is `3NT`@150 on *any* `stopper_in(M)` or no minor fit, else `4m`; above `4m` the floor owns a disturbed four level (no RKCB — [minor-transfer-slam.md](minor-transfer-slam.md)'s survey rows). Two halves: (a) gate the `3NT` on **wastage** — a double stopper / two top honours, not `Axx` opposite a stiff with a five-card suit on lead; (b) author the fit path: opener's `4M` cue = fit, no wastage, maximum vs `4m` = ordinary; responder `5m` / `4NT` RKCB by a `points` floor, controls not HCP on the accept (ledger row P6) | The splinters were 17.1% + 15.2% of the 8+ both-minor band in the §N1q census ≈ **0.86% of all boards** — about 30× Texas's firing rate, and both halves are pure DD (game placement, slam) | From any existing arm dump: splinter boards, split by opener's holding in `M` (no stopper / single / wasted) × final contract × DD of `3NT` vs `5m` vs `6m` |
 | 2 | **`3♦` = game values, major-stopper trouble** (the Bessis sheet's artificial `3♦`; Kokish–Kraft and Cohen solve the same thing by making direct `3NT` *deny* full stoppers). Opener: `3NT` both stopped, `3♥`/`3♠` = that major only, `4m` neither. Takes hands out of `3NT`@168 only | `3NT`@168 is ungated opposite a known nine-plus majors on lead; fully DD-visible. **Not** §N1p's `nt` arm — that one rerouted to the `X` and stopped us declaring; this one keeps declaring | `3NT`@168 boards by responder's stopper count (0/1/2) × DD `3NT` vs best minor contract. If the 0-stopper cell still makes as often as the alternative, the idea dies here — honest prior: opener holds both stoppers most of the time and `5m` on 25 is no bargain |
 | 3 | **Transfer splinters** (Merienne–Martel): `3♦` = short ♥, `3♥` = short ♠, `3♠` = 5-5 minors. Buys opener one step (`3M` = "doubtful stopper, your call") below `3NT` | Only if #1's census shows the `3NT`/`5m` decision is the leak and wastage alone cannot separate it. Competes with #2 for the `3♦` slot | #1's census |
 | 4 | **Direct `4♥` when short in spades.** Texas's recorded residue: every worst board is `4♣ - 4♥ - - (4♠)` — the transfer gives the overcaller a second turn; the mirror never happens to `4♦`→♠. Gate: `len(♥, 6..) & len(♠, ..=1)` jams directly, reclaiming the near-dead exactly-15 `4♥` | Evidence is already measured (52 / 37 boards, 33 / 30 doubles, zero the other way); gain capped at roughly a fifth of Texas's +0.0002/bd | none owed — the Package C reports hold it |
@@ -3492,6 +3492,55 @@ IMPs/board, `stopper` − `base`:
 * Refinement if reopened: the census class is A-K-Q count, so a bare `A`,
   `Kx`, `Qxx` and `Jxxx` share the `stop1` bucket; the pre-registered
   falsifier is a cut by exact stopper type, priced on the same dumps.
+
+#### Row 1 tails verdict — their action over the passed `3NT` (**`landy_splinter_tails` SHIPPED DEFAULT-ON 2026-09-23**)
+
+Arm 1's pass hands the opponents' pass-out seat two floor-owned tails at
+`P* 1NT (2♣) 3M - 3NT - - …`.  **Census** (`examples/probe-landy-splinter-tails`,
+on arm 1's on-arm dumps; reports `ab-results/landy-splinter-tails/census-*.txt`),
+IMPs per seat board over live, plain / PD:
+
+* **`(X)`** (641 boards at none, 1,085 at both): the floor sat on 253 / 340
+  and **redoubled** on 116 / 279, then walked into `4♥`@us on the pull
+  (−1,000 to −1,400 PD).  Sitting in `3NTx` is +0.96 / +2.01 (none),
+  +1.90 / +2.85 (both).  Responder running to its own longer minor beats
+  sitting in both columns only on a **void** in the splintered major
+  (+2.9 / +1.5 none, +2.1 / +0.2 both); with a singleton it wins plain and
+  loses PD (−1.1 / −1.8), so the singleton sits.
+* **`(4M)`** (≈ 4,750 boards at none, ~10 at both): doubling is +2.5 to
+  +3.5 plain in every bucket (their suit = the splintered major or the
+  other, every HCP band); the floor sat on 1,164 `(4♥)`s and bid `5m`
+  elsewhere, never doubling.  PD prefers the undoubled `4♥` over the heart
+  splinter by 0.5 — the doubled-making cases — but the change *adds*
+  doubles, so plain DD arbitrates and PD is the double-blind column.
+
+**Authored**: over `(X)` opener passes, responder runs to `5♦` (diamonds
+strictly longer) or `5♣` on a void and passes otherwise, and opener passes the
+run (`-` and `(X)` twins); over `(4♥)`/`(4♠)` opener doubles (a `.penalty()`
+catch-all), responder passes it, and responder doubles `(4M)` when the
+overcaller pulls the `(X)` (`… (X) - (4M)`).  No alerts: every call is natural.
+
+`scripts/ab-landy-splinter-tails.sh`, `SEED_BASE=1789977169`, control
+`5c3ee25c` + the knob, base arms = arm 1's on-arm dumps, 4,608,000
+bd/arm/vul, gates 0 foreign.  IMPs/board, `tails` − `base` (round 2):
+
+| colour | fired | DD plain | DD PD | sd-lead plain | sd-lead PD | reads |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `none` | 0.11% | **+0.0030** ±0.0003 | **+0.0024** ±0.0003 | **+0.0009** ±0.0002 | **+0.0003** ±0.0002 | win on all four; +2.75 / +2.20 DD per fired |
+| `both` | 0.02% | **+0.0006** ±0.0001 | **+0.0007** ±0.0001 | **+0.0003** ±0.0001 | **+0.0004** ±0.0001 | win on all four; +3.33 / +4.09 DD per fired |
+
+* **Round 1** (the same without opener's pass over the run;
+  `ab-results/landy-splinter-tails`) read the same to the fourth decimal on
+  DD (+0.0030 / +0.0024, +0.0006 / +0.0007), but its worst boards showed
+  the floor at opener's seat jumping to six of the other minor over
+  responder's `5m` run on 33 of 162 (none) and 47 of 228 (both) runs.  The
+  pass was authored and round 2 re-measured; it moved sd-lead at both from
+  +0.0002 / +0.0003 to +0.0003 / +0.0004 and nothing else visibly.
+* **Worst boards**: our double of their `(4M)` when `6♦` makes (the floor
+  used to bid it after `5♣`), −17 each.  A slam branch over the sacrifice
+  would need responder's shape and opener's fit at once; not authored.
+* **The seat is done** except for arm 2's flagged judgment call and the
+  direct `3M - 3NT (4♥)` tail (29 boards at none, left to the floor).
 
 ### What was wrong
 
@@ -5559,6 +5608,7 @@ reason to take it.
 | **N1r row 1 census** the splinter seat | none — `examples/probe-landy-splinter-oracle` | **CENSUS 2026-09-23**, nothing built | Oracle on step 0's base dumps, IMPs per seat board vs live, plain / PD: `stop1 fit` `5m` +1.17 / +1.45 vs `3NT` +0.66 / +0.51 (none), `wasted fit` `3NT` +1.21 / +1.26 vs `5m` −0.53 / −0.52; `6m` beats `3NT` only at responder 15+ (157 boards). Responder's floor `4♠` over `3NT` after the spade splinter: 2,234 / 1,140 boards, `3NT` instead **+0.0051 / +0.0072** (none) and **+0.0033 / +0.0043** (both) per board | Wastage gate sign-reversed (a double stopper is where `3NT` is best; the single stopper with a fit wants `5m`); slam path dead by frequency; the phantom `4♠` is an unauthored responder rebid over `3NT`, lia3's floor class | [row 1 verdict](#row-1-step-0-verdict--the-splinter-census-2026-09-23-wastage-is-the-wrong-axis-the-leak-is-responders-floor-4-over-openers-3nt) |
 | **N1r row 1 arm 1** responder's rebids over opener's answer to the splinter | `competition.landy_splinter_rebids` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `rebids` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **none +0.0055 / +0.0078 / +0.0053 / +0.0072; both +0.0039 / +0.0047 / +0.0035 / +0.0042**, DD CIs ±0.0003–0.0004. Seed 1789977169, control `d0f7222c`, base arms reused from step 0, 4.608M bd/arm/vul, gates 0 foreign | `Pass` over opener's `3NT`, `5m` over `4m`, `(X)` twins; the floor's phantom `4♠` on the spade void is gone. Oracle predicted +0.0063 / +0.0082 and +0.0036 / +0.0045. Residual: their balancing `(4M)` and their `X` of the passed `3NT` are floor tails (sits, `5m`, a redouble) | [arm 1 verdict](#row-1-arm-1-verdict--responders-rebids-over-openers-answer-landy_splinter_rebids-shipped-default-on-2026-09-23); `scripts/ab-landy-splinter-rebids.sh` |
 | **N1r row 1 arm 2** opener's `3NT` over the splinter needs a double stopper | `competition.landy_splinter_stopper` (**off**) | **MEASURED NON-WIN 2026-09-23**, stays opt-in | `stopper` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: none +0.0020 / +0.0022 / −0.0003 / −0.0004; both +0.0019 / +0.0029 / −0.0008 / −0.0002 (DD CIs ±0.0003–0.0004, sd ±0.0003–0.0004). Seed 1789977169, control `1abbb254`, base arms = arm 1's on arms, 4.608M bd/arm/vul, gates 0 foreign | The census's DD prediction held and was erased on sd-lead: a declare-less-`3NT` knob, §N1-lia D's mechanism, so sd-lead arbitrates (as for D and step 0's `both`). One default line if the lead seam is judged unrealistic in this seat. Refinement: cut by exact stopper type | [arm 2 verdict](#row-1-arm-2-verdict--openers-3nt-needs-a-double-stopper-landy_splinter_stopper-measured-non-win-2026-09-23-stays-opt-in-default-off); `scripts/ab-landy-splinter-stopper.sh` |
+| **N1r row 1 tails** their `(X)` / `(4M)` over the passed splinter `3NT` | `competition.landy_splinter_tails` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `tails` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **none +0.0030 / +0.0024 / +0.0009 / +0.0003; both +0.0006 / +0.0007 / +0.0003 / +0.0004**, every CI clear. Seed 1789977169, control `5c3ee25c` + knob, base arms = arm 1's on arms, 4.608M bd/arm/vul, gates 0 foreign; round 2 (opener's pass over the run added after round 1's worst boards) | Over `(X)`: sit, the void runs to the longer minor, opener passes the run — the floor redoubled half; over `(4M)`: opener's penalty `X`, responder passes — the floor never doubled. Residual: `X` of `(4M)` when `6♦` makes | [tails verdict](#row-1-tails-verdict--their-action-over-the-passed-3nt-landy_splinter_tails-shipped-default-on-2026-09-23); `scripts/ab-landy-splinter-tails.sh`, `examples/probe-landy-splinter-tails` |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |
