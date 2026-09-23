@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-landy-notrump-stopper --quant` (2026-09-23)**: the §N1r row 5
+  census — prices a quantitative `4NT` over every direct `1NT (2♣) 3NT`.
+  Dead at step 0: responder holds 16–17 on 200 / 52 boards in 4.6M (none /
+  both) and the scheme reads −0.00001 IMPs/board. Nothing shipped; the
+  default system is untouched.
 - **`examples/probe-landy-notrump-stopper` (2026-09-23)**: the §N1r row 2
   census of responder's ungated `3NT`@168 over their Landy (`1NT (2♣) 3NT`
   without both majors stopped) — prices `3NT`, `5m` and the idle-`3♦`

@@ -3166,7 +3166,7 @@ free:
 | 2 | **`3♦` = game values, major-stopper trouble** (**census 2026-09-23: DEAD at step 0** — [verdict](#row-2-step-0-verdict--the-3nt168-stopper-census-2026-09-23-dead-at-step-0-3nt-is-the-right-game-even-without-the-stopper): opener covers the missing major on 88%, and `5m` only ties `3NT` where opener is bare) (the Bessis sheet's artificial `3♦`; Kokish–Kraft and Cohen solve the same thing by making direct `3NT` *deny* full stoppers). Opener: `3NT` both stopped, `3♥`/`3♠` = that major only, `4m` neither. Takes hands out of `3NT`@168 only | `3NT`@168 is ungated opposite a known nine-plus majors on lead; fully DD-visible. **Not** §N1p's `nt` arm — that one rerouted to the `X` and stopped us declaring; this one keeps declaring | `3NT`@168 boards by responder's stopper count (0/1/2) × DD `3NT` vs best minor contract. If the 0-stopper cell still makes as often as the alternative, the idea dies here — honest prior: opener holds both stoppers most of the time and `5m` on 25 is no bargain |
 | 3 | **Transfer splinters** (Merienne–Martel): `3♦` = short ♥, `3♥` = short ♠, `3♠` = 5-5 minors. Buys opener one step (`3M` = "doubtful stopper, your call") below `3NT` | Only if #1's census shows the `3NT`/`5m` decision is the leak and wastage alone cannot separate it. Competes with #2 for the `3♦` slot | #1's census |
 | 4 | **Direct `4♥` when short in spades.** Texas's recorded residue: every worst board is `4♣ - 4♥ - - (4♠)` — the transfer gives the overcaller a second turn; the mirror never happens to `4♦`→♠. Gate: `len(♥, 6..) & len(♠, ..=1)` jams directly, reclaiming the near-dead exactly-15 `4♥` | Evidence is already measured (52 / 37 boards, 33 / 30 doubles, zero the other way); gain capped at roughly a fifth of Texas's +0.0002/bd | none owed — the Package C reports hold it |
-| 5 | **Quantitative `4NT`** `hcp(16..=17)` balanced, authored answer. Both `3NT` rungs are uncapped, so a 17-count opposite 15-17 plays game | One rule + one answer; but responder 16+ over a Landy overcall is vanishing | count `3NT` boards with responder `hcp(16..)` |
+| 5 | **Quantitative `4NT`** (**census 2026-09-23: DEAD at step 0** — [verdict](#row-5-step-0-verdict--the-quantitative-4nt-census-2026-09-23-dead-at-step-0-responder-16-never-bids-3nt): responder 16–17 on 200 / 52 boards in 4.6M) `hcp(16..=17)` balanced, authored answer. Both `3NT` rungs are uncapped, so a 17-count opposite 15-17 plays game | One rule + one answer; but responder 16+ over a Landy overcall is vanishing | count `3NT` boards with responder `hcp(16..)` |
 | 6 | `4♠` = both minors, long (K–K weak; BBA plays it 5-5, 3-17 HCP, 0.445%) | Low: at 10+ a 5-5 is **always** a splinter (five cards left for two majors), so only the weak band is new, and a preempt opposite a strong notrump guards a game they rarely have — obstruction the harness cannot price anyway | — |
 | 7 | `3♦` natural, INV six-card (Cohen) or GF one five-card major (*Jean Christophe*, opener relays) | Low: the natural `3♦` measured a wash on 26 bd in N1 and **negative at 6+** in lia; a 5-3 major fit into a known 4-1/5-0 break is the wrong game | — |
 | 8 | The `4m` rung above the §N1q rail | already owed above, ≈ 0.0001/bd | — |
@@ -3174,6 +3174,17 @@ free:
 
 Recommended order: **row 1's census first** (it also decides row 3), then
 row 2's.  Row 4 is the only one that needs no census.
+
+**Flagged, 2026-09-23 — rows 4 and 8 sit below measurement.**  With rows 1,
+2, 5 and 9 settled, what remains is capped under the A/B's resolution: row 4
+at ≈ a fifth of Texas's +0.0002/bd (≈ +0.00004), row 8 at the rail run's
+−123 / −324 plain on 52 / 100 boards (≈ 0.00007/bd), against DD CIs of
+±0.0003 on 4.6M boards and the ≈ 0.0007 line row 2 died at.  Row 8 is not a
+[minor-transfer-slam](minor-transfer-slam.md) violation: the rail has the
+thirteen-plus hand pass `3NT`, so no unauthored `4m` exists at that seat.
+Row 4 also collides with the exactly-15 `4♥` slam try, whose answer node
+would misread the short-spade jam.  **Proposed reversible default: close
+both, unbuilt**, and treat §N1r as finished bar arm 2's judgment call.
 
 **Flagged discrepancy:** `render-book --their-2c-landy` defaults
 `--ns-landy-responder off`, which renders the **N1j** table (shortness `2M`, no
@@ -3629,6 +3640,37 @@ PD, none with both in brackets:
 was already not needed after row 1; with row 2 dead nothing competes for
 `3♦`.  Remaining rows: 4 (direct `4♥` short in spades, no census owed), 5
 (quantitative `4NT`, census owed), 8.
+
+#### Row 5 step 0 verdict — the quantitative `4NT` census (**2026-09-23: dead at step 0; responder 16+ never bids `3NT`**)
+
+`examples/probe-landy-notrump-stopper --quant` on the same `base-none` /
+`base-both` dumps, with the @180 head kept (one DD cache,
+`ab-results/landy-quant-nt/`): every direct `1NT (2♣) 3NT`, **74,856 at none
+(1.62%), 51,481 at both (1.12%)**, cut by responder's HCP × opener's.
+Priced against the live contract: `quant` (responder `4NT`, opener `6NT` on
+17, else passes `4NT`) and a blind `6NT` by opener.  IMPs per seat board vs
+live, plain / PD, none with both in brackets:
+
+| responder HCP | boards | `quant` | blind `6NT` |
+| --- | ---: | ---: | ---: |
+| ≤ 13 | 72,094 (50,235) | −4.49 / −5.92 (−5.59 / −7.26) | −8.37 / −11.89 |
+| 14 | 1,927 (951) | −0.82 / −1.00 (−1.10 / −1.35) | −5.55 / −6.25 |
+| 15 | 635 (243) | −0.10 / −0.19 (−0.51 / −0.69) | −2.09 / −2.41 |
+| 16 | 182 (51) | −0.24 / −0.30 (−0.12 / −0.28) | +0.68 / +0.48 (±1.6) |
+| 17 | 18 (1) | 0.00 / 0.00 | +7.33 / +7.33 (±3.9) |
+| 18+ | 0 (0) | — | — |
+
+* **The row's own prior held.**  Responder holds 16–17 on **200 boards in
+  4.6M at none (0.004%) and 52 at both** — the rest of a 16+ hand doubles,
+  splinters or transfers first, and nothing 18+ bids `3NT` at all.
+* **The authored shape loses where it lives**: `quant` is −0.00001 IMPs/board
+  on the 16-count, the opener-17 accept almost never co-occurring with it
+  (24 / 5 boards at 16 + 16, none at 16 + 17).  Even a blind `6NT` on every
+  16–17 `3NT` is ≈ +0.00006 / +0.00001 per board — two orders under the
+  ≈ 0.0007 line row 2 died at, and under any A/B's resolution.
+
+**Row 5 is closed.**  Remaining rows: 4 and 8, both capped below the A/B's
+resolution (see the queue note above the step 0 verdict).
 
 ## N3 — their `(3♣)`–`(3♠)` preempt of our 1NT (**SHIPPED DEFAULT-ON 2026-08-18**)
 
@@ -5709,6 +5751,7 @@ reason to take it.
 | **N1r row 1 tails** their `(X)` / `(4M)` over the passed splinter `3NT` | `competition.landy_splinter_tails` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `tails` vs base, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **none +0.0030 / +0.0024 / +0.0009 / +0.0003; both +0.0006 / +0.0007 / +0.0003 / +0.0004**, every CI clear. Seed 1789977169, control `5c3ee25c` + knob, base arms = arm 1's on arms, 4.608M bd/arm/vul, gates 0 foreign; round 2 (opener's pass over the run added after round 1's worst boards) | Over `(X)`: sit, the void runs to the longer minor, opener passes the run — the floor redoubled half; over `(4M)`: opener's penalty `X`, responder passes — the floor never doubled. Residual: `X` of `(4M)` when `6♦` makes | [tails verdict](#row-1-tails-verdict--their-action-over-the-passed-3nt-landy_splinter_tails-shipped-default-on-2026-09-23); `scripts/ab-landy-splinter-tails.sh`, `examples/probe-landy-splinter-tails` |
 | **N1r row 9** the values doubler's rebids over their `(2M)` runout at favourable | `competition.landy_doubler_game` (**on since 2026-09-23**) | **SHIPPED DEFAULT-ON 2026-09-23** | `game` vs base at `ew`, IMPs/board DD plain / DD PD / sd-lead plain / sd-lead PD: **+0.0085 / +0.0117 / +0.0078 / +0.0103**, every CI clear. Seed 1790142988, control `9d6a51ae`, 4.608M bd/arm, gate 0 foreign; other colours byte-identical by face gate | `3NT`@150 `points(10..)` for the short-trump game hand, authored five-card `3♣`/`3♦` for the 8–9 hand so `X – 3m` reads `8..9` (a floor call reads no sibling exclusion), opener passes `3NT` and answers `3m`. A third of the divergence is opener's `5m` becoming a pass. Residual: their four-level action over our `3NT` / their `(3M)` over `3♣` | [row 9 verdict](#row-9-verdict--the-values-doublers-rebids-over-their-2m-runout-landy_doubler_game-shipped-default-on-2026-09-23); `scripts/ab-landy-doubler-game.sh` |
 | **N1r row 2 census** `3♦` for the `3NT`@168 hand missing a stopper | none — `examples/probe-landy-notrump-stopper` | **CENSUS 2026-09-23, DEAD**, nothing built | Oracle on step 0's base dumps: 52,763 / 36,838 @168 boards (none / both); the `3♦` scheme vs live **−0.0006 / −0.0011** (none), **−0.0006 / −0.0010** (both) IMPs/board plain / PD. Opener bare in the missing major on 9%: `5m` −0.07 / −0.53 vs `3NT` −0.12 / −0.26 per seat board (none) | Opener covers the missing major on 88% (same `3NT`, same declarer). The one positive cell (one stopper, bare, 8+ minor fit, ≈ +0.0007) needs a fit neither hand knows after `3♦` | [row 2 verdict](#row-2-step-0-verdict--the-3nt168-stopper-census-2026-09-23-dead-at-step-0-3nt-is-the-right-game-even-without-the-stopper) |
+| **N1r row 5 census** quantitative `4NT` over the direct `3NT` | none — `examples/probe-landy-notrump-stopper --quant` | **CENSUS 2026-09-23, DEAD**, nothing built | Oracle on step 0's base dumps, both `3NT` rungs: 74,856 / 51,481 boards (none / both), responder 16–17 on **200 / 52**, 18+ on 0. `quant` (opener `6NT` on 17, else `4NT`) vs live −0.00001 IMPs/board; a blind `6NT` on every 16–17 `3NT` ≈ +0.00006 / +0.00001 | Responder's 16+ hands double, splinter or transfer first; the 16 + 17 pairing never occurs. Rows 4 and 8 flagged below resolution in the same pass, proposed closed | [row 5 verdict](#row-5-step-0-verdict--the-quantitative-4nt-census-2026-09-23-dead-at-step-0-responder-16-never-bids-3nt) |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
 | **N4-KK** Kokish–Kraft whole-table counter | `competition.multi_kokish_kraft` (**on**) | **SHIPPED DEFAULT-ON 2026-08-25** | Re-measure on a fresh seed after the mirror book (`SEED_BASE 1787615025`, SHA `f2ecb3c6`, 230 400 bd/arm/vul): **isolation gate 0 foreign at both vuls** — 0/683 and 0/482 against a 55% prior rate. Both-vul `win \| win`: plain **+0.0019 ±0.0013**, PD **+0.0023 ±0.0017** (+0.907/+1.102 per fired); NV `wash \| wash` (+0.0002 ±0.0012 / +0.0012 ±0.0015); sd-lead agrees in all four cells. **No negative reading in eight.** The first run (`1787606986`) was 55% foreign and its dumps are dead — the fix moved the v7 control arm | [§N4-KK](#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25) |

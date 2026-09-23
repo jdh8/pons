@@ -16,6 +16,10 @@
 //!     --dd-cache ab-results/landy-notrump-stopper/dd-cache.json
 //! ```
 //!
+//! `--quant` is §N1r row 5's census: keep the @180 head too, and price a
+//! quantitative `4NT` (opener `6NT` on 17, else passes `4NT`) and a blind
+//! `6NT` against the live `3NT`, cut by responder's HCP.
+//!
 //! Same caveats as `probe-landy-splinter-oracle`: every candidate is priced
 //! as the contract reached if the auction stops there, and the `3♦` route's
 //! own costs (their double of it, their room at the three level) are not
@@ -52,6 +56,9 @@ struct Args {
     /// Fold bucket rows with fewer than this many boards
     #[arg(long, default_value_t = 100)]
     min: usize,
+    /// Row 5: keep the @180 head and add the quantitative-`4NT` report
+    #[arg(long)]
+    quant: bool,
 }
 
 fn deal_key(deal: &FullDeal) -> String {
@@ -122,6 +129,7 @@ fn seat_hit(auction: &Auction, dealer: Seat, index: usize) -> Option<Hit> {
 fn load_hits(
     dir: &str,
     limit: usize,
+    quant: bool,
 ) -> (AbsoluteVulnerability, Vec<Board>, Vec<Hit>, usize, usize) {
     let mut shards: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
         .unwrap_or_else(|e| panic!("read dir {dir}: {e}"))
@@ -148,7 +156,7 @@ fn load_hits(
         scanned += dump.boards.len();
         for board in dump.boards {
             if let Some(hit) = seat_hit(&board.table_a, board.dealer, boards.len()) {
-                if stops(board.deal[hit.opener.partner()]) == [true, true] {
+                if !quant && stops(board.deal[hit.opener.partner()]) == [true, true] {
                     head += 1;
                     continue;
                 }
@@ -246,7 +254,7 @@ fn report(title: &str, rows: &BTreeMap<(String, String), Cell>, min: usize, scan
 #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
 fn main() {
     let args = Args::parse();
-    let (dump_vul, boards, hits, scanned, head) = load_hits(&args.dir, args.limit);
+    let (dump_vul, boards, hits, scanned, head) = load_hits(&args.dir, args.limit, args.quant);
     let vul = args.vulnerability.unwrap_or(dump_vul);
 
     let mut cache: HashMap<String, TrickCountTable> = match args.dd_cache.as_deref() {
@@ -279,6 +287,7 @@ fn main() {
 
     let mut cover_rows: BTreeMap<(String, String), Cell> = BTreeMap::new();
     let mut fit_rows: BTreeMap<(String, String), Cell> = BTreeMap::new();
+    let mut quant_rows: BTreeMap<(String, String), Cell> = BTreeMap::new();
     let mut live_rows: BTreeMap<String, usize> = BTreeMap::new();
     for hit in &hits {
         let board = &boards[hit.index];
@@ -348,6 +357,26 @@ fn main() {
             ),
             ("par", (imps(par - lp), imps(par - ld))),
         ];
+        if args.quant {
+            let (oh_hcp, rh_hcp) = (common::hand_hcp(oh), common::hand_hcp(rh));
+            let key = format!("r:{} o:{}", rh_hcp.clamp(13, 18), oh_hcp.clamp(15, 17));
+            let quant = if oh_hcp >= 17 {
+                price(6, Strain::Notrump, o)
+            } else {
+                price(4, Strain::Notrump, o)
+            };
+            for (name, (p, d)) in [
+                ("3NT", price(3, Strain::Notrump, o)),
+                ("6NT@O", price(6, Strain::Notrump, o)),
+                ("quant", quant),
+            ] {
+                for bucket in [key.clone(), format!("r:{}", rh_hcp.clamp(13, 18))] {
+                    let entry = quant_rows.entry((bucket, name.to_owned())).or_default();
+                    entry.0.push(p);
+                    entry.1.push(d);
+                }
+            }
+        }
         for (rows, key) in [
             (&mut cover_rows, format!("{resp} {cover}")),
             (&mut fit_rows, format!("{resp} {fit}")),
@@ -383,4 +412,12 @@ fn main() {
         args.min,
         scanned,
     );
+    if args.quant {
+        report(
+            "row 5: responder's HCP (13 = ≤13, 18 = 18+) × opener's",
+            &quant_rows,
+            args.min,
+            scanned,
+        );
+    }
 }
