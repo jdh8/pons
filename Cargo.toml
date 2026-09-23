@@ -193,6 +193,11 @@ path = "examples/probe-landy-splinter-oracle/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "probe-landy-notrump-stopper"
+path = "examples/probe-landy-notrump-stopper/main.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "probe-landy-splinter-tails"
 path = "examples/probe-landy-splinter-tails/main.rs"
 required-features = ["serde"]

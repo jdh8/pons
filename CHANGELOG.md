@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-landy-notrump-stopper` (2026-09-23)**: the §N1r row 2
+  census of responder's ungated `3NT`@168 over their Landy (`1NT (2♣) 3NT`
+  without both majors stopped) — prices `3NT`, `5m` and the idle-`3♦`
+  "stopper trouble" route against the live contract. Verdict in
+  `docs/one-notrump-competitive.md` §N1r: dead at step 0 — opener covers the
+  missing major on 88% of the boards, `5m` only ties `3NT` where opener is
+  bare, and the `3♦` scheme loses −0.0006 / −0.0011 IMPs/board plain / PD.
+  Nothing shipped; the default system is untouched.
 - **`examples/probe-landy-splinter-oracle` (2026-09-23)**: the §N1r row 1
   census at opener's seat over our Landy both-minors splinter
   (`1NT (2♣) 3♥/3♠`) — prices `3NT` / `4m` / `5m` / `6m` against the live
