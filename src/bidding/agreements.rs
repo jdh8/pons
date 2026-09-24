@@ -3593,7 +3593,13 @@ pub struct OpeningKnobs {
     /// nodes sit there and misread the relay; measure before authoring.  The
     /// card discloses the wide `1♣` through the WJ header (no `.bbsa` row
     /// expresses it), which is also what the compact floor input reads.  The
-    /// package lives in `american/wide_one_club.rs`.  A/B owed; the
+    /// package lives in `american/wide_one_club.rs`.  **Measured
+    /// 2026-09-24, stays off**: the whole-arm A/B wins every cell (plain
+    /// +0.0184/+0.0171, PD +0.0195/+0.0163 IMPs/board, none/both), but the
+    /// boards *they* open carry most of it: the regime slot this knob sets
+    /// stops the default floor pulling their `3NT` (now
+    /// `InstinctProfile::their_3nt_pull_veto`).  On boards we open it is a
+    /// plain-DD win and a PD wash (+580/−570 IMPs over 204,800 boards).  The
     /// historical Dutch-system measurements are in
     /// `docs/archive/dutch-system.md`.
     pub wide_one_club: bool,

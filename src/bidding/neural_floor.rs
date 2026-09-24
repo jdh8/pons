@@ -28,7 +28,9 @@
 //!   prices the contested game-level node against the score table when
 //!   `InstinctProfile::competitive_accountant` is on, and `new_suit_gate` masks
 //!   a suit bid nobody has the cards for when
-//!   `InstinctProfile::new_suit_veto` is on.  Both only ever demote, so
+//!   `InstinctProfile::new_suit_veto` is on, and `their_3nt_gate` masks a
+//!   suit pull of their `3NT` when `InstinctProfile::their_3nt_pull_veto` is
+//!   on.  All three only ever demote, so
 //!   knob-off is byte-identical and the net keeps its monopoly on introducing
 //!   calls.
 //!
@@ -44,7 +46,7 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
-use super::instinct::{competitive_gate, forced, new_suit_gate};
+use super::instinct::{competitive_gate, forced, new_suit_gate, their_3nt_gate};
 use super::trie::Classifier;
 use super::{features, neural};
 use contract_bridge::Hand;
@@ -114,6 +116,7 @@ impl Classifier for ConfiguredFloorBba {
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
+        their_3nt_gate(&mut logits, hand, context);
         logits
     }
 }
@@ -146,6 +149,7 @@ impl Classifier for ConfiguredFloorV6 {
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
+        their_3nt_gate(&mut logits, hand, context);
         logits
     }
 }

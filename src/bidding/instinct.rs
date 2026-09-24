@@ -549,6 +549,19 @@ pub struct InstinctProfile {
     /// fired.  Designed in `docs/ai-bidder/new-suit-veto.md`, measured by
     /// `scripts/ab-new-suit-veto.sh`.
     pub new_suit_veto: bool,
+    /// Veto a floored suit pull of **their `3NT`** by a side that has only
+    /// passed or doubled
+    ///
+    /// **Default off**, under measurement.  On, `their_3nt_gate` masks every
+    /// suit bid of five cards or fewer when the opponents' last bid is `3NT`
+    /// and our side has made no bid.  The v6 net under the default regime
+    /// bids four of *their* suit over it with junk (`1♣ - 1♠ - 2NT - 3NT` 4♠
+    /// on `532.Q74.T943.J63`) and pulls partner's double of it
+    /// (`2NT - 3NT X -` 4♣ on `9832.A973.4.6543`); the wide-`1♣` regime slot
+    /// happens to suppress it, which carried most of that knob's 2026-09-24
+    /// A/B win.  Narrower than [`new_suit_veto`][Self::new_suit_veto], which
+    /// was refuted in aggregate.
+    pub their_3nt_pull_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -589,6 +602,7 @@ impl Default for InstinctProfile {
             keycard_minors: true,
             rein_advance_raise: true,
             new_suit_veto: false,
+            their_3nt_pull_veto: false,
         }
     }
 }
@@ -633,6 +647,7 @@ impl InstinctProfile {
             keycard_minors: false,
             rein_advance_raise: false,
             new_suit_veto: true,
+            their_3nt_pull_veto: true,
         }
     }
 }
@@ -3800,6 +3815,43 @@ static NEW_SUIT_FIRED: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 #[must_use]
 pub fn new_suit_counts() -> [u64; 2] {
     std::array::from_fn(|action| NEW_SUIT_FIRED[action].load(atomic::Ordering::Relaxed))
+}
+
+/// Mask our side's suit pulls of their `3NT` — the
+/// [`their_3nt_pull_veto`][InstinctProfile::their_3nt_pull_veto] stage of the
+/// learned floor
+///
+/// Fires only when the opponents' last bid is `3NT` and every call our side
+/// has made is a pass, double or redouble.  Then every suit bid in a suit we
+/// hold five cards or fewer in is masked; a six-card suit, notrump, `X` and
+/// `Pass` are untouched, so a distribution always survives.
+pub(crate) fn their_3nt_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    if !pinned(context).their_3nt_pull_veto {
+        return;
+    }
+    let auction = context.auction();
+    let n = auction.len();
+    let Some(last) = auction.iter().rposition(|c| matches!(c, Call::Bid(_))) else {
+        return;
+    };
+    let theirs = !(n - last).is_multiple_of(2);
+    // Our calls sit an even distance back from the call about to be made.
+    let we_bid = auction
+        .iter()
+        .rev()
+        .skip(1)
+        .step_by(2)
+        .any(|c| matches!(c, Call::Bid(_)));
+    if !theirs || auction[last] != Call::Bid(Bid::new(3, Strain::Notrump)) || we_bid {
+        return;
+    }
+    for (call, logit) in logits.iter_mut() {
+        if let Call::Bid(bid) = call
+            && bid.strain.suit().is_some_and(|suit| hand[suit].len() <= 5)
+        {
+            *logit = f32::NEG_INFINITY;
+        }
+    }
 }
 
 /// The comparison made by a accountant trick gate

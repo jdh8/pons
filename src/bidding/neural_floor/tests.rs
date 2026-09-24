@@ -602,3 +602,72 @@ fn the_new_suit_gate_masks_the_phantom_overcall() {
         "a five-card suit is outside the rail by design"
     );
 }
+
+/// The 3NT-pull rail masks our silent side's suit pull of their `3NT`, and
+/// nothing else
+///
+/// `- - 1♣ - 1♠ - 2NT - 3NT` to a junk hand holding three of *their* spades:
+/// knob-off the net may bid `4♠`; knob-on every suit bid of five cards or
+/// fewer is masked and `Pass`/`X` survive.  Partner's double of `3NT` keeps
+/// the rail live (we still have not bid), a six-card suit is outside it, and
+/// a side that overcalled is outside it too.
+#[test]
+fn the_their_3nt_gate_masks_the_silent_pull() {
+    let pass = Call::Pass;
+    let nt3 = call(3, Strain::Notrump);
+    let silent = [
+        pass,
+        pass,
+        call(1, Strain::Clubs),
+        pass,
+        call(1, Strain::Spades),
+        pass,
+        call(2, Strain::Notrump),
+        pass,
+        nt3,
+    ];
+    let four_spades = call(4, Strain::Spades);
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.their_3nt_pull_veto,
+        "the rail is default off while it is under measurement"
+    );
+    let off = shelled_v6_with(&agreements, &silent, "532.Q74.T943.J63");
+    assert!(
+        off.0[four_spades].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_3nt_pull_veto = true;
+    let on = shelled_v6_with(&agreements, &silent, "532.Q74.T943.J63");
+    assert_eq!(on.0[four_spades], f32::NEG_INFINITY, "the pull is masked");
+    assert_eq!(on.0[call(4, Strain::Clubs)], f32::NEG_INFINITY);
+    assert!(on.0[Call::Pass].is_finite() && on.0[Call::Double].is_finite());
+
+    let doubled = [call(2, Strain::Notrump), pass, nt3, Call::Double, pass];
+    let pulled = shelled_v6_with(&agreements, &doubled, "9832.A973.4.6543");
+    assert_eq!(
+        pulled.0[call(4, Strain::Clubs)],
+        f32::NEG_INFINITY,
+        "partner's X keeps it live"
+    );
+
+    let long = shelled_v6_with(&agreements, &silent, "5.Q74.KQT9843.J6");
+    assert!(
+        long.0[call(4, Strain::Diamonds)].is_finite(),
+        "a six-card suit is outside the rail"
+    );
+
+    let overcalled = [
+        call(1, Strain::Clubs),
+        call(1, Strain::Spades),
+        call(2, Strain::Notrump),
+        pass,
+        nt3,
+    ];
+    let ours = shelled_v6_with(&agreements, &overcalled, "532.Q74.T943.J63");
+    assert!(
+        ours.0[four_spades].is_finite(),
+        "a side that bid is outside the rail"
+    );
+}

@@ -51,7 +51,10 @@ struct Args {
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
     /// Bucket by `node` (prefix through the first differing call, ON vs OFF),
-    /// `lane` (opening + the first non-pass call over it), or `holding`
+    /// `lane` (opening + the first non-pass call over it), `side` (which side
+    /// opened × which side made the first differing call — a knob that moves
+    /// our floor's regime input or our declared card shows up on boards they
+    /// open), or `holding`
     /// (opener's holding in their suit over `1NT (3x) X -`) instead of the
     /// competitive-rebid roles
     #[arg(long)]
@@ -170,6 +173,21 @@ fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
                 }
             });
             format!("{} {over}", show(open))
+        }
+        "side" => {
+            let ours = |k: usize| same_side(seat_to_act(on.dealer, k), Seat::North);
+            let opened = a.iter().position(|c| matches!(c, Call::Bid(_)));
+            let opener = match opened.map(ours) {
+                Some(true) => "we open",
+                Some(false) => "they open",
+                None => "passed out",
+            };
+            let first = if ours(i) {
+                "we diverge"
+            } else {
+                "they diverge"
+            };
+            format!("{opener}, {first}")
         }
         // A silent fall-through to `lane` turned a typo'd mode into a plausible
         // table read as the mode that was asked for.
