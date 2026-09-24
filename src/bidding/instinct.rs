@@ -552,7 +552,11 @@ pub struct InstinctProfile {
     /// Veto a floored suit pull of **their `3NT`** by a side that has only
     /// passed or doubled
     ///
-    /// **Default off**, under measurement.  On, `their_3nt_gate` masks every
+    /// **Default on** since 2026-09-25: a win in every cell (plain DD
+    /// +0.0081/+0.0102, PD +0.0152/+0.0175 IMPs/board none/both, single-dummy
+    /// alike; 204,800 bd/vul, SEED_BASE 1790283934, `scripts/ab-3nt-pull-veto.sh`),
+    /// firing on 0.12-0.13% of boards, all of them boards they open.
+    /// `their_3nt_gate` masks every
     /// suit bid of five cards or fewer when the opponents' last bid is `3NT`
     /// and our side has made no bid.  The v6 net under the default regime
     /// bids four of *their* suit over it with junk (`1♣ - 1♠ - 2NT - 3NT` 4♠
@@ -602,7 +606,7 @@ impl Default for InstinctProfile {
             keycard_minors: true,
             rein_advance_raise: true,
             new_suit_veto: false,
-            their_3nt_pull_veto: false,
+            their_3nt_pull_veto: true,
         }
     }
 }
@@ -647,7 +651,7 @@ impl InstinctProfile {
             keycard_minors: false,
             rein_advance_raise: false,
             new_suit_veto: true,
-            their_3nt_pull_veto: true,
+            their_3nt_pull_veto: false,
         }
     }
 }

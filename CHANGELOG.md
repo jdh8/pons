@@ -29,13 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The 3NT-pull rail (`InstinctProfile::their_3nt_pull_veto`, default off,
-  A/B queued)**: when the opponents' last bid is `3NT` and our side has only
+- **The 3NT-pull rail (`InstinctProfile::their_3nt_pull_veto`), shipped
+  default on**: when the opponents' last bid is `3NT` and our side has only
   passed or doubled, the learned floor may not bid a suit of five cards or
-  fewer. The default v6 floor bids four of *their* suit there with junk
-  (`1♣ - 1♠ - 2NT - 3NT` 4♠ on `532.Q74.T943.J63`). `bba-gen
-  --ns-3nt-pull-veto`, `scripts/ab-3nt-pull-veto.sh`. `ab-dump-bucket --by
-  side` splits an A/B by which side opened and which side diverged first.
+  fewer. The default v6 floor bid four of *their* suit there with junk
+  (`1♣ - 1♠ - 2NT - 3NT` 4♠ on `532.Q74.T943.J63`). Measured against BBA,
+  204,800 boards per vul, SEED_BASE 1790283934: a win in every cell — plain
+  DD **+0.0081 ± 0.0017 / +0.0102 ± 0.0019**, PD **+0.0152 ± 0.0022 /
+  +0.0175 ± 0.0024** IMPs/board (none/both), single-dummy leads alike
+  (+0.0075/+0.0090 plain, +0.0147/+0.0167 PD). It fires on 0.12–0.13% of
+  boards, every one opened by them (isolation gate passed); 97% of them are
+  a pass where the floor used to pull. The cost is the odd good 5m save
+  against a making `3NT`. `bba-gen --no-ns-3nt-pull-veto` turns it off;
+  `scripts/ab-3nt-pull-veto.sh`. `ab-dump-bucket --by side` splits an A/B by
+  which side opened and which side diverged first.
 
 - **Wide 1♣ (`opening.wide_one_club`) measured: stays off.** The whole-arm
   A/B wins every cell (plain DD +0.0184 ± 0.0082 / +0.0171 ± 0.0102, PD

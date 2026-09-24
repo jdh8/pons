@@ -629,9 +629,10 @@ fn the_their_3nt_gate_masks_the_silent_pull() {
     let four_spades = call(4, Strain::Spades);
     let mut agreements = Agreements::default();
     assert!(
-        !agreements.decision.instinct.their_3nt_pull_veto,
-        "the rail is default off while it is under measurement"
+        agreements.decision.instinct.their_3nt_pull_veto,
+        "the rail ships default on"
     );
+    agreements.decision.instinct.their_3nt_pull_veto = false;
     let off = shelled_v6_with(&agreements, &silent, "532.Q74.T943.J63");
     assert!(
         off.0[four_spades].is_finite(),

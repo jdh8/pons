@@ -518,12 +518,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_new_suit_veto: bool,
 
-    /// Veto the floor's suit pull of their `3NT` while our side has only
-    /// passed or doubled (`InstinctProfile::their_3nt_pull_veto`, crate
-    /// default off, under measurement): every suit bid of five cards or fewer
-    /// is masked.  The `on` arm of `scripts/ab-3nt-pull-veto.sh`.
+    /// Turn OFF the rail that vetoes the floor's suit pull of their `3NT`
+    /// while our side has only passed or doubled
+    /// (`InstinctProfile::their_3nt_pull_veto`, crate default on).  The
+    /// `plain` arm of `scripts/ab-3nt-pull-veto.sh`.
     #[arg(long, default_value_t = false)]
-    ns_3nt_pull_veto: bool,
+    no_ns_3nt_pull_veto: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
@@ -2478,7 +2478,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
     agreements.decision.instinct.new_suit_veto = args.ns_new_suit_veto;
-    agreements.decision.instinct.their_3nt_pull_veto = args.ns_3nt_pull_veto;
+    agreements.decision.instinct.their_3nt_pull_veto = !args.no_ns_3nt_pull_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
