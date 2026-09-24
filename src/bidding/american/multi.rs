@@ -6,7 +6,8 @@
 //! everything after it — responder's table, opener's answers, and the
 //! interfered tails.  Authored 2026-08-24 for the retired Dutch system and
 //! measured there (`docs/archive/dutch-system.md` §Phase 3); on american it is
-//! an opt-in knob with its A/B owed.
+//! an opt-in knob, measured a loss on its own 2026-09-25 (see
+//! [`multi_two_diamonds`][crate::bidding::agreements::OpeningKnobs::multi_two_diamonds]).
 //!
 //! # Why two variants
 //!

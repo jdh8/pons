@@ -3621,7 +3621,12 @@ pub struct OpeningKnobs {
     /// net share a system; [`multi_two_diamonds_champion`][Self::multi_two_diamonds_champion]
     /// swaps responder's table for the champion spec.  Measured on the retired
     /// Dutch system 2026-08-24 as a plain-DD loss against natural weak twos
-    /// (`docs/archive/dutch-system.md` §Phase 3); unmeasured on american.
+    /// (`docs/archive/dutch-system.md` §Phase 3).  **Measured on american
+    /// 2026-09-25, stays off**: a loss in every cell, single-dummy included
+    /// (`scripts/ab-multi-2d.sh`, SEED_BASE 1790278480), as expected of the
+    /// Multi alone — with `2♥`/`2♠` left unused it gives up the natural weak
+    /// `2♦` for concealment only.  A fair fight needs the two-suiters above
+    /// authored alongside it.
     ///
     /// Not to be confused with `TheirDisclosures::two_diamonds_multi`, which is
     /// the *opponents'* Multi `2♦` **overcall of our 1NT** (Woolsey Multi-Landy)

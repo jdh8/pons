@@ -44,6 +44,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ab-3nt-pull-veto.sh`. `ab-dump-bucket --by side` splits an A/B by
   which side opened and which side diverged first.
 
+- **Multi `2♦` on american (`opening.multi_two_diamonds`) measured: a loss,
+  stays off.** Against plain american vs BBA (204,800 boards per cell, seed
+  1790278480), BBA's verbatim book: plain DD −0.0187 ± 0.0050 / −0.0236 ±
+  0.0063, PD −0.0361 ± 0.0060 / −0.0393 ± 0.0074 IMPs/board (none/both),
+  single-dummy leads alike (−0.0156/−0.0229 plain, −0.0305/−0.0373 PD).
+  The champion structure beats the verbatim book in every cell (plain
+  +0.0072/+0.0118, PD +0.0051/+0.0092), so it stays the default variant, but
+  it still loses to plain weak twos (plain −0.0116/−0.0125, PD
+  −0.0311/−0.0314). Expected: with `2♥`/`2♠` unauthored, the Multi alone
+  trades the natural weak `2♦` for concealment only. A fair test needs the
+  two-suiter `2♥`/`2♠` alongside it.
+
 - **Wide 1♣ (`opening.wide_one_club`) measured: stays off.** The whole-arm
   A/B wins every cell (plain DD +0.0184 ± 0.0082 / +0.0171 ± 0.0102, PD
   +0.0195 ± 0.0096 / +0.0163 ± 0.0119, single-dummy alike; none/both, seed
