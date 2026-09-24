@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **5542 (`opening.five_five_four_two`) measured: a loss, stays off.** Against
+  plain american vs BBA (204,800 boards per cell, seed 1790272207): plain DD
+  −0.0067 ± 0.0050 / −0.0154 ± 0.0061, perfect-defense −0.0145 ± 0.0059 /
+  −0.0220 ± 0.0072 IMPs/board (none/both); single-dummy plain is a wash at
+  none. Only about a third of it is on boards whose opening differs; the rest
+  is on identical auctions, because a later decision reads our `1♦` as 4+
+  where the default reads 0–13, an input the v6 floor never trained on.
+
 - **A/B plumbing for the Watermelon knobs**: `bba-gen` takes `--ns-5542`,
   `--ns-wide-1c` and `--ns-odwrotka` (setting `opening.five_five_four_two`,
   `opening.wide_one_club` and `rebid.odwrotka`), and

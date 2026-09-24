@@ -3561,9 +3561,15 @@ pub struct OpeningKnobs {
     /// 4=4=3=2 opens a doubleton `1♣`, and a (xx)45 opens `1♦` as a canapé
     /// (the Watermelon Dutch Doubleton plugin's host precondition,
     /// <https://jdh8.github.io/watermelon-dutch/>).  Nothing else moves: the
-    /// response and rebid tables are american's, and the reading of `1♦`
-    /// stays the better-minor one (a soft under-read of the length, not a
-    /// phantom suit).  A/B owed.
+    /// response and rebid tables are american's.  The opening call itself
+    /// still reads as better minor (`1♦` 3+), but a later decision reads our
+    /// `1♦` off the rule as 4+ (the default reads 0–13 there), so the knob moves
+    /// the neural floor's input.  **Measured loss 2026-09-24** (`673d2d05`, seed
+    /// 1790272207, 204,800 boards/cell): plain −0.0067/−0.0154, PD
+    /// −0.0145/−0.0220 IMPs/board (none/both).  About two thirds of it comes
+    /// from boards where the auctions were identical up to the divergence, from
+    /// that input shift, so a fair re-measure needs a floor retrained on a 5542
+    /// corpus.
     pub five_five_four_two: bool,
     /// Play the **wide, non-forcing `1♣`** with its `1♦!` catch-all relay —
     /// the Watermelon Dutch Doubleton plugin (<https://jdh8.github.io/watermelon-dutch/>)
