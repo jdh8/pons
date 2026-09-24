@@ -9,6 +9,11 @@
 #             --ns-wide-1c   opening.wide_one_club   (1NT/2♦! relay tails unauthored)
 #             --ns-odwrotka  rebid.odwrotka          (opener after a step is floor-only)
 #
+# NO_GATE=1 skips the isolation gate, for a knob that moves the floor's regime
+# input or the declared card (`--ns-wide-1c`: features.rs slot 0 + card system
+# 2), where divergence on boards they open is part of the treatment and the
+# whole-arm diff is the headline.
+#
 # Spec: https://jdh8.github.io/watermelon-dutch/.  One knob per results dir,
 # runs sequential; a new dir gets a new seed.  sddiff prices what an opening
 # structure tells the opening leader, which plain DD cannot see.
@@ -26,7 +31,7 @@ log "=== watermelon $FLAG start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER
 for vul in none both; do
     arm plain "$vul" --our-floor american
     arm on    "$vul" --our-floor american "$FLAG"
-    gatepair on plain "$vul"
+    [ -n "${NO_GATE:-}" ] || gatepair on plain "$vul"
     diffpair on plain "$vul"
     sddiff on plain "$vul"
 done

@@ -63,11 +63,17 @@ type GetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char) -> c_in
 ///   `probe-set-conv cards/American.bbsa`, which reports only the other three).
 ///   `american_card` declares system 2 whenever `opening.wide_one_club` is on,
 ///   so the entry is load-bearing exactly for that knob's cards.
-pub const KNOWN_UNSTICKY: [&str; 4] = [
+///   `Weak natural 2D` is its mirror **under system 0**: with
+///   `opening.multi_two_diamonds` on, our card writes it 0 and EPBot reads it
+///   back as 1.  Harmless, because `Multi = 1` shadows it — `probe-bba-book --conv
+///   Multi=1` on `cards/American.bbsa` reads `2♦` as Multi alone (alerted,
+///   4–10), no weak-natural reading (measured 2026-09-24).
+pub const KNOWN_UNSTICKY: [&str; 5] = [
     "South African Texas",
     "Queen ask by available bid",
     "Reverse Bergen",
     "Multi",
+    "Weak natural 2D",
 ];
 
 // The bilans-engine surface (docs/ai-bidder/bba-floor.md §5-6).  Signatures are

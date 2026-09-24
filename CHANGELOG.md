@@ -33,8 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--ns-wide-1c` and `--ns-odwrotka` (setting `opening.five_five_four_two`,
   `opening.wide_one_club` and `rebid.odwrotka`), and
   `scripts/ab-watermelon.sh RESULTS_DIR FLAG` measures one knob against plain
-  american (isolation gate, plain + PD, single-dummy). No bidding change; the
-  three A/Bs are still owed.
+  american (isolation gate, plain + PD, single-dummy; `NO_GATE=1` for
+  `--ns-wide-1c`, which moves the floor's regime input and the declared card
+  by design). No bidding change; the three A/Bs are still owed. The oracle's
+  card guard now tolerates `Weak natural 2D`, which EPBot's system 0 will not
+  turn off under our Multi card; `Multi = 1` shadows it, so BBA still reads
+  our `2♦` as Multi alone.
 
 - **The Dutch system is dropped and reframed as the Watermelon Dutch Doubleton
   knobs** (<https://jdh8.github.io/watermelon-dutch/>). The `dutch()` factory
