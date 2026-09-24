@@ -171,12 +171,12 @@ struct Args {
     /// `strength-doubles` adds the opener doubles
     /// (`defense_2c_landy_strength_doubles`): takeout over their `(2♠)` raise
     /// of our `2♥`, penalty over their raise of our `2♠`.
+    /// Absent, the knobs stay at `Agreements::default()` (the shipped system).
     #[arg(
         long,
-        default_value = "off",
-        value_name = "off|nt|jam|jam-only|lia|strength|strength-doubles"
+        value_name = "default|off|nt|jam|jam-only|lia|strength|strength-doubles"
     )]
-    ns_landy_responder: String,
+    ns_landy_responder: Option<String>,
 
     /// Disarm §N1-lia's package C (`competition.landy_texas`, default on): the
     /// jam rides South African Texas (`4♦`→♠ / `4♣`→♥, opener completing) and
@@ -244,7 +244,8 @@ fn main() {
         "rungs" => {}
         other => panic!("--ns-landy-opener must be off|px|rungs, got {other}"),
     }
-    match args.ns_landy_responder.as_str() {
+    match args.ns_landy_responder.as_deref().unwrap_or("default") {
+        "default" => {}
         "off" => {
             agreements.competition.landy_major_jam = false;
             agreements.competition.defense_2c_landy_strength_majors = false;
@@ -265,7 +266,7 @@ fn main() {
             agreements.competition.defense_2c_landy_strength_doubles = true;
         }
         other => panic!(
-            "--ns-landy-responder must be off|nt|jam|jam-only|lia|strength|strength-doubles, \
+            "--ns-landy-responder must be default|off|nt|jam|jam-only|lia|strength|strength-doubles, \
              got {other}"
         ),
     }

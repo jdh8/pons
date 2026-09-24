@@ -273,6 +273,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`render-book --ns-landy-responder` is optional (2026-09-24).**  Absent,
+  the Landy responder knobs stay at `Agreements::default()`, so
+  `render-book --their-2c-landy` shows the shipped system rather than the
+  retired N1j table; `off` still selects N1j.  §N1r is closed: rows 4 and 8
+  stay unbuilt (below A/B resolution), and `landy_splinter_stopper` stays opt-in.
 - **§N1q colour gate: `defense_2c_landy_strength_nv_invite` ships default-on
   (2026-09-21).**  Vulnerable, the 8-9 short-major hand with 8+ HCP makes the
   values `X` of their Landy `2♣` (feeding §N1m's penalty conversion) instead
