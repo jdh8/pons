@@ -58,18 +58,11 @@ type GetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char) -> c_in
 ///   property that makes them safe to write down.
 /// - **BBA's own.** `Reverse Bergen` refuses to turn off (written 0, reads 1) —
 ///   an engine coupling, not a typo of ours.  `Multi` is the same shape but only
-///   **under system 2**: EPBot's WJ base bundles the Multi 2♦ opening and will
-///   not give it up, while system 0 accepts our `Multi = 0` (measured by
+///   **under system 2** (EPBot's WJ base, which bundles the Multi 2♦ opening and
+///   will not give it up): system 0 accepts our `Multi = 0` (measured by
 ///   `probe-set-conv cards/American.bbsa`, which reports only the other three).
-///
-///   That mislabels one row of a Dutch cell's card — we disclose `Multi = 0`
-///   and the teacher opens Multi anyway.  It costs the configured net nothing,
-///   because we never *vary* Multi: it is 0 in both our cards, so "Multi as
-///   EPBot actually plays it" is exactly the Dutch indicator, which the 5-wide
-///   base-system one-hot already carries.  A constant-per-cell mislabel is
-///   absorbed by the system bit rather than confusing a row.  Were Multi ever
-///   made a knob, this entry would have to go and the card be reconciled
-///   against read-back instead.
+///   `american_card` declares system 2 whenever `opening.wide_one_club` is on,
+///   so the entry is load-bearing exactly for that knob's cards.
 pub const KNOWN_UNSTICKY: [&str; 4] = [
     "South African Texas",
     "Queen ask by available bid",

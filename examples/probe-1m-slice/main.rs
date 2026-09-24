@@ -1,5 +1,5 @@
 //! Locate the responder support-point threshold for game opposite a maximum
-//! Dutch 1H opener with a heart fit.
+//! 1H opener with a heart fit.
 
 use std::collections::BTreeMap;
 
@@ -16,7 +16,7 @@ use rand::rngs::StdRng;
 mod common;
 
 #[derive(Parser)]
-#[command(about = "Survey 4H make-rates opposite a maximum Dutch 1H opener")]
+#[command(about = "Survey 4H make-rates opposite a maximum 1H opener")]
 struct Args {
     /// Number of accepted deals to solve
     #[arg(short, long, default_value_t = 20_000)]
@@ -117,7 +117,7 @@ fn main() {
     }
 
     println!(
-        "Maximum Dutch 1H opener (North), heart-fit responder (South): {} accepted deals from {attempts} attempts, seed {}",
+        "Maximum 1H opener (North), heart-fit responder (South): {} accepted deals from {attempts} attempts, seed {}",
         args.count, args.seed
     );
     println!();

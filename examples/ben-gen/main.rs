@@ -1,5 +1,5 @@
 //! The **BEN gap campaign**'s generation half — bids a duplicate A/B match of
-//! our [`american`][pons::american] or [`dutch`][pons::dutch] floor against
+//! our [`american`][pons::american] floor against
 //! **BEN** (lorserker/ben, pinned v0.8.8.4)
 //! over its REST `/bid` endpoint, writing the same `Dump` every downstream
 //! consumer of `bba-gen` already reads (`bba-score`, `ab-dump-diff`,
@@ -52,7 +52,7 @@ use common::{Board, Dump, seat_floor};
 /// re-pinning is a campaign decision — see docs/ben-gap-campaign.md).
 const BEN_TAG: &str = "v0.8.8.4";
 
-/// Bid our American or Dutch floor against BEN's 21GF card over REST and write the boards
+/// Bid our American floor against BEN's 21GF card over REST and write the boards
 /// (the generation half of the A/B duplicate match; `bba-score` scores them)
 #[derive(Parser)]
 struct Args {
@@ -96,7 +96,7 @@ struct Args {
     #[arg(
         long,
         default_value = "american",
-        value_parser = ["american", "dutch"],
+        value_parser = ["american"],
         conflicts_with_all = ["calibrate_epbot", "self_play"]
     )]
     our_floor: String,

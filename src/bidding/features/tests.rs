@@ -876,12 +876,6 @@ fn card_block_is_the_whole_card() {
             .len(),
         LEN_CARD_ROWS
     );
-    assert_eq!(
-        crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::default())
-            .rows
-            .len(),
-        LEN_CARD_ROWS
-    );
     assert_eq!(LEN_CARD, LEN_SYSTEM + LEN_CARD_ROWS);
     assert_eq!(FEATURES_LEN_V4, FEATURES_LEN_V3 + 2 * LEN_CARD);
     assert_eq!(FEATURES_LEN_V4, 368);
@@ -889,34 +883,36 @@ fn card_block_is_the_whole_card() {
 
 /// The base system must reach the vector, not just the rows
 ///
-/// `dutch_card` differs from `american_card` by its header (2/1 → WJ) plus a
-/// single row, and the header is the only channel for the wide non-forcing
-/// 1♣.  Encoding rows alone would leave a WJ opponent nearly
-/// indistinguishable from a 2/1 one.
+/// The wide-1♣ card differs from the shipped one by its header alone (2/1 →
+/// WJ), and the header is the only channel for the wide non-forcing 1♣.
+/// Encoding rows alone would leave a WJ opponent indistinguishable from a 2/1
+/// one.
 #[test]
 fn the_base_system_is_encoded() {
     let american = Config::symmetric(&crate::bidding::card::american_card(
         &crate::bidding::agreements::Agreements::default(),
     ));
-    let dutch = Config::symmetric(&crate::bidding::card::dutch_card(
-        &crate::bidding::agreements::Agreements::default(),
-    ));
+    let wide = Config::symmetric(&crate::bidding::card::american_card(&wide_one_club()));
 
     assert_eq!(american.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
-    assert_eq!(dutch.ours[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
-    assert_ne!(american, dutch);
+    assert_eq!(wide.ours[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
+    assert_ne!(american, wide);
 
-    // The header, plus the one row the two systems disagree on.
+    // The header, and nothing else.
     let differing = american
         .ours
         .iter()
-        .zip(&dutch.ours)
+        .zip(&wide.ours)
         .filter(|(a, b)| a != b)
         .count();
-    assert_eq!(
-        differing, 3,
-        "two one-hot slots plus `1D opening with 5 cards`"
-    );
+    assert_eq!(differing, 2, "two one-hot slots");
+}
+
+/// The shipped agreements with the wide 1♣ on
+fn wide_one_club() -> crate::bidding::agreements::Agreements {
+    let mut a = crate::bidding::agreements::Agreements::default();
+    a.opening.wide_one_club = true;
+    a
 }
 
 /// Each side is encoded independently — the opponents may play anything
@@ -927,7 +923,7 @@ fn the_base_system_is_encoded() {
 fn the_two_sides_are_independent() {
     let mixed = Config::new(
         &crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::default()),
-        &crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::default()),
+        &crate::bidding::card::american_card(&wide_one_club()),
     );
     assert_eq!(mixed.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
     assert_eq!(mixed.theirs[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -1076,7 +1072,7 @@ fn compact_layout_is_pinned() {
 
     #[rustfmt::skip]
     let expected = [
-        0.0, //  0: dutch — `capture(false)`
+        0.0, //  0: wide_one_club — default off
         0.0, //  1: relocating — `RkcbVariant::Plain`, kickback opt-in
         1.0, //  2: garbage_stayman — default on
         0.0, //  3: new_minor_forcing — default off (XYZ shadows it)
@@ -1096,7 +1092,7 @@ fn compact_layout_is_pinned() {
         0.0, // 27: landy — `landy` off
     ];
     assert_eq!(
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false).encode(),
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default()).encode(),
         expected
     );
 }
@@ -1112,7 +1108,7 @@ fn one_hot_blocks_are_exclusive() {
         }
     };
     let mut agreements =
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false);
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default());
     check(agreements);
     for shape in [
         NotrumpShape::Balanced,
@@ -1147,21 +1143,19 @@ fn one_hot_blocks_are_exclusive() {
 /// `from_card` reads row names; `capture` reads the knobs those rows are
 /// generated from.  A disagreement at the shipped defaults means a wrong
 /// row-name mapping — which would feed the v6 net a system nobody plays.  The
-/// Dutch system also pins the system-header path (`dutch` rides `Card::system`,
-/// not a row).
+/// wide 1♣ also pins the system-header path (it rides `Card::system`, not a
+/// row).
 #[test]
 fn projection_agrees_with_capture_at_defaults() {
     assert_eq!(
         ConventionCard::from_card(&crate::bidding::card::american_card(
             &crate::bidding::agreements::Agreements::default()
         )),
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false)
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default())
     );
     assert_eq!(
-        ConventionCard::from_card(&crate::bidding::card::dutch_card(
-            &crate::bidding::agreements::Agreements::default()
-        )),
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), true)
+        ConventionCard::from_card(&crate::bidding::card::american_card(&wide_one_club())),
+        ConventionCard::capture(&wide_one_club())
     );
 }
 
@@ -1176,7 +1170,7 @@ fn features_v6_keeps_points_and_support_axes_separate() {
         Call::Pass,
     ];
     let agreements = crate::bidding::agreements::Agreements::default();
-    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, false));
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
     let partnership = crate::american(&agreements).bind();
     let context = partnership
         .prefixed_context(RelativeVulnerability::NONE, &auction)
@@ -1216,7 +1210,7 @@ fn features_v6_keeps_points_and_support_axes_separate() {
 /// simply hold both and borrow a context off them.
 fn v7_table() -> (crate::bidding::book::Partnership, CompactConfig) {
     let agreements = crate::bidding::agreements::Agreements::default();
-    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, false));
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
     (crate::american(&agreements).bind(), compact)
 }
 

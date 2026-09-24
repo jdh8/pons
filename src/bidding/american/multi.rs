@@ -1,17 +1,19 @@
-//! Dutch's Multi `2♦` — Phase 3's Multi slice, in **two variants**
+//! The Multi `2♦` opening's continuations, in **two variants**
 //!
 //! One artificial opening replaces all three natural weak twos: `2♦!` is 4–10
 //! HCP with exactly one six-card major, weak only, never in fourth seat
-//! (`dutch::openings`, gated on `opening.multi_two_diamonds`).  This module is
+//! (`openings.rs`, gated on `opening.multi_two_diamonds`).  This module is
 //! everything after it — responder's table, opener's answers, and the
-//! interfered tails.
+//! interfered tails.  Authored 2026-08-24 for the retired Dutch system and
+//! measured there (`docs/archive/dutch-system.md` §Phase 3); on american it is
+//! an opt-in knob with its A/B owed.
 //!
 //! # Why two variants
 //!
 //! * **Base** ([`multi_two_diamonds`][crate::bidding::agreements::OpeningKnobs::multi_two_diamonds]
 //!   alone) is **BBA's Multi book copied verbatim**, walked in
 //!   `docs/ai-bidder/bba-multi-2d-opening.md`.  Copying buys two things a better
-//!   table would cost: the WJ teacher net that floors Dutch's divergent subtrees
+//!   table would cost: the WJ teacher net that floored the Dutch system's divergent subtrees
 //!   was trained on these rows, and BBA — the anchor we measure against — reads
 //!   our calls through its own book, so a verbatim lane is one BBA cannot
 //!   misread.
@@ -43,23 +45,23 @@
 //! The `2♦ (2♠)` hole is **inherited on purpose**: responder's table over their
 //! spade overcall has no weak rung, so a weak responder passes them out in `2♠`.
 //! Repairing it diverges from the teacher, so it is its own A/B — see the ledger
-//! row in `docs/dutch-system.md`.
+//! row in `docs/archive/dutch-system.md`.
 
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{and, hcp, len, or, points, stopper_in};
 use crate::bidding::fallback::ReplaceNext;
-use crate::bidding::rows::{Entry, Package, Pattern, rebase, rows_of};
-use crate::bidding::{Alert, Rules};
+use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rebase, rows_of};
+use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
 /// The Multi `2♦` opening itself — 4–10, one six-card major
-pub(super) const MULTI_2D: Alert = Alert("dutch-multi:2d");
+pub(super) const MULTI_2D: Alert = Alert("multi:2d");
 /// A pass-or-correct call — `2♥`, `2♠`, `4♦`, and the champion's `3♥`/`3♠`
 /// sibling below carries its own tag
-const PASS_OR_CORRECT: Alert = Alert("dutch-multi:pass-correct");
+const PASS_OR_CORRECT: Alert = Alert("multi:pass-correct");
 /// The `2NT` ask (and, in the base, its `XX` twin over their double)
-const ASK: Alert = Alert("dutch-multi:ask");
+const ASK: Alert = Alert("multi:ask");
 /// One of the four answers to the ask
 ///
 /// All four are alerted, the minimum answers included.  `3♥`/`3♠` name the real
@@ -67,21 +69,21 @@ const ASK: Alert = Alert("dutch-multi:ask");
 /// Ogust key, and an unalerted call there decodes through the *hardcoded*
 /// american reading rather than through its own projection.  The alert is what
 /// routes it to projection; the Ogust answers are alerted for the same reason.
-const ASK_ANSWER: Alert = Alert("dutch-multi:ask-answer");
+const ASK_ANSWER: Alert = Alert("multi:ask-answer");
 /// The base's artificial `3♦` three-level try (10+, both majors 2+)
-const TRY: Alert = Alert("dutch-multi:try");
+const TRY: Alert = Alert("multi:try");
 /// The 15+ `4♣` ask, and the transfer answers it gets
-const STRONG_ASK: Alert = Alert("dutch-multi:strong-ask");
+const STRONG_ASK: Alert = Alert("multi:strong-ask");
 /// Opener's `4♦`/`4♥` transfer answer to `4♣`, so the 15+ hand declares
-const TRANSFER_ANSWER: Alert = Alert("dutch-multi:transfer-answer");
+const TRANSFER_ANSWER: Alert = Alert("multi:transfer-answer");
 /// The cue-shaped limit-raise-or-better in the *other* major, over their overcall
-const LIMIT_CUE: Alert = Alert("dutch-multi:limit-cue");
+const LIMIT_CUE: Alert = Alert("multi:limit-cue");
 /// `2NT` as support for the other major over their overcall — a raise, not notrump
-const SUPPORT: Alert = Alert("dutch-multi:support");
+const SUPPORT: Alert = Alert("multi:support");
 /// The champion's competitive `3♥`/`3♠` pass-or-correct
-const PC_THREE: Alert = Alert("dutch-multi:pc-three");
+const PC_THREE: Alert = Alert("multi:pc-three");
 /// The champion's `XX` over their double: name the major you do **not** hold
-const WORSE_MAJOR: Alert = Alert("dutch-multi:worse-major");
+const WORSE_MAJOR: Alert = Alert("multi:worse-major");
 
 /// Whether the champion structure is live (implies the Multi gate)
 fn champion(agreements: &Agreements) -> bool {
@@ -482,7 +484,7 @@ fn opener_escape() -> Rules {
 /// opponents in `2♠` whenever responder is weak, which is most of the time.
 /// The repair (a weak `2NT` relay, or `X` as pass-or-correct) diverges from the
 /// teacher net, so it is its own A/B rather than a free fix; the hole is pinned
-/// by a test and carried as a ledger row in `docs/dutch-system.md`.
+/// by a test and carried as a ledger row in `docs/archive/dutch-system.md`.
 fn responses_overcalled(their: Suit) -> Rules {
     let ours = if their == Suit::Hearts {
         Suit::Spades
@@ -570,14 +572,14 @@ fn responses_overcalled(their: Suit) -> Rules {
 
 /// The Multi `2♦` structure as one gated row package
 ///
-/// Compiled only by [`dutch::book`][super::book], after american's, so every
+/// Compiled by [`book`][super::book] after the weak-two package, so every
 /// weak-two and Ogust key under `P* 2♦` that american authored is **re-owned**
 /// here: `-`, `- 2♥ -`, `- 2♠ -`, `- 3♣ -`, `- 2NT -` and the four
 /// `- 2NT - 3x -` continuations.  The `P* 2♥` / `P* 2♠` subtrees american
 /// compiled stay in the book and go dead — under this gate we never open either.
 pub(super) fn package() -> Package {
     Package {
-        name: "dutch-multi-2d",
+        name: "multi-2d",
         gate: |agreements| agreements.opening.multi_two_diamonds,
         entries: |agreements| {
             const OPEN: &str = "P* 2♦";
@@ -777,6 +779,11 @@ pub(super) fn package() -> Package {
             entries
         },
     }
+}
+
+/// Register the Multi `2♦` continuations (a no-op unless the knob is on)
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    compile_into(book, agreements, &[package()]);
 }
 
 #[cfg(test)]

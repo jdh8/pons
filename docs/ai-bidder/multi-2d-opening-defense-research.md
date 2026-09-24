@@ -464,7 +464,7 @@ spades nor reserves `X` for a ranged/strong hand.
 
 The Dutch ledger correctly says that pons and BBA have no defense to a Multi
 opening and proposes a "diamond-hooks-voided table"
-([Dutch Phase 3 follow-up 2](../dutch-system.md#phase-3-follow-up-ledger)). The
+([Dutch Phase 3 follow-up 2](../archive/dutch-system.md#phase-3-follow-up-ledger)). The
 online evidence says deleting diamond-specific hooks is necessary but not
 sufficient. Authoring still has to choose:
 
@@ -478,7 +478,7 @@ sufficient. Authoring still has to choose:
   tails.
 
 The Dutch opening is weak-only, 4–10 with exactly one six-card major
-([Dutch Phase 3](../dutch-system.md#phase-3--the-multi-2-slice-in-two-variants)).
+([Dutch Phase 3](../archive/dutch-system.md#phase-3--the-multi-2-slice-in-two-variants)).
 Therefore a defense need not protect against a strong **opener** option for this
 specific system. A strong meaning inside defenders' `X` is still useful to
 describe the defenders' own strong hands. Also, BBA's response table allows

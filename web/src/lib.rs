@@ -941,8 +941,8 @@ fn declared_agreements() -> [Agreements; 2] {
 /// Bind a genuinely mixed table: each side sees the other's card and books.
 fn partnerships() -> (Partnership, Partnership) {
     let [ns_agreements, ew_agreements] = declared_agreements();
-    let ns_card = ConventionCard::capture(&ns_agreements, false);
-    let ew_card = ConventionCard::capture(&ew_agreements, false);
+    let ns_card = ConventionCard::capture(&ns_agreements);
+    let ew_card = ConventionCard::capture(&ew_agreements);
     let ns = american_with_card(&ns_agreements, &ew_card).bind();
     let ew = american_with_card(&ew_agreements, &ns_card).bind();
     (ns.clone().with_opponents(&ew), ew.with_opponents(&ns))

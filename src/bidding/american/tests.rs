@@ -69,6 +69,7 @@ fn row_package_invariants() {
             notrump::two_notrump_structure(),
             notrump::two_notrump_rebids(),
             rebids::forcing_notrump_continuations(),
+            rebids::odwrotka_continuations(),
             rebids::invitational_minor_continuations(),
             rebids::major_jump_rebid_continuations(),
             rebids::forcing_nt_two_suiter_continuations(),
@@ -86,6 +87,8 @@ fn row_package_invariants() {
             raises::limit_raise_acceptance_continuations(),
             strong_two::package(),
             strong_two::minor_keycard_continuations(),
+            multi::package(),
+            wide_one_club::package(),
         ],
     );
 }

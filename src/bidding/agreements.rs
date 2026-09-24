@@ -3552,24 +3552,64 @@ pub struct OpeningKnobs {
     /// 10⁴, so a random-deal A/B cannot resolve it.  The knob exists to ablate
     /// it in the enriched probe (`examples/probe-weak-two-major --mode tie`).
     pub weak_two_longest_first: bool,
-    // --- dutch/multi.rs
-    /// Open a **Multi `2♦`** in the Dutch system — Phase 3's Multi slice
+    // --- openings.rs
+    /// Open **5542**: `1♦` promises four-plus diamonds, `1♣` two-plus clubs
     ///
-    /// **Default off.**  On, `dutch()` (and `dutch()` only — `american()` never
-    /// compiles the package) replaces all three natural weak twos with one
-    /// artificial `2♦!`: 4-10 HCP with exactly one six-card major, weak only,
-    /// never in fourth seat.  A six-card *diamond* suit then has no opening and
-    /// passes, and the natural weak `2♥`/`2♠` are deleted until the Polish
-    /// two-suiter slice lands, so [`weak_two_hcp`][Self::weak_two_hcp],
+    /// **Default off** (better minor: the longer minor, `1♦` on 4-4, `1♣` on
+    /// 3-3, so `1♦` can be three cards).  On, every hand without a five-card
+    /// major opens `1♦` with four-plus diamonds and `1♣` otherwise — so a
+    /// 4=4=3=2 opens a doubleton `1♣`, and a (xx)45 opens `1♦` as a canapé
+    /// (the Watermelon Dutch Doubleton plugin's host precondition,
+    /// <https://jdh8.github.io/watermelon-dutch/>).  Nothing else moves: the
+    /// response and rebid tables are american's, and the reading of `1♦`
+    /// stays the better-minor one (a soft under-read of the length, not a
+    /// phantom suit).  A/B owed.
+    pub five_five_four_two: bool,
+    /// Play the **wide, non-forcing `1♣`** with its `1♦!` catch-all relay —
+    /// the Watermelon Dutch Doubleton plugin (<https://jdh8.github.io/watermelon-dutch/>)
+    ///
+    /// **Default off.**  On, both minor openings run 11–23 HCP and host the
+    /// strong hands that are neither a five-card major nor a six-card minor
+    /// nor 24+ (those open the strong `2♣!`, narrowed from american's 22+ to
+    /// the book's "21+ with a five-card major or six-card minor, or any 24+");
+    /// american's 20–21 `2NT` stays.  Responder's `1♦!` relay holds every hand
+    /// with no other call — the weak short-club hands, the 6–11 no-major hands
+    /// the notrump ladder does not take, and the 16+ balanced hands too strong
+    /// for `3NT` — and opener's rebid ladder over it sorts the range: cheap
+    /// naturals at 11–17, `1NT`/`2M`/`2NT!` at 18–20, the artificial `2♦!`
+    /// at 21–23.  `2♣` is a natural invite-or-better and `2♦` a natural game
+    /// force, both five-plus in the minor with no four-card major, each with
+    /// opener's answers and responder's game placement authored.  Independent
+    /// of [`five_five_four_two`][Self::five_five_four_two] (the plugin is
+    /// written for a 5542 host; over better minor it merely reads `1♣` as
+    /// three-plus).  The deep tails after opener's rare `1NT` (18–20) and
+    /// `2♦!` (21–23) rebids are **not** authored — american's natural-`1♦`
+    /// nodes sit there and misread the relay; measure before authoring.  The
+    /// card discloses the wide `1♣` through the WJ header (no `.bbsa` row
+    /// expresses it), which is also what the compact floor input reads.  The
+    /// package lives in `american/wide_one_club.rs`.  A/B owed; the
+    /// historical Dutch-system measurements are in
+    /// `docs/archive/dutch-system.md`.
+    pub wide_one_club: bool,
+    // --- multi.rs
+    /// Open a **Multi `2♦`** — one artificial `2♦!` replacing all three weak twos
+    ///
+    /// **Default off.**  On, `2♦!` is 4-10 HCP with exactly one six-card major,
+    /// weak only, never in fourth seat, and the natural weak `2♦`/`2♥`/`2♠` are
+    /// deleted.  A six-card *diamond* suit then has no opening and passes, and
+    /// [`weak_two_hcp`][Self::weak_two_hcp],
     /// [`weak_two_eval`][Self::weak_two_eval], [`weak_two_wild`][Self::weak_two_wild],
     /// [`weak_two_major_priority`][Self::weak_two_major_priority] and
     /// [`weak_two_longest_first`][Self::weak_two_longest_first] all go inert
-    /// under this gate.
+    /// under this gate.  (The Polish two-suiter `2♥`/`2♠` that would re-house
+    /// the weak majors are unauthored.)
     ///
     /// The base table is BBA's Multi book copied verbatim
     /// (`docs/ai-bidder/bba-multi-2d-opening.md`) so our rows and the WJ teacher
     /// net share a system; [`multi_two_diamonds_champion`][Self::multi_two_diamonds_champion]
-    /// swaps responder's table for the champion spec.
+    /// swaps responder's table for the champion spec.  Measured on the retired
+    /// Dutch system 2026-08-24 as a plain-DD loss against natural weak twos
+    /// (`docs/archive/dutch-system.md` §Phase 3); unmeasured on american.
     ///
     /// Not to be confused with `TheirDisclosures::two_diamonds_multi`, which is
     /// the *opponents'* Multi `2♦` **overcall of our 1NT** (Woolsey Multi-Landy)
@@ -3611,6 +3651,8 @@ impl Default for OpeningKnobs {
             weak_two_wild: false,
             weak_two_major_priority: true,
             weak_two_longest_first: true,
+            five_five_four_two: false,
+            wide_one_club: false,
             multi_two_diamonds: false,
             multi_two_diamonds_champion: true,
         }
@@ -3788,6 +3830,23 @@ pub struct RebidKnobs {
     /// only as a measurement off-switch, not a user-facing toggle (dropped from
     /// the `web` settings registry).
     pub balanced_1nt_rebid: bool,
+    // --- rebids/odwrotka.rs
+    /// **Odwrotka**: `1♣ - 1M - 2♦!` is an artificial reverse — game-forcing,
+    /// or invitational with exactly three-card support — answered by
+    /// reverse-445566 steps
+    ///
+    /// **Default off.**  The Watermelon Dutch Doubleton plugin's second gadget
+    /// (<https://jdh8.github.io/watermelon-dutch/1C/1M.html>), independent of
+    /// the wide `1♣`.  On, opener's `2♦` over a one-level major response is
+    /// `points(19..)`, or `16–18` with exactly three trumps (the natural
+    /// reverse into diamonds leaves the extras ladder; the `3♦` jump shift
+    /// stays), and responder answers in steps that pin the major's length and
+    /// the strength: `2OM!` game-forcing four, `2M!` minimum four, `2NT!`
+    /// game-forcing five, `3♣!` minimum five, `3♦!` game-forcing six-plus, `3M`
+    /// minimum six-plus — the strong step below the weak at each length, so the
+    /// weak hand never declares notrump.  Opener's continuation after a step is
+    /// the floor's.  A/B owed.
+    pub odwrotka: bool,
     // --- rebids/major_tails.rs
     /// Author the full continuations after `1♥ - 1♠`
     ///
@@ -3892,6 +3951,7 @@ impl Default for RebidKnobs {
     fn default() -> Self {
         Self {
             balanced_1nt_rebid: true,
+            odwrotka: false,
             major_rebid_tails: true,
             fourth_suit_forcing: true,
             nt_invite_hcp: true,

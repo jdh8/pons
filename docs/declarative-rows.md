@@ -540,14 +540,12 @@ backstops landed as hatches.
   never `expand` templates with duplicated filters that could drift from their
   knob-gated source tables.
 - Every American port adds its package(s) to `row_package_invariants` in
-  `american/tests.rs`; Dutch has the same invariant over its own two-package
-  list in `dutch/tests.rs`. The lists are hand-edited; an unlisted port is not
-  gated.
-- `smoke-dutch` and `render-dutch-book` now provide D1's deterministic parent
-  proof over the shipped `dutch()` and public floorless `dutch_book()`.
-  `dutch_book()` overwrites american nodes by re-insert — legal across
-  `compile_into` calls, a `group()` panic within one package — so dutch is its
-  own package list, compiled after american's.
+  `american/tests.rs`. The list is hand-edited; an unlisted port is not gated.
+  (Dutch's own two-package list, `smoke-dutch` and `render-dutch-book` went
+  with the `dutch()` system on 2026-09-24 — its overlays are now the gated
+  `wide-one-club` and `multi-2d` packages on that same list, compiled after the
+  base packages by the same cross-`compile_into` re-insert rule:
+  [archive/dutch-system.md](archive/dutch-system.md).)
 - All 25 original production `install_rkcb` sites now inline
   `rkcb_rows(prefix, trump)`. The three test fixtures compile the same producer
   through `compile_entries`; the shim is gone.

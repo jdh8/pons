@@ -10,7 +10,7 @@
 //! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`OpeningKnobs::weak_two_hcp`], [`OpeningKnobs::weak_two_eval`], [`OpeningKnobs::weak_two_wild`] |
 
 use crate::bidding::agreements::Agreements;
-use crate::bidding::constraint::{Cons, Constraint, described, hcp, len, nth_seat, points};
+use crate::bidding::constraint::{Cons, Constraint, described, hcp, len, nth_seat, or, points};
 use crate::bidding::context::Context;
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -28,7 +28,8 @@ use weak_two::with_weak_twos;
 pub use one_notrump::NotrumpShape;
 pub use weak_two::WeakTwoEval;
 
-pub(crate) use one_notrump::notrump_shape;
+#[cfg(test)]
+use one_notrump::notrump_shape;
 pub(crate) use two_notrump::two_notrump_wide_shape;
 
 /// The strong, artificial `2♣` opening (22+) — the only artificial opening
@@ -70,16 +71,33 @@ pub fn openings(agreements: &Agreements) -> Rules {
 /// [`NotrumpShape::Wide6322`] the experimental superset.
 #[must_use]
 pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
-    let mut rules = Rules::new()
+    let knobs = &agreements.opening;
+    let wide = knobs.wide_one_club;
+    let mut rules = if wide {
+        // The wide 1♣'s strong `2♣!`: 21–23 with a five-card major or a
+        // six-card minor, or any 24+.  Everything else at 21–23 opens a minor
+        // and clarifies over the `1♦!` relay (`wide_one_club.rs`).
+        let majors = [Suit::Hearts, Suit::Spades];
+        let minors = [Suit::Clubs, Suit::Diamonds];
+        Rules::new()
+            .rule(
+                Bid::new(2, Strain::Clubs),
+                300,
+                (hcp(21..=23) & (or(majors, 5..) | or(minors, 6..))) | hcp(24..),
+            )
+            .alert(STRONG_2C)
+    } else {
         // Strong, artificial 2♣ — top priority.  The `hcp` leg is exact cover
         // for the plain rule-of-N+8 opt-in scale's flat hole: a 4-3-3-3
         // 22-count reads 21 points there and would otherwise demote a game
         // force to a passable 1♣ (the shipped floored scale reads it 22, and
         // unbalanced 22-HCP hands read 22+ points on every scale, so the
         // union adds nothing else — it's redundant-but-exact by default).
-        .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
-        .alert(STRONG_2C);
-    rules = with_one_notrump(rules, shape, &agreements.opening);
+        Rules::new()
+            .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
+            .alert(STRONG_2C)
+    };
+    rules = with_one_notrump(rules, shape, knobs);
     rules = with_two_notrump(rules, agreements);
     // One-level suit openings.  Every band carries an explicit `hcp` floor.
     // On the default PointCount scale the shape [`upgrade`] caps at 2, so
@@ -99,51 +117,104 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
     // ACBL "Average Strength", which those charts require in all four seats),
     // floored at the legal 8.
     //
+    // The ceiling is `points(..=21)` — above it the hand is the `2♣!` — except
+    // under the wide 1♣, where the strong `2♣!` is narrower and the ceiling
+    // moves onto raw HCP: majors run to 20 (a 21+ five-card major opens
+    // `2♣!`), minors to 23 (`wide_one_club`).
+    //
     // Five-card majors; 1♠ ranks just above 1♥ so 5-5 opens the higher.
-    rules = rules
-        .rule(
-            Bid::new(1, Strain::Spades),
-            160,
-            points(12..=21) & hcp(10..) & len(Suit::Spades, 5..) & (nth_seat(1) | nth_seat(2)),
-        )
-        .rule(
-            Bid::new(1, Strain::Hearts),
-            150,
-            points(12..=21) & hcp(10..) & len(Suit::Hearts, 5..) & (nth_seat(1) | nth_seat(2)),
-        )
-        // Lighter five-card majors in third/fourth seat.
-        .rule(
-            Bid::new(1, Strain::Spades),
-            260,
-            points(11..=21) & hcp(8..) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)),
-        )
-        .rule(
-            Bid::new(1, Strain::Hearts),
-            250,
-            points(11..=21) & hcp(8..) & len(Suit::Hearts, 5..) & (nth_seat(3) | nth_seat(4)),
-        )
-        // Better-minor openings (deny a five-card major).
-        .rule(
+    let early = nth_seat(1) | nth_seat(2);
+    let late = nth_seat(3) | nth_seat(4);
+    rules = one_level(
+        rules,
+        Bid::new(1, Strain::Spades),
+        160,
+        wide,
+        (12, 10, 20),
+        len(Suit::Spades, 5..) & early.clone(),
+    );
+    rules = one_level(
+        rules,
+        Bid::new(1, Strain::Hearts),
+        150,
+        wide,
+        (12, 10, 20),
+        len(Suit::Hearts, 5..) & early,
+    );
+    // Lighter five-card majors in third/fourth seat.
+    rules = one_level(
+        rules,
+        Bid::new(1, Strain::Spades),
+        260,
+        wide,
+        (11, 8, 20),
+        len(Suit::Spades, 5..) & late.clone(),
+    );
+    rules = one_level(
+        rules,
+        Bid::new(1, Strain::Hearts),
+        250,
+        wide,
+        (11, 8, 20),
+        len(Suit::Hearts, 5..) & late,
+    );
+    // One-of-a-minor openings (deny a five-card major): better minor, or the
+    // 5542 partition — `1♦` on four-plus diamonds (so a (xx)45 opens `1♦` as a
+    // canapé), `1♣` on two-plus clubs otherwise (`five_five_four_two`).
+    let no_major = || len(Suit::Hearts, ..5) & len(Suit::Spades, ..5);
+    let minor = (12, 10, 23);
+    if knobs.five_five_four_two {
+        rules = one_level(
+            rules,
             Bid::new(1, Strain::Diamonds),
             100,
-            points(12..=21)
-                & hcp(10..)
-                & prefers_diamonds()
-                & len(Suit::Hearts, ..5)
-                & len(Suit::Spades, ..5),
-        )
-        .rule(
+            wide,
+            minor,
+            len(Suit::Diamonds, 4..) & no_major(),
+        );
+        rules = one_level(
+            rules,
             Bid::new(1, Strain::Clubs),
             100,
-            points(12..=21)
-                & hcp(10..)
-                & len(Suit::Clubs, 3..)
-                & !prefers_diamonds()
-                & len(Suit::Hearts, ..5)
-                & len(Suit::Spades, ..5),
+            wide,
+            minor,
+            len(Suit::Clubs, 2..) & len(Suit::Diamonds, ..4) & no_major(),
         );
+    } else {
+        rules = one_level(
+            rules,
+            Bid::new(1, Strain::Diamonds),
+            100,
+            wide,
+            minor,
+            prefers_diamonds() & no_major(),
+        );
+        rules = one_level(
+            rules,
+            Bid::new(1, Strain::Clubs),
+            100,
+            wide,
+            minor,
+            len(Suit::Clubs, 3..) & !prefers_diamonds() & no_major(),
+        );
+    }
 
-    rules = with_weak_twos(rules, &agreements.opening);
+    if knobs.multi_two_diamonds {
+        // One artificial `2♦!` replaces all three weak twos: 4-10 HCP with
+        // exactly one six-card major — no strong variant, at any vulnerability
+        // (BBA's book and the independent BBA-WJ harvest agree).  Seven-card
+        // majors keep falling to the three-level preempts below, and a
+        // six-card *diamond* suit now has no opening at all (`multi.rs`).
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Diamonds),
+                100,
+                hcp(4..=10) & (len(Suit::Hearts, 6..=6) | len(Suit::Spades, 6..=6)) & !nth_seat(4),
+            )
+            .alert(super::multi::MULTI_2D);
+    } else {
+        rules = with_weak_twos(rules, knobs);
+    }
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
@@ -153,6 +224,27 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
         );
     }
     rules.rule(Call::Pass, 0, points(..12))
+}
+
+/// One one-level suit opening: `shape` under the strength band
+///
+/// `(lo, floor, cap)` is the `points` floor, the raw-HCP floor, and the
+/// wide-1♣ raw-HCP ceiling.  Off the wide 1♣ the ceiling is american's
+/// `points(..=21)` and `cap` is unused, so the shipped description is
+/// unchanged.
+fn one_level<S: Constraint + 'static>(
+    rules: Rules,
+    bid: Bid,
+    weight: i16,
+    wide: bool,
+    (lo, floor, cap): (u8, u8, u8),
+    shape: Cons<S>,
+) -> Rules {
+    if wide {
+        rules.rule(bid, weight, points(lo..) & hcp(floor..=cap) & shape)
+    } else {
+        rules.rule(bid, weight, points(lo..=21) & hcp(floor..) & shape)
+    }
 }
 
 /// The opening table as a row package

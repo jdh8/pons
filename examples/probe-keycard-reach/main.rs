@@ -46,7 +46,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain, Suit};
 use ddss::TrickCountTable;
 use pons::bidding::context::relative;
 use pons::bidding::{Bidder, Partnership, Phase};
-use pons::{american, dutch, gib};
+use pons::{american, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use rayon::prelude::*;
@@ -362,12 +362,9 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.count)?;
-    eprintln!("axis-reach: {} deals × 2 systems", deals.len());
+    eprintln!("axis-reach: {} deals × 1 system", deals.len());
 
-    let systems = [
-        american(&pons::bidding::agreements::Agreements::default()).bind(),
-        dutch(&pons::bidding::agreements::Agreements::default()).bind(),
-    ];
+    let systems = [american(&pons::bidding::agreements::Agreements::default()).bind()];
     let rkcb = [
         Call::Bid(Bid::new(5, Strain::Clubs)),
         Call::Bid(Bid::new(5, Strain::Diamonds)),

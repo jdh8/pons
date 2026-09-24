@@ -38,11 +38,11 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
 use pons::bidding::{Bidder, Partnership, Phase, Relative};
-use pons::{american, dutch};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 
@@ -139,8 +139,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let partnership: Partnership = match args.system.as_str() {
         "american" => american(&pons::bidding::agreements::Agreements::default()).bind(),
-        "dutch" => dutch(&pons::bidding::agreements::Agreements::default()).bind(),
-        other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
+        other => anyhow::bail!("--system must be american, got {other:?}"),
     };
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.boards)?;
     eprintln!(

@@ -49,7 +49,13 @@ pub(super) fn with_extras_ladder(
         // forcing partner past a return to opener's suit at the two level.
         // Alerted: the rule floors opener's (unbid-here) first suit, so it is
         // artificial by the house rule and decoded by rule projection.
-        if cheapest == 2 && second_strain > opener_strain {
+        // Under Odwrotka the `1♣ - 1M - 2♦` slot is the artificial reverse
+        // (`odwrotka.rs`), so the natural diamond reverse over clubs is withheld.
+        let odwrotka_slot = agreements.rebid.odwrotka
+            && opener == Suit::Clubs
+            && second == Suit::Diamonds
+            && responder.is_some();
+        if cheapest == 2 && second_strain > opener_strain && !odwrotka_slot {
             rules = rules
                 .rule(
                     Bid::new(2, second_strain),

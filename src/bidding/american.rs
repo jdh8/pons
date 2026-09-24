@@ -78,6 +78,7 @@ pub(in crate::bidding) const COMPLETION: crate::bidding::rules::Alert =
 pub(in crate::bidding) mod competition;
 pub(in crate::bidding) mod defense;
 pub(in crate::bidding) mod game_force;
+mod multi;
 mod nmf;
 pub(in crate::bidding) mod notrump;
 pub(in crate::bidding) mod openings;
@@ -87,6 +88,7 @@ pub(in crate::bidding) mod responses;
 pub(in crate::bidding) mod slam;
 mod strong_two;
 mod weak_twos;
+mod wide_one_club;
 mod xyz;
 
 pub use competition::{
@@ -98,7 +100,6 @@ pub use defense::{
     defense_to_weak_two,
 };
 pub use notrump::{EUROPEAN, PUPPET, SizeAskEight, notrump_responses};
-pub(crate) use openings::notrump_shape;
 pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with};
 
 pub use responses::{TwoOverOneGate, major_responses, minor_responses};
@@ -149,7 +150,7 @@ pub fn american(agreements: &Agreements) -> System {
     with_floor_v6(
         book(agreements),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
-            agreements, false,
+            agreements,
         )),
         agreements,
     )
@@ -204,7 +205,7 @@ pub fn american_with_card(
     with_floor_v6(
         book(agreements),
         super::features::CompactConfig::new(
-            &super::features::ConventionCard::capture(agreements, false),
+            &super::features::ConventionCard::capture(agreements),
             theirs,
         ),
         agreements,
@@ -223,7 +224,7 @@ pub fn american_v6_their(agreements: &Agreements) -> System {
     with_floor_v6_their(
         book(agreements),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
-            agreements, false,
+            agreements,
         )),
         agreements,
     )
@@ -277,7 +278,7 @@ pub fn american_floor(agreements: &Agreements) -> System {
             *agreements,
         ),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
-            agreements, false,
+            agreements,
         )),
         agreements,
     )
@@ -345,6 +346,10 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     raises::register(&mut c, &agreements);
     strong_two::register(&mut c, &agreements);
     weak_twos::register(&mut c, &agreements);
+    // Knob-gated overlays, compiled last: each re-owns exact nodes the base
+    // packages authored (a re-insert is legal across `compile_into` calls).
+    multi::register(&mut c, &agreements);
+    wide_one_club::register(&mut c, &agreements);
 
     let system = System::new(
         c,

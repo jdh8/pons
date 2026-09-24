@@ -40,7 +40,10 @@ fn hearts_take_first(spades: usize, hearts: usize) -> bool {
     hearts > spades || (hearts == spades && spades < 5)
 }
 
-pub(super) fn with_major_selection(rules: Rules, agreements: &Agreements) -> Rules {
+pub(in crate::bidding::american) fn with_major_selection(
+    rules: Rules,
+    agreements: &Agreements,
+) -> Rules {
     let mut rules = rules;
     // Major selection between 4+ majors, per the longer-major knob (default on).
     rules = if agreements.decision.reading.longer_major_response {

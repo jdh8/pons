@@ -7,7 +7,7 @@ turning it on is one flag away.  This document is that engine's book for the
 Multi opening: what responder's calls mean, what the defenders' calls mean, and
 what survives interference.
 
-It is the reference [dutch-system.md](../dutch-system.md) Phase 3 needs — the
+It is the reference [dutch-system.md](../archive/dutch-system.md) Phase 3 needs — the
 decision of 2026-07-20 adopts BBA's Multi 2♦ verbatim, so that these rows and
 the WJ teacher net share a system.  Not to be confused with
 [bba-multi-2d.md](bba-multi-2d.md), which is the Multi **2♦ overcall of 1NT**
@@ -57,7 +57,7 @@ table below:
 
 Weak-only — there is no strong variant, at any vulnerability.  This matches the
 independent BBA-WJ harvest (n=9166, declared `pts [4,10]`, observed HCP 1-10,
-always a 6+ major) recorded in [dutch-system.md](../dutch-system.md) (§ *Measured facts about
+always a 6+ major) recorded in [dutch-system.md](../archive/dutch-system.md) (§ *Measured facts about
 BBA-WJ*).
 
 ## 2. Responses (`2♦ -`)
@@ -196,7 +196,7 @@ and pinned by a test; the repair stays a separate A/B.  The rows live in
 [src/bidding/dutch/multi.rs](../../src/bidding/dutch/multi.rs) behind
 `opening.multi_two_diamonds`, with a second variant behind
 `opening.multi_two_diamonds_champion`; the tables and the ledger are in
-[dutch-system.md](../dutch-system.md) §*Phase 3*.
+[dutch-system.md](../archive/dutch-system.md) §*Phase 3*.
 
 A third row the walk did not anticipate: **BBA states bands but no precedence**,
 and several of its responder bands overlap (`2NT` 16+ against `4♣` 15+, `2♠`

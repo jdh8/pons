@@ -19,8 +19,6 @@ pub mod constraint;
 pub mod context;
 /// Finalized reader-side routing plans.
 pub(in crate::bidding) mod decoder;
-/// The Dutch system — a natural 2/1 built around a wide, non-forcing 1♣
-pub mod dutch;
 /// Call-EV evaluator: a candidate call's cardplay-grounded worth by rollout
 #[cfg(feature = "dd")]
 pub mod ev;
@@ -66,10 +64,6 @@ pub use book::{
 };
 pub use compose::{OrElse, Versus};
 pub use context::Context;
-pub use dutch::{
-    dutch, dutch_book, dutch_book_default, dutch_default, dutch_instinct, dutch_instinct_default,
-    dutch_with_card, dutch_with_config,
-};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{

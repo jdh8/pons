@@ -2,8 +2,8 @@
 //!
 //! Call/suit helpers, guarded seat fan-out, and floor-attachment wiring that
 //! have nothing to do with any one system.
-//! [`american`][super::american] and [`dutch`][super::dutch] — and any future
-//! system — import these from here rather than from each other.
+//! [`american`][super::american] — and any future system — imports these from
+//! here rather than carrying them itself.
 
 use super::agreements::{Agreements, TheirDisclosures};
 use super::fallback::{Always, Fallback, Guard};
@@ -93,8 +93,7 @@ fn with_floors(mut system: System, ladder: &Arc<Rules>, contested: Fallback) -> 
 /// Attach the card-input (v4) BBA-distilled floor to a system's contested books
 ///
 /// This remains the explicit card-input v4 entry point behind
-/// [`american_with_config`][super::american::american_with_config] and
-/// [`dutch_with_config`][super::dutch::dutch_with_config].
+/// [`american_with_config`][super::american::american_with_config].
 pub(in crate::bidding) fn with_floor(
     system: System,
     config: Config,

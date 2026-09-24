@@ -6,8 +6,7 @@ use crate::bidding::agreements::Agreements;
 /// This is the gate the whole module exists for: ship a convention, forget
 /// the card, and this goes red.  `cards/*.bbsa` are snapshots for humans and
 /// for `--disclose FILE`; the generator is the source of truth.  Bless with
-/// `cargo run --example bba-card -- --system american >cards/American.bbsa`
-/// (and `--system dutch >cards/Dutch.bbsa`).
+/// `cargo run --example bba-card >cards/American.bbsa`.
 #[test]
 fn the_checked_in_cards_match_the_generator() {
     assert_eq!(
@@ -15,14 +14,9 @@ fn the_checked_in_cards_match_the_generator() {
         include_str!("../../../cards/American.bbsa"),
         "cards/American.bbsa is stale — re-bless it (see this test's doc)",
     );
-    assert_eq!(
-        dutch_card(&crate::bidding::agreements::Agreements::default()).to_string(),
-        include_str!("../../../cards/Dutch.bbsa"),
-        "cards/Dutch.bbsa is stale — re-bless it (see this test's doc)",
-    );
 }
 
-/// The Dutch card discloses the Multi `2♦` — and both sides of its radio group
+/// The card discloses the Multi `2♦` — and both sides of its radio group
 ///
 /// `Multi` (EPBot id 110) and `Weak natural 2D` (id 168) are mutually exclusive
 /// in the schema, and the natural weak `2♥`/`2♠` go with them: under
@@ -35,15 +29,15 @@ fn the_checked_in_cards_match_the_generator() {
 /// we write.  That is the cost the champion arm pays and the reason the
 /// verbatim base is what anchor runs are pinned to.
 #[test]
-fn the_dutch_card_discloses_the_multi() {
+fn the_card_discloses_the_multi() {
     let mut agreements = Agreements::default();
-    assert_eq!(dutch_card(&agreements).row("Multi"), Some(0));
-    assert_eq!(dutch_card(&agreements).row("Weak natural 2D"), Some(1));
-    assert_eq!(dutch_card(&agreements).row("Weak natural 2M"), Some(1));
+    assert_eq!(american_card(&agreements).row("Multi"), Some(0));
+    assert_eq!(american_card(&agreements).row("Weak natural 2D"), Some(1));
+    assert_eq!(american_card(&agreements).row("Weak natural 2M"), Some(1));
 
     agreements.opening.multi_two_diamonds = true;
     agreements.opening.multi_two_diamonds_champion = false;
-    let card = dutch_card(&agreements);
+    let card = american_card(&agreements);
     assert_eq!(card.row("Multi"), Some(1));
     assert_eq!(card.row("Weak natural 2D"), Some(0));
     assert_eq!(card.row("Weak natural 2M"), Some(0));
@@ -51,14 +45,10 @@ fn the_dutch_card_discloses_the_multi() {
     let mut champion = agreements;
     champion.opening.multi_two_diamonds_champion = true;
     assert_eq!(
-        dutch_card(&champion).to_string(),
+        american_card(&champion).to_string(),
         card.to_string(),
         "the champion structure has no `.bbsa` expression",
     );
-
-    // american never compiles the package, so its card never claims the Multi.
-    assert_eq!(american_card(&agreements).row("Multi"), Some(0));
-    assert_eq!(american_card(&agreements).row("Weak natural 2D"), Some(1));
 }
 
 /// The card never claims a relocation the floor cannot make
@@ -206,18 +196,26 @@ fn a_knob_moves_its_row() {
     );
 }
 
+/// The 5542 partition moves exactly its one schema row; the wide 1♣ moves
+/// none and speaks through the WJ header instead.
 #[test]
-fn dutch_differs_from_american_in_the_diamond_opening() {
-    let (american, dutch) = (
-        american_card(&crate::bidding::agreements::Agreements::default()),
-        dutch_card(&crate::bidding::agreements::Agreements::default()),
-    );
-    assert_eq!(dutch.system, 2, "Dutch declares the WJ base");
+fn the_watermelon_knobs_move_their_rows() {
+    let shipped = american_card(&Agreements::default());
+    let mut a = Agreements::default();
+    a.opening.five_five_four_two = true;
+    let partition = american_card(&a);
+    assert_eq!(partition.system, 0);
     let moved: Vec<_> = SCHEMA
         .iter()
-        .filter(|name| american.row(name) != dutch.row(name))
+        .filter(|name| shipped.row(name) != partition.row(name))
         .collect();
-    assert_eq!(moved, [&"1D opening with 5 cards"]);
+    assert_eq!(moved, [&"1D opening with 4 cards"]);
+
+    let mut a = Agreements::default();
+    a.opening.wide_one_club = true;
+    let wide = american_card(&a);
+    assert_eq!(wide.system, 2, "the wide 1♣ declares the WJ base");
+    assert_eq!(wide.rows, shipped.rows);
 }
 
 /// [`foreign_card`] reproduces the schema half and zeroes the pons-only half

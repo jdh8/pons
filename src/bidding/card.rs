@@ -412,57 +412,19 @@ const SCHEMA: &[&str] = &[
 /// all of them.
 pub fn american_card(a: &Agreements) -> Card {
     Card {
-        // 2/1 game forcing.
-        system: 0,
+        // 2/1 game forcing — or **WJ** (Wspólny Język, the Polish club) under
+        // the wide 1♣: no row in the schema expresses "1♣ is 2+ cards, 11–23
+        // HCP, non-forcing", so the header is the only channel for it, and
+        // declaring 2/1 would tell BBA the one thing about that 1♣ that is
+        // most false.  WJ's own conventions that we do not play are overridden
+        // back to our values by construction — every row below reads our knobs.
+        system: i32::from(a.opening.wide_one_club) * 2,
         rows: SCHEMA
             .iter()
             .map(|name| (*name, american_row(name, a)))
             .chain(PONS_SCHEMA.iter().map(|name| (*name, pons_row(name))))
             .collect(),
     }
-}
-
-/// The card for [`dutch`][crate::dutch()]
-///
-/// [`dutch`][crate::dutch()] overwrites only the divergent nodes of
-/// `american_book()` and carries no `set_*` knobs of its own, so its card is
-/// [`american_card`] plus a short override list — and it inherits every knob the
-/// American rows read.
-///
-/// The header is **WJ** (Wspólny Język, the Polish club), not 2/1: no row in the
-/// schema expresses "1♣ is 2+ cards, 11–23 HCP, non-forcing", so the header is
-/// the only channel for the system's defining feature.  Declaring 2/1 would tell
-/// BBA the one thing about Dutch that is most false.  WJ's own conventions that
-/// we do not play are overridden back to the American values by construction —
-/// every row not listed below keeps its American value.
-#[must_use]
-pub fn dutch_card(a: &Agreements) -> Card {
-    let mut card = american_card(a);
-    card.system = 2;
-    // Dutch's 1♦ is 5+♦, or exactly the singleton-club 4=4=4=1 (`dutch::openings`);
-    // the wide 1♣ soaks up every other four-diamond hand.  American's better-minor
-    // 1♦ can be three cards, so this is the one row the two systems disagree on
-    // that BBA's schema can express.
-    card.set("1D opening with 5 cards", 1);
-    if a.opening.multi_two_diamonds {
-        // Phase 3's Multi slice replaces all three weak twos with one
-        // artificial `2♦!` (`dutch::multi`).  `Multi` and `Weak natural 2D` are
-        // the same mutually-exclusive radio group in EPBot, so both sides are
-        // written explicitly rather than left to the engine's own clearing;
-        // `Weak natural 2M` goes with them because the natural weak `2♥`/`2♠`
-        // are deleted until the Polish two-suiter slice lands.
-        //
-        // The **champion** variant is deliberately *not* disclosed here: no row
-        // in the schema says "`3♥` is pass-or-correct", so BBA would read a
-        // champion `3♥` as natural hearts either way.  That misdisclosure is the
-        // stated cost of the champion arm, and the reason the BBA-verbatim base
-        // is the variant pinned for anchor runs
-        // (`opening.multi_two_diamonds_champion`).
-        card.set("Multi", 1);
-        card.set("Weak natural 2D", 0);
-        card.set("Weak natural 2M", 0);
-    }
-    card
 }
 
 /// The card a **foreign** bidder holds, read one row at a time
@@ -576,9 +538,22 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
 
         // ---- constant: we author these (or pointedly do not), and no knob moves them ----
         //
-        // Better minor: `1♦` can be three cards, so neither length row holds.
+        // Better minor: `1♦` can be three cards, so neither length row holds
+        // — unless the 5542 partition is on, when `1♦` promises four.
         // Five-card majors, so `1m` never hides one.
-        "1D opening with 4 cards" | "1D opening with 5 cards" | "1m opening allows 5M" => 0,
+        "1D opening with 4 cards" => i32::from(a.opening.five_five_four_two),
+        "1D opening with 5 cards" | "1m opening allows 5M" => 0,
+        // The Multi `2♦` replaces all three weak twos.  `Multi` and `Weak
+        // natural 2D` are the same mutually-exclusive radio group in EPBot, so
+        // both sides are written explicitly rather than left to the engine's
+        // own clearing; `Weak natural 2M` goes with them because the natural
+        // weak `2♥`/`2♠` are deleted too.  The **champion** variant is
+        // deliberately *not* disclosed: no row says "`3♥` is pass-or-correct",
+        // so BBA reads a champion `3♥` as natural hearts either way — the
+        // stated cost of the champion arm, and why the BBA-verbatim base is
+        // the variant pinned for anchor runs (`multi_two_diamonds_champion`).
+        "Multi" => i32::from(a.opening.multi_two_diamonds),
+        "Weak natural 2D" | "Weak natural 2M" => i32::from(!a.opening.multi_two_diamonds),
         // Limit raises, not blocking jumps.
         "1M-3M blocking" => 0,
         "1M-3M inviting" => 1,
@@ -682,9 +657,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         | "SMOLEN"
         | "Texas"
         | "Quantitative 4NT"
-        | "Ogust"
-        | "Weak natural 2D"
-        | "Weak natural 2M" => 1,
+        | "Ogust" => 1,
         // Radio pair, like the `1NT opening natural` / `NT style` group: EPBot's
         // setter for either index clears the other, so never flip one alone.
         //
@@ -750,7 +723,6 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // transfer, at any level.  The 1NT minor transfers are a different row.
         | "Minor Suit Transfers after 2NT"
         | "Mixed raise"
-        | "Multi"
         | "Namyats"
         | "Natural 3N entering style"
         | "Raptor 1NT"

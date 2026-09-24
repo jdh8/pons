@@ -29,6 +29,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Dutch system is dropped and reframed as the Watermelon Dutch Doubleton
+  knobs** (<https://jdh8.github.io/watermelon-dutch/>). The `dutch()` factory
+  family (`dutch`, `dutch_default`, `dutch_book`, `dutch_instinct`,
+  `dutch_with_card`, `dutch_with_config`, `dutch_v6`), `card::dutch_card`,
+  `cards/Dutch.bbsa`, the `smoke-dutch` / `render-dutch-book` /
+  `probe-dutch-1s-points` examples, the `ab-dutch*.sh` and
+  `ab-declared-{book,opponents}.sh` runners, the `--our-floor dutch*` /
+  `--their-floor dutch` / `--system dutch` harness arms and `dump-teacher`'s
+  Dutch corpus cells are all gone; `ConventionCard::capture` takes one argument
+  and its slot 0 is now `wide_one_club`, read off the knob (a foreign card still
+  sets it from the WJ header). In their place, three opt-in knobs on
+  `american()`, **all default off**, each owing its own A/B:
+  `opening.five_five_four_two` (1♦ 4+, 1♣ 2+, a (xx)45 canapés into 1♦; card
+  row `1D opening with 4 cards`), `opening.wide_one_club` (both minors 11–23,
+  the strong `2♣!` narrowed to 21+ with a five-card major or six-card minor or
+  24+, responder's `1♦!` relay with opener's seven-row rebid ladder, natural
+  invite+ `2♣` and game-forcing `2♦` with both sides authored; the card
+  declares the WJ header), and `rebid.odwrotka` (`1♣ - 1M - 2♦!` as a
+  game-forcing or invitational-with-three artificial reverse, answered by
+  reverse-445566 steps; opener's continuation is the floor's). The Multi `2♦`
+  (`opening.multi_two_diamonds`) now compiles on `american()` and its card rows
+  ride the knob (`scripts/ab-multi-2d.sh`). **Default system byte-identical**:
+  the rendered default book is unchanged line for line, and the knob-off
+  opening table is pinned equal to the shipped one. The retired system's
+  ledger moved to `docs/archive/dutch-system.md`; `docs/dutch-spec.md` is
+  deleted (the book is the spec). Deferred, flagged: the relay's `1NT` (18–20)
+  and `2♦!` (21–23) tails still sit on american's natural-`1♦` nodes.
+
 - **§N1s — a game-forcing Wilkosz `1NT (2♣) 3♦` over their Landy** —
   `competition.landy_wilkosz`, **default on** (`bba-gen --no-ns-landy-wilkosz`).
   The idle `3♦` now shows two five-card suits with at least one major and ten-plus

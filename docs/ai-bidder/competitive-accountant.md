@@ -265,7 +265,7 @@ this node's reading, the finite-criterion problem returns here first.
 | attribution | three `AtomicU64` + a plain `pub` accessor, written to the shard JSON |
 | coverage criterion | **relative** to the me/partner columns (±3 points); absolute reported beside it |
 | gate 0 (new) | trigger rate, pre-registered floor 1% of boards; below it, widen to 3NT-by-them |
-| dutch | ships on the `american()` A/B and v4 inherits; record in `docs/dutch-system.md` when the code lands |
+| dutch | ships on the `american()` A/B and v4 inherits; recorded in `docs/archive/dutch-system.md`; the system is now knobs on `american()` |
 | `expected_double` | deferred past the A/B — it cannot change the implementation |
 
 ## The gate as built *(2026-08-12, Stage 2)*

@@ -1,22 +1,42 @@
-# The Dutch system — campaign ledger
+# The Dutch system — campaign ledger (archived)
+
+> **Archived 2026-09-24.** The `dutch()` system was **dropped** and reframed as
+> the [Watermelon Dutch Doubleton](https://jdh8.github.io/watermelon-dutch/)
+> plugin: three opt-in knobs on `american()`, all default off and each owing
+> its own A/B — `opening.five_five_four_two` (1♦ 4+, 1♣ 2+, (xx)45 canapé),
+> `opening.wide_one_club` (1♣/1♦ 11–23, the `1♦!` relay and its rebid ladder,
+> the natural `2♣`/`2♦` minor bids), and `rebid.odwrotka` (`1♣ - 1M - 2♦!`
+> with reverse-445566 steps). The Multi `2♦` (`opening.multi_two_diamonds`)
+> now compiles on `american()` too. The book **is** the spec; `dutch-spec.md`
+> was deleted rather than transcribed twice, and the deep continuation trees
+> it carried beyond the book (the relay's `1NT`/`2♦!` tails, the passed-hand
+> ladder, the natural minor-response tables) went with the system.
+>
+> Why: as a whole, Dutch never beat american — Phase 2.1 lost, WJ-floor arms B
+> and C lost, Multi lost against natural weak twos — while every win was a
+> gadget (the 2.2 responder side, the Multi champion over the base). Knob-by-
+> knob A/B on american is the house measurement and attributes wins cleanly.
+> Everything below is the historical record: every number was measured on the
+> retired `dutch()` factory and its Watermelon-book predecessor, whose openings
+> (1♦ = 5+ or 4441, (xx)45 into 1♣) differ from the plugin's.
 
 Dutch is a **natural 2/1 built around a wide, non-forcing 1♣** — a "lawyer's
 Polish Club" that naturalises the Polish 1♣: Polish constructiveness, but
 natural and less restricted. It is a **champion candidate**. We copy
-[`american()`](../src/bidding/american.rs) and apply the Dutch diff one
+[`american()`](../../src/bidding/american.rs) and apply the Dutch diff one
 measurable phase at a time; Dutch promotes to the shipped default only if it
 measures stronger, at which point `american()` demotes to the ablation baseline
 (the WBridge5-ships-a-modded-French model).
 
-Read [docs/bidding-architecture.md](bidding-architecture.md) first (the
-book/floor/inference layer cake) and [docs/measurement.md](measurement.md) (no
+Read [docs/bidding-architecture.md](../bidding-architecture.md) first (the
+book/floor/inference layer cake) and [docs/measurement.md](../measurement.md) (no
 bidding change ships without an A/B).
 
 ## Target system
 
 The full bidding spec — openings, the 1♣ response ladder, opener's relay
 rebids, and the deep continuation trees — is transcribed from jdh8's Watermelon
-Dutch book in **[dutch-spec.md](dutch-spec.md)** (with pons deviations flagged
+Dutch book in **[dutch-spec.md](https://jdh8.github.io/watermelon-dutch/)** (with pons deviations flagged
 inline). In one line: a wide non-forcing **1♣** (11–23 catch-all) with a **1♦!
 relay** carrying the awkward and the very strong; **1♦** = 5+♦ or the
 singleton-club 4441 (never 3♦; every other 4-diamond hand — incl. (xx)45 —
@@ -70,7 +90,7 @@ the floor's transfer-completion still holds.
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
-| rows | Port `dutch_book()` to declarative rows — batches D0 (Dutch inertness harness) and D1 | **DONE** — byte-identical smoke (`956b99de…`) and full-book render (`c1bf4a15…`); [campaign checklist](declarative-rows.md#port-checklist) complete |
+| rows | Port `dutch_book()` to declarative rows — batches D0 (Dutch inertness harness) and D1 | **DONE** — byte-identical smoke (`956b99de…`) and full-book render (`c1bf4a15…`); [campaign checklist](../declarative-rows.md#port-checklist) complete |
 
 Implementation provenance for the early imperative campaign: Phases 0–1
 `5219b5b`; Phase 2.1 `945c1ae`; Wide6322 correction `f92b906`; Phase 2.2
@@ -79,7 +99,7 @@ responder side `7122756`.
 
 **Inherited, now default-on: the competitive accountant** *(2026-08-12)*. The
 floor-side gate that prices the contested game-level node
-([ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)) sits
+([ai-bidder/competitive-accountant.md](../ai-bidder/competitive-accountant.md)) sits
 in `ConfiguredFloorV6` and its explicit v4 twin `ConfiguredFloorBba`, so shipping
 `InstinctProfile::competitive_accountant` moved Dutch's contested five-level
 decisions too — **every Dutch number measured before 2026-08-12 predates it**,
@@ -91,7 +111,7 @@ owed until Dutch is a champion candidate.
 
 **Inherited, still default-off: the phantom-suit rail** *(2026-09-02)*. The
 same two shells carry `new_suit_gate`
-([ai-bidder/new-suit-veto.md](ai-bidder/new-suit-veto.md)), which masks a floored
+([ai-bidder/new-suit-veto.md](../ai-bidder/new-suit-veto.md)), which masks a floored
 suit bid on at most four cards with at most five announced combined. It is
 `InstinctProfile::new_suit_veto`, **default off and byte-identical** while its
 A/B **refuted it on `american()` the same day** (plain DD −0.0212/−0.0164, PD a
@@ -225,7 +245,7 @@ constant. 204 800 bd/vul, seed base 1784496013, ~43–44% divergent.
 **The plain edge is a doubling artifact, and vulnerability proves it.**
 `ns_score_pd` differs from `ns_score_contract` *only* by upgrading an undoubled
 penalty to doubled when the contract fails double-dummy
-([scoring.rs:179](../src/scoring.rs#L179)) — same trick table, so PD is
+([scoring.rs:179](../../src/scoring.rs#L179)) — same trick table, so PD is
 *punishment*, not better defence. WJ's plain figure is flat across vulnerability
 (+0.086 both times) while its PD figure drops from level to a significant loss,
 which is exactly what an overbid does: the extra failing contracts are cheap
@@ -378,7 +398,7 @@ the binary survives at `target/release/examples/bba-wj-reference`.
 
 **Decision (jdh8, 2026-07-20): Phase 3 adopts BBA's two-level openings** — Multi
 2♦ + the 5-5 Polish two-suiters, **replacing the spec's planned Muiderberg**
-([dutch-spec.md](dutch-spec.md) line 31 carries the correction). Book and
+([dutch-spec.md](https://jdh8.github.io/watermelon-dutch/) line 31 carries the correction). Book and
 teacher then share the same rows, which
 makes the two-level branch the cleanest floor-transfer in the system. Costs a
 weak 5-4's opening, gains the weak 5-5 majors an opening Dutch does not have
@@ -405,11 +425,11 @@ opposite meanings, the one spot the WJ net would be catastrophically wrong.
 three natural weak twos with one artificial `2♦!` — 4–10 HCP, exactly one
 six-card major, weak only, never in fourth seat. Seven-card majors keep falling
 to the three-level preempts; a six-card *diamond* suit now has no opening and
-passes. Code: [src/bidding/dutch/multi.rs](../src/bidding/dutch/multi.rs) plus
+passes. Code: [src/bidding/dutch/multi.rs](../../src/bidding/american/multi.rs) plus
 the gated branch in `dutch/openings.rs`; knobs
 `opening.multi_two_diamonds` and `opening.multi_two_diamonds_champion`;
 harness flags `--ns-multi-2d` / `--ns-multi-2d-champion`; runner
-[scripts/ab-dutch-multi.sh](../scripts/ab-dutch-multi.sh).
+[scripts/ab-dutch-multi.sh](../../scripts/ab-multi-2d.sh).
 
 Two variants, because responder's table is a **decision, not a copy**:
 
@@ -430,7 +450,7 @@ direction conflict with the WJ teacher), the `4♣` transfer machinery and its
 completions, the pass-or-correct rebids, and every interfered tail.
 
 **Base = verbatim, and that is the point.** BBA's Multi book
-([bba-multi-2d-opening.md](ai-bidder/bba-multi-2d-opening.md)) is what the WJ
+([bba-multi-2d-opening.md](../ai-bidder/bba-multi-2d-opening.md)) is what the WJ
 teacher net was trained on, and BBA — the anchor — reads our calls through its
 own book. Three nodes came back as *generic templates* rather than rules when
 the walk was re-run for the module, so they are ours in both variants and are
@@ -602,7 +622,7 @@ reference opponent). `dutch − american`:
 | both | **−0.0308** ±0.0074 | −0.0077 | 6.55% | −0.471 |
 
 A clean plain-DD loss (~4σ, not noise) — **not shippable**, and expected: this
-is the "half-built convention" bias from [measurement.md](measurement.md), not
+is the "half-built convention" bias from [measurement.md](../measurement.md), not
 a refutation of the wide-1♣ concept. Tracing the worst divergent boards, the
 loss splits three ways, all on the roadmap:
 
@@ -630,7 +650,7 @@ notrump-shape choice vs. the genuinely unbuilt tree.
 ### Phase 2 notes — the wide-1♣ response structure
 
 Spec tables (responder's calls, opener's relay rebids, the deep continuation
-trees) live in **[dutch-spec.md](dutch-spec.md)**. Phase 2.1 authored the first
+trees) live in **[dutch-spec.md](https://jdh8.github.io/watermelon-dutch/)**. Phase 2.1 authored the first
 two nodes — `1♣` responses and `1♣ - 1♦` opener rebids; the `2NT!` 5-5-minor
 rebid is dropped (unreachable in pons — 5-5 minors open 1♦). This section keeps
 only the pons-specific encoding choices and the open items.

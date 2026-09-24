@@ -53,7 +53,7 @@ use ddss::TrickCountTable;
 use pons::bidding::Partnership;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET};
-use pons::bidding::card::{american_card, dutch_card};
+use pons::bidding::card::american_card;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     BOXES_V7, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6,
@@ -64,7 +64,7 @@ use pons::bidding::features::{
 use pons::bidding::instinct::forced;
 use pons::bidding::{Bidder, Phase};
 use pons::gib;
-use pons::{american, american_instinct, dutch, dutch_instinct};
+use pons::{american, american_instinct};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -225,7 +225,7 @@ struct Args {
     #[arg(long, requires = "configured")]
     vs_bba: bool,
     /// `--configured` only: which system *we* are declared to play
-    #[arg(long, default_value = "american", value_name = "american|dutch")]
+    #[arg(long, default_value = "american", value_parser = ["american"])]
     system: String,
     /// `--configured` only: extract from a **bare** context, as v3 dumps do
     ///
@@ -238,9 +238,8 @@ struct Args {
     /// `--configured` only: which system the **opponents** are declared to play
     ///
     /// Defaults to ours, mirroring how `BbaOracle` treats undeclared opponents
-    /// and how `Context::their_system` models them.  Naming a different one
-    /// gives the cross-system cell.
-    #[arg(long, value_name = "american|dutch")]
+    /// and how `Context::their_system` models them.  Only `american` is valid.
+    #[arg(long, value_parser = ["american"])]
     their_system: Option<String>,
     /// `--configured` only: a table configuration to interleave, `OURS/THEIRS`
     ///
@@ -368,7 +367,6 @@ fn parse_enrich(spec: &str) -> Result<(u8, u8), String> {
 /// field because it arms a different knob (the recognizer, not a book toggle).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct SideConfig {
-    dutch: bool,
     kickback: bool,
     /// Bit i moves [`AXES`]\[i\] away from its shipped default; `0` (the
     /// default) is the shipped card.  Armed by [`arm_flips`].
@@ -377,11 +375,7 @@ struct SideConfig {
 
 impl SideConfig {
     fn label(self) -> String {
-        let mut label = format!(
-            "{}-{}",
-            if self.dutch { "dutch" } else { "american" },
-            if self.kickback { "on" } else { "off" }
-        );
+        let mut label = format!("american-{}", if self.kickback { "on" } else { "off" });
         // Labels key the per-side/per-pair maps and name corpus shards, so a
         // flipped side must stay distinct and stable; fixed-width hex keeps
         // the naming contract of `AXES` readable in a shard list.
@@ -389,10 +383,6 @@ impl SideConfig {
             label.push_str(&format!("+{:04x}", self.flips));
         }
         label
-    }
-
-    fn system(self) -> &'static str {
-        if self.dutch { "dutch" } else { "american" }
     }
 }
 
@@ -534,9 +524,9 @@ fn feature_agreements(flips: u16, vs_bba: bool) -> Agreements {
     agreements
 }
 
-/// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system,
-/// with an optional `+HEX` suffix of [`AXES`] flips: `a-off+8003` is american,
-/// kickback off, axes 0, 1 and 15 moved off their shipped defaults
+/// `a-on`, `american-off` — a side's declared system, with an optional `+HEX`
+/// suffix of [`AXES`] flips: `a-off+8003` is american, kickback off, axes 0, 1
+/// and 15 moved off their shipped defaults
 fn parse_side(spec: &str) -> Result<SideConfig, String> {
     let (spec, flips) = match spec.split_once('+') {
         Some((head, hex)) => (
@@ -548,22 +538,17 @@ fn parse_side(spec: &str) -> Result<SideConfig, String> {
     };
     let (system, kickback) = spec
         .rsplit_once('-')
-        .ok_or("expected SYSTEM-on|off[+HEX], e.g. `a-on` or `dutch-off+8003`")?;
-    let dutch = match system {
-        "a" | "american" => false,
-        "d" | "dutch" => true,
-        other => return Err(format!("system must be a|american|d|dutch, got {other:?}")),
-    };
+        .ok_or("expected SYSTEM-on|off[+HEX], e.g. `a-on` or `american-off+8003`")?;
+    match system {
+        "a" | "american" => {}
+        other => return Err(format!("system must be a|american, got {other:?}")),
+    }
     let kickback = match kickback {
         "on" => true,
         "off" => false,
         other => return Err(format!("kickback must be on|off, got {other:?}")),
     };
-    Ok(SideConfig {
-        dutch,
-        kickback,
-        flips,
-    })
+    Ok(SideConfig { kickback, flips })
 }
 
 /// `OURS/THEIRS`, one table's seating — e.g. `a-on/a-off` for the mixed table
@@ -574,38 +559,18 @@ fn parse_cell(spec: &str) -> Result<(SideConfig, SideConfig), String> {
     Ok((parse_side(ours)?, parse_side(theirs)?))
 }
 
-/// The six table configurations of `docs/ai-bidder/configured-net.md`
+/// The three table configurations of `docs/ai-bidder/configured-net.md`
 ///
-/// Eight distinct *ordered* cells, because a row is written from the acting
-/// seat's view and a mixed table therefore emits both asymmetric cells at once.
-/// 1–3 are what the two gates need; 4–6 exist because kickback alone decides
-/// ~0.05% of boards and cannot train the config block on its own, while the
-/// base system moves nearly every auction.
-const DEFAULT_CELLS: [(SideConfig, SideConfig); 6] = [
-    (A_OFF, A_OFF),
-    (A_ON, A_ON),
-    (A_ON, A_OFF),
-    (D_OFF, D_OFF),
-    (D_ON, D_ON),
-    (A_OFF, D_OFF),
-];
+/// Ordered pairs, because a row is written from the acting seat's view and a
+/// mixed table therefore emits both asymmetric cells at once.  These are what
+/// the kickback gate needs: kickback alone decides ~0.05% of boards and
+/// cannot train the config block on its own from the uniform bulk alone.
+const DEFAULT_CELLS: [(SideConfig, SideConfig); 3] = [(A_OFF, A_OFF), (A_ON, A_ON), (A_ON, A_OFF)];
 const A_OFF: SideConfig = SideConfig {
-    dutch: false,
     kickback: false,
     flips: 0,
 };
 const A_ON: SideConfig = SideConfig {
-    dutch: false,
-    kickback: true,
-    flips: 0,
-};
-const D_OFF: SideConfig = SideConfig {
-    dutch: true,
-    kickback: false,
-    flips: 0,
-};
-const D_ON: SideConfig = SideConfig {
-    dutch: true,
     kickback: true,
     flips: 0,
 };
@@ -623,16 +588,12 @@ fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<EpbotC
     })
 }
 
-/// Our card for a named system, rendered off the **live** knob state
+/// Our card, rendered off the **live** knob state
 ///
 /// Must be called after the knobs for this cell are set: `american_card()` reads
 /// them, which is precisely what keeps the card, the code and the net in sync.
-fn card_for(system: &str, agreements: &Agreements) -> anyhow::Result<pons::bidding::card::Card> {
-    Ok(match system {
-        "american" => american_card(agreements),
-        "dutch" => dutch_card(agreements),
-        other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
-    })
+fn card_for(agreements: &Agreements) -> anyhow::Result<pons::bidding::card::Card> {
+    Ok(american_card(agreements))
 }
 
 /// `NAME=0|1`, as `bba-gen` spells it.
@@ -748,22 +709,13 @@ fn run(args: Args) -> anyhow::Result<()> {
         // convention override is still selected by `with_conv` below.
         let agreements = Agreements::default();
         Ok(match args.teacher.as_str() {
-            // `--system` selects the teacher, not merely the disclosed card.
-            // Letting them drift apart writes rows labelled with a system the
-            // teacher was not playing -- the mislabeling that `verify_card`
-            // guards against for BBA, one level up and just as invisible.
-            "american" if args.system == "dutch" => Box::new(dutch_instinct(&agreements).bind()),
             "american" => Box::new(american_instinct(&agreements).bind()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let card = args.card.as_deref().map(load_bbsa).transpose()?;
                 let (system, mut toggles) = match card {
                     Some(card) => (card.system, card.toggles),
-                    // `--configured --system dutch` means the teacher plays WJ;
-                    // without this the corpus would claim WJ over 2/1 bidding.
-                    None if args.configured => {
-                        (card_for(&args.system, &agreements)?.system, Vec::new())
-                    }
+                    None if args.configured => (card_for(&agreements)?.system, Vec::new()),
                     None => (SYSTEM_2_OVER_1, Vec::new()),
                 };
                 // Singles win over the card, exactly as `bba-gen` applies them.
@@ -809,7 +761,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         );
     }
     let mut sides: Vec<SideConfig> = cells.iter().flat_map(|(a, b)| [*a, *b]).collect();
-    sides.sort_by_key(|side| (side.dutch, side.kickback, side.flips));
+    sides.sort_by_key(|side| (side.kickback, side.flips));
     sides.dedup();
     // Gate 2 of card-manifold.md §"Axis selection", enforced at startup: an
     // axis whose card row EPBot silently refuses (`KNOWN_UNSTICKY`) must never
@@ -822,9 +774,9 @@ fn run(args: Args) -> anyhow::Result<()> {
     if args.teacher == "bba" {
         for side in sides.iter().filter(|side| side.flips != 0) {
             let plain = arm_flips(0);
-            let default = card_for(side.system(), &plain)?;
+            let default = card_for(&plain)?;
             let armed = arm_flips(side.flips);
-            let flipped = card_for(side.system(), &armed)?;
+            let flipped = card_for(&armed)?;
             let unsticky: Vec<&str> = default
                 .rows
                 .iter()
@@ -857,18 +809,14 @@ fn run(args: Args) -> anyhow::Result<()> {
         // value.
         let mut agreements = feature_agreements(side.flips, args.vs_bba);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
-        let card = card_for(side.system(), &agreements)?;
+        let card = card_for(&agreements)?;
         if compact_features {
             per_side_agreements.insert(
                 side.label(),
-                pons::bidding::features::ConventionCard::capture(&agreements, side.dutch),
+                pons::bidding::features::ConventionCard::capture(&agreements),
             );
         }
-        let partnership = if side.dutch {
-            dutch(&agreements).bind()
-        } else {
-            american(&agreements).bind()
-        };
+        let partnership = american(&agreements).bind();
         per_side.insert(side.label(), (card, partnership));
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
@@ -898,7 +846,6 @@ fn run(args: Args) -> anyhow::Result<()> {
         let mut agreements = arm_flips(a.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(a.kickback);
         let teacher: Box<dyn Bidder> = match args.teacher.as_str() {
-            "american" if a.dutch => Box::new(dutch_instinct(&agreements).bind()),
             "american" => Box::new(american_instinct(&agreements).bind()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
@@ -980,9 +927,9 @@ fn run(args: Args) -> anyhow::Result<()> {
         // 140 floats a side, not a hot cost.
         let config = (args.configured && cells.is_empty())
             .then(|| -> anyhow::Result<Config> {
-                let ours = card_for(&args.system, &regime_agreements)?;
+                let ours = card_for(&regime_agreements)?;
                 let theirs = match &args.their_system {
-                    Some(system) => card_for(system, &regime_agreements)?,
+                    Some(_) => card_for(&regime_agreements)?,
                     None => ours.clone(),
                 };
                 Ok(Config::new(&ours, &theirs))
@@ -992,12 +939,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         // for the same reason the card is: rule presence is decided at build.
         let reader: Option<Partnership> =
             (args.configured && cells.is_empty() && !args.bare_context)
-                .then(|| -> anyhow::Result<Partnership> {
-                    Ok(match args.system.as_str() {
-                        "dutch" => dutch(&regime_agreements).bind(),
-                        _ => american(&regime_agreements).bind(),
-                    })
-                })
+                .then(|| -> anyhow::Result<Partnership> { Ok(american(&regime_agreements).bind()) })
                 .transpose()?;
         let teacher = teachers[regime].as_ref();
         // The table(s) this board is played at.  The dealer's side plays

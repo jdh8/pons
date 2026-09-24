@@ -55,8 +55,7 @@ use std::sync::Arc;
 ///
 /// The shipped default until the compact v5 floor won its 2026-08-08 gate A/B.
 /// It stays reachable through
-/// [`american_with_config`][super::american::american_with_config] and
-/// [`dutch_with_config`][super::dutch::dutch_with_config].
+/// [`american_with_config`][super::american::american_with_config].
 ///
 /// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
 /// learned net in the judgement middle, the deterministic rails preserved by

@@ -78,13 +78,12 @@ struct Args {
     #[arg(long)]
     our_system: Option<c_int>,
 
-    /// Which of our authored systems to seat: `american` (default), `dutch`
-    /// (the wide-1♣ champion candidate), the deterministic `american-instinct` /
-    /// `dutch-instinct` pre-swap baselines, `bba-constructive` (`american` with
-    /// the BBA net flooring the constructive book too), `neural-v3` (the
-    /// restrictive disclosable distilled floor; requires the `neural-floor`
-    /// feature), or the explicit `american-v6` / `dutch-v6` aliases of the
-    /// shipped defaults. Ignored when `--our-system` selects
+    /// Which of our authored systems to seat: `american` (default), the
+    /// deterministic `american-instinct` pre-swap baseline, `bba-constructive`
+    /// (`american` with the BBA net flooring the constructive book too),
+    /// `neural-v3` (the restrictive disclosable distilled floor; requires the
+    /// `neural-floor` feature), or the explicit `american-v6` alias of the
+    /// shipped default. Ignored when `--our-system` selects
     /// an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
@@ -92,18 +91,17 @@ struct Args {
     /// Tell our net the card the **opponents actually hold**, instead of our own
     ///
     /// Phase 2a of docs/declarative-rows.md.  Off (the default) our partnership is
-    /// built by `american()`/`dutch()`, whose `Config::symmetric` declares that
+    /// built by `american()`, whose `Config::symmetric` declares that
     /// the opposition plays our card — against EPBot, simply false.  On, the
     /// opponents' half of the config is read back off their own bot
     /// (`BbaOracle::card`), so this is a **bidding change**: it moves the net's
     /// inputs on every board and wants a full A/B, not a spot check.
     ///
     /// Books are untouched either way — this is the floor channel alone.
-    /// Requires `--our-floor american|dutch` (the two with a net to declare to).
+    /// Requires `--our-floor american` (the one with a net to declare to).
     /// With `--their-floor` the opponents are a pons book, so their card is the
-    /// one that name generates — the american-vs-dutch mixed table; the
-    /// `--their-dial`/`--their-*` perturbations are refused, since no card row
-    /// expresses them.
+    /// one that name generates; the `--their-dial`/`--their-*` perturbations
+    /// are refused, since no card row expresses them.
     #[arg(long)]
     declare_opponents: bool,
 
@@ -715,10 +713,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
-    /// Open a Multi `2♦` — **Dutch only** (`--our-floor dutch`), replacing all
-    /// three natural weak twos with one artificial 4-10 six-card-major `2♦!`
-    /// (default off; see `opening.multi_two_diamonds`).  Inert under
-    /// `--our-floor american`, which never compiles the package.
+    /// Open a Multi `2♦` on american, replacing all three natural weak twos
+    /// with one artificial 4-10 six-card-major `2♦!` (default off; see
+    /// `opening.multi_two_diamonds`).
     #[arg(long, default_value_t = false)]
     ns_multi_2d: bool,
 
@@ -2102,10 +2099,9 @@ fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCar
             // differ only in the floor, which no card row can express.
             let card = match args.our_floor.split('-').next().unwrap_or_default() {
                 "american" => pons::bidding::card::american_card(armed),
-                "dutch" => pons::bidding::card::dutch_card(armed),
                 other => anyhow::bail!(
                     "--disclose generated: no card generator for system `{other}` \
-                     (known: american, dutch).  Write one in `src/bidding/card.rs` \
+                     (known: american).  Write one in `src/bidding/card.rs` \
                      rather than disclosing another system's card."
                 ),
             };
@@ -2948,10 +2944,10 @@ fn main() -> anyhow::Result<()> {
              replaces our side with EPBot, which has no net to declare to"
         );
         let theirs = match &args.their_floor {
-            // A pons opponent declares the card its own name generates — the
-            // american-vs-dutch mixed table, and (read under `--their-ns`) any
-            // agreement the knobs can express.  What is refused is the
-            // *inexpressible* half of the deviation panel: no card row carries
+            // A pons opponent declares the card its own name generates, and
+            // (read under `--their-ns`) any agreement the knobs can express.
+            // What is refused is the *inexpressible* half of the deviation
+            // panel: no card row carries
             // `--their-dial`'s strength shift, a four-card overcall style, or
             // undisciplined weak twos, so declaring those would claim a system
             // they are not playing — the one error the net cannot see.

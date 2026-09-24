@@ -1,4 +1,4 @@
-//! Price a simple heart raise by a light responder opposite a Dutch 1H opener.
+//! Price a simple heart raise by a light responder opposite a 1H opener.
 
 use std::collections::BTreeMap;
 
@@ -9,9 +9,9 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Penalty, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
 use pons::bidding::Bidder;
 use pons::bidding::constraint::support_point_count;
-use pons::dutch;
 use pons::scoring::{imps, ns_score_tricks};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -21,7 +21,7 @@ use rand::rngs::StdRng;
 mod common;
 
 #[derive(Parser)]
-#[command(about = "Price light simple raises of a Dutch 1H opener")]
+#[command(about = "Price light simple raises of a 1H opener")]
 struct Args {
     /// Number of accepted deals to solve
     #[arg(short, long, default_value_t = 40_000)]
@@ -47,7 +47,7 @@ impl OpenerSlice {
             10..=14 => Self::Minimum,
             15..=17 => Self::Medium,
             18..=20 => Self::Maximum,
-            _ => unreachable!("a real Dutch 1H opener has 10-20 HCP"),
+            _ => unreachable!("a real 1H opener has 10+ HCP (12-21 points)"),
         }
     }
 
@@ -103,7 +103,7 @@ fn main() {
     let args = Args::parse();
     assert!(args.count > 0, "--count must be positive");
 
-    let partnership = dutch(&pons::bidding::agreements::Agreements::default()).bind();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let one_heart = Bid::new(1, Strain::Hearts);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut attempts = 0usize;
@@ -153,7 +153,7 @@ fn main() {
         samples.len(),
         args.seed
     );
-    println!("North = real Dutch 1H opener; South = 3+ hearts and 3-5 support points");
+    println!("North = real 1H opener; South = 3+ hearts and 3-5 support points");
     println!();
     println!("Sampled opener-slice masses");
     println!("{:>10} {:>9} {:>9}", "N HCP", "count", "share");

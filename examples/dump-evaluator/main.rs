@@ -48,7 +48,7 @@ use pons::bidding::features::{
 };
 use pons::bidding::tags::derive;
 use pons::bidding::{Bidder, Inferences, Partnership, Phase};
-use pons::{american, dutch, gib};
+use pons::{american, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use rayon::prelude::*;
@@ -170,7 +170,7 @@ struct Args {
     seed: u64,
     /// Comma-separated books to bid each deal with. Pooling systems widens the
     /// range-shape coverage; the physics being learned is the same for all.
-    #[arg(long, default_value = "american,dutch")]
+    #[arg(long, default_value = "american")]
     systems: String,
     /// Row encoding: `summary` (features_eval's 54 floats), `onehot` (52 card
     /// bits — the texture ablation), `bits` (the 79-float research superset),
@@ -287,8 +287,7 @@ fn main() -> anyhow::Result<()> {
         .split(',')
         .map(|name| match name.trim() {
             "american" => Ok(("american", american(&agreements).bind())),
-            "dutch" => Ok(("dutch", dutch(&agreements).bind())),
-            other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
+            other => anyhow::bail!("--systems entries must be american, got {other:?}"),
         })
         .collect::<anyhow::Result<_>>()?;
     anyhow::ensure!(systems.len() <= 2, "the tag byte holds two system slots");
@@ -304,13 +303,7 @@ fn main() -> anyhow::Result<()> {
     }
     let readers: Vec<Partnership> = systems
         .iter()
-        .map(|(name, _)| {
-            if *name == "dutch" {
-                dutch(&reader_agreements).bind()
-            } else {
-                american(&reader_agreements).bind()
-            }
-        })
+        .map(|_| american(&reader_agreements).bind())
         .collect();
 
     let deals = load_deals(&args.deals, args.skip, args.count)?;

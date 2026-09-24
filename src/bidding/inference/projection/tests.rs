@@ -404,7 +404,6 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
 #[test]
 fn bids_read_within_their_table() {
     use crate::bidding::american::american;
-    use crate::bidding::dutch::dutch;
     use rand::SeedableRng as _;
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(0x81D5);
@@ -479,12 +478,14 @@ fn bids_read_within_their_table() {
     agreements.decision.reading.envelope_union = true;
     agreements.decision.reading.bid_exclusion = true;
     let american = american(&agreements);
-    let dutch = dutch(&agreements);
+    let watermelon = crate::bidding::american::american(
+        &crate::bidding::inference::tests::watermelon(agreements),
+    );
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
         ("american defensive", &american.defensive.0),
-        ("dutch constructive", &dutch.constructive.0),
+        ("watermelon constructive", &watermelon.constructive.0),
     ];
     // `Hand::EMPTY` arms the node's decision scope so one `Inferences::read`
     // serves every rule and every probe hand — the same saving `node_context`

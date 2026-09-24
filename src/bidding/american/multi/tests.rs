@@ -22,9 +22,9 @@ fn bid(level: u8, strain: Strain) -> Call {
 
 const P: Call = Call::Pass;
 
-/// The Dutch call after `auction`, under `agreements`
+/// Our call after `auction`, under `agreements`
 fn calls(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
-    let partnership = super::super::dutch(agreements).bind();
+    let partnership = super::super::american(agreements).bind();
     let hand = hand.parse().expect("a valid hand");
     let logits = partnership
         .classify(hand, RelativeVulnerability::NONE, auction)
@@ -81,7 +81,7 @@ fn opening_partition() {
 /// The `2♦` opening is alerted, and it is the *only* weak two-level opening left.
 #[test]
 fn multi_replaces_every_weak_two() {
-    let rules = super::super::openings::dutch_openings(&multi(false));
+    let rules = super::super::openings::openings(&multi(false));
     let two_level: Vec<Call> = rules
         .rules()
         .iter()
@@ -471,7 +471,7 @@ fn champion_three_level_corrections() {
 ///
 /// american's `weak-two-responses` package authors `2♦ -`, `2♦ - 2♥ -`,
 /// `2♦ - 2♠ -`, `2♦ - 3♣ -`, `2♦ - 2NT -` and the four `2♦ - 2NT - 3x -`
-/// continuations, and `dutch::book` compiles this package *after* it.  A key
+/// continuations, and `american::book` compiles this package *after* it.  A key
 /// left behind would answer a Multi auction with Ogust, so each is probed for a
 /// call the Multi table gives and Ogust does not.
 #[test]
@@ -529,7 +529,7 @@ fn the_multi_reads_as_a_major_and_never_as_diamonds() {
     use crate::bidding::inference::{Inferences, Relative};
 
     for champion in [false, true] {
-        let partnership = super::super::dutch(&multi(champion)).bind();
+        let partnership = super::super::american(&multi(champion)).bind();
         let reading =
             Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, &OPENED));
         let opener = reading.get(Relative::Partner);

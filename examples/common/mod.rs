@@ -17,7 +17,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::agreements::Agreements;
-use pons::bidding::card::{Card, american_card, dutch_card};
+use pons::bidding::card::{Card, american_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::ConventionCard;
 use pons::bidding::{Bidder, Partnership};
@@ -694,22 +694,19 @@ pub fn report_sd_brackets(
 pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partnership> {
     Ok(match name {
         "american" => pons::american(agreements).bind(),
-        // The authored books with no floor at all: a driver seating this passes
-        // whenever the books run out.  The floor ablation's other end.
+        // The authored book with no floor at all: a driver seating this passes
+        // whenever the book runs out.  The floor ablation's other end.
         "american-book" => pons::bidding::american::american_book(agreements).bind(),
-        "dutch" => pons::dutch(agreements).bind(),
-        // The deterministic pre-swap floors: the fixed baselines now that
-        // `american` and `dutch` both ship the BBA net.
+        // The deterministic pre-swap floor: the fixed baseline now that
+        // `american` ships the BBA net.
         "american-instinct" => pons::american_instinct(agreements).bind(),
-        "dutch-instinct" => pons::dutch_instinct(agreements).bind(),
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor(agreements).bind(),
         "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
         "american-v6-their" => pons::bidding::american::american_v6_their(agreements).bind(),
-        "dutch-v6" => pons::bidding::dutch::dutch_v6(agreements).bind(),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|dutch|dutch-instinct|dutch-v6, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their, got {other:?}"
         ),
     })
 }
@@ -722,9 +719,8 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
 pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
     Ok(match name.split('-').next().unwrap_or_default() {
         "american" => american_card(agreements),
-        "dutch" => dutch_card(agreements),
         other => anyhow::bail!(
-            "no card generator for system `{other}` (known: american, dutch).  \
+            "no card generator for system `{other}` (known: american).  \
              Write one in `src/bidding/card.rs` rather than declaring another \
              system's card."
         ),
@@ -739,11 +735,11 @@ pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
 /// alone, so a measurement cannot confound a mixed net input with mixed book
 /// rows.
 ///
-/// **Each name must reach the same net here as in [`seat_floor`]**, or the arms
+/// **The name must reach the same net here as in [`seat_floor`]**, or the arms
 /// of a `--declare-opponents` A/B measure the net swap rather than the
 /// declaration — which is exactly what happened for one commit after the
-/// 2026-08-08 v5 ship, at 3.5× `scripts/ab-declared-opponents.sh`'s own CI.  So
-/// Both shipped names use the honest-reading v6 floor on both paths.
+/// 2026-08-08 v5 ship, at 3.5× the historical `ab-declared-opponents.sh`'s own
+/// CI.  So the shipped name uses the honest-reading v6 floor on both paths.
 ///
 /// Our own half rides `agreements`, captured by the caller once every `--ns-*`
 /// cell is armed — the same "set every `--ns-*` first" rule that applies to
@@ -755,7 +751,7 @@ pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
 /// neither Multi-Landy nor Landy reads as `Natural` — so a `--their-ns` arm on
 /// one of those axes declares an approximation, not the row it armed.
 ///
-/// Only the two net-floored systems accept a declared opponent.  The other
+/// Only the net-floored system accepts a declared opponent.  The other
 /// floors are refused rather than silently ignored: an arm that quietly kept a
 /// symmetric config would be incomparable to its sibling with nothing in the
 /// output saying so.
@@ -768,10 +764,9 @@ pub fn seat_floor_vs(
         "american" => {
             pons::american_with_card(agreements, &ConventionCard::from_card(theirs)).bind()
         }
-        "dutch" => pons::dutch_with_card(agreements, &ConventionCard::from_card(theirs)).bind(),
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
-             floor must be american|dutch, got {other:?}"
+             floor must be american, got {other:?}"
         ),
     })
 }
@@ -818,7 +813,7 @@ pub fn deviant_floor(
     // Only the net-floored names take a config; the instinct and book-only
     // floors have no net to declare anything to.
     match name {
-        "american" | "dutch" => seat_floor_vs(name, theirs, &agreements),
+        "american" => seat_floor_vs(name, theirs, &agreements),
         _ => seat_floor(name, &agreements),
     }
 }

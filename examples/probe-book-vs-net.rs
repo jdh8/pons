@@ -142,7 +142,7 @@ fn main() {
     let partnership = american(&agreements).bind();
     // The very cell the shipped floor is armed at (`american`): our captured
     // card on both sides.
-    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, false));
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
 
     let deals = seeded_deals(base, args.count);
     let nodes = deals

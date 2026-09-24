@@ -609,7 +609,7 @@ fn main() {
     let ctx = Shared {
         policy: american(&agreements).bind(),
         vul: args.vul,
-        compact: CompactConfig::symmetric(&ConventionCard::capture(&agreements, false)),
+        compact: CompactConfig::symmetric(&ConventionCard::capture(&agreements)),
     };
 
     // One bot serves both the teacher walk and the BBA rollout arm.

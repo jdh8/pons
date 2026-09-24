@@ -807,7 +807,6 @@ fn unalerted_artificial(
 #[ignore = "census, not an assertion"]
 fn silent_natural_suits() {
     use crate::bidding::american::american;
-    use crate::bidding::dutch::dutch;
     use std::collections::BTreeMap;
 
     let mut agreements = crate::bidding::agreements::Agreements::default();
@@ -816,7 +815,7 @@ fn silent_natural_suits() {
 
     for (label, system) in [
         ("american", american(&agreements)),
-        ("dutch", dutch(&agreements)),
+        ("watermelon", american(&watermelon(agreements))),
     ] {
         // (call, rule label) -> (silent nodes, nodes that publish a floor)
         let mut tally: BTreeMap<(String, String), (usize, usize)> = BTreeMap::new();
@@ -1568,7 +1567,6 @@ fn axis_leaks_with(
 #[test]
 fn authored_rules_eval_within_projection() {
     use crate::bidding::american::american;
-    use crate::bidding::dutch::dutch;
     use rand::SeedableRng as _;
 
     // ponytail: 128 hands is the whole cost dial.  The sweep is ~72s, and
@@ -1596,12 +1594,12 @@ fn authored_rules_eval_within_projection() {
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = true;
     let american = american(&agreements);
-    let dutch = dutch(&agreements);
+    let watermelon = crate::bidding::american::american(&watermelon(agreements));
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
         ("american defensive", &american.defensive.0),
-        ("dutch constructive", &dutch.constructive.0),
+        ("watermelon constructive", &watermelon.constructive.0),
     ];
 
     fn check(
@@ -1704,9 +1702,10 @@ fn authored_rules_eval_within_projection() {
 /// machinery may be *imprecise*, but never imprecise **invisibly**.
 ///
 /// The leak notion and its describe-sniffing caveats live on [`axis_leaks`].
-/// The walk covers the shipped `american()` books plus `dutch()`'s
-/// constructive trie (Dutch reuses american's competitive and defensive
-/// books), and runs **twice**:
+/// The walk covers the shipped `american()` books plus the constructive trie
+/// with the Watermelon knobs on ([`watermelon`]: 5542, the wide 1♣,
+/// Odwrotka, the Multi — the overlays the default walk never sees), and runs
+/// **twice**:
 ///
 /// - **union off** ([`ReadingProfile::envelope_union`]) — the legacy reading;
 ///   the
@@ -1722,15 +1721,16 @@ fn authored_rules_eval_within_projection() {
 #[test]
 fn authored_calls_read_what_they_gate() {
     use crate::bidding::american::american;
-    use crate::bidding::dutch::dutch;
 
     let american = american(&crate::bidding::agreements::Agreements::default());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::default());
+    let watermelon = crate::bidding::american::american(&watermelon(
+        crate::bidding::agreements::Agreements::default(),
+    ));
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
         ("american defensive", &american.defensive.0),
-        ("dutch constructive", &dutch.constructive.0),
+        ("watermelon constructive", &watermelon.constructive.0),
     ];
 
     let mut off_profile = crate::bidding::context::DecisionProfile::default();
@@ -1768,7 +1768,7 @@ fn authored_calls_read_what_they_gate() {
         ("HCP", 20, 9),
         // 59 → 65 when the diamond splinters after `1NT - 2NT` went
         // default-on (2026-08-13).  The six are the same two calls (`3♥`,
-        // `3♠`) in each of american constructive/defensive and dutch: they
+        // `3♠`) in each of american constructive/defensive and the (then-)Dutch trie: they
         // gate on the `2NT` transfer's shape class, whose `6+ ♦ | 5+ ♦ & 4+
         // ♣` disjunction the legacy hull cannot pin on the length axis.
         // Knob-on stays 0 — the envelope union projects the union exactly,
@@ -1791,7 +1791,7 @@ fn authored_calls_read_what_they_gate() {
         // blind spot, knob-on still 0.
         // 85 → 88 when the supported minor-transfer slam try admitted the
         // `5+ ♦ & 4+ ♣` arm already promised by `2NT`: the same `4♦`
-        // rule appears in american constructive/defensive and dutch.  The
+        // rule appears in american constructive/defensive and the (then-)Dutch trie.  The
         // legacy hull loses the disjunction; envelope union keeps it exact.
         ("length", 88, 0),
         ("points", 11, 0),
@@ -1815,7 +1815,13 @@ fn authored_calls_read_what_they_gate() {
         // competition, high-overcall, free-bid answer) followed the same
         // guard-to-exact path: eight raise rules of the answer tables
         // surface identically.  Ledger rows in docs/dnf-migration.md.
-        ("support", 115, 0),
+        // 115 → 116 when the Dutch system was retired into knobs
+        // (2026-09-24): the walk's fourth trie became american with the
+        // Watermelon knobs on, whose wide-1♣ response table keeps
+        // american's preemptive `3♣` raise (`5+ support & ≤9 support
+        // points`), so that rule is metered twice where the old Dutch
+        // table, which had no raise, metered it once.  Knob-on stays 0.
+        ("support", 116, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
@@ -1861,15 +1867,16 @@ fn authored_calls_read_what_they_gate() {
 #[test]
 fn fallback_rules_read_what_they_gate() {
     use crate::bidding::american::american;
-    use crate::bidding::dutch::dutch;
 
     let american = american(&crate::bidding::agreements::Agreements::default());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::default());
+    let watermelon = crate::bidding::american::american(&watermelon(
+        crate::bidding::agreements::Agreements::default(),
+    ));
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
         ("american defensive", &american.defensive.0),
-        ("dutch constructive", &dutch.constructive.0),
+        ("watermelon constructive", &watermelon.constructive.0),
     ];
     let walk: RuleWalk = |trie, profile, visit| {
         for_each_fallback_rule(trie, profile, visit, |_, _| {});
@@ -1910,7 +1917,11 @@ fn fallback_rules_read_what_they_gate() {
         // Per column each table keeps a single arm, so the wall does not
         // reappear in the exact-node sibling's length row (59 holds).
         // Ledger row in docs/dnf-migration.md.
-        ("length", 9, 0),
+        // 9 → 10 when the Dutch system was retired into knobs (2026-09-24):
+        // the fourth trie now carries the Multi `2♦` overlay, whose rebase
+        // fallbacks the old default-off Dutch walk never compiled.  Knob-on
+        // stays 0.
+        ("length", 10, 0),
         ("points", 0, 0),
         ("suit HCP", 2, 0),
         ("support", 0, 0),
@@ -1992,44 +2003,54 @@ fn gladiator_artificial_calls_are_alerted() {
     );
 }
 
-/// The same alert invariant for the [`dutch`][crate::bidding::dutch] system's
-/// constructive book.  Dutch reuses american's competitive and defensive
-/// books (covered by `artificial_calls_are_alerted`) and overrides only the
-/// opening table, so this walks the constructive trie — guarding the strong
-/// 2♣ alert and any artificial call a future Dutch phase adds.
-#[test]
-fn dutch_artificial_calls_are_alerted() {
-    use crate::bidding::dutch::dutch;
+/// The shipped agreements with every Watermelon knob on: the 5542 partition,
+/// the wide 1♣ and its relay, Odwrotka, and the Multi `2♦` in its champion
+/// variant — the constructive overlays the default walk never sees.
+pub(crate) fn watermelon(
+    mut agreements: crate::bidding::agreements::Agreements,
+) -> crate::bidding::agreements::Agreements {
+    agreements.opening.five_five_four_two = true;
+    agreements.opening.wide_one_club = true;
+    agreements.opening.multi_two_diamonds = true;
+    agreements.rebid.odwrotka = true;
+    agreements
+}
 
-    let agreements = crate::bidding::agreements::Agreements::default();
-    let system = dutch(&agreements);
+/// The same alert invariant for the Watermelon overlays' constructive book
+/// (5542, the wide 1♣, Odwrotka), which the default walk never sees.
+#[test]
+fn watermelon_artificial_calls_are_alerted() {
+    use crate::bidding::american::american;
+
+    let mut agreements = watermelon(crate::bidding::agreements::Agreements::default());
+    agreements.opening.multi_two_diamonds = false;
+    let system = american(&agreements);
     assert_all_alerted(
-        "Dutch",
+        "Watermelon",
         unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }
 
-/// The same alert invariant for Dutch's opt-in Multi `2♦`, in **both** variants
+/// The same alert invariant for the opt-in Multi `2♦`, in **both** variants
 ///
-/// `dutch_artificial_calls_are_alerted` above walks the default agreements,
-/// where both Multi knobs are off, so it never sees a single Multi row.  An
-/// unalerted artificial call here would be the phantom-diamond disaster the
-/// invariant exists to prevent — the whole point of the `2♦` is that opener has
-/// no diamonds.
+/// The default walk has the Multi knob off, so it never sees a single Multi
+/// row.  An unalerted artificial call here would be the phantom-diamond
+/// disaster the invariant exists to prevent — the whole point of the `2♦` is
+/// that opener has no diamonds.
 #[test]
-fn dutch_multi_artificial_calls_are_alerted() {
-    use crate::bidding::dutch::dutch;
+fn multi_artificial_calls_are_alerted() {
+    use crate::bidding::american::american;
 
     for champion in [false, true] {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.opening.multi_two_diamonds = true;
         agreements.opening.multi_two_diamonds_champion = champion;
-        let system = dutch(&agreements);
+        let system = american(&agreements);
         assert_all_alerted(
             if champion {
-                "Dutch Multi 2♦ (champion)"
+                "Multi 2♦ (champion)"
             } else {
-                "Dutch Multi 2♦ (BBA-verbatim)"
+                "Multi 2♦ (BBA-verbatim)"
             },
             unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
         );

@@ -877,7 +877,7 @@ pub const LEN_CARD_ROWS: usize = 135;
 /// EPBot's base systems, one-hot: 2/1 GF, SAYC, WJ, Precision, Acol
 ///
 /// **Not decoration, and not derivable from the rows.** `Card::system` is the
-/// only channel for facts no row expresses — `dutch_card` differs from
+/// only channel for facts no row expresses — the wide-1♣ card differs from
 /// `american_card` by this header plus a single row, yet the header is carrying
 /// the entire wide non-forcing 1♣. Encoding the rows alone would have made a WJ
 /// opponent nearly indistinguishable from a 2/1 one, which is precisely the
@@ -1036,10 +1036,9 @@ pub const LEN_COMPACT: usize = 28;
 /// engine's — back onto these axes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConventionCard {
-    /// The Dutch book (wide non-forcing 1♣) rather than 2/1 — a *book*
-    /// choice, not a knob, so [`capture`][Self::capture] takes it as a
-    /// parameter
-    pub dutch: bool,
+    /// The wide, non-forcing 1♣ with its `1♦!` relay
+    /// (`OpeningKnobs::wide_one_club`); on a foreign card, the WJ header
+    pub wide_one_club: bool,
     /// The keycard ask is relocated below 4NT (`ReadingProfile::rkcb_variant`)
     pub relocating: bool,
     /// Garbage Stayman (`ReadingProfile::garbage_stayman`)
@@ -1082,17 +1081,13 @@ impl ConventionCard {
     /// Read one agreement value, as [`american_card`][super::card::american_card]
     /// does row by row
     ///
-    /// `dutch` is a parameter because it selects a *book*, not a knob:
-    /// [`dutch`][crate::dutch()] overlays `american_book()` and inherits every
-    /// knob below, so no knob can answer which book is in play.
-    ///
     /// The disclosable subset of what we agreed, taken off the same value the
     /// book and the floor were built from — so the card cannot declare a
     /// convention the rules are not playing.
     #[must_use]
-    pub fn capture(a: &Agreements, dutch: bool) -> Self {
+    pub fn capture(a: &Agreements) -> Self {
         Self {
-            dutch,
+            wide_one_club: a.opening.wide_one_club,
             relocating: relocating(&a.decision),
             garbage_stayman: a.decision.reading.garbage_stayman,
             new_minor_forcing: a.rebid.new_minor_forcing,
@@ -1133,8 +1128,8 @@ impl ConventionCard {
         let row = |name: &str| card.row(name).unwrap_or(0) != 0;
         Self {
             // The WJ header: the only channel for the wide non-forcing 1♣,
-            // which is exactly how `dutch_card` declares itself.
-            dutch: card.system == 2,
+            // which is exactly how `american_card` declares it.
+            wide_one_club: card.system == 2,
             relocating: row("Kickback 1430"),
             garbage_stayman: row("Garbage Stayman"),
             new_minor_forcing: row("Checkback"),
@@ -1187,7 +1182,7 @@ impl ConventionCard {
     /// silently retargeting every artifact.
     fn encode(&self) -> [f32; LEN_COMPACT] {
         let mut out = [0.0; LEN_COMPACT];
-        out[0] = f32::from(self.dutch);
+        out[0] = f32::from(self.wide_one_club);
         out[1] = f32::from(self.relocating);
         out[2] = f32::from(self.garbage_stayman);
         out[3] = f32::from(self.new_minor_forcing);

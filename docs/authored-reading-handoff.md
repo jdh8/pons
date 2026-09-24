@@ -1486,7 +1486,7 @@ phase, and the mechanism stays here for whoever picks it up.
   **Closed as a work item**: the one gate anyone built for it is refuted under
   [Arm 3c](#arm-3c-refuted--the-confirming-seeds-2026-08-18).
 - **Floor-side settle rail:** required before a learned constructive floor can
-  safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
+  safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](archive/dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
   Also the real repair for the surviving `1NT - 2♠ - 2NT - 3♣ -` `pass_out`
   node (Phase 2's row).
 - **Ogust `3♣` answer reader:** the remaining phantom-club reading package (the

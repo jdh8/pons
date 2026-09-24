@@ -1006,19 +1006,20 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
 ///
 /// `(1♣) - (2♦)`, seen from the 4th seat: both opponents' calls are theirs to
 /// disclose.  American reads the 2♦ response as its own jump shift (6+♦, no
-/// strength floor); the Dutch book that actually bid it shows 5+♦, no 4-card
+/// strength floor); the wide-1♣ book that actually bid it shows 5+♦, no 4-card
 /// major, game-forcing.  Declaring the opponent must move the reading of RHO
 /// and leave our own side alone.
 #[test]
 fn a_declared_opponent_reads_their_calls_in_their_books() {
     use crate::bidding::american::american_book;
-    use crate::bidding::dutch::dutch_book;
     use crate::bidding::inference::Relative;
     use contract_bridge::auction::RelativeVulnerability;
 
     let auction = [bid(1, Strain::Clubs), Call::Pass, bid(2, Strain::Diamonds)];
     let ours = american_book(&crate::bidding::agreements::Agreements::default()).bind();
-    let dutch = dutch_book(&crate::bidding::agreements::Agreements::default()).bind();
+    let mut wide = crate::bidding::agreements::Agreements::default();
+    wide.opening.wide_one_club = true;
+    let wide_book = american_book(&wide).bind();
 
     let read = |partnership: &super::Partnership| {
         *partnership
@@ -1029,7 +1030,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     let declared = read(
         &american_book(&crate::bidding::agreements::Agreements::default())
             .bind()
-            .with_opponents(&dutch),
+            .with_opponents(&wide_book),
     );
 
     assert_eq!(undeclared.lengths[Suit::Diamonds as usize].min, 6);

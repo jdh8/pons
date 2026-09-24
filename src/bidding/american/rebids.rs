@@ -12,6 +12,7 @@
 //! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`opener_major_jump_rebid`][field@crate::bidding::inference::ReadingProfile::opener_major_jump_rebid] |
 //! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`RebidKnobs::meckstroth_adjunct`] |
 //! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`RebidKnobs::forcing_nt_two_suiter`] |
+//! | [`odwrotka`] | `1♣ - 1M - 2♦!` artificial reverse and its 445566 steps | [`RebidKnobs::odwrotka`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
@@ -30,11 +31,13 @@ mod forcing_notrump;
 mod major_jump_rebid;
 mod major_tails;
 mod meckstroth;
+mod odwrotka;
 mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
 use major_jump_rebid::with_major_jump_rebid;
 use meckstroth::with_invitational_minors;
+use odwrotka::with_odwrotka;
 use two_suiter::with_forcing_nt_two_suiter;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
@@ -45,6 +48,7 @@ pub(super) use major_tails::{fourth_suit_forcing_continuations, major_rebid_tail
 pub(super) use meckstroth::{
     invitational_minor_continuations, meckstroth_two_notrump_continuations,
 };
+pub(super) use odwrotka::odwrotka_continuations;
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
@@ -172,6 +176,8 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     if responder_major == Suit::Hearts && agreements.response.up_the_line {
         rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
     }
+    // Odwrotka (default off): `2♦!` as the artificial reverse over `1♣ - 1M`.
+    rules = with_odwrotka(rules, opener_minor, agreements);
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
     rules = with_extras_ladder(
         rules,
@@ -306,6 +312,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
         agreements,
         &[
             forcing_notrump_continuations(),
+            odwrotka_continuations(),
             invitational_minor_continuations(),
             major_jump_rebid_continuations(),
             forcing_nt_two_suiter_continuations(),

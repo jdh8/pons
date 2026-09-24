@@ -45,7 +45,7 @@ fn shelled_v6_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Log
     let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorV6::new(
         crate::bidding::features::CompactConfig::symmetric(
-            &crate::bidding::features::ConventionCard::capture(agreements, false),
+            &crate::bidding::features::ConventionCard::capture(agreements),
         ),
         Arc::new(crate::bidding::instinct(agreements)),
     );

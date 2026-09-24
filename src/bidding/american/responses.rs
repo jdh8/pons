@@ -28,7 +28,8 @@ mod two_over_one;
 
 use choice_of_games::with_choice_of_games;
 use inverted_minor::inverted_minor_rows;
-use longer_major::{with_major_selection, with_up_the_line};
+pub(super) use longer_major::with_major_selection;
+use longer_major::with_up_the_line;
 use two_over_one::with_two_over_one;
 
 pub(super) use choice_of_games::choice_of_games_continuations;
@@ -40,9 +41,9 @@ const JACOBY_2NT: Alert = Alert("jacoby-2nt");
 /// Splinter — a double jump in a new suit showing a singleton or void
 const SPLINTER: Alert = Alert("splinter");
 /// Weak jump shift — a single jump showing a weak six-card suit
-const WEAK_JUMP_SHIFT: Alert = Alert("weak-jump-shift");
+pub(super) const WEAK_JUMP_SHIFT: Alert = Alert("weak-jump-shift");
 /// Inverted minor raise — forcing `2m`, preemptive `3m`
-const INVERTED_MINOR: Alert = Alert("inverted-minor");
+pub(super) const INVERTED_MINOR: Alert = Alert("inverted-minor");
 /// 2/1 game force — a new suit at the two level, game forcing
 const GAME_FORCE: Alert = Alert("game-force");
 
