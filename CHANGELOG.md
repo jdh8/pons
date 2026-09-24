@@ -273,6 +273,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`docs/one-notrump-competitive.md` compacted (2026-09-24)**, 5,771 → 462
+  lines. The live doc keeps the opponent model, the current census, the
+  coverage inventory, an open-only package queue, one state-today section per
+  lane, measurement discipline and a trimmed ledger. The Landy sequel
+  (§N1l–§N1r, every verdict and build record) moved verbatim to the new
+  `docs/archive/one-notrump-competitive-landy.md`; N3's shipped tables, N4
+  (v7, reader, N4e, N4f, N4-KK with `multi_px_split` and the mirror book) and
+  N2's re-read joined `docs/archive/one-notrump-competitive-closed.md`. Every
+  cross-doc anchor was repointed; no bidding change.
 - **`render-book --ns-landy-responder` is optional (2026-09-24).**  Absent,
   the Landy responder knobs stay at `Agreements::default()`, so
   `render-book --their-2c-landy` shows the shipped system rather than the

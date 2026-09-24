@@ -408,7 +408,7 @@ a repeated double is cooperative penalty; after an initial neutral pass, the
 delayed double is takeout. Its exact thresholds, transfer adaptations,
 interfered tails, A/B verdict, and remaining differences from the source live
 in the [current `1NT (2♦)` tree](../one-notrump-multi.md) and
-[campaign §N4-KK](../one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
+[campaign §N4-KK](../archive/one-notrump-competitive-closed.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
 The retired v7 fallback (`--no-ns-multi-kokish-kraft`) is the BBA-like hybrid
 described above: values `X` at 6+ HCP, a delayed takeout double after the major

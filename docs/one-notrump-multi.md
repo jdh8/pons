@@ -12,7 +12,7 @@ BBA's own counter under the natural and Multi readings is compared in
 This document is the **map**: every authored node, who owns each seat, and what
 each call reads as. The campaign ledger — which round shipped what, and the
 A/B numbers — stays in
-[one-notrump-competitive.md §N4](one-notrump-competitive.md#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census)
+[one-notrump-competitive.md §N4](archive/one-notrump-competitive-closed.md#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census)
 and its archive. Nothing here is a verdict; everything here is regenerable.
 
 **Scope.** Only `P* 1NT (2♦)`. Since `d54ef73f` the systems-on strip keeps
@@ -331,7 +331,7 @@ leak; that leak was fixed (`29f93561`, the mirror book), the re-measure gated
 **0 foreign of 1165** and read the decision table's `win | win` row at both-vul,
 and K–K shipped default-on. The numbers, the leak forensic, the design-sketch
 repairs and what is still owed live in
-[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
+[§N4-KK](archive/one-notrump-competitive-closed.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
 *(This heading read "opt-in … stays off" until 2026-08-25 — stale text from
 before the mirror fix, corrected against `agreements.rs` and the CHANGELOG.)*
@@ -349,7 +349,7 @@ both-vul, sd-lead positive in all four columns. Shipped on jdh8's ruling with
 that one negative cell open; the traced cause is opener's answer table, not the
 rung ([multi-doubler-answer-handoff.md](multi-doubler-answer-handoff.md)). The
 census that motivated it is in
-[§N4-KK](one-notrump-competitive.md#inside-the-two-big-branches--where-x-and--actually-bleed-2026-08-26).
+[§N4-KK](archive/one-notrump-competitive-closed.md#inside-the-two-big-branches--where-x-and---actually-bleed-2026-08-26).
 
 A fourth knob is **built and measured a loss** (2026-08-27, stays default off),
 and it would have re-priced the third:
@@ -364,7 +364,7 @@ and the pass branch's delayed `2NT` becomes a live invitation opener accepts on
 1787804916`: three of four cells resolved negative, the fourth a negative wash,
 on a divergence surface ~40× thinner than designed for (0.02%). Numbers and
 the design are in
-[§N4-KK](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
+[§N4-KK](archive/one-notrump-competitive-closed.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
 
 A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed
@@ -446,7 +446,7 @@ behaviour change, so it wants its own arm rather than riding this one.
 ### Reading residues
 
 The variant's readings are sound but two of them moved, and both are recorded
-in [§N4-KK](one-notrump-competitive.md#known-residues--priced-by-the-ab-not-fixed-in-the-build)
+in [§N4-KK](archive/one-notrump-competitive-closed.md#known-residues--priced-by-the-ab-not-fixed-in-the-build)
 rather than repaired:
 
 - the values `X` publishes `points 8.. ♥ 0..13 ♠ 0..13` where the shipped table

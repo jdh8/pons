@@ -33,7 +33,7 @@ The same scan found zero in both K–K rounds and all four `13`/`15` cells; all
 corpora confirm the scan matched the stored auction encoding. The new tests pin
 the completed tails; no same-seed rerun is owed for this structural repair.
 
-Opened 2026-08-25 out of [§N4-KK residue 3](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25):
+Opened 2026-08-25 out of [§N4-KK residue 3](archive/one-notrump-competitive-closed.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25):
 jdh8's ruling is that the residue belongs to every minor transfer, not that
 lane, and the Landy counter is the lane that already half-solved it.
 

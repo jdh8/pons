@@ -218,13 +218,13 @@ verbatim — `AQ.KQ9.QJ975.Q82` bids `3NT` under `px_split` and passes without i
 
 - The census that motivated the rung (293 bd / −824 plain on the `X` branch's
   pass-outs; +1230 PD on the `-` branch's) is in
-  [one-notrump-competitive.md §N4-KK](one-notrump-competitive.md#inside-the-two-big-branches--where-x-and--actually-bleed-2026-08-26).
+  [one-notrump-competitive.md §N4-KK](archive/one-notrump-competitive-closed.md#inside-the-two-big-branches--where-x-and---actually-bleed-2026-08-26).
 - The rung's leg-by-leg mechanism (why `X (2♥) - (2♠)` is excluded, why
   `X (2♠) - -` was withheld) is in the same section and in
   `kokish_kraft_entries`.
 - The `multi_px_split` design, including why the 148 re-weight is a *reading*
   literal as well as a routing one, is
-  [§N4-KK "The `P`/`X` information split"](one-notrump-competitive.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
+  [§N4-KK "The `P`/`X` information split"](archive/one-notrump-competitive-closed.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
 
 ## Operational note, paid for on this run
 

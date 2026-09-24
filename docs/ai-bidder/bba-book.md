@@ -554,7 +554,7 @@ default-on the next day: after the initial `X`, the repeated double is penalty;
 after an initial neutral pass, the delayed double is takeout. The retired v7
 table remains behind `--no-ns-multi-kokish-kraft`. The current tree and A/B
 verdict are in [one-notrump-multi.md](../one-notrump-multi.md) and
-[one-notrump-competitive.md §N4-KK](../one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
+[one-notrump-competitive.md §N4-KK](../archive/one-notrump-competitive-closed.md#n4-kk--the-kokishkraft-counter-a-whole-table-variant-shipped-default-on-2026-08-25).
 
 #### 5.5.2 All-BBA `1NT (2♣)` Landy tree
 
