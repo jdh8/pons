@@ -725,6 +725,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_multi_2d_champion: bool,
 
+    /// Open 5542: `1♦` promises four-plus diamonds, `1♣` two-plus clubs
+    /// (default off; see `opening.five_five_four_two`).
+    #[arg(long, default_value_t = false)]
+    ns_5542: bool,
+
+    /// Play the wide, non-forcing `1♣` with its `1♦!` relay (default off; see
+    /// `opening.wide_one_club`).
+    #[arg(long, default_value_t = false)]
+    ns_wide_1c: bool,
+
+    /// Play Odwrotka, the artificial `1♣ - 1M - 2♦!` reverse (default off; see
+    /// `rebid.odwrotka`).
+    #[arg(long, default_value_t = false)]
+    ns_odwrotka: bool,
+
     /// Disable our continuations after the opponents contest our 2♣ Stayman
     /// (`1NT - 2♣ (X)` / `1NT - 2♣ (2♦/2♥/2♠)`); on by default. Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -2769,6 +2784,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.one_notrump_fifths = args.nt_fifths;
     agreements.opening.multi_two_diamonds = args.ns_multi_2d;
     agreements.opening.multi_two_diamonds_champion = !args.no_ns_multi_2d_champion;
+    agreements.opening.five_five_four_two = args.ns_5542;
+    agreements.opening.wide_one_club = args.ns_wide_1c;
+    agreements.rebid.odwrotka = args.ns_odwrotka;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
     agreements.response.major_choice_of_games = !args.no_ns_major_choice_of_games;
     agreements.response.two_over_one_fit = !args.no_ns_two_over_one_fit;

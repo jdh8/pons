@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A/B plumbing for the Watermelon knobs**: `bba-gen` takes `--ns-5542`,
+  `--ns-wide-1c` and `--ns-odwrotka` (setting `opening.five_five_four_two`,
+  `opening.wide_one_club` and `rebid.odwrotka`), and
+  `scripts/ab-watermelon.sh RESULTS_DIR FLAG` measures one knob against plain
+  american (isolation gate, plain + PD, single-dummy). No bidding change; the
+  three A/Bs are still owed.
+
 - **The Dutch system is dropped and reframed as the Watermelon Dutch Doubleton
   knobs** (<https://jdh8.github.io/watermelon-dutch/>). The `dutch()` factory
   family (`dutch`, `dutch_default`, `dutch_book`, `dutch_instinct`,
