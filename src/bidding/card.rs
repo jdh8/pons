@@ -179,6 +179,11 @@ const fn not_defined() -> usize {
 // if RHO bids clubs` ceiling as the N1j family above — EPBot reads our `2♥` /
 // `2♠` as Jacoby transfers whatever we author.
 //
+// `comp:landy-wilkosz` (§N1s's game-forcing Wilkosz `3♦`,
+// `competition.landy_wilkosz`, default since 2026-09-24): same no-schema-name record and
+// the same `Transfers if RHO bids clubs` ceiling — EPBot reads our `3♦`
+// through the uncontested scheme whatever we author.
+//
 // `comp:landy-penalty` (the doubler's own penalty `X` of their advance,
 // `competition.landy_doubler_px`, default since 2026-08-29, and its §N1m
 // sibling one seat earlier, `competition.landy_opener_px`, default since

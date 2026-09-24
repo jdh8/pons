@@ -1363,6 +1363,29 @@ fn landy_bba_responder(agreements: &Agreements) -> Rules {
         Rules::new().rule(game, 180, gated)
     };
 
+    // §N1s: the game-forcing Wilkosz, above both `3NT` rungs so the major
+    // surfaces.  Dead at favourable, where the values `X` takes these hands
+    // and the census priced it above every Wilkosz candidate.  §N1-lia spends
+    // `3♦` on its diamond sign-off, so the rung stays off that ladder.
+    if agreements.competition.landy_wilkosz && !landy_lia(agreements) {
+        let pair = |a: Suit, b: Suit| len(a, 5..=5) & len(b, 5..=5);
+        let shape = pair(Suit::Hearts, Suit::Spades)
+            | pair(Suit::Spades, Suit::Diamonds)
+            | pair(Suit::Spades, Suit::Clubs)
+            | pair(Suit::Hearts, Suit::Diamonds)
+            | pair(Suit::Hearts, Suit::Clubs);
+        rules = rules
+            // The `and` is implied by the shape; it is spelled out because
+            // the union reads as nothing, and this half still reads.
+            .rule(
+                Bid::new(3, Strain::Diamonds),
+                181,
+                shape & crate::bidding::constraint::and(Suit::ASC, ..=5) & points(10..),
+            )
+            .alert(LANDY_WILKOSZ)
+            .face(|context| !favourable(context));
+    }
+
     // The both-minors family.  N1j: the takeout names the doubleton (so
     // `2♠` is exactly 2=3=4=4) and the splinter names the 0-1; the takeout
     // therefore requires 2+ in the *other* major too, or the splinter would
@@ -1814,6 +1837,83 @@ fn landy_bba_takeout_answer(short: Suit, over: Bid, double_stopper: bool) -> Rul
     // on `smoke-default --count 20000 --seed 1` and does not move the
     // published reading at `1N (2C) 2H - 2N -`.
     rules
+}
+
+/// Opener's answer to the Wilkosz `3♦` (`1NT (2♣) 3♦ -`, §N1s)
+///
+/// A three-card major, the longer first and hearts on a tie, else `3NT`.
+/// Total: the `3NT` catch-all is exactly "two or fewer of each major".
+fn landy_wilkosz_answer() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Spades),
+            101,
+            (len(Suit::Spades, 4..) & len(Suit::Hearts, 3..=3))
+                | (len(Suit::Spades, 3..) & len(Suit::Hearts, ..=2)),
+        )
+        // ponytail: 5♠4♥ answers `3♥`; a 1NT opener that shape is rare.
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 0, hcp(0..))
+}
+
+/// Responder over opener's three-card `major` (`1NT (2♣) 3♦ - 3M -`, and
+/// over their raise `3♦ (3♥) 3♠ -`): raise with five, else `3NT` — which
+/// then shows the other major and a minor
+fn landy_wilkosz_raise(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 100, len(major, 5..))
+        .rule(Bid::new(3, Strain::Notrump), 0, hcp(0..))
+}
+
+/// Opener over responder's `3NT` retreat (`1NT (2♣) 3♦ - 3M - 3NT -`):
+/// responder holds five of the `other` major, so `4` of it with three
+fn landy_wilkosz_correct(other: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(other)), 100, len(other, 3..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener over their raise of the Landy major (`1NT (2♣) 3♦ (3♥)` /
+/// `(3♠)`): a three-card fit in the other major, else `3NT` on a stopper in
+/// theirs, else a penalty `X` — no fit and no stopper, so length in theirs
+fn landy_wilkosz_overcalled(theirs: Suit) -> Rules {
+    let other = if theirs == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    let fit = cheapest_above(Strain::from(other), Bid::new(3, Strain::from(theirs)));
+    Rules::new()
+        .rule(fit, 100, len(other, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 90, stopper_in(theirs))
+        .rule(Call::Double, 0, hcp(0..))
+}
+
+/// Responder over opener's penalty `X` of their raise
+/// (`1NT (2♣) 3♦ (3M) X -`): `3NT` on a stopper, else sit
+fn landy_wilkosz_doubled(theirs: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, stopper_in(theirs))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder over opener's `4♥` after their `(3♠)` (`1NT (2♣) 3♦ (3♠) 4♥ -`):
+/// run to a five-card minor without five hearts, else pass — without hearts
+/// responder is five-five in spades and a minor
+fn landy_wilkosz_hearts_or_minor() -> Rules {
+    let short = || len(Suit::Hearts, ..=4);
+    Rules::new()
+        .rule(
+            Bid::new(5, Strain::Clubs),
+            50,
+            short() & len(Suit::Clubs, 5..),
+        )
+        .rule(
+            Bid::new(5, Strain::Diamonds),
+            50,
+            short() & len(Suit::Diamonds, 5..),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's raise of opener's `4m` answer to the splinter
@@ -3230,6 +3330,58 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
                 ));
             }
         }
+    }
+
+    // §N1s: the Wilkosz subtree, both sides' continuations and their tails;
+    // see [`CompetitionKnobs::landy_wilkosz`][crate::bidding::agreements::CompetitionKnobs::landy_wilkosz].
+    // Their action above our game stays the floor's.
+    if agreements.competition.landy_wilkosz && !lia {
+        let sit = multi_signoff_pass();
+        let mut add = |node: String, rules: Rules| {
+            entries.extend(rows_of(Pattern::after(OVER, &node), rules));
+        };
+        for suffix in ["-", "(X)"] {
+            add(format!("3♦ {suffix}"), landy_wilkosz_answer());
+            add(format!("3♦ - 3NT {suffix}"), sit.clone());
+            for (major, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+                let answer = Bid::new(3, Strain::from(major));
+                let raise = Bid::new(4, Strain::from(major));
+                let correct = Bid::new(4, Strain::from(other));
+                add(
+                    format!("3♦ - {answer} {suffix}"),
+                    landy_wilkosz_raise(major),
+                );
+                add(format!("3♦ - {answer} - {raise} {suffix}"), sit.clone());
+                add(
+                    format!("3♦ - {answer} - 3NT {suffix}"),
+                    landy_wilkosz_correct(other),
+                );
+                add(
+                    format!("3♦ - {answer} - 3NT - {correct} {suffix}"),
+                    sit.clone(),
+                );
+            }
+        }
+        // Their raise of the Landy major
+        add("3♦ (3♥)".to_owned(), landy_wilkosz_overcalled(Suit::Hearts));
+        add("3♦ (3♥) 3♠ -".to_owned(), landy_wilkosz_raise(Suit::Spades));
+        add("3♦ (3♠)".to_owned(), landy_wilkosz_overcalled(Suit::Spades));
+        add("3♦ (3♠) 4♥ -".to_owned(), landy_wilkosz_hearts_or_minor());
+        for node in [
+            "3♦ (3♥) 3♠ - 4♠ -",
+            "3♦ (3♥) 3♠ - 3NT -",
+            "3♦ (3♠) 4♥ - 5♣ -",
+            "3♦ (3♠) 4♥ - 5♦ -",
+        ] {
+            add(node.to_owned(), sit.clone());
+        }
+        for theirs in [Suit::Hearts, Suit::Spades] {
+            let raised = format!("3♦ ({})", Bid::new(3, Strain::from(theirs)));
+            add(format!("{raised} 3NT -"), sit.clone());
+            add(format!("{raised} X -"), landy_wilkosz_doubled(theirs));
+            add(format!("{raised} X - 3NT -"), sit.clone());
+        }
+        entries.push(systems_on_over_double(&format!("{OVER} 3♦"), "3NT"));
     }
 
     // §N1q's own subtree: both two-level rungs, their answers, their

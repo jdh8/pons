@@ -70,6 +70,7 @@ comp:landy-penalty 0 -> 64
 comp:landy-spl 0 -> 8
 comp:landy-transfer 0 -> 8
 comp:landy-values 0 -> 4
+comp:landy-wilkosz 0 -> 4
 comp:lebensohl-completion 24 -> 36
 comp:lebensohl-relay 24 -> 20
 comp:lebensohl-transfer 72 -> 68

@@ -29,6 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **§N1s — a game-forcing Wilkosz `1NT (2♣) 3♦` over their Landy** —
+  `competition.landy_wilkosz`, **default on** (`bba-gen --no-ns-landy-wilkosz`).
+  The idle `3♦` now shows two five-card suits with at least one major and ten-plus
+  points (alerted `comp:landy-wilkosz`). These hands used to bid `3NT` and
+  bury the major. Opener names a three-card major, responder raises or retreats to
+  `3NT`, and opener then bids the other major with three, so opener declares every
+  5-3 fit. Their double and their raise of the Landy major are authored. Dead at
+  favourable, where the values `X` already wins on these hands. Measured
+  (`scripts/ab-landy-wilkosz.sh`, seed 1789977169, 4.608M boards/arm/colour,
+  gates 0 foreign), IMPs/board DD plain / PD / sd-lead plain / PD:
+  **+0.0005 / +0.0007 / +0.0003 / +0.0004** at none (1,483 fired) and
+  **+0.0004 / +0.0006 / +0.0002 / +0.0003** at both (991 fired), every CI
+  clear. The census that cleared it, `examples/probe-landy-wilkosz-oracle`,
+  prices the scheme per board against the live contract. Write-up:
+  `docs/archive/one-notrump-competitive-landy.md` §N1s.
 - **`probe-landy-notrump-stopper --quant` (2026-09-23)**: the §N1r row 5
   census — prices a quantitative `4NT` over every direct `1NT (2♣) 3NT`.
   Dead at step 0: responder holds 16–17 on 200 / 52 boards in 4.6M (none /

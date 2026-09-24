@@ -3284,3 +3284,188 @@ fn landy_doubler_game_is_favourable_only() {
     assert_eq!(read.partner().strength.hcp.max, 9, "X – 3♣ is 8–9 again");
     assert!(classify(RelativeVulnerability::NONE, &clubs, opener).1);
 }
+
+fn landy_wilkosz_arm(on: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.landy_wilkosz = on;
+    arm
+}
+
+/// §N1s: responder's game-forcing Wilkosz `1NT (2♣) 3♦`
+///
+/// `competition.landy_wilkosz`, default on since 2026-09-24.
+#[test]
+fn landy_wilkosz_responder_rung() {
+    use contract_bridge::auction::RelativeVulnerability as Vul;
+    let base = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let five_five = "AQJ65.K3.KQ874.2";
+    let best =
+        |on: bool, vul: Vul, hand: &str| best_call_vul(&landy_wilkosz_arm(on), vul, &base, hand);
+    assert_eq!(
+        best(false, Vul::NONE, five_five),
+        call(3, Strain::Notrump),
+        "off, the 5-5 hand buries its major in 3NT",
+    );
+    for vul in [Vul::NONE, Vul::ALL, Vul::WE] {
+        assert_eq!(
+            best(true, vul, five_five),
+            call(3, Strain::Diamonds),
+            "{vul:?}"
+        );
+    }
+    assert_eq!(
+        best(true, Vul::THEY, five_five),
+        Call::Double,
+        "favourable keeps the values X",
+    );
+    assert_eq!(
+        best(true, Vul::NONE, "KQJ54.AQ976.K3.2"),
+        call(3, Strain::Diamonds),
+        "both majors",
+    );
+    assert_ne!(
+        best(true, Vul::NONE, "AQJ654.3.KQ874.2"),
+        call(3, Strain::Diamonds),
+        "a six-card suit keeps its transfer",
+    );
+    assert_ne!(
+        best(true, Vul::NONE, "AQJ6.K3.KQ874.32"),
+        call(3, Strain::Diamonds),
+        "five-four is not a Wilkosz",
+    );
+}
+
+/// §N1s: opener names a three-card major, responder raises or retreats, and
+/// opener finds the other major over the retreat
+#[test]
+fn landy_wilkosz_continuations() {
+    let arm = landy_wilkosz_arm(true);
+    let p = Call::Pass;
+    let x = Call::Double;
+    let auction = |tail: &[Call]| {
+        [
+            &[
+                call(1, Strain::Notrump),
+                call(2, Strain::Clubs),
+                call(3, Strain::Diamonds),
+            ],
+            tail,
+        ]
+        .concat()
+    };
+    let best = |tail: &[Call], hand: &str| best_call_with(&arm, &auction(tail), hand).0;
+
+    for (hand, want, why) in [
+        ("KQ4.A54.KJ3.QJ32", call(3, Strain::Hearts), "3-3: hearts"),
+        (
+            "KQ42.A54.KJ3.QJ3",
+            call(3, Strain::Spades),
+            "4-3: the longer",
+        ),
+        ("KQ.A54.KJ32.QJ32", call(3, Strain::Hearts), "hearts only"),
+        ("KQ4.A5.KJ32.QJ32", call(3, Strain::Spades), "spades only"),
+        ("KQ.A5.KJ432.QJ32", call(3, Strain::Notrump), "no major"),
+    ] {
+        assert_eq!(best(&[p], hand), want, "{why}");
+        assert_eq!(best(&[x], hand), want, "{why}, over their X");
+    }
+
+    let hearts = [p, call(3, Strain::Hearts), p];
+    assert_eq!(best(&hearts, "3.KQJ54.AQ976.K3"), call(4, Strain::Hearts));
+    assert_eq!(best(&hearts, "AQJ65.K3.KQ874.2"), call(3, Strain::Notrump));
+    let retreat = [&hearts[..], &[call(3, Strain::Notrump), p]].concat();
+    assert_eq!(best(&retreat, "KQ4.A54.KJ3.QJ32"), call(4, Strain::Spades));
+    assert_eq!(best(&retreat, "KQ.A54.KJ32.QJ32"), p);
+    let corrected = [&retreat[..], &[call(4, Strain::Spades), p]].concat();
+    assert_eq!(best(&corrected, "AQJ65.K3.KQ874.2"), p, "responder sits");
+    let raised = [&hearts[..], &[call(4, Strain::Hearts), p]].concat();
+    assert_eq!(
+        best(&raised, "KQ4.A54.KJ3.QJ32"),
+        p,
+        "opener sits the raise"
+    );
+    assert_eq!(
+        best(&[p, call(3, Strain::Notrump), p], "AQJ65.K3.KQ874.2"),
+        p,
+        "responder sits 3NT",
+    );
+}
+
+/// §N1s: their raise of the Landy major over `3♦`
+#[test]
+fn landy_wilkosz_their_raise() {
+    let arm = landy_wilkosz_arm(true);
+    let p = Call::Pass;
+    let x = Call::Double;
+    let auction = |tail: &[Call]| {
+        [
+            &[
+                call(1, Strain::Notrump),
+                call(2, Strain::Clubs),
+                call(3, Strain::Diamonds),
+            ],
+            tail,
+        ]
+        .concat()
+    };
+    let best = |tail: &[Call], hand: &str| best_call_with(&arm, &auction(tail), hand).0;
+    let hearts = [call(3, Strain::Hearts)];
+    assert_eq!(
+        best(&hearts, "KQ4.A54.KJ3.QJ32"),
+        call(3, Strain::Spades),
+        "a spade fit"
+    );
+    assert_eq!(
+        best(&hearts, "K4.A54.KJ32.QJ32"),
+        call(3, Strain::Notrump),
+        "a stopper"
+    );
+    assert_eq!(
+        best(&hearts, "K4.Q54.AKJ2.KJ32"),
+        call(3, Strain::Notrump),
+        "Qxx stops"
+    );
+    assert_eq!(best(&hearts, "K4.J54.AKJ2.AQ32"), x, "neither");
+    let doubled = [call(3, Strain::Hearts), x, p];
+    assert_eq!(best(&doubled, "AQJ65.K3.KQ874.2"), call(3, Strain::Notrump));
+    assert_eq!(best(&doubled, "AQJ65.32.KQ874.K"), p, "no stopper sits");
+
+    let spades = [call(3, Strain::Spades)];
+    assert_eq!(
+        best(&spades, "KQ4.A54.KJ3.QJ32"),
+        call(4, Strain::Hearts),
+        "a heart fit"
+    );
+    let fitted = [call(3, Strain::Spades), call(4, Strain::Hearts), p];
+    assert_eq!(best(&fitted, "3.KQJ54.AQ976.K3"), p, "five hearts sits");
+    assert_eq!(
+        best(&fitted, "AQJ65.K3.KQ874.2"),
+        call(5, Strain::Diamonds),
+        "runs"
+    );
+}
+
+/// §N1s: the Wilkosz `3♦` publishes no diamonds — it is alerted and read
+/// off its own shape union
+#[test]
+fn landy_wilkosz_reads_no_diamonds() {
+    use crate::bidding::inference::{Inferences, Relative};
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let partnership = crate::bidding::american::american(&landy_wilkosz_arm(true)).bind();
+    let calls = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    let read = Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, &calls));
+    let partner = read.get(Relative::Partner);
+    assert_eq!(partner.length(Suit::Diamonds).min, 0, "no phantom diamonds");
+    assert!(
+        (0..4).all(|s| partner.length(Suit::ASC[s]).max <= 5),
+        "no six-card suit: {partner:?}",
+    );
+}

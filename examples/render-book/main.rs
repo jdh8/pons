@@ -118,6 +118,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_minor_slam_answer: bool,
 
+    /// Leave `1NT (2♣) 3♦` idle instead of the shipped game-forcing Wilkosz
+    /// (§N1s, `competition.landy_wilkosz`).  Needs `--their-2c-landy`.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_wilkosz: bool,
+
     /// Which §N1l rung subset the Landy doubler's own rebid seat carries
     /// (`1NT (2♣) X (2♥) - -` and its three siblings), default `px`
     ///
@@ -228,6 +233,7 @@ fn main() {
         ),
     };
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
+    agreements.competition.landy_wilkosz = !args.no_ns_landy_wilkosz;
     match args.ns_landy_doubler.as_str() {
         "off" => agreements.competition.landy_doubler_px = false,
         "px" => agreements.competition.landy_doubler_px = true,

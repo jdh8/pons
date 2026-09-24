@@ -230,6 +230,11 @@ const LANDY_TKO: Alert = Alert("comp:landy-tko");
 /// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
 /// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
 const LANDY_SPL: Alert = Alert("comp:landy-spl");
+/// Landy game-forcing Wilkosz — `3♦` over their `(2♣)` Landy (§N1s,
+/// [`CompetitionKnobs::landy_wilkosz`][crate::bidding::agreements::CompetitionKnobs::landy_wilkosz]):
+/// **two five-card suits, at least one a major**, ten-plus points.  Says
+/// nothing about diamonds; opener answers with a three-card major.
+const LANDY_WILKOSZ: Alert = Alert("comp:landy-wilkosz");
 /// Landy weak both-minors takeout — `2♥` over their `(2♣)` Landy under §N1q
 /// ([`CompetitionKnobs::defense_2c_landy_strength_majors`][crate::bidding::agreements::CompetitionKnobs::defense_2c_landy_strength_majors]):
 /// **five-four or better in the minors, at most seven points**.  It claims no

@@ -5,7 +5,8 @@
 > from the second Landy campaign: the doubler's rebids (§N1l, §N1l-flip),
 > opener's rebid over their advance (§N1m), the unlimited values double
 > (§N1p), Lia's counter-defense (§N1-lia, four packages), the strength-sorted
-> two-level majors (§N1q, five runs) and the `3♦`+ idea queue (§N1r).  The
+> two-level majors (§N1q, five runs), the `3♦`+ idea queue (§N1r) and the
+> game-forcing Wilkosz `3♦` (§N1s).  The
 > first Landy campaign (N1–N1j, 2026-08-14/15) is in
 > [one-notrump-competitive-closed.md](one-notrump-competitive-closed.md).
 > The lane's **current state** — which knobs are on, what is still owed —
@@ -3389,3 +3390,95 @@ live, plain / PD, none with both in brackets:
 **Row 5 is closed.**  Remaining rows: 4 and 8, both capped below the A/B's
 resolution (see the queue note above the step 0 verdict).
 
+
+### N1s — `1NT (2♣) 3♦` = game-forcing Wilkosz (**census 2026-09-24; `landy_wilkosz` SHIPPED DEFAULT-ON 2026-09-24**)
+
+§N1r left `3♦` idle after two censuses spent the slot on other ideas (row 2's
+stopper ask, dead; row 3's transfer splinters, not needed).  jdh8's idea
+(2026-09-24): spend it on a **game-forcing Wilkosz**, two five-card suits
+with at least one major.  Before it, that hand had no call of its own: it bid
+`3NT` (@180 with both majors stopped, else @168), or at favourable doubled
+for values, and the major never surfaced.  Six-five hands were already
+routed (Texas, the wide transfers), so the population is exactly 5-5-2-1 /
+5-5-3-0 with a major.  Sources: Wilkosz `2♦` (Polish standard; the `2NT` GF
+relay after it), WJ2005's GF `2NT` after `2♣`.  **Nobody plays it over
+Landy** — the lane's research doc has every published counter spending `3♦`
+on stoppers or transfer splinters — so this is a pons synthesis.
+
+**The scheme.**  `3♦`@181 = `points(10..)` and two five-card suits, at least
+one a major, above both `3NT` rungs; alerted `comp:landy-wilkosz`.  Opener
+names a three-card major (`3♠` with four-plus spades over three hearts or
+spades only, else `3♥`), else `3NT`.  Responder raises the right major with
+five, else `3NT`, and over that retreat opener bids `4` of the other major
+with three of it.  So opener declares every 5-3 fit and every `3NT`.  Tails:
+their `(X)` of `3♦` is systems on; over their raise `(3♥)` opener bids `3♠`
+on three spades, `3NT` on a heart stopper, else a penalty `X`; over `(3♠)`
+opener bids `4♥` on three hearts (responder runs to `5m` without them),
+`3NT` on a spade stopper, else `X`.  `Pass` rails at every settled seat.
+
+**Two deviations from the pre-registered design, both from the census:**
+
+1. **Dead at favourable** (`Rules::face`, `!favourable`).  There the values
+   `X` (`landy_notrump_no_major_favourable`) already takes these hands, and
+   it beat every Wilkosz candidate on the census, the per-board oracle
+   included: −0.00029 / −0.00048 IMPs/board plain / PD for `best`.
+2. **Opener's correction over the `3NT` retreat** (`fit` below).  The plan's
+   scheme passed `3NT` whenever the tie-break picked the wrong major.  That
+   gave up the whole `o3+` cell (opener holds three of both majors) for the
+   spade hands: `♠m f3 o3+` scored 0.00 against `best` +2.2 / +3.4 per board.
+
+Two later build fixes changed no measured call.  The rung stays off §N1-lia's
+ladder, where `3♦` is the diamond sign-off.  Responder's table over
+`(3♠) 4♥` needed a catch-all so the guarded-table totality check passes.
+The shipped default reproduces the measured arm byte for byte on a
+20,000-board prefix.
+
+#### Step 0 — the census (`examples/probe-landy-wilkosz-oracle`)
+
+On the round-2 splinter-tails dumps (today's system at none/both, seed
+1789977169), `landy-doubler-game/game-ew` for favourable, and none re-priced
+at `ns`.  Each candidate is priced as a contract by opener, with no
+interference over `3♦`.  IMPs/board against live, plain / PD:
+
+| colour | seat boards | live | `scheme` | `fit` (shipped) | `best` (ceiling) |
+| --- | ---: | --- | ---: | ---: | ---: |
+| none | 3,475 (0.075%) | `3NT`@O 91.8% | +0.00052 / +0.00055 | **+0.00061 / +0.00068** | +0.00102 / +0.00115 |
+| both | 2,590 (0.056%) | `3NT` | +0.00052 / +0.00065 | **+0.00058 / +0.00074** | +0.00096 / +0.00116 |
+| ns (re-priced) | 3,475 | `3NT` | +0.00071 / +0.00075 | +0.00082 / +0.00091 | +0.00131 / +0.00147 |
+| ew | 3,405 | values `X` | −0.00070 / −0.00097 | −0.00059 / −0.00083 | −0.00029 / −0.00048 |
+
+* The gain is the 5-3 major fit that `3NT` buried: `♥♦ f3` +5.0 / +5.3 and
+  `♠♦ f3` +4.1 / +4.2 IMPs per seat board.  The theory strike (every 5-3 fit
+  sits over a 4-1 or 5-0 break) is real, but it does not flip the sign.
+* Right-siding shows as designed: in the two cells priced on the same boards
+  (`♥♦ f3`, `♠♦ f3`), `4M` by responder trails `4M` by opener by 0.4 and 0.9
+  IMPs per seat board.
+* Pre-registered kill rule: `scheme − live ≤ 0` plain at both colours, or a
+  ceiling under the ≈ 0.0007 line where row 2 died.  **It passed**, narrowly:
+  `best` at +0.0010.
+
+#### A/B verdict (**SHIPPED DEFAULT-ON 2026-09-24**)
+
+`scripts/ab-landy-wilkosz.sh`, seed 1789977169, control `375066af`, 4.608M
+boards/arm/colour, `--filter-landy`.  The `base` arms reuse the r2 `tails-*`
+dumps (checked byte-identical on a 2,000-board prefix of shard 0).  Both gates
+0 foreign.  IMPs/board, `wilkosz` − `base`:
+
+| colour | fired | DD plain | DD PD | sd-lead plain | sd-lead PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| none | 1,483 | **+0.0005** ±0.0001 (+1.64/fired) | **+0.0007** ±0.0001 (+2.08) | **+0.0003** ±0.0001 | **+0.0004** ±0.0001 |
+| both | 991 | **+0.0004** ±0.0001 (+2.07/fired) | **+0.0006** ±0.0001 (+2.95) | **+0.0002** ±0.0001 | **+0.0003** ±0.0001 |
+
+* **A win on all eight columns** — the A/B landed on the census's
+  interference-free `fit` estimate (+0.0006), so their room over `3♦` costs
+  little.  They used it: the candidate hands them more calls on 38% / 41% of
+  divergent boards, against 2% / 0.1% the other way.
+* Game is lost on 37 / 20 boards only.  The worst boards (−14 to −17) all
+  lie in unauthored contested tails, the floor's by design.  One is their
+  `4M` over our three-level answer, doubled when it makes.  The other is
+  their jump `(4♥)` straight over `3♦`, where the floor ran to `5♣`
+  doubled.  A census names a cell only if it recurs.
+
+**What shipped.**  `competition.landy_wilkosz` default **on**
+(`bba-gen --no-ns-landy-wilkosz`, `render-book --no-ns-landy-wilkosz`); the
+`[their-landy]` alert fixture gains `comp:landy-wilkosz 0 -> 4`.

@@ -1546,6 +1546,30 @@ pub struct CompetitionKnobs {
     /// IMPs/board, every CI clear.  Other colours byte-identical by face
     /// gate.  Inert while their `2♣` is undeclared or natural.
     pub landy_doubler_game: bool,
+    /// §N1s — a game-forcing Wilkosz `3♦` over their Landy (`1NT (2♣) 3♦`)
+    ///
+    /// Two five-card suits, at least one a major, `points(10..)`, at `3♦`@181
+    /// above both `3NT` rungs.  Opener names a three-card major (the longer,
+    /// hearts on a tie) or bids `3NT`; responder raises the right major or
+    /// retreats to `3NT` over the wrong one, and opener then bids `4` of the
+    /// other major with three of it — so opener declares every 5-3 fit and
+    /// every `3NT`.  Their raise over `3♦` (`(3♥)`/`(3♠)`) and their double
+    /// are authored.  Dead at favourable by face gate: there the values `X`
+    /// already takes these hands, and the census priced it above every
+    /// Wilkosz candidate, the per-board oracle included.
+    ///
+    /// The census (`examples/probe-landy-wilkosz-oracle`, 2026-09-24) priced
+    /// the scheme over the live `3NT` at **+0.00061 / +0.00068** plain / PD
+    /// IMPs/board at none and **+0.00058 / +0.00074** at both (0.075% /
+    /// 0.056% of boards), against a per-board ceiling of +0.0010.
+    ///
+    /// **On by default — measured 2026-09-24** (`scripts/ab-landy-wilkosz.sh`,
+    /// seed 1789977169, 4.608M boards per arm per colour, gates 0 foreign):
+    /// DD plain / PD **+0.0005 / +0.0007** at none and **+0.0004 / +0.0006**
+    /// at both, sd-lead **+0.0003 / +0.0004** and **+0.0002 / +0.0003**
+    /// IMPs/board, every CI clear.  Inert while their `2♣` is undeclared or
+    /// natural.
+    pub landy_wilkosz: bool,
     /// Jump to `4M` on a strong six-card major over their Landy (§N1p)
     ///
     /// Independent of [`Self::landy_notrump_no_major`] since 2026-08-30.  It
@@ -1994,6 +2018,7 @@ impl Default for CompetitionKnobs {
             landy_splinter_stopper: false,
             landy_splinter_tails: true,
             landy_doubler_game: true,
+            landy_wilkosz: true,
             landy_major_jam: true,
             defense_2c_landy_lia: false,
             defense_2c_landy_strength_majors: true,

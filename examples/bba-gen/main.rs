@@ -986,6 +986,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_doubler_game: bool,
 
+    /// Disable our game-forcing Wilkosz `1NT (2♣) 3♦` (§N1s)
+    ///
+    /// `competition.landy_wilkosz`, default **on** since 2026-09-24: two
+    /// five-card suits, at least one a major, `points(10..)`; opener names a
+    /// three-card major.  Dead at favourable.
+    #[arg(long, default_value_t = false)]
+    no_ns_landy_wilkosz: bool,
+
     /// Disable the `4M` jam on a strong six-card major over their Landy (§N1p)
     ///
     /// `competition.landy_major_jam`, default **on** since it swept its
@@ -2576,6 +2584,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_splinter_stopper = args.ns_landy_splinter_stopper;
     agreements.competition.landy_splinter_tails = !args.no_ns_landy_splinter_tails;
     agreements.competition.landy_doubler_game = !args.no_ns_landy_doubler_game;
+    agreements.competition.landy_wilkosz = !args.no_ns_landy_wilkosz;
     agreements.competition.landy_major_jam = !args.no_ns_landy_major_jam;
     agreements.competition.defense_2c_landy_lia = args.ns_landy_lia;
     agreements.competition.defense_2c_landy_strength_majors = !args.no_ns_landy_strength;
