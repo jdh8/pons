@@ -3862,7 +3862,12 @@ pub struct RebidKnobs {
     /// game-forcing five, `3♣!` minimum five, `3♦!` game-forcing six-plus, `3M`
     /// minimum six-plus — the strong step below the weak at each length, so the
     /// weak hand never declares notrump.  Opener's continuation after a step is
-    /// the floor's.  A/B owed.
+    /// the floor's.  **Measured 2026-09-25, stays off**: a wash in every cell
+    /// (plain +0.0000/+0.0008, PD −0.0000/+0.0006 IMPs/board none/both,
+    /// single-dummy alike, all CIs through zero; 204,800 bd/vul, seed
+    /// 1790317338).  With the knob on our floor also reads *their* natural
+    /// `1♣ - 1M - 2♦` as Odwrotka (46 foreign divergent boards, so the A/B
+    /// ran `NO_GATE`) — a flagged reading leak, harmless while off.
     pub odwrotka: bool,
     // --- rebids/major_tails.rs
     /// Author the full continuations after `1♥ - 1♠`

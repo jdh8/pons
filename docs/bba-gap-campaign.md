@@ -328,8 +328,18 @@ In bucket order; each item is its own fresh-seed A/B per
    before authoring either.
 4. **Def / floor#3 round-2, round-1, balancing** (−39k plain across the three;
    `Defensive / floor / …` −20.2k / −9.8k / −3.8k on the shipping arm) — floor
-   pass discipline: our floor passes where BBA reopens, doubles, competes. Never
-   worked. Trace on the shipping arm; author parametrically (suit loops +
+   action discipline. The 2026-09-25 shipping-arm decompose of `c3bb94a7`
+   (rows priced per board) says the shipping floor's fault is junk *action*,
+   not silence: with our side silent and theirs having bid twice, "we X / BBA
+   passes" is −11.6k plain / −15.2k PD over 4,081 boards and "we bid / BBA
+   passes" −6.7k / −12.5k over 5,513, while every "we pass / BBA acts" slice
+   is PD-positive. The `2NT` opening auctions alone were −9.7k / −12.2k and
+   are now the shipped 2NT-double rail (+0.014/+0.018 plain, +0.016/+0.020
+   PD). Next candidates from the same table: our fourth-round junk bid after
+   `1♣ - 1♠ …` (163 bd, −1.6k / −2.5k) and after `1NT - 2♣ …` (113 bd,
+   −0.6k / −1.1k), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
+   −0.7k). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
+   A/B at a time. Trace on the shipping arm; author parametrically (suit loops +
    context predicates, never a node per sequence), one `set_*` knob + `bba-gen`
    flag; PD is the honest scorer.
 5. **Comp / fallback@2, @3, @4** (−5.3k / −4.8k / −4.8k plain) — Fix 2

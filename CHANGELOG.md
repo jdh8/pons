@@ -29,6 +29,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The 2NT-double rail (`InstinctProfile::their_2nt_double_veto`), shipped
+  default on**: when the opponents opened `2NT` and our side has only passed,
+  the learned floor may not double. Measured against BBA, 204,800 boards per
+  vul, SEED_BASE 1790318091: a win in every cell — plain DD **+0.0143 ±
+  0.0022 / +0.0177 ± 0.0026**, PD **+0.0159 ± 0.0023 / +0.0199 ± 0.0027**
+  IMPs/board (none/both), single-dummy leads alike (+0.0150/+0.0192 plain,
+  +0.0159/+0.0205 PD); the isolation gate passed (every divergent board
+  opened by them). It fires on 0.35% of boards at +4 to +5.5 IMPs each. Found
+  by the 2026-09-20 shipping-arm decompose (`c3bb94a7`, the first run with
+  the shipping arm's own `boards.jsonl`): the v6 floor doubled `2NT - 3NT`
+  (738 boards, −6,171 plain / −6,502 PD IMPs) and `2NT - 3♣` (640 boards,
+  −3,575 / −5,716) with 4–9 HCP junk, and BBA passed every one; that was half
+  of the shipping arm's `Defensive / floor / round-2` bucket. The same census
+  says the floor's fault in that bucket is junk *action*, not silence: the
+  slices where we pass and BBA acts are PD-positive. `bba-gen
+  --no-ns-2nt-double-veto` turns it off; `scripts/ab-2nt-double-veto.sh`.
+
 - **The 3NT-pull rail (`InstinctProfile::their_3nt_pull_veto`), shipped
   default on**: when the opponents' last bid is `3NT` and our side has only
   passed or doubled, the learned floor may not bid a suit of five cards or
@@ -43,6 +60,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against a making `3NT`. `bba-gen --no-ns-3nt-pull-veto` turns it off;
   `scripts/ab-3nt-pull-veto.sh`. `ab-dump-bucket --by side` splits an A/B by
   which side opened and which side diverged first.
+
+- **Odwrotka (`rebid.odwrotka`) measured: a wash, stays off.** Against plain
+  american vs BBA (204,800 boards per cell, seed 1790317338, `NO_GATE`):
+  plain DD +0.0000 ± 0.0016 / +0.0008 ± 0.0020, PD −0.0000 ± 0.0017 /
+  +0.0006 ± 0.0022 IMPs/board (none/both); single-dummy leads +0.0007/+0.0015
+  plain, +0.0008/+0.0015 PD. Every cell's CI contains zero. It fires on
+  0.32–0.35% of boards. The isolation gate failed first (46 of 656 divergent
+  boards opened by *them*): with the knob on, our floor reads BBA's natural
+  `1♣ - 1M - 2♦` as Odwrotka too, so the run used `NO_GATE` like wide 1♣.
+  That leak is a flagged discrepancy (the knob is ours, BBA's book is told
+  to us, yet it colours our reading of their reverse); it stays as is while
+  the knob is off. Its share of the arm is a few IMPs either way.
 
 - **Multi `2♦` on american (`opening.multi_two_diamonds`) measured: a loss,
   stays off.** Against plain american vs BBA (204,800 boards per cell, seed

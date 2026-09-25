@@ -672,3 +672,57 @@ fn the_their_3nt_gate_masks_the_silent_pull() {
         "a side that bid is outside the rail"
     );
 }
+
+/// The 2NT-double rail masks our silent side's `X` over their `2NT` opening
+/// auction, and nothing else
+///
+/// `- 2NT - 3NT` and `- 2NT - 3♣` to a junk hand: knob-off the net may
+/// double; knob-on `X` is masked and `Pass` survives.  A side that has bid is
+/// outside the rail, and so is a `1NT` opening.
+#[test]
+fn the_their_2nt_gate_masks_the_silent_double() {
+    let pass = Call::Pass;
+    let nt2 = call(2, Strain::Notrump);
+    let mut agreements = Agreements::default();
+    assert!(
+        agreements.decision.instinct.their_2nt_double_veto,
+        "the rail ships default on"
+    );
+    for response in [call(3, Strain::Notrump), call(3, Strain::Clubs)] {
+        let silent = [pass, nt2, pass, response];
+        agreements.decision.instinct.their_2nt_double_veto = false;
+        let off = shelled_v6_with(&agreements, &silent, "QT9852.A84.T2.J2");
+        assert!(
+            off.0[Call::Double].is_finite(),
+            "knob-off leaves the net alone"
+        );
+
+        agreements.decision.instinct.their_2nt_double_veto = true;
+        let on = shelled_v6_with(&agreements, &silent, "QT9852.A84.T2.J2");
+        assert_eq!(
+            on.0[Call::Double],
+            f32::NEG_INFINITY,
+            "the double is masked"
+        );
+        assert!(on.0[Call::Pass].is_finite());
+    }
+
+    let overcalled = [nt2, call(3, Strain::Spades), call(3, Strain::Notrump)];
+    let ours = shelled_v6_with(&agreements, &overcalled, "QT9852.A84.T2.J2");
+    assert!(
+        ours.0[Call::Double].is_finite(),
+        "a side that bid is outside the rail"
+    );
+
+    let one_nt = [
+        pass,
+        call(1, Strain::Notrump),
+        pass,
+        call(3, Strain::Notrump),
+    ];
+    let other = shelled_v6_with(&agreements, &one_nt, "QT9852.A84.T2.J2");
+    assert!(
+        other.0[Call::Double].is_finite(),
+        "a 1NT opening is outside the rail"
+    );
+}

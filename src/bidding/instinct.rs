@@ -566,6 +566,20 @@ pub struct InstinctProfile {
     /// A/B win.  Narrower than [`new_suit_veto`][Self::new_suit_veto], which
     /// was refuted in aggregate.
     pub their_3nt_pull_veto: bool,
+
+    /// Mask our silent side's double over their `2NT` opening auction
+    ///
+    /// **Default on** since 2026-09-25: a win in every cell (plain DD
+    /// +0.0143/+0.0177, PD +0.0159/+0.0199 IMPs/board none/both, single-dummy
+    /// alike; 204,800 bd/vul, SEED_BASE 1790318091,
+    /// `scripts/ab-2nt-double-veto.sh`), firing on 0.35% of boards, all of
+    /// them boards they open.  Found by the 2026-09-20 shipping-arm decompose
+    /// (`c3bb94a7`): the v6 floor doubled `2NT - 3NT` (738 boards, −6,171
+    /// plain / −6,502 PD IMPs) and `2NT - 3♣` (640, −3,575 / −5,716) with
+    /// 4–9 HCP junk, and BBA passed every one of them.  `their_2nt_gate`
+    /// masks `X` whenever the opponents opened `2NT` and our side has made no
+    /// bid; `Pass` and every bid survive.
+    pub their_2nt_double_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -607,6 +621,7 @@ impl Default for InstinctProfile {
             rein_advance_raise: true,
             new_suit_veto: false,
             their_3nt_pull_veto: true,
+            their_2nt_double_veto: true,
         }
     }
 }
@@ -652,6 +667,7 @@ impl InstinctProfile {
             rein_advance_raise: false,
             new_suit_veto: true,
             their_3nt_pull_veto: false,
+            their_2nt_double_veto: false,
         }
     }
 }
@@ -3855,6 +3871,33 @@ pub(crate) fn their_3nt_gate(logits: &mut Logits, hand: Hand, context: &Context<
         {
             *logit = f32::NEG_INFINITY;
         }
+    }
+}
+
+/// Mask our silent side's double of their `2NT` opening auction — the
+/// [`their_2nt_double_veto`][InstinctProfile::their_2nt_double_veto] stage of
+/// the learned floor
+///
+/// Fires only when the first bid of the auction is the opponents' `2NT` and
+/// every call our side has made is a pass.  Then `X` is masked; `Pass` and
+/// every bid are untouched, so a distribution always survives.
+pub(crate) fn their_2nt_gate(logits: &mut Logits, context: &Context<'_>) {
+    if !pinned(context).their_2nt_double_veto {
+        return;
+    }
+    let auction = context.auction();
+    let Some(first) = auction.iter().position(|c| matches!(c, Call::Bid(_))) else {
+        return;
+    };
+    let theirs = !(auction.len() - first).is_multiple_of(2);
+    let we_silent = auction
+        .iter()
+        .rev()
+        .skip(1)
+        .step_by(2)
+        .all(|c| *c == Call::Pass);
+    if theirs && auction[first] == Call::Bid(Bid::new(2, Strain::Notrump)) && we_silent {
+        logits[Call::Double] = f32::NEG_INFINITY;
     }
 }
 
