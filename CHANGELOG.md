@@ -502,6 +502,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The advance of our unauthored `2NT` no longer reads as a natural suit
+  (2026-09-25)**. When our side's first action is `2NT` (a sandwich Unusual,
+  a doubled Unusual, or the natural `2NT` over a weak two), the advancer's
+  first unauthored suit bid is a preference or systems-on, but the walk read
+  it as four-plus (six on a jump). Partner exclusions 1.198% → 1.171%. A/B
+  over three seeds (614,400 bd/vul): a wash in every cell (≈ −0.0002 plain /
+  −0.0003 PD IMPs/board, CIs through zero), shipped as a soundness repair. A
+  broader blanket (the `2NT` bidder's later answers, the opponents' advances)
+  lost −0.002 to −0.003 and was dropped. `1♦`'s missing ♦3 floor was
+  re-measured on the same day and still loses (−0.0014 to −0.0034, one seed,
+  like 2026-08-18's B2.4); it waits for a floor retrain.
 - **Our Watermelon overlays no longer read the opponents' calls (2026-09-25)**.
   Without a declared opponent book we read their calls in our own books, so
   with a knob on their natural calls decoded as our gadget: their reverse

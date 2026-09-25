@@ -680,6 +680,21 @@ impl Inferences {
         let mut highest: Option<Bid> = None;
         let read_cues = profile.cue;
         let sound_lengths = profile.length_soundness;
+        // The defending side's first action, when it is `2NT`: a sandwich or
+        // balancing Unusual `2NT` (advanced by preference on two or three
+        // cards), a doubled direct Unusual, or the natural `2NT` over a weak
+        // two (advanced systems-on — Stayman, transfers, Texas).  The walk
+        // cannot tell these apart, so the advancer's first *unauthored* suit
+        // bid claims no holding in our own reading — the defenders' twin of
+        // `nt_blanket`.  Narrow on purpose: blanketing the `2NT` bidder's
+        // later answers (a truthful `3♠` over Stayman) or the opponents'
+        // advances measured a loss in every cell (2026-09-25).
+        let defenders_notrump = auction
+            .iter()
+            .enumerate()
+            .skip(opening_index + 1)
+            .find(|&(i, &call)| i % 2 == defending_parity && call != Call::Pass)
+            .and_then(|(i, &call)| (call == Call::Bid(Bid::new(2, Strain::Notrump))).then_some(i));
 
         // Every hand-written convention reader, run once over the auction: which
         // calls name a suit their bidder need not hold, and what each really
@@ -927,6 +942,11 @@ impl Inferences {
                             && is_opening_side
                             && opening_artificial
                             && !over_one_notrump;
+                        let defenders_nt_blanket = !authored_call
+                            && !is_opening_side
+                            && matches!(relative_of(len, index), Relative::Me | Relative::Partner)
+                            && lane_bids[lane] == 0
+                            && defenders_notrump.is_some_and(|nt| index > nt && lane != nt % 4);
                         let chain = (!authored_call
                             && (stayman_artificial
                                 || nt_splinter_artificial
@@ -996,7 +1016,7 @@ impl Inferences {
                                 }
                                 true
                             }
-                            HighBid::Unclaimed => nt_blanket || chain,
+                            HighBid::Unclaimed => nt_blanket || defenders_nt_blanket || chain,
                         };
                         if suppress && index < 64 {
                             suppressed_so_far |= 1 << index;

@@ -1190,6 +1190,26 @@ Recorded, not worked — jdh8's scoping of the pass above.
    two-suiter. Repairing the *reader* would be deciding that our sandwich `2NT`
    is Unusual — an authoring decision, not a reading fix.
 
+   **Correction and partial repair (2026-09-25).** `(2x) 2NT` is *not* Unusual:
+   it is the authored natural 16–17 (`weak_two_defense.rs`), and with
+   `weak_two_notrump_advances` off its advances are the floor's, played
+   systems-on (Stayman on one club, transfers, Texas). Only the sandwich and
+   the doubled direct Unusual `(1x) 2NT (X)` match the description above.
+   Shipped: `defenders_nt_blanket` (`read.rs`) — when our side's first action
+   is `2NT`, the advancer's first *unauthored* suit bid claims no holding in
+   our own reading. It decides nothing about what the `2NT` means. Census
+   (`probe-reading-sound -c 40000 -s 20260816`): partner exclusions
+   1.198% → 1.171%; LHO/RHO +3/+6. A/B `ab-results/defenders-nt-blanket-{2,3,4}`
+   (seeds 1790338610 / 1790339032 / 1790339512, 614,400 bd/vul pooled): a wash
+   in all four cells, about −0.0002/−0.0002 plain, −0.0002/−0.0003 PD
+   (none/both, CIs ±0.0003–0.0004). **The broad version lost** in every cell
+   (`defenders-nt-blanket`, −0.0018 to −0.0028 IMPs/board, CIs clear of zero):
+   blanketing the `2NT` bidder's own later answers erased a truthful `3♠` over
+   Stayman (`2♥ 2NT - 3♣ - 3♠ - 4♥ 4NT X`), and the symmetric half blinded the
+   opening side to a real Unusual advance. Still open: the `2NT` bidder's
+   answers in the weak-two lane (`2♠ 2NT - 3♣ - 3♦` 5/6) — they need an
+   authored systems-on reading, not a blanket.
+
 Also newly filed by the sweep, on the worklist rather than in a queue:
 
 - **The remaining `i_bid_it` sixth card**, where partner spoke but neither cued

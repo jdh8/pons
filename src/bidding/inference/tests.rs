@@ -434,6 +434,28 @@ fn readings_admit_the_bidder() {
                 Call::Pass,
             ],
         ),
+        // Our unauthored first-action `2NT` — sandwich Unusual, doubled
+        // Unusual, natural over a weak two — is advanced by preference or
+        // systems-on; the walk stamped four-plus (six on a jump, three on a
+        // "raise") in the advance's face suit (`defenders_nt_blanket`).
+        (
+            "advance of a sandwich 2NT",
+            &[
+                bid(1, Strain::Hearts),
+                Call::Pass,
+                bid(1, Strain::Spades),
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
+        (
+            "advance of 2NT over a weak 2♠",
+            &[bid(2, Strain::Spades), bid(2, Strain::Notrump), Call::Pass],
+        ),
+        (
+            "advance of a doubled Unusual 2NT",
+            &[bid(1, Strain::Clubs), bid(2, Strain::Notrump), Call::Double],
+        ),
     ];
 
     // The four 5-5-major witnesses that caught the strip's keyless re-read
