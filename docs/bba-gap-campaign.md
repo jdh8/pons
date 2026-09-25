@@ -336,7 +336,10 @@ In bucket order; each item is its own fresh-seed A/B per
    is PD-positive. The `2NT` opening auctions alone were −9.7k / −12.2k and
    are now the shipped 2NT-double rail (+0.014/+0.018 plain, +0.016/+0.020
    PD). Next candidates from the same table: our fourth-round junk bid after
-   `1♣ - 1♠ …` (163 bd, −1.6k / −2.5k) and after `1NT - 2♣ …` (113 bd,
+   `1♣ - 1♠ …` (163 bd, −1.6k / −2.5k — re-decomposed 2026-09-25 as
+   `1♣ - 1♠ - 2NT - 3NT` pulled to `4♠` (133 bd; the shipped 3NT-pull rail
+   now masks it) or `4NT` (23 bd; the `their_3nt_unusual_veto` arm, shipped
+   default on: +0.0035/+0.0045 plain, +0.0041/+0.0053 PD)) and after `1NT - 2♣ …` (113 bd,
    −0.6k / −1.1k), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
    −0.7k). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
    A/B at a time. Trace on the shipping arm; author parametrically (suit loops +

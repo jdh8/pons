@@ -726,3 +726,42 @@ fn the_their_2nt_gate_masks_the_silent_double() {
         "a 1NT opening is outside the rail"
     );
 }
+
+/// The unusual-`4NT` arm of the 3NT rail masks a junk `4NT` over their `3NT`,
+/// and spares a two-suiter
+///
+/// `1♣ - 1♠ - 2NT - 3NT` to `T65.JT97.JT64.63`: knob-off `4NT` is live,
+/// knob-on it is masked while `Pass` survives.  A 5-5 hand keeps `4NT`.
+#[test]
+fn the_their_3nt_gate_masks_the_junk_unusual_4nt() {
+    let pass = Call::Pass;
+    let silent = [
+        call(1, Strain::Clubs),
+        pass,
+        call(1, Strain::Spades),
+        pass,
+        call(2, Strain::Notrump),
+        pass,
+        call(3, Strain::Notrump),
+    ];
+    let nt4 = call(4, Strain::Notrump);
+    let mut agreements = Agreements::default();
+    assert!(
+        agreements.decision.instinct.their_3nt_unusual_veto,
+        "the rail ships default on"
+    );
+    agreements.decision.instinct.their_3nt_unusual_veto = false;
+    let off = shelled_v6_with(&agreements, &silent, "T65.JT97.JT64.63");
+    assert!(off.0[nt4].is_finite(), "knob-off leaves the net alone");
+
+    agreements.decision.instinct.their_3nt_unusual_veto = true;
+    let on = shelled_v6_with(&agreements, &silent, "T65.JT97.JT64.63");
+    assert_eq!(on.0[nt4], f32::NEG_INFINITY, "the junk 4NT is masked");
+    assert!(on.0[Call::Pass].is_finite());
+
+    let two_suiter = shelled_v6_with(&agreements, &silent, "5.6.KJ975.QT9843");
+    assert!(
+        two_suiter.0[nt4].is_finite(),
+        "a 5-5 hand is outside the rail"
+    );
+}

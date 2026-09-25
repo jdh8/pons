@@ -29,6 +29,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The unusual-4NT arm of the 3NT rail
+  (`InstinctProfile::their_3nt_unusual_veto`), shipped default on**: when
+  the opponents' last bid is `3NT` and our side has made no bid, the learned
+  floor may bid `4NT` only with two five-card suits. Measured against BBA,
+  204,800 boards per vul, SEED_BASE 1790324543: a win in every cell — plain
+  DD **+0.0035 ± 0.0011 / +0.0045 ± 0.0012**, PD **+0.0041 ± 0.0011 /
+  +0.0053 ± 0.0013** IMPs/board (none/both), single-dummy leads alike
+  (+0.0034/+0.0042 plain, +0.0038/+0.0051 PD); the isolation gate passed. It
+  fires on 0.03–0.04% of boards at +11 to +13 IMPs each. It works the same
+  bucket as `bba-gap-campaign`'s "fourth-round junk bid after `1♣ - 1♠ …`"
+  (163 boards, −1.6k plain / −2.5k PD at `c3bb94a7`). A re-decompose shows that
+  bucket is `1♣ - 1♠ - 2NT - 3NT` pulled to `4♠` on 2–5 spades (133 boards)
+  or `4NT` (23). The shipped 3NT-pull rail already masks the `4♠` (zero fires
+  at HEAD); `4NT` survives it. Across all auctions the junk `4NT` was 85
+  boards, −939 plain / −1,194 PD IMPs over 409.6k, and BBA passed every one.
+  `bba-gen --no-ns-3nt-unusual-veto` turns it off;
+  `scripts/ab-3nt-unusual-veto.sh`.
+
 - **The 2NT-double rail (`InstinctProfile::their_2nt_double_veto`), shipped
   default on**: when the opponents opened `2NT` and our side has only passed,
   the learned floor may not double. Measured against BBA, 204,800 boards per
