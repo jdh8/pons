@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Vulnerable-only tight two-level minor overcall
+  (`defense.two_level_minor_overcall_vul_tight`), opt-in, A/B in flight**:
+  demand 15+ points for the `2♣`/`2♦` overcall below their suit only when
+  vulnerable, spelled `points_by_vul` so the reading carries both bands;
+  non-vul and the default config are byte-identical (seeded `smoke-default`
+  `e43c4554…` vs `main`). Built from the first BEN Phase 2 trace
+  (`Defensive / book / round-1`): two-level overcalls where BEN passes cost
+  −305 plain / −1,144 PD over 572 divergences with BBA agreeing with the
+  pass on all of them, worst in the vulnerable 5-card slice — the cell the
+  refuted all-vulnerability tightening had already measured as plain-wash /
+  SD-PD-win before its non-vul plain-DD veto. Wired through `bba-gen`,
+  `ben-gen`, and `ab-dump-sd`; runners
+  `scripts/ab-two-level-minor-overcall-vul.sh` (BBA guard) and
+  `scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F). Trace
+  and history: `docs/defensive-overcalls.md` §O4-vul,
+  `docs/ben-gap-campaign.md` Phase 2.
 - **The unusual-4NT arm of the 3NT rail
   (`InstinctProfile::their_3nt_unusual_veto`), shipped default on**: when
   the opponents' last bid is `3NT` and our side has made no bid, the learned

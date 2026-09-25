@@ -251,27 +251,67 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
                     n.saturating_sub(seam)
                 }
             });
-            rules = match (top, relax_passed) {
-                (Some(n), false) => rules.rule(
-                    Bid::new(level, strain),
-                    weight,
-                    len(suit, 5..) & points(lo..) & hcp(..n),
-                ),
-                (Some(n), true) => rules.rule(
-                    Bid::new(level, strain),
-                    weight,
-                    len(suit, 5..) & points(lo..) & hcp(..n) & (points(11..) | passed_hand()),
-                ),
-                (None, false) => rules.rule(
-                    Bid::new(level, strain),
-                    weight,
-                    len(suit, 5..) & points(lo..=hi),
-                ),
-                (None, true) => rules.rule(
-                    Bid::new(level, strain),
-                    weight,
-                    len(suit, 5..) & points(lo..=hi) & (points(11..) | passed_hand()),
-                ),
+            // Vulnerable-only twin of `two_level_minor_overcall_tight`: the
+            // same 15+ floor, charged only when we are vulnerable, spelled
+            // with the `points_by_vul` split so the reading carries both
+            // bands.  Non-vul is byte-identical by construction — the
+            // all-vulnerability arm was vetoed by its non-vul plain-DD cell
+            // alone (docs/defensive-overcalls.md §O4).
+            let vul_tight = level == 2
+                && matches!(suit, Suit::Clubs | Suit::Diamonds)
+                && !tight_minor
+                && agreements.defense.two_level_minor_overcall_vul_tight;
+            rules = if vul_tight {
+                match (top, relax_passed) {
+                    (Some(n), false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points_by_vul(lo.., 15..) & hcp(..n),
+                    ),
+                    (Some(n), true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..)
+                            & points_by_vul(lo.., 15..)
+                            & hcp(..n)
+                            & (points(11..) | passed_hand()),
+                    ),
+                    (None, false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points_by_vul(lo..=hi, 15..=hi),
+                    ),
+                    (None, true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..)
+                            & points_by_vul(lo..=hi, 15..=hi)
+                            & (points(11..) | passed_hand()),
+                    ),
+                }
+            } else {
+                match (top, relax_passed) {
+                    (Some(n), false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points(lo..) & hcp(..n),
+                    ),
+                    (Some(n), true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points(lo..) & hcp(..n) & (points(11..) | passed_hand()),
+                    ),
+                    (None, false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points(lo..=hi),
+                    ),
+                    (None, true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 5..) & points(lo..=hi) & (points(11..) | passed_hand()),
+                    ),
+                }
             };
             if agreements.defense.overcall_four_card {
                 rules = match (top, relax_passed) {

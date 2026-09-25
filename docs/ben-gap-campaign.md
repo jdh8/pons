@@ -566,6 +566,18 @@ floor-side follow-on, and the lane docs for the book side
 ([defensive-overcalls.md](defensive-overcalls.md) →
 [takeout-double-layers.md](takeout-double-layers.md)) already exist.
 
+**First trace landed 2026-09-25.**  The bucket decomposes by triggering
+rule into two dual families: *we act where BEN passes* (two-level suit
+overcalls −305 plain / −1,144 PD over 572 divergences, the vulnerable
+5-card slice worst, **BBA agreeing with BEN's pass on all 572**; the 1♠
+overcall and the 1NT-overcall-vs-double slices next), and *we pass where
+BEN acts* (mostly plain-only with PD softening — doubling artifacts plus
+the known preempt blindness).  The fix is vocabulary item 1 as predicted:
+the O4 wall re-priced.  Full trace numbers, the refutation re-read, and
+the built arm (`defense.two_level_minor_overcall_vul_tight`) in
+[defensive-overcalls.md](defensive-overcalls.md) §O4-vul; BBA guard then
+paired Tier-F per that section's runners.  Verdict: pending.
+
 Same steady-state loop as the BBA campaign, re-aimed:
 
 ```text

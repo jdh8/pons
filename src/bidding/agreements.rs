@@ -2251,6 +2251,22 @@ pub struct DefenseKnobs {
     /// obstruction the blind lead recovers.  `bba-gen
     /// --ns-two-level-minor-overcall-tight`.
     pub two_level_minor_overcall_tight: bool,
+    /// Demand extra strength for a two-level minor overcall **only when
+    /// vulnerable**
+    ///
+    /// `false` (the **default**) keeps the disciplined band at every
+    /// vulnerability.  `true` raises the floor to 15 vulnerable only —
+    /// non-vul is byte-identical by construction, so the non-vul plain-DD
+    /// veto that refuted the all-vulnerability
+    /// [`two_level_minor_overcall_tight`][Self::two_level_minor_overcall_tight]
+    /// arm (its profitable non-vul sacrifices vs a reference that never
+    /// penalty-doubles) cannot recur.  That arm's vulnerable cells measured
+    /// plain-wash / SD-PD-win, and the BEN anchor charges the same
+    /// vulnerable slice on both scorers; see docs/defensive-overcalls.md
+    /// §O4.  Ignored while the all-vulnerability knob is on; the opt-in
+    /// four-card variant ([`overcall_four_card`][Self::overcall_four_card])
+    /// is not gated.  `bba-gen --ns-two-level-minor-overcall-vul-tight`.
+    pub two_level_minor_overcall_vul_tight: bool,
     /// Use suit quality in the two-level natural-overcall gate
     ///
     /// **Off by default.**  Reserved for the O4 quality-gate experiment; the
@@ -3011,6 +3027,7 @@ impl Default for DefenseKnobs {
             overcall_four_card: false,
             passed_hand_overcall: true,
             two_level_minor_overcall_tight: false,
+            two_level_minor_overcall_vul_tight: false,
             two_level_overcall_quality: false,
             nt_overcall_no_major: false,
             nt_overcall_prefer_one_level_major: false,

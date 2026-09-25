@@ -337,6 +337,30 @@ is plain-**positive** (+369) / PD −3,645, so it failed the *attribution
 eligibility* gate — but the *ship* gate is plain-wash + PD-win by the
 decision table, which a tightening can still pass. Score both, plus SD-PD.
 
+**O4-vul — the vulnerability-gated floor (built 2026-09-25, A/B in flight).**
+The BEN Phase 2 trace ([ben-gap-campaign.md](ben-gap-campaign.md), Tier-S
+anchor `daa8bf4a`) re-priced this wall from the north-star side: in the
+`Defensive / book / round-1` bucket, two-level suit overcalls where BEN
+passes total −305 plain / **−1,144 PD** (n=572), concentrated in the
+**vulnerable 5-card** slice (n=212 at `both`: −147 plain / −533 PD), with the
+worst boards going for numbers (−800, −850, −1290) — and **BBA sides with
+BEN's pass on all 572**.  That reframes the 2026-08-12 refutation: the
+all-vulnerability arm was vetoed by its **non-vul plain-DD cell alone**
+(−0.0102 ±0.0021), the cell where the declare-vs-defend switch bought
+profitable sacrifices off BBA's structural inability to penalty-double;
+its **vulnerable** cells measured plain −0.0011 ±0.0027 (wash) / SD-PD
++0.0090 ±0.0033 (win) — already the shippable shape.  BEN *does* double,
+so the loose vulnerable overcall has no sacrifice equilibrium to hide in.
+`defense.two_level_minor_overcall_vul_tight` (default **off**) applies the
+same 15+ floor **only when vulnerable**, spelled `points_by_vul` so the
+reading carries both bands; non-vul is byte-identical by construction
+(seeded `smoke-default --count 20000 --seed 1` byte-identity
+`e43c4554…` vs `main`).  This is a strength-band move, not the tombstoned
+quality atom — §O4's gate on `suit_quality` stands untouched.  Runners:
+`scripts/ab-two-level-minor-overcall-vul.sh` (BBA guard) then
+`scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F, same
+`SEED_BASE`).  Verdict: pending.
+
 ### O5 — 1-level quality floor
 
 Same atom, same formula at level 1 (`1♥ → P`, −162/−487): the 8-point floor

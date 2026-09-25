@@ -1724,6 +1724,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_level_minor_overcall_tight: bool,
 
+    /// Demand 15+ for the 2-level minor overcall **only when vulnerable**;
+    /// non-vul keeps the disciplined band and stays byte-identical.  Off by
+    /// default (A/B candidate — the all-vul tightening was vetoed by its
+    /// non-vul plain-DD cell alone; the BEN anchor charges the vulnerable
+    /// slice on both scorers).
+    #[arg(long, default_value_t = false)]
+    ns_two_level_minor_overcall_vul_tight: bool,
+
     /// Bar an unbid five-card major from the natural 1NT overcall (overcall the
     /// major instead, to find the fit); off by default.  A five-card opener's
     /// major remains eligible, matching BBA's direct-overcall box.
@@ -2749,6 +2757,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
     agreements.defense.passed_hand_overcall = !args.no_ns_passed_hand_overcall;
     agreements.defense.two_level_minor_overcall_tight = args.ns_two_level_minor_overcall_tight;
+    agreements.defense.two_level_minor_overcall_vul_tight =
+        args.ns_two_level_minor_overcall_vul_tight;
     agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
     agreements.defense.direct_minor_weak_jump_overcall =
         !args.no_ns_direct_minor_weak_jump_overcall;

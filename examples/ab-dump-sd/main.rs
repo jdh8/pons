@@ -97,6 +97,10 @@ struct Args {
     /// 15+ (`defense.two_level_minor_overcall_tight`)
     #[arg(long, default_value_t = false)]
     on_ns_two_level_minor_overcall_tight: bool,
+    /// Read the ON arm's auctions with the 2-level minor overcall tightened to
+    /// 15+ when vulnerable only (`defense.two_level_minor_overcall_vul_tight`)
+    #[arg(long, default_value_t = false)]
+    on_ns_two_level_minor_overcall_vul_tight: bool,
     /// Read the ON arm's direct single-jump major overcall as weak and natural
     /// (`defense.direct_weak_jump_overcall`).
     #[arg(long, default_value_t = false)]
@@ -235,6 +239,8 @@ fn main() {
     on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
     on_arm.competition.free_1nt_floor = args.on_ns_free_1nt_floor;
     on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
+    on_arm.defense.two_level_minor_overcall_vul_tight =
+        args.on_ns_two_level_minor_overcall_vul_tight;
     on_arm.defense.direct_weak_jump_overcall = args.on_ns_direct_weak_jump_overcall;
     on_arm.defense.direct_minor_weak_jump_overcall = args.on_ns_direct_minor_weak_jump_overcall;
     on_arm.defense.natural_overcall_hcp_floor = args.on_ns_nt_overcall_hcp_floor;
@@ -253,6 +259,7 @@ fn main() {
     off_arm.competition.free_bid_style = FreeBidStyle::Forcing;
     off_arm.competition.free_1nt_floor = 6;
     off_arm.defense.two_level_minor_overcall_tight = false;
+    off_arm.defense.two_level_minor_overcall_vul_tight = false;
     off_arm.defense.direct_weak_jump_overcall = args.off_ns_direct_weak_jump_overcall;
     off_arm.defense.direct_minor_weak_jump_overcall = args.off_ns_direct_minor_weak_jump_overcall;
     off_arm.defense.natural_overcall_hcp_floor = args.off_ns_nt_overcall_hcp_floor;

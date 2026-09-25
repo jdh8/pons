@@ -154,6 +154,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_defensive_seam_split: bool,
 
+    /// Demand 15+ for the 2-level minor overcall only when vulnerable
+    /// (opt-in; see `DefenseKnobs::two_level_minor_overcall_vul_tight`).
+    #[arg(long, default_value_t = false)]
+    ns_two_level_minor_overcall_vul_tight: bool,
+
     /// Free-form provenance recorded in gen_args (the launcher passes the
     /// server conf's sha256 here)
     #[arg(long)]
@@ -482,6 +487,8 @@ fn main() -> anyhow::Result<()> {
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
     agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
+    agreements.defense.two_level_minor_overcall_vul_tight =
+        args.ns_two_level_minor_overcall_vul_tight;
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
     // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
     // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was

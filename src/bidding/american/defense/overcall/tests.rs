@@ -190,6 +190,44 @@ fn two_level_minor_overcall_tight_gates_the_minimum() {
 }
 
 #[test]
+fn two_level_minor_overcall_vul_tight_gates_only_vulnerable() {
+    use super::super::tests::{best_call_vul, best_call_vul_with};
+    // Same minimum as the all-vulnerability tight test: over their (1♠), a
+    // single-suited 5-card club 12-count.  The vul-only knob must leave
+    // non-vul byte-identical and strand the same hand only when vulnerable.
+    let over_1s = [call(1, Strain::Spades)];
+    let minimum = "J2.K2.Q432.AQ876"; // 12 HCP, 5 clubs
+
+    let mut knob = Agreements::default();
+    knob.defense.two_level_minor_overcall_vul_tight = true;
+    assert_eq!(
+        best_call_vul_with(&knob, &over_1s, minimum, RelativeVulnerability::NONE),
+        call(2, Strain::Clubs),
+        "non-vul keeps the disciplined 2♣ overcall"
+    );
+    assert_eq!(
+        best_call_vul_with(&knob, &over_1s, minimum, RelativeVulnerability::WE),
+        Call::Pass,
+        "vulnerable, the minimum is stranded into Pass"
+    );
+    assert_ne!(
+        best_call_vul_with(
+            &knob,
+            &over_1s,
+            "A2.K2.Q432.AKJ87",
+            RelativeVulnerability::WE
+        ),
+        Call::Pass,
+        "a 17-count still competes vulnerable, not silenced"
+    );
+    assert_eq!(
+        best_call_vul(&over_1s, minimum, RelativeVulnerability::WE),
+        call(2, Strain::Clubs),
+        "the default (knob off) still overcalls vulnerable"
+    );
+}
+
+#[test]
 fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
     use crate::bidding::Relative;
     use contract_bridge::Suit;

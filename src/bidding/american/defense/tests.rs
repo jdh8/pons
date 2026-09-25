@@ -112,6 +112,25 @@ pub(super) fn best_call_with(
     (best, prov.depth == 0 && prov.fallback.is_some())
 }
 
+/// [`best_call_with`] at a chosen vulnerability, for the rules that read one.
+pub(super) fn best_call_vul_with(
+    agreements: &Agreements,
+    auction: &[Call],
+    hand: &str,
+    vul: RelativeVulnerability,
+) -> Call {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let (logits, _) = american(agreements)
+        .bind()
+        .classify_with_provenance(hand, vul, auction)
+        .expect("a legal auction classifies");
+    (&logits.0)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .map(|(call, _)| call)
+        .expect("array is never empty")
+}
+
 /// [`best_call`] at a chosen vulnerability, for the rules that read one.
 pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerability) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
