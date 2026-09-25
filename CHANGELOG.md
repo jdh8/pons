@@ -30,7 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Vulnerable-only tight two-level minor overcall
-  (`defense.two_level_minor_overcall_vul_tight`), opt-in, A/B in flight**:
+  (`defense.two_level_minor_overcall_vul_tight`), opt-in, measured, NOT
+  shipped**: at `SEED_BASE=1790348603` the non-vul cells fired 0 boards on
+  every harness (empirical byte-identity); vul-both vs BEN Tier-F
+  (12.8k bd/arm) reads DD-PD **+0.0277 ± 0.0169** IMPs/board
+  (+1.825/fired), plain +0.0080 ± 0.0130 and SD-PD +0.0117 ± 0.0172;
+  the BBA guard (204.8k bd/arm) reads DD-PD +0.0099 ± 0.0046 and SD-PD
+  wash but plain DD **−0.0046 ± 0.0038**. Field-model verdict (jdh8): in
+  the current meta a direct double of a two-level overcall is takeout by
+  default, so BBA's no-direct-penalty behavior is field-representative and
+  its plain-DD loss is real, while BEN's direct penalty doubles overprice
+  the lane — the vs-BEN PD win does not ship. Stays default-off as the
+  measured opt-in treatment (docs/defensive-overcalls.md §O4-vul).
   demand 15+ points for the `2♣`/`2♦` overcall below their suit only when
   vulnerable, spelled `points_by_vul` so the reading carries both bands;
   non-vul and the default config are byte-identical (seeded `smoke-default`

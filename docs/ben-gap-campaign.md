@@ -575,8 +575,18 @@ BEN acts* (mostly plain-only with PD softening — doubling artifacts plus
 the known preempt blindness).  The fix is vocabulary item 1 as predicted:
 the O4 wall re-priced.  Full trace numbers, the refutation re-read, and
 the built arm (`defense.two_level_minor_overcall_vul_tight`) in
-[defensive-overcalls.md](defensive-overcalls.md) §O4-vul; BBA guard then
-paired Tier-F per that section's runners.  Verdict: pending.
+[defensive-overcalls.md](defensive-overcalls.md) §O4-vul.  Measured
+2026-09-25 (both runs, `SEED_BASE=1790348603`): vs BEN shippable by the
+decision table (vul-both DD-PD **+0.0277 ±0.0169**, plain +0.0080 ±0.0130
+wash, SD-PD +0.0117 ±0.0172; non-vul 0 fired), BBA guard PD-win/SD-PD-wash
+but plain-DD −0.0046 ±0.0038.  **NOT shipped (jdh8, 2026-09-25): in the
+current meta a direct double of a two-level overcall is takeout by
+default, so BBA's no-direct-penalty behavior is field-representative and
+its plain-DD loss is real; BEN's direct penalty doubles overprice the
+lane.**  Knob stays opt-in; cells and the full reasoning in §O4-vul.  The
+guard thus caught its first inverse exploit — a fix that only beats BEN's
+non-standard doubling style — and the lesson generalizes: doubling-sensitive
+vs-BEN PD wins need the meta check.
 
 Same steady-state loop as the BBA campaign, re-aimed:
 

@@ -359,7 +359,39 @@ reading carries both bands; non-vul is byte-identical by construction
 quality atom — §O4's gate on `suit_quality` stands untouched.  Runners:
 `scripts/ab-two-level-minor-overcall-vul.sh` (BBA guard) then
 `scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F, same
-`SEED_BASE`).  Verdict: pending.
+`SEED_BASE`).
+
+**Measured 2026-09-25**, `d03ee106`, `SEED_BASE=1790348603`, non-vul cells
+**0 fired** on every harness (the byte-identity, empirically).  Vul-both
+IMPs/board deltas (ON − OFF):
+
+| harness | fired | plain DD | DD-PD | plain SD | SD-PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| BBA guard (204.8k bd/arm) | 1.71% | −0.0046 ±0.0038 | **+0.0099 ±0.0046** | −0.0101 ±0.0039 | +0.0022 ±0.0046 |
+| BEN Tier-F (12.8k bd/arm) | 1.52% | +0.0080 ±0.0130 | **+0.0277 ±0.0169** | −0.0052 ±0.0138 | +0.0117 ±0.0172 |
+
+Vs BEN — the campaign primary — the decision table reads shippable
+(plain wash with a positive lean, PD win at +1.825 IMPs/fired, SD-PD wash
+leaning positive).  Vs BBA the PD pair agrees (DD-PD win, SD-PD wash) but
+both plain scorers read a loss — the tight arm stops collecting the
+doubled sacrifices that exist because BBA does not penalty-double the
+overcall directly.
+
+**Verdict: NOT shipped — default stays off (jdh8, 2026-09-25).**  The
+field-model call went the other way: in the current meta a direct double
+of a two-level overcall is **takeout/negative by default**, so BBA's
+no-direct-penalty-double behavior is *field-representative*, not a hole —
+punishment of a vulnerable two-level overcall arrives only via the slower
+reopening-X-converted-by-pass route (see [pdi.md](pdi.md)), which both
+plain scorers already price.  It is BEN's direct penalty doubles, and the
+PD scorer's assume-the-double pessimism, that overprice the risk on this
+lane.  The BBA plain-DD −0.0046 is therefore a real cost and holds the
+veto.  The knob stays as the measured opt-in treatment (house convention:
+finished code, measurement done); re-measure only if the reference or the
+meta changes.  Campaign corollary, worth its weight: **a vs-BEN PD win on
+a doubling-sensitive lane needs this meta check before it counts** — the
+BBA guard exists precisely to catch BEN-specific exploits, and this is the
+first one it caught from the other side.
 
 ### O5 — 1-level quality floor
 
