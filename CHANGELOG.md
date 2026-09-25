@@ -29,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Campaign docs**: `docs/floor-rail-campaign.md` collects the floor
+  junk-action rail series — the priced-census recipe for finding rails, the
+  open queue (the `1NT - 2♣ …` fourth-round junk bid and the junk `2♠` cue
+  over `1♠ - 2♦`), the per-rail runbook distilled from the three 2026-09-25
+  ships, and five explicit stop criteria (census floor, hit-rate collapse,
+  non-parametric candidates, silence residual, the next matched retrain).
+  `docs/next-steps.md` ranks the cross-campaign candidates by potential IMP
+  gain at the current anchors (`c3bb94a7` / `daa8bf4a`) with a
+  deliberately-not-ranked list so refuted levers aren't re-derived.
+  Documentation only; no behavior change.
 - **Vulnerable-only tight two-level minor overcall
   (`defense.two_level_minor_overcall_vul_tight`), opt-in, measured, NOT
   shipped**: at `SEED_BASE=1790348603` the non-vul cells fired 0 boards on
