@@ -275,7 +275,9 @@ seat-carrying `project` or the sampled projection.
   cut at their turn — `Phase::of` is slice-relative, so their side's phase
   falls out) under their at-the-time context, and decoded when alerted. The
   partnership models the opponents as playing our own books: exact in self-play,
-  an approximation against other natural-family engines.
+  an approximation against other natural-family engines. Our opt-in Watermelon
+  overlays (5542, wide `1♣`, the Multi, Odwrotka) are the exception: the mirror
+  book resets them, so an undeclared opponent is read as house `american()`.
 - `Inferences::read` (`inference/read.rs`) accumulates per-player `Envelope`
   (per-suit length ranges + points) from the auction — design law **soundness
   over tightness** (never claim more than the calls promise). Convention

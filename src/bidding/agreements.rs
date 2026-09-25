@@ -3865,9 +3865,10 @@ pub struct RebidKnobs {
     /// the floor's.  **Measured 2026-09-25, stays off**: a wash in every cell
     /// (plain +0.0000/+0.0008, PD −0.0000/+0.0006 IMPs/board none/both,
     /// single-dummy alike, all CIs through zero; 204,800 bd/vul, seed
-    /// 1790317338).  With the knob on our floor also reads *their* natural
-    /// `1♣ - 1M - 2♦` as Odwrotka (46 foreign divergent boards, so the A/B
-    /// ran `NO_GATE`) — a flagged reading leak, harmless while off.
+    /// 1790317338).  That A/B ran `NO_GATE`: with the knob on
+    /// we also read *their* natural `1♣ - 1M - 2♦` as Odwrotka (46 foreign
+    /// divergent boards, −100/−96 plain/PD IMPs at vul none).  Fixed since —
+    /// the mirror book resets every Watermelon overlay.
     pub odwrotka: bool,
     // --- rebids/major_tails.rs
     /// Author the full continuations after `1♥ - 1♠`

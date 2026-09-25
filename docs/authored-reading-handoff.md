@@ -1489,10 +1489,9 @@ phase, and the mechanism stays here for whoever picks it up.
   safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](archive/dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
   Also the real repair for the surviving `1NT - 2♠ - 2NT - 3♣ -` `pass_out`
   node (Phase 2's row).
-- **Ogust `3♣` answer reader:** the remaining phantom-club reading package (the
-  answer is unread, so it reads as a natural ♣ `4..13`). Filed in
-  [bidding-options.md](bidding-options.md)'s `set_weak_two_major_priority` row,
-  beside the 2NT-reading gap; owes its own A/B.
+- ~~**Ogust `3♣` answer reader**~~ — closed 2026-08-24 by the `Alert("ogust")`
+  repair (34445010, measured with the reading-drift sweep); the answer now
+  reads 5–7 points, six in the major, no club length.
 - **Solo deletion of `1NT - 2NT - 3♣ - 3♦ -`'s `pass_out`:** probed redundant
   (the root fallback offers `P` alone), but it was left in place because its
   twin node blasts — see Phase 2's row. Filed in

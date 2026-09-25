@@ -2561,3 +2561,34 @@ fn per_call_honours_blind_opponents() {
         }
     }
 }
+
+/// Every Watermelon overlay is ours alone: an undeclared opponent's natural
+/// calls read identically with all four knobs on (the mirror book resets them).
+#[test]
+fn watermelon_overlays_do_not_read_their_calls() {
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::american::american;
+
+    let plain = american(&Agreements::default()).bind();
+    let melon = american(&watermelon(Agreements::default())).bind();
+    for text in [
+        "1♣ - 1♥ - 2♦",
+        "1♣ - 1♠ - 2♦ - 2♥",
+        "1♣ - 1♦",
+        "1♣ - 1♦ - 1♥",
+        "2♦",
+        "- 2♦",
+        "2♦ - 2NT",
+        "1♦ - 1♥ - 2♣",
+    ] {
+        let auction: Vec<Call> = text
+            .split_whitespace()
+            .map(|w| w.parse().expect("a call"))
+            .collect();
+        assert_eq!(
+            melon.infer(RelativeVulnerability::NONE, &auction),
+            plain.infer(RelativeVulnerability::NONE, &auction),
+            "{text}: our overlay leaked into their reading"
+        );
+    }
+}

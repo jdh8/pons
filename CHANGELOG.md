@@ -500,6 +500,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   separate profile knobs and stay on; float results are IEEE-strict at every
   level, so seeded byte-identities are unaffected.
 
+### Fixed
+
+- **Our Watermelon overlays no longer read the opponents' calls (2026-09-25)**.
+  Without a declared opponent book we read their calls in our own books, so
+  with a knob on their natural calls decoded as our gadget: their reverse
+  `1♣ - 1M - 2♦` as Odwrotka (their diamonds lost), their weak `2♦` as our
+  Multi, their `1♣ - 1♦` as the wide-1♣ relay. The mirror book now resets
+  `opening.{five_five_four_two, wide_one_club, multi_two_diamonds}` and
+  `rebid.odwrotka`, so an undeclared opponent reads as house `american()`.
+  Default byte-identical (every knob off, no mirror is built). The leak sat
+  inside the knob-on arms of the 2026-09-24/25 A/Bs: Odwrotka 46/61 boards
+  (−100/−96 plain/PD IMPs at vul none), the Multi 590/456 boards (≈ −0.003 to
+  −0.004 IMPs/board; `ab-multi-2d.sh` had no foreign-board gate), wide 1♣ 444/442
+  boards. No verdict flips: the Multi still loses without it, Odwrotka is still
+  a wash. Pinned by `watermelon_overlays_do_not_read_their_calls`.
+- **Ogust `3♣` phantom club suit: docs caught up** — fixed 2026-08-24
+  (34445010); `bidding-options.md` and `authored-reading-handoff.md` still
+  listed it open.
+
 ## [0.11.0] — 2026-09-16
 
 ### Highlights

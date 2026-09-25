@@ -287,8 +287,12 @@ pub struct System {
     /// cleared, attached here by the family factories and bound alongside by
     /// [`bind`][Self::bind].
     ///
-    /// [`None`] whenever nothing is declared, which is every default build, so
-    /// the shipped system carries no second book and pays nothing.
+    /// The mirror also resets our opt-in Watermelon overlays: those gadgets
+    /// are ours, and an undeclared opponent plays the house structure.
+    ///
+    /// [`None`] whenever nothing is declared and no overlay is on, which is
+    /// every default build, so the shipped system carries no second book and
+    /// pays nothing.
     pub opponents: Option<Arc<System>>,
 }
 

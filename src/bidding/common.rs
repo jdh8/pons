@@ -5,7 +5,7 @@
 //! [`american`][super::american] — and any future system — imports these from
 //! here rather than carrying them itself.
 
-use super::agreements::{Agreements, TheirDisclosures};
+use super::agreements::{Agreements, OpeningKnobs, RebidKnobs, TheirDisclosures};
 use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
@@ -136,14 +136,21 @@ pub(in crate::bidding) fn with_instinct_floor(system: System, agreements: &Agree
 }
 
 /// The agreements a [mirror book][crate::bidding::book::System::opponents] is
-/// built from — ours with the opponents' disclosures cleared
+/// built from — ours with the opponents' disclosures cleared and our opt-in
+/// Watermelon overlays reset
 ///
-/// [`None`] when nothing is declared, in which case the mirror would be a
-/// second copy of the same books and is not built at all.
+/// [`None`] when nothing is declared and no overlay is on, in which case the
+/// mirror would be a second copy of the same books and is not built at all.
 pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<Agreements> {
-    (agreements.decision.their != TheirDisclosures::default()).then(|| {
-        let mut mirror = *agreements;
-        mirror.decision.their = TheirDisclosures::default();
-        mirror
-    })
+    let mut mirror = *agreements;
+    mirror.decision.their = TheirDisclosures::default();
+    // Our opt-in Watermelon overlays are ours alone: an undeclared opponent
+    // plays the house structure, so their natural `1♣ - 1M - 2♦`, `2♦` and
+    // `1♣ - 1♦` must not decode as Odwrotka, the Multi, or the wide-1♣ relay.
+    let (opening, rebid) = (OpeningKnobs::default(), RebidKnobs::default());
+    mirror.opening.five_five_four_two = opening.five_five_four_two;
+    mirror.opening.wide_one_club = opening.wide_one_club;
+    mirror.opening.multi_two_diamonds = opening.multi_two_diamonds;
+    mirror.rebid.odwrotka = rebid.odwrotka;
+    (mirror != *agreements).then_some(mirror)
 }
