@@ -1,11 +1,15 @@
 # The floor junk-action rail series
 
-**Status (2026-09-26, anchor `c3bb94a7`).** Four rails shipped default-on in
-one week — 3NT-pull, 2NT-double, unusual-4NT, game-pull — the first three cashing ≈ +0.026 plain /
-+0.035 PD IMPs/board combined. Two priced candidates remain in the queue;
-after they resolve, the census is stale by construction and must be re-run
-before authoring anything else. Companion ranking of the other campaign
-candidates: [next-steps.md](next-steps.md).
+**Status: closed 2026-09-26** (stop criterion 1 — the census is dry). Five
+rails shipped default-on — 3NT-pull, 2NT-double, unusual-4NT, game-pull,
+2NT-bid — and three attempts stay opt-in (`new_suit_veto`,
+`their_2nt_unusual_veto` a wash, `silent_cue_veto` a loss). At the R6
+re-anchor (`7e0bc648`, four of the five in) the defensive + competitive floor
+pool had fallen from −0.068 to −0.018 PD/board and no single "we act / BBA
+passes" lane reached 0.5k PD; R7 was the last family over the bar. What
+remains is a long tail for the retrain, not a rail (see *When to stop*,
+criteria 1 and 5). Companion ranking of the other campaign candidates:
+[next-steps.md](next-steps.md).
 
 ## What the series is
 
@@ -78,7 +82,7 @@ Priced at `c3bb94a7`, in order:
 | R4b | `4NT` over their `2NT` (mostly `1♠ - 2NT`, `2M - 2NT`) without two five-card suits | 123 | −0.45k | −0.50k | **wash 2026-09-26** — `their_2nt_unusual_veto` stays off; ledger below |
 | R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | **loss 2026-09-26** — generalised to `silent_cue_veto`, stays off; ledger below |
 | R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **done 2026-09-26** at `7e0bc648` — see below |
-| R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | open — the one new family; the shipped 2NT-double rail's sibling, same trigger |
+| R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | **shipped 2026-09-26** — `their_2nt_bid_veto`; ledger below |
 
 **R4 trace (2026-09-26).** The pool (silent side acts after their
 `1NT - 2♣`, BBA passes) splits three ways at `c3bb94a7`:
@@ -144,12 +148,13 @@ CHANGELOG):
 | 2NT-double veto | `their_2nt_double_veto` | 2026-09-25 `bf7d7cce` | +0.0143/+0.0177 | +0.0159/+0.0199 | 0.35% | 1790318091 |
 | unusual-4NT veto | `their_3nt_unusual_veto` | 2026-09-25 `56ecccdd` | +0.0035/+0.0045 | +0.0041/+0.0053 | 0.03–0.04% | 1790324543 |
 | game-pull veto (R4) | `their_game_pull_veto` | 2026-09-26 | +0.0016/+0.0031 | +0.0026/+0.0048 | 0.03–0.05% | 1790405692 |
+| 2NT-bid veto (R7) | `their_2nt_bid_veto` | 2026-09-26 | +0.0010/+0.0011 | +0.0020/+0.0021 | 0.05% | 1790409954 |
 | *(wash)* unusual-4NT over `2NT` (R4b) | `their_2nt_unusual_veto` | **off** 2026-09-26 | +0.0003/+0.0000 | +0.0003/+0.0000 | 0.02% | 1790406670 |
 | *(loss)* silent cue (R5) | `silent_cue_veto` | **off** 2026-09-26 | −0.0037/−0.0009 | −0.0011/+0.0028 | 0.36–0.38% | 1790407171 |
 | *(predecessor)* new-suit veto | `new_suit_veto` | refuted in aggregate, **off** | — | — | — | see [new-suit-veto.md](ai-bidder/new-suit-veto.md) |
 
 Every shipped rail was a win in **every** cell with single-dummy alike — the
-vein's hit rate so far is 4/5 on the narrow gates and 0/2 on the broad ones.
+vein's final hit rate is 5/6 on the narrow gates and 0/2 on the broad ones.
 R4b, the first wash, sat right at the census bar (−0.50k PD); its masked
 `4NT` was sometimes an accidental obstruction that pushed them overboard, so
 the census over-stated it. Rows at the bar are coin flips — price the next

@@ -896,3 +896,49 @@ fn the_silent_cue_gate_masks_the_junk_cue() {
         "one opponent bidding is outside the rail"
     );
 }
+
+/// The 2NT-bid rail masks our silent side's junk bids over their `2NT`
+/// opening auction, and spares a real hand
+///
+/// `2NT - 3♣ - 3♦` to `9642.J8742.83.52` (1 HCP): knob-off `3♥` is live,
+/// knob-on every bid is masked and `Pass` survives.  An 8-count keeps its
+/// bids.
+#[test]
+fn the_their_2nt_gate_masks_the_junk_bid() {
+    let pass = Call::Pass;
+    let stayman = [
+        call(2, Strain::Notrump),
+        pass,
+        call(3, Strain::Clubs),
+        pass,
+        call(3, Strain::Diamonds),
+    ];
+    let three_hearts = call(3, Strain::Hearts);
+    let junk = "9642.J8742.83.52";
+    let mut agreements = Agreements::default();
+    assert!(
+        agreements.decision.instinct.their_2nt_bid_veto,
+        "the rail ships default on"
+    );
+    agreements.decision.instinct.their_2nt_bid_veto = false;
+    let off = shelled_v6_with(&agreements, &stayman, junk);
+    assert!(
+        off.0[three_hearts].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_2nt_bid_veto = true;
+    let on = shelled_v6_with(&agreements, &stayman, junk);
+    assert!(
+        on.0.iter()
+            .all(|(call, logit)| !matches!(call, Call::Bid(_)) || *logit == f32::NEG_INFINITY),
+        "every bid is masked"
+    );
+    assert!(on.0[Call::Pass].is_finite());
+
+    let values = shelled_v6_with(&agreements, &stayman, "9642.AJ742.K3.52");
+    assert!(
+        values.0[three_hearts].is_finite(),
+        "an 8-count is outside the rail"
+    );
+}

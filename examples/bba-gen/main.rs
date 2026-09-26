@@ -557,6 +557,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_silent_cue_veto: bool,
 
+    /// Turn OFF the rail that vetoes our silent side's bids over their `2NT`
+    /// opening auction on 7 HCP or fewer (`InstinctProfile::their_2nt_bid_veto`,
+    /// crate default on).  The `plain` arm of `scripts/ab-2nt-bid-veto.sh`.
+    #[arg(long, default_value_t = false)]
+    no_ns_2nt_bid_veto: bool,
+
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
     /// `win | win`, plain +0.018/+0.028 by vul).  The accountant game/slam gates
@@ -2524,6 +2530,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.their_game_pull_veto = !args.no_ns_game_pull_veto;
     agreements.decision.instinct.their_2nt_unusual_veto = args.ns_2nt_unusual_veto;
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
+    agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;

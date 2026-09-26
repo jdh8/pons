@@ -8,10 +8,13 @@ cashed ÷ effort. Figures are IMPs/board unless marked per-fired. Re-rank
 after the next re-anchor; each item's ship decision is its own fresh-seed
 A/B under [measurement.md](measurement.md).
 
-## 1. Floor junk-action rails — own doc
+## 1. Floor junk-action rails — closed 2026-09-26
 
-Active series, best expected value per effort; queue, runbook, and stop
-criteria in [floor-rail-campaign.md](floor-rail-campaign.md).
+Five rails shipped, and the R6 re-census at `7e0bc648` found the pool dry
+(−0.018 PD/board left, no lane at 0.5k); ledger and close-out in
+[floor-rail-campaign.md](floor-rail-campaign.md). Its residue belongs to the
+next matched retrain, which must also re-arbitrate every rail (stop
+criterion 5). **Item 2 is now the top candidate.**
 
 ## 2. RKCB / slam accuracy (Constructive / book / round-2)
 

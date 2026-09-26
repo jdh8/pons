@@ -121,7 +121,7 @@ impl Classifier for ConfiguredFloorBba {
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
-        their_2nt_gate(&mut logits, context);
+        their_2nt_gate(&mut logits, hand, context);
         silent_cue_gate(&mut logits, hand, context);
         logits
     }
@@ -174,7 +174,7 @@ impl Classifier for ConfiguredFloorV6 {
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
-        their_2nt_gate(&mut logits, context);
+        their_2nt_gate(&mut logits, hand, context);
         silent_cue_gate(&mut logits, hand, context);
         logits
     }

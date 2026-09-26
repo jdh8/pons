@@ -652,6 +652,22 @@ pub struct InstinctProfile {
     /// matched our cue on 33 boards and passed or did something else on 2,471,
     /// while above it the cue is often BBA's call too — hence the HCP cut.
     pub silent_cue_veto: bool,
+
+    /// Mask our silent side's **bids** over their `2NT` opening auction on
+    /// 7 HCP or fewer — the bidding sibling of
+    /// [`their_2nt_double_veto`][Self::their_2nt_double_veto]
+    ///
+    /// **Default on** since 2026-09-26: a win in every DD cell (plain DD
+    /// +0.0010/+0.0011, PD +0.0020/+0.0021 IMPs/board none/both; single-dummy
+    /// plain a wash at +0.0004/+0.0008, PD +0.0015/+0.0019; 204,800 bd/vul,
+    /// SEED_BASE 1790409954, `scripts/ab-2nt-bid-veto.sh`), firing on 0.05% of
+    /// boards, all of them boards they open.  Found by the R6 re-census of the 2026-09-26 shipping-arm decompose
+    /// (`7e0bc648`), the one family left over the bar once the shipped rails
+    /// masked theirs: over `2NT - 3♣ - 3♦` the v6 floor bids `3♥`, over
+    /// `2NT - 3NT` `4♣`, on 0–7 HCP.  Priced at 201 boards, −976 plain /
+    /// −1,250 PD IMPs over 409.6k; BBA passed 201 of the 213 boards where we
+    /// acted on 7 HCP or fewer.  Shares `their_2nt_gate`'s trigger.
+    pub their_2nt_bid_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -698,6 +714,7 @@ impl Default for InstinctProfile {
             their_game_pull_veto: true,
             their_2nt_unusual_veto: false,
             silent_cue_veto: false,
+            their_2nt_bid_veto: true,
         }
     }
 }
@@ -748,6 +765,7 @@ impl InstinctProfile {
             their_game_pull_veto: false,
             their_2nt_unusual_veto: true,
             silent_cue_veto: true,
+            their_2nt_bid_veto: false,
         }
     }
 }
@@ -3991,14 +4009,18 @@ pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Con
 }
 
 /// Mask our silent side's double of their `2NT` opening auction — the
-/// [`their_2nt_double_veto`][InstinctProfile::their_2nt_double_veto] stage of
-/// the learned floor
+/// [`their_2nt_double_veto`][InstinctProfile::their_2nt_double_veto] and
+/// [`their_2nt_bid_veto`][InstinctProfile::their_2nt_bid_veto] stages of the
+/// learned floor
 ///
 /// Fires only when the first bid of the auction is the opponents' `2NT` and
-/// every call our side has made is a pass.  Then `X` is masked; `Pass` and
-/// every bid are untouched, so a distribution always survives.
-pub(crate) fn their_2nt_gate(logits: &mut Logits, context: &Context<'_>) {
-    if !pinned(context).their_2nt_double_veto {
+/// every call our side has made is a pass.  Then `X` is masked, and with
+/// 7 HCP or fewer every bid too; `Pass` is untouched, so a distribution
+/// always survives.
+pub(crate) fn their_2nt_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    let profile = pinned(context);
+    let junk = profile.their_2nt_bid_veto && raw_hcp(hand) <= 7;
+    if !profile.their_2nt_double_veto && !junk {
         return;
     }
     let auction = context.auction();
@@ -4012,8 +4034,18 @@ pub(crate) fn their_2nt_gate(logits: &mut Logits, context: &Context<'_>) {
         .skip(1)
         .step_by(2)
         .all(|c| *c == Call::Pass);
-    if theirs && auction[first] == Call::Bid(Bid::new(2, Strain::Notrump)) && we_silent {
+    if !theirs || auction[first] != Call::Bid(Bid::new(2, Strain::Notrump)) || !we_silent {
+        return;
+    }
+    if profile.their_2nt_double_veto {
         logits[Call::Double] = f32::NEG_INFINITY;
+    }
+    if junk {
+        for (call, logit) in logits.iter_mut() {
+            if matches!(call, Call::Bid(_)) {
+                *logit = f32::NEG_INFINITY;
+            }
+        }
     }
 }
 

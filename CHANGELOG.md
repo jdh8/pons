@@ -96,6 +96,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F). Trace
   and history: `docs/defensive-overcalls.md` §O4-vul,
   `docs/ben-gap-campaign.md` Phase 2.
+- **The 2NT-bid rail (`InstinctProfile::their_2nt_bid_veto`), shipped
+  default on**: when the opponents opened `2NT` and our side has only passed,
+  the learned floor may not bid on 7 HCP or fewer (the 2NT-double rail
+  already took away `X`). Measured against BBA, 204,800 boards per vul,
+  SEED_BASE 1790409954: plain DD **+0.0010 ± 0.0009 / +0.0011 ± 0.0010**, PD
+  **+0.0020 ± 0.0010 / +0.0021 ± 0.0012** IMPs/board (none/both);
+  single-dummy plain a wash (+0.0004 / +0.0008), PD +0.0015 / +0.0019. Fires
+  on 0.05% of boards, all of them boards they open. The last row of the
+  floor-rail series (R7, found by the R6 re-census at `7e0bc648`: `3♥` over
+  `2NT - 3♣ - 3♦`, `4♣` over `2NT - 3NT` on junk; 201 boards, −976 plain /
+  −1,250 PD over 409.6k, BBA passing 201 of 213). The series closes with it.
+  `bba-gen --no-ns-2nt-bid-veto` turns it off; `scripts/ab-2nt-bid-veto.sh`.
 - **The silent-cue rail (`InstinctProfile::silent_cue_veto`), opt-in —
   measured a loss**: with both opponents having bid and our side only
   passing, the learned floor may not cue their suit at the 2- or 3-level on
