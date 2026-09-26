@@ -141,6 +141,13 @@ fn responder_runs_to_six_card_diamond_suit() {
 // Meckstroth adjunct: opener's invitational 3m jump after the forcing 1NT
 // ---------------------------------------------------------------------------
 
+/// The Meckstroth `3m` jumps are opt-in since 2026-09-26
+fn minor_jumps() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.meckstroth_minor_jumps = true;
+    american(&agreements).bind()
+}
+
 /// Auction shorthand for 1♠ - 1NT - — opener to rebid
 fn after_1s_1nt() -> Vec<Call> {
     let p = Call::Pass;
@@ -150,7 +157,7 @@ fn after_1s_1nt() -> Vec<Call> {
 #[test]
 fn opener_jumps_to_invitational_three_clubs() {
     // AK853.Q2.4.AQ976 — 14 HCP (16 points), 5-5 spades+clubs: 3♣ INV jump
-    let system = partnership();
+    let system = minor_jumps();
     assert_eq!(
         best_call(&system, &after_1s_1nt(), "AK853.Q2.4.AQ976"),
         call(3, Strain::Clubs),
@@ -160,7 +167,7 @@ fn opener_jumps_to_invitational_three_clubs() {
 #[test]
 fn opener_jumps_to_invitational_three_diamonds() {
     // AK853.Q2.AQ976.4 — 14 HCP (16 points), 5-5 spades+diamonds: 3♦ INV jump
-    let system = partnership();
+    let system = minor_jumps();
     assert_eq!(
         best_call(&system, &after_1s_1nt(), "AK853.Q2.AQ976.4"),
         call(3, Strain::Diamonds),
@@ -235,7 +242,7 @@ fn opener_jumps_to_invitational_three_clubs_over_one_spade() {
     // 1♥ - 1♠ - ? with Q2.AK853.4.AQ976 (5-5 hearts+clubs): 3♣ INV
     let p = Call::Pass;
     let auction = vec![call(1, Strain::Hearts), p, call(1, Strain::Spades), p];
-    let system = partnership();
+    let system = minor_jumps();
     assert_eq!(
         best_call(&system, &auction, "Q2.AK853.4.AQ976"),
         call(3, Strain::Clubs),

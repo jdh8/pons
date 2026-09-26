@@ -115,8 +115,10 @@ fn main() {
     base.rebid.meckstroth_adjunct = args.minor_jumps_only;
     base.rebid.meckstroth_minor_jumps = false;
     let baseline = american(&base).bind();
-    // The shipped default (both on).
-    let adjunct = american(&Agreements::default()).bind();
+    // Both halves on (the jumps are opt-in since 2026-09-26).
+    let mut on = Agreements::default();
+    on.rebid.meckstroth_minor_jumps = true;
+    let adjunct = american(&on).bind();
     let partnerships = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

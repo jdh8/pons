@@ -29,6 +29,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cells), the trace and the next levers:
   [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md).
 
+### Changed
+
+- **The Meckstroth `3m` jumps are opt-in (2026-09-26)** —
+  `rebid.meckstroth_minor_jumps` now defaults **off**: opener's invitational
+  `1M - 1NT - 3m` / `1♥ - 1♠ - 3m` (5+ minor, 15–17) falls back to the natural
+  two-level minor. The artificial GF `2NT` half of the adjunct is untouched.
+  Fresh-seed confirmation of the 2026-07-26 refutation (`ab-meckstroth-2nt
+  --minor-jumps-only --sd`, 400k bd/vul, SD seed 1790420932): plain DD
+  −0.002/−0.003, PD −0.005/−0.005, plain SD −0.0012 ±0.0007 / −0.0004 ±0.0009,
+  **SD-PD −0.0029 ±0.0008 / −0.0021 ±0.0011** NV/vul — every bracket ≤ 0 on
+  both seeds, so demoting gains ≈ +0.002–0.003 IMPs/board. The harness's
+  "on" arm now sets the knob explicitly.
+- **Forcing-1NT two-suiter stays on (2026-09-26)** — its owed fresh-seed
+  confirmation did **not** reproduce the 2026-07-25 refutation: SD-PD +0.0000
+  ±0.0005 NV / **+0.0012 ±0.0007** vul (1M bd/vul, same SD seed; plain DD
+  +0.000/+0.001, PD −0.001/−0.001). Two seeds pool to a wash, so
+  `set_forcing_nt_two_suiter` stays default-on and the pending demotion is
+  withdrawn.
+
 ### Benchmarks
 
 - **Bidding speed versus BBA (2026-09-20, `6e77c369`)**: the shipping M32 v6

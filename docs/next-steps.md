@@ -97,7 +97,9 @@ Near-zero direct IMPs; protects banked wins and unblocks measurement:
 
 - Owed fresh-seed confirmations: N3-fit
   ([one-notrump-competitive.md](one-notrump-competitive.md) queue),
-  Meckstroth adjunct, forcing-NT two-suiter, pass_exclusion's two seeds.
+  pass_exclusion's two seeds. (Meckstroth `3m` jumps: confirmed, demoted
+  2026-09-26; forcing-NT two-suiter: not confirmed, stays on —
+  [bidding-options.md](bidding-options.md).)
 - **PD-scorer unification** (`ns_score_bid` vs `ns_score_pd`, ≈0.07/board
   definitional skew between the two campaigns' PD columns) — decision owed
   to jdh8; proposed reversible default in

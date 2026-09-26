@@ -3930,22 +3930,21 @@ pub struct RebidKnobs {
     /// **Default on.**  After `1M - 1NT` (the forcing notrump), opener's `2NT`
     /// is an artificial 18+ game force of *any* shape (responder relays `3♣`,
     /// opener shape-describes toward game or slam) instead of the natural 18–19
-    /// balanced rebid; opener also has the invitational `3m` jumps (5+ minor,
-    /// 15–17).  The `ab-meckstroth-2nt` A/B builds a baseline arm with it off.
+    /// balanced rebid; the invitational `3m` jumps (5+ minor, 15–17) ride
+    /// [`meckstroth_minor_jumps`][Self::meckstroth_minor_jumps], off by
+    /// default.  The `ab-meckstroth-2nt` A/B builds a baseline arm with it off.
     ///
     /// The artificial `2NT` measured a plain-DD win (`ab-meckstroth-2nt`,
     /// 200k×2 seeds: plain +0.0075/+0.013, PD +0.006/+0.011, sd-lead
-    /// +0.010/+0.017 NV/vul, all CI-clean); the `3m` jumps are sd-vindicated
-    /// (plain wash, PD over-punished, sd-lead +0.0012/+0.0042 NV/vul).
+    /// +0.010/+0.017 NV/vul, all CI-clean).
     pub meckstroth_adjunct: bool,
     /// Author the adjunct's invitational `3m` jumps
     ///
-    /// **Default on**; ignored when
+    /// **Default off** since 2026-09-26; ignored when
     /// [`meckstroth_adjunct`][Self::meckstroth_adjunct] is off — the jumps live
-    /// inside the adjunct.  Turn this off to keep the game force and drop the
-    /// jumps — the arm that isolates the `3m` leg, whose only positive bracket
-    /// was plain SD.  One flag shipped both halves, and the SD-PD
-    /// re-adjudication confirmed only the merged knob.
+    /// inside the adjunct.  The isolated `3m` leg lost on every bracket on two
+    /// seeds (SD-PD −0.0025/−0.0021 and −0.0029/−0.0021 NV/vul, all CI-clear);
+    /// kept opt-in as a single-dummy re-measure candidate.
     pub meckstroth_minor_jumps: bool,
     // --- rebids/two_suiter.rs
     /// Author opener's two-suiter rebids over the forcing `1NT`
@@ -3996,7 +3995,7 @@ impl Default for RebidKnobs {
             fourth_suit_forcing: true,
             nt_invite_hcp: true,
             meckstroth_adjunct: true,
-            meckstroth_minor_jumps: true,
+            meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
             xyz_invite_judgment: true,
             new_minor_forcing: false,
