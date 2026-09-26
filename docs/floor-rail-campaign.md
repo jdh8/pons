@@ -75,9 +75,9 @@ Priced at `c3bb94a7`, in order:
 | # | slice | boards | plain | PD | state |
 | --- | --- | ---: | ---: | ---: | --- |
 | R4 | fourth-round junk bid after `1NT - 2♣ …` | 113 | −0.6k | −1.1k | **done 2026-09-26** — traced below; the game-pull rail shipped |
-| R4b | `4NT` over their `2NT` (mostly `1♠ - 2NT`, `2M - 2NT`) without two five-card suits | 123 | −0.45k | −0.50k | open — the unusual-`4NT` arm one level down; BBA passes 97, bids `3♣` 21 (also a loss) |
-| R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | open — competitive-floor row; check the cue's PDI/tag context before gating |
-| R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | mandatory before any further authoring |
+| R4b | `4NT` over their `2NT` (mostly `1♠ - 2NT`, `2M - 2NT`) without two five-card suits | 123 | −0.45k | −0.50k | **wash 2026-09-26** — `their_2nt_unusual_veto` stays off; ledger below |
+| R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | **loss 2026-09-26** — generalised to `silent_cue_veto`, stays off; ledger below |
+| R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **next** — R4b wash + R5 loss trip stop criterion 2: if the fresh census ranks nothing new, the series stops |
 
 **R4 trace (2026-09-26).** The pool (silent side acts after their
 `1NT - 2♣`, BBA passes) splits three ways at `c3bb94a7`:
@@ -99,6 +99,23 @@ Priced at `c3bb94a7`, in order:
 Over their `4NT` the v6 floor acts on 8 boards (−79 PD) — below the bar at
 this snapshot; the v8 suspect's worst boards are a different net.
 
+**R5 trace (2026-09-26).** The row is a silent side (their `1♠ - 2♦` 2/1,
+we passed) cueing `2♠` on 0–8 HCP: 287 boards, −0.30k plain / −0.46k PD at
+`c3bb94a7` — under the bar alone. It is one lane of a family: *our side has
+only passed, both opponents have bid, we bid a suit they bid at the 2- or
+3-level on 8 HCP or fewer* — 1,376 floor boards, −1,343 plain / −2,391 PD
+with BBA passing (`1♠ - 2♦`, `1♠ - 2♣`, `1♥ - 1♠ - 2♥`, `1NT - 2♠ - 3♣`,
+Stayman). The HCP cut is where the cue stops being junk: on 8 or fewer BBA
+matched our cue on 33 boards and differed on 2,471; above it, 302 against
+447. Authored as `silent_cue_veto`, `silent_cue_gate`,
+`scripts/ab-silent-cue-veto.sh` — **a loss**: plain DD −0.0037 ± 0.0021 /
+−0.0009, PD −0.0011 / +0.0028 ± 0.0028, single-dummy plain −0.0050 ± 0.0022
+at none. Two causes on the worst boards: the net re-spends the masked mass
+on other junk (`3NT` over their auction, doubled), and a "cue" of
+responder's suit is often natural (`1♦ - 1♠ - 2♥` `2♠` on five spades) —
+the gate reads HCP but no length. This is the broad-gate failure again
+(cf. `new_suit_veto`): 0.37% firing is 10× every shipped rail.
+
 Done (ledger; full cells in each `InstinctProfile` doc comment and the
 CHANGELOG):
 
@@ -108,11 +125,16 @@ CHANGELOG):
 | 2NT-double veto | `their_2nt_double_veto` | 2026-09-25 `bf7d7cce` | +0.0143/+0.0177 | +0.0159/+0.0199 | 0.35% | 1790318091 |
 | unusual-4NT veto | `their_3nt_unusual_veto` | 2026-09-25 `56ecccdd` | +0.0035/+0.0045 | +0.0041/+0.0053 | 0.03–0.04% | 1790324543 |
 | game-pull veto (R4) | `their_game_pull_veto` | 2026-09-26 | +0.0016/+0.0031 | +0.0026/+0.0048 | 0.03–0.05% | 1790405692 |
+| *(wash)* unusual-4NT over `2NT` (R4b) | `their_2nt_unusual_veto` | **off** 2026-09-26 | +0.0003/+0.0000 | +0.0003/+0.0000 | 0.02% | 1790406670 |
+| *(loss)* silent cue (R5) | `silent_cue_veto` | **off** 2026-09-26 | −0.0037/−0.0009 | −0.0011/+0.0028 | 0.36–0.38% | 1790407171 |
 | *(predecessor)* new-suit veto | `new_suit_veto` | refuted in aggregate, **off** | — | — | — | see [new-suit-veto.md](ai-bidder/new-suit-veto.md) |
 
 Every shipped rail was a win in **every** cell with single-dummy alike — the
-vein's hit rate so far is 4/4 on the narrow gates and 0/1 on the broad one.
-Narrow beats broad here.
+vein's hit rate so far is 4/5 on the narrow gates and 0/2 on the broad ones.
+R4b, the first wash, sat right at the census bar (−0.50k PD); its masked
+`4NT` was sometimes an accidental obstruction that pushed them overboard, so
+the census over-stated it. Rows at the bar are coin flips — price the next
+ones against ~1k PD, not 0.5k.
 
 ## Per-rail runbook
 

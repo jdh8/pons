@@ -49,7 +49,7 @@ use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
 use super::instinct::{
-    competitive_gate, forced, new_suit_gate, their_2nt_gate, their_contract_gate,
+    competitive_gate, forced, new_suit_gate, silent_cue_gate, their_2nt_gate, their_contract_gate,
 };
 use super::trie::Classifier;
 use super::{features, neural};
@@ -122,6 +122,7 @@ impl Classifier for ConfiguredFloorBba {
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, context);
+        silent_cue_gate(&mut logits, hand, context);
         logits
     }
 }
@@ -174,6 +175,7 @@ impl Classifier for ConfiguredFloorV6 {
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, context);
+        silent_cue_gate(&mut logits, hand, context);
         logits
     }
 }

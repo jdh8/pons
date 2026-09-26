@@ -88,6 +88,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F). Trace
   and history: `docs/defensive-overcalls.md` §O4-vul,
   `docs/ben-gap-campaign.md` Phase 2.
+- **The silent-cue rail (`InstinctProfile::silent_cue_veto`), opt-in —
+  measured a loss**: with both opponents having bid and our side only
+  passing, the learned floor may not cue their suit at the 2- or 3-level on
+  8 HCP or fewer. Against BBA, 204,800 boards per vul, SEED_BASE 1790407171:
+  plain DD **−0.0037 ± 0.0021** / −0.0009 ± 0.0025, PD −0.0011 ± 0.0023 /
+  +0.0028 ± 0.0028 IMPs/board (none/both); single-dummy plain −0.0050 ±
+  0.0022 / −0.0021. Fires on 0.36–0.38% of boards. The generalisation of the
+  floor-rail series' R5 row (junk `2♠` over their `1♠ - 2♦`); the net spends
+  the masked mass on other junk, and a cue of responder's suit is often
+  natural. Default off; `bba-gen --ns-silent-cue-veto`,
+  `scripts/ab-silent-cue-veto.sh`.
+- **The unusual-4NT rail over their `2NT`
+  (`InstinctProfile::their_2nt_unusual_veto`), opt-in — measured a wash**:
+  the 3NT rail's unusual-`4NT` arm one level down (our silent side's `4NT`
+  over their `2NT` needs two five-card suits). Against BBA, 204,800 boards per
+  vul, SEED_BASE 1790406670: plain DD +0.0003 ± 0.0006 / +0.0000 ± 0.0007, PD
+  +0.0003 ± 0.0006 / +0.0000 ± 0.0008 IMPs/board (none/both), single-dummy
+  alike; fires on 0.02% of boards. Priced at −0.50k PD by the R4 trace, right
+  at the census bar; the masked `4NT` sometimes obstructed them into a bad
+  five-level contract, which the census never priced. Default off;
+  `bba-gen --ns-2nt-unusual-veto`, `scripts/ab-2nt-unusual-veto.sh`.
 - **The game-pull rail (`InstinctProfile::their_game_pull_veto`), shipped
   default on**: when the opponents' last bid is a game (`4♥`, `4♠`, `5♣`,
   `5♦`) and our side has made no bid, the learned floor may not bid a suit

@@ -811,3 +811,88 @@ fn the_their_contract_gate_masks_the_short_game_pull() {
         "a five-card suit is outside the rail"
     );
 }
+
+/// The unusual-`4NT` arm over their `2NT` masks a junk `4NT` and spares a
+/// two-suiter
+///
+/// `2♥ - 2NT` to `762.96.9.KT98652`: knob-off `4NT` is live, knob-on it is
+/// masked while `Pass` and `3♣` survive.  A 5-5 hand keeps `4NT`.
+#[test]
+fn the_their_contract_gate_masks_the_junk_4nt_over_2nt() {
+    let pass = Call::Pass;
+    let ogust = [call(2, Strain::Hearts), pass, call(2, Strain::Notrump)];
+    let nt4 = call(4, Strain::Notrump);
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.their_2nt_unusual_veto,
+        "the rail ships default off"
+    );
+    let off = shelled_v6_with(&agreements, &ogust, "762.96.9.KT98652");
+    assert!(off.0[nt4].is_finite(), "knob-off leaves the net alone");
+
+    agreements.decision.instinct.their_2nt_unusual_veto = true;
+    let on = shelled_v6_with(&agreements, &ogust, "762.96.9.KT98652");
+    assert_eq!(on.0[nt4], f32::NEG_INFINITY, "the junk 4NT is masked");
+    assert!(on.0[Call::Pass].is_finite());
+    assert!(on.0[call(3, Strain::Clubs)].is_finite());
+
+    let two_suiter = shelled_v6_with(&agreements, &ogust, "7.96.KJ975.QT984");
+    assert!(
+        two_suiter.0[nt4].is_finite(),
+        "a 5-5 hand is outside the rail"
+    );
+}
+
+/// The silent-cue rail masks a junk cue of their suit once both opponents
+/// have bid, and nothing else
+///
+/// `- 1♠ - 2♦` to `65.Q9765.J6.KT74` (6 HCP): knob-off `2♠` is live, knob-on
+/// `2♠`, `3♦` and `3♠` are masked while `Pass`, `X` and the new suit `2♥`
+/// survive.  A 12-count keeps its cue, and so does a hand over a lone opening.
+#[test]
+fn the_silent_cue_gate_masks_the_junk_cue() {
+    let pass = Call::Pass;
+    let two_over_one = [
+        pass,
+        call(1, Strain::Spades),
+        pass,
+        call(2, Strain::Diamonds),
+    ];
+    let two_spades = call(2, Strain::Spades);
+    let junk = "65.Q9765.J6.KT74";
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.silent_cue_veto,
+        "the rail ships default off"
+    );
+    let off = shelled_v6_with(&agreements, &two_over_one, junk);
+    assert!(
+        off.0[two_spades].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.silent_cue_veto = true;
+    let on = shelled_v6_with(&agreements, &two_over_one, junk);
+    for cue in [
+        two_spades,
+        call(3, Strain::Diamonds),
+        call(3, Strain::Spades),
+    ] {
+        assert_eq!(on.0[cue], f32::NEG_INFINITY, "{cue} is masked");
+    }
+    assert!(on.0[Call::Pass].is_finite());
+    assert!(on.0[Call::Double].is_finite());
+    assert!(on.0[call(2, Strain::Hearts)].is_finite());
+
+    let values = shelled_v6_with(&agreements, &two_over_one, "65.AQ976.K6.KT74");
+    assert!(
+        values.0[two_spades].is_finite(),
+        "a 12-count is outside the rail"
+    );
+
+    let lone = shelled_v6_with(&agreements, &[call(1, Strain::Spades)], junk);
+    assert!(
+        lone.0[two_spades].is_finite(),
+        "one opponent bidding is outside the rail"
+    );
+}

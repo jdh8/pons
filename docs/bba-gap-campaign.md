@@ -343,7 +343,8 @@ In bucket order; each item is its own fresh-seed A/B per
    −0.6k / −1.1k; traced 2026-09-26 — its Smolen `4♥` pulled to `4♠` is the
    `their_game_pull_veto` rail, shipped default on: +0.0016/+0.0031 plain,
    +0.0026/+0.0048 PD; see [floor-rail-campaign.md](floor-rail-campaign.md)), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
-   −0.7k). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
+   −0.7k; generalised as `silent_cue_veto`, measured a loss 2026-09-26 — the
+   series now owes its re-census, see [floor-rail-campaign.md](floor-rail-campaign.md)). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
    A/B at a time. Trace on the shipping arm; author parametrically (suit loops +
    context predicates, never a node per sequence), one `set_*` knob + `bba-gen`
    flag; PD is the honest scorer.

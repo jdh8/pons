@@ -615,6 +615,43 @@ pub struct InstinctProfile {
     /// gain, hence the cut.  The game sibling of
     /// [`their_3nt_pull_veto`][Self::their_3nt_pull_veto], sharing its gate.
     pub their_game_pull_veto: bool,
+
+    /// Also veto a floored `4NT` over **their `2NT`** unless we hold two
+    /// five-card suits — [`their_3nt_unusual_veto`][Self::their_3nt_unusual_veto]
+    /// one level down
+    ///
+    /// **Default off** — measured a wash 2026-09-26 (plain DD +0.0003/+0.0000,
+    /// PD +0.0003/+0.0000 IMPs/board none/both, every CI covering zero,
+    /// single-dummy alike; 204,800 bd/vul, SEED_BASE 1790406670,
+    /// `scripts/ab-2nt-unusual-veto.sh`), firing on 0.02% of boards: the
+    /// masked `4NT` was sometimes an accidental obstruction.  Found by
+    /// the R4 trace of the 2026-09-20 shipping-arm decompose (`c3bb94a7`): the
+    /// v6 floor jumps to `4NT` over their `1♠ - 2NT` or `2M - 2NT` on a long
+    /// minor (`762.96.9.KT98652` over `2♥ - 2NT`), partner reads the minors,
+    /// and the 5-level contract goes for a number.  Priced at 123 boards,
+    /// −446 plain / −498 PD IMPs over 409.6k; BBA passed 97, and its 21 `3♣`
+    /// lost too.  Same trigger as the 3NT arm (their last bid, our side has
+    /// made no bid), independent of it.
+    pub their_2nt_unusual_veto: bool,
+
+    /// Veto a floored two- or three-level **cue of their suit** on 8 HCP or
+    /// fewer, by a side that has only passed after both opponents have bid
+    ///
+    /// **Default off** — measured a loss 2026-09-26 (plain DD −0.0037/−0.0009,
+    /// PD −0.0011/+0.0028 IMPs/board none/both; the none plain cell and its
+    /// single-dummy twin −0.0050 are significant; 204,800 bd/vul, SEED_BASE
+    /// 1790407171, `scripts/ab-silent-cue-veto.sh`), firing on 0.36–0.38% of
+    /// boards.  The masked mass flows to other junk (a doubled `3NT`), and a
+    /// cue of *responder's* suit is often natural (`1♦ - 1♠` `2♠` on five) —
+    /// the gate reads no length.  Found by
+    /// the R5 trace of the 2026-09-20 shipping-arm decompose (`c3bb94a7`):
+    /// over their 2/1 `1♠ - 2♦` the v6 floor cues `2♠` on junk
+    /// (`65.Q9765.J6.KT74`), and the same shape recurs over `1♠ - 2♣`,
+    /// `1♥ - 1♠ - 2♥` and Stayman.  Priced at 1,376 boards, −1,343 plain /
+    /// −2,391 PD IMPs over 409.6k with BBA passing; on 8 HCP or fewer BBA
+    /// matched our cue on 33 boards and passed or did something else on 2,471,
+    /// while above it the cue is often BBA's call too — hence the HCP cut.
+    pub silent_cue_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -659,6 +696,8 @@ impl Default for InstinctProfile {
             their_2nt_double_veto: true,
             their_3nt_unusual_veto: true,
             their_game_pull_veto: true,
+            their_2nt_unusual_veto: false,
+            silent_cue_veto: false,
         }
     }
 }
@@ -707,6 +746,8 @@ impl InstinctProfile {
             their_2nt_double_veto: false,
             their_3nt_unusual_veto: false,
             their_game_pull_veto: false,
+            their_2nt_unusual_veto: true,
+            silent_cue_veto: true,
         }
     }
 }
@@ -3887,12 +3928,15 @@ pub fn new_suit_counts() -> [u64; 2] {
 /// or `5♦`, four cards or fewer.  Longer suits, notrump, `X` and `Pass` are
 /// untouched, so a distribution always survives.  With
 /// [`their_3nt_unusual_veto`][InstinctProfile::their_3nt_unusual_veto] `4NT`
-/// over `3NT` is masked too unless we hold two five-card suits.
+/// over `3NT` is masked too unless we hold two five-card suits, and with
+/// [`their_2nt_unusual_veto`][InstinctProfile::their_2nt_unusual_veto] the
+/// same over `2NT`.
 pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
     let profile = pinned(context);
     if !profile.their_3nt_pull_veto
         && !profile.their_3nt_unusual_veto
         && !profile.their_game_pull_veto
+        && !profile.their_2nt_unusual_veto
     {
         return;
     }
@@ -3936,10 +3980,12 @@ pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Con
             }
         }
     }
-    if profile.their_3nt_unusual_veto
-        && bid == Bid::new(3, Strain::Notrump)
-        && Suit::ASC.iter().filter(|&&s| hand[s].len() >= 5).count() < 2
-    {
+    let unusual = match (bid.level.get(), bid.strain) {
+        (3, Strain::Notrump) => profile.their_3nt_unusual_veto,
+        (2, Strain::Notrump) => profile.their_2nt_unusual_veto,
+        _ => false,
+    };
+    if unusual && Suit::ASC.iter().filter(|&&s| hand[s].len() >= 5).count() < 2 {
         logits[Call::Bid(Bid::new(4, Strain::Notrump))] = f32::NEG_INFINITY;
     }
 }
@@ -3968,6 +4014,57 @@ pub(crate) fn their_2nt_gate(logits: &mut Logits, context: &Context<'_>) {
         .all(|c| *c == Call::Pass);
     if theirs && auction[first] == Call::Bid(Bid::new(2, Strain::Notrump)) && we_silent {
         logits[Call::Double] = f32::NEG_INFINITY;
+    }
+}
+
+/// Mask our silent side's junk cue of their suit — the
+/// [`silent_cue_veto`][InstinctProfile::silent_cue_veto] stage of the learned
+/// floor
+///
+/// Fires only when both opponents have bid and every call our side has made
+/// is a pass, and we hold 8 HCP or fewer.  Then every two- or three-level bid
+/// in a suit either opponent has bid is masked; `Pass`, `X`, notrump and new
+/// suits are untouched, so a distribution always survives.
+pub(crate) fn silent_cue_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    if !pinned(context).silent_cue_veto || raw_hcp(hand) > 8 {
+        return;
+    }
+    let auction = context.auction();
+    // Our calls sit an even distance back from the call about to be made,
+    // RHO's at 1 mod 4 and LHO's at 3 mod 4.
+    let mut calls = auction.iter().rev().enumerate();
+    let mut theirs = 0_u8;
+    let (mut rho, mut lho) = (false, false);
+    for (distance, call) in &mut calls {
+        let distance = distance + 1;
+        if distance.is_multiple_of(2) {
+            if *call != Call::Pass {
+                return;
+            }
+        } else if let Call::Bid(bid) = call {
+            if distance % 4 == 1 {
+                rho = true;
+            } else {
+                lho = true;
+            }
+            if let Some(suit) = bid.strain.suit() {
+                theirs |= 1 << suit as u8;
+            }
+        }
+    }
+    if !(rho && lho) {
+        return;
+    }
+    for (call, logit) in logits.iter_mut() {
+        if let Call::Bid(bid) = call
+            && matches!(bid.level.get(), 2 | 3)
+            && bid
+                .strain
+                .suit()
+                .is_some_and(|suit| theirs & 1 << suit as u8 != 0)
+        {
+            *logit = f32::NEG_INFINITY;
+        }
     }
 }
 
