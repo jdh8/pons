@@ -616,6 +616,20 @@ pub struct InstinctProfile {
     /// [`their_3nt_pull_veto`][Self::their_3nt_pull_veto], sharing its gate.
     pub their_game_pull_veto: bool,
 
+    /// Spare **their artificial game** from
+    /// [`their_game_pull_veto`][Self::their_game_pull_veto]: when the game bid
+    /// is alerted by the table-alert reading and promises fewer than three
+    /// cards in its strain (a keycard reply, a cue, a Texas transfer — not a
+    /// completion, which shows support), the rail stands aside and the net
+    /// decides
+    ///
+    /// **Default off** — measurement owed.  The shipped rail reads the level,
+    /// not the meaning: its worst A/B boards (SEED_BASE 1790405692) are their
+    /// artificial `5♣`/`5♦` where our masked junk sacrifice had happened to
+    /// stop their slam.  Needs [`table_alerts`][crate::bidding::ReadingProfile::table_alerts]
+    /// on (the shipped default) to see the alert.
+    pub their_game_pull_alert_exempt: bool,
+
     /// Also veto a floored `4NT` over **their `2NT`** unless we hold two
     /// five-card suits — [`their_3nt_unusual_veto`][Self::their_3nt_unusual_veto]
     /// one level down
@@ -712,6 +726,7 @@ impl Default for InstinctProfile {
             their_2nt_double_veto: true,
             their_3nt_unusual_veto: true,
             their_game_pull_veto: true,
+            their_game_pull_alert_exempt: false,
             their_2nt_unusual_veto: false,
             silent_cue_veto: false,
             their_2nt_bid_veto: true,
@@ -763,6 +778,7 @@ impl InstinctProfile {
             their_2nt_double_veto: false,
             their_3nt_unusual_veto: false,
             their_game_pull_veto: false,
+            their_game_pull_alert_exempt: true,
             their_2nt_unusual_veto: true,
             silent_cue_veto: true,
             their_2nt_bid_veto: false,
@@ -3943,7 +3959,9 @@ pub fn new_suit_counts() -> [u64; 2] {
 /// Fires only when the opponents' last bid is `3NT` or a game and every call
 /// our side has made is a pass, double or redouble.  Over `3NT` every suit bid
 /// in a suit we hold five cards or fewer in is masked; over `4♥`, `4♠`, `5♣`
-/// or `5♦`, four cards or fewer.  Longer suits, notrump, `X` and `Pass` are
+/// or `5♦`, four cards or fewer — unless the game is artificial and
+/// [`their_game_pull_alert_exempt`][InstinctProfile::their_game_pull_alert_exempt]
+/// is on.  Longer suits, notrump, `X` and `Pass` are
 /// untouched, so a distribution always survives.  With
 /// [`their_3nt_unusual_veto`][InstinctProfile::their_3nt_unusual_veto] `4NT`
 /// over `3NT` is masked too unless we hold two five-card suits, and with
@@ -3980,7 +3998,9 @@ pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Con
     let pull_max = match (bid.level.get(), bid.strain) {
         (3, Strain::Notrump) if profile.their_3nt_pull_veto => Some(5),
         (4, Strain::Hearts | Strain::Spades) | (5, Strain::Clubs | Strain::Diamonds)
-            if profile.their_game_pull_veto =>
+            if profile.their_game_pull_veto
+                && !(profile.their_game_pull_alert_exempt
+                    && artificial_game(context, last, bid)) =>
         {
             Some(4)
         }
@@ -4006,6 +4026,22 @@ pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Con
     if unusual && Suit::ASC.iter().filter(|&&s| hand[s].len() >= 5).count() < 2 {
         logits[Call::Bid(Bid::new(4, Strain::Notrump))] = f32::NEG_INFINITY;
     }
+}
+
+/// Whether the game bid at `index` is a code, not a contract: alerted, and
+/// promising fewer than three cards in its own strain
+///
+/// The length clause keeps the `COMPLETION` family — a transfer or Smolen
+/// completion is alerted but shows support, so it is a contract.  A keycard
+/// reply, a cue or a Texas transfer promises nothing in the named suit.
+fn artificial_game(context: &Context<'_>, index: usize, bid: Bid) -> bool {
+    let inferences = context.inferences();
+    inferences.call_artificial(index)
+        && bid.strain.suit().is_some_and(|suit| {
+            inferences
+                .call_union(index)
+                .is_none_or(|union| union.hull().length(suit).min < 3)
+        })
 }
 
 /// Mask our silent side's double of their `2NT` opening auction — the

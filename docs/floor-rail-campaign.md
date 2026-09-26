@@ -97,7 +97,9 @@ Priced at `c3bb94a7`, in order:
   `their_contract_gate`; `scripts/ab-game-pull-veto.sh`. Its worst A/B
   boards are their *artificial* `5♣`/`5♦` (a keycard reply, a cue) where our
   masked junk sacrifice had happened to stop their slam — the rail reads the
-  level, not the meaning, and wins anyway.
+  level, not the meaning, and wins anyway. The meaning-reading variant is
+  built as `their_game_pull_alert_exempt` (default off, A/B owed,
+  `scripts/ab-game-pull-alert-exempt.sh`).
 - `2♥ - 2NT` then our `3♣` (38 bd, −410 PD) — one exact sequence, so it
   stays with the retrain (stop criterion 3).
 

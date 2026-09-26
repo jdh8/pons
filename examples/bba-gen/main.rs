@@ -544,6 +544,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_game_pull_veto: bool,
 
+    /// Turn ON the game-pull rail's alert exemption: their alerted game bid
+    /// (a keycard reply, a cue) is left to the net
+    /// (`InstinctProfile::their_game_pull_alert_exempt`, crate default off).
+    /// The `on` arm of `scripts/ab-game-pull-alert-exempt.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_game_pull_alert_exempt: bool,
+
     /// Turn ON the rail that vetoes our silent side's `4NT` over their `2NT`
     /// without two five-card suits (`InstinctProfile::their_2nt_unusual_veto`,
     /// crate default off).  The `on` arm of `scripts/ab-2nt-unusual-veto.sh`.
@@ -2528,6 +2535,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.their_2nt_double_veto = !args.no_ns_2nt_double_veto;
     agreements.decision.instinct.their_3nt_unusual_veto = !args.no_ns_3nt_unusual_veto;
     agreements.decision.instinct.their_game_pull_veto = !args.no_ns_game_pull_veto;
+    agreements.decision.instinct.their_game_pull_alert_exempt = args.ns_game_pull_alert_exempt;
     agreements.decision.instinct.their_2nt_unusual_veto = args.ns_2nt_unusual_veto;
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
