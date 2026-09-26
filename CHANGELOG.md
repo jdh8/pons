@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The game-pull rail's code exemption
-  (`InstinctProfile::their_game_pull_alert_exempt`), default off, A/B
-  owed**: the shipped game-pull rail stands aside when their game bid is a
-  code — alerted by the table-alert reading and promising fewer than three
-  cards in its strain (a keycard reply, a cue). Completions (alerted under
-  `completion_alerts` but showing support) stay masked. Aims at the shipped
-  rail's worst A/B boards, their artificial `5♣`/`5♦` where a junk sacrifice
-  had stopped their slam. Default system byte-identical;
-  `bba-gen --ns-game-pull-alert-exempt`, `scripts/ab-game-pull-alert-exempt.sh`.
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named
   only through alerted calls; whether the last bid and partner's last bid were

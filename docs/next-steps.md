@@ -147,8 +147,9 @@ group waits on that decision, the second group does not.
 - The game-pull rail reads their bid's level, not its meaning: its worst A/B
   boards are their artificial `5♣`/`5♦` (keycard replies, cues). An
   alert-exempt variant is one small A/B; the shipped rail wins without it.
-  **Built 2026-09-26** as `their_game_pull_alert_exempt` (default off; a
-  "code" is alerted *and* promises < 3 cards in the strain, since
-  `completion_alerts` alerts Smolen/transfer completions too) — run
-  `scripts/ab-game-pull-alert-exempt.sh`.
+  **Closed 2026-09-26**: built as `their_game_pull_alert_exempt` (a "code"
+  is alerted *and* promises < 3 cards in the strain, since
+  `completion_alerts` alerts Smolen/transfer completions too); fires on 1
+  board in 204.8k and loses it — code dropped (`83989dd4`). The
+  level-reading rail is right.
 

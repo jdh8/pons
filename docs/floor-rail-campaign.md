@@ -97,9 +97,13 @@ Priced at `c3bb94a7`, in order:
   `their_contract_gate`; `scripts/ab-game-pull-veto.sh`. Its worst A/B
   boards are their *artificial* `5♣`/`5♦` (a keycard reply, a cue) where our
   masked junk sacrifice had happened to stop their slam — the rail reads the
-  level, not the meaning, and wins anyway. The meaning-reading variant is
-  built as `their_game_pull_alert_exempt` (default off, A/B owed,
-  `scripts/ab-game-pull-alert-exempt.sh`).
+  level, not the meaning, and wins anyway. The meaning-reading variant,
+  `their_game_pull_alert_exempt`, is inert (1 board in 204.8k, lost) and its
+  code is dropped — ledger below. A "code" there was alerted *and* promising
+  fewer than three cards in its strain, because `completion_alerts` alerts
+  the Smolen landing too; over their Jacoby keycard
+  `1♠ - 2NT - 4♠ - 4NT - 5♣` the net sacrificed `5♦` on three diamonds and
+  went for 1100 where the rail's `X` led to their `6♠`.
 - `2♥ - 2NT` then our `3♣` (38 bd, −410 PD) — one exact sequence, so it
   stays with the retrain (stop criterion 3).
 
@@ -151,6 +155,7 @@ CHANGELOG):
 | unusual-4NT veto | `their_3nt_unusual_veto` | 2026-09-25 `56ecccdd` | +0.0035/+0.0045 | +0.0041/+0.0053 | 0.03–0.04% | 1790324543 |
 | game-pull veto (R4) | `their_game_pull_veto` | 2026-09-26 | +0.0016/+0.0031 | +0.0026/+0.0048 | 0.03–0.05% | 1790405692 |
 | 2NT-bid veto (R7) | `their_2nt_bid_veto` | 2026-09-26 | +0.0010/+0.0011 | +0.0020/+0.0021 | 0.05% | 1790409954 |
+| *(inert)* game-pull code exemption | `their_game_pull_alert_exempt` (dropped, `83989dd4`) | **off** 2026-09-26 | −0.0001/−0.0001 | −0.0001/−0.0001 | 1 bd | 1790419919 |
 | *(wash)* unusual-4NT over `2NT` (R4b) | `their_2nt_unusual_veto` | **off** 2026-09-26 | +0.0003/+0.0000 | +0.0003/+0.0000 | 0.02% | 1790406670 |
 | *(loss)* silent cue (R5) | `silent_cue_veto` | **off** 2026-09-26 | −0.0037/−0.0009 | −0.0011/+0.0028 | 0.36–0.38% | 1790407171 |
 | *(predecessor)* new-suit veto | `new_suit_veto` | refuted in aggregate, **off** | — | — | — | see [new-suit-veto.md](ai-bidder/new-suit-veto.md) |
