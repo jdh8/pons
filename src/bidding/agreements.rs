@@ -3961,6 +3961,22 @@ pub struct RebidKnobs {
     /// continuations — the seam between the minimum natural rebids and the 18+
     /// game force ([`meckstroth_adjunct`][Self::meckstroth_adjunct]).
     pub forcing_nt_two_suiter: bool,
+    // --- rebids/jump_shifts.rs
+    /// Natural strong jump shifts over the forcing `1NT` instead of Meckstroth
+    ///
+    /// **Default off** — measured a wash against the shipped Meckstroth `2NT`
+    /// (`ab-meckstroth-2nt --jump-shifts`, 400k/vul × 2 seeds: SD-PD
+    /// +0.0011/+0.0006 NV, +0.0003/−0.0005 vul, all within CI).  Ignored
+    /// while [`meckstroth_adjunct`][Self::meckstroth_adjunct] is on — the two
+    /// are rival designs for the same 18+ seam.  With Meckstroth off and this
+    /// on, opener's 18+ rebids after `1M - 1NT` become: `2NT` = 18+ balanced
+    /// (uncapped), `3x` = natural jump shift (4+ cards, 18+, game-forcing),
+    /// `3NT!` = 18+ with a 6+ card major and no side suit.  The
+    /// [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter] `1♠ - 1NT - 3♥`
+    /// leg is displaced (that call is now the 18+ jump shift; the 5-5 15–17
+    /// rebids `2♥` and invites with a delayed `3♥`); its `1♥ - 1NT - 2♠`
+    /// reverse stays.
+    pub forcing_nt_jump_shifts: bool,
     // --- xyz.rs
     /// Let opener judge the checkback invitation rather than falling to the floor
     ///
@@ -3997,6 +4013,7 @@ impl Default for RebidKnobs {
             meckstroth_adjunct: true,
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
+            forcing_nt_jump_shifts: false,
             xyz_invite_judgment: true,
             new_minor_forcing: false,
         }

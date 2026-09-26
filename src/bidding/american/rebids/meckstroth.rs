@@ -250,7 +250,7 @@ fn resp_place_over_minor(major: Suit) -> Rules {
 ///
 /// Responder agreed the major with slam interest; opener asks keycards on a
 /// clear maximum, else signs off in game.
-fn opener_over_fit_slamtry(major: Suit) -> Rules {
+pub(super) fn opener_over_fit_slamtry(major: Suit) -> Rules {
     let m = Strain::from(major);
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 130, points(20..))
@@ -264,7 +264,7 @@ fn opener_over_fit_slamtry(major: Suit) -> Rules {
 /// six-card own major, else places `3NT` (the guaranteed-legal game).
 // ponytail: no diamond-slam exploration — a diamond fit lands in 3NT (game
 // reached); add a 4♦ slam-try rung if the A/B shows stranded minor slams.
-fn opener_over_resp_red(major: Suit, red: Suit) -> Rules {
+pub(super) fn opener_over_resp_red(major: Suit, red: Suit) -> Rules {
     let mut rules = Rules::new();
     if red == Suit::Hearts {
         rules = rules.rule(Bid::new(4, Strain::Hearts), 130, len(Suit::Hearts, 3..));

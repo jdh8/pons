@@ -2614,3 +2614,39 @@ fn watermelon_overlays_do_not_read_their_calls() {
         );
     }
 }
+
+/// The forcing-NT jump-shift package: the natural `3x` reads as its suit and
+/// 18+, and the alerted `3NT!` reads as six-plus of opener's major, not as a
+/// notrump hand.
+#[test]
+fn forcing_nt_jump_shift_readings() {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.meckstroth_adjunct = false;
+    agreements.rebid.forcing_nt_jump_shifts = true;
+    let base = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(1, Strain::Notrump),
+        Call::Pass,
+    ];
+
+    let mut auction = base.to_vec();
+    auction.extend([bid(3, Strain::Clubs), Call::Pass]);
+    let shift = read_booked_with(&agreements, &auction)
+        .call_union(4)
+        .expect("the jump shift is authored")
+        .hull();
+    assert_eq!(shift.length(Suit::Clubs).min, 4);
+    assert_eq!(shift.strength.points.min, 18);
+
+    let mut auction = base.to_vec();
+    auction.extend([bid(3, Strain::Notrump), Call::Pass]);
+    let reading = read_booked_with(&agreements, &auction);
+    assert!(reading.call_artificial(4));
+    let long = reading
+        .call_union(4)
+        .expect("the long-major 3NT is authored")
+        .hull();
+    assert_eq!(long.length(Suit::Spades).min, 6);
+    assert_eq!(long.strength.points.min, 18);
+}

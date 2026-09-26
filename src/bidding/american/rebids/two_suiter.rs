@@ -32,6 +32,11 @@ pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit, knobs: &Rebi
     if !knobs.forcing_nt_two_suiter {
         return rules;
     }
+    // Under the natural jump shifts `1♠ - 1NT - 3♥` is the 18+ jump shift;
+    // only the `1♥ - 1NT - 2♠` reverse survives.
+    if major == Suit::Spades && forcing_nt_jump_shifts_on(knobs) {
+        return rules;
+    }
     match major {
         Suit::Hearts => rules
             .rule(
@@ -95,7 +100,7 @@ fn responder_over_forcing_nt_reverse() -> Rules {
 /// | 3NT  | 1.2 | Values, no three-card fit — to play |
 /// | 3♠   | 1.0 | Spade preference, decline (minimum) |
 /// | Pass | 0.0 | Heart tolerance, decline — play `3♥` |
-fn responder_over_forcing_nt_5_5() -> Rules {
+pub(super) fn responder_over_forcing_nt_5_5() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
@@ -117,15 +122,17 @@ pub(crate) fn forcing_nt_two_suiter_continuations() -> Package {
     Package {
         name: "forcing-nt-two-suiter-continuations",
         gate: |a| a.rebid.forcing_nt_two_suiter,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = rows_of(
                 Pattern::node("P* 1♥ - 1NT - 2♠ -"),
                 responder_over_forcing_nt_reverse(),
             );
-            entries.extend(rows_of(
-                Pattern::node("P* 1♠ - 1NT - 3♥ -"),
-                responder_over_forcing_nt_5_5(),
-            ));
+            if !forcing_nt_jump_shifts_on(&agreements.rebid) {
+                entries.extend(rows_of(
+                    Pattern::node("P* 1♠ - 1NT - 3♥ -"),
+                    responder_over_forcing_nt_5_5(),
+                ));
+            }
             entries
         },
     }

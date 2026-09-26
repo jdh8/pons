@@ -72,6 +72,29 @@ struct Args {
     /// artificial 18+ `2NT` game force and drops only the jumps
     #[arg(long, default_value_t = false)]
     minor_jumps_only: bool,
+    /// Price the natural strong jump shifts against the shipped Meckstroth
+    /// `2NT`: arm 0 = the shipped default (the adjunct), arm 1 = the adjunct
+    /// off and `forcing_nt_jump_shifts` on.  Positive favors the jump shifts.
+    #[arg(long, default_value_t = false, conflicts_with = "minor_jumps_only")]
+    jump_shifts: bool,
+    /// Trace: print the N worst divergent boards (plain DD) for the treatment
+    /// arm, and a bucket count keyed by opener's rebid in each arm
+    #[arg(long, default_value_t = 0)]
+    worst: usize,
+}
+
+/// Opener's rebid over the forcing `1NT` (the call two after the first `1NT`),
+/// or `"-"` when the auction never got there.
+fn opener_rebid(auction: &Auction) -> String {
+    let one_nt = contract_bridge::auction::Call::Bid(contract_bridge::Bid::new(
+        1,
+        contract_bridge::Strain::Notrump,
+    ));
+    auction
+        .iter()
+        .position(|&c| c == one_nt)
+        .and_then(|i| auction.get(i + 2))
+        .map_or_else(|| "-".to_owned(), ToString::to_string)
 }
 
 /// One board's two arms: each arm's uncontested auction and its final contract.
@@ -111,13 +134,20 @@ fn main() {
     // force (so only the jumps move); without it the baseline drops the whole
     // adjunct.  An inverted `!` here silently re-ran the merged A/B instead —
     // the tell was divergence landing on the merged knob's 0.6%.
+    // With --jump-shifts the baseline is the shipped default and the treatment
+    // swaps the adjunct for the natural jump shifts.
     let mut base = Agreements::default();
-    base.rebid.meckstroth_adjunct = args.minor_jumps_only;
-    base.rebid.meckstroth_minor_jumps = false;
-    let baseline = american(&base).bind();
-    // Both halves on (the jumps are opt-in since 2026-09-26).
     let mut on = Agreements::default();
-    on.rebid.meckstroth_minor_jumps = true;
+    if args.jump_shifts {
+        on.rebid.meckstroth_adjunct = false;
+        on.rebid.forcing_nt_jump_shifts = true;
+    } else {
+        base.rebid.meckstroth_adjunct = args.minor_jumps_only;
+        base.rebid.meckstroth_minor_jumps = false;
+        // Both halves on (the jumps are opt-in since 2026-09-26).
+        on.rebid.meckstroth_minor_jumps = true;
+    }
+    let baseline = american(&base).bind();
     let adjunct = american(&on).bind();
     let partnerships = [baseline, adjunct];
 
@@ -154,11 +184,21 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     let mut pd_imps = 0i64;
+    let mut swings: Vec<(i64, usize)> = Vec::new();
+    let mut buckets: std::collections::BTreeMap<(String, String), (usize, i64)> =
+        std::collections::BTreeMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
         let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += adj - base;
         total_imps += imps(adj - base);
+        if args.worst > 0 {
+            swings.push((imps(adj - base), i));
+            let key = (opener_rebid(&bids[i][0].0), opener_rebid(&bids[i][1].0));
+            let bucket = buckets.entry(key).or_default();
+            bucket.0 += 1;
+            bucket.1 += imps(adj - base);
+        }
         // Perfect-defense read from the same tables — opponents are silenced, so
         // this only ever adds a double to a contract that fails DD (no doubling
         // artifact possible here); plain-DD stays the gate, PD is confirmation.
@@ -167,6 +207,12 @@ fn main() {
         pd_imps += imps(pd_adj - pd_base);
     }
 
+    // The treatment arm's name in the report: positive favors it.
+    let arm = if args.jump_shifts {
+        "jump shifts (vs Meckstroth)"
+    } else {
+        "GF 2NT"
+    };
     println!(
         "=== Meckstroth-2NT A/B: {} boards, vulnerability {} ===",
         args.count, args.vulnerability,
@@ -179,13 +225,29 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "GF 2NT: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board plain)",
+        "{arm}: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board plain)",
         total_imps as f64 / args.count.max(1) as f64,
     );
     println!(
         "        {pd_imps:+} IMPs ({:+.3} IMPs/board PD)",
         pd_imps as f64 / args.count.max(1) as f64,
     );
+    if args.worst > 0 {
+        println!("\nBuckets by opener's rebid (arm0 -> arm1): boards, IMPs (plain)");
+        let mut rows: Vec<_> = buckets.into_iter().collect();
+        rows.sort_by_key(|(_, (_, imps))| *imps);
+        for ((a, b), (n, imps)) in rows {
+            println!("  {a:>4} -> {b:<4} {n:5} {imps:+6}");
+        }
+        swings.sort_unstable();
+        for &(swing, i) in swings.iter().take(args.worst) {
+            let dealer = Seat::ALL[i % 4];
+            println!(
+                "\n--- board {i} dealer {dealer:?} swing {swing:+} IMPs\n{}\narm0: {}  -> {:?}\narm1: {}  -> {:?}",
+                deals[i], bids[i][0].0, contracts[i][0], bids[i][1].0, contracts[i][1],
+            );
+        }
+    }
 
     if args.sd {
         // Blind-lead pass: on each divergent board both arms' auctions are read
@@ -231,7 +293,7 @@ fn main() {
             }
         }
         report_sd_brackets(
-            "sd-lead GF 2NT",
+            &format!("sd-lead {arm}"),
             args.sd_worlds,
             args.sd_seed,
             &on_score,

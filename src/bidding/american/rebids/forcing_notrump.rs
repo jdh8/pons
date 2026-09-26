@@ -5,6 +5,7 @@
 //! [`super::meckstroth`]), not a Meckstroth `3m` jump, and not an invitational
 //! two-suiter.  Always on — this is the base structure the adjuncts overlay.
 
+use super::jump_shifts::is_forcing_nt_jump_shift;
 use super::meckstroth::is_invitational_minor_jump;
 use super::two_suiter::is_forcing_nt_two_suiter;
 use super::*;
@@ -54,7 +55,7 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
 /// balanced rebid's continuations live in the notrump module) and NOT a
 /// Meckstroth `3m` jump (handled by
 /// [`invitational_minor_continuations`](super::invitational_minor_continuations)),
-/// authors responder's table at `1M - 1NT - rebid -` and opener's acceptances at
+/// nor a two-suiter or jump-shift rung (each has its own package), authors responder's table at `1M - 1NT - rebid -` and opener's acceptances at
 /// `1M - 1NT - rebid - 2NT -` and `1M - 1NT - rebid - 3M -`.
 pub(crate) fn forcing_notrump_continuations() -> Package {
     Package {
@@ -74,6 +75,7 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                     if rebid != call(2, Strain::Notrump)
                         && !is_invitational_minor_jump(rebid)
                         && !is_forcing_nt_two_suiter(major, rebid)
+                        && !is_forcing_nt_jump_shift(major, rebid)
                         && !seen.contains(&rebid)
                     {
                         seen.push(rebid);

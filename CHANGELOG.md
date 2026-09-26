@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Natural strong jump shifts over the forcing `1NT` (2026-09-27)** — the
+  rival to the Meckstroth `2NT`, behind `RebidKnobs::forcing_nt_jump_shifts`
+  (**default off**, inert while `meckstroth_adjunct` is on). After `1M - 1NT`
+  opener's 18+ rebids become `2NT` = 18+ balanced (uncapped), `3x` = natural
+  jump shift (4+ cards, 18+, game-forcing; a 5-5 bids the higher suit) and
+  `3NT!` = 18+ with a 6+ card major and no side suit (a 6-4 jump-shifts).
+  Both sides authored: responder's `3M` fit slam-try (opener asks keycards —
+  an 18+ opener holds them; the `4♣!` stand-in over `1♥ - 1NT - 3♠`), `4M`,
+  4-4 `4♥`, natural `3♥`, `3NT` (opener pulls on six); the same round under
+  the natural `2NT` (overriding the shared 3NT-or-pass tail); RKCB / `4M` /
+  `4♥` / pass over the `3NT!` and opener's keycard ask on 21+ over the `4M`
+  correction. The displaced `1♠ - 1NT - 3♥` two-suiter leg rebids `2♥!` and
+  invites with a delayed `3♥!` (or `4♥!` over the notrump invite). Harness:
+  `ab-meckstroth-2nt --jump-shifts` (arm 0 = shipped Meckstroth, arm 1 = the
+  jump shifts; `--worst N` traces divergent boards and buckets them by
+  opener's rebid). **Measured a wash vs the shipped Meckstroth `2NT`**
+  (400k/vul × 2 seeds, SD seeds 1790452526 / 1790452759; fires 0.15%):
+  NV plain +0.001/+0.000, PD +0.001/+0.000, SD-PD +0.0011 ±0.0009 /
+  +0.0006 ±0.0010; vul plain +0.000/−0.001, PD +0.001/−0.000, SD-PD
+  +0.0003 ±0.0012 / −0.0005 ±0.0012. The first draft lost CI-clear on every
+  bracket (SD-PD −0.0014 ±0.0011 NV / −0.0021 ±0.0014 vul); the trace found
+  the losses in responder asking keycards with few of them, the crude natural
+  `2NT` tail, and a `Pass` catch-all that shadowed the floor after the spade
+  preference (−242 IMPs on 47 boards, now an escape-hatch fall-through).
+  Stays opt-in; the default book is byte-identical.
+
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named
   only through alerted calls; whether the last bid and partner's last bid were

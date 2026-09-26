@@ -471,3 +471,66 @@ fn responder_declines_the_five_five_jump_with_a_minimum() {
         call(3, Strain::Spades),
     );
 }
+
+// ---------------------------------------------------------------------------
+// Natural strong jump shifts (the Meckstroth rival, opt-in): 1♠ - 1NT - 3x / 3NT!
+// ---------------------------------------------------------------------------
+
+/// The 2/1 pair with Meckstroth off and the natural jump shifts on
+fn jump_shifts_partnership() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.meckstroth_adjunct = false;
+    agreements.rebid.forcing_nt_jump_shifts = true;
+    american(&agreements).bind()
+}
+
+#[test]
+fn jump_shift_auction_runs_through_the_real_stance() {
+    // Opener AKJ98.A3.K2.AQ76 (19 HCP, 5♠4♣) jump-shifts 3♣; responder
+    // 3.J432.9652.J432 has a singleton spade and no five-card heart suit, so
+    // it bids 3NT; opener passes it (no sixth spade to pull with).
+    let system = jump_shifts_partnership();
+    let three_c = call(3, Strain::Clubs);
+    let three_nt = call(3, Strain::Notrump);
+    assert_eq!(
+        best_call(&system, &after_1s_1nt(), "AKJ98.A3.K2.AQ76"),
+        three_c
+    );
+    assert_eq!(
+        best_call(&system, &after_1s_1nt_then(&[three_c]), "3.J432.9652.J432"),
+        three_nt,
+    );
+    assert_eq!(
+        best_call(
+            &system,
+            &after_1s_1nt_then(&[three_c, three_nt]),
+            "AKJ98.A3.K2.AQ76"
+        ),
+        Call::Pass,
+    );
+}
+
+#[test]
+fn long_major_three_notrump_is_corrected_on_a_doubleton() {
+    // Opener AKQJ98.A3.K42.Q2 (18 HCP, 6♠ no side suit) bids 3NT!; responder
+    // Q3.J54.9652.J432 corrects to 4♠ on the 6-2 fit, and opener passes.
+    let system = jump_shifts_partnership();
+    let three_nt = call(3, Strain::Notrump);
+    let four_s = call(4, Strain::Spades);
+    assert_eq!(
+        best_call(&system, &after_1s_1nt(), "AKQJ98.A3.K42.Q2"),
+        three_nt
+    );
+    assert_eq!(
+        best_call(&system, &after_1s_1nt_then(&[three_nt]), "Q3.J54.9652.J432"),
+        four_s,
+    );
+    assert_eq!(
+        best_call(
+            &system,
+            &after_1s_1nt_then(&[three_nt, four_s]),
+            "AKQJ98.A3.K42.Q2"
+        ),
+        Call::Pass,
+    );
+}

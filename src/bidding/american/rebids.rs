@@ -12,6 +12,7 @@
 //! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`opener_major_jump_rebid`][field@crate::bidding::inference::ReadingProfile::opener_major_jump_rebid] |
 //! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`RebidKnobs::meckstroth_adjunct`] |
 //! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`RebidKnobs::forcing_nt_two_suiter`] |
+//! | [`jump_shifts`] | natural 18+ jump shifts and the long-major `3NT!` over the forcing `1NT` (the Meckstroth rival) | [`RebidKnobs::forcing_nt_jump_shifts`] |
 //! | [`odwrotka`] | `1♣ - 1M - 2♦!` artificial reverse and its 445566 steps | [`RebidKnobs::odwrotka`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
@@ -28,6 +29,7 @@ use contract_bridge::{Bid, Strain, Suit};
 
 mod extras_ladder;
 mod forcing_notrump;
+mod jump_shifts;
 mod major_jump_rebid;
 mod major_tails;
 mod meckstroth;
@@ -35,6 +37,7 @@ mod odwrotka;
 mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
+use jump_shifts::{forcing_nt_jump_shifts_on, with_forcing_nt_jump_shifts};
 use major_jump_rebid::with_major_jump_rebid;
 use meckstroth::with_invitational_minors;
 use odwrotka::with_odwrotka;
@@ -43,6 +46,7 @@ use two_suiter::with_forcing_nt_two_suiter;
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
 pub(super) use forcing_notrump::forcing_notrump_continuations;
+pub(super) use jump_shifts::forcing_nt_jump_shift_continuations;
 pub(super) use major_jump_rebid::major_jump_rebid_continuations;
 pub(super) use major_tails::{fourth_suit_forcing_continuations, major_rebid_tail_continuations};
 pub(super) use meckstroth::{
@@ -120,6 +124,14 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
         rules = rules
             .rule(Bid::new(2, Strain::Notrump), 160, points(18..))
             .alert(meckstroth::OPENER_GF_2NT);
+    } else if forcing_nt_jump_shifts_on(&agreements.rebid) {
+        // Natural jump shifts: the balanced 18+ is uncapped (a 5332 with more
+        // has no other rebid), the shapely 18+ takes the `3x`/`3NT!` rungs.
+        rules = rules.rule(
+            Bid::new(2, Strain::Notrump),
+            120,
+            fifths(18.0..) & balanced(),
+        );
     } else {
         rules = rules.rule(
             Bid::new(2, Strain::Notrump),
@@ -128,6 +140,8 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
         );
     }
     rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
+    // Natural strong jump shifts and the long-major 3NT! (default off).
+    rules = with_forcing_nt_jump_shifts(rules, major, &agreements.rebid);
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules, &agreements.rebid);
     // Major jump-rebid: 1M - 1NT - 3M on a six-card major with extras.
@@ -316,6 +330,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             invitational_minor_continuations(),
             major_jump_rebid_continuations(),
             forcing_nt_two_suiter_continuations(),
+            forcing_nt_jump_shift_continuations(),
             meckstroth_two_notrump_continuations(),
             one_heart_one_spade_rebid(),
             major_rebid_tail_continuations(),
