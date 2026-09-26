@@ -77,7 +77,8 @@ Priced at `c3bb94a7`, in order:
 | R4 | fourth-round junk bid after `1NT - 2♣ …` | 113 | −0.6k | −1.1k | **done 2026-09-26** — traced below; the game-pull rail shipped |
 | R4b | `4NT` over their `2NT` (mostly `1♠ - 2NT`, `2M - 2NT`) without two five-card suits | 123 | −0.45k | −0.50k | **wash 2026-09-26** — `their_2nt_unusual_veto` stays off; ledger below |
 | R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | **loss 2026-09-26** — generalised to `silent_cue_veto`, stays off; ledger below |
-| R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **next** — R4b wash + R5 loss trip stop criterion 2: if the fresh census ranks nothing new, the series stops |
+| R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **done 2026-09-26** at `7e0bc648` — see below |
+| R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | open — the one new family; the shipped 2NT-double rail's sibling, same trigger |
 
 **R4 trace (2026-09-26).** The pool (silent side acts after their
 `1NT - 2♣`, BBA passes) splits three ways at `c3bb94a7`:
@@ -115,6 +116,24 @@ on other junk (`3NT` over their auction, doubled), and a "cue" of
 responder's suit is often natural (`1♦ - 1♠ - 2♥` `2♠` on five spades) —
 the gate reads HCP but no length. This is the broad-gate failure again
 (cf. `new_suit_veto`): 0.37% firing is 10× every shipped rail.
+
+**R6 census (2026-09-26, anchor `7e0bc648`).** Replay 100.00% / 0 on all
+four arms. The defensive + competitive floor pool is 58,213 divergent boards,
+−38.7k plain / **−7.4k PD** (−0.018 PD/board, from −0.068 at `c3bb94a7`):
+junk action still costs (def "we bid / BBA passes" −12.1k PD over 9,533,
+"we X / BBA passes" −4.1k; comp −2.7k / −2.2k), but the silence slices now
+offset most of it (def "we pass / BBA bids" +10.5k PD, "we pass / BBA
+doubles" +3.1k). The action loss is a long tail: **no single lane reaches
+0.5k PD**. The top lane is R5's own `1♠ 2♦` `2♠` (287 bd, −461), already
+measured as a loss in its generalised form; the next are all −0.43k or
+less. One family of lanes clears the raised ~1k bar with a narrow trigger —
+R7: over their `2NT` opening (`2NT 3♣ 3♦` `3♥`, `2NT 3NT` `4♣`,
+`2NT 3♣ 3♥` `4♣`, …), our silent side bids on ≤7 HCP: 201 boards,
+−976 plain / −1,250 PD, BBA passing 201 of the 213 boards where we act on
+≤7 HCP. With 8+ HCP it is 50 boards, −194 PD — below the bar, outside the
+row. Stop criterion 2 said: re-census, and stop if nothing new ranks. R7 is
+new, so the series has one more candidate; after it, the census is dry
+(criterion 1).
 
 Done (ledger; full cells in each `InstinctProfile` doc comment and the
 CHANGELOG):
