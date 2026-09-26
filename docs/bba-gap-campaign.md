@@ -1,7 +1,7 @@
 # The BBA gap campaign — the pons↔BBA anchor and its bucket ranking
 
-**Standing at M32 `c3bb94a7` (2026-09-20):
-−0.537 plain / −0.423 PD IMPs/board for
+**Standing at M32 `7e0bc648` (2026-09-26), five floor rails in:
+−0.481 plain / −0.345 PD IMPs/board for
 what ships (`american()`), −0.992 / −1.120 for the deterministic side
 (`american_instinct()`) whose buckets the series decomposes.** Persistent seed
 `1783375064`, 204,800 boards per vulnerability per arm, all four arms replay
@@ -171,9 +171,11 @@ guarded fallback at depth d, `floor` (shipping arm) the net's off-book call.
 `boards.jsonl`'s `board` is an index within its shard, paired with that shard's
 `seed`; the emitted actor `hand` (S.H.D.C) is canonical.
 
-## Current ranking (`c3bb94a7`, 2026-09-20)
+## Current ranking (`7e0bc648`, 2026-09-26)
 
 **Instinct arm** — the decompose series (`boards` = contract-divergent).
+Unchanged from `c3bb94a7` to within 30 IMPs per bucket (rails constrain the
+learned floor only), so the `c3bb94a7` table stands.
 The previous caption said auction-divergent; the report excludes same-contract
 divergences, as described in rule 6. No ranking method changed.
 
@@ -195,25 +197,30 @@ since the first anchor; the top eight retain their `3237e037` order. Only the
 first two of these eight buckets changed in this window (+46 / +63 and
 +53 / +109 plain / PD IMPs respectively, versus `daa8bf4a`).
 
-**Shipping arm** (`american()`):
+**Shipping arm** (`american()`), five floor rails in:
 
 | # | bucket | boards | plain | /div | PD | /div |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Constructive / book / opening | 53,425 | −38,753 | −0.73 | −14,030 | −0.26 |
-| 2 | Constructive / book / round-2 | 37,116 | −38,128 | −1.03 | −45,145 | −1.22 |
-| 3 | Defensive / book / round-1 | 47,765 | −28,230 | −0.59 | −31,802 | −0.67 |
-| 4 | Constructive / book / round-1 | 25,679 | −22,262 | −0.87 | −24,503 | −0.95 |
-| 5 | Defensive / floor / round-2 | 19,048 | −20,203 | −1.06 | −13,321 | −0.70 |
-| 6 | Competitive / book / round-1 | 14,702 | −15,773 | −1.07 | −9,546 | −0.65 |
-| 7 | Competitive / floor / round-2 | 11,208 | −11,445 | −1.02 | −7,637 | −0.68 |
-| 8 | Defensive / floor / round-1 | 13,293 | −9,771 | −0.74 | −4,500 | −0.34 |
+| 1 | Constructive / book / round-2 | 37,080 | −36,474 | −0.98 | −42,267 | −1.14 |
+| 2 | Constructive / book / opening | 53,396 | −34,900 | −0.65 | −8,852 | −0.17 |
+| 3 | Defensive / book / round-1 | 47,758 | −28,127 | −0.59 | −31,495 | −0.66 |
+| 4 | Constructive / book / round-1 | 25,575 | −20,422 | −0.80 | −22,060 | −0.86 |
+| 5 | Competitive / book / round-1 | 14,702 | −15,773 | −1.07 | −9,546 | −0.65 |
+| 6 | Defensive / floor / round-2 | 17,883 | −13,646 | −0.76 | −4,651 | −0.26 |
+| 7 | Competitive / floor / round-2 | 11,107 | −10,942 | −0.99 | −6,970 | −0.63 |
+| 8 | Competitive / book / round-2 | 7,147 | −7,110 | −0.99 | −5,208 | −0.73 |
 
-By phase: Constructive −105,665 > Defensive −68,979 > Competitive −45,195; by
-provenance `book` −155,390, `floor` −52,797. The net floor more than halves
-def-r1 (−67.8k → −28.2k plain). The shipped head remains constructive on both
-scorers: opening is #1 by plain DD, round-2 is #1 by PD (−45,145), ahead of
-def-r1 (−31,802). The instinct arm still has def-r1 #1 on both scorers.
-Auction divergence vs BBA: 89% (instinct) / 88–87% (shipping).
+By phase: Constructive −97,836 > Defensive −54,292 > Competitive −44,699; by
+provenance `book` −147,792, `floor` −37,767. Versus `c3bb94a7`: constructive
+round-2 is now #1 on **both** scorers (opening fell to #2: −38,753 → −34,900
+plain, −14,030 → −8,852 PD); the floor rails moved def-floor-r2 −20,203 →
+−13,646 plain / −13,321 → −4,651 PD, and def-floor-r1 (−6,190 / +411) left
+the top eight. The constructive moves are on the shipping arm only (instinct
+is flat) and no rail fires on a board we open, so they come from something
+else in the window — the reading ships `e8bf1081` / `95179807`, which only
+the net floor consumes, are the candidates; **not traced** (owed, see
+[next-steps.md](next-steps.md)). Auction divergence vs BBA: 89% (instinct) /
+87–86% (shipping).
 
 **The net floor's paired worth** (`ab-dump-diff`, `american` −
 `american-instinct`, same snapshot, same sha; pooled plain / PD):
@@ -228,8 +235,14 @@ Auction divergence vs BBA: 89% (instinct) / 88–87% (shipping).
 | v6 | `3237e037` | paired | +0.246 | +0.307 |
 | M32 v6 | `daa8bf4a` | paired | +0.236 | +0.353 |
 | M32 v6 | `c3bb94a7` | paired | +0.236 | +0.353 |
+| M32 v6 + 4 rails | `7e0bc648` | paired | +0.265 | +0.392 |
 
-Latest cells at `c3bb94a7` (2026-09-20): +0.2102 ±0.0138 / +0.2921 ±0.0164
+Latest cells at `7e0bc648` (2026-09-26): +0.2347 ±0.0135 / +0.3272 NV,
++0.2945 / +0.4563 vul; pooled +0.2646 plain / +0.3918 PD — up +0.028 /
++0.039 on `c3bb94a7`, the size of the rails' summed A/Bs (≈ +0.032 / +0.043).
+The 2NT-bid rail (R7) landed after this snapshot.
+
+Cells at `c3bb94a7` (2026-09-20): +0.2102 ±0.0138 / +0.2921 ±0.0164
 NV (56,676/204,800 fired, 27.67%; +0.760 / +1.056 IMPs/fired),
 +0.2622 ±0.0174 / +0.4129 ±0.0204 vul (53,501/204,800 fired, 26.12%;
 +1.004 / +1.580 IMPs/fired). Pooled +0.2362 plain / +0.3525 PD, essentially
@@ -327,28 +340,12 @@ In bucket order; each item is its own fresh-seed A/B per
 3. **Comp / book / round-1** — the [one-notrump-competitive.md](one-notrump-competitive.md)
    queue; re-derive N2c/N2d's price tags from `c5fbee11`'s `boards.jsonl`
    before authoring either.
-4. **Def / floor#3 round-2, round-1, balancing** (−39k plain across the three;
-   `Defensive / floor / …` −20.2k / −9.8k / −3.8k on the shipping arm) — floor
-   action discipline. The 2026-09-25 shipping-arm decompose of `c3bb94a7`
-   (rows priced per board) says the shipping floor's fault is junk *action*,
-   not silence: with our side silent and theirs having bid twice, "we X / BBA
-   passes" is −11.6k plain / −15.2k PD over 4,081 boards and "we bid / BBA
-   passes" −6.7k / −12.5k over 5,513, while every "we pass / BBA acts" slice
-   is PD-positive. The `2NT` opening auctions alone were −9.7k / −12.2k and
-   are now the shipped 2NT-double rail (+0.014/+0.018 plain, +0.016/+0.020
-   PD). Next candidates from the same table: our fourth-round junk bid after
-   `1♣ - 1♠ …` (163 bd, −1.6k / −2.5k — re-decomposed 2026-09-25 as
-   `1♣ - 1♠ - 2NT - 3NT` pulled to `4♠` (133 bd; the shipped 3NT-pull rail
-   now masks it) or `4NT` (23 bd; the `their_3nt_unusual_veto` arm, shipped
-   default on: +0.0035/+0.0045 plain, +0.0041/+0.0053 PD)) and after `1NT - 2♣ …` (113 bd,
-   −0.6k / −1.1k; traced 2026-09-26 — its Smolen `4♥` pulled to `4♠` is the
-   `their_game_pull_veto` rail, shipped default on: +0.0016/+0.0031 plain,
-   +0.0026/+0.0048 PD; see [floor-rail-campaign.md](floor-rail-campaign.md)), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
-   −0.7k; generalised as `silent_cue_veto`, measured a loss 2026-09-26 — the
-   series now owes its re-census, see [floor-rail-campaign.md](floor-rail-campaign.md)). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
-   A/B at a time. Trace on the shipping arm; author parametrically (suit loops +
-   context predicates, never a node per sequence), one `set_*` knob + `bba-gen`
-   flag; PD is the honest scorer.
+4. **Def / floor#3 round-2, round-1, balancing** — **closed 2026-09-26** as
+   the floor junk-action rail series: five rails shipped (3NT-pull,
+   2NT-double, unusual-4NT, game-pull, 2NT-bid), two opt-in non-wins, and the
+   R6 re-census at `7e0bc648` found no lane at 0.5k PD. The residue is a long
+   tail for the next matched retrain, which also re-arbitrates the rails —
+   deferred. Record: [floor-rail-campaign.md](floor-rail-campaign.md).
 5. **Comp / fallback@2, @3, @4** (−5.3k / −4.8k / −4.8k plain) — Fix 2
    (cue-context raises + Jordan rejection) and Fix 4 (strong-values action),
    [competitive-book.md](competitive-book.md).

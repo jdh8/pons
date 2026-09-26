@@ -203,10 +203,17 @@ The series ends the first time any of these holds:
 5. **A matched retrain lands.** Every rail is scaffolding over a v6 input
    blindness. *(2026-09-26: the retrain is built — `features_v8`, M32 labels
    transplanted, no relabel, [ai-bidder/features-v8.md](ai-bidder/features-v8.md) —
-   measured **suspect** (plain win, PD erases it), stays opt-in; the rails stand and the net's parameters stay fixed for R4/R5. Its worst boards name a new rail candidate: our silent side acting over their 4NT.)* At the next matched policy/evaluator retrain, re-run each
+   measured **suspect** (plain win, PD erases it), stays opt-in; the rails stand. Its worst boards name a v8-only rail candidate: our silent side acting over their 4NT (8 boards on v6). Retrain work is deferred by jdh8 as of 2026-09-26 — the re-arbitration below is owed, not scheduled.)* At the next matched policy/evaluator retrain, re-run each
    shipped rail's A/B against the new net (the runners make this cheap); a
    rail whose win vanished gets its default flipped off. Rails must not
    accumulate past the net that needed them.
+
+**Owed when a retrain lands** (runners exist, each ~10 min):
+`ab-3nt-pull-veto.sh`, `ab-2nt-double-veto.sh`, `ab-3nt-unusual-veto.sh`,
+`ab-game-pull-veto.sh`, `ab-2nt-bid-veto.sh` against the new net; flip off
+any whose win vanished. Also re-price the opt-in three
+(`their_2nt_unusual_veto`, `silent_cue_veto`, `new_suit_veto`) only if the
+new net's census names their slices again.
 
 Stopping is a verdict, not a failure: the series was designed to cash a
 bounded pool (−0.068 PD/board at `c3bb94a7`), and the three ships plus the

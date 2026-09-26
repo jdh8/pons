@@ -1,8 +1,11 @@
 # Next-step candidates, ranked by potential IMP gain
 
 **Ranked 2026-09-26** from the two current anchors — BBA shipping arm at
-`c3bb94a7` (2026-09-20, [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN
-Tier S at `daa8bf4a` (2026-09-14, [ben-gap-campaign.md](ben-gap-campaign.md)).
+`7e0bc648` (2026-09-26, re-anchored after the floor-rail series;
+[bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at `daa8bf4a`
+(2026-09-14, [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
+deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
+see [Owed / deferred](#owed--deferred).
 Method: pool size on both references × how often the vein has actually
 cashed ÷ effort. Figures are IMPs/board unless marked per-fired. Re-rank
 after the next re-anchor; each item's ship decision is its own fresh-seed
@@ -20,7 +23,9 @@ criterion 5). **Item 2 is now the top candidate.**
 
 **Biggest unworked pool on both references; needs a new lever, not a re-run.**
 
-- Pool: #1 by PD on the BBA shipping arm (−45,145 ≈ −0.11/board); vs BEN
+- Pool: #1 on **both** scorers on the BBA shipping arm at `7e0bc648`
+  (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
+  −45,145); vs BEN
   −1.58 plain / −1.75 PD per divergent board, the worst PD/div of the BEN
   top-3, ratio only 1.4–1.5× (i.e. a genuine shared weakness, not a
   BEN-strength artifact).
@@ -63,7 +68,10 @@ Design-heavy. Docs:
 [ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md),
 [ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).
 
-## 5. The retrain batch
+## 5. The retrain batch — deferred 2026-09-26
+
+**Not scheduled**: jdh8 declined retrain work for now; listed in
+[Owed / deferred](#owed--deferred).
 
 Measured-and-parked wins gated on the next **matched policy/evaluator
 retrain**; individually small, but they ride one retrain for free — schedule
@@ -110,3 +118,33 @@ Recorded so future sessions don't re-derive them:
 - **N3-x / N2d** (−2.9 to −3.1 per board but 25–43 boards ≈ +0.0005/board
   total) — batch them into the next 1NT-lane visit
   ([one-notrump-competitive.md](one-notrump-competitive.md)).
+
+## Owed / deferred
+
+The live list of work that is **owed but not scheduled**. Retrains are
+deferred by jdh8 (2026-09-26: too long to run now); everything in the first
+group waits on that decision, the second group does not.
+
+**Retrain-gated (deferred):**
+
+- Re-arbitrate the five shipped floor rails against the new net — runners and
+  rule in [floor-rail-campaign.md](floor-rail-campaign.md) (stop criterion 5).
+- `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling
+  the retired Dutch rows, a relabel at HEAD
+  ([ai-bidder/features-v8.md](ai-bidder/features-v8.md) §5).
+- The retrain batch of §5 above (B2.5 axis mask, the `1♦ ♦3` atom, the
+  phantom-suit input fix).
+- The floor-rail residue: `1NT - 2♣ - 2♥ - 2NT` `3♣` (38 bd, −410 PD — one
+  exact sequence) and the long "we act / BBA passes" tail at `7e0bc648`
+  (no lane at 0.5k PD).
+
+**Not retrain-gated (owed, unscheduled):**
+
+- Trace the shipping-only constructive move in the `7e0bc648` window
+  (opening −14,030 → −8,852 PD with instinct flat; no rail fires on boards we
+  open) — candidates `e8bf1081` / `95179807`
+  ([bba-gap-campaign.md](bba-gap-campaign.md), current ranking).
+- The game-pull rail reads their bid's level, not its meaning: its worst A/B
+  boards are their artificial `5♣`/`5♦` (keycard replies, cues). An
+  alert-exempt variant is one small A/B; the shipped rail wins without it.
+

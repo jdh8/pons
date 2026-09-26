@@ -1,10 +1,11 @@
 # features_v8 — the artificial-call block, and the label transplant
 
-**Status (2026-09-26).** Built and trained; the A/B against the shipped M32 v6
-floor (`scripts/ab-v8-floor.sh`, `ab-results/v8-floor`, seed 1790371926,
-204,800 bd/arm/vul) is **in flight**. Opt-in as `--our-floor american-v8` /
-`american_v8()`; `american()` still ships v6. Verdict goes in §5 and in
-[../floor-rail-campaign.md](../floor-rail-campaign.md) (stop criterion 5).
+**Status (2026-09-26).** Built, trained, measured **suspect** (§5: plain win,
+PD erases it). Opt-in as `--our-floor american-v8` / `american_v8()`;
+`american()` still ships v6 with five floor rails. **Parked:** jdh8 declined
+further retrain work for now (2026-09-26) — the §5 levers and the rails'
+re-arbitration are owed, not scheduled; ledger in
+[../next-steps.md](../next-steps.md#owed--deferred).
 
 ## 1. What v8 is
 
@@ -119,7 +120,8 @@ Decision table row: *plain win, PD erases it* — "reaching contracts a
 competent doubler would slaughter; suspect, don't ship on this evidence."
 The single-dummy bracket is positive on both scorers (CI-clear on plain), so
 this is not a refutation either: the arm **stays opt-in**, `american()`
-unchanged, the rails stand, and the net's parameters stay fixed for R4/R5.
+unchanged, and the rails stand (the series then shipped two more on v6 and
+closed; [../floor-rail-campaign.md](../floor-rail-campaign.md)).
 
 **Worst-board trace (none, PD, 40 boards, −18 to −24 each).** Not one
 mechanism but a family the rail series already knows — junk *action* by the
@@ -133,10 +135,11 @@ The artificial block plausibly *causes* the slam-auction slice: their 4NT
 now reads as artificial (slot 5–10), an input the M32 labels almost never
 exercise, so the net is off-distribution there.
 
-**Next levers, in order.** (1) A rail for the new slice, since a rail is
-cheap and the vein is 3/3 on narrow gates: *our silent side acts over their
-keycard ask* (`4NT` artificial by their reading, we have not bid); price it on
-the v8 arm's own decompose before authoring. (2) The lost 15% of uniform rows
+**Next levers, in order** (all deferred 2026-09-26). (1) A rail for the new
+slice: *our silent side acts over their keycard ask* (`4NT` artificial by
+their reading, we have not bid); price it on the v8 arm's own decompose
+before authoring — on v6 the slice is 8 boards, −79 PD at `c3bb94a7`, so it
+is v8-only and waits with v8. (2) The lost 15% of uniform rows
 (retired Dutch cells) — re-sample those boards on today's cells and label them
 with BBA only. (3) A relabel at HEAD — the fleet-week — which is the honest
 fix for labels that never saw the new inputs.
