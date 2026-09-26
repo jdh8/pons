@@ -33,7 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the losses in responder asking keycards with few of them, the crude natural
   `2NT` tail, and a `Pass` catch-all that shadowed the floor after the spade
   preference (−242 IMPs on 47 boards, now an escape-hatch fall-through).
-  Stays opt-in; the default book is byte-identical.
+  Stays opt-in; the default book is byte-identical. **Bucket trace
+  2026-09-27** (plain DD at HEAD): the `3♥` jump shift wins +183/+266 and the
+  `3NT!` rung loses −359/−240 NV/vul — the wash is those two cancelling; the
+  `3NT!` tail's three holes and the repair are in `docs/bidding-options.md`.
 
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named
