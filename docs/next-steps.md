@@ -140,10 +140,12 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- Trace the shipping-only constructive move in the `7e0bc648` window
-  (opening −14,030 → −8,852 PD with instinct flat; no rail fires on boards we
-  open) — candidates `e8bf1081` / `95179807`
-  ([bba-gap-campaign.md](bba-gap-campaign.md), current ranking).
+- ~~Trace the shipping-only constructive move in the `7e0bc648` window~~
+  **Closed 2026-09-26**: it is the rails at the mirror table (a board is
+  bucketed by its first divergence, so our defence where BBA opened is
+  charged to our opening bucket); 2NT-double +3,614 of the +5,178 PD. The
+  reading ships were not involved. Table in
+  [bba-gap-campaign.md](bba-gap-campaign.md), current ranking.
 - The game-pull rail reads their bid's level, not its meaning: its worst A/B
   boards are their artificial `5♣`/`5♦` (keycard replies, cues). An
   alert-exempt variant is one small A/B; the shipped rail wins without it.

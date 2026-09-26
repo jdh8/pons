@@ -215,11 +215,28 @@ provenance `book` −147,792, `floor` −37,767. Versus `c3bb94a7`: constructive
 round-2 is now #1 on **both** scorers (opening fell to #2: −38,753 → −34,900
 plain, −14,030 → −8,852 PD); the floor rails moved def-floor-r2 −20,203 →
 −13,646 plain / −13,321 → −4,651 PD, and def-floor-r1 (−6,190 / +411) left
-the top eight. The constructive moves are on the shipping arm only (instinct
-is flat) and no rail fires on a board we open, so they come from something
-else in the window — the reading ships `e8bf1081` / `95179807`, which only
-the net floor consumes, are the candidates; **not traced** (owed, see
-[next-steps.md](next-steps.md)). Auction divergence vs BBA: 89% (instinct) /
+the top eight. The opening move is **the rails, at the other table**
+(traced 2026-09-26 by pairing both snapshots' shipping rows board by board):
+a board is bucketed by its *first* divergence, so when our opening differs
+from BBA's at one table, everything later on the board — including our
+defence at the mirror table, where BBA opened — is charged to
+Constructive / opening. 614 boards keep that bucket but change swing, and
+every one changes a call of ours at the table where *they* opened:
+
+| rail | boards | plain | PD |
+| --- | --- | --- | --- |
+| 2NT-double (`X` → `-` over their 2NT) | 523 | +2,719 | +3,614 |
+| game-pull (their game, our `4x`/`5x` → `-`) | 72 | +560 | +960 |
+| unusual-4NT (`4NT` → `-`) | 21 | +280 | +318 |
+| our `5x` → `X` over their game | 20 | +257 | +318 |
+| other | 48 | +37 | −32 |
+| **total** | 684 | **+3,853** | **+5,178** |
+
+(684 includes 58 boards that left the bucket and 12 that entered.) The sums
+match the bucket's move exactly. The reading ships `e8bf1081` / `95179807`
+explain none of it — and `95179807` never could have: it is byte-identical on
+the default system by construction. "No rail fires on a board we open" was
+true per table, not per board. Auction divergence vs BBA: 89% (instinct) /
 87–86% (shipping).
 
 **The net floor's paired worth** (`ab-dump-diff`, `american` −
