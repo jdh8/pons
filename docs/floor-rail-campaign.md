@@ -1,7 +1,7 @@
 # The floor junk-action rail series
 
-**Status (2026-09-26, anchor `c3bb94a7`).** Three rails shipped default-on in
-one week — 3NT-pull, 2NT-double, unusual-4NT — cashing ≈ +0.026 plain /
+**Status (2026-09-26, anchor `c3bb94a7`).** Four rails shipped default-on in
+one week — 3NT-pull, 2NT-double, unusual-4NT, game-pull — the first three cashing ≈ +0.026 plain /
 +0.035 PD IMPs/board combined. Two priced candidates remain in the queue;
 after they resolve, the census is stale by construction and must be re-run
 before authoring anything else. Companion ranking of the other campaign
@@ -23,7 +23,7 @@ A **rail** is a deterministic veto on the learned floor's candidate menu:
 
 - One `InstinctProfile` field (bool, doc comment carries the ship numbers),
   a structural gate function in [instinct.rs](../src/bidding/instinct.rs)
-  (`their_2nt_gate`, `their_3nt_gate`), and a mask in the
+  (`their_2nt_gate`, `their_contract_gate`), and a mask in the
   [neural_floor.rs](../src/bidding/neural_floor.rs) rail ladder. The net
   keeps the judgement middle; the rail only removes calls. `Pass` always
   survives (the finite-catch-all invariant).
@@ -74,9 +74,30 @@ Priced at `c3bb94a7`, in order:
 
 | # | slice | boards | plain | PD | state |
 | --- | --- | ---: | ---: | ---: | --- |
-| R4 | fourth-round junk bid after `1NT - 2♣ …` | 113 | −0.6k | −1.1k | open — trace, then author |
+| R4 | fourth-round junk bid after `1NT - 2♣ …` | 113 | −0.6k | −1.1k | **done 2026-09-26** — traced below; the game-pull rail shipped |
+| R4b | `4NT` over their `2NT` (mostly `1♠ - 2NT`, `2M - 2NT`) without two five-card suits | 123 | −0.45k | −0.50k | open — the unusual-`4NT` arm one level down; BBA passes 97, bids `3♣` 21 (also a loss) |
 | R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | open — competitive-floor row; check the cue's PDI/tag context before gating |
 | R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | mandatory before any further authoring |
+
+**R4 trace (2026-09-26).** The pool (silent side acts after their
+`1NT - 2♣`, BBA passes) splits three ways at `c3bb94a7`:
+
+- `2♥ - 3NT` then our `4♥` (29 bd, −407 PD) — already masked by the shipped
+  3NT-pull rail; the snapshot predates it.
+- Smolen `2♦ - 3♠ - 4♥` then our `4♠` on junk (54 bd, −702 PD) — generalised
+  to *our silent side pulls their game (`4♥`/`4♠`/`5♣`/`5♦`) into a suit of
+  four cards or fewer*: 48 bd, −197 plain / −577 PD over every game, BBA
+  passing 48 of 50; five-card pulls are a wash, six-card ones a gain.
+  Shipped as `their_game_pull_veto` (ledger below), sharing the renamed
+  `their_contract_gate`; `scripts/ab-game-pull-veto.sh`. Its worst A/B
+  boards are their *artificial* `5♣`/`5♦` (a keycard reply, a cue) where our
+  masked junk sacrifice had happened to stop their slam — the rail reads the
+  level, not the meaning, and wins anyway.
+- `2♥ - 2NT` then our `3♣` (38 bd, −410 PD) — one exact sequence, so it
+  stays with the retrain (stop criterion 3).
+
+Over their `4NT` the v6 floor acts on 8 boards (−79 PD) — below the bar at
+this snapshot; the v8 suspect's worst boards are a different net.
 
 Done (ledger; full cells in each `InstinctProfile` doc comment and the
 CHANGELOG):
@@ -86,10 +107,11 @@ CHANGELOG):
 | 3NT suit-pull veto | `their_3nt_pull_veto` | 2026-09-25 | +0.0081/+0.0102 | +0.0152/+0.0175 | 0.12–0.13% | 1790283934 |
 | 2NT-double veto | `their_2nt_double_veto` | 2026-09-25 `bf7d7cce` | +0.0143/+0.0177 | +0.0159/+0.0199 | 0.35% | 1790318091 |
 | unusual-4NT veto | `their_3nt_unusual_veto` | 2026-09-25 `56ecccdd` | +0.0035/+0.0045 | +0.0041/+0.0053 | 0.03–0.04% | 1790324543 |
+| game-pull veto (R4) | `their_game_pull_veto` | 2026-09-26 | +0.0016/+0.0031 | +0.0026/+0.0048 | 0.03–0.05% | 1790405692 |
 | *(predecessor)* new-suit veto | `new_suit_veto` | refuted in aggregate, **off** | — | — | — | see [new-suit-veto.md](ai-bidder/new-suit-veto.md) |
 
 Every shipped rail was a win in **every** cell with single-dummy alike — the
-vein's hit rate so far is 3/3 on the narrow gates and 0/1 on the broad one.
+vein's hit rate so far is 4/4 on the narrow gates and 0/1 on the broad one.
 Narrow beats broad here.
 
 ## Per-rail runbook

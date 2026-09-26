@@ -612,7 +612,7 @@ fn the_new_suit_gate_masks_the_phantom_overcall() {
 /// the rail live (we still have not bid), a six-card suit is outside it, and
 /// a side that overcalled is outside it too.
 #[test]
-fn the_their_3nt_gate_masks_the_silent_pull() {
+fn the_their_contract_gate_masks_the_silent_pull() {
     let pass = Call::Pass;
     let nt3 = call(3, Strain::Notrump);
     let silent = [
@@ -733,7 +733,7 @@ fn the_their_2nt_gate_masks_the_silent_double() {
 /// `1♣ - 1♠ - 2NT - 3NT` to `T65.JT97.JT64.63`: knob-off `4NT` is live,
 /// knob-on it is masked while `Pass` survives.  A 5-5 hand keeps `4NT`.
 #[test]
-fn the_their_3nt_gate_masks_the_junk_unusual_4nt() {
+fn the_their_contract_gate_masks_the_junk_unusual_4nt() {
     let pass = Call::Pass;
     let silent = [
         call(1, Strain::Clubs),
@@ -763,5 +763,51 @@ fn the_their_3nt_gate_masks_the_junk_unusual_4nt() {
     assert!(
         two_suiter.0[nt4].is_finite(),
         "a 5-5 hand is outside the rail"
+    );
+}
+
+/// The game-pull rail masks our silent side's short-suit pull of their game
+///
+/// Their Smolen `1NT - 2♣ - 2♦ - 3♠ - 4♥` to `T87.65.J8542.873`: knob-off
+/// `4♠` is live, knob-on it is masked while `Pass` and the five-card `5♦`
+/// survive.
+#[test]
+fn the_their_contract_gate_masks_the_short_game_pull() {
+    let pass = Call::Pass;
+    let smolen = [
+        call(1, Strain::Notrump),
+        pass,
+        call(2, Strain::Clubs),
+        pass,
+        call(2, Strain::Diamonds),
+        pass,
+        call(3, Strain::Spades),
+        pass,
+        call(4, Strain::Hearts),
+    ];
+    let four_spades = call(4, Strain::Spades);
+    let mut agreements = Agreements::default();
+    assert!(
+        agreements.decision.instinct.their_game_pull_veto,
+        "the rail ships default on"
+    );
+    agreements.decision.instinct.their_game_pull_veto = false;
+    let off = shelled_v6_with(&agreements, &smolen, "T87.65.J8542.873");
+    assert!(
+        off.0[four_spades].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_game_pull_veto = true;
+    let on = shelled_v6_with(&agreements, &smolen, "T87.65.J8542.873");
+    assert_eq!(
+        on.0[four_spades],
+        f32::NEG_INFINITY,
+        "the junk 4♠ is masked"
+    );
+    assert!(on.0[Call::Pass].is_finite());
+    assert!(
+        on.0[call(5, Strain::Diamonds)].is_finite(),
+        "a five-card suit is outside the rail"
     );
 }

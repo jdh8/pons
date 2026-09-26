@@ -28,7 +28,7 @@
 //!   prices the contested game-level node against the score table when
 //!   `InstinctProfile::competitive_accountant` is on, and `new_suit_gate` masks
 //!   a suit bid nobody has the cards for when
-//!   `InstinctProfile::new_suit_veto` is on, and `their_3nt_gate` masks a
+//!   `InstinctProfile::new_suit_veto` is on, and `their_contract_gate` masks a
 //!   suit pull of their `3NT` when `InstinctProfile::their_3nt_pull_veto` is
 //!   on, and `their_2nt_gate` masks our silent side's double over their `2NT`
 //!   opening when `InstinctProfile::their_2nt_double_veto` is on.  All four
@@ -48,7 +48,9 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
-use super::instinct::{competitive_gate, forced, new_suit_gate, their_2nt_gate, their_3nt_gate};
+use super::instinct::{
+    competitive_gate, forced, new_suit_gate, their_2nt_gate, their_contract_gate,
+};
 use super::trie::Classifier;
 use super::{features, neural};
 use contract_bridge::Hand;
@@ -118,7 +120,7 @@ impl Classifier for ConfiguredFloorBba {
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
-        their_3nt_gate(&mut logits, hand, context);
+        their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, context);
         logits
     }
@@ -170,7 +172,7 @@ impl Classifier for ConfiguredFloorV6 {
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);
-        their_3nt_gate(&mut logits, hand, context);
+        their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, context);
         logits
     }

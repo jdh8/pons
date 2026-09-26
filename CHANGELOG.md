@@ -88,6 +88,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/ab-ben-two-level-minor-overcall-vul.sh` (paired Tier-F). Trace
   and history: `docs/defensive-overcalls.md` §O4-vul,
   `docs/ben-gap-campaign.md` Phase 2.
+- **The game-pull rail (`InstinctProfile::their_game_pull_veto`), shipped
+  default on**: when the opponents' last bid is a game (`4♥`, `4♠`, `5♣`,
+  `5♦`) and our side has made no bid, the learned floor may not bid a suit
+  it holds four cards or fewer in. Measured against BBA, 204,800 boards per
+  vul, SEED_BASE 1790405692: a win in every cell — plain DD **+0.0016 ±
+  0.0009 / +0.0031 ± 0.0012**, PD **+0.0026 ± 0.0010 / +0.0048 ± 0.0014**
+  IMPs/board (none/both), single-dummy leads alike (+0.0016/+0.0027 plain,
+  +0.0026/+0.0046 PD). It fires on 0.03–0.05% of boards at +5 to +11 IMPs
+  each, all of them boards they open. Found by the floor-rail series' R4
+  trace (`1NT - 2♣ …` fourth-round junk at `c3bb94a7`): over their Smolen
+  `1NT - 2♣ - 2♦ - 3♠ - 4♥` the v6 floor bid `4♠` on junk; over every game
+  such pulls were 48 boards, −197 plain / −577 PD over 409.6k, and BBA passed
+  48 of 50. `their_3nt_gate` is renamed `their_contract_gate` (crate-private).
+  `bba-gen --no-ns-game-pull-veto` turns it off; `scripts/ab-game-pull-veto.sh`.
 - **The unusual-4NT arm of the 3NT rail
   (`InstinctProfile::their_3nt_unusual_veto`), shipped default on**: when
   the opponents' last bid is `3NT` and our side has made no bid, the learned

@@ -556,7 +556,7 @@ pub struct InstinctProfile {
     /// +0.0081/+0.0102, PD +0.0152/+0.0175 IMPs/board none/both, single-dummy
     /// alike; 204,800 bd/vul, SEED_BASE 1790283934, `scripts/ab-3nt-pull-veto.sh`),
     /// firing on 0.12-0.13% of boards, all of them boards they open.
-    /// `their_3nt_gate` masks every
+    /// `their_contract_gate` masks every
     /// suit bid of five cards or fewer when the opponents' last bid is `3NT`
     /// and our side has made no bid.  The v6 net under the default regime
     /// bids four of *their* suit over it with junk (`1♣ - 1♠ - 2NT - 3NT` 4♠
@@ -598,6 +598,23 @@ pub struct InstinctProfile {
     /// routes some masked `4♠` there too.  Same trigger as the pull rail
     /// (their last bid `3NT`, our side has made no bid), independent of it.
     pub their_3nt_unusual_veto: bool,
+
+    /// Veto a floored suit pull of **their game** (`4♥`, `4♠`, `5♣`, `5♦`)
+    /// into a suit we hold four cards or fewer in, by a side that has only
+    /// passed or doubled
+    ///
+    /// **Default on** since 2026-09-26: a win in every cell (plain DD
+    /// +0.0016/+0.0031, PD +0.0026/+0.0048 IMPs/board none/both, single-dummy
+    /// alike; 204,800 bd/vul, SEED_BASE 1790405692,
+    /// `scripts/ab-game-pull-veto.sh`), firing on 0.03–0.05% of boards, all of
+    /// them boards they open.  Found by the R4 trace of the 2026-09-20 shipping-arm decompose (`c3bb94a7`):
+    /// over their Smolen `1NT - 2♣ - 2♦ - 3♠ - 4♥` the v6 floor bids `4♠` on
+    /// junk (`T87.65.J8542.873`) and goes for a number.  Every such pull of
+    /// their game priced at 48 boards, −197 plain / −577 PD IMPs over 409.6k,
+    /// BBA passing 48 of 50; the five-card and longer pulls are a wash or a
+    /// gain, hence the cut.  The game sibling of
+    /// [`their_3nt_pull_veto`][Self::their_3nt_pull_veto], sharing its gate.
+    pub their_game_pull_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -641,6 +658,7 @@ impl Default for InstinctProfile {
             their_3nt_pull_veto: true,
             their_2nt_double_veto: true,
             their_3nt_unusual_veto: true,
+            their_game_pull_veto: true,
         }
     }
 }
@@ -688,6 +706,7 @@ impl InstinctProfile {
             their_3nt_pull_veto: false,
             their_2nt_double_veto: false,
             their_3nt_unusual_veto: false,
+            their_game_pull_veto: false,
         }
     }
 }
@@ -3857,19 +3876,24 @@ pub fn new_suit_counts() -> [u64; 2] {
     std::array::from_fn(|action| NEW_SUIT_FIRED[action].load(atomic::Ordering::Relaxed))
 }
 
-/// Mask our side's suit pulls of their `3NT` — the
-/// [`their_3nt_pull_veto`][InstinctProfile::their_3nt_pull_veto] stage of the
-/// learned floor
+/// Mask our side's suit pulls of their `3NT` or game — the
+/// [`their_3nt_pull_veto`][InstinctProfile::their_3nt_pull_veto] and
+/// [`their_game_pull_veto`][InstinctProfile::their_game_pull_veto] stages of
+/// the learned floor
 ///
-/// Fires only when the opponents' last bid is `3NT` and every call our side
-/// has made is a pass, double or redouble.  Then every suit bid in a suit we
-/// hold five cards or fewer in is masked; a six-card suit, notrump, `X` and
-/// `Pass` are untouched, so a distribution always survives.  With
+/// Fires only when the opponents' last bid is `3NT` or a game and every call
+/// our side has made is a pass, double or redouble.  Over `3NT` every suit bid
+/// in a suit we hold five cards or fewer in is masked; over `4♥`, `4♠`, `5♣`
+/// or `5♦`, four cards or fewer.  Longer suits, notrump, `X` and `Pass` are
+/// untouched, so a distribution always survives.  With
 /// [`their_3nt_unusual_veto`][InstinctProfile::their_3nt_unusual_veto] `4NT`
-/// is masked too unless we hold two five-card suits.
-pub(crate) fn their_3nt_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+/// over `3NT` is masked too unless we hold two five-card suits.
+pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
     let profile = pinned(context);
-    if !profile.their_3nt_pull_veto && !profile.their_3nt_unusual_veto {
+    if !profile.their_3nt_pull_veto
+        && !profile.their_3nt_unusual_veto
+        && !profile.their_game_pull_veto
+    {
         return;
     }
     let auction = context.auction();
@@ -3885,19 +3909,35 @@ pub(crate) fn their_3nt_gate(logits: &mut Logits, hand: Hand, context: &Context<
         .skip(1)
         .step_by(2)
         .any(|c| matches!(c, Call::Bid(_)));
-    if !theirs || auction[last] != Call::Bid(Bid::new(3, Strain::Notrump)) || we_bid {
+    let Call::Bid(bid) = auction[last] else {
+        return;
+    };
+    if !theirs || we_bid {
         return;
     }
-    if profile.their_3nt_pull_veto {
+    let pull_max = match (bid.level.get(), bid.strain) {
+        (3, Strain::Notrump) if profile.their_3nt_pull_veto => Some(5),
+        (4, Strain::Hearts | Strain::Spades) | (5, Strain::Clubs | Strain::Diamonds)
+            if profile.their_game_pull_veto =>
+        {
+            Some(4)
+        }
+        _ => None,
+    };
+    if let Some(max) = pull_max {
         for (call, logit) in logits.iter_mut() {
             if let Call::Bid(bid) = call
-                && bid.strain.suit().is_some_and(|suit| hand[suit].len() <= 5)
+                && bid
+                    .strain
+                    .suit()
+                    .is_some_and(|suit| hand[suit].len() <= max)
             {
                 *logit = f32::NEG_INFINITY;
             }
         }
     }
     if profile.their_3nt_unusual_veto
+        && bid == Bid::new(3, Strain::Notrump)
         && Suit::ASC.iter().filter(|&&s| hand[s].len() >= 5).count() < 2
     {
         logits[Call::Bid(Bid::new(4, Strain::Notrump))] = f32::NEG_INFINITY;

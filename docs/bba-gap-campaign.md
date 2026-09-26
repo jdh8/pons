@@ -340,7 +340,9 @@ In bucket order; each item is its own fresh-seed A/B per
    `1♣ - 1♠ - 2NT - 3NT` pulled to `4♠` (133 bd; the shipped 3NT-pull rail
    now masks it) or `4NT` (23 bd; the `their_3nt_unusual_veto` arm, shipped
    default on: +0.0035/+0.0045 plain, +0.0041/+0.0053 PD)) and after `1NT - 2♣ …` (113 bd,
-   −0.6k / −1.1k), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
+   −0.6k / −1.1k; traced 2026-09-26 — its Smolen `4♥` pulled to `4♠` is the
+   `their_game_pull_veto` rail, shipped default on: +0.0016/+0.0031 plain,
+   +0.0026/+0.0048 PD; see [floor-rail-campaign.md](floor-rail-campaign.md)), and the junk `2♠` cue over `1♠ - 2♦` (446 bd, −0.4k /
    −0.7k). Author each as an `InstinctProfile` rail with a `bba-gen` flag, one
    A/B at a time. Trace on the shipping arm; author parametrically (suit loops +
    context predicates, never a node per sequence), one `set_*` knob + `bba-gen`
