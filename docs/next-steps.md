@@ -74,7 +74,11 @@ as a batch, not as separate efforts:
 - per [floor-rail-campaign.md](floor-rail-campaign.md) stop-criterion 5, the
   retrain also re-arbitrates every shipped rail.
 
-Blocked on the M5.3 corpus question (see the ai-bidder ledger).
+~~Blocked on the M5.3 corpus question~~ — **unblocked 2026-09-26** by the
+label transplant ([ai-bidder/features-v8.md](ai-bidder/features-v8.md)): a
+feature bump no longer needs a relabel. v8 itself measured *suspect* (plain
+win, PD erases it; opt-in) — B2.5 and the `1♦ ♦3` atom still ride the next
+bump the same way, but a bump alone does not re-arbitrate the rails.
 
 ## 6. Cheap insurance + one owed decision
 

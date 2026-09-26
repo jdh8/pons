@@ -14,7 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6, TOKEN_LEN_V7};
+use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_LEN_V8, TOKEN_LEN_V7};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -171,6 +171,30 @@ static WEIGHTS_BBA_V6_THEIR: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BB
 pub fn classify_bba_v6_their(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
     forward::<IN_V6>(&WEIGHTS_BBA_V6_THEIR, features)
+}
+
+// ── The v8 floor: v6 plus the artificial block ───────────────────────────────
+
+/// Input width of `american_bba_v8`, pinned to the artifact.
+const IN_V8: usize = FEATURES_LEN_V8;
+
+/// Weights retrained on the v6 corpus re-walked through
+/// [`features_v8`][super::features::features_v8] with the M32 labels
+/// transplanted (no rollout relabel): the input-side fix for the artificial
+/// strain blindness the floor rails patched on the output side
+/// (`docs/floor-rail-campaign.md`).
+static RAW_BBA_V8: &[u8] = include_bytes!("weights/american_bba_v8.f32");
+const _: () = assert!(
+    RAW_BBA_V8.len() == total(IN_V8) * 4,
+    "v8 BBA weights artifact size mismatch"
+);
+static WEIGHTS_BBA_V8: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V8));
+
+/// Evaluate the v8 BBA-distilled floor: 188 features → 38 logits.
+#[must_use]
+pub fn classify_bba_v8(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V8, "expected {IN_V8} features");
+    forward::<IN_V8>(&WEIGHTS_BBA_V8, features)
 }
 
 // ── The v7 sequence floor: an LSTM auction encoder feeding the v6 head ───────

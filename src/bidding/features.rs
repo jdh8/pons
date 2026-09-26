@@ -1298,6 +1298,85 @@ pub fn features_v6(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out
 }
 
+// ── v8: v6 plus the artificial-call block ────────────────────────────────────
+//
+// `features_v6` sets the we-bid-this-strain bit for artificial calls too, so a
+// transfer `2♠` and a natural `2♠` reach the net as the same float — the
+// input-side blindness behind every output-side rail of
+// `docs/floor-rail-campaign.md`.  v8 keeps the v6 vector verbatim (so the
+// compact regime input, the fold and every v6 probe stay comparable) and
+// appends what the reading layer already knows: which strains a side named
+// only through alerted calls, and whether the two bids the net keys on were
+// artificial.
+
+/// Layout version tag for [`features_v8`].
+pub const FEATURES_VERSION_V8: u32 = 8;
+
+/// Width of the artificial block: 5 strains per side, then two flags.
+pub const LEN_ARTIFICIAL: usize = 2 * 5 + 2;
+
+/// Number of `f32` values returned by [`features_v8`].
+pub const FEATURES_LEN_V8: usize = FEATURES_LEN_V6 + LEN_ARTIFICIAL;
+
+/// Push the artificial block: `[ours ×5][theirs ×5][last bid][partner's last bid]`.
+///
+/// A strain bit is set when that side named the strain and **every** such call
+/// was alerted — "we never bid this strain naturally".  A natural call in the
+/// strain, before or after, clears it, which is exactly the v6 raw bit minus
+/// the phantom suits.  The two flags read the same calls v6 encodes as
+/// *contract-to-beat* and *partner's last bid*.
+fn push_artificial(out: &mut impl FeatureSink, context: &Context<'_>) {
+    let auction = context.auction();
+    let inferences = context.inferences();
+    let ours = |index: usize| {
+        matches!(
+            relative_of(auction.len(), index),
+            Relative::Me | Relative::Partner
+        )
+    };
+    for side in [true, false] {
+        for strain in Strain::ASC {
+            let mut named = false;
+            let mut natural = false;
+            for (index, call) in auction.iter().enumerate() {
+                if let Call::Bid(bid) = call
+                    && bid.strain == strain
+                    && ours(index) == side
+                {
+                    named = true;
+                    natural |= !inferences.call_artificial(index);
+                }
+            }
+            out.push(f32::from(named && !natural));
+        }
+    }
+    let last_bid = |partner_only: bool| {
+        auction
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(index, call)| {
+                matches!(call, Call::Bid(_))
+                    && (!partner_only || relative_of(auction.len(), *index) == Relative::Partner)
+            })
+            .is_some_and(|(index, _)| inferences.call_artificial(index))
+    };
+    out.push(f32::from(last_bid(false)));
+    out.push(f32::from(last_bid(true)));
+}
+
+/// Extract the v6 vector plus the artificial block.
+///
+/// Same contract as [`features_v6`]: wants a [`CompactConfig`] attached.
+#[must_use]
+pub fn features_v8(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    let mut out = features_v6(hand, context);
+    out.reserve(LEN_ARTIFICIAL);
+    push_artificial(&mut out, context);
+    debug_assert_eq!(out.len(), FEATURES_LEN_V8);
+    out
+}
+
 // ── The v7 sequence extractor: one token per prior call ──────────────────────
 //
 // `features_v6` hands the net a flat summary of the auction: strain bitmasks,

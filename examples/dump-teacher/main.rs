@@ -57,9 +57,9 @@ use pons::bidding::card::american_card;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     BOXES_V7, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6,
-    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V6, FEATURES_VERSION_V7,
-    MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7, call_tokens_v7, features_v3, features_v4,
-    features_v6, seq_row_v7,
+    FEATURES_LEN_V8, FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V6,
+    FEATURES_VERSION_V7, FEATURES_VERSION_V8, MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7,
+    call_tokens_v7, features_v3, features_v4, features_v6, features_v8, seq_row_v7,
 };
 use pons::bidding::instinct::forced;
 use pons::bidding::{Bidder, Phase};
@@ -664,7 +664,12 @@ fn run(args: Args) -> anyhow::Result<()> {
             "--feature-version 7 dumps the v6 vector plus the call sequence, and \
              both read the configured context — pass --configured"
         ),
-        (other, _) => anyhow::bail!("--feature-version must be 4, 6 or 7, got {other}"),
+        // v8 is v6 plus the artificial block; same configured contract as v6.
+        (8, true) => (FEATURES_VERSION_V8, FEATURES_LEN_V8),
+        (8, false) => {
+            anyhow::bail!("--feature-version 8 reads the configured context — pass --configured")
+        }
+        (other, _) => anyhow::bail!("--feature-version must be 4, 6, 7 or 8, got {other}"),
     };
     let seq = args.feature_version == 7;
     // Not a clap `conflicts_with`: the conflict is with a *value* of
@@ -795,7 +800,7 @@ fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    let compact_features = feature_version == FEATURES_VERSION_V6;
+    let compact_features = matches!(feature_version, FEATURES_VERSION_V6 | FEATURES_VERSION_V8);
     // Per side: its card and the partnership that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
     // v6 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
@@ -1053,11 +1058,15 @@ fn run(args: Args) -> anyhow::Result<()> {
                 if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
                     context = context.with_config(config);
                 }
-                let feats = if feature_version == FEATURES_VERSION_V6 {
+                let feats = if compact_features {
                     let (ours, theirs) = acting.expect("v6 rows are cell rows");
                     context =
                         context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
-                    features_v6(hand, &context)
+                    if feature_version == FEATURES_VERSION_V8 {
+                        features_v8(hand, &context)
+                    } else {
+                        features_v6(hand, &context)
+                    }
                 } else if args.configured {
                     features_v4(hand, &context)
                 } else {

@@ -62,7 +62,8 @@
 
 use super::agreements::Agreements;
 use super::common::{
-    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_instinct_floor,
+    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_floor_v8,
+    with_instinct_floor,
 };
 use super::{Competitive, Constructive, Defensive, System};
 
@@ -216,6 +217,20 @@ pub fn american_with_card(
 #[must_use]
 pub fn american_v6(agreements: &Agreements) -> System {
     american(agreements)
+}
+
+/// [`american`] on the v8 floor: the v6 net's inputs plus the artificial
+/// block ([`features_v8`][super::features::features_v8]).  The A/B arm of
+/// the floor-rail campaign's matched retrain.
+#[must_use]
+pub fn american_v8(agreements: &Agreements) -> System {
+    with_floor_v8(
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements,
+        )),
+        agreements,
+    )
 }
 
 /// Experimental v6 twin retrained on BBA's disclosed Multi-Landy readings.

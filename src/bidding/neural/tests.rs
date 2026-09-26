@@ -1,5 +1,8 @@
 use super::*;
 
+/// Constant columns `scripts/fold-constant-inputs.py` zeroed in the v8 artifact.
+const FOLDED_V8: usize = 32;
+
 fn argmax(v: &[f32]) -> usize {
     v.iter()
         .enumerate()
@@ -72,6 +75,28 @@ fn matches_candle_fixture_bba_v6_their() {
     check_fixture(
         include_str!("../weights/american_bba_v6_their.fixture.json"),
         |x| classify_bba_v6_their(x).iter().map(|(_, l)| *l).collect(),
+    );
+}
+
+/// The v8 net (v6 inputs plus the artificial block) clears the parity bar.
+#[test]
+fn matches_candle_fixture_bba_v8() {
+    check_fixture(
+        include_str!("../weights/american_bba_v8.fixture.json"),
+        |x| classify_bba_v8(x).iter().map(|(_, l)| *l).collect(),
+    );
+}
+
+/// Export gate for v8: the corpus scan's constant count, pinned.
+#[test]
+fn folded_v8_columns_are_exactly_zero() {
+    let w1 = &WEIGHTS_BBA_V8[..HID * IN_V8];
+    let zero = (0..IN_V8)
+        .filter(|&i| (0..HID).all(|h| w1[h * IN_V8 + i].to_bits() == 0))
+        .count();
+    assert_eq!(
+        zero, FOLDED_V8,
+        "v8 artifact was not folded against its corpus"
     );
 }
 

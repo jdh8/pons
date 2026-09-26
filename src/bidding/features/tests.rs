@@ -1463,3 +1463,59 @@ fn v7_blind_inference_blanks_every_reading_channel() {
         "the unblinded control must actually read something"
     );
 }
+
+// ── v8 artificial block ──────────────────────────────────────────────────────
+
+/// v8 is v6 verbatim plus twelve values: a transfer names a strain only
+/// artificially, and partner's last bid is flagged; a natural raise sets nothing.
+#[test]
+fn features_v8_flags_artificial_strains_and_last_bids() {
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
+    let partnership = crate::american(&agreements).bind();
+    let block = |auction: &[Call]| -> Vec<f32> {
+        let context = partnership
+            .prefixed_context(RelativeVulnerability::NONE, auction)
+            .with_compact(&compact);
+        let v6 = features_v6(cards, &context);
+        let v8 = features_v8(cards, &context);
+        assert_eq!(FEATURES_LEN_V8, 188);
+        assert_eq!(v8.len(), FEATURES_LEN_V8);
+        assert_eq!(v8[..FEATURES_LEN_V6], v6[..]);
+        v8[FEATURES_LEN_V6..].to_vec()
+    };
+
+    // Opener's seat after a Jacoby transfer: partner named diamonds only
+    // artificially; the last bid and partner's last bid are both that transfer.
+    let transfer = [
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Diamonds),
+        Call::Pass,
+    ];
+    let diamonds = Strain::Diamonds as usize;
+    let mut want = vec![0.0; LEN_ARTIFICIAL];
+    want[diamonds] = 1.0;
+    want[10] = 1.0;
+    want[11] = 1.0;
+    assert_eq!(block(&transfer), want);
+
+    // A natural raise sets nothing.
+    let raise = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    assert_eq!(block(&raise), vec![0.0; LEN_ARTIFICIAL]);
+
+    // Their side's block reads their calls: a natural overcall stays clear.
+    let overcall = [
+        bid(1, Strain::Clubs),
+        bid(1, Strain::Spades),
+        Call::Pass,
+        Call::Pass,
+    ];
+    assert_eq!(block(&overcall), vec![0.0; LEN_ARTIFICIAL]);
+}

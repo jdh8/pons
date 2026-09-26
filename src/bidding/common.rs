@@ -115,6 +115,17 @@ pub(in crate::bidding) fn with_floor_v6(
     with_floors(system, &ladder, contested)
 }
 
+/// Attach the v8 floor (v6 plus the artificial block).
+pub(in crate::bidding) fn with_floor_v8(
+    system: System,
+    compact: CompactConfig,
+    agreements: &Agreements,
+) -> System {
+    let ladder = Arc::new(instinct(agreements));
+    let contested = Fallback::classify(ConfiguredFloorV6::new_v8(compact, Arc::clone(&ladder)));
+    with_floors(system, &ladder, contested)
+}
+
 /// Attach the v6 twin retrained on BBA's disclosed readings.
 pub(in crate::bidding) fn with_floor_v6_their(
     system: System,

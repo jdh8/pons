@@ -316,6 +316,9 @@ makes.
 
 ## 7. Disposition
 
+*2026-09-26: the input-side retrain this section pointed at is built as
+`features_v8` — see [features-v8.md](features-v8.md).*
+
 **Opt-in knob, default byte-identical** — the house rule for a rejected-but-
 interesting treatment. Nothing to revert: the knob was built default-off and the
 smoke digest never moved. The code, the runner, the `probe-layer-replay`

@@ -9,7 +9,8 @@ cd "$(dirname "$0")/.."
 BANK=/nfs2/jdh8/pons/22.pdd
 OUT=${DUMP_OUT:-target/corpus-v6}
 BIN=target/release/examples/dump-teacher
-COMMON="--deals $BANK --teacher bba --configured --feature-version 6"
+# FEATURE_VERSION=8 draws the same recipe through features_v8 (v6 + the artificial block).
+COMMON="--deals $BANK --teacher bba --configured --feature-version ${FEATURE_VERSION:-6}"
 [ "${DUMP_VS_BBA:-false}" = true ] && COMMON="$COMMON --vs-bba"
 mkdir -p "$OUT"
 

@@ -133,7 +133,9 @@ The series ends the first time any of these holds:
    wall-bound obstruction, this series has no material — that's the floor
    backlog and the retrain, not a rail.
 5. **A matched retrain lands.** Every rail is scaffolding over a v6 input
-   blindness. At the next matched policy/evaluator retrain, re-run each
+   blindness. *(2026-09-26: the retrain is built — `features_v8`, M32 labels
+   transplanted, no relabel, [ai-bidder/features-v8.md](ai-bidder/features-v8.md) —
+   measured **suspect** (plain win, PD erases it), stays opt-in; the rails stand and the net's parameters stay fixed for R4/R5. Its worst boards name a new rail candidate: our silent side acting over their 4NT.)* At the next matched policy/evaluator retrain, re-run each
    shipped rail's A/B against the new net (the runners make this cheap); a
    rail whose win vanished gets its default flipped off. Rails must not
    accumulate past the net that needed them.

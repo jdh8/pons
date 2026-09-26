@@ -25,10 +25,11 @@ pub const SOFTMAX_LEN: usize = 38;
 /// block, v3 is the restrictive disclosable-only vector (88 floats), v4 appends
 /// the two 140-wide convention cards (368 floats), v5 replaces the cards with
 /// the two 28-wide compact-config blocks (144 floats), and v6 widens each
-/// reading with four suit-specific support-point ranges (176 floats). The actual
+/// reading with four suit-specific support-point ranges (176 floats), and v8
+/// appends the 12-value artificial-call block (188 floats). The actual
 /// `features_len` is read from the dump sidecar and the model input is sized
 /// from it, so every supported version trains unchanged.
-pub const SUPPORTED_FEATURE_VERSIONS: [u32; 6] = [1, 2, 3, 4, 5, 6];
+pub const SUPPORTED_FEATURE_VERSIONS: [u32; 7] = [1, 2, 3, 4, 5, 6, 8];
 
 /// The sidecar's `seq` block: the geometry of the `.seq` sibling. Absent (or
 /// `null`) on every dump before the LSTM corpus, which is what makes the

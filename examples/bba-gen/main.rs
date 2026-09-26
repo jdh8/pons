@@ -82,8 +82,9 @@ struct Args {
     /// deterministic `american-instinct` pre-swap baseline, `bba-constructive`
     /// (`american` with the BBA net flooring the constructive book too),
     /// `neural-v3` (the restrictive disclosable distilled floor; requires the
-    /// `neural-floor` feature), or the explicit `american-v6` alias of the
-    /// shipped default. Ignored when `--our-system` selects
+    /// `neural-floor` feature), the explicit `american-v6` alias of the
+    /// shipped default, or `american-v8` (the v6 net's inputs plus the
+    /// artificial block). Ignored when `--our-system` selects
     /// an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
+  vector plus a 12-value artificial-call block (per side, the strains named
+  only through alerted calls; whether the last bid and partner's last bid were
+  artificial), the input-side fix for the phantom-strain blindness every rail
+  of the floor-rail series patched on the output side. Trained on the fleet's
+  188 chunks **re-walked at HEAD with zero layouts** (10 min) and the M32
+  labels transplanted row for row (`scripts/splice-labels.py`; no rollout
+  relabel): held-out CE 0.416 → 0.396, top-1 85.3 → 86.0% on the same labels,
+  all 12 new columns live after the fold. **Opt-in** (`american_v8()`,
+  `--our-floor american-v8`); `american()` is byte-identical. **Measured
+  suspect, not shipped**: vs the shipped floor at 204,800 bd/arm/vul, plain DD
+  +0.0171 ±0.0105 (none) / +0.0152 ±0.0126 (both), PD **−0.0127 ±0.0121** /
+  −0.0076 ±0.0144, single-dummy +0.035/+0.033 plain and +0.009/+0.013 PD — the
+  decision table's *plain win, PD erases it* row. The worst PD boards are junk
+  floor actions past game (bids over their 4NT, late doubles of making
+  contracts, five-level redoubles). Design, the alignment findings (a plain
+  dump does not align with the fleet's walk; the uniform shards' retired Dutch
+  cells), the trace and the next levers:
+  [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md).
+
 ### Benchmarks
 
 - **Bidding speed versus BBA (2026-09-20, `6e77c369`)**: the shipping M32 v6
