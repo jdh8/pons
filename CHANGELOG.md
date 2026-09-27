@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: defensive-auctions reference (2026-09-27)** —
+  [docs/defensive-auctions-reference.md](docs/defensive-auctions-reference.md)
+  distils how BBA (book dump + `EPBot64.dll` decompile) and BEN
+  (`botbidder.py` Tier-S patches, declared card) bid defensive auctions, maps
+  each lane against pons's book, and ranks five levers. Headline: the
+  floor-owned defensive cells (balancing, `(3x)`, advances of a natural
+  overcall) sum to −3 343 plain vs BEN Tier S, more than the round-1 book
+  cell, and BBA authors every one of them. No bidding change.
 - **Natural strong jump shifts over the forcing `1NT` (2026-09-27)** — the
   rival to the Meckstroth `2NT`, behind `RebidKnobs::forcing_nt_jump_shifts`
   (inert while `meckstroth_adjunct` is on; **default on** since the same day,
