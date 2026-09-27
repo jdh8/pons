@@ -10,26 +10,18 @@ use super::*;
 
 /// Defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`)
 ///
-/// `X` = lead-directing clubs (5+ with values, the bid suit — not takeout);
-/// `2♦/2♥/2♠` = a natural **6-card** suit; `3♣` = a **strong** natural club
-/// one-suiter (declare, not preempt).  No Michaels cue (their 2♣ is artificial,
-/// so a cue would be natural); an Unusual 2NT (both minors) was tried and
-/// measured DD-negative (−4.9 IMPs/fired), so it was dropped.  An owning Pass
-/// catches the ~80% that act on nothing, keeping the floor's undisciplined
-/// balancing calls out.
+/// Only the `X` is authored: lead-directing clubs (5+ with values, the bid
+/// suit — not takeout).  Every other hand is **rejected**, so the floor owns
+/// it: the natural overcalls and the pass are the floor's, read by the natural
+/// walk.  The v6 floor's own `X` here is already a club double (5+ clubs on
+/// 99% of them), so the rule's projection reads it truthfully too.
 ///
-/// The overcall length and points floor were **A/B-searched**, not copied from
-/// BBA: a paired perfect-defense (PD) sweep (`agreements.defense.stayman_defense_overcall`)
-/// settled on a six-card suit at `points(14..)`.  Over a *strong* 1NT the bidding
-/// side holds the points, so a natural overcall into their auction is PD-negative
-/// when light — the sweep is monotone in the floor (the 8–13 overcalls lose, 14
-/// turns DD-harmless) and prefers length-6 over length-5 (the 5-card overcalls'
-/// plain-DD edge is the light-sacrifice artifact PD prices away).  Routing the
-/// weak long-club hand to `Pass` instead of a `3♣` preempt drops a DD-negative
-/// obstruction bid; the strong `3♣` (tracking the same floor) is weighted above
-/// the `X` so a real club hand declares rather than lead-directs.
-fn defense_to_their_stayman(agreements: &Agreements) -> Rules {
-    let (min_len, floor) = agreements.defense.stayman_defense_overcall;
+/// This replaced an owning table (6-card `points(14..)` overcalls, a strong
+/// `3♣` and a `Pass` catch-all) whose `Pass` shadowed the floor's natural
+/// overcalls: SD-PD −0.0052/−0.0043 IMPs/board NV/vul (2026-09-27), while its
+/// `X` alone was SD-PD +0.44/+0.47 per fired.  An Unusual `2NT` was dropped
+/// earlier (−4.9 IMPs/fired).
+fn defense_to_their_stayman() -> Rules {
     Rules::new()
         .rule(
             Call::Double,
@@ -37,27 +29,6 @@ fn defense_to_their_stayman(agreements: &Agreements) -> Rules {
             len(Suit::Clubs, 5..) & suit_hcp(Suit::Clubs, 5..) & points(8..),
         )
         .alert(STAYMAN_DEFENSE_X)
-        .rule(
-            Bid::new(2, Strain::Diamonds),
-            180,
-            len(Suit::Diamonds, min_len..) & points(floor..),
-        )
-        .rule(
-            Bid::new(2, Strain::Hearts),
-            180,
-            len(Suit::Hearts, min_len..) & points(floor..),
-        )
-        .rule(
-            Bid::new(2, Strain::Spades),
-            180,
-            len(Suit::Spades, min_len..) & points(floor..),
-        )
-        .rule(
-            Bid::new(3, Strain::Clubs),
-            200,
-            len(Suit::Clubs, 6..) & points(floor..),
-        )
-        .rule(Call::Pass, 50, hcp(0..))
 }
 
 /// Defense to the opponents' Jacoby transfer after `(1NT) - (2♦)` or
@@ -204,18 +175,13 @@ fn defense_to_their_diamond_transfer() -> Rules {
         .rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Defense to their `2♣` Stayman: `X` = lead-directing clubs, natural
-/// overcalls, Unusual `2NT`, natural `3♣` preempt (`set_stayman_defense`)
+/// Defense to their `2♣` Stayman: `X` = lead-directing clubs, everything
+/// else to the floor (`set_stayman_defense`)
 pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
         gate: |agreements| agreements.defense.stayman_defense_enabled,
-        entries: |agreements| {
-            rows_of(
-                Pattern::node("P* (1NT) - (2♣)"),
-                defense_to_their_stayman(agreements),
-            )
-        },
+        entries: |_| rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman()),
     }
 }
 

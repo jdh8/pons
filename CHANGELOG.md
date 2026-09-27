@@ -156,6 +156,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`set_stayman_defense` redesigned to author only the lead-directing `X`
+  (2026-09-27); still opt-in (SD-PD wash).** The owning table (6-card
+  `points(14..)` overcalls, strong `3♣`, `Pass` catch-all) is gone: every hand
+  but the club double is rejected, so the floor keeps its natural overcalls. The
+  v6 floor's own `X` over `(2♣)` already holds 5+ clubs on 99% of boards, so the
+  rule's reading is truthful for it too. The `stayman_defense_overcall` field and
+  `bba-gen --ns-staydef-overcall` are **removed** (the redesign has no overcall
+  rules for them to tune). Same seed and off arm as the re-measure (1790512003,
+  409,632 boards/arm/vul, `scripts/ab-stayman-defense.sh`), IMPs/board NV / vul:
+  plain DD −0.0010 ±0.0012 / −0.0016 ±0.0015, PD −0.0023 ±0.0013 / −0.0030
+  ±0.0016, sd plain +0.0012 ±0.0012 / +0.0012 ±0.0015, **SD-PD +0.0003 ±0.0013 /
+  +0.0002 ±0.0016** — a wash on the arbiter, up from −0.0052/−0.0043. Split
+  (`--by stayman`, SD-PD per fired): the `X` where the floor passes **+0.28 /
+  +0.29** (988 / 1,122); both arms doubling **−0.10 / −0.27** (1,075 / 943). The
+  drag is the continuation: reading the `X` as 5+ good clubs, the floor raises
+  `3♣` (the first divergence on 286 of the vul both-`X` boards, −551 PD) and the
+  doubler later competes in clubs over their `3NT`. Owed: authored
+  continuations of the lead-directing `X`.
+
+
 - **Opener rebids a three-card minor over the forcing `1NT` (2026-09-27,
   default on)** — after `1M - 1NT`, a 5-3-3-2 with no six-card major and no
   four-card side suit now rebids its three-card minor (`2♣` with 3-3) instead

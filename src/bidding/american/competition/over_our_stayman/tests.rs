@@ -117,3 +117,16 @@ fn defense_to_their_stayman_doubles_clubs() {
         "the lead-directing X must come from the defense book"
     );
 }
+
+#[test]
+fn defense_to_their_stayman_leaves_other_hands_to_the_floor() {
+    // (1NT) - (2♣): a natural spade overcall is not the book's — the node
+    // rejects it and the floor answers exactly as with the defense off.
+    let mut arm = Agreements::default();
+    arm.defense.stayman_defense_enabled = true;
+    let auction = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
+    let hand = "KQJ976.K32.A2.32";
+    let (c, floored) = best_call_with(&arm, &auction, hand);
+    assert!(floored, "a non-X hand must fall through to the floor");
+    assert_eq!(c, best_call_with(&Agreements::default(), &auction, hand).0);
+}

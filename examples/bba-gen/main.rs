@@ -1709,12 +1709,6 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_diamond_transfer_defense: bool,
 
-    /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:14, the
-    /// crate default); the A/B search knob for the 2♦/2♥/2♠ length + strength (no
-    /// effect unless `--ns-defense-to-their-stayman`).
-    #[arg(long, default_value = "6:14")]
-    ns_staydef_overcall: String,
-
     /// Shape gate for our natural penalty double of their 1NT: balanced (default,
     /// matches the shipped `american()`) | semi | any.
     #[arg(long, default_value = "balanced")]
@@ -2817,16 +2811,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.transfer_defense_enabled = args.ns_transfer_defense;
     agreements.defense.minor_transfer_defense_enabled = args.ns_minor_transfer_defense;
     agreements.defense.diamond_transfer_defense_enabled = args.ns_diamond_transfer_defense;
-    agreements.defense.stayman_defense_overcall = args
-        .ns_staydef_overcall
-        .split_once(':')
-        .and_then(|(l, f)| Some((l.parse::<usize>().ok()?, f.parse::<u8>().ok()?)))
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "--ns-staydef-overcall must be LEN:FLOOR, got {:?}",
-                args.ns_staydef_overcall
-            )
-        })?;
     // Written on every family, not only the two that widen it: one value serves
     // both the conventional families and the natural overlay, so leaving it
     // alone would carry a widening into a family that never asked for one.

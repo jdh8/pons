@@ -2861,30 +2861,10 @@ pub struct DefenseKnobs {
     /// Defend their Stayman convention
     ///
     /// Our defense to the opponents' `2♣` Stayman — after `(1NT) - (2♣)`, before
-    /// our call.  **Off by default** (opt-in A/B).  `X` = lead-directing clubs
-    /// (5+ with values), `2♦`/`2♥`/`2♠` = a natural 6-card suit
-    /// (`points(14..)`), `3♣` = a strong natural club one-suiter; the floor
-    /// passes everything else (~80%).  No Michaels cue — their `2♣` is
-    /// artificial, so a cue would be natural.  The overcall length and strength
-    /// were A/B-searched; see
-    /// [`stayman_defense_overcall`][Self::stayman_defense_overcall].
+    /// our call.  **Off by default** (opt-in A/B).  Authors only `X` =
+    /// lead-directing clubs (5+ with values); every other hand falls through to
+    /// the floor, which keeps its natural overcalls.
     pub stayman_defense_enabled: bool,
-    /// Length and strength floor for the natural call over their Stayman
-    ///
-    /// `(min suit length, points floor)` for the natural `2♦`/`2♥`/`2♠`
-    /// overcalls in the Stayman defense; the `3♣` jump tracks the same points
-    /// floor at a fixed 6-card length.  No effect unless
-    /// [`stayman_defense_enabled`][Self::stayman_defense_enabled] is on.
-    ///
-    /// **Default `(6, 14)`**, the A/B-searched setting: a paired PD sweep
-    /// (`bba-gen --ns-staydef-overcall LEN:FLOOR`, 1M boards/setting) found
-    /// length-6 beats length-5 (the 5-card overcalls' plain-DD edge is the
-    /// light-sacrifice artifact PD prices away) and the points floor is best
-    /// near 14 — below it the overcalls are perfect-defense-negative, at it they
-    /// turn DD-harmless; tighter still gains only within-noise DD while deleting
-    /// the sound overcalls that carry the convention's (DD-invisible)
-    /// competitive value.
-    pub stayman_defense_overcall: (usize, u8),
     /// Defend their major-suit transfers
     ///
     /// Our defense to the opponents' Jacoby transfers — after `(1NT) - (2♦/2♥)`,
@@ -3063,7 +3043,6 @@ impl Default for DefenseKnobs {
             meckwell_x_floor: 0,
             advance_2nt_continuation_enabled: true,
             stayman_defense_enabled: false,
-            stayman_defense_overcall: (6, 14),
             transfer_defense_enabled: false,
             minor_transfer_defense_enabled: false,
             diamond_transfer_defense_enabled: false,
