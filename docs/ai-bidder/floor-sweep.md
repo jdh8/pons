@@ -1,7 +1,9 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
-**Status: plan, written 2026-09-28. Nothing has run.** Precondition: jdh8
-un-defers *training-only* work. The 2026-09-26 deferral was of retrains that
+**Status: Phase 0 read (2026-09-28) — reseeds swing CI-clear, and in one
+direction; see § Phase 0 verdict.** Phase 1 is next but its reading needs the
+shell caveat below. Precondition met: jdh8 kicked the sweep off, un-deferring
+*training-only* work. The 2026-09-26 deferral was of retrains that
 need a dump (hours) or a relabel (the fleet-week); this plan needs neither.
 Every step below is a 10-minute train on the SSD corpus plus a 90-minute A/B.
 
@@ -35,14 +37,14 @@ This one won because:
   made the draw *reproducible*; it did not make it *good*. We have never
   measured how far the shipped draw sits from the mean.
 - **It is cheap in exactly the way the deferral wanted.** Corpus:
-  `target/corpus-relabel-m32` (6.0 GB, 60 stems, on the SSD, rows carry
+  `target/corpus-relabel-m32` (6.0 GB, 20 stems, on the SSD, rows carry
   `[176 features][38 teacher_softmax][20 dd_tricks]`). Train: 9 min 42 s on
   the 4090 (features-v8.md §3); two GPUs run two draws at once. A/B: 87 min
   at 204,800 bd/arm/vul (`ab-results/v8-floor.log`, 21:32→22:58).
 
 ## Rules
 
-1. **The corpus is frozen.** M32 labels, v6 features, the 60 stems as the
+1. **The corpus is frozen.** M32 labels, v6 features, the 20 stems as the
    manifest lists them. No dump, no relabel, no feature bump — a feature bump
    is [features-v8.md](features-v8.md)'s programme, not this one. This keeps
    every arm an equal-data comparison against the shipped artifact.
@@ -82,6 +84,58 @@ Read it three ways:
 
 Cost: two trains (20 min, one per GPU), two A/Bs (3 h idle time).
 
+## Phase 0 verdict (2026-09-28)
+
+Rows in the ledger; sd plain was +0.0304 / +0.0149 (seed 2) and +0.0286 /
++0.0211 (seed 3), CI-clear in three of four cells. Fired 15.5% (none), 13.5%
+(both). Fidelity passed the filter (val_ce .4172 / .4165 vs shipped .4163).
+
+**Reading: the first branch — reseeds swing CI-clear**, on both scorers
+(plain none +0.022 and +0.015; PD none −0.020 on seed 3). But the swing is
+not symmetric noise around seed 1. **Both reseeds moved the same way on both
+scorers — plain DD up, PD down** — and with the same mechanism the v8 trace
+found (§5 of [features-v8.md](features-v8.md)) and the LSTM's overbidding
+diagnosis ([plan.md](plan.md) M5.2):
+
+| none, all 204,800 boards × 2 tables | doubled contracts | auctions ending `XX` |
+| --- | ---: | ---: |
+| shipped (three control runs) | 5.57–5.62% | 372–433 |
+| seed 2 | 6.24% | 603 |
+| seed 3 | 6.40% | 750 |
+| v8 | 5.83% | 645 |
+
+The worst PD boards are the same family: our side acting over their 4NT
+(`4NT 5♠ X`), late doubles and four/five-level redoubles (`3♠ 4♠ X XX`).
+
+**Interpretation — the shell is fitted to seed 1.** The five floor rails
+were arbitrated against the seed-1 net, and the accountant collar was
+calibrated to its distribution (M5.2's flip plan already says so for v7).
+Any other draw of the *same* recipe brings junk actions the shell was never
+fitted to catch, and PD prices them. So:
+
+1. **v8 and the three LSTM arms are confounded** (the plan's branch (b)).
+   v8's signature (+0.017 / −0.013) sits inside the reseed spread; its
+   verdict is "indistinguishable from a reseed", and its trace's causal
+   story (the artificial block puts their 4NT off-distribution) is not
+   needed to explain it. The LSTM arms' PD losses (−0.024 to −0.043) are
+   larger than both reseeds, so "refuted" weakens but does not flip; their
+   plain columns (+0.001 to +0.015) are at or below the reseeds'. Caveats
+   recorded in both docs; not re-run.
+2. **The decision table cannot rank candidates while the shell is seed-1's.**
+   Every non-seed-1 net lands on the *suspect* row by construction. Rule 6's
+   "rail re-arbitration before the flip" is too late: a candidate's PD column
+   already carries the shell-fit tax.
+3. **The plain-DD column says the shipped draw is below the mean** of its
+   recipe by ~0.015–0.02 IMPs/board (none). Whether that is recoverable is
+   exactly what PD, not plain, has to show.
+
+**Next (proposed, not started).** Phase 1 still runs as planned (K = 4,
+seed 4 to train) — averaging logits should shrink exactly the idiosyncratic
+junk actions — but read its PD column against this table, not against zero.
+If it also lands on the *suspect* row, the lever is re-fitting the shell to
+the candidate (collar retune first: one knob, and the LSTM flip plan's arm 1
+is the same work), not another recipe axis.
+
 ## Phase 1 — the ensemble (variance reduction at the same recipe)
 
 `K = 4`: seeds 1–4, seed 1 being the shipped blob. Average the **logits**
@@ -95,6 +149,11 @@ beside a single double-dummy solve (KR3 holds).
 One A/B vs shipped. Ship if the decision table says so and the rails
 re-arbitrate; try `K = 8` only if `K = 4` wins. Shipping form is `K`
 embedded blobs (≈ 0.5 MB each): an ensemble does not fold into one MLP.
+Size is settled (jdh8, 2026-09-28: disk is cheap); **compute is the KR3
+budget**. Before a flip, time a bidding-only run (no DD) at `K = 1` vs the
+candidate `K`; the forward pass is ~3 µs per decision at ~40 GMAC/s, so
+`K = 4` should add ~10 µs per contested off-book decision — confirm it,
+and let a measurable slowdown veto `K = 8`.
 
 ## Phase 2 — the recipe's free parameters, one axis at a time
 
@@ -133,20 +192,25 @@ Best recipe × ensemble, one A/B, rail re-arbitration, `smoke-default`
 re-bless, CHANGELOG. If Phase 2 found nothing, Phase 1's ensemble alone is
 the deliverable.
 
-## Wiring — the only code
+## Wiring — the only code (built 2026-09-28)
 
-- `neural::classify_v6_with(weights: &[f32], features: &[f32]) -> Logits`:
-  a public wrapper over the private `forward::<IN_V6>`. One line.
-- A floor variant in `neural_floor.rs` holding `Vec<Vec<f32>>` (decoded
-  blobs) whose classify averages logits over the blobs (`K = 1` is a plain
-  file-loaded net). Reuse `decode`.
-- `examples/common/mod.rs`: an `american-file` arm reading
-  `PONS_FLOOR_WEIGHTS=a.f32,b.f32,…`. Example-side only; the library's
-  default path never touches it, so `smoke-default` stays byte-identical.
+- `neural::classify_v6_mean(blobs, features) -> Logits`: the elementwise
+  logit mean of `forward::<IN_V6>` over `blobs`; `neural::decode` and
+  `neural::V6_FLOATS` are public for loaders. A mean of copies of the
+  shipped blob is the shipped net bit for bit
+  (`v6_mean_of_copies_is_the_shipped_net`).
+- `ConfiguredFloorV6::new_mean` — the same shell (rails, mask, gates) over
+  a `Net::Mean` of run-time blobs; `american::american_mean(agreements,
+  blobs)` builds the system.
+- `examples/common/mod.rs`: the `american-file` arm reads
+  `PONS_FLOOR_WEIGHTS=a.f32,b.f32,…` once per process. Example-side only;
+  the library's default path never touches it, so `smoke-default` stays
+  byte-identical. End to end, `american-file` on the shipped blob matched
+  `american` on 400 boards byte for byte.
 - `scripts/ab-floor-file.sh RESULTS_DIR`: `ab-v8-floor.sh` with the
-  candidate arm `--our-floor american-file`; it logs `PONS_FLOOR_WEIGHTS`
-  and each blob's `sha256sum` beside `SEED_BASE`, or the result is
-  unattributable.
+  candidate arm `--our-floor american-file`; it logs each blob's
+  `sha256sum` beside `SEED_BASE` and pins them in `$R/weights`, so a resume
+  with other blobs fails loudly.
 - Trainer: `--init-seed` and `--device-index` already exist. Width needs
   the sidecar `hidden` field read at load; a schedule needs a flag. Nothing
   else.
@@ -159,7 +223,10 @@ cd trainer && cargo run --release --features cuda -- --arch mlp --cuda --device-
   --data ../target/corpus-relabel-m32/<stem>... \
   --hidden 256 --epochs 300 --lr 0.001 --wd 0 --batch 4096 --val-frac 0.10 \
   --dd-weight 0 --init-seed 2 --weights-out /mnt/ssd-data/jdh8/pons-sweep/seed2
-# 2. fold (features-v8.md §3) — shape-identical to the shipped artifact afterwards
+# 2. fold (features-v8.md §3) — shape-identical to the shipped artifact afterwards;
+#    from the repo root, one --data per stem, expect "folded 30 columns"
+python3 scripts/fold-constant-inputs.py /mnt/ssd-data/jdh8/pons-sweep/seed2 \
+  --data target/corpus-relabel-m32/<stem>...
 # 3. A/B, shipped control vs the file-loaded candidate
 PONS_FLOOR_WEIGHTS=/mnt/ssd-data/jdh8/pons-sweep/seed2.f32 BOARDS=204800 setsid nohup \
   scripts/idle-run.sh scripts/ab-floor-file.sh ab-results/sweep-seed2 \
@@ -182,6 +249,8 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 
 | date | arm | seeds | recipe delta | plain none / both | PD none / both | sd-PD | verdict |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-09-28 | `sweep-seed2` (SEED_BASE 1790532496) | 2 | none (reseed) | **+0.0215 ±0.0105** / +0.0085 ±0.0125 | −0.0019 ±0.0116 / −0.0037 ±0.0139 | +0.0100 ±0.0116 / +0.0040 ±0.0139 | *suspect* row; a reseed |
+| 2026-09-28 | `sweep-seed3` (SEED_BASE 1790537586) | 3 | none (reseed) | **+0.0154 ±0.0106** / +0.0063 ±0.0127 | **−0.0195 ±0.0117** / **−0.0153 ±0.0140** | −0.0002 ±0.0117 / +0.0011 ±0.0140 | *suspect* row; a reseed |
 
 ## Out of scope
 
@@ -195,7 +264,7 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 ## Open questions for jdh8
 
 1. Un-defer training-only work (the precondition)?
-2. Is `K` embedded blobs (≈ 2 MB at `K = 4`) acceptable for KR3, or must a
-   winning ensemble be distilled back into one net before it ships?
+2. ~~Is `K` embedded blobs acceptable for KR3?~~ **Answered 2026-09-28:
+   yes, disk is cheap; keep the computation small** (Phase 1's timing check).
 3. Any objection to pricing `--dd-weight`? The recorded reason for 0 is a
    controlled-comparison choice (configured-net.md gate 1), not a verdict.

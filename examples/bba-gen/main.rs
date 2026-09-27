@@ -83,8 +83,9 @@ struct Args {
     /// (`american` with the BBA net flooring the constructive book too),
     /// `neural-v3` (the restrictive disclosable distilled floor; requires the
     /// `neural-floor` feature), the explicit `american-v6` alias of the
-    /// shipped default, or `american-v8` (the v6 net's inputs plus the
-    /// artificial block). Ignored when `--our-system` selects
+    /// shipped default, `american-v8` (the v6 net's inputs plus the
+    /// artificial block), or `american-file` (a logit mean over the v6 blobs
+    /// in `PONS_FLOOR_WEIGHTS`, the floor sweep's arm). Ignored when `--our-system` selects
     /// an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,

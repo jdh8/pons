@@ -126,6 +126,22 @@ pub(in crate::bidding) fn with_floor_v8(
     with_floors(system, &ladder, contested)
 }
 
+/// Attach a logit mean over run-time v6 blobs (the floor sweep's candidate).
+pub(in crate::bidding) fn with_floor_mean(
+    system: System,
+    compact: CompactConfig,
+    agreements: &Agreements,
+    blobs: Arc<[Vec<f32>]>,
+) -> System {
+    let ladder = Arc::new(instinct(agreements));
+    let contested = Fallback::classify(ConfiguredFloorV6::new_mean(
+        compact,
+        Arc::clone(&ladder),
+        blobs,
+    ));
+    with_floors(system, &ladder, contested)
+}
+
 /// Attach the v6 twin retrained on BBA's disclosed readings.
 pub(in crate::bidding) fn with_floor_v6_their(
     system: System,

@@ -129,37 +129,78 @@ impl Classifier for ConfiguredFloorBba {
 
 /// The shipped compact-config floor retrained on the live authored reading.
 #[derive(Clone, Debug)]
-pub struct ConfiguredFloorV6(
-    CompactConfig,
-    Arc<Rules>,
-    /// Extractor and net together: the pair versions as one (a v8 net reads
-    /// only the v8 vector), so the shell never pairs a blob with the wrong width.
-    fn(Hand, &Context<'_>) -> Logits,
-);
+pub struct ConfiguredFloorV6(CompactConfig, Arc<Rules>, Net);
+
+/// The net behind [`ConfiguredFloorV6`]'s shell.
+#[derive(Clone)]
+enum Net {
+    /// Extractor and embedded net together: the pair versions as one (a v8 net
+    /// reads only the v8 vector), so the shell never pairs a blob with the
+    /// wrong width.
+    Embedded(fn(Hand, &Context<'_>) -> Logits),
+    /// A logit mean over run-time v6 blobs — the floor sweep's candidate arm.
+    Mean(Arc<[Vec<f32>]>),
+}
+
+impl std::fmt::Debug for Net {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Embedded(_) => f.write_str("Embedded"),
+            Self::Mean(blobs) => write!(f, "Mean({})", blobs.len()),
+        }
+    }
+}
 
 impl ConfiguredFloorV6 {
     /// Attach the v6 floor to one compact configuration cell and rail ladder.
     #[must_use]
     pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
-        Self(compact, ladder, |hand, context| {
-            neural::classify_bba_v6(&features::features_v6(hand, context))
-        })
+        Self(
+            compact,
+            ladder,
+            Net::Embedded(|hand, context| {
+                neural::classify_bba_v6(&features::features_v6(hand, context))
+            }),
+        )
     }
 
     /// Attach the v8 net: the v6 vector plus the artificial block.
     #[must_use]
     pub const fn new_v8(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
-        Self(compact, ladder, |hand, context| {
-            neural::classify_bba_v8(&features::features_v8(hand, context))
-        })
+        Self(
+            compact,
+            ladder,
+            Net::Embedded(|hand, context| {
+                neural::classify_bba_v8(&features::features_v8(hand, context))
+            }),
+        )
+    }
+
+    /// Attach a logit mean over run-time v6 blobs (`K = 1` is one file-loaded
+    /// net), as `docs/ai-bidder/floor-sweep.md` measures candidates.
+    ///
+    /// # Panics
+    ///
+    /// When `blobs` is empty or a blob is not [`neural::V6_FLOATS`] long.
+    #[must_use]
+    pub fn new_mean(compact: CompactConfig, ladder: Arc<Rules>, blobs: Arc<[Vec<f32>]>) -> Self {
+        assert!(!blobs.is_empty(), "an ensemble needs a blob");
+        for blob in blobs.iter() {
+            assert_eq!(blob.len(), neural::V6_FLOATS, "not a v6-shaped blob");
+        }
+        Self(compact, ladder, Net::Mean(blobs))
     }
 
     /// Attach the experimental twin trained on BBA's disclosed readings.
     #[must_use]
     pub(in crate::bidding) const fn new_their(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
-        Self(compact, ladder, |hand, context| {
-            neural::classify_bba_v6_their(&features::features_v6(hand, context))
-        })
+        Self(
+            compact,
+            ladder,
+            Net::Embedded(|hand, context| {
+                neural::classify_bba_v6_their(&features::features_v6(hand, context))
+            }),
+        )
     }
 }
 
@@ -169,7 +210,12 @@ impl Classifier for ConfiguredFloorV6 {
             return self.1.classify(hand, context);
         }
         let configured = context.clone().with_compact(&self.0);
-        let mut logits = (self.2)(hand, &configured);
+        let mut logits = match &self.2 {
+            Net::Embedded(classify) => classify(hand, &configured),
+            Net::Mean(blobs) => {
+                neural::classify_v6_mean(blobs, &features::features_v6(hand, &configured))
+            }
+        };
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         new_suit_gate(&mut logits, hand, context);

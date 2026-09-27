@@ -123,6 +123,13 @@ this is not a refutation either: the arm **stays opt-in**, `american()`
 unchanged, and the rails stand (the series then shipped two more on v6 and
 closed; [../floor-rail-campaign.md](../floor-rail-campaign.md)).
 
+**Caveat (2026-09-28, [floor-sweep.md](floor-sweep.md) § Phase 0 verdict).**
+Two pure reseeds of the shipped v6 recipe measured +0.022 / −0.002 and
++0.015 / −0.020 (none, plain / PD), with more doubled contracts and
+redoubles than v8. v8's signature is inside the reseed spread: the verdict
+reads "indistinguishable from a reseed", and the artificial-block story
+below is not needed to explain the PD loss.
+
 **Worst-board trace (none, PD, 40 boards, −18 to −24 each).** Not one
 mechanism but a family the rail series already knows — junk *action* by the
 floor in contested auctions past game: a 5♥/5♦ bid over *their* 4NT

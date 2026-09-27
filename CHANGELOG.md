@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The floor sweep's file-loaded arm (2026-09-28): `american-file`,
+  `american::american_mean`, `neural::classify_v6_mean`,
+  `scripts/ab-floor-file.sh`.** A candidate net is now a file, not a build:
+  `PONS_FLOOR_WEIGHTS=a.f32,b.f32,…` seats the shipped book, rails and
+  regime input over the elementwise logit mean of those v6 blobs (`K = 1`
+  is one net), so a whole sweep runs on one binary. On the shipped blob it
+  is the shipped floor bit for bit (unit test; 400 boards byte-identical end
+  to end). **Phase 0 read:** reseeds 2 and 3 of the shipped recipe swing
+  CI-clear and one way — plain DD +0.022 / +0.015 (none), PD −0.002 /
+  −0.020, more doubled contracts and redoubles — v8's and the LSTM's
+  signature. The rails and collar are fitted to the seed-1 net; v8's
+  *suspect* verdict is inside the reseed spread (caveats in
+  `features-v8.md` §5 and `plan.md` M5.2). Phase 1 (K = 4 ensemble) next.
+  **Impact:** none on the default system; example- and API-side only.
 - **`docs/ai-bidder/floor-sweep.md` — the floor sweep plan (2026-09-28), and
   `docs/next-steps.md` § Parked big ideas.** Of four big ideas (defensive
   system, Polish Club, LSTM, better net parameters) the net's recipe won:

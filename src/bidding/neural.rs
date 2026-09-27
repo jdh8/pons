@@ -31,7 +31,7 @@ const fn total(in_dim: usize) -> usize {
 }
 
 /// Decode a little-endian `f32` weights blob.
-pub(super) fn decode(raw: &[u8]) -> Vec<f32> {
+pub fn decode(raw: &[u8]) -> Vec<f32> {
     raw.as_chunks::<4>()
         .0
         .iter()
@@ -156,6 +156,31 @@ static WEIGHTS_BBA_V6: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V6))
 pub fn classify_bba_v6(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
     forward::<IN_V6>(&WEIGHTS_BBA_V6, features)
+}
+
+/// Float count of a v6-shaped blob, for callers that load one at run time.
+pub const V6_FLOATS: usize = total(IN_V6);
+
+/// Evaluate a **logit mean** over run-time v6 blobs: 176 features → 38 logits.
+///
+/// The floor sweep's ensemble arm (`docs/ai-bidder/floor-sweep.md` Phase 1).
+/// Logits, not probabilities, are averaged: consumers read margins, not odds.
+/// One blob reproduces [`classify_bba_v6`] bit for bit when it is that artifact.
+#[must_use]
+pub fn classify_v6_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
+    let mut mean = forward::<IN_V6>(&blobs[0], features);
+    for blob in &blobs[1..] {
+        for ((_, sum), (_, x)) in mean.iter_mut().zip(forward::<IN_V6>(blob, features).iter()) {
+            *sum += x;
+        }
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let k = blobs.len() as f32;
+    for (_, slot) in mean.iter_mut() {
+        *slot /= k;
+    }
+    mean
 }
 
 /// Evaluate the v6 twin retrained on BBA's disclosed Multi-Landy readings.

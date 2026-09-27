@@ -62,8 +62,8 @@
 
 use super::agreements::Agreements;
 use super::common::{
-    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_floor_v8,
-    with_instinct_floor,
+    call, other_major, with_floor, with_floor_mean, with_floor_v6, with_floor_v6_their,
+    with_floor_v8, with_instinct_floor,
 };
 use super::{Competitive, Constructive, Defensive, System};
 
@@ -245,6 +245,26 @@ pub fn american_v8(agreements: &Agreements) -> System {
             agreements,
         )),
         agreements,
+    )
+}
+
+/// [`american`] on a logit mean over run-time v6 blobs — the floor sweep's
+/// candidate arm (`docs/ai-bidder/floor-sweep.md`).  The same book, rails and
+/// regime input as [`american`]; only the net differs.  Decode each blob with
+/// [`neural::decode`][super::neural::decode].
+///
+/// # Panics
+///
+/// When `blobs` is empty or a blob is not v6-shaped.
+#[must_use]
+pub fn american_mean(agreements: &Agreements, blobs: std::sync::Arc<[Vec<f32>]>) -> System {
+    with_floor_mean(
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements,
+        )),
+        agreements,
+        blobs,
     )
 }
 

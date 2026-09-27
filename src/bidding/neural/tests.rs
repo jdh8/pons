@@ -334,3 +334,28 @@ fn v7_later_calls_change_the_answer() {
         "order must matter — that is the whole point"
     );
 }
+
+/// A mean of copies of the shipped blob is the shipped net, bit for bit —
+/// the floor sweep's `american-file` arm is inert on the seed-1 artifact.
+#[test]
+fn v6_mean_of_copies_is_the_shipped_net() {
+    let fx: serde_json::Value =
+        serde_json::from_str(include_str!("../weights/american_bba_v6.fixture.json")).unwrap();
+    let blobs = [WEIGHTS_BBA_V6.clone(), WEIGHTS_BBA_V6.clone()];
+    for row in fx["features"].as_array().unwrap() {
+        let x: Vec<f32> = row
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap() as f32)
+            .collect();
+        let shipped: Vec<f32> = classify_bba_v6(&x).iter().map(|(_, l)| *l).collect();
+        for k in 1..=2 {
+            let mean: Vec<f32> = classify_v6_mean(&blobs[..k], &x)
+                .iter()
+                .map(|(_, l)| *l)
+                .collect();
+            assert_eq!(mean, shipped);
+        }
+    }
+}

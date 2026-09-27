@@ -776,10 +776,37 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
         "american-v6-their" => pons::bidding::american::american_v6_their(agreements).bind(),
         "american-v8" => pons::bidding::american::american_v8(agreements).bind(),
+        // The floor sweep's candidate: a logit mean over the v6 blobs listed
+        // in `PONS_FLOOR_WEIGHTS` (docs/ai-bidder/floor-sweep.md).
+        "american-file" => {
+            pons::bidding::american::american_mean(agreements, floor_blobs()?).bind()
+        }
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file, got {other:?}"
         ),
     })
+}
+
+/// The comma-separated `.f32` blobs in `PONS_FLOOR_WEIGHTS`, decoded once
+fn floor_blobs() -> anyhow::Result<std::sync::Arc<[Vec<f32>]>> {
+    static BLOBS: std::sync::OnceLock<std::sync::Arc<[Vec<f32>]>> = std::sync::OnceLock::new();
+    if let Some(blobs) = BLOBS.get() {
+        return Ok(blobs.clone());
+    }
+    let paths = std::env::var("PONS_FLOOR_WEIGHTS")
+        .map_err(|_| anyhow::anyhow!("american-file needs PONS_FLOOR_WEIGHTS=a.f32,b.f32,..."))?;
+    let mut blobs = Vec::new();
+    for path in paths.split(',') {
+        let blob = pons::bidding::neural::decode(&std::fs::read(path)?);
+        anyhow::ensure!(
+            blob.len() == pons::bidding::neural::V6_FLOATS,
+            "{path}: {} floats, a v6 blob has {}",
+            blob.len(),
+            pons::bidding::neural::V6_FLOATS
+        );
+        blobs.push(blob);
+    }
+    Ok(BLOBS.get_or_init(|| blobs.into()).clone())
 }
 
 /// The card a `--our-floor` / `--their-floor` name declares
