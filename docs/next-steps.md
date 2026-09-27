@@ -148,6 +148,11 @@ group waits on that decision, the second group does not.
 - The floor-rail residue: `1NT - 2♣ - 2♥ - 2NT` `3♣` (38 bd, −410 PD — one
   exact sequence) and the long "we act / BBA passes" tail at `7e0bc648`
   (no lane at 0.5k PD).
+- The advance that passes a textbook raise: clean `(1x) 1y -`, 3-card
+  support, 8–10 HCP. The v6 floor passes where both references raise
+  (−4.0 PD/bd vs BEN, −2.1 vs BBA, but ≤ 0.003 IMPs/board). A labelled
+  example for the retrain's eval set, not a rail
+  ([defensive-auctions-reference.md](defensive-auctions-reference.md) §7).
 
 **Not retrain-gated (owed, unscheduled):**
 

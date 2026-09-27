@@ -383,3 +383,27 @@ boards at −106 plain / **+90 PD**, the passout-seat half of the
   `(1NT) - (2x)`. Each is a ≤ 0.004 IMPs/board ceiling vs BBA. The 1NT
   one already has a BBA template on file (fourth-seat Stayman/transfer
   defence).
+
+**(a) traced: the raise-aggression gap is diffuse, not a lever (2026-09-27).**
+I split the L3 rows where we and the reference disagree only about
+passing vs raising partner's suit. The split is by clean or contested,
+our call vs theirs, support (3 / 4+) and HCP band. The gap vs BEN
+spreads over about 40 cells. Only one cell is coherent across both
+references: **clean `(1x) 1y -`, we pass, they raise to `2y`, 3-card
+support, 8–10 HCP.** Examples: `KT9.KQ2.J83.9865` and `AK3.T42.QJ853.T2`
+over `(1♦) 1♠ -`, and `QJ54.Q92.QJ74.J8` over `(1♣) 1♥ -`. The v6 floor
+passes these, and both references' ladders raise. Its price per 1 000
+boards is 0.85 bd, −3.4 PD (−4.0/bd) vs BEN, and 0.14 bd, −0.29 PD
+(−2.1/bd) vs BBA. That is a ceiling of ≈ +0.003 IMPs/board vs BEN and
+≈ +0.0003 vs BBA, below what a Tier-F A/B resolves. Next in size, and
+BEN-only: preemptive `3y` on 4+ support with 0–5 HCP (−1.65 PD) and
+`3y` over a two-level overcall on 3 trumps and 8–10 HCP (−1.55 PD). Both
+are PD-positive or flat vs BBA. The rest are cells under 1 PD each with
+mixed signs.
+
+Verdict: no authorable or railable lever. The advance-lane gap vs BEN is
+BEN's judgment spread thin, consistent with the ≈ 0.8–1.1 IMPs/board that
+[ben-gap-campaign.md](ben-gap-campaign.md) attributes to its search. The
+one coherent cell, the passed 3-card raise, joins the owed retrain
+targets as a labelled example rather than a rail. A rail would be
+re-arbitrated at the next retrain anyway (junk-action rail series).
