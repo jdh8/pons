@@ -9,9 +9,12 @@
 //! | `minors` | on | plain | minor asks at plain 4NT — round 4's losing arm, re-priced |
 //! | `kickback` | on | kickback | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
 //!
-//! Every arm stands on the configured (v4) floor, which is now the only floor
-//! `american()` has — so an arm differs from another by a **convention card
-//! row**, never by a weights artifact.  That is the separation
+//! Every arm stands on the shipped v6 floor (`american_with_compact`; the v4
+//! floor until 2026-09-27, which had silently outlived the 2026-08-08 floor
+//! swap here) — so an arm differs from another by a **regime bit**
+//! (`ConventionCard::relocating`), never by a weights artifact.  `--blind`
+//! drops even that: the feature's rules relocate while every net input stays
+//! the baseline's, so the no-ask bucket empties and the cell prices the rules.  That is the separation
 //! `docs/ai-bidder/configured-net.md` was written to buy, and it is now
 //! structural rather than opt-in.  `--feature kickback --baseline minors` is
 //! gate 2 (what the relocation is worth, alone; measured a loss).  **Gate 1**
@@ -90,9 +93,8 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::bidding::Partnership;
-use pons::bidding::american::american_with_config;
-use pons::bidding::card::{Card, american_card};
-use pons::bidding::features::Config;
+use pons::bidding::american::american_with_compact;
+use pons::bidding::features::{CompactConfig, ConventionCard};
 use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, kickback_offered_at};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -200,6 +202,13 @@ struct Args {
     /// instruments still cover it, and --show then details ask boards only
     #[arg(long, requires = "rescore", default_value_t = false)]
     sd_ask_only: bool,
+
+    /// Hand the feature arm the **baseline's** card: its rules relocate, but
+    /// every net input — its own and the opponents' reading of it — stays the
+    /// baseline's, so the net-alone perturbation is gone by construction and
+    /// the cell prices the relocation's rules only
+    #[arg(long, default_value_t = false)]
+    blind: bool,
 }
 
 /// Capture both halves of `arm` in one agreements value.
@@ -327,10 +336,6 @@ fn per_trump_census(
 }
 
 /// The convention card `arm` discloses — its knobs, read through `card.rs`
-fn card(arm: Arm) -> Card {
-    american_card(&arm_agreements(arm))
-}
-
 /// Build one partnership per arm. `ReadingProfile::rkcb_variant` is read at build time for rule
 /// presence, and `keycard_minors` by the book's RKCB row packages, so the
 /// arms cannot share a book.
@@ -339,11 +344,13 @@ fn card(arm: Arm) -> Card {
 /// which is the mixed table these two arms will play.  Bare [`american`] would
 /// be *wrong* here — it declares the opponents as playing our own card, so each
 /// arm would claim the other relocates exactly as it does, on precisely the
-/// mixed boards this experiment measures.  The cards are read *before* the knobs
-/// are armed for the build, because `american_card` reads the same knobs.
-fn build(arm: Arm, opponent: Arm) -> Partnership {
-    let cell = Config::new(&card(arm), &card(opponent));
-    american_with_config(&arm_agreements(arm), cell).bind()
+/// mixed boards this experiment measures.  `shown` is the arm whose knobs our
+/// half of the regime is captured from — `arm` itself, or the baseline under
+/// `--blind`.
+fn build(arm: Arm, opponent: Arm, shown: Arm) -> Partnership {
+    let capture = |arm| ConventionCard::capture(&arm_agreements(arm));
+    let cell = CompactConfig::new(&capture(shown), &capture(opponent));
+    american_with_compact(&arm_agreements(arm), cell).bind()
 }
 
 /// Bid one deal, the feature arm seated N-S or E-W.  Each partnership carries both
@@ -479,7 +486,7 @@ fn rescore(args: &Args, path: &str) {
 
     // The sd endpoints, sequential per board (the playout cannot pool); the
     // feature partnership reads for both tables, as in the live --sd row.
-    let partnership = build(feature, baseline);
+    let partnership = build(feature, baseline, feature);
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     let sd: Vec<Option<[common::SdScores; 2]>> = dump
         .boards
@@ -668,8 +675,13 @@ fn main() {
         rescore(&args, path);
         return;
     }
-    let feature = build(args.feature, args.baseline);
-    let baseline = build(args.baseline, args.feature);
+    let shown = if args.blind {
+        args.baseline
+    } else {
+        args.feature
+    };
+    let feature = build(args.feature, args.baseline, shown);
+    let baseline = build(args.baseline, shown, args.baseline);
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)
         .into_iter()

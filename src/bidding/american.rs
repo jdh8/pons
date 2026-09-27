@@ -213,6 +213,21 @@ pub fn american_with_card(
     )
 }
 
+/// [`american`] on the v6 floor with **both** halves of the regime declared
+///
+/// [`american_with_card`] captures our half from `agreements`, so it cannot
+/// misdisclose; this entry point takes `compact` verbatim and can.  Its one use
+/// is the deliberate mismatch: a book that plays a convention while the net is
+/// told it does not, which prices the convention's rules apart from the
+/// net's reaction to its regime bit (`ab-kickback --blind`).
+#[must_use]
+pub fn american_with_compact(
+    agreements: &Agreements,
+    compact: super::features::CompactConfig,
+) -> System {
+    with_floor_v6(book(agreements), compact, agreements)
+}
+
 /// Alias of [`american`], whose v6 floor shipped on the Phase-5 gate.
 #[must_use]
 pub fn american_v6(agreements: &Agreements) -> System {

@@ -44,6 +44,26 @@ criterion 5). **Item 2 is now the top candidate.**
   `rkcb_rows` in the jump-shift lane only; wiring it into `rkcb_rows` itself
   moves every default RKCB lane — census how often the shipped book puts the
   strong hand in the answerer's seat, then one default A/B.
+  **Censused 2026-09-27, refuted — do not wire it.** `probe-rkcb-answerer`
+  (1M uncontested deals × 2 seeds): ~6.6k book signoff windows, the floor
+  answerer overrules 510, and passing instead **loses** −0.002 IMPs/board
+  (−4.1 plain / −4.0 PD per divergent; seed 2 alike). The floor's raise is
+  patching two asker-table holes: `asker_after_5d` signs off on **1** keycard
+  though its own doc says ≤2 read partner for three (doc/code discrepancy),
+  and `asker_after_5h` signs off on 2 keycards **with** the trump queen —
+  four plus the queen, which `asker_after_5s` already bids six on. The fix
+  (six on those hands) prices at only +0.0002…+0.0005 plain /
+  +0.0001…+0.0004 PD per board (~160 divergent per 1M; the floor already
+  reaches six on the rest) — a correctness fix, not a lever. The jump-shift
+  lane's wired answerer rows may be paying the same tax; unmeasured.
+- **Kickback is not a score lever (2026-09-27,
+  [ai-bidder/bba-kickback.md §7.16](ai-bidder/bba-kickback.md)).** On the v6
+  floor with the net blinded to the regime bit, its rules diverge on 0.03% of
+  boards and price at parity under every instrument (sd-blend +0.00003); the
+  claim guard and grand discipline target 16 boards per 200k. What remains of
+  item 2 is the slam *decision* — reaching or skipping slam — not the keycard
+  mechanics; the next step is a census of the RKCB/slam bucket's divergent
+  boards by lane and direction (missed vs overbid) against BBA.
 - Every cheap lever here is spent (bucket marked mined-to-residual on the BBA
   side); expect design work. Even a 10% capture ≈ +0.01/board — more than
   any single rail.

@@ -1549,6 +1549,38 @@ configured-net design, but not evidence about relocation mechanics. Artifacts:
 dumps and rescore logs under `/mnt/hdd-data/jdh8/pons-ab-results/`
 (`kickback-fair-cell-{none,both}/`, `kickback-rescore-{none,both}.log`).
 
+### 7.16 Re-measured on the v6 floor: the rules are a wash with no room (2026-09-27)
+
+`ab-kickback` had been building through `american_with_config` — the **v4**
+floor — since the 2026-08-08 default swap, so every cell after that date priced
+a retired net. Fixed: arms now build on v6 through `american_with_compact`, and
+`--blind` hands the feature arm the baseline's regime capture, so its rules
+relocate while every net input stays the baseline's (the no-ask bucket empties
+by construction). One 200k-board NV sizing cell per arm, seed 1790508128,
+`kickback` vs `minors` (the shipped default), dumps under
+`/mnt/hdd-data/jdh8/pons-ab-results/kickback-{v4,v6}-sizing*/`:
+
+| cell | divergent | plain DD /board | PD /board | where it lives |
+| --- | ---: | ---: | ---: | --- |
+| v4 floor (stale harness) | 4.70% | **−0.0183** | −0.0063 | no-ask bucket, −0.37 DD/div |
+| v6 floor | 5.98% | −0.0049 (parity) | −0.0061 (parity) | ♥ ask *only in baseline*, 353 bd at −2.2/div — the regime bit suppresses the heart ask |
+| v6 **blind** (rules only) | **0.03%** (59) | −0.0002 (parity) | −0.0002 (parity) | ♥ relocated 43, ♣ 15, ♦ **1** |
+
+The blind cell under every slam instrument (`--rescore`): sd-lead −0.0006,
+sd-playout +0.0003, **sd-blend +0.00003 / +0.0001 with PD** per board. The
+shown boards are one-keycard-missing slams breaking both ways — no defect.
+
+**Verdict: stop designing Kickback for score.** The relocation's rules fire on
+0.03% of boards, so a perfect design is bounded near ±0.001 IMPs/board, and
+the current one already sits at parity. §7.15's two build fixes target a ♦
+lane that fired once and a ♣ lane that fired 15 times in 200k — the undisprovable-major
+yield (§7.1) already emptied the ♦ lane the eaten-4♥ diagnosis was about. The
+only material effect left is the v6 net reacting to `ConventionCard::relocating`
+(it stops making heart asks the baseline makes), which is a retrain question
+and retrains are deferred. `set_rkcb_variant` stays `Plain`; the knob and the
+`--blind` harness stay for the next matched retrain, which should re-run the
+non-blind v6 cell first.
+
 ## Ledger (memory compaction, 2026-08-16)
 
 - The RKCB knob cull's `announced()` overlay changed the fallback `points` leak

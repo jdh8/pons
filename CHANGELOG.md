@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`american_with_compact` and `ab-kickback --blind` (2026-09-27)** — a v6
+  entry point that takes both halves of the compact regime verbatim, so a
+  harness can play a convention's rules while the net is told the baseline's
+  agreements. `ab-kickback` now builds on the shipped v6 floor (it had been
+  measuring the retired v4 net since the 2026-08-08 floor swap). Verdict
+  ([bba-kickback.md §7.16](docs/ai-bidder/bba-kickback.md)): Kickback's rules
+  alone diverge on 0.03% of boards at parity (sd-blend +0.00003/board), so it
+  is closed as a score lever; `set_rkcb_variant` stays `Plain`. No bidding
+  change.
+- **`probe-rkcb-answerer` (2026-09-27)** — censuses the RKCB answerer after
+  the asker's five/six-of-trump signoff. Wiring `rkcb_answerer_rows` into every
+  lane would **lose** −0.002 IMPs/board: the floor's raise patches two
+  asker-table holes (`asker_after_5d` on one keycard, `asker_after_5h` on two
+  with the queen), whose fix prices at only +0.0001…+0.0005/board. No bidding
+  change ([next-steps.md](docs/next-steps.md) item 2).
+
 - **docs: defensive-auctions reference (2026-09-27)** —
   [docs/defensive-auctions-reference.md](docs/defensive-auctions-reference.md)
   distils how BBA (book dump + `EPBot64.dll` decompile) and BEN
