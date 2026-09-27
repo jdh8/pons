@@ -78,9 +78,53 @@ struct Args {
     #[arg(long, default_value_t = false, conflicts_with = "minor_jumps_only")]
     jump_shifts: bool,
     /// Trace: print the N worst divergent boards (plain DD) for the treatment
-    /// arm, and a bucket count keyed by opener's rebid in each arm
+    /// arm, and a bucket count keyed by opener's rebid in each arm; with `--sd`
+    /// the same buckets and worst list again by the SD-PD swing
     #[arg(long, default_value_t = 0)]
     worst: usize,
+    /// Seed for the deals (printed when drawn at random), so two rounds of a
+    /// repair can be compared on the same boards
+    #[arg(long)]
+    seed: Option<u64>,
+}
+
+/// Bucket key: opener's rebid in each arm
+fn bucket_key(bids: &ArmBids) -> (String, String) {
+    (opener_rebid(&bids[0].0), opener_rebid(&bids[1].0))
+}
+
+/// Print the divergent boards' IMP swings bucketed by [`bucket_key`], then the
+/// `worst` boards (most negative swing first)
+fn print_trace(
+    title: &str,
+    swings: &[(i64, usize)],
+    bids: &[ArmBids],
+    deals: &[FullDeal],
+    contracts: &[[Option<(Contract, Seat)>; 2]],
+    worst: usize,
+) {
+    let mut buckets: std::collections::BTreeMap<(String, String), (usize, i64)> =
+        std::collections::BTreeMap::new();
+    for &(swing, i) in swings {
+        let bucket = buckets.entry(bucket_key(&bids[i])).or_default();
+        bucket.0 += 1;
+        bucket.1 += swing;
+    }
+    println!("\nBuckets by opener's rebid (arm0 -> arm1): boards, IMPs ({title})");
+    let mut rows: Vec<_> = buckets.into_iter().collect();
+    rows.sort_by_key(|(_, (_, imps))| *imps);
+    for ((a, b), (n, imps)) in rows {
+        println!("  {a:>4} -> {b:<4} {n:5} {imps:+6}");
+    }
+    let mut swings = swings.to_vec();
+    swings.sort_unstable();
+    for &(swing, i) in swings.iter().take(worst) {
+        let dealer = Seat::ALL[i % 4];
+        println!(
+            "\n--- board {i} dealer {dealer:?} swing {swing:+} IMPs ({title})\n{}\narm0: {}  -> {:?}\narm1: {}  -> {:?}",
+            deals[i], bids[i][0].0, contracts[i][0], bids[i][1].0, contracts[i][1],
+        );
+    }
 }
 
 /// Opener's rebid over the forcing `1NT` (the call two after the first `1NT`),
@@ -123,7 +167,8 @@ fn lead_inputs(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut rng = rand::rng();
+    let seed = args.seed.unwrap_or_else(rand::random);
+    let mut rng = StdRng::seed_from_u64(seed);
     // arm 0 = baseline (natural 2NT, no adjunct), arm 1 = the Meckstroth adjunct
     // (the shipped default).  The toggle is read at book-construction time, so
     // build each arm under its own setting; the baked tries are independent
@@ -185,20 +230,12 @@ fn main() {
     let mut total_imps = 0i64;
     let mut pd_imps = 0i64;
     let mut swings: Vec<(i64, usize)> = Vec::new();
-    let mut buckets: std::collections::BTreeMap<(String, String), (usize, i64)> =
-        std::collections::BTreeMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
         let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += adj - base;
         total_imps += imps(adj - base);
-        if args.worst > 0 {
-            swings.push((imps(adj - base), i));
-            let key = (opener_rebid(&bids[i][0].0), opener_rebid(&bids[i][1].0));
-            let bucket = buckets.entry(key).or_default();
-            bucket.0 += 1;
-            bucket.1 += imps(adj - base);
-        }
+        swings.push((imps(adj - base), i));
         // Perfect-defense read from the same tables — opponents are silenced, so
         // this only ever adds a double to a contract that fails DD (no doubling
         // artifact possible here); plain-DD stays the gate, PD is confirmation.
@@ -217,7 +254,7 @@ fn main() {
         "=== Meckstroth-2NT A/B: {} boards, vulnerability {} ===",
         args.count, args.vulnerability,
     );
-    println!("(opponents silenced — constructive value only)");
+    println!("(opponents silenced — constructive value only; deal seed {seed})");
     println!(
         "Divergent boards: {} of {} ({:.1}%)",
         divergent.len(),
@@ -233,20 +270,7 @@ fn main() {
         pd_imps as f64 / args.count.max(1) as f64,
     );
     if args.worst > 0 {
-        println!("\nBuckets by opener's rebid (arm0 -> arm1): boards, IMPs (plain)");
-        let mut rows: Vec<_> = buckets.into_iter().collect();
-        rows.sort_by_key(|(_, (_, imps))| *imps);
-        for ((a, b), (n, imps)) in rows {
-            println!("  {a:>4} -> {b:<4} {n:5} {imps:+6}");
-        }
-        swings.sort_unstable();
-        for &(swing, i) in swings.iter().take(args.worst) {
-            let dealer = Seat::ALL[i % 4];
-            println!(
-                "\n--- board {i} dealer {dealer:?} swing {swing:+} IMPs\n{}\narm0: {}  -> {:?}\narm1: {}  -> {:?}",
-                deals[i], bids[i][0].0, contracts[i][0], bids[i][1].0, contracts[i][1],
-            );
-        }
+        print_trace("plain", &swings, &bids, &deals, &contracts, args.worst);
     }
 
     if args.sd {
@@ -300,5 +324,14 @@ fn main() {
             &off_score,
             divergent.len(),
         );
+        if args.worst > 0 {
+            // The SD-PD view of the same boards: DD and SD disagree on this
+            // lane, and only the SD-PD bracket is the arbiter.
+            let sd_swings: Vec<(i64, usize)> = divergent
+                .iter()
+                .map(|&i| (imps(on_score[i][1] - off_score[i][1]), i))
+                .collect();
+            print_trace("SD-PD", &sd_swings, &bids, &deals, &contracts, args.worst);
+        }
     }
 }

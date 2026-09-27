@@ -151,14 +151,36 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- **Forcing-NT jump shifts — the DD/SD disagreement** (2026-09-27): the
-  `3NT!` tail repair (two rounds) flipped the plain-DD buckets positive but the
-  single-dummy scorer still reads a wash leaning negative on all four brackets.
-  `ab-meckstroth-2nt --worst` buckets plain-DD swings only; add an SD-swing
-  bucket/trace, find which contracts SD prices down (the `3NT!` passed on a
-  stiff? the 20+ asks?), then decide opener's ask threshold over the `3M`/`4♣!`
-  slam tries. Detail in [bidding-options.md](bidding-options.md),
-  `set_forcing_nt_jump_shifts`.
+- **Forcing-NT jump shifts — the default flip is the decision** (2026-09-27):
+  round 5 wins vs the shipped Meckstroth `2NT` on every bracket of every cell
+  (SD-PD +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and
+  the trace in [bidding-options.md](bidding-options.md),
+  `set_forcing_nt_jump_shifts`). The DD/SD disagreement was round 4's `Pass`
+  rows shadowing the floor's slam re-ask after opener's 18–19 decline —
+  Meckstroth's lane leaves that seat to the floor and wins the slams. Flipping
+  the default (`meckstroth_adjunct` off, `forcing_nt_jump_shifts` on) is a
+  default-system change: `smoke-default`, a contested check (neither lane
+  authors interfered tails over `1M - 1NT - 2NT!/3x`), `card.rs` encodes
+  neither. Residual levers, each worth ≈ 50–100 SD-PD IMPs per 400k cell:
+  1. The `3♣` bucket is negative in all four cells: the floor's re-ask
+     sometimes raises straight to `6M` (`3♠ - 4♠ - 6♠`) or wanders (`4NT -
+     5♦ - 5♥ - 6♣ - 6♠`). An authored 12+ re-ask **lost** to it on the same
+     deals (round 6), so this is a floor lever, not a row.
+  2. The natural `2NT` lane (`2NT -> 2NT`) is negative in all four cells: our
+     floor passes 18–19 + 11 after `2NT - 3♠ - 4♠` where Meckstroth's floor
+     asks on the same hands — the suspected cause is the natural `2NT`'s
+     balanced 18–19 reading vs the `2NT!`'s unlimited one feeding
+     `slam_entry_reached`. Probe both books on board 5791 of deal seed
+     1790452526 (`ab-meckstroth-2nt --jump-shifts --seed 1790452526 --worst`).
+  3. Opener's 21+ ask over the uncapped 4-4 `4♥` (`3♥ - 4♥ - 4NT … 6♥` down
+     on 231698/297815): the asker table bids six on three keycards plus one;
+     a cap or a 22+ threshold is one small A/B, but the `3♥` bucket is the
+     lane's biggest winner (+145…+251), so low priority.
+  4. The displaced 5-5 (`3♥ -> 2♥`) swings ±100 between cells — noise, no
+     lever; the real hole is shared: `responder_after_forcing_notrump` cannot
+     raise opener's second suit (four-card support with 8–9 HCP passes `2♥`).
+  5. The seven-card `4M`: the floor raises it to `6M`/`7M` (`4♠ - 4NT - 5♠ -
+     7♠`); a `Pass`/`ask_or_pass` row above it is one small A/B.
 
 - ~~Trace the shipping-only constructive move in the `7e0bc648` window~~
   **Closed 2026-09-26**: it is the rails at the mirror table (a board is

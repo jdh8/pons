@@ -54,6 +54,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intermediate round without any slam try lost CI-clear vul (SD-plain −0.0016
   / −0.0021 ±0.0013). Still opt-in, default byte-identical; the DD/SD
   disagreement is the owed trace (`--worst` buckets plain DD only).
+  **Traced and repaired (2026-09-27, round 5): a win vs Meckstroth on every
+  bracket.** The harness gained `--seed` for the deals (printed when drawn at
+  random) and, with `--sd --worst`, the same buckets and worst list by the
+  SD-PD swing, so rounds compare on identical deals. The trace put the whole
+  residual in one seat: after opener's 18–19 `4M` decline of the fit slam try
+  (likewise the `4♥` raise of the natural `3♥` and the `4M` pull of `3NT`),
+  round 4's `Pass` rows shadowed the floor's re-ask — Meckstroth's lane leaves
+  those nodes unauthored and its floor re-asks into the slams DD and SD both
+  pay for, so every such slam was a divergent loss (the `3♣`/`3♦` buckets'
+  divergence had doubled between rounds 2 and 4). The `Pass` rows are
+  deleted; responder's seat there is the floor's again. Responder's own game
+  placements (the `≤9` `4M`, the 4-4 `4♥`) instead get opener's
+  `ask_or_pass(21)` — keycards on 21+, else pass — because the floor raised
+  those to slam on nothing. Paired on the same deals (400k/vul, deal seed = SD
+  seed 1790452526 / 1790452759): the round-4 book read SD-PD −0.0002/−0.0006
+  NV, −0.0006/−0.0005 vul; round 5 reads **SD-PD +0.0016 ±0.0010 / +0.0012
+  ±0.0010 NV, +0.0011 ±0.0012 / +0.0009 ±0.0012 vul**, SD-plain +0.0012
+  ±0.0009 / +0.0008 ±0.0010 NV, +0.0007 ±0.0011 / +0.0006 ±0.0012 vul, plain
+  DD +527/+334 NV and +619/+332 vul IMPs, PD +755/+490 and +879/+528 —
+  positive on every cell of every scorer, CI-clear NV on both seeds and on
+  both vulnerabilities pooled; divergence 0.18% → 0.16%. Round 6, which
+  authored responder's re-ask (4NT on 12+, else pass) in place of the floor,
+  gave most of it back on the same deals (SD-PD +0.0003/+0.0001 NV,
+  +0.0004/+0.0001 vul, SD-plain slightly negative, divergence back to 0.18%)
+  and is reverted: the floor's re-ask is the better one. Still **opt-in**:
+  the default flip (Meckstroth off, jump shifts on) is a default-system change
+  owed its own checklist; the decision table reads *win | win*. Residual
+  levers in `docs/next-steps.md`.
 
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named

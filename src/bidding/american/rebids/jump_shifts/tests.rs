@@ -224,8 +224,6 @@ fn responder_places_over_the_long_major_3nt() {
         best(&trie, &tried, "AKQJ98.A3.K42.Q2"),
         bid(4, Strain::Spades)
     );
-    let declined: Vec<Call> = [&tried[..], &[bid(4, Strain::Spades), P]].concat();
-    assert_eq!(best(&trie, &declined, "Q3.K54.A65.Q432"), P);
     assert_eq!(
         best(&trie, &after_3nt, "Q3.J54.9652.J432"),
         bid(4, Strain::Spades)
@@ -266,7 +264,7 @@ fn responder_places_over_the_long_major_3nt() {
 }
 
 #[test]
-fn placed_games_are_passed() {
+fn responder_placed_games_get_openers_answer() {
     let trie = jump_shift_trie();
     let then = |prefix: &[Call], calls: &[Call]| -> Vec<Call> {
         let mut auction = prefix.to_vec();
@@ -275,26 +273,22 @@ fn placed_games_are_passed() {
         }
         auction
     };
-    // Opener declined the fit slam-try with 4♠.
-    let declined = then(
+    // Responder's ≤9 4♠ over the 3♣ jump shift: opener passes on 18, asks on 22.
+    let weak_raise = then(
         AFTER_1S_1NT,
-        &[
-            bid(3, Strain::Clubs),
-            bid(3, Strain::Spades),
-            bid(4, Strain::Spades),
-        ],
+        &[bid(3, Strain::Clubs), bid(4, Strain::Spades)],
     );
-    assert_eq!(best(&trie, &declined, "Q32.K54.A65.Q432"), P);
-    // Opener pulled responder's 3NT to the six-card major.
-    let pulled = then(
+    assert_eq!(best(&trie, &weak_raise, "KQJ98.Q3.KJ.KQJ7"), P);
+    assert_eq!(
+        best(&trie, &weak_raise, "AKJ98.A3.A2.AKQ6"),
+        bid(4, Strain::Notrump)
+    );
+    // The 4-4 heart game over the 3♥ jump shift is a responder placement too.
+    let heart_game = then(
         AFTER_1S_1NT,
-        &[
-            bid(3, Strain::Clubs),
-            bid(3, Strain::Notrump),
-            bid(4, Strain::Spades),
-        ],
+        &[bid(3, Strain::Hearts), bid(4, Strain::Hearts)],
     );
-    assert_eq!(best(&trie, &pulled, "K5.5.AJ7432.J932"), P);
+    assert_eq!(best(&trie, &heart_game, "AKJ98.AQ73.K2.Q6"), P);
     // Opener rebid six spades over the natural 3♥: raise on two, else 3NT.
     let six_spades = then(
         AFTER_1S_1NT,
