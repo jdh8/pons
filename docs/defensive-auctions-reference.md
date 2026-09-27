@@ -43,6 +43,13 @@ BBA authors all of these (§2). BEN has no defensive module at all, but in
 Tier S it special-cases exactly the passout and post-preempt seats where pons
 is floor-only (§3).
 
+> **Corrected by the §7 prefix split (2026-09-27).** The lane list in the
+> paragraph above was inferred from pons's missing nodes, not from the rows.
+> The rows disagree: `family` is the actor's *own* round, so round-1 floor
+> is mostly advances and fourth-seat calls. The balancing seat sits in its
+> own `balancing` family, and there, like `(3x)` direct, it is PD-positive.
+> L1 and L2 fail their gates, and L3's lanes lose to BEN but not to BBA.
+
 ## 2. BBA's defensive book
 
 ### 2.1 Design
@@ -327,3 +334,52 @@ authoring, per the measurement iron rules.
 - **Not a lever under the rules**: BEN's alert blindness and
   `opponent_model = bidder_model` make artificial defensive calls
   systematically mis-read — an exploit, and BBA is the exploit guard.
+
+## 7. Gate probe results (2026-09-27)
+
+**Method.** The auction prefix up to `div_index` is identical at both tables.
+So each `boards.jsonl` row joins its shard board on `(vul, seed, board)`, and
+the prefix gives the lane. The rows are floor-provenance `Defensive` rows,
+normalised per 1 000 boards. BEN is the Tier-S anchor
+`ben-anchor/2026-09-13-daa8bf4a` (20k boards). BBA is the **shipping** arm of
+`anchor/2026-09-26-7e0bc648` (409.6k boards). Its rows were re-decomposed
+with `--our-floor american --jsonl` at that commit (replay 100.00%) and kept
+as `boards-american.jsonl` in the snapshot. `anchor.sh` wrote no rows for
+that arm before this probe.
+
+| lane (floor) | BEN bd | plain | PD | BBA bd | plain | PD |
+| --- | --- | --- | --- | --- | --- | --- |
+| `(1x) 1y (z)` | 6.30 | −15.10 | −10.80 | 5.51 | −1.59 | **+4.27** |
+| `(1x) 1y -` | 6.00 | −14.00 | −9.05 | 3.15 | −1.64 | **+0.74** |
+| `(1x) 2y -` | 4.75 | −11.75 | −7.00 | 4.05 | −1.18 | **+2.28** |
+| `(2x) - (y)` | 2.65 | −11.45 | −12.45 | 1.80 | −3.25 | −3.68 |
+| `(1NT) - (y)` | 2.00 | −7.50 | −8.95 | 2.58 | −1.59 | −3.75 |
+| `(2x)` direct | 1.05 | −3.70 | −4.25 | 0.83 | −1.06 | −1.12 |
+| `(3x) - -` | 1.65 | −2.65 | −1.75 | 1.23 | +0.22 | +0.55 |
+
+In the BEN rows (absolute counts), the balancing seat `(1x) - -` is 153
+boards at −106 plain / **+90 PD**, the passout-seat half of the
+`Defensive/floor/balancing` cell (374 bd, −373 / +20). `(3x)` direct is
+73 boards at −2 / **+131**.
+
+**Verdicts.**
+
+- **L1 fails its gate.** The balancing loss is plain-only and PD-positive:
+  a doubling artifact, not a bidding hole. The "out of scope" decision
+  stands, so §5 item 1 needs no action.
+- **L2 fails its gate.** `(3x)` has no loss to recover.
+- **L3's premise is refuted.** Against BBA, the v6 floor already plays
+  these lanes at plain ≈ −1.5 and PD positive per 1 000 boards. It is
+  BBA-distilled and has learned BBA's ladder, so authoring that ladder as
+  a book node can at best copy the floor, and it risks the shadowing and
+  over-reach that sank the Rubens layer (07-31). The BEN loss is
+  BEN-specific. In the 405 BEN boards the pattern is *we pass or raise
+  once, BEN raises higher or cue-raises*: `P` vs `3y` over `(1x) 2y -` is
+  44 bd, −61 / −30, and `P` vs `4y` over `(1x) 2y (z)` is 11 bd, −57 / −19.
+  That is a competitive-raise aggression question, not a missing
+  structure, and its BBA-guard price is the open risk.
+- **Two small lanes lose to both references:** fourth seat over their
+  weak-two response `(2x) - (y)` and over their 1NT response
+  `(1NT) - (2x)`. Each is a ≤ 0.004 IMPs/board ceiling vs BBA. The 1NT
+  one already has a BBA template on file (fourth-seat Stayman/transfer
+  defence).

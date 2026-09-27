@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   floor-owned defensive cells (balancing, `(3x)`, advances of a natural
   overcall) sum to −3 343 plain vs BEN Tier S, more than the round-1 book
   cell, and BBA authors every one of them. No bidding change.
+  **Corrected the same day by its own gate probe (§7):** a prefix split of
+  both anchors refutes the headline. The balancing seat and `(3x)` are
+  PD-positive vs BEN, and the advance lanes lose to BEN
+  (≈ −10 PD per 1 000 boards) but not to BBA (PD +0.7…+4.3). The
+  BBA-distilled floor already plays BBA's ladder, so L1–L3 as specified are
+  not levers. `scripts/anchor.sh` now writes the shipping arm's rows
+  (`boards-american.jsonl`), which that probe needed.
 - **Natural strong jump shifts over the forcing `1NT` (2026-09-27)** — the
   rival to the Meckstroth `2NT`, behind `RebidKnobs::forcing_nt_jump_shifts`
   (inert while `meckstroth_adjunct` is on; **default on** since the same day,

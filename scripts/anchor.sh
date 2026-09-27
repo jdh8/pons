@@ -86,6 +86,7 @@ target/release/examples/bba-decompose "$SNAP/american-none" "$SNAP/american-both
     --our-floor american \
     --dd-cache "$R/dd-cache.json" \
     --report "$SNAP/report-american.md" \
+    --jsonl "$SNAP/boards-american.jsonl" \
     2>&1 | tee -a "$R/log"
 
 # And the floor's own worth, paired: the tight instrument (rule #2), instead of
