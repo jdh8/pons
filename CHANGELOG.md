@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Natural strong jump shifts over the forcing `1NT` (2026-09-27)** — the
   rival to the Meckstroth `2NT`, behind `RebidKnobs::forcing_nt_jump_shifts`
-  (**default off**, inert while `meckstroth_adjunct` is on). After `1M - 1NT`
+  (inert while `meckstroth_adjunct` is on; **default on** since the same day,
+  see Changed). After `1M - 1NT`
   opener's 18+ rebids become `2NT` = 18+ balanced (uncapped), `3x` = natural
   jump shift (4+ cards, 18+, game-forcing; a 5-5 bids the higher suit) and
   `3NT!` = 18+ with a 6+ card major and no side suit (a 6-4 jump-shifts).
@@ -78,10 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authored responder's re-ask (4NT on 12+, else pass) in place of the floor,
   gave most of it back on the same deals (SD-PD +0.0003/+0.0001 NV,
   +0.0004/+0.0001 vul, SD-plain slightly negative, divergence back to 0.18%)
-  and is reverted: the floor's re-ask is the better one. Still **opt-in**:
-  the default flip (Meckstroth off, jump shifts on) is a default-system change
-  owed its own checklist; the decision table reads *win | win*. Residual
-  levers in `docs/next-steps.md`.
+  and is reverted: the floor's re-ask is the better one. Rounds 7–8 (opener
+  accepts the slam try on 19+, everywhere / below the natural `2NT` only)
+  lost and washed on the same deals and are not shipped
+  (`docs/next-steps.md`). The decision table reads *win | win*: the default
+  flip is under Changed. Residual levers in `docs/next-steps.md`.
 
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named
@@ -104,6 +106,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md).
 
 ### Changed
+
+- **Natural strong jump shifts replace Meckstroth as the default
+  (2026-09-27)** — `rebid.forcing_nt_jump_shifts` now defaults **on** and
+  `rebid.meckstroth_adjunct` **off**. After `1M - 1NT` opener's 18+ hands
+  rebid a natural `2NT` (18+ balanced), a natural `3x` jump shift or the
+  `3NT!` long major instead of the artificial `2NT!` relay, and the 15–17 5-5
+  majors go `2♥!` then `3♥!` (the Added entry above has the design). Measured
+  by round 5's A/B vs Meckstroth: SD-PD +0.0016/+0.0012 NV, +0.0011/+0.0009
+  vul (400k × 2 seeds), positive on every scorer. `smoke-default` (20k deals,
+  seed 1) moves 200 auctions (1.0%), every one of them opener's rebid after
+  `1M - 1NT`. **Not measured:** the 42 of those with an opponent's call after
+  the opening (0.2% of deals) — `ab-meckstroth-2nt` silences the opponents,
+  and neither structure authors an interfered tail, so both fall to the floor
+  there; a vs-BBA run is owed. The `.bbsa` card is unchanged (it encodes
+  neither); the alert-site fixture and the reading-leak pin (88 → 86) are
+  re-blessed. `ab-meckstroth-2nt` now builds both arms explicitly
+  (`--jump-shifts`: Meckstroth vs the default; the plain mode keeps its
+  natural 18–19 `2NT` baseline). The web toggle's Meckstroth default is
+  off.
 
 - **The Meckstroth `3m` jumps are opt-in (2026-09-26)** —
   `rebid.meckstroth_minor_jumps` now defaults **off**: opener's invitational

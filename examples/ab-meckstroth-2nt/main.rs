@@ -72,9 +72,9 @@ struct Args {
     /// artificial 18+ `2NT` game force and drops only the jumps
     #[arg(long, default_value_t = false)]
     minor_jumps_only: bool,
-    /// Price the natural strong jump shifts against the shipped Meckstroth
-    /// `2NT`: arm 0 = the shipped default (the adjunct), arm 1 = the adjunct
-    /// off and `forcing_nt_jump_shifts` on.  Positive favors the jump shifts.
+    /// Price the natural strong jump shifts against the Meckstroth `2NT`:
+    /// arm 0 = the adjunct, arm 1 = the adjunct off and
+    /// `forcing_nt_jump_shifts` on (the shipped default).  Positive favors the jump shifts.
     #[arg(long, default_value_t = false, conflicts_with = "minor_jumps_only")]
     jump_shifts: bool,
     /// Trace: print the N worst divergent boards (plain DD) for the treatment
@@ -179,15 +179,19 @@ fn main() {
     // force (so only the jumps move); without it the baseline drops the whole
     // adjunct.  An inverted `!` here silently re-ran the merged A/B instead —
     // the tell was divergence landing on the merged knob's 0.6%.
-    // With --jump-shifts the baseline is the shipped default and the treatment
-    // swaps the adjunct for the natural jump shifts.
+    // With --jump-shifts the baseline is Meckstroth and the treatment the
+    // natural jump shifts (the shipped default since 2026-09-27).
     let mut base = Agreements::default();
     let mut on = Agreements::default();
     if args.jump_shifts {
+        base.rebid.meckstroth_adjunct = true;
         on.rebid.meckstroth_adjunct = false;
         on.rebid.forcing_nt_jump_shifts = true;
     } else {
+        // The natural 18–19 `2NT` baseline predates the jump shifts: keep it.
+        base.rebid.forcing_nt_jump_shifts = false;
         base.rebid.meckstroth_adjunct = args.minor_jumps_only;
+        on.rebid.meckstroth_adjunct = true;
         base.rebid.meckstroth_minor_jumps = false;
         // Both halves on (the jumps are opt-in since 2026-09-26).
         on.rebid.meckstroth_minor_jumps = true;

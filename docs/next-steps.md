@@ -151,27 +151,41 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- **Forcing-NT jump shifts — the default flip is the decision** (2026-09-27):
-  round 5 wins vs the shipped Meckstroth `2NT` on every bracket of every cell
-  (SD-PD +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and
-  the trace in [bidding-options.md](bidding-options.md),
-  `set_forcing_nt_jump_shifts`). The DD/SD disagreement was round 4's `Pass`
-  rows shadowing the floor's slam re-ask after opener's 18–19 decline —
-  Meckstroth's lane leaves that seat to the floor and wins the slams. Flipping
-  the default (`meckstroth_adjunct` off, `forcing_nt_jump_shifts` on) is a
-  default-system change: `smoke-default`, a contested check (neither lane
-  authors interfered tails over `1M - 1NT - 2NT!/3x`), `card.rs` encodes
-  neither. Residual levers, each worth ≈ 50–100 SD-PD IMPs per 400k cell:
+- **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
+  round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
+  +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the
+  trace in [bidding-options.md](bidding-options.md),
+  `set_forcing_nt_jump_shifts`). **Owed:** a vs-BBA run of the flip — 42 of
+  the 200 auctions `smoke-default` moved (0.2% of deals) have an opponent's
+  call after the opening, which `ab-meckstroth-2nt` never sees (it silences
+  them). Residual levers, each worth ≈ 50–100 SD-PD IMPs per 400k cell:
   1. The `3♣` bucket is negative in all four cells: the floor's re-ask
      sometimes raises straight to `6M` (`3♠ - 4♠ - 6♠`) or wanders (`4NT -
      5♦ - 5♥ - 6♣ - 6♠`). An authored 12+ re-ask **lost** to it on the same
      deals (round 6), so this is a floor lever, not a row.
-  2. The natural `2NT` lane (`2NT -> 2NT`) is negative in all four cells: our
-     floor passes 18–19 + 11 after `2NT - 3♠ - 4♠` where Meckstroth's floor
-     asks on the same hands — the suspected cause is the natural `2NT`'s
-     balanced 18–19 reading vs the `2NT!`'s unlimited one feeding
-     `slam_entry_reached`. Probe both books on board 5791 of deal seed
-     1790452526 (`ab-meckstroth-2nt --jump-shifts --seed 1790452526 --worst`).
+  2. The natural `2NT` lane (`2NT -> 2NT`) is negative in all four cells.
+     **Probed 2026-09-27** (board 5791, deal seed 1790452526): opener
+     AK952.A82.K4.A53 (19, balanced), responder 643.KQ753.AJ93.4 (10, three
+     spades, stiff club). `2NT - 3♠` (fit slam try, 10+) `- 4♠` (sign-off:
+     opener accepts on 20+) `- Pass`; Meckstroth's floor re-asks and makes
+     6♠. Every call follows the system; what is wrong is the **reading**:
+     responder reads the natural `2NT` as **HCP 11–21**, not the rule's 18+
+     (`probe-decision "643.KQ753.AJ93.4" "- 1♠ - 1NT - 2NT -"`), and as
+     11–19 after the sign-off, so the floor cannot see 29+. Two levers,
+     both A/Bs: (a) repair the reading (an authored-reading ticket —
+     [authored-reading-handoff.md](authored-reading-handoff.md)); (b) opener
+     accepts the slam try on 19+ (19 opposite 10–12 is 29–31 before
+     shortness) — a row change that keeps the sign-off meaning *no slam*,
+     where (a) only helps the floor overrule it. **(b) measured 2026-09-27,
+     not shipped** (same deals as round 5, `pons-ab-results/jump-shifts/`
+     `run8.sh`/`run9.sh`, patches beside them): 19+ in every lane (round 7)
+     lost plain DD and PD in all four cells (−168/−200/−61/−77 plain) — the
+     `3♣` jump shift's bucket worse in each; 19+ below the natural `2NT` only
+     (round 8) is a wash — Δ plain DD −23/−28/+7/+6, PD −29/−37/−4/−8,
+     SD-PD −0.0003/+0.0004/+0.0003/−0.0002 NV/vul × two seeds. Its bucket
+     gains ≈ +52 SD-PD per cell while plain DD moves −23…+7: the extra slams
+     are the blind lead's, and at slam SD-PD is only a stress test. That
+     leaves (a).
   3. Opener's 21+ ask over the uncapped 4-4 `4♥` (`3♥ - 4♥ - 4NT … 6♥` down
      on 231698/297815): the asker table bids six on three keycards plus one;
      a cap or a 22+ threshold is one small A/B, but the `3♥` bucket is the

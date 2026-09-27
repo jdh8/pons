@@ -141,9 +141,18 @@ fn responder_runs_to_six_card_diamond_suit() {
 // Meckstroth adjunct: opener's invitational 3m jump after the forcing 1NT
 // ---------------------------------------------------------------------------
 
+/// Meckstroth on — the default until 2026-09-27, when the natural jump shifts
+/// replaced it
+fn meckstroth() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.meckstroth_adjunct = true;
+    american(&agreements).bind()
+}
+
 /// The Meckstroth `3m` jumps are opt-in since 2026-09-26
 fn minor_jumps() -> Partnership {
     let mut agreements = Agreements::default();
+    agreements.rebid.meckstroth_adjunct = true;
     agreements.rebid.meckstroth_minor_jumps = true;
     american(&agreements).bind()
 }
@@ -206,7 +215,7 @@ fn after_1s_1nt_3d() -> Vec<Call> {
 #[test]
 fn responder_accepts_invitational_minor_to_major_game() {
     // K42.Q53.84.AQ952 — 10 HCP, 3 spades: accept to the 5-3 major game (4♠)
-    let system = partnership();
+    let system = meckstroth();
     assert_eq!(
         best_call(&system, &after_1s_1nt_3d(), "K42.Q53.84.AQ952"),
         call(4, Strain::Spades),
@@ -216,7 +225,7 @@ fn responder_accepts_invitational_minor_to_major_game() {
 #[test]
 fn responder_accepts_invitational_minor_to_notrump_game() {
     // Q2.KJ3.Q84.KJ952 — 12 HCP, 2 spades: accept to notrump game (3NT)
-    let system = partnership();
+    let system = meckstroth();
     assert_eq!(
         best_call(&system, &after_1s_1nt_3d(), "Q2.KJ3.Q84.KJ952"),
         call(3, Strain::Notrump),
@@ -226,7 +235,7 @@ fn responder_accepts_invitational_minor_to_notrump_game() {
 #[test]
 fn responder_declines_invitational_minor_with_preference() {
     // Q42.J53.864.K952 — 6 HCP, 3 spades: decline, preference to 3♠
-    let system = partnership();
+    let system = meckstroth();
     assert_eq!(
         best_call(&system, &after_1s_1nt_3d(), "Q42.J53.864.K952"),
         call(3, Strain::Spades),
@@ -262,7 +271,7 @@ fn responder_accepts_invitational_minor_to_heart_game() {
         call(3, Strain::Clubs),
         p,
     ];
-    let system = partnership();
+    let system = meckstroth();
     assert_eq!(
         best_call(&system, &auction, "KJ52.Q43.A4.9762"),
         call(4, Strain::Hearts),
@@ -274,11 +283,11 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 //   1♠ - 1NT - 2NT! - …
 // ---------------------------------------------------------------------------
 
-/// The 2/1 pair with the Meckstroth adjunct **off** — it ships on (so the default
-/// `partnership()` already carries it), so build the baseline arm with the knob off.
+/// The natural 18–19 `2NT` baseline: Meckstroth **and** the jump shifts off
 fn meckstroth_off_partnership() -> Partnership {
     let mut agreements = Agreements::default();
     agreements.rebid.meckstroth_adjunct = false;
+    agreements.rebid.forcing_nt_jump_shifts = false;
     american(&agreements).bind()
 }
 
@@ -295,7 +304,7 @@ fn after_1s_1nt_then(calls: &[Call]) -> Vec<Call> {
 #[test]
 fn opener_bids_game_forcing_2nt_on_balanced_eighteen_plus() {
     // AKQ98.KQ4.AQ.432 — 20 HCP, 5-3-2-3 balanced: the artificial GF 2NT.
-    let system = partnership();
+    let system = meckstroth();
     assert_eq!(
         best_call(&system, &after_1s_1nt(), "AKQ98.KQ4.AQ.432"),
         call(2, Strain::Notrump),
@@ -306,7 +315,7 @@ fn opener_bids_game_forcing_2nt_on_balanced_eighteen_plus() {
 fn game_forcing_2nt_routes_shapely_eighteen_plus() {
     // AKQ982.KQJ4.A.32 — 19 HCP, 6-4-1-2 (unbalanced): the GF 2NT takes any shape.
     assert_eq!(
-        best_call(&partnership(), &after_1s_1nt(), "AKQ982.KQJ4.A.32"),
+        best_call(&meckstroth(), &after_1s_1nt(), "AKQ982.KQJ4.A.32"),
         call(2, Strain::Notrump),
     );
     // Knob off: no GF 2NT for a shapely hand — it jump-rebids the six-card major.
@@ -323,7 +332,7 @@ fn game_forcing_2nt_routes_shapely_eighteen_plus() {
 #[test]
 fn responder_relays_three_clubs_with_nothing_to_show() {
     // 32.Q432.K432.Q43 — 7 HCP, 2 spades, no five-card suit: relay 3♣.
-    let system = partnership();
+    let system = meckstroth();
     let auction = after_1s_1nt_then(&[call(2, Strain::Notrump)]);
     assert_eq!(
         best_call(&system, &auction, "32.Q432.K432.Q43"),
@@ -334,7 +343,7 @@ fn responder_relays_three_clubs_with_nothing_to_show() {
 #[test]
 fn opener_shows_concealed_hearts_over_the_relay() {
     // AKQ98.AQ54.K2.32 — 18 HCP, 5-4 spades+hearts: show the four-card heart suit.
-    let system = partnership();
+    let system = meckstroth();
     let auction = after_1s_1nt_then(&[call(2, Strain::Notrump), call(3, Strain::Clubs)]);
     assert_eq!(
         best_call(&system, &auction, "AKQ98.AQ54.K2.32"),
@@ -345,7 +354,7 @@ fn opener_shows_concealed_hearts_over_the_relay() {
 #[test]
 fn responder_raises_the_concealed_heart_fit() {
     // 32.KJ32.Q432.J43 — four hearts opposite opener's shown four: the 4-4 game.
-    let system = partnership();
+    let system = meckstroth();
     let auction = after_1s_1nt_then(&[
         call(2, Strain::Notrump),
         call(3, Strain::Clubs),
@@ -360,7 +369,7 @@ fn responder_raises_the_concealed_heart_fit() {
 #[test]
 fn responder_shows_clubs_via_three_notrump() {
     // 32.Q42.K3.AJ8765 — six clubs, exactly two spades: the artificial 3NT.
-    let system = partnership();
+    let system = meckstroth();
     let auction = after_1s_1nt_then(&[call(2, Strain::Notrump)]);
     assert_eq!(
         best_call(&system, &auction, "32.Q42.K3.AJ8765"),
@@ -371,7 +380,7 @@ fn responder_shows_clubs_via_three_notrump() {
 #[test]
 fn opener_pulls_club_showing_3nt_to_the_major() {
     // AKQ982.KQ.A32.32 — six spades: pull responder's 3NT (6-2 fit) to 4♠.
-    let system = partnership();
+    let system = meckstroth();
     let auction = after_1s_1nt_then(&[call(2, Strain::Notrump), call(3, Strain::Notrump)]);
     assert_eq!(
         best_call(&system, &auction, "AKQ982.KQ.A32.32"),
@@ -382,7 +391,9 @@ fn opener_pulls_club_showing_3nt_to_the_major() {
 // ---------------------------------------------------------------------------
 // Phase 2: opener's invitational major two-suiter
 // (`RebidKnobs::forcing_nt_two_suiter`, shipped on — the default `partnership()`
-// carries it; build the baseline explicitly)
+// carries it; build the baseline explicitly).  The `1♠ - 1NT - 3♥` 5-5 jump
+// lives only while the natural jump shifts are off, so its tests build
+// `meckstroth()`.
 // ---------------------------------------------------------------------------
 
 /// The baseline arm with the two-suiter rebids off.
@@ -419,7 +430,7 @@ fn opener_jumps_to_show_five_five_majors() {
     // a natural 2♥ rebid (off).
     let hand = "AKQ32.KQJ32.2.32";
     assert_eq!(
-        best_call(&partnership(), &after_1s_1nt(), hand),
+        best_call(&meckstroth(), &after_1s_1nt(), hand),
         call(3, Strain::Hearts),
     );
     assert_eq!(
@@ -453,7 +464,7 @@ fn responder_accepts_the_five_five_jump_in_spades() {
         a
     };
     assert_eq!(
-        best_call(&partnership(), &auction, "K43.J32.KJ432.42"),
+        best_call(&meckstroth(), &auction, "K43.J32.KJ432.42"),
         call(4, Strain::Spades),
     );
 }
@@ -467,13 +478,13 @@ fn responder_declines_the_five_five_jump_with_a_minimum() {
         a
     };
     assert_eq!(
-        best_call(&partnership(), &auction, "Q3.J32.QJ32.J432"),
+        best_call(&meckstroth(), &auction, "Q3.J32.QJ32.J432"),
         call(3, Strain::Spades),
     );
 }
 
 // ---------------------------------------------------------------------------
-// Natural strong jump shifts (the Meckstroth rival, opt-in): 1♠ - 1NT - 3x / 3NT!
+// Natural strong jump shifts (the default since 2026-09-27): 1♠ - 1NT - 3x / 3NT!
 // ---------------------------------------------------------------------------
 
 /// The 2/1 pair with Meckstroth off and the natural jump shifts on

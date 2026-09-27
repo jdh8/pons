@@ -1571,7 +1571,7 @@ static SETTINGS: &[Setting] = &[
     toggle("second_suit_agreement", REBIDS, "", true, set_second_suit_agreement, second_suit_agreement),
     toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, set_game_backstop, game_backstop_enabled),
     toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, set_fourth_suit_forcing, fourth_suit_forcing),
-    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, set_meckstroth_adjunct, meckstroth_adjunct),
+    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", false, set_meckstroth_adjunct, meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, set_limit_raise_acceptance, limit_raise_acceptance),
     // Floor (instinct)
     toggle("one_nt_runout", FLOOR, "", true, set_one_nt_runout, one_nt_runout),

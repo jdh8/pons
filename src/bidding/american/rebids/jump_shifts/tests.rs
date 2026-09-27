@@ -309,17 +309,17 @@ fn responder_placed_games_get_openers_answer() {
 }
 
 #[test]
-fn knob_is_inert_under_meckstroth_and_off_by_default() {
-    // Meckstroth on (the default) wins the seam whatever the jump-shift knob says.
+fn knob_is_inert_under_meckstroth_and_on_by_default() {
+    // Meckstroth on wins the seam whatever the jump-shift knob says.
     let mut agreements = Agreements::default();
-    agreements.rebid.forcing_nt_jump_shifts = true;
+    agreements.rebid.meckstroth_adjunct = true;
     let mut trie = Trie::new();
     register(&mut trie, &agreements);
     assert_eq!(
         best(&trie, AFTER_1S_1NT, "AKJ98.A3.K2.AQ76"),
         bid(2, Strain::Notrump)
     );
-    assert!(!forcing_nt_jump_shifts_on(&Agreements::default().rebid));
+    assert!(forcing_nt_jump_shifts_on(&Agreements::default().rebid));
 }
 
 #[test]

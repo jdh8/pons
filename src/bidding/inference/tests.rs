@@ -1815,7 +1815,10 @@ fn authored_calls_read_what_they_gate() {
         // `5+ ♦ & 4+ ♣` arm already promised by `2NT`: the same `4♦`
         // rule appears in american constructive/defensive and the (then-)Dutch trie.  The
         // legacy hull loses the disjunction; envelope union keeps it exact.
-        ("length", 88, 0),
+        // 88 → 86 when the natural jump shifts replaced Meckstroth as the
+        // default (2026-09-27): the adjunct's `5+ ♣ | 5+ ♦` opener shape-out
+        // `3NT` left the american constructive and defensive tries.
+        ("length", 86, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

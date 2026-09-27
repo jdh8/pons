@@ -3927,7 +3927,9 @@ pub struct RebidKnobs {
     // --- rebids/meckstroth.rs
     /// Author the complete Meckstroth adjunct
     ///
-    /// **Default on.**  After `1M - 1NT` (the forcing notrump), opener's `2NT`
+    /// **Default off** since 2026-09-27: the natural
+    /// [`forcing_nt_jump_shifts`][Self::forcing_nt_jump_shifts] beat it on every
+    /// bracket.  On, it wins the 18+ seam over them.  After `1M - 1NT` (the forcing notrump), opener's `2NT`
     /// is an artificial 18+ game force of *any* shape (responder relays `3♣`,
     /// opener shape-describes toward game or slam) instead of the natural 18–19
     /// balanced rebid; the invitational `3m` jumps (5+ minor, 15–17) ride
@@ -3964,9 +3966,9 @@ pub struct RebidKnobs {
     // --- rebids/jump_shifts.rs
     /// Natural strong jump shifts over the forcing `1NT` instead of Meckstroth
     ///
-    /// **Default off** — measured a wash against the shipped Meckstroth `2NT`
-    /// (`ab-meckstroth-2nt --jump-shifts`, 400k/vul × 2 seeds: SD-PD
-    /// +0.0011/+0.0006 NV, +0.0003/−0.0005 vul, all within CI).  Ignored
+    /// **Default on** since 2026-09-27 — beat the Meckstroth `2NT` on every
+    /// bracket (`ab-meckstroth-2nt --jump-shifts`, 400k/vul × 2 seeds: SD-PD
+    /// +0.0016/+0.0012 NV, +0.0011/+0.0009 vul).  Ignored
     /// while [`meckstroth_adjunct`][Self::meckstroth_adjunct] is on — the two
     /// are rival designs for the same 18+ seam.  With Meckstroth off and this
     /// on, opener's 18+ rebids after `1M - 1NT` become: `2NT` = 18+ balanced
@@ -4010,10 +4012,10 @@ impl Default for RebidKnobs {
             major_rebid_tails: true,
             fourth_suit_forcing: true,
             nt_invite_hcp: true,
-            meckstroth_adjunct: true,
+            meckstroth_adjunct: false,
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
-            forcing_nt_jump_shifts: false,
+            forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
             new_minor_forcing: false,
         }

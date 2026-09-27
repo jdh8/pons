@@ -217,6 +217,16 @@ const fn not_defined() -> usize {
 // contract on the common branch.  `comp:landy-transfer` keeps its N1c meaning
 // and this knob no longer uses it.
 //
+// `forcing-nt-3nt-long-major` / `forcing-nt-jump-shift-4c-fit` /
+// `forcing-nt-five-five-invite` (opener's natural strong jump shifts over the
+// forcing `1NT`, `rebid.forcing_nt_jump_shifts`, default since 2026-09-27):
+// no schema name.  The jump shifts themselves are natural rebids under the
+// declared `Forcing 1NT`; these three tags mark our own rungs inside that
+// structure (the six-card-major `3NT`, the `4♣` fit slam try, the displaced
+// 5-5's `2♥`), which EPBot's list of optional conventions does not name.  The
+// retired default they replace, the `meckstroth-2nt*` family, had no row
+// either.
+//
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the
 // card already declares (Jacoby/Texas/Stayman/Puppet answers, lebensohl 3♣,
