@@ -129,10 +129,6 @@ Near-zero direct IMPs; protects banked wins and unblocks measurement:
   pass_exclusion's two seeds. (Meckstroth `3m` jumps: confirmed, demoted
   2026-09-26; forcing-NT two-suiter: not confirmed, stays on —
   [bidding-options.md](bidding-options.md).)
-- **PD-scorer unification** (`ns_score_bid` vs `ns_score_pd`, ≈0.07/board
-  definitional skew between the two campaigns' PD columns) — decision owed
-  to jdh8; proposed reversible default in
-  [ben-gap-campaign.md](ben-gap-campaign.md) §"the two PD scorers disagree".
 
 ## Deliberately not ranked
 

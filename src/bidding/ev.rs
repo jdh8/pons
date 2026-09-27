@@ -134,7 +134,7 @@ pub fn ev_all(
                 .zip(tables.iter())
                 .map(|(deal, tricks)| {
                     let auction = table.bid_out_from(deal, seed.clone());
-                    let result = final_contract(&auction, dealer).map(|(c, s)| (c.bid, s));
+                    let result = final_contract(&auction, dealer);
                     let score = ns_score_bid(result, tricks, vul);
                     if actor_is_ns { score } else { -score }
                 })

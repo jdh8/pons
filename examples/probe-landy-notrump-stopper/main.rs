@@ -32,7 +32,7 @@ use contract_bridge::{
     Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
 
 #[path = "../common/mod.rs"]
@@ -298,7 +298,7 @@ fn main() {
         let reached = final_contract(&board.table_a, board.dealer);
         let (lp, ld) = (
             ns_score_contract(reached, table, vul),
-            ns_score_pd(reached, table, vul),
+            ns_score_bid(reached, table, vul),
         );
         *live_rows
             .entry(reached.map_or("pass".to_owned(), |(c, d)| {
@@ -340,7 +340,7 @@ fn main() {
             };
             (
                 imps(ns_score_contract(Some((c, declarer)), table, vul) - lp),
-                imps(ns_score_pd(Some((c, declarer)), table, vul) - ld),
+                imps(ns_score_bid(Some((c, declarer)), table, vul) - ld),
             )
         };
         let m = Strain::from(minor);

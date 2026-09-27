@@ -235,8 +235,8 @@ fn main() {
                 - pons::scoring::ns_score_contract(*off, table, vul),
         );
         e[2] += pons::scoring::imps(
-            pons::scoring::ns_score_pd(*on, table, vul)
-                - pons::scoring::ns_score_pd(*off, table, vul),
+            pons::scoring::ns_score_bid(*on, table, vul)
+                - pons::scoring::ns_score_bid(*off, table, vul),
         );
     }
     println!("\n--- sample 5♥ - 5♠ - 6♠ boards: lane | asker | answerer | tricks ---");

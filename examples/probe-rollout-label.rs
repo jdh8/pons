@@ -72,7 +72,7 @@
 //!    so a candidate is credited only for beating what we would have done
 //!    anyway.  The advantage is `mean_layouts imps(candidate − own)`, reported
 //!    under **both** scorers of [`docs/measurement.md`] — plain DD
-//!    (`ns_score_contract`) and perfect defense (`ns_score_pd`).
+//!    (`ns_score_contract`) and perfect defense (`ns_score_bid`).
 //!
 //! The census then prices the target rule: a decision **relabels** when some
 //! candidate's advantage clears `--margin` IMPs.  Three rules are counted at
@@ -102,11 +102,10 @@
 //!   drawn under: `sample_layouts_replay` accepts a world by replaying **our**
 //!   policy on the non-actors, so a BBA rollout scores worlds selected by a
 //!   different opponent model.
-//! * **`ns_score_pd`, not `ns_score_bid`.**  `ev_all` prices a bare *call* and
-//!   so synthesises the double (`ns_score_bid`).  Here both branches are real
-//!   auctions that may contain a real double, and `scoring.rs` is explicit that
-//!   a duplicate comparison in which a side may defend by passing is scored
-//!   with `ns_score_pd`.
+//! * **`ns_score_bid` on both branches.**  Both are real auctions that may
+//!   contain a real double; the double-dummy-bidding rule re-derives the
+//!   penalty from the outcome either way (until 2026-09-27 this used the
+//!   retired `ns_score_pd`, which kept a real double on a making contract).
 //! * **No fitted `T`.**  No shipped weights sidecar carries a `temperature`
 //!   (session 2 built the fitter; no net has been trained since). Temperature
 //!   cannot change candidate order, but it changes which decisions clear the

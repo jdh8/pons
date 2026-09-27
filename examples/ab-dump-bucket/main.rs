@@ -33,7 +33,7 @@
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Seat};
-use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -215,7 +215,7 @@ fn report_by(by: &str, on: &[Board], off: &[Board], vul: AbsoluteVulnerability, 
     for (k, &idx) in scored.divergent.iter().enumerate() {
         let (con, coff) = contracts[idx];
         pd[idx] = imps(
-            ns_score_pd(con, &scored.tables[k], vul) - ns_score_pd(coff, &scored.tables[k], vul),
+            ns_score_bid(con, &scored.tables[k], vul) - ns_score_bid(coff, &scored.tables[k], vul),
         );
     }
     // key → (call-divergent, contract-divergent, plain, pd)
@@ -323,7 +323,7 @@ fn main() {
     for (k, &idx) in scored.divergent.iter().enumerate() {
         let table = &scored.tables[k];
         let (con, coff) = contracts[idx];
-        pd[idx] = imps(ns_score_pd(con, table, vul) - ns_score_pd(coff, table, vul));
+        pd[idx] = imps(ns_score_bid(con, table, vul) - ns_score_bid(coff, table, vul));
     }
 
     // "fired" here = boards whose final contract diverged (the IMP-relevant set);

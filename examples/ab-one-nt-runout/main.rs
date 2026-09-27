@@ -46,7 +46,7 @@ use pons::bidding::context::relative;
 use pons::bidding::instinct::Unusual2nt;
 use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
-    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -438,7 +438,7 @@ fn main() {
 
     let scorer = match args.score {
         Score::Plain => ns_score_contract,
-        Score::Pd => ns_score_pd,
+        Score::Pd => ns_score_bid,
     };
     let mut total_points = 0i64;
     let mut total_imps = 0i64;

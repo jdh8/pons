@@ -23,7 +23,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -117,8 +117,8 @@ fn main() {
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points_pd = ns_score_pd(contract_a, table, args.vulnerability)
-            - ns_score_pd(contract_b, table, args.vulnerability);
+        let points_pd = ns_score_bid(contract_a, table, args.vulnerability)
+            - ns_score_bid(contract_b, table, args.vulnerability);
         let points_dd = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
         swings_pd[index] = imps(points_pd);
@@ -175,7 +175,7 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     let mut rows = vec![
-        ("ns_score_pd  (PD)", &swings_pd),
+        ("ns_score_bid (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
     ];
     // The PD row layers perfect doubling onto a defense that already peeks —

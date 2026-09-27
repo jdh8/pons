@@ -28,7 +28,7 @@ use contract_bridge::{
     Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
 
 #[path = "../common/mod.rs"]
@@ -287,7 +287,7 @@ fn main() {
             let reached = final_contract(&board.table_a, board.dealer);
             (
                 ns_score_contract(reached, table, vul),
-                ns_score_pd(reached, table, vul),
+                ns_score_bid(reached, table, vul),
             )
         })
         .collect();
@@ -305,7 +305,7 @@ fn main() {
                 penalty: Penalty::Undoubled,
             };
             let nt_plain = ns_score_contract(Some((nt, hit.opener)), table, vul);
-            let nt_pd = ns_score_pd(Some((nt, hit.opener)), table, vul);
+            let nt_pd = ns_score_bid(Some((nt, hit.opener)), table, vul);
             let reached = final_contract(&board.table_a, board.dealer)
                 .map_or("pass".to_owned(), |(c, d)| format!("{c}@{d:?}"));
             let key = format!(
@@ -395,7 +395,7 @@ fn main() {
                     penalty: Penalty::Undoubled,
                 };
                 let plain = ns_score_contract(Some((c, hit.opener)), table, vul);
-                let pd = ns_score_pd(Some((c, hit.opener)), table, vul);
+                let pd = ns_score_bid(Some((c, hit.opener)), table, vul);
                 let entry = rows.entry((key.clone(), name.to_owned())).or_default();
                 entry.0.push(imps(plain - lp));
                 entry.1.push(imps(pd - ld));

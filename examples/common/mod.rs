@@ -22,7 +22,7 @@ use pons::bidding::context::relative;
 use pons::bidding::features::ConventionCard;
 use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{
-    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -615,7 +615,7 @@ pub fn score_solved(
 
 /// Print the measurement playbook's dual bracket for a divergent-only solved
 /// A/B: the swing scored **both** ways — plain DD (`ns_score_contract`, the
-/// contract's actual penalty) and perfect defense (`ns_score_pd`, a failing
+/// contract's actual penalty) and perfect defense (`ns_score_bid`, a failing
 /// contract priced as doubled).  `contracts[i]` is `[off, on]`, and `tables`
 /// are the solved divergent boards, parallel to `divergent`.  Each line reports
 /// total IMPs, IMPs/board (over all `count`) and IMPs/divergent, with 95% CIs.
@@ -631,7 +631,7 @@ pub fn report_brackets(
 ) {
     for (label, scorer) in [
         ("plain DD", ns_score_contract as fn(_, _, _) -> i64),
-        ("perfect defense", ns_score_pd),
+        ("perfect defense", ns_score_bid),
     ] {
         let mut per_board = vec![0i64; count];
         for (&i, table) in divergent.iter().zip(tables.iter()) {

@@ -23,7 +23,7 @@
 //! pairs play the very same books; the knob is pinned into a partnership at build, so
 //! each side bids off its own pre-built partnership.  Divergent boards are scored two
 //! ways from one DD table:
-//! [`ns_score_pd`] (perfect defense, prices the road-not-taken as doubled) and
+//! [`ns_score_bid`] (perfect defense, prices the road-not-taken as doubled) and
 //! [`ns_score_contract`] (plain DD) — the standard bracket; read the verdict
 //! from the decision table in `docs/measurement.md`.
 //!
@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Partnership;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -196,8 +196,8 @@ fn main() {
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points_pd = ns_score_pd(contract_a, table, args.vulnerability)
-            - ns_score_pd(contract_b, table, args.vulnerability);
+        let points_pd = ns_score_bid(contract_a, table, args.vulnerability)
+            - ns_score_bid(contract_b, table, args.vulnerability);
         let points_dd = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
         swings_pd[index] = imps(points_pd);
@@ -227,7 +227,7 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     for (label, swings) in [
-        ("ns_score_pd  (PD)", &swings_pd),
+        ("ns_score_bid (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
     ] {
         let total: i64 = swings.iter().sum();

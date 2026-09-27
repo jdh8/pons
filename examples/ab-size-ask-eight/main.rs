@@ -43,7 +43,7 @@ use pons::bidding::american::SizeAskEight;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
-    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -196,7 +196,7 @@ fn main() {
                 - ns_score_contract(contracts[i][0], table, vul),
         );
         ddpd[i] = imps(
-            ns_score_pd(contracts[i][1], table, vul) - ns_score_pd(contracts[i][0], table, vul),
+            ns_score_bid(contracts[i][1], table, vul) - ns_score_bid(contracts[i][0], table, vul),
         );
     }
 

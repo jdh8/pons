@@ -4,8 +4,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat, Strain};
 use ddss::{TrickCountRow, TrickCountTable};
 use pons::scoring::{
-    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd, ns_score_pd_tricks,
-    ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 
 const fn bid(level: u8, strain: Strain) -> Call {
@@ -121,7 +120,7 @@ fn test_ns_score_contract_signs_and_vulnerability() {
 
 #[test]
 fn test_ns_score_bid_perfect_defense_doubling() {
-    let three_nt = Bid::new(3, Strain::Notrump);
+    let three_nt = Contract::new(3, Strain::Notrump, Penalty::Undoubled);
 
     // Making (9 tricks): undoubled, identical to the plain-DD contract scorer.
     let makes = TrickCountTable([TrickCountRow::new(9, 9, 9, 9); 5]);
@@ -145,10 +144,9 @@ fn test_ns_score_bid_perfect_defense_doubling() {
         ),
         -300
     );
-    let undoubled = Contract::new(3, Strain::Notrump, Penalty::Undoubled);
     assert_eq!(
         ns_score_contract(
-            Some((undoubled, Seat::South)),
+            Some((three_nt, Seat::South)),
             &fails,
             AbsoluteVulnerability::NONE
         ),
@@ -160,68 +158,39 @@ fn test_ns_score_bid_perfect_defense_doubling() {
 }
 
 #[test]
-fn test_ns_score_pd_carries_table_double() {
-    let two_hearts_x = Contract::new(2, Strain::Hearts, Penalty::Doubled);
-    let bare = Bid::new(2, Strain::Hearts);
+fn test_ns_score_bid_ignores_table_double() {
+    // The double-dummy-bidding rule: the penalty is re-derived from the outcome,
+    // so a real `X`/`XX` on the table never reaches the score.
+    let bare = Contract::new(2, Strain::Hearts, Penalty::Undoubled);
+    let doubled = Contract::new(2, Strain::Hearts, Penalty::Doubled);
+    let redoubled = Contract::new(2, Strain::Hearts, Penalty::Redoubled);
+    let vul = AbsoluteVulnerability::NONE;
 
-    // Making (8 tricks): the table double is locked in — `ns_score_pd` scores it
-    // *doubled* (keeping the bonus), where the call-evaluator `ns_score_bid`
-    // strips a making contract to undoubled.
+    // Making (8 tricks): 2♥X made is +470 at the table, but a double-dummy
+    // opponent would not have doubled — scored as the undoubled +110.
     let makes = TrickCountTable([TrickCountRow::new(8, 8, 8, 8); 5]);
-    let pd_makes = ns_score_pd(
-        Some((two_hearts_x, Seat::South)),
-        &makes,
-        AbsoluteVulnerability::NONE,
-    );
+    for contract in [bare, doubled, redoubled] {
+        assert_eq!(
+            ns_score_bid(Some((contract, Seat::South)), &makes, vul),
+            110
+        );
+    }
     assert_eq!(
-        pd_makes,
-        ns_score_contract(
-            Some((two_hearts_x, Seat::South)),
-            &makes,
-            AbsoluteVulnerability::NONE
-        ),
-    );
-    assert!(
-        pd_makes
-            > ns_score_bid(
-                Some((bare, Seat::South)),
-                &makes,
-                AbsoluteVulnerability::NONE
-            )
+        ns_score_contract(Some((doubled, Seat::South)), &makes, vul),
+        470
     );
 
-    // Failing (7 tricks, down 1): an *undoubled* contract is floored to doubled by
-    // perfect defense, matching `ns_score_bid`.
+    // Failing (7 tricks, down 1): doubled −100 whatever the table said — the
+    // undoubled −50 is floored and the redoubled −200 is cut back.
     let fails = TrickCountTable([TrickCountRow::new(7, 7, 7, 7); 5]);
-    let two_hearts = Contract::new(2, Strain::Hearts, Penalty::Undoubled);
-    assert_eq!(
-        ns_score_pd(
-            Some((two_hearts, Seat::South)),
-            &fails,
-            AbsoluteVulnerability::NONE
-        ),
-        ns_score_bid(
-            Some((bare, Seat::South)),
-            &fails,
-            AbsoluteVulnerability::NONE
-        ),
-    );
-    // An already-doubled failing contract is unchanged (still just doubled).
-    assert_eq!(
-        ns_score_pd(
-            Some((two_hearts_x, Seat::South)),
-            &fails,
-            AbsoluteVulnerability::NONE
-        ),
-        ns_score_contract(
-            Some((two_hearts_x, Seat::South)),
-            &fails,
-            AbsoluteVulnerability::NONE
-        ),
-    );
-
-    // Pass-out scores 0.
-    assert_eq!(ns_score_pd(None, &makes, AbsoluteVulnerability::ALL), 0);
+    for contract in [bare, doubled, redoubled] {
+        assert_eq!(
+            ns_score_bid(Some((contract, Seat::South)), &fails, vul),
+            -100
+        );
+    }
+    // An EW declarer flips the sign.
+    assert_eq!(ns_score_bid(Some((bare, Seat::West)), &fails, vul), 100);
 }
 
 #[test]
@@ -235,7 +204,7 @@ fn test_ns_score_pd_tricks_doubles_only_failures() {
     };
     let vul = AbsoluteVulnerability::NONE;
 
-    // Exactly making keeps its own penalty: 420, not a doubled make.
+    // Exactly making is undoubled: 420, not a doubled make.
     assert_eq!(ns_score_pd_tricks(four_spades, Seat::North, 10, vul), 420);
     assert_eq!(
         ns_score_pd_tricks(four_spades, Seat::North, 10, vul),
@@ -248,15 +217,18 @@ fn test_ns_score_pd_tricks_doubles_only_failures() {
     // An EW declarer flips the sign, as in `ns_score_tricks`.
     assert_eq!(ns_score_pd_tricks(four_spades, Seat::West, 9, vul), 100);
 
-    // An existing double is kept, never downgraded.
+    // The table penalty is ignored either way: a doubled make is priced as the
+    // undoubled 420, a redoubled failure as the merely doubled −100.
     let doubled = Contract {
         bid: Bid::new(4, Strain::Spades),
         penalty: Penalty::Doubled,
     };
-    assert_eq!(
-        ns_score_pd_tricks(doubled, Seat::North, 9, vul),
-        ns_score_tricks(doubled, Seat::North, 9, vul),
-    );
+    let redoubled = Contract {
+        bid: Bid::new(4, Strain::Spades),
+        penalty: Penalty::Redoubled,
+    };
+    assert_eq!(ns_score_pd_tricks(doubled, Seat::North, 10, vul), 420);
+    assert_eq!(ns_score_pd_tricks(redoubled, Seat::North, 9, vul), -100);
 }
 
 #[test]

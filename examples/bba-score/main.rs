@@ -38,8 +38,9 @@ struct Args {
     /// must agree (they do when the shards share `bba-gen` flags).
     inputs: Vec<String>,
 
-    /// Score with plain DD (`plain`, the contract's bid penalty) or
-    /// perfect-defense (`pd`, double any contract that fails double dummy)
+    /// Score with plain DD (`plain`, the contract's actual penalty) or
+    /// perfect-defense (`pd`, `ns_score_bid`: a contract that fails double dummy
+    /// is doubled, one that makes undoubled, whatever the table's `X`/`XX`)
     #[arg(long, default_value = "plain")]
     score: String,
 
@@ -155,7 +156,7 @@ fn main() -> anyhow::Result<()> {
     // fails double-dummy (perfect-defense), which punishes a weak overbid.
     let score = |c: Option<(Contract, Seat)>, table: &_, vul| {
         if pd {
-            ns_score_bid(c.map(|(ct, s)| (ct.bid, s)), table, vul)
+            ns_score_bid(c, table, vul)
         } else {
             ns_score_contract(c, table, vul)
         }

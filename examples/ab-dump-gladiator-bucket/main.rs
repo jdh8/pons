@@ -21,7 +21,7 @@
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Bid, Strain};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -245,7 +245,7 @@ fn main() {
         divergent[idx] = true;
         let table = &scored.tables[k];
         let (con, coff) = contracts[idx];
-        pd[idx] = imps(ns_score_pd(con, table, vul) - ns_score_pd(coff, table, vul));
+        pd[idx] = imps(ns_score_bid(con, table, vul) - ns_score_bid(coff, table, vul));
     }
 
     let contract_fired = scored.divergent.len();

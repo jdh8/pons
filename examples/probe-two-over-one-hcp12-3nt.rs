@@ -176,8 +176,8 @@ fn main() {
         let cand_score = pons::scoring::ns_score_contract(cand_result, table, vul);
         swing_total += pons::scoring::imps(cand_score - base_score);
 
-        let base_pd = pons::scoring::ns_score_pd(base_result, table, vul);
-        let cand_pd = pons::scoring::ns_score_pd(cand_result, table, vul);
+        let base_pd = pons::scoring::ns_score_bid(base_result, table, vul);
+        let cand_pd = pons::scoring::ns_score_bid(cand_result, table, vul);
         pd_swing_total += pons::scoring::imps(cand_pd - base_pd);
 
         if let Some((contract, declarer)) = cand_result

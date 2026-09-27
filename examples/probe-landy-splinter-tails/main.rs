@@ -28,7 +28,7 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
 
 #[path = "../common/mod.rs"]
@@ -222,7 +222,7 @@ fn main() {
         let reached = final_contract(&board.table_a, board.dealer);
         let (lp, ld) = (
             ns_score_contract(reached, table, vul),
-            ns_score_pd(reached, table, vul),
+            ns_score_bid(reached, table, vul),
         );
         let responder = hit.opener.partner();
         let (o, r) = (board.deal[hit.opener], board.deal[responder]);
@@ -322,7 +322,7 @@ fn main() {
             for &(name, c) in &cands {
                 let entry = rows.entry((key.clone(), name.to_owned())).or_default();
                 entry.0.push(imps(ns_score_contract(c, table, vul) - lp));
-                entry.1.push(imps(ns_score_pd(c, table, vul) - ld));
+                entry.1.push(imps(ns_score_bid(c, table, vul) - ld));
             }
         }
     }

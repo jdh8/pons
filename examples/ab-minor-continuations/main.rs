@@ -11,7 +11,7 @@
 //! pass), so this measures the *constructive* value of the treatments.  Each
 //! board is bid twice, once per arm; boards whose arms reach different
 //! contracts are solved double dummy once and scored with **both** scorers —
-//! plain DD (`ns_score_contract`) and perfect defense (`ns_score_pd`) — per
+//! plain DD (`ns_score_contract`) and perfect defense (`ns_score_bid`) — per
 //! the measurement playbook's bracket.
 //!
 //! Seed hygiene: pass `--seed "$SEED_BASE"` (fresh per experiment, shared by

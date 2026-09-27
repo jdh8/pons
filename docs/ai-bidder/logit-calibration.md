@@ -334,9 +334,10 @@ explicit in its module doc. It defaults to **self-play**, because `BbaOracle`
 creates and destroys a native bot for every call (`with_bot`,
 `examples/common/oracle/mod.rs:457`) and the replay sampler selects worlds under
 our policy. `--opponent bba` was **measured** rather than left assumed (§4a
-below): it is affordable and it changes no conclusion. It uses **`ns_score_pd`**, not
-`ev_all`'s call-only `ns_score_bid`, because these are complete auctions that
-may contain a real double. No shipped sidecar yet carries a fitted `T`, but
+below): it is affordable and it changes no conclusion. It used **`ns_score_pd`**, not
+`ev_all`'s `ns_score_bid`, because these are complete auctions that may
+contain a real double (moot since 2026-09-27: `ns_score_pd` is retired and
+`ns_score_bid` prices both). No shipped sidecar yet carries a fitted `T`, but
 temperature cannot reorder the candidates; it changes which decisions clear
 the epsilon gate and therefore enter the evaluated population. Finally, session
 3 is **neither-vulnerable only**; a relabelling run must add the vulnerability
@@ -1641,7 +1642,10 @@ PD bracket. The anchor pipeline does not go through it —
 `bba-decompose/main.rs:562-564` and `ab-dump-diff/main.rs:183,207` both use
 `ns_score_pd` — so no campaign number is affected. **Default: leave.** Switch it
 the first time a verdict is read off `bba-score --score pd`, and note that doing
-so will move that binary's historical PD numbers.
+so will move that binary's historical PD numbers. *(Resolved the other way
+2026-09-27: `ns_score_pd` was retired and every harness now prices PD with
+`ns_score_bid`; `bba-score` was right all along — see
+[../ben-gap-campaign.md](../ben-gap-campaign.md) §"the two PD scorers".)*
 
 **`max_by` returns the last maximum.** `Iterator::max_by` breaks a tie in
 favour of the *last* element, the opposite of production's first-max

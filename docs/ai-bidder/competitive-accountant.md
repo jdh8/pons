@@ -397,9 +397,11 @@ reaching contracts a competent doubler would slaughter", i.e. plain DD letting
 *our* overbids off the hook. This gate issued **153,485 bid vetoes**; it bids
 *less*. The row was applied outside its domain.
 
-**Why PD structurally cannot price this knob.** `ns_score_pd`
-(`src/scoring.rs`) only ever *adds* a double to a failing **undoubled** contract,
-and keeps a real double even when the contract makes. For an action whose
+**Why PD structurally cannot price this knob.** The PD scorer of the day,
+`ns_score_pd` (retired 2026-09-27 — today's `ns_score_bid` erases the wrong
+double on the *makes* row as well, so PD is blind on both rows rather than
+one-way; the conclusion stands), only ever *added* a double to a failing
+**undoubled** contract, and kept a real double even when the contract made. For an action whose
 mechanism is *double more*, that is a one-way charge:
 
 | their contract | OFF (we pass) | ON (we double) |

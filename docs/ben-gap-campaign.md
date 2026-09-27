@@ -781,22 +781,45 @@ Competitive −4819 (2534).  By provenance: book −13244 (8890), floor −5689
 from a different corpus. Full report and rows:
 `ab-results/ben-anchor/2026-09-13-daa8bf4a/{report.md,boards.jsonl}`.
 
-**Flagged discrepancy — the two PD scorers disagree.** `bba-score --score pd`
-prices PD with [`ns_score_bid`][], which discards the auction's own double (a
-*made* doubled contract scores undoubled); `bba-decompose` uses
-[`ns_score_pd`][], which keeps it and only upgrades an undoubled failing
-contract. Plain DD agrees to the IMP (−8528 none / −12087 both, identical
-divergent counts), so the contracts are identical; PD does not: **−5297/−9800
-(scorer, pooled −0.755) vs −5884/−10578 (decomposer, pooled −0.823)**, ≈0.07
-IMPs/board. The committed BEN headline uses the scorer; the BBA anchor headline
-comes from the decompose report, so the two campaigns' PD columns are on
-different definitions. Nothing here is resolved silently — proposed reversible
-default: make `bba-score --score pd` call `ns_score_pd` (matching the
-decomposer and the plain-DD convention of pricing the auction as bid), keeping
-the present behaviour reachable as `--score bid`. Decision owed.
+**The two PD scorers disagreed — resolved 2026-09-27: `ns_score_bid` ships,
+`ns_score_pd` is retired.** `bba-score --score pd` priced PD with
+[`ns_score_bid`][], which re-derives the penalty from the double-dummy outcome
+(a failing contract doubled, a making one undoubled, whatever `X`/`XX` the
+table carried); `bba-decompose` and the A/B harnesses used `ns_score_pd`,
+which kept a real double and only upgraded an undoubled failure. Plain DD
+agreed to the IMP (−8528 none / −12087 both), so the contracts were identical;
+PD did not: **−5297/−9800 (`ns_score_bid`, pooled −0.755) vs −5884/−10578
+(`ns_score_pd`, pooled −0.823)**, ≈0.07 IMPs/board — the boards where a
+doubled contract made or a redoubled one failed.
+
+*Survey.* The two definitions answer different questions. `ns_score_bid` is
+double-dummy **bidding**: both sides double exactly the contracts that fail,
+and never the ones that make, so a real double on a making contract is an
+opponent's error a double-dummy opponent would never have made and is erased —
+the per-deal analogue of `average_ns_par`'s `min(undoubled, doubled)`.
+`ns_score_pd` was "the auction as played, plus a perfect doubler's axe on
+undoubled failures": a pointwise-severer transform of plain DD, so [PD, plain]
+was a strict per-board bracket and the two columns differed by exactly one
+thing. jdh8's decision: PD means double-dummy bidding, so **`ns_score_bid`**
+— the purer model, and the one `bba-score` had used since the BEN campaign
+began. The SD arbiter `ns_score_pd_tricks` now applies the same rule (a table
+double on a making contract is erased there too).
+
+*Consequences.* Every BEN Tier-S and Tier-F row in this document was scored
+with `bba-score`, so the trail above is already on the shipped definition and
+**no number here moves**. The BBA campaign's PD column comes from
+`bba-decompose` and so carried `ns_score_pd`; it re-reads at the next
+`scripts/anchor.sh` run (expect ≈0.05–0.1 IMPs/board rosier, more where
+doubled contracts make). Every A/B PD or SD-PD column dated before 2026-09-27
+is on the retired definition; the shift is confined to boards where a doubled
+contract made or a redoubled one failed. Under the new rule a knob whose
+mechanism is *doubling more* is invisible to PD on both rows, not one-way
+([measurement.md](measurement.md) addendum updated); it is still arbitrated on
+plain DD. Cross-check on this corpus: `ns_score_pd`'s −5884/−10578 was
+reproduced by a rewired `bba-score` before the retirement, so the whole gap is
+definitional.
 
 [`ns_score_bid`]: ../src/scoring.rs
-[`ns_score_pd`]: ../src/scoring.rs
 
 **Tier-F calibration trail:**
 

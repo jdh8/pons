@@ -294,8 +294,11 @@ sacrifice logic** (`:432`).
    `1NT (2♦)` lane. Neither reference opens Multi, so zero KR1 value today.
    Proposed: leave, note in the module doc.
 4. **PD-scorer definition mismatch** (`ns_score_bid` vs `ns_score_pd`, ≈ 0.07
-   IMPs/board on the M32 headline) is still owed to jdh8; every PD number
-   above carries it.
+   IMPs/board on the M32 headline) — resolved 2026-09-27: `ns_score_pd` is
+   retired, every harness prices PD with `ns_score_bid`
+   ([ben-gap-campaign.md](ben-gap-campaign.md) §"the two PD scorers"). The
+   decompose-derived PD numbers above predate the fix and carry the retired
+   definition; they re-read at the next anchor run.
 5. **BEN passout quirks** (§3.1) — [ben-architecture.md](ben-architecture.md)
    §4's "balancing/passout" line is rosier than the code. Proposed: one
    sentence there pointing here.

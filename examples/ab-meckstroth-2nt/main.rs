@@ -32,7 +32,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
-    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -243,8 +243,8 @@ fn main() {
         // Perfect-defense read from the same tables — opponents are silenced, so
         // this only ever adds a double to a contract that fails DD (no doubling
         // artifact possible here); plain-DD stays the gate, PD is confirmation.
-        let pd_base = ns_score_pd(contracts[i][0], table, args.vulnerability);
-        let pd_adj = ns_score_pd(contracts[i][1], table, args.vulnerability);
+        let pd_base = ns_score_bid(contracts[i][0], table, args.vulnerability);
+        let pd_adj = ns_score_bid(contracts[i][1], table, args.vulnerability);
         pd_imps += imps(pd_adj - pd_base);
     }
 

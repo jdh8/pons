@@ -17,7 +17,7 @@ use pons::american;
 use pons::bidding::Partnership;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -151,8 +151,8 @@ fn main() {
         let (contract_feature, contract_baseline) = contracts[index];
         let points_dd = ns_score_contract(contract_feature, table, args.vulnerability)
             - ns_score_contract(contract_baseline, table, args.vulnerability);
-        let points_pd = ns_score_pd(contract_feature, table, args.vulnerability)
-            - ns_score_pd(contract_baseline, table, args.vulnerability);
+        let points_pd = ns_score_bid(contract_feature, table, args.vulnerability)
+            - ns_score_bid(contract_baseline, table, args.vulnerability);
         swings_dd[index] = imps(points_dd);
         swings_pd[index] = imps(points_pd);
 

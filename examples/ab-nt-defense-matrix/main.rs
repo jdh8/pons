@@ -15,7 +15,7 @@
 //! DD scorers assume perfect double-dummy cardplay, which prices obstruction and
 //! "they sit and die" at zero, so a pass-heavy equilibrium is expected.  Per
 //! `reference_pd-vs-plain-dd-bracket` every matrix is reported on **both**
-//! plain DD (`ns_score_contract`) and perfect-defense (`ns_score_pd`) scoring.
+//! plain DD (`ns_score_contract`) and perfect-defense (`ns_score_bid`) scoring.
 //!
 //! A third bracket, **sd-lead**, prices the one information seam DD scoring is
 //! known to get most wrong at the 1NT level (Pavlicek: 1NT makes 67.7% at the
@@ -59,7 +59,7 @@ use pons::bidding::inference::ReadingProfile;
 use pons::bidding::instinct::InstinctProfile;
 use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
-    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::rngs::StdRng;
@@ -526,7 +526,7 @@ fn main() {
         let board = &boards[b];
         let datum = board.contracts[0][0];
         let datum_plain = ns_score_contract(datum, table, vul);
-        let datum_pd = ns_score_pd(datum, table, vul);
+        let datum_pd = ns_score_bid(datum, table, vul);
         for row in 0..ROWS {
             for col in 0..COLS {
                 let reached = board.contracts[row][col];
@@ -535,7 +535,7 @@ fn main() {
                 }
                 let swing_plain = imps(ns_score_contract(reached, table, vul) - datum_plain);
                 plain[row][col][b] = swing_plain;
-                pd[row][col][b] = imps(ns_score_pd(reached, table, vul) - datum_pd);
+                pd[row][col][b] = imps(ns_score_bid(reached, table, vul) - datum_pd);
                 divergent[row][col] += 1;
                 let bucket = buckets[row][col]
                     .entry(action_label(board.actions[row]))
@@ -669,7 +669,7 @@ fn main() {
         }
     };
     print_matrix("plain DD (ns_score_contract)", &plain);
-    print_matrix("perfect defense (ns_score_pd)", &pd);
+    print_matrix("perfect defense (ns_score_bid)", &pd);
     if sd_on {
         print_matrix("sd-lead (blind opening lead, DD after)", &sdl);
         print_matrix("sd-lead + perfect defense (the SD arbiter)", &sdl_pd);

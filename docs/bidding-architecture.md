@@ -159,7 +159,7 @@ The proposed Stage 2 “the floor buys the contract once” TTL was built and
 reverted. It used off-book bid count, excluding authored bids through
 `Context::prefixes()` book depth. Bare TTL measured **+0.851 PD but −0.401
 plain DD IMPs/board**; a level-≥4 gate still measured **−0.018 plain**, and
-level ≥5 was inert (**0.00**). The PD win came from `ns_score_pd` synthetically
+level ≥5 was inert (**0.00**). The PD win came from the PD scorer synthetically
 doubling the competitive contracts TTL declined to bid. A hop limit keyed on
 climb distance damps makeable and failing jumps alike, so it is orthogonal to
 double-dummy make-ness; its obstruction/judgement thesis needs single-dummy

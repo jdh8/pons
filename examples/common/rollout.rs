@@ -14,7 +14,7 @@ use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::sampler::sample_layouts_replay;
 use pons::bidding::{Bidder, Partnership, Table};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -139,7 +139,7 @@ pub fn swings(
                     let reached = final_contract(&table.bid_out_from(layout, seed), dealer);
                     [
                         sign * ns_score_contract(reached, tricks, vul),
-                        sign * ns_score_pd(reached, tricks, vul),
+                        sign * ns_score_bid(reached, tricks, vul),
                     ]
                 })
                 .collect()

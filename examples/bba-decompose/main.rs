@@ -32,7 +32,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::american::{american, american_instinct, american_v6_their};
 use pons::bidding::context::relative;
 use pons::bidding::{Partnership, Phase};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
@@ -585,7 +585,7 @@ fn main() -> anyhow::Result<()> {
             let points =
                 ns_score_contract(a, table, arm.vul) - ns_score_contract(b, table, arm.vul);
             plain[i] = imps(points);
-            pd[i] = imps(ns_score_pd(a, table, arm.vul) - ns_score_pd(b, table, arm.vul));
+            pd[i] = imps(ns_score_bid(a, table, arm.vul) - ns_score_bid(b, table, arm.vul));
 
             let div_index =
                 auction_divergent[i].expect("contract-divergent implies auction-divergent");

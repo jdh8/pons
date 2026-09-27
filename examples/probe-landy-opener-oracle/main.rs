@@ -43,7 +43,7 @@ use contract_bridge::{
     Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
 
 #[path = "../common/mod.rs"]
@@ -384,7 +384,7 @@ fn main() {
             let reached = final_contract(&board.table_a, board.dealer);
             (
                 ns_score_contract(reached, table, vul),
-                ns_score_pd(reached, table, vul),
+                ns_score_bid(reached, table, vul),
             )
         })
         .collect();
@@ -447,7 +447,7 @@ fn main() {
         );
         let push = |rows: &mut BTreeMap<(String, String), Cell>, key: String, c: &Candidate| {
             let plain = ns_score_contract(Some((c.contract, c.declarer)), table, vul);
-            let pd = ns_score_pd(Some((c.contract, c.declarer)), table, vul);
+            let pd = ns_score_bid(Some((c.contract, c.declarer)), table, vul);
             let entry = rows.entry((key, c.name.clone())).or_default();
             entry.0.push(imps(plain - lp));
             entry.1.push(imps(pd - ld));

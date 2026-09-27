@@ -5,7 +5,11 @@
 what ships (`american()`), −0.992 / −1.120 for the deterministic side
 (`american_instinct()`) whose buckets the series decomposes.** Persistent seed
 `1783375064`, 204,800 boards per vulnerability per arm, all four arms replay
-100%.
+100%. *PD here is on the retired `ns_score_pd` definition (a real double on a
+making contract kept); since 2026-09-27 `bba-decompose` prices PD with
+`ns_score_bid`, the double-dummy-bidding rule the BEN series always used, so
+the next `scripts/anchor.sh` run re-reads this column (≈0.05–0.1 rosier;
+[ben-gap-campaign.md](ben-gap-campaign.md) §"the two PD scorers").*
 
 **Role.** BBA is the *reference*, not the target: [ben-gap-campaign.md](ben-gap-campaign.md)
 holds the north star, and this loop is re-subordinated to it as the cheap,

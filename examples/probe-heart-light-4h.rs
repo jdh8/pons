@@ -25,7 +25,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
@@ -171,7 +171,7 @@ fn main() {
             ns_score_contract(cand_result, table, vul) - ns_score_contract(base_result, table, vul),
         );
         split.pd +=
-            imps(ns_score_pd(cand_result, table, vul) - ns_score_pd(base_result, table, vul));
+            imps(ns_score_bid(cand_result, table, vul) - ns_score_bid(base_result, table, vul));
 
         if let Some((contract, declarer)) = cand_result {
             let strain = contract.bid.strain;

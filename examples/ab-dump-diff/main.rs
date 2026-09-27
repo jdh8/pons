@@ -27,7 +27,7 @@
 
 use clap::Parser;
 use contract_bridge::AbsoluteVulnerability;
-use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use std::io::Write;
 
 #[path = "../common/mod.rs"]
@@ -180,7 +180,7 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
         "pd" => {
-            let scored = score_solved(&contracts, divergent, tables, vul, ns_score_pd);
+            let scored = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
             report(
                 &mut std::io::stdout().lock(),
                 &on,
@@ -204,7 +204,7 @@ fn main() -> anyhow::Result<()> {
                 ns_score_contract,
             );
             write_report(plain_path, &on, &off, vul, &plain, args.show)?;
-            let pd = score_solved(&contracts, divergent, tables, vul, ns_score_pd);
+            let pd = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
             write_report(pd_path, &on, &off, vul, &pd, args.show)?;
         }
         other => anyhow::bail!("--score must be plain|pd|both, got {other:?}"),

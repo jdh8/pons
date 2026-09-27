@@ -15,9 +15,9 @@
 //! pairs play the very same books; the knob is pinned into a partnership at build, so
 //! each side bids off its own pre-built partnership.  Boards whose two auctions reach
 //! different contracts are scored with
-//! [`ns_score_pd`] — **perfect defense, carrying the actual `X`/`XX`** — because the
-//! settle floor puts real doubled contracts on the table (it passes to defend), and
-//! those cannot be taken back.
+//! [`ns_score_bid`] (perfect defense: a failing contract is doubled, a making one
+//! undoubled, whatever `X`/`XX` the table carried) beside plain DD, which keeps
+//! the settle floor's real doubles — it passes to defend, so those are on the table.
 //!
 //! ```text
 //! cargo run --release --example ab-settle-floor -- --count 200000
@@ -32,7 +32,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Partnership;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -132,8 +132,8 @@ fn main() {
     let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Per-board IMP swing to the settle team (0 on non-divergent boards), scored
-    // under perfect defense with the actual penalty carried (`ns_score_pd`).
-    // Scored two ways from the same DD table: `ns_score_pd` (perfect defense, prices
+    // under perfect defense (`ns_score_bid`).
+    // Scored two ways from the same DD table: `ns_score_bid` (perfect defense, prices
     // a failing contract as doubled) and `ns_score_contract` (plain DD, the actual
     // table penalty only).  The settle floor defends contracts partner *really*
     // doubled, so its X is on the table and plain DD counts it too — but where it
@@ -144,8 +144,8 @@ fn main() {
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points_pd = ns_score_pd(contract_a, table, args.vulnerability)
-            - ns_score_pd(contract_b, table, args.vulnerability);
+        let points_pd = ns_score_bid(contract_a, table, args.vulnerability)
+            - ns_score_bid(contract_b, table, args.vulnerability);
         let points_dd = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
         swings_pd[index] = imps(points_pd);
@@ -175,7 +175,7 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     for (label, swings) in [
-        ("ns_score_pd  (PD)", &swings_pd),
+        ("ns_score_bid (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
     ] {
         let total: i64 = swings.iter().sum();

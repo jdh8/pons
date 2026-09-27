@@ -74,7 +74,7 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    run already saturates the box); **never `cargo build` while an A/B is
    running** (later shards exec the new binary and die on renamed flags).
 8. **Score with both scorers** — plain DD (`ns_score_contract`) *and* perfect
-   defense (`ns_score_pd`) — and report: IMPs/board, IMPs/fired (or /divergent),
+   defense (`ns_score_bid`) — and report: IMPs/board, IMPs/fired (or /divergent),
    the fired rate, and vulnerability split (none/both). Two seeds or a
    bootstrap CI before trusting a small edge.
 9. **Read the verdict from the [decision table](#the-decision-table).**
@@ -135,10 +135,9 @@ that cannot occur in the watcher's command, or track the worker PID directly.
 | Scorer | What it scores | Use for |
 | --- | --- | --- |
 | `ns_score_contract` | Plain DD: the reached contract with its *actual* table penalty. | Duplicate A/B results — the default verdict. |
-| `ns_score_pd` | Perfect defense: a contract that fails DD is scored **doubled** (synthetic X), making ones undoubled. | The pessimistic bracket end: "scored against a competent doubler." |
-| `ns_score_bid` | Perfect defense, takes a `Bid` (derives the penalty). | Evaluating a **call** (EV rollouts, contract-choice probes) — never for A/B results. |
+| `ns_score_bid` | Perfect defense, the **double-dummy-bidding rule**: a contract that fails DD is scored **doubled** (synthetic X), a making one **undoubled**, whatever `X`/`XX` the table carried. | The pessimistic bracket end: "scored as double-dummy opponents would have doubled." Also the call scorer (EV rollouts, contract-choice probes). Until 2026-09-27 the A/B harnesses used `ns_score_pd`, which kept a real double on a making contract; PD columns dated before then differ on exactly those boards (≈0.07 IMPs/board on the BEN anchor). |
 | `ns_score_tricks` | **Plain SD**: an explicit single-dummy trick count priced at the contract's *actual* penalty. | The pricing tail of the SD scorers. **Never a verdict on its own** — see below. |
-| `ns_score_pd_tricks` | **SD-PD**: the same trick count, but a contract that *fails on those tricks* is scored **doubled**. | The SD arbiter. Report it beside plain SD everywhere the SD bracket is quoted. |
+| `ns_score_pd_tricks` | **SD-PD**: the same trick count under the double-dummy-bidding rule — a contract that *fails on those tricks* is scored **doubled**, a making one undoubled (table double erased, as in `ns_score_bid`). | The SD arbiter. Report it beside plain SD everywhere the SD bracket is quoted. |
 | `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it — under **both** SD scorers. ⚠ **At slam level this is an UPPER bound** — it removes the lead pessimism and keeps all of DD's play optimism (Pavlicek after-lead: +7pp on slams). Never read it as slam insurance. |
 | `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over auction-consistent worlds (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. Its haircut is ≈1.5× the real one (see Known biases) — the LOWER bound. |
 | `sd_blend_imps` (`examples/common/mod.rs`) | The **sd-blend**: one composed run (`single_dummy_declarer_tricks`) returns both endpoints' trick counts, and the blend takes the playout outcome with probability λ(level), the lead-endpoint outcome otherwise, mixed at the IMP level (four `imps` terms — the IMP table is nonlinear). λ per level in `common::SD_BLEND_LAMBDA`, fitted by `probe-sd-calibration`'s λ block so the blend applies exactly Pavlicek's **after-lead** declarer-fallibility shift to the lead endpoint. | The calibrated **point estimate between the two sd endpoints** — built for slam stop-vs-bid buckets, where the decision band is 45–55% make at the 6-level. Grands: quote blend *and* analytic shave as a bracket, never a point (thin data, bigger bias). Validation: `probe-slam-battery` (DD-fair archetypes must not move; third-eye ones must grade). |
@@ -298,18 +297,20 @@ is written for a knob that *bids more*: its rationale is that plain DD lets
 **our** overbids off the hook while PD prices them.
 
 For a knob whose mechanism is **doubling them more**, PD is not the
-pessimistic end of a bracket — it is blind to the benefit while keeping the
-whole cost. `ns_score_pd` only ever *adds* a double to a failing
-**undoubled** contract, and keeps a real double when the contract makes:
+pessimistic end of a bracket — it cannot see the double at all. `ns_score_bid`
+re-derives every penalty from the double-dummy outcome, so the arm's own
+doubles never reach the score:
 
 | their contract | OFF (we pass) | ON (we double) |
 | --- | --- | --- |
 | fails | scored doubled **free** | scored doubled — no gain |
-| makes | undoubled | **doubled, kept — full cost** |
+| makes | undoubled | undoubled — the wrong double is erased too |
 
-so the ON arm can only lose, and run-outs are amplified on top (they escape
-to a making contract, scored undoubled, while the contract we *would* have
-defended collects a free synthetic X). **A knob that adds doubles is
+so the knob is invisible on both rows and all PD sees is the run-outs (they
+escape to a making contract, scored undoubled, while the contract we *would*
+have defended collects a free synthetic X). *(Until 2026-09-27 the PD scorer
+kept a real double on a making contract, so the ON arm paid the full cost of
+its wrong doubles and could only lose; the conclusion is the same.)* **A knob that adds doubles is
 arbitrated on plain DD**, with PD reported as a double-blind column — not
 netted against the plain figure, and not rescued or killed by a magnitude
 ratio between the two (the scorers are not commensurable). Plain DD's own

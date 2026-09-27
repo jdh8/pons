@@ -8,21 +8,20 @@
 //! tables converts to [`imps`].  Promoted from the `instinct-floor` example so
 //! every simulation harness shares one scorer.
 //!
-//! Two scorers because there are two questions. **Scoring a reached contract**
-//! (a duplicate A/B result) honors the penalty the auction actually produced —
-//! that is [`ns_score_contract`], plain double-dummy. **Evaluating a call**
-//! (the EV rollout in [`crate::bidding::ev_all()`], a contract-choice probe) assumes
-//! perfect-defense doubling: a contract that fails double-dummy is scored
-//! *doubled*, a making one *undoubled*, regardless of the auction — because the
-//! cardplay already assumes optimal defense, so the doubling must too, or a
-//! failing sacrifice prices far too cheaply.  That is [`ns_score_bid`], which
-//! takes a [`Bid`] (not a [`Contract`]) precisely because it derives the
-//! penalty itself.
+//! Two scorers because there are two questions. **Plain double dummy**
+//! ([`ns_score_contract`]) honors the penalty the auction actually produced.
+//! **Perfect defense** ([`ns_score_bid`]) scores the auction as double-dummy
+//! opponents would have doubled it: a contract that fails double-dummy is
+//! *doubled*, a making one *undoubled*, whatever `X`/`XX` the table carried —
+//! the cardplay already assumes optimal defense, so the doubling must too, or a
+//! failing sacrifice prices far too cheaply; and a double no double-dummy
+//! opponent would have made (of a making contract) is erased by the same rule.
+//! The EV rollout in [`crate::bidding::ev_all()`] applies it to a *call*, and
+//! [`ns_score_pd_tricks`] to a single-dummy trick count.
 //!
-//! A third scorer, [`ns_score_pd`], bridges the two: it scores a *settled*
-//! contract under perfect defense but **carries the actual `X`/`XX`** (which
-//! cannot be taken back), so it is the right scorer for an A/B where a side may
-//! *defend* by passing — putting real doubled contracts on the table.
+//! Until 2026-09-27 a third scorer, `ns_score_pd`, kept a real `X`/`XX` on a
+//! making contract.  It was retired for the pure double-dummy rule (see
+//! `docs/ben-gap-campaign.md`, "the two PD scorers").
 
 #[cfg(feature = "dd")]
 use contract_bridge::AbsoluteVulnerability;
@@ -115,18 +114,20 @@ pub fn ns_score_contract(
     ns_score_with(contract.bid, declarer, contract.penalty, table, vul)
 }
 
-/// Perfect-defense NS score of a `bid` played by `declarer` (0 for a pass-out):
-/// the contract is scored **doubled if it fails double-dummy, undoubled if it
-/// makes**, regardless of any auction penalty — hence a [`Bid`], not a
-/// [`Contract`].
+/// Perfect-defense NS score of a reached contract (0 for a pass-out): scored
+/// **doubled if it fails double-dummy, undoubled if it makes**, whatever
+/// `X`/`XX` the auction carried — the contract's table penalty is ignored by
+/// design.
 ///
-/// This is the scorer for **evaluating a call**: in a double-dummy model the
+/// This is the double-dummy-bidding rule: in a double-dummy model the
 /// opponents always hold the red card, so a failing overbid must be priced
 /// doubled (an opponent who *cannot* double is never the case at a real table),
-/// while a making contract is never doubled (that only helps declarer).  The
-/// rule is symmetric — it doubles either side's failing contract — so it sharpens
-/// both our overbids and our defense of theirs.  Used by the EV rollout in
-/// [`crate::bidding::ev_all()`] and contract-choice probes.
+/// while a making contract is never doubled (that only helps declarer, and a
+/// double-dummy opponent would not have offered it).  The rule is symmetric —
+/// it doubles either side's failing contract and erases either side's double of
+/// a making one — so it sharpens both our overbids and our defense of theirs.
+/// The **PD** column of every duplicate A/B, the EV rollout in
+/// [`crate::bidding::ev_all()`] and the contract-choice probes all use it.
 ///
 /// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
 /// assumption for par scoring (there as `min(undoubled, doubled)` on the
@@ -134,41 +135,6 @@ pub fn ns_score_contract(
 #[cfg(feature = "dd")]
 #[must_use]
 pub fn ns_score_bid(
-    result: Option<(Bid, Seat)>,
-    table: &TrickCountTable,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let Some((bid, declarer)) = result else {
-        return 0;
-    };
-    let penalty = if fails_dd(bid, declarer, table) {
-        Penalty::Doubled
-    } else {
-        Penalty::Undoubled
-    };
-    ns_score_with(bid, declarer, penalty, table, vul)
-}
-
-/// Perfect-defense NS score of a *settled* contract, **carrying its actual
-/// double/redouble**: like [`ns_score_bid`] it doubles a contract that fails
-/// double-dummy, but a double or redouble already on the table is locked in and
-/// kept even when the contract makes.
-///
-/// This is the scorer for "pass = play the top bid": when an auction settles, the
-/// contract on the table is played with whatever penalty it actually carries —
-/// `X`/`XX` cannot be taken back, so a doubled contract that *makes* keeps its
-/// bonus.  Perfect defense only ever *adds* a double (to a failing **undoubled**
-/// contract), never removes one — the penalty is therefore the more severe of the
-/// table penalty and the fails-double-dummy floor.  Use this (not
-/// [`ns_score_bid`]) to score a duplicate A/B once a side may *defend* by passing,
-/// which puts real doubled contracts on the table.
-///
-/// [`Penalty`] is not `Ord`, so the floor is spelled out: a failing undoubled
-/// contract becomes [`Penalty::Doubled`]; an already doubled/redoubled one keeps
-/// its (more severe) penalty; a making contract keeps the table penalty verbatim.
-#[cfg(feature = "dd")]
-#[must_use]
-pub fn ns_score_pd(
     result: Option<(Contract, Seat)>,
     table: &TrickCountTable,
     vul: AbsoluteVulnerability,
@@ -177,12 +143,9 @@ pub fn ns_score_pd(
         return 0;
     };
     let penalty = if fails_dd(contract.bid, declarer, table) {
-        match contract.penalty {
-            Penalty::Undoubled => Penalty::Doubled,
-            doubled => doubled,
-        }
+        Penalty::Doubled
     } else {
-        contract.penalty
+        Penalty::Undoubled
     };
     ns_score_with(contract.bid, declarer, penalty, table, vul)
 }
@@ -216,16 +179,17 @@ pub fn ns_score_tricks(
 }
 
 /// Perfect-defense NS score of a reached contract given declarer's *actual*
-/// tricks: the single-dummy analogue of [`ns_score_pd`].
+/// tricks: the single-dummy analogue of [`ns_score_bid`].
 ///
 /// Like [`ns_score_tricks`] it prices an explicit trick count on the real deal,
-/// but a contract that **fails on those tricks** is scored doubled (an undoubled
-/// failure becomes [`Penalty::Doubled`]; an existing double/redouble is kept).
-/// This layers the perfect-defense downside onto the realistic single-dummy
-/// lead: concealment still earns its extra makes, but the games that fail anyway
-/// pay the doubled penalty a real opponent would exact.  The SD arbiter for a
-/// game-reaching treatment — plain single-dummy relaxes only the defenders' lead
-/// and never punishes the failures, so it flatters aggression.
+/// but under the double-dummy-bidding rule: a contract that **fails on those
+/// tricks** is scored doubled and one that makes undoubled, whatever `X`/`XX`
+/// the table carried.  This layers the perfect-defense downside onto the
+/// realistic single-dummy lead: concealment still earns its extra makes, but
+/// the games that fail anyway pay the doubled penalty a real opponent would
+/// exact.  The SD arbiter for a game-reaching treatment — plain single-dummy
+/// relaxes only the defenders' lead and never punishes the failures, so it
+/// flatters aggression.
 #[cfg(feature = "dd")]
 #[must_use]
 pub fn ns_score_pd_tricks(
@@ -236,12 +200,9 @@ pub fn ns_score_pd_tricks(
 ) -> i64 {
     let fails = u32::from(tricks) < 6 + u32::from(contract.bid.level.get());
     let penalty = if fails {
-        match contract.penalty {
-            Penalty::Undoubled => Penalty::Doubled,
-            doubled => doubled,
-        }
+        Penalty::Doubled
     } else {
-        contract.penalty
+        Penalty::Undoubled
     };
     ns_score_tricks(
         Contract {

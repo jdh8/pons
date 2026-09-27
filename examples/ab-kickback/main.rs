@@ -96,7 +96,7 @@ use pons::bidding::Partnership;
 use pons::bidding::american::american_with_compact;
 use pons::bidding::features::{CompactConfig, ConventionCard};
 use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, kickback_offered_at};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -530,7 +530,7 @@ fn rescore(args: &Args, path: &str) {
         let (a, b) = contracts[index];
         let table = &tables[index];
         let dd = imps(ns_score_contract(a, table, vul) - ns_score_contract(b, table, vul));
-        let pd = imps(ns_score_pd(a, table, vul) - ns_score_pd(b, table, vul));
+        let pd = imps(ns_score_bid(a, table, vul) - ns_score_bid(b, table, vul));
         swings[0].1.push(dd as f64);
         swings[1].1.push(pd as f64);
         match &sd[index] {
@@ -753,8 +753,8 @@ fn main() {
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points_pd = ns_score_pd(contract_a, table, args.vulnerability)
-            - ns_score_pd(contract_b, table, args.vulnerability);
+        let points_pd = ns_score_bid(contract_a, table, args.vulnerability)
+            - ns_score_bid(contract_b, table, args.vulnerability);
         let points_dd = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
         swings_pd[index] = imps(points_pd);
@@ -820,7 +820,7 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     let mut rows = vec![
-        ("ns_score_pd  (PD)", &swings_pd),
+        ("ns_score_bid (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
     ];
     // Slam gains are contract-boundary effects plain DD can see, so a PD-only

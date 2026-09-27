@@ -442,7 +442,7 @@ The portability dream. Last, because it needs the most prerequisites.
   to the sequence model, not an artifact of the reweighting — and the
   reweighting moved it monotonically worse, never better. That is not an inert
   signal: `A = imps(result − par)` is PD-aware and aligned with the arbiter
-  (`--double-from 1` is exactly `ns_score_pd`), and the weights had real force
+  (`--double-from 1` is exactly the PD scorer's synthetic double), and the weights had real force
   (sd 0.66, quantiles 0.21 → 3.11). Its **positive tail** is the defect — an
   auction beats par mainly when the *opponents* misbid, so `exp(β·A)` upweights
   rows whose merit belongs to the other side. That is uncorrelated with our own

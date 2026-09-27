@@ -21,7 +21,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -134,8 +134,8 @@ fn main() {
         let new = ns_score_contract(contracts[i], table, args.vulnerability);
         points += new - base;
         total_imps += imps(new - base);
-        let base_pd = ns_score_pd(baseline[i], table, args.vulnerability);
-        let new_pd = ns_score_pd(contracts[i], table, args.vulnerability);
+        let base_pd = ns_score_bid(baseline[i], table, args.vulnerability);
+        let new_pd = ns_score_bid(contracts[i], table, args.vulnerability);
         pd_imps += imps(new_pd - base_pd);
     }
 

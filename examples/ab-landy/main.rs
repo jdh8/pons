@@ -570,7 +570,7 @@ fn main() {
     // fails double-dummy (perfect-defense), which punishes a weak overbid.
     let score = |c: Option<(Contract, Seat)>, table: &_, vul| {
         if pd {
-            ns_score_bid(c.map(|(ct, s)| (ct.bid, s)), table, vul)
+            ns_score_bid(c, table, vul)
         } else {
             ns_score_contract(c, table, vul)
         }

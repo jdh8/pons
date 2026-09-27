@@ -31,7 +31,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain, Suit};
-use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use std::io::Write;
 
 #[path = "../common/mod.rs"]
@@ -389,7 +389,7 @@ fn main() -> anyhow::Result<()> {
             vul,
             ns_score_contract,
         );
-        let pd = score_solved(&contracts, divergent, tables, vul, ns_score_pd);
+        let pd = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
         let position: std::collections::HashMap<usize, usize> = plain
             .divergent
             .iter()

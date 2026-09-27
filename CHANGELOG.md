@@ -786,6 +786,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **One perfect-defense scorer: `ns_score_bid`; `ns_score_pd` retired
+  (2026-09-27)** — the two PD definitions disagreed by ≈0.07 IMPs/board on
+  the BEN anchor (`bba-score` re-derived the penalty from the double-dummy
+  outcome; `bba-decompose` and the A/B harnesses kept a real double on a
+  making contract). jdh8's call: PD means double-dummy *bidding*, so
+  `ns_score_bid` ships — it now takes the reached contract and ignores its
+  table penalty by design — and `ns_score_pd` is deleted; `ns_score_pd_tricks`
+  (SD-PD) applies the same rule. **Breaking (public API):** `ns_score_bid`'s
+  first argument is `Option<(Contract, Seat)>`. No BEN number moves; the BBA
+  campaign's PD column and every A/B PD/SD-PD column dated before this carry
+  the retired definition, differing only on boards where a doubled contract
+  made or a redoubled one failed. Survey in
+  [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) §"the two PD scorers";
+  the doubling-knob addendum in `docs/measurement.md` updated. No bidding
+  change.
+
 - **The advance of our unauthored `2NT` no longer reads as a natural suit
   (2026-09-25)**. When our side's first action is `2NT` (a sandwich Unusual,
   a doubled Unusual, or the natural `2NT` over a weak two), the advancer's

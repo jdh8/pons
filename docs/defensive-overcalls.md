@@ -554,7 +554,7 @@ is takeout.  So "BBA, a competent doubler, declined to double" is **not**
 evidence that PD over-prices this lane — BBA structurally never gets the
 chance, and a real field playing penalty doubles of a natural 1NT overcall
 would.  The PD column here is the honest pessimistic end of the bracket, not a
-`ns_score_pd` artifact to wave away.
+PD-scorer artifact to wave away.
 
 **2. Half of the `Pass` sub-bucket is at the other table and unreachable.**
 Mean *our* raw score per board: at table B (we hold the `2♦` hand)

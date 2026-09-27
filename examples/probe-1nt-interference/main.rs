@@ -49,7 +49,7 @@ use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::HashMap;
 
 #[path = "../common/mod.rs"]
@@ -298,7 +298,7 @@ fn main() {
         let table = &cache[&deal_key(&boards[i].deal)];
         let (a, b) = contracts[i];
         plain[i] = imps(ns_score_contract(a, table, vul) - ns_score_contract(b, table, vul));
-        pd[i] = imps(ns_score_pd(a, table, vul) - ns_score_pd(b, table, vul));
+        pd[i] = imps(ns_score_bid(a, table, vul) - ns_score_bid(b, table, vul));
     }
 
     let mut buckets: std::collections::BTreeMap<String, (Vec<i64>, Vec<i64>)> =
@@ -637,7 +637,7 @@ fn main() {
                     format!(
                         "{}/{}",
                         ns_score_contract(c, t, vul),
-                        ns_score_pd(c, t, vul)
+                        ns_score_bid(c, t, vul)
                     )
                 })
             };

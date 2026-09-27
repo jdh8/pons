@@ -36,7 +36,7 @@ The two DD scorers assume perfect double-dummy cardplay, bracketed per
 `reference_pd-vs-plain-dd-bracket`:
 
 - **plain** (`ns_score_contract`) — the reached contract with its actual penalty;
-- **pd** (`ns_score_pd`) — a contract that fails double-dummy is priced doubled,
+- **pd** (`ns_score_bid`) — a contract that fails double-dummy is priced doubled,
   real doubles are kept.
 
 **The obstruction wall applies** (`project_preemption-dd-negative`,
