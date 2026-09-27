@@ -785,6 +785,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_odwrotka: bool,
 
+    /// Rebid the new lower suit `1♦ - 1M - 2♣` on four-plus clubs (default off;
+    /// see `rebid.one_diamond_two_clubs`).
+    #[arg(long, default_value_t = false)]
+    ns_one_diamond_two_clubs: bool,
+
+    /// Disable the three-card-minor rebid over the forcing `1NT` — a 5-3-3-2
+    /// rebids its five-card major again (shipped default-on; see
+    /// `ReadingProfile::forcing_nt_three_card_minor`).
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_nt_three_card_minor: bool,
+
     /// Disable our continuations after the opponents contest our 2♣ Stayman
     /// (`1NT - 2♣ (X)` / `1NT - 2♣ (2♦/2♥/2♠)`); on by default. Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -2849,6 +2860,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.five_five_four_two = args.ns_5542;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
+    agreements.rebid.one_diamond_two_clubs = args.ns_one_diamond_two_clubs;
+    agreements.decision.reading.forcing_nt_three_card_minor =
+        !args.no_ns_forcing_nt_three_card_minor;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
     agreements.response.major_choice_of_games = !args.no_ns_major_choice_of_games;
     agreements.response.two_over_one_fit = !args.no_ns_two_over_one_fit;

@@ -588,6 +588,22 @@ guard thus caught its first inverse exploit — a fix that only beats BEN's
 non-standard doubling style — and the lesson generalizes: doubling-sensitive
 vs-BEN PD wins need the meta check.
 
+**Second trace (2026-09-27): `Constructive / book / round-2`.**  Split by
+prefix, the bucket is diffuse: the worst cell is ≈ 0.006 IMPs/board. About
+half of it is opener's rebid after a one-level response. Classified by rebid
+type rather than by exact call, one cell was coherent at both references:
+**we rebid our own suit where the reference bids a new lower suit** (170 bd
+−17.5 PD per 1 000 vs BEN; 3 290 bd −10.7 vs BBA). It traced to two book
+holes. (1) Over the forcing `1NT` a 5-3-3-2 rebid its five-card major, not
+its three-card minor. This **shipped default-on**
+(`forcing_nt_three_card_minor`, a win on every scorer vs BBA, CHANGELOG).
+(2) `1♦ - 1M - 2♣` was never authored. It is now built with responder's
+`2♦` preference and measures a wash, so it stays opt-in
+(`one_diamond_two_clubs`). The anchor's apparent gain was the misread `2♦`
+(read as six diamonds) buying diamond slams on DD. No Tier-F run was done:
+the shipped change is a standard natural treatment that both references
+play.
+
 Same steady-state loop as the BBA campaign, re-aimed:
 
 ```text

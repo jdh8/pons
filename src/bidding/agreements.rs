@@ -3864,6 +3864,25 @@ pub struct RebidKnobs {
     /// only as a measurement off-switch, not a user-facing toggle (dropped from
     /// the `web` settings registry).
     pub balanced_1nt_rebid: bool,
+    /// Rebid a new lower suit after `1♦ - 1M`
+    ///
+    /// **Default off — measured wash.**  On, opener's `1♦ - 1M - 2♣` shows
+    /// four-plus clubs with at most five diamonds (non-forcing, the standard
+    /// 2/1 minimum new-suit rebid), ahead of the `2♦` rebid, and responder's
+    /// weak hand with diamonds at least as long as clubs gives `2♦`
+    /// preference (every other responder hand falls through to the floor).
+    /// Off, the book has no `2♣` here, so a 5♦-4♣ minimum rebids `2♦` (read
+    /// as six) where BEN and BBA both bid `2♣` — the largest shared cell of
+    /// the BEN Tier-S Constructive/book/round-2 trace (2026-09-27).  Natural,
+    /// so unalerted; the generic new-suit reading (four-plus) already matches.
+    ///
+    /// The bare rebid lost vs BBA (plain −0.0025 / PD −0.0036 IMPs/board at
+    /// vul none): the floor passed `2♣` on diamond preference.  With the
+    /// preference authored it is a wash on every scorer (409,600 boards/vul,
+    /// seed 1790504533): plain +0.0002 ±0.0008 / +0.0007 ±0.0011 none/both,
+    /// PD +0.0001 / +0.0007, SD-PD −0.0003 / +0.0000.  The anchor's gain was
+    /// the misread `2♦` (six) buying free diamond slams on DD.
+    pub one_diamond_two_clubs: bool,
     // --- rebids/odwrotka.rs
     /// **Odwrotka**: `1♣ - 1M - 2♦!` is an artificial reverse — game-forcing,
     /// or invitational with exactly three-card support — answered by
@@ -4008,6 +4027,7 @@ impl Default for RebidKnobs {
     fn default() -> Self {
         Self {
             balanced_1nt_rebid: true,
+            one_diamond_two_clubs: false,
             odwrotka: false,
             major_rebid_tails: true,
             fourth_suit_forcing: true,

@@ -48,3 +48,100 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     let on = build(true);
     assert_eq!(best(&on, one_d_one_h, hand), call(1, Strain::Notrump));
 }
+
+/// After `1♦ - 1♠`, a 5♦-4♣ minimum rebids `2♦` by default but the new
+/// lower suit `2♣` once `one_diamond_two_clubs` is on; six diamonds still
+/// rebid `2♦`.
+#[test]
+fn one_diamond_two_clubs_knob_shows_the_second_suit() {
+    let one_d_one_s = &[
+        call(1, Strain::Diamonds),
+        Call::Pass,
+        call(1, Strain::Spades),
+        Call::Pass,
+    ];
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.one_diamond_two_clubs = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    // ♠83 ♥K4 ♦AQ762 ♣KJ84 — 2=2=5=4, 13 HCP.
+    let five_four = "83.K4.AQ762.KJ84";
+    assert_eq!(
+        best(&off, one_d_one_s, five_four),
+        call(2, Strain::Diamonds)
+    );
+    assert_eq!(best(&on, one_d_one_s, five_four), call(2, Strain::Clubs));
+    // ♠8 ♥K4 ♦AQ7632 ♣KJ84 — 1=2=6=4.
+    let six_four = "8.K4.AQ7632.KJ84";
+    assert_eq!(best(&on, one_d_one_s, six_four), call(2, Strain::Diamonds));
+}
+
+/// After `1♠ - 1NT`, a 5-3-3-2 minimum rebids `2♠` by default but its
+/// three-card minor once `forcing_nt_three_card_minor` is on — clubs with 3-3.
+#[test]
+fn forcing_nt_three_card_minor_knob_bids_the_minor() {
+    let one_s_one_nt = &[
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(1, Strain::Notrump),
+        Call::Pass,
+    ];
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.forcing_nt_three_card_minor = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    // ♠AQ874 ♥K6 ♦Q73 ♣J42 — 5=2=3=3, 12 HCP.
+    let three_three = "AQ874.K6.Q73.J42";
+    assert_eq!(
+        best(&off, one_s_one_nt, three_three),
+        call(2, Strain::Spades)
+    );
+    assert_eq!(best(&on, one_s_one_nt, three_three), call(2, Strain::Clubs));
+    // ♠AQ874 ♥K62 ♦Q73 ♣J4 — 5=3=3=2: the three-card diamonds.
+    let diamonds = "AQ874.K62.Q73.J4";
+    assert_eq!(best(&on, one_s_one_nt, diamonds), call(2, Strain::Diamonds));
+    // ♠AQ874 ♥K6 ♦Q732 ♣J4 — a four-card minor keeps its natural rebid.
+    let four = "AQ874.K6.Q732.J4";
+    assert_eq!(best(&on, one_s_one_nt, four), call(2, Strain::Diamonds));
+}
+
+/// After `1♦ - 1♠ - 2♣`, a weak responder with diamonds at least as long as
+/// clubs gives preference to `2♦`; longer clubs reject to the floor.
+#[test]
+fn one_diamond_two_clubs_preference_returns_to_diamonds() {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.one_diamond_two_clubs = true;
+    let mut trie = Trie::new();
+    crate::bidding::rows::compile_into(
+        &mut trie,
+        &agreements,
+        &[one_diamond_two_clubs_preference()],
+    );
+    let auction = &[
+        call(1, Strain::Diamonds),
+        Call::Pass,
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Pass,
+    ];
+    // ♠KJ643 ♥Q852 ♦74 ♣96 — 5=4=2=2, 6 HCP.
+    assert_eq!(
+        best(&trie, auction, "KJ643.Q852.74.96"),
+        call(2, Strain::Diamonds)
+    );
+    // ♠KJ643 ♥Q852 ♦7 ♣964 — longer clubs: no book mass, the floor's call.
+    let hand: Hand = "KJ643.Q852.7.964".parse().unwrap();
+    assert!(
+        trie.classify(hand, RelativeVulnerability::NONE, auction)
+            .is_none_or(|l| { (&l.0).into_iter().all(|(_, &w)| w == f32::NEG_INFINITY) })
+    );
+}

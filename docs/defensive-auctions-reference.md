@@ -433,6 +433,23 @@ re-arbitrated at the next retrain anyway (junk-action rail series).
   before the new divergences a veto would create. Not a rail at harness
   resolution.
 
+**(b) fourth seat over their opening and response (2026-09-27): closed,
+below resolution.** Split by exact prefix, per 1 000 boards vs BBA (plain /
+PD): `(1NT) - (2♥)` −0.40 / −1.50, `(1NT) - (2♦)` −0.22 / −0.59,
+`(1NT) - (2♣)` −0.51 / −0.24, `(1NT) - (2♠)` −0.35 / −1.20; their strong
+`2♣` waiting `(2♣) - (2♦)` −0.96 / −1.13 and positive `(2♣) - (2♠/2NT)`
+−0.65 / −0.89; their weak two with the 2NT ask −1.52 / −1.65; their 2NT
+opening with Stayman `(2NT) - (3♣)` −0.74 / −0.81. The BEN cells are 6–12
+boards each out of 20k, so they are noise. Summed, the lane is ≈ −0.008
+IMPs/board PD over eight sub-lanes, and no cell is above 0.002. The
+`(1NT)` half is already authored behind the four `nt_their_conventions`
+knobs, all off for measured reasons, so what is left there is a
+re-measure, not authoring. The transfer defence re-measure could recover
+at most ≈ 0.002 IMPs/board. The Stayman defence's `stale-pop` re-measure
+stays owed in `bidding-options.md`. Their strong `2♣` has no book node
+(§1), but a new convention for a ≈ 0.001 ceiling doesn't pay. jdh8
+closed the lane and moved on to constructive round-2.
+
 **Where this leaves the lane.** Every lever in §6 is now probed, and none
 clears what an A/B can resolve. The defensive floor's gap vs BEN is BEN's
 judgement spread thin, and against BBA the floor is at par. The

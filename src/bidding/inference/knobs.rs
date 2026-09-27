@@ -821,6 +821,25 @@ pub struct ReadingProfile {
     /// takes it from here — one value, one home.
     pub opener_major_jump_rebid: bool,
 
+    /// Rebid a three-card minor over the forcing `1NT`
+    ///
+    /// **Default on** — a paired A/B vs BBA (409,600 boards/vul, seed
+    /// 1790504533) won on every scorer at both vulnerabilities: plain DD
+    /// +0.0019 ±0.0005 / +0.0028 ±0.0007 IMPs/board none/both (+1.30 / +1.85
+    /// per fired board, 0.15% fired), PD +0.0027 / +0.0036, SD-PD +0.0022 /
+    /// +0.0033.  Off-switch `bba-gen --no-ns-forcing-nt-three-card-minor`.
+    ///
+    /// After `1M - 1NT`, a 5-3-3-2 without a
+    /// six-card major or a four-card side suit rebids its three-card minor
+    /// (`2♣` with 3-3 minors) instead of the five-card major — the standard
+    /// 2/1 treatment, and the call both BEN and BBA make (the BEN Tier-S
+    /// Constructive/book/round-2 trace, 2026-09-27).  Off, the book rebids
+    /// `2M` on five and responder's preference lands in a 5-2 fit.  The
+    /// matching reading floors opener's `2m` over the forcing `1NT` at three,
+    /// not four, on this same field.  Read at build time too
+    /// (`american/rebids.rs`), so the rebid book takes it from here.
+    pub forcing_nt_three_card_minor: bool,
+
     /// Author garbage (drop-dead) Stayman
     ///
     /// **Default on** — a paired DD A/B vs BBA (205k boards, vul none)
@@ -1193,6 +1212,7 @@ impl ReadingProfile {
             xyz: false,
             notrump_minors: crate::bidding::american::EUROPEAN,
             opener_major_jump_rebid: false,
+            forcing_nt_three_card_minor: false,
             garbage_stayman: false,
             crawling_stayman: false,
             convention_points: (9, 18),
@@ -1260,6 +1280,7 @@ impl Default for ReadingProfile {
             xyz: true,
             notrump_minors: crate::bidding::american::notrump::PUPPET,
             opener_major_jump_rebid: true,
+            forcing_nt_three_card_minor: true,
             garbage_stayman: true,
             crawling_stayman: true,
             convention_points: (8, 19),

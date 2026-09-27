@@ -409,6 +409,22 @@ fn opener_extras_ladder_reads_extras() {
 }
 
 #[test]
+fn forcing_nt_three_card_minor_reads_three() {
+    let s = bid(1, Strain::Spades);
+    let nt = bid(1, Strain::Notrump);
+    let c = bid(2, Strain::Clubs);
+    let p = Call::Pass;
+    let auction = [s, p, nt, p, c, p];
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.forcing_nt_three_card_minor = false;
+    let off = read_with(&agreements, &auction);
+    assert_eq!(off.partner().length(Suit::Clubs).min, 4);
+    agreements.decision.reading.forcing_nt_three_card_minor = true;
+    let on = read_with(&agreements, &auction);
+    assert_eq!(on.partner().length(Suit::Clubs).min, 3);
+}
+
+#[test]
 fn opener_major_jump_rebid_reads_extras() {
     let mut agreements = Agreements::default();
     agreements.decision.reading.opener_major_jump_rebid = true;

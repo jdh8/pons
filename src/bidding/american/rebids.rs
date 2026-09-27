@@ -20,7 +20,7 @@
 use super::{call, other_major};
 use crate::bidding::agreements::{Agreements, RebidKnobs};
 use crate::bidding::constraint::{
-    balanced, fifths, hcp, len, partner_suit_is, points, stopper_in, support,
+    balanced, fifths, hcp, len, longer_suit, partner_suit_is, points, stopper_in, support,
 };
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -153,6 +153,13 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
             rules = rules.rule(Bid::new(2, Strain::from(suit)), 90, len(suit, 4..));
         }
     }
+    // A 5-3-3-2 bids its three-card minor, clubs with 3-3, rather than
+    // rebidding a five-card major (just above the 2M fallback).
+    if agreements.decision.reading.forcing_nt_three_card_minor {
+        rules = rules
+            .rule(Bid::new(2, Strain::Clubs), 40, len(Suit::Clubs, 3..))
+            .rule(Bid::new(2, Strain::Diamonds), 35, len(Suit::Diamonds, 3..));
+    }
     // Opener always holds at least five of the major, so this always applies.
     rules.rule(Bid::new(2, trump), 30, len(major, 5..))
 }
@@ -189,6 +196,15 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     // wins on weight).
     if responder_major == Suit::Hearts && agreements.response.up_the_line {
         rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
+    }
+    // New lower suit: `1♦ - 1M - 2♣` on four-plus clubs, ahead of the `2♦`
+    // rebid (0.9) unless diamonds are six-plus.
+    if opener_minor == Suit::Diamonds && agreements.rebid.one_diamond_two_clubs {
+        rules = rules.rule(
+            Bid::new(2, Strain::Clubs),
+            91,
+            len(Suit::Clubs, 4..) & len(Suit::Diamonds, ..=5),
+        );
     }
     // Odwrotka (default off): `2♦!` as the artificial reverse over `1♣ - 1M`.
     rules = with_odwrotka(rules, opener_minor, agreements);
@@ -319,6 +335,39 @@ pub(super) fn remaining_rebid_bases() -> Package {
     }
 }
 
+/// Responder's preference after `1♦ - 1M - 2♣`
+///
+/// A weak responder returns to `2♦` with diamonds at least as long as clubs —
+/// the 5-2 over the 4-2.  Deliberately partial: every other hand (longer
+/// clubs, a six-card major, invitational values) rejects and falls through to
+/// the floor, which the A/B showed plays them well; only its pass of `2♣`
+/// with diamond preference lost (2026-09-27, 652 boards).
+fn responder_after_one_diamond_two_clubs(major: Suit) -> Rules {
+    Rules::new().rule(
+        Bid::new(2, Strain::Diamonds),
+        100,
+        !longer_suit(Suit::Clubs, Suit::Diamonds)
+            & len(Suit::Diamonds, 2..)
+            & len(major, ..=5)
+            & hcp(..=10),
+    )
+}
+
+/// Responder's preference after the `1♦ - 1M - 2♣` new-suit rebid
+pub(super) fn one_diamond_two_clubs_preference() -> Package {
+    Package {
+        name: "one-diamond-two-clubs-preference",
+        gate: |a| a.rebid.one_diamond_two_clubs,
+        entries: |_| {
+            expand(
+                "P* 1♦ - 1M - 2♣ -",
+                |_| true,
+                |b| responder_after_one_diamond_two_clubs(b.suit('M')),
+            )
+        },
+    }
+}
+
 /// Register opener's rebids after a one-level new suit and the forcing 1NT
 pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
     compile_into(
@@ -333,6 +382,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             forcing_nt_jump_shift_continuations(),
             meckstroth_two_notrump_continuations(),
             one_heart_one_spade_rebid(),
+            one_diamond_two_clubs_preference(),
             major_rebid_tail_continuations(),
             fourth_suit_forcing_continuations(),
             remaining_rebid_bases(),

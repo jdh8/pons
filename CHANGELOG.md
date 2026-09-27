@@ -122,6 +122,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Opener rebids a three-card minor over the forcing `1NT` (2026-09-27,
+  default on)** — after `1M - 1NT`, a 5-3-3-2 with no six-card major and no
+  four-card side suit now rebids its three-card minor (`2♣` with 3-3) instead
+  of the five-card major, and we read that `2m` as 3+ (only under the
+  opening side's own agreement). Found by tracing BEN Tier-S's worst PD
+  bucket (Constructive/book/round-2), where BEN and BBA both bid the minor.
+  A paired A/B vs BBA (409 600 boards/vul, seed 1790504533) won on every
+  scorer: plain DD **+0.0019 ±0.0005 / +0.0028 ±0.0007** IMPs/board
+  none/both (+1.30 / +1.85 per fired board, 0.15% fired), PD +0.0027 /
+  +0.0036, SD-PD +0.0022 / +0.0033. The ~90 boards the opponents opened,
+  where BBA's own `2m` is now read as 3+, net +23/−41 plain, which is noise.
+  Knob `ReadingProfile::forcing_nt_three_card_minor`, off-switch
+  `bba-gen --no-ns-forcing-nt-three-card-minor`; runner
+  `scripts/ab-opener-new-suit.sh`.
+- **`1♦ - 1M - 2♣` new-suit rebid, opt-in (measured wash)** —
+  `RebidKnobs::one_diamond_two_clubs` (`bba-gen --ns-one-diamond-two-clubs`)
+  authors opener's minimum `2♣` on four-plus clubs, plus responder's `2♦`
+  preference. The bare rebid lost (PD −0.0036 IMPs/board at vul none: the
+  floor passed `2♣` on diamond preference). With the preference authored it
+  is a wash on every scorer at both vulnerabilities, so it stays off.
+- **Defensive lane (b) closed (2026-09-27)** — the fourth seat over their
+  opening and response is ≈ −0.008 IMPs/board summed over eight sub-lanes vs
+  BBA, below one A/B's resolution. The verdict is in
+  [docs/defensive-auctions-reference.md](docs/defensive-auctions-reference.md) §7.
+
 - **Natural strong jump shifts replace Meckstroth as the default
   (2026-09-27)** — `rebid.forcing_nt_jump_shifts` now defaults **on** and
   `rebid.meckstroth_adjunct` **off**. After `1M - 1NT` opener's 18+ hands

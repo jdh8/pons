@@ -76,6 +76,7 @@ fn row_package_invariants() {
             rebids::forcing_nt_jump_shift_continuations(),
             rebids::meckstroth_two_notrump_continuations(),
             rebids::one_heart_one_spade_rebid(),
+            rebids::one_diamond_two_clubs_preference(),
             rebids::major_rebid_tail_continuations(),
             rebids::fourth_suit_forcing_continuations(),
             rebids::remaining_rebid_bases(),

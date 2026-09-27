@@ -1266,8 +1266,27 @@ impl Inferences {
                                     natural_lane_suits[lane] |= mask;
                                 }
                             } else {
-                                // A natural new suit at the cheapest level: four-plus.
-                                players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
+                                // A natural new suit at the cheapest level: four-plus
+                                // — three-plus for opener's minor over the forcing
+                                // `1NT` (`ReadingProfile::forcing_nt_three_card_minor`),
+                                // under the opening side's own agreement.
+                                let three_card_minor = side_profile.forcing_nt_three_card_minor
+                                    && !side_acted[defending_parity]
+                                    && is_opening_side
+                                    && lane == opener_lane
+                                    && lane_bids[lane] == 1
+                                    && bid.level.get() == 2
+                                    && matches!(suit, Suit::Clubs | Suit::Diamonds)
+                                    && opening_bid.level.get() == 1
+                                    && matches!(
+                                        opening_bid.strain,
+                                        Strain::Hearts | Strain::Spades
+                                    )
+                                    && auction.get(opening_index + 2)
+                                        == Some(&Call::Bid(Bid::new(1, Strain::Notrump)));
+                                let floor = if three_card_minor { 3 } else { 4 };
+                                players[who]
+                                    .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
                                 natural_lane_suits[lane] |= mask;
                                 apply_response_points(
                                     &mut players[who],
