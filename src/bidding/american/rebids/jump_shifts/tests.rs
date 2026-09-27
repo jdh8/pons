@@ -209,15 +209,109 @@ fn responder_places_over_the_long_major_3nt() {
         bid(4, Strain::Notrump)
     );
     assert_eq!(best(&trie, &corrected, "AKQJ98.A3.K42.Q2"), P);
+    // Responder never asks from this seat — a maximum with a doubleton tries
+    // with 4♣!, and opener asks on 20+ or signs off.
     assert_eq!(
         best(&trie, &after_3nt, "Q3.K54.A65.Q432"),
+        bid(4, Strain::Clubs)
+    );
+    let tried: Vec<Call> = [&after_3nt[..], &[bid(4, Strain::Clubs), P]].concat();
+    assert_eq!(
+        best(&trie, &tried, "AKQJ98.A3.AK2.32"),
         bid(4, Strain::Notrump)
     );
+    assert_eq!(
+        best(&trie, &tried, "AKQJ98.A3.K42.Q2"),
+        bid(4, Strain::Spades)
+    );
+    let declined: Vec<Call> = [&tried[..], &[bid(4, Strain::Spades), P]].concat();
+    assert_eq!(best(&trie, &declined, "Q3.K54.A65.Q432"), P);
     assert_eq!(
         best(&trie, &after_3nt, "Q3.J54.9652.J432"),
         bid(4, Strain::Spades)
     );
     assert_eq!(best(&trie, &after_3nt, "3.J542.9652.J432"), P);
+    // Five hearts and a stiff spade pull to 4♥; opener passes the 5-3, else
+    // goes back to the six-card suit.
+    assert_eq!(
+        best(&trie, &after_3nt, "3.KJ854.9652.J43"),
+        bid(4, Strain::Hearts)
+    );
+    let pulled: Vec<Call> = [&after_3nt[..], &[bid(4, Strain::Hearts), P]].concat();
+    assert_eq!(best(&trie, &pulled, "AKQJ98.A32.K4.Q2"), P);
+    assert_eq!(
+        best(&trie, &pulled, "AKQJ98.A3.K42.Q2"),
+        bid(4, Strain::Spades)
+    );
+    // The answerer passes the asker's signoff instead of raising it.
+    let signed_off: Vec<Call> = [
+        &corrected[..],
+        &[
+            bid(4, Strain::Notrump),
+            P,
+            bid(5, Strain::Diamonds),
+            P,
+            bid(5, Strain::Spades),
+            P,
+        ],
+    ]
+    .concat();
+    assert_eq!(best(&trie, &signed_off, "Q3.K54.A65.Q432"), P);
+    // Seven-plus of the major with 18+ bids the game outright — a responder
+    // short in the suit would pass 3NT into a misfit.
+    assert_eq!(
+        best(&trie, AFTER_1S_1NT, "AKQJ987.A3.K4.Q2"),
+        bid(4, Strain::Spades)
+    );
+}
+
+#[test]
+fn placed_games_are_passed() {
+    let trie = jump_shift_trie();
+    let then = |prefix: &[Call], calls: &[Call]| -> Vec<Call> {
+        let mut auction = prefix.to_vec();
+        for &c in calls {
+            auction.extend([c, P]);
+        }
+        auction
+    };
+    // Opener declined the fit slam-try with 4♠.
+    let declined = then(
+        AFTER_1S_1NT,
+        &[
+            bid(3, Strain::Clubs),
+            bid(3, Strain::Spades),
+            bid(4, Strain::Spades),
+        ],
+    );
+    assert_eq!(best(&trie, &declined, "Q32.K54.A65.Q432"), P);
+    // Opener pulled responder's 3NT to the six-card major.
+    let pulled = then(
+        AFTER_1S_1NT,
+        &[
+            bid(3, Strain::Clubs),
+            bid(3, Strain::Notrump),
+            bid(4, Strain::Spades),
+        ],
+    );
+    assert_eq!(best(&trie, &pulled, "K5.5.AJ7432.J932"), P);
+    // Opener rebid six spades over the natural 3♥: raise on two, else 3NT.
+    let six_spades = then(
+        AFTER_1S_1NT,
+        &[
+            bid(3, Strain::Clubs),
+            bid(3, Strain::Hearts),
+            bid(3, Strain::Spades),
+        ],
+    );
+    assert_eq!(
+        best(&trie, &six_spades, "K7.KT9643.J6.Q62"),
+        bid(4, Strain::Spades)
+    );
+    assert_eq!(
+        best(&trie, &six_spades, "7.KT9643.J86.Q62"),
+        bid(3, Strain::Notrump)
+    );
 }
 
 #[test]

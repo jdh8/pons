@@ -663,3 +663,53 @@ fn the_none_or_three_lane_decodes_the_total() {
         "two keycards reading three: the reply names the second king"
     );
 }
+
+/// The answerer's pass rows sit below each answer at the asker's five and six
+/// of trump, and never at an illegal placement (`5♥` over a `5♠` answer).
+#[test]
+fn answerer_passes_the_placement() {
+    let prefix = "P* 1♥ - 3♥ -";
+    let mut trie = Trie::new();
+    compile_entries(&mut trie, "rkcb", rkcb_rows(prefix, Suit::Hearts));
+    compile_entries(
+        &mut trie,
+        "rkcb-answerer",
+        rkcb_answerer_rows(prefix, Suit::Hearts),
+    );
+    const HAND: &str = "K5.QJ8.A42.KJ932";
+    let after = |answer: Strain, placement: Bid| -> Vec<Call> {
+        [
+            Call::Bid(Bid::new(1, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(3, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(4, Strain::Notrump)),
+            Call::Pass,
+            Call::Bid(Bid::new(5, answer)),
+            Call::Pass,
+            Call::Bid(placement),
+            Call::Pass,
+        ]
+        .to_vec()
+    };
+    let five = Bid::new(5, Strain::Hearts);
+    let six = Bid::new(6, Strain::Hearts);
+    for (answer, placement) in [
+        (Strain::Clubs, five),
+        (Strain::Diamonds, five),
+        (Strain::Hearts, six),
+        (Strain::Spades, six),
+    ] {
+        assert_eq!(best(&trie, &after(answer, placement), HAND), Call::Pass);
+    }
+    let hand: Hand = HAND.parse().expect("valid test hand");
+    assert!(
+        trie.classify(
+            hand,
+            RelativeVulnerability::NONE,
+            &after(Strain::Spades, five)
+        )
+        .is_none(),
+        "no row at an illegal placement"
+    );
+}

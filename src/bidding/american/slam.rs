@@ -354,6 +354,37 @@ fn asker_after_5s(trump: Suit) -> Rules {
 // Public entry point
 // ---------------------------------------------------------------------------
 
+/// The answerer's passes once the asker has placed the contract — five or six
+/// of trump over each of the four answers below `prefix`'s 4NT
+///
+/// [`rkcb_rows`] authors nothing for the answerer after the asker's placement,
+/// so that seat falls to the floor, which raises a signoff on its own strength
+/// (`5♠ - 6♠`, `5♥ - 7♥` on the forcing-NT jump-shift trace).  A placement is
+/// a contract: the answerer passes.  Kept out of [`rkcb_rows`] itself because
+/// that would move every RKCB lane of the default book — an A/B of its own,
+/// filed in `docs/next-steps.md`; callers that want it append it beside
+/// [`rkcb_rows`].
+pub(super) fn rkcb_answerer_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
+    let ask = format!("{prefix} 4NT -");
+    let placements = [5, 6].map(|level| Bid::new(level, Strain::from(trump)));
+    let mut entries = Vec::new();
+    for answer in [
+        Strain::Clubs,
+        Strain::Diamonds,
+        Strain::Hearts,
+        Strain::Spades,
+    ] {
+        let answer = Bid::new(5, answer);
+        for placement in placements.into_iter().filter(|&p| p > answer) {
+            entries.extend(rows_of(
+                Pattern::node(&format!("{ask} {answer} - {placement} -")),
+                Rules::new().rule(Call::Pass, 0, hcp(0..)),
+            ));
+        }
+    }
+    entries
+}
+
 /// The RKCB 1430 subtree as rows, below the auction `prefix`
 ///
 /// `prefix` is the row layer's auction string ending just before **our 4NT

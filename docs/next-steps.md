@@ -40,8 +40,10 @@ criterion 5). **Item 2 is now the top candidate.**
   answers (responder asks), the answerer falls to the floor and raises the
   signoff — `5♠ - 6♠`, `5♥ - 7♥` on the forcing-NT jump-shift trace
   ([bidding-options.md](bidding-options.md), `set_forcing_nt_jump_shifts`).
-  One generic pass row; census how often the shipped book puts the strong
-  hand in the answerer's seat before pricing it.
+  The row exists as `slam::rkcb_answerer_rows` (2026-09-27), appended beside
+  `rkcb_rows` in the jump-shift lane only; wiring it into `rkcb_rows` itself
+  moves every default RKCB lane — census how often the shipped book puts the
+  strong hand in the answerer's seat, then one default A/B.
 - Every cheap lever here is spent (bucket marked mined-to-residual on the BBA
   side); expect design work. Even a 10% capture ≈ +0.01/board — more than
   any single rail.
@@ -149,13 +151,14 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- **Forcing-NT jump shifts, `3NT!` tail repair** (2026-09-27): the opt-in
-  rival to Meckstroth measured a wash, but the plain-DD bucket trace shows the
-  `3♥` jump shift winning and the `3NT!` rung losing it all back through three
-  authored holes (answerer-after-signoff, responder-asks, the six-heart `4♥`
-  gate + 8-card majors). Fix, then re-run the same two SD seeds
-  (`ab-meckstroth-2nt --jump-shifts`, seeds 1790452526 / 1790452759). Detail in
-  [bidding-options.md](bidding-options.md), `set_forcing_nt_jump_shifts`.
+- **Forcing-NT jump shifts — the DD/SD disagreement** (2026-09-27): the
+  `3NT!` tail repair (two rounds) flipped the plain-DD buckets positive but the
+  single-dummy scorer still reads a wash leaning negative on all four brackets.
+  `ab-meckstroth-2nt --worst` buckets plain-DD swings only; add an SD-swing
+  bucket/trace, find which contracts SD prices down (the `3NT!` passed on a
+  stiff? the 20+ asks?), then decide opener's ask threshold over the `3M`/`4♣!`
+  slam tries. Detail in [bidding-options.md](bidding-options.md),
+  `set_forcing_nt_jump_shifts`.
 
 - ~~Trace the shipping-only constructive move in the `7e0bc648` window~~
   **Closed 2026-09-26**: it is the rails at the mirror table (a board is

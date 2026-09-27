@@ -36,7 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Stays opt-in; the default book is byte-identical. **Bucket trace
   2026-09-27** (plain DD at HEAD): the `3♥` jump shift wins +183/+266 and the
   `3NT!` rung loses −359/−240 NV/vul — the wash is those two cancelling; the
-  `3NT!` tail's three holes and the repair are in `docs/bidding-options.md`.
+  `3NT!` tail's three holes are in `docs/bidding-options.md`. **`3NT!` tail
+  repaired (2026-09-27, two rounds):** responder never asks from that seat —
+  the slam try is an alerted `4♣!` (2+ support, 10+) and **opener** asks on
+  20+ or signs off (the lane's `3M` design); `4♥` over `1♠ … 3NT!` needs five
+  hearts, not six, and opener passes it on three, else `4♠`; `3NT!` is exactly
+  six of the major, a seventh card bids `4M` to play; every placed game (`3M -
+  4M`, `3NT - 4M`, `3♥ - 3NT/4♥`, and `3♥ - 3♠` answered `4♠`/`3NT`) has the
+  other seat's `Pass`; and the new `slam::rkcb_answerer_rows` gives the RKCB
+  answerer a `Pass` over the asker's five or six of trump (wired into this
+  lane only — the default book's RKCB lanes are a separate A/B). Plain-DD
+  buckets flipped: the `3NT!` rung +39 NV / +187 vul (from −359/−240), the
+  lane +55/+278 IMPs plain, +225/+562 PD on 400k. **But the single-dummy
+  scorer reads a wash leaning negative** (same two SD seeds, 400k/vul): SD-PD
+  −0.0007 ±0.0011 / −0.0006 ±0.0011 NV, −0.0008 ±0.0014 / −0.0005 ±0.0014 vul;
+  SD-plain −0.0010 / −0.0008 NV, −0.0013 ±0.0013 / −0.0011 ±0.0013 vul. The
+  intermediate round without any slam try lost CI-clear vul (SD-plain −0.0016
+  / −0.0021 ±0.0013). Still opt-in, default byte-identical; the DD/SD
+  disagreement is the owed trace (`--worst` buckets plain DD only).
 
 - **`features_v8` and the `american-v8` floor arm (2026-09-26)** — the v6
   vector plus a 12-value artificial-call block (per side, the strains named

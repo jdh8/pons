@@ -8,7 +8,13 @@
 //! |-------|---------|
 //! | `2NT` | 18+ balanced (the natural rebid, uncapped) |
 //! | `3x`  | natural jump shift: 4+ cards, 18+, game-forcing |
-//! | `3NT!` | 18+, 6+ card major, no side suit (a `6-4` jump-shifts instead) |
+//! | `3NT!` | 18+, exactly six of the major, no side suit (a `6-4` jump-shifts instead) |
+//! | `4M`  | 18+, seven-plus of the major — to play (a responder short in the major would pass `3NT!` into a misfit) |
+//!
+//! Every game reached by a natural placement gets a `Pass` row for the seat
+//! that did not place it, and the RKCB lanes carry the answerer's pass after
+//! the asker's signoff ([`slam::rkcb_answerer_rows`]): the first trace's whole
+//! `3NT!` loss was the floor raising a placed game or a signoff to slam.
 //!
 //! The `1♠ - 1NT - 3♥` leg of the invitational two-suiter is displaced (it is
 //! the 18+ jump shift now): that 5-5 15–17 rebids `2♥` and invites with `3♥`
@@ -23,7 +29,8 @@ use crate::bidding::constraint::{Cons, Constraint};
 // `register()`, set it before building the `System`.
 /// Opener's `3NT` over the forcing `1NT` — 18+, six-plus of the major, no side suit
 const LONG_MAJOR_3NT: Alert = Alert("forcing-nt-3nt-long-major");
-/// Responder's `4♣` over `1♥ - 1NT - 3♠` — the heart fit slam-try (`3♥` is unavailable)
+/// Responder's `4♣` fit slam-try where `3M` is unavailable — over `1♥ - 1NT -
+/// 3♠` and over the `3NT!`
 const FIT_SLAM_TRY_4C: Alert = Alert("forcing-nt-jump-shift-4c-fit");
 /// The displaced two-suiter's 5-5 15–17: its `2♥` rebid, the delayed `3♥` invite
 /// and the `4♥` over the notrump invite — alerted because each floors opener's
@@ -37,12 +44,13 @@ pub(super) fn forcing_nt_jump_shifts_on(knobs: &RebidKnobs) -> bool {
 }
 
 /// Whether `rebid` is one of the jump-shift rungs over `1M - 1NT` (`3x` in a
-/// new suit, or the `3NT!` long-major call)
+/// new suit, the `3NT!` long-major call, or the seven-card `4M`)
 pub(super) fn is_forcing_nt_jump_shift(major: Suit, rebid: Call) -> bool {
     match rebid {
         Call::Bid(bid) if bid.level.get() == 3 => {
             bid.strain == Strain::Notrump || bid.strain != Strain::from(major)
         }
+        Call::Bid(bid) => bid.level.get() == 4 && bid.strain == Strain::from(major),
         _ => false,
     }
 }
@@ -50,11 +58,12 @@ pub(super) fn is_forcing_nt_jump_shift(major: Suit, rebid: Call) -> bool {
 /// Append the natural jump shifts and the long-major `3NT!` when live
 ///
 /// Weights: `3x` (1.70 + rank, so a 5-5 bids the higher suit first) above the
-/// `3NT!` (1.60) above the `3M` jump-rebid (1.50, so 18+ leaves it at 16–17);
-/// the balanced `2NT` (1.20) is disjoint by shape — a 5332 has no four-card
-/// side suit.  Over `1♠` the displaced two-suiter's 5-5 15–17 rebids `2♥`
-/// (1.05, over the six-card `2♠` at 1.00) and invites with `3♥` after the
-/// preference — see [`opener_after_preference`].
+/// `3NT!` and the seven-card `4M` (1.60, disjoint by length) above the `3M`
+/// jump-rebid (1.50, so 18+ leaves it at 16–17); the balanced `2NT` (1.20) is
+/// disjoint by shape — a 5332 has no four-card side suit.  Over `1♠` the
+/// displaced two-suiter's 5-5 15–17 rebids `2♥` (1.05, over the six-card `2♠`
+/// at 1.00) and invites with `3♥` after the preference — see
+/// [`opener_after_preference`].
 pub(super) fn with_forcing_nt_jump_shifts(
     mut rules: Rules,
     major: Suit,
@@ -77,13 +86,25 @@ pub(super) fn with_forcing_nt_jump_shifts(
             .rule(Bid::new(2, Strain::Hearts), 105, five_five_invite())
             .alert(FIVE_FIVE_INVITE);
     }
+    // ponytail: no responder rows below the 4M — a to-play game; the floor
+    // owns the rare slam on top of it.
     rules
+        .rule(
+            Bid::new(4, Strain::from(major)),
+            160,
+            len(major, 7..) & points(18..),
+        )
         .rule(
             Bid::new(3, Strain::Notrump),
             160,
-            len(major, 6..) & points(18..),
+            len(major, 6..=6) & points(18..),
         )
         .alert(LONG_MAJOR_3NT)
+}
+
+/// Partner placed the contract: pass
+fn pass_only() -> Rules {
+    Rules::new().rule(Call::Pass, 0, points(0..))
 }
 
 /// The displaced two-suiter's hand: 5+ spades, 5+ hearts, 15–17
@@ -168,27 +189,49 @@ fn opener_over_three_notrump(major: Suit) -> Rules {
 /// Responder over opener's `3NT!` (18+, six of the major, no side suit)
 ///
 /// Non-forcing.  A doubleton is an eight-card fit opposite six, so the major
-/// game needs only `len(major, 2..)`; with a maximum responder asks keycards.
+/// game needs only `len(major, 2..)`.  No keycard ask from this seat: the 18+
+/// hand holds the keycards, so the slam try is the alerted `4♣!` and **opener**
+/// asks on 20+ (the jump shifts' own `3M` design), or asks over the `4M`
+/// correction on 21+ ([`opener_over_correction`]).  Responder asking on 11+
+/// with a doubleton was the draft-1 mistake again, and with it the whole
+/// `3NT!` bucket's loss; with no slam try at all the bucket still lost −216
+/// plain IMPs NV, every worst board a slam Meckstroth's relay reached.
 ///
 /// | Call | Wt   | Meaning |
 /// |------|------|---------|
-/// | 4NT  | 1.30 | RKCB: 2+ support, 11+ |
-/// | 4M   | 1.10 | 6-2 (or better) major game |
-/// | 4♥   | 1.05 | Six-plus hearts, short in spades (over `1♠` only) |
+/// | 4♣!  | 1.20 | Fit + slam interest (2+ support, 10+) → opener asks on 20+ |
+/// | 4M   | 1.10 | 6-2 (or better) major game, ≤9 |
+/// | 4♥   | 1.05 | Five-plus hearts, short in spades (over `1♠` only) |
 /// | Pass | 0.00 | Singleton or void in the major — play `3NT` |
 fn responder_over_long_major_3nt(major: Suit) -> Rules {
     let mut rules = Rules::new()
         .rule(
-            Bid::new(4, Strain::Notrump),
-            130,
-            len(major, 2..) & points(11..),
+            Bid::new(4, Strain::Clubs),
+            120,
+            len(major, 2..) & points(10..),
         )
-        .alert(slam::RKCB)
+        .alert(FIT_SLAM_TRY_4C)
         .rule(Bid::new(4, Strain::from(major)), 110, len(major, 2..));
     if major == Suit::Spades {
-        rules = rules.rule(Bid::new(4, Strain::Hearts), 105, len(Suit::Hearts, 6..));
+        rules = rules.rule(Bid::new(4, Strain::Hearts), 105, len(Suit::Hearts, 5..));
     }
     rules.rule(Call::Pass, 0, points(0..))
+}
+
+/// Opener over responder's `4♥` pull of the `3NT!` (five-plus hearts, at most
+/// one spade): pass the 5-3, else back to the six-card suit
+fn opener_over_heart_pull() -> Rules {
+    Rules::new()
+        .rule(Call::Pass, 100, len(Suit::Hearts, 3..))
+        .rule(Bid::new(4, Strain::Spades), 50, points(0..))
+}
+
+/// Responder over opener's `3♠` rebid of the natural `3♥` (six spades, no
+/// three-card heart fit): raise on a doubleton, else `3NT`
+fn responder_over_six_spades() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Spades), 100, len(Suit::Spades, 2..))
+        .rule(Bid::new(3, Strain::Notrump), 50, points(0..))
 }
 
 /// Opener over responder's `4M` correction of the `3NT!`: keycards on a big hand
@@ -211,20 +254,44 @@ fn game_force_rows(
     let slam_try =
         fit_slam_try_is_four_clubs(major, second).unwrap_or(Bid::new(3, Strain::from(major)));
     let fit_node = format!("{node} {slam_try} -");
+    let game = call(4, Strain::from(major));
     entries.extend(rows_of(
         Pattern::node(&fit_node),
         meckstroth::opener_over_fit_slamtry(major),
     ));
+    // Opener declined the slam try.
+    entries.extend(rows_of(
+        Pattern::node(&format!("{fit_node} {game} -")),
+        pass_only(),
+    ));
     entries.extend(slam::rkcb_rows(&fit_node, major));
+    entries.extend(slam::rkcb_answerer_rows(&fit_node, major));
     if major == Suit::Spades && second != Some(Suit::Hearts) {
+        let red = format!("{node} 3♥ -");
         entries.extend(rows_of(
-            Pattern::node(&format!("{node} 3♥ -")),
+            Pattern::node(&red),
             meckstroth::opener_over_resp_red(major, Suit::Hearts),
         ));
+        entries.extend(rows_of(
+            Pattern::node(&format!("{red} 3♠ -")),
+            responder_over_six_spades(),
+        ));
+        for placement in ["3NT", "4♥"] {
+            entries.extend(rows_of(
+                Pattern::node(&format!("{red} {placement} -")),
+                pass_only(),
+            ));
+        }
     }
+    let three_nt = format!("{node} 3NT -");
     entries.extend(rows_of(
-        Pattern::node(&format!("{node} 3NT -")),
+        Pattern::node(&three_nt),
         opener_over_three_notrump(major),
+    ));
+    // Opener pulled to the six-card major.
+    entries.extend(rows_of(
+        Pattern::node(&format!("{three_nt} {game} -")),
+        pass_only(),
     ));
     entries
 }
@@ -255,13 +322,32 @@ pub(crate) fn forcing_nt_jump_shift_continuations() -> Package {
                     Pattern::node(&node),
                     responder_over_long_major_3nt(major),
                 ));
-                entries.extend(slam::rkcb_rows(&node, major));
+                if major == Suit::Spades {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{node} 4♥ -")),
+                        opener_over_heart_pull(),
+                    ));
+                }
+                // The 4♣! slam try: opener asks on 20+, else signs off in 4M
+                // and responder passes.
+                let slam_try = format!("{node} 4♣ -");
+                entries.extend(rows_of(
+                    Pattern::node(&slam_try),
+                    meckstroth::opener_over_fit_slamtry(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{slam_try} {} -", call(4, Strain::from(major)))),
+                    pass_only(),
+                ));
+                entries.extend(slam::rkcb_rows(&slam_try, major));
+                entries.extend(slam::rkcb_answerer_rows(&slam_try, major));
                 let correction = format!("{node} {} -", call(4, Strain::from(major)));
                 entries.extend(rows_of(
                     Pattern::node(&correction),
                     opener_over_correction(),
                 ));
                 entries.extend(slam::rkcb_rows(&correction, major));
+                entries.extend(slam::rkcb_answerer_rows(&correction, major));
             }
             // The displaced two-suiter's invite one round later.
             entries.extend(rows_of(
