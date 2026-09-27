@@ -51,6 +51,27 @@ fn advance_stayman_double() -> Rules {
         .rule(Call::Pass, 50, no_side_five)
 }
 
+/// Doubler after `(1NT) - (2♣) X (2♦/2♥/2♠) - (2NT/3NT)`: pass
+///
+/// The lead is already asked for; doubling their notrump only prices the
+/// doubled make.  The floor's `X` of their direct `3NT` lost plain SD
+/// −1.54/−1.76 IMPs per fired NV/vul on the advancer-rows arm (2026-09-27).
+fn stayman_doubler_over_notrump() -> Rules {
+    Rules::new().rule(Call::Pass, 50, hcp(0..))
+}
+
+/// Doubler after `(1NT) - (2♣) X (2♥/2♠) - (3♣)`: `X` repeats the club lead
+///
+/// Their `3♣` is a cue of our suit.  The floor doubles it on 398 of 418
+/// boards where it opens with the unauthored `X`, but on the authored reading
+/// it passed 163 of them (mostly with five clubs), and those passes lost on
+/// both SD scorers (2026-09-27).
+fn stayman_doubler_over_cue() -> Rules {
+    Rules::new()
+        .rule(Call::Double, 100, hcp(0..))
+        .alert(STAYMAN_DEFENSE_X)
+}
+
 /// Defense to the opponents' Jacoby transfer after `(1NT) - (2♦)` or
 /// `(1NT) - (2♥)`; their response transfers to hearts or spades, respectively
 ///
@@ -196,8 +217,9 @@ fn defense_to_their_diamond_transfer() -> Rules {
 }
 
 /// Defense to their `2♣` Stayman: `X` = lead-directing clubs, everything
-/// else to the floor, and the advancer's answer to the `X` once opener
-/// answers naturally (`set_stayman_defense`)
+/// else to the floor, the advancer's answer to the `X` once opener answers
+/// naturally, and the doubler's rebid over their notrump or `3♣` cue
+/// (`set_stayman_defense`)
 pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
@@ -205,10 +227,20 @@ pub(super) fn their_stayman_defense_package() -> Package {
         entries: |_| {
             let mut rows = rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman());
             for answer in ["2♦", "2♥", "2♠"] {
-                rows.extend(rows_of(
-                    Pattern::node(&format!("P* (1NT) - (2♣) X ({answer})")),
-                    advance_stayman_double(),
-                ));
+                let doubled = format!("P* (1NT) - (2♣) X ({answer})");
+                rows.extend(rows_of(Pattern::node(&doubled), advance_stayman_double()));
+                for notrump in ["2NT", "3NT"] {
+                    rows.extend(rows_of(
+                        Pattern::node(&format!("{doubled} - ({notrump})")),
+                        stayman_doubler_over_notrump(),
+                    ));
+                }
+                if answer != "2♦" {
+                    rows.extend(rows_of(
+                        Pattern::node(&format!("{doubled} - (3♣)")),
+                        stayman_doubler_over_cue(),
+                    ));
+                }
             }
             rows
         },

@@ -176,7 +176,8 @@ struct Args {
     /// Split the delta by `holding` — opener's holding in their suit over
     /// `1NT (3x) X -` (`common::holding_key`); ON must be the leave-in arm.
     /// `stayman` splits by our direct call over `(1NT) - (2♣)` in each arm
-    /// (`common::stayman_key`)
+    /// (`common::stayman_key`); `stayman-x` by the first divergence after
+    /// both arms double `2♣` (`common::stayman_x_key`)
     #[arg(long)]
     by: Option<String>,
     /// Show this many of the biggest swings (each way)
@@ -409,6 +410,7 @@ fn main() {
             let key = match by.as_str() {
                 "holding" => common::holding_key(a, b),
                 "stayman" => common::stayman_key(a, b),
+                "stayman-x" => common::stayman_x_key(a, b),
                 other => panic!("unknown --by {other}"),
             };
             let Some(key) = key else { continue };

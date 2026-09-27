@@ -14,7 +14,9 @@ pub mod rollout;
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit};
+use contract_bridge::{
+    AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit,
+};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card};
@@ -211,6 +213,39 @@ pub fn stayman_key(on: &Board, off: &Board) -> Option<String> {
         (Some(x), Some(y)) => Some(format!("on {x} / off {y}")),
         _ => Some("(other)".to_owned()),
     }
+}
+
+/// Split key for `ab-dump-sd --by stayman-x`: on boards where **both** arms
+/// reach `(1NT) - (2♣) X`, the first divergent call, keyed by the seat that
+/// made it (opener, advancer, responder, doubler) and the calls since the `X`;
+/// every other divergent board keys as `(other)`.
+pub fn stayman_x_key(on: &Board, off: &Board) -> Option<String> {
+    let (a, b) = (&on.table_a, &off.table_a);
+    if a[..] == b[..] {
+        return None;
+    }
+    let k = a.iter().position(|&call| call != Call::Pass)?;
+    let stayman_x = |calls: &[Call]| {
+        calls.get(k..k + 4).is_some_and(|w| {
+            w[0] == Call::Bid(Bid::new(1, Strain::Notrump))
+                && w[1] == Call::Pass
+                && w[2] == Call::Bid(Bid::new(2, Strain::Clubs))
+                && w[3] == Call::Double
+        })
+    };
+    if !(stayman_x(a) && stayman_x(b)) {
+        return Some("(other)".to_owned());
+    }
+    let i = (k..).find(|&i| a.get(i) != b.get(i))?;
+    let role = ["opener", "advancer", "responder", "doubler"][(i - k) % 4];
+    let show = |call: Option<&Call>| call.map_or("end".to_owned(), ToString::to_string);
+    let since: Vec<_> = a[k + 4..i].iter().map(ToString::to_string).collect();
+    Some(format!(
+        "{role} after X {}: on {} / off {}",
+        since.join(" "),
+        show(a.get(i)),
+        show(b.get(i))
+    ))
 }
 
 /// `count` deals, board `i` seeded `base + i`, so every arm of an experiment

@@ -156,6 +156,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`set_stayman_defense`: the doubler's rebid (2026-09-28); still opt-in —
+  the plain-DD loss is gone, both SD columns CI-clear positive.** After
+  `(1NT) - (2♣) X (2♦/2♥/2♠) -` the doubler passes their `2NT`/`3NT` (the
+  lead is already asked for) and doubles their `3♣` cue of our suit (after
+  `2♥`/`2♠`). A new split, `ab-dump-sd --by stayman-x` (first divergence after
+  both arms double `2♣`), found the leak on the advancer-rows arm: the floor's
+  `X` of their direct `3NT` lost plain SD −1.54/−1.76 IMPs per fired NV/vul (a
+  doubling mechanism, so plain arbitrates), and its passes of their `3♣` cue
+  lost on both SD scorers. Same seed and off arm (1790512003, 409,632
+  boards/arm/vul), IMPs/board NV / vul: plain DD −0.0004 ±0.0011 / +0.0006
+  ±0.0014, PD −0.0006 ±0.0011 / +0.0002 ±0.0014, **sd plain +0.0015 ±0.0011 /
+  +0.0024 ±0.0014, SD-PD +0.0017 ±0.0012 / +0.0024 ±0.0015**. Residue: the
+  advancer's later-turn sacrifices over their slam auctions (≈ −190/−90 plain
+  SD), floor territory.
+
 - **`set_stayman_defense`: the advancer answers the lead-directing `X`
   (2026-09-27); still opt-in — SD-PD win, plain-DD loss.** After
   `(1NT) - (2♣) X (2♦/2♥/2♠)` the advancer raises `3♣` only on a weak fit

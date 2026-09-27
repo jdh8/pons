@@ -152,3 +152,31 @@ fn stayman_double_advancer_raises_only_weak() {
     let (_, floored) = best_call_with(&arm, &auction, "KQJ76.Q72.94.876");
     assert!(floored, "a five-card side suit belongs to the floor");
 }
+
+#[test]
+fn stayman_doubler_passes_notrump_and_doubles_the_cue() {
+    // (1NT) - (2♣) X (2♠) - (3NT): the lead is asked for, so pass;
+    // (1NT) - (2♣) X (2♥) - (3♣): double their cue of our suit.
+    let mut arm = Agreements::default();
+    arm.defense.stayman_defense_enabled = true;
+    let hand = "K4.Q72.J94.AQJ76";
+    let prefix = [
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Double,
+    ];
+    let over = |answer, theirs| {
+        let mut auction = prefix.to_vec();
+        auction.extend([call(2, answer), Call::Pass, theirs]);
+        best_call_with(&arm, &auction, hand)
+    };
+    assert_eq!(
+        over(Strain::Spades, call(3, Strain::Notrump)),
+        (Call::Pass, false)
+    );
+    assert_eq!(
+        over(Strain::Hearts, call(3, Strain::Clubs)),
+        (Call::Double, false)
+    );
+}
