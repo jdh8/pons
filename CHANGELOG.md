@@ -156,6 +156,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`set_stayman_defense`: the advancer answers the lead-directing `X`
+  (2026-09-27); still opt-in — SD-PD win, plain-DD loss.** After
+  `(1NT) - (2♣) X (2♦/2♥/2♠)` the advancer raises `3♣` only on a weak fit
+  (4+ clubs, `hcp(..=3)`) and otherwise passes, holding the lead partner asked
+  for; a five-card side suit is rejected to the floor. Same seed and off arm
+  (1790512003, 409,632 boards/arm/vul), IMPs/board NV / vul: plain DD −0.0017
+  ±0.0012 / −0.0016 ±0.0015, PD −0.0008 ±0.0011 / −0.0005 ±0.0014, sd plain
+  +0.0007 ±0.0012 / +0.0009 ±0.0016, **SD-PD +0.0023 ±0.0012 / +0.0032
+  ±0.0015** — CI-clear on the arbiter, up from +0.0003/+0.0002. The plain-DD
+  loss bars default-on; the worst boards are the doubler's own rebids (`4♣`
+  over their `3NT`, a balancing `X` of `3♦` that runs into `3NT` XX).
+
 - **`set_stayman_defense` redesigned to author only the lead-directing `X`
   (2026-09-27); still opt-in (SD-PD wash).** The owning table (6-card
   `points(14..)` overcalls, strong `3♣`, `Pass` catch-all) is gone: every hand

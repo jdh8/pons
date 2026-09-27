@@ -130,3 +130,25 @@ fn defense_to_their_stayman_leaves_other_hands_to_the_floor() {
     assert!(floored, "a non-X hand must fall through to the floor");
     assert_eq!(c, best_call_with(&Agreements::default(), &auction, hand).0);
 }
+
+#[test]
+fn stayman_double_advancer_raises_only_weak() {
+    // (1NT) - (2♣) X (2♥): the lead-directing X's advancer raises 3♣ only on
+    // a weak fit, defends with values, and leaves a five-card side suit to the
+    // floor.
+    let mut arm = Agreements::default();
+    arm.defense.stayman_defense_enabled = true;
+    let auction = [
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+    ];
+    let (c, floored) = best_call_with(&arm, &auction, "8643.J72.94.8765");
+    assert_eq!((c, floored), (call(3, Strain::Clubs), false));
+    let (c, floored) = best_call_with(&arm, &auction, "K43.Q72.K94.8765");
+    assert_eq!((c, floored), (Call::Pass, false));
+    let (_, floored) = best_call_with(&arm, &auction, "KQJ76.Q72.94.876");
+    assert!(floored, "a five-card side suit belongs to the floor");
+}

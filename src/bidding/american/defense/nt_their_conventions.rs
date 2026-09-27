@@ -31,6 +31,26 @@ fn defense_to_their_stayman() -> Rules {
         .alert(STAYMAN_DEFENSE_X)
 }
 
+/// Advancer after `(1NT) - (2♣) X (2♦/2♥/2♠)` — partner's club double was
+/// for the lead
+///
+/// `3♣` only as the weak preemptive raise (4+ clubs, `hcp(..=3)`); with values
+/// the advancer defends, holding the lead partner asked for.  The floor's raise
+/// on the authored reading lost PD at every length once the advancer held 4+
+/// HCP, and gained only on the weak fit (2026-09-27).  A hand with a five-card
+/// side suit is rejected, so the floor keeps its natural own-suit bids.
+fn advance_stayman_double() -> Rules {
+    let no_side_five =
+        len(Suit::Diamonds, ..=4) & len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4);
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            150,
+            len(Suit::Clubs, 4..) & hcp(..=3),
+        )
+        .rule(Call::Pass, 50, no_side_five)
+}
+
 /// Defense to the opponents' Jacoby transfer after `(1NT) - (2♦)` or
 /// `(1NT) - (2♥)`; their response transfers to hearts or spades, respectively
 ///
@@ -176,12 +196,22 @@ fn defense_to_their_diamond_transfer() -> Rules {
 }
 
 /// Defense to their `2♣` Stayman: `X` = lead-directing clubs, everything
-/// else to the floor (`set_stayman_defense`)
+/// else to the floor, and the advancer's answer to the `X` once opener
+/// answers naturally (`set_stayman_defense`)
 pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
         gate: |agreements| agreements.defense.stayman_defense_enabled,
-        entries: |_| rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman()),
+        entries: |_| {
+            let mut rows = rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman());
+            for answer in ["2♦", "2♥", "2♠"] {
+                rows.extend(rows_of(
+                    Pattern::node(&format!("P* (1NT) - (2♣) X ({answer})")),
+                    advance_stayman_double(),
+                ));
+            }
+            rows
+        },
     }
 }
 
