@@ -407,3 +407,36 @@ BEN's judgment spread thin, consistent with the ≈ 0.8–1.1 IMPs/board that
 one coherent cell, the passed 3-card raise, joins the owed retrain
 targets as a labelled example rather than a rail. A rail would be
 re-arbitrated at the next retrain anyway (junk-action rail series).
+
+**L4 and L5 gates (2026-09-27): both fail.**
+
+- **L4, the takeout-double corrections.** The direct-seat pass-vs-`X`
+  slice over `(1x)` is 11.6 bd per 1 000 vs BEN (−11.5 plain / +2.5 PD)
+  and 7.1 vs BBA (−6.0 / +2.6). It is **the shipped
+  `suppress_flat_4333_takeout`**: 12–14 HCP 4333 hands passing where the
+  reference doubles are 159 of the 231 BEN boards and 2 315 of the 2 908
+  BBA ones. That knob won a paired BBA A/B on both scorers at both
+  vulnerabilities (bidding-options.md). A paired A/B outranks first-call
+  attribution, so the anchor's plain charge is the attribution's
+  artifact, not a leak. BBA's "+1 for 4333" correction points the
+  direction that A/B already rejected, and against BBA as exploit guard a
+  vs-BEN gain could not ship it anyway. The rest of the slice is < 0.6 PD
+  per 1 000 per cell. The worst per board is our 15+ strong double
+  holding 4+ cards and honours in their suit, where BBA trap-passes
+  (70 bd at 409.6k, −4.6…−7.3 PD/bd, ≈ 0.001 IMPs/board). It belongs to
+  the stopperless-double follow-up, not to L4.
+- **L5, BEN's penalty-X sanity.** Our `X` of their 4-level-or-higher
+  bid, where the reference doesn't double, is 275 bd vs BBA at −1.42 PD
+  per 1 000 and 31 vs BEN at −1.80. Doubles that fail BEN's tests (≤ 1
+  trump or ≤ 1 control) are worse per board (−2.8 / −4.2 PD/bd vs −1.4
+  for the rest), but they total 106 bd, a ≈ 0.001 IMPs/board ceiling
+  before the new divergences a veto would create. Not a rail at harness
+  resolution.
+
+**Where this leaves the lane.** Every lever in §6 is now probed, and none
+clears what an A/B can resolve. The defensive floor's gap vs BEN is BEN's
+judgement spread thin, and against BBA the floor is at par. The
+defensive *book* round-1 cell (§1, traced 2026-09-25 in
+[ben-gap-campaign.md](ben-gap-campaign.md)) stays the only defensive
+bucket with a concentrated mechanism, and its one fix was vetoed on the
+meta.
