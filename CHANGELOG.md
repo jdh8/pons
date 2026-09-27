@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`docs/ai-bidder/floor-sweep.md` — the floor sweep plan (2026-09-28), and
+  `docs/next-steps.md` § Parked big ideas.** Of four big ideas (defensive
+  system, Polish Club, LSTM, better net parameters) the net's recipe won:
+  every shipped net since v4 is one `--init-seed 1` draw of one never-searched
+  configuration, unseeded retrain variance measured ≈ 0.02–0.05 IMPs/board,
+  and the plan needs neither the deferred dump nor the relabel (M32 corpus on
+  the SSD, 10 min per train, 87 min per A/B). Phase 0 prices seed noise,
+  Phase 1 a logit-averaged ensemble, Phase 2 one trainer axis at a time
+  (`--dd-weight`, zeroed for configured-net gate 1 and never priced since,
+  first). The other three are parked with the evidence that parked them.
+  **Impact:** docs only; no bidding change.
 - **`scripts/ab-stayman-defense.sh` — the stale-pop re-measure of
   `set_stayman_defense` (2026-09-27): REFUTED as built, stays opt-in.** Our
   defense to `(1NT) - (2♣)` vs BBA, on vs off, `--isolate-defense --filter-1nt`,

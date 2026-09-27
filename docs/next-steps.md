@@ -68,6 +68,20 @@ criterion 5). **Item 2 is now the top candidate.**
   side); expect design work. Even a 10% capture ≈ +0.01/board — more than
   any single rail.
 
+## 2b. The floor sweep — seed noise, ensembles, the recipe's free parameters
+
+**Planned 2026-09-28, nothing run; the one training-side item that does not
+need the deferred dump or relabel.** Plan and runbook in
+[ai-bidder/floor-sweep.md](ai-bidder/floor-sweep.md). Every shipped net since
+v4 is one draw of one never-searched recipe, and unseeded retrain variance
+measured ≈ 0.02–0.05 IMPs/board — larger than any convention lever in this
+file. Phase 0 (two reseeds, two A/Bs) prices that noise; Phase 1 is a
+logit-averaged ensemble; Phase 2 sweeps `--dd-weight` (zeroed for a controlled
+comparison, never priced), `--wd`, epochs, width, lr, one axis at a time.
+Corpus frozen at the M32 stems, 10 min per train, 87 min per A/B. Precondition:
+jdh8 un-defers training-only work. Pool: the whole floor; even recovering half
+the seed spread would outrank items 2–4 combined.
+
 ## 3. BEN Defensive / book / round-1 — the next slices
 
 Still #2 vs BEN on both scorers (−1.46 / −1.35 per div, 2.0–2.5× the BBA
@@ -145,6 +159,50 @@ Recorded so future sessions don't re-derive them:
 - **N3-x / N2d** (−2.9 to −3.1 per board but 25–43 boards ≈ +0.0005/board
   total) — batch them into the next 1NT-lane visit
   ([one-notrump-competitive.md](one-notrump-competitive.md)).
+
+## Parked big ideas
+
+Four big ideas were weighed on 2026-09-28; the floor sweep (item 2b) won.
+The other three are parked here with the evidence that parked them, so a
+future session re-opens one only against new evidence, not from scratch.
+
+- **Improve the defensive bidding system.** Already the most-mined lane in
+  the repo. [defensive-auctions-reference.md](defensive-auctions-reference.md)
+  §7 (2026-09-27) probed every lever L1–L5 plus the raise-aggression trace and
+  fourth-seat sub-lanes: none clears what a Tier-F A/B resolves; vs BBA the
+  v6 floor is at par in these lanes and the gap vs BEN is BEN's search-priced
+  judgement spread over ~40 cells. The book-side lanes
+  ([defensive-overcalls.md](defensive-overcalls.md),
+  [takeout-double-layers.md](takeout-double-layers.md)) have their residue in
+  item 3 above. **Re-open when:** a new net (item 2b or a retrain) moves the
+  defensive floor buckets, or DD-search-at-leaves
+  ([ben-gap-campaign.md](ben-gap-campaign.md) Phase 3) exists — the remaining
+  gap is judgement, not structure.
+- **Add Polish Club.** The nearest precedent is the retired `dutch()` system
+  ([archive/dutch-system.md](archive/dutch-system.md)): a naturalised Polish
+  Club that never beat `american()` as a whole (Phase 2.1 lost, WJ-floor arms
+  B and C lost, the Multi lost) while every win was a per-gadget knob. A true
+  Polish Club is a larger diff than Dutch was, and its cost is not the rows:
+  the reader and the neural floor are american-tuned, so the system needs its
+  own corpus and floor (the reading-knob-under-a-neural-floor mechanism that
+  sank 5542, 2026-09-24), i.e. exactly the dump-and-retrain work now deferred.
+  What it would buy is indirect — a second-system corpus for M5.3
+  ([ai-bidder/plan.md](ai-bidder/plan.md)) and a card BBA already plays
+  (`vendor/bba/WJ.bbsa` is a machine teacher). **Re-open when:** retrains are
+  un-deferred *and* the goal is a second disclosed system rather than IMPs for
+  the default, or a Polish gadget can be measured as a knob on `american()`
+  (the house method). Spec: jdh8's Strawberry Polish Club
+  (<https://polish.club/>).
+- **LSTM to store long bidding sequences.** Built, measured, refuted 3/3 as
+  M5.2 (`park/lstm-floor`, 2026-09-03; verdict and the overbidding diagnosis
+  in [ai-bidder/plan.md](ai-bidder/plan.md) M5.2). The corpus showed only
+  0.75% of decisions at the `T = 20` cap and a mean of 5.66 prior calls, so
+  auction *length* is not the binding constraint. Its flip plan is owed (arm 1:
+  retune the accountant collar against v7 from the unweighted net; arm 2: a
+  paired policy baseline instead of par) and rides the deferred retrain. Item
+  2b's Phase 0 also supplies the seed-noise caveat every LSTM arm lacked.
+  **Re-open when:** the flip plan's two arms can run, i.e. retrains are
+  un-deferred, and only after 2b's σ_seed is known.
 
 ## Owed / deferred
 
