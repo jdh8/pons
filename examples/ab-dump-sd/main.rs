@@ -168,8 +168,15 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_ns_weak_two_nt_advances: bool,
+    /// Read the ON arm's auctions with the defense to their Stayman
+    /// (`defense.stayman_defense_enabled`), so `(1NT) - (2♣) X` reads as
+    /// lead-directing clubs to the blind leader
+    #[arg(long, default_value_t = false)]
+    on_ns_stayman_defense: bool,
     /// Split the delta by `holding` — opener's holding in their suit over
-    /// `1NT (3x) X -` (`common::holding_key`); ON must be the leave-in arm
+    /// `1NT (3x) X -` (`common::holding_key`); ON must be the leave-in arm.
+    /// `stayman` splits by our direct call over `(1NT) - (2♣)` in each arm
+    /// (`common::stayman_key`)
     #[arg(long)]
     by: Option<String>,
     /// Show this many of the biggest swings (each way)
@@ -249,6 +256,7 @@ fn main() {
     on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
+    on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;
     let partnership_on = american(&on_arm).bind();
     let (lo, hi) = band(&args.off_ns_overcall);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
@@ -400,6 +408,7 @@ fn main() {
         for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
             let key = match by.as_str() {
                 "holding" => common::holding_key(a, b),
+                "stayman" => common::stayman_key(a, b),
                 other => panic!("unknown --by {other}"),
             };
             let Some(key) = key else { continue };

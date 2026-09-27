@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/ab-stayman-defense.sh` — the stale-pop re-measure of
+  `set_stayman_defense` (2026-09-27): REFUTED as built, stays opt-in.** Our
+  defense to `(1NT) - (2♣)` vs BBA, on vs off, `--isolate-defense --filter-1nt`,
+  409,632 boards/arm/vul, `SEED_BASE=1790512003`, SHA `42bd3282` (+ harness-only
+  edits). IMPs/board, NV / vul: plain DD −0.0040 ±0.0018 / −0.0034 ±0.0023, PD
+  −0.0027 ±0.0020 / −0.0020 ±0.0025, sd-lead plain −0.0058 ±0.0019 / −0.0050
+  ±0.0024, **SD-PD −0.0052 ±0.0021 / −0.0043 ±0.0026** — CI-clear negative on
+  the arbiter at both vuls, with the `X` disclosed to the blind leader. The
+  per-call split (`ab-dump-sd --by stayman`) says the idea is not the loss: the
+  lead-directing **`X` where the floor passes is SD-PD +0.44 / +0.47 IMPs/fired**
+  (981 / 1,113 boards). The whole deficit is the package's owning
+  `Pass 50 hcp(0..)`, which shadows the v6 floor's natural `2♦`/`2♠`/`2♥`/`3♦`
+  overcalls (SD-PD ≈ −2,500 / −1,860 IMPs). A flip needs a redesign — deleting
+  the Pass alone lets the floor's `X` (1.5k boards/vul) and 5-card overcalls be
+  read through the book's lead-directing / 6-card-14+ rules. Tooling:
+  `ab-dump-sd --on-ns-stayman-defense` (disclosure) and `--by stayman`
+  (`common::stayman_key`).
+
 - **`american_with_compact` and `ab-kickback --blind` (2026-09-27)** — a v6
   entry point that takes both halves of the compact regime verbatim, so a
   harness can play a convention's rules while the net is told the baseline's

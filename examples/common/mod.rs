@@ -178,6 +178,41 @@ pub fn holding_key(on: &Board, off: &Board) -> Option<String> {
     Some(format!("({overcall}) {length} {honors} {outbid}"))
 }
 
+/// Bucket key for the Stayman-defense A/B: our direct call over
+/// `(1NT) - (2♣)` in each arm, as `"on X / off -"`.
+///
+/// `None` when the two auctions agree; `"(other)"` when they diverge but
+/// neither is a `(1NT) - (2♣)` auction.
+pub fn stayman_key(on: &Board, off: &Board) -> Option<String> {
+    let (a, b) = (&on.table_a, &off.table_a);
+    if a[..] == b[..] {
+        return None;
+    }
+    let call = |calls: &[Call]| {
+        let k = calls.iter().position(|&call| call != Call::Pass)?;
+        let Call::Bid(opening) = calls[k] else {
+            return None;
+        };
+        let Call::Bid(ask) = *calls.get(k + 2)? else {
+            return None;
+        };
+        (opening.level.get() == 1
+            && opening.strain == Strain::Notrump
+            && calls[k + 1] == Call::Pass
+            && ask.level.get() == 2
+            && ask.strain == Strain::Clubs)
+            .then(|| {
+                calls
+                    .get(k + 3)
+                    .map_or("end".to_owned(), ToString::to_string)
+            })
+    };
+    match (call(a), call(b)) {
+        (Some(x), Some(y)) => Some(format!("on {x} / off {y}")),
+        _ => Some("(other)".to_owned()),
+    }
+}
+
 /// `count` deals, board `i` seeded `base + i`, so every arm of an experiment
 /// replays the identical stream (the seed-hygiene invariant the A/B scripts
 /// rely on — one `SEED_BASE` shared across arms).  Bidding is pure and

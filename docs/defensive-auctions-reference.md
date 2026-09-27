@@ -449,7 +449,8 @@ IMPs/board PD over eight sub-lanes, and no cell is above 0.002. The
 knobs, all off for measured reasons, so what is left there is a
 re-measure, not authoring. The transfer defence re-measure could recover
 at most ≈ 0.002 IMPs/board. The Stayman defence's `stale-pop` re-measure
-stays owed in `bidding-options.md`. Their strong `2♣` has no book node
+(2026-09-27) refuted it as built — SD-PD −0.0052/−0.0043 — but its `X` is
+SD-PD positive and the loss is the owning Pass (`bidding-options.md` A5). Their strong `2♣` has no book node
 (§1), but a new convention for a ≈ 0.001 ceiling doesn't pay. jdh8
 closed the lane and moved on to constructive round-2.
 

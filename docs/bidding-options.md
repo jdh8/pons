@@ -242,7 +242,7 @@ and O2. See [defensive-overcalls.md](defensive-overcalls.md).
 | set_advance_sohl_style (Off/Plain/Transfer) | `ab-sohl-after-double --ns off\|plain\|transfer` | Artificial | Transfer | Transfer clear PD win over flat ladder +0.145/+0.227 IMPs/bd (200k filtered) | fresh | default-on ✓ (Transfer) |
 | set_leaping_michaels | `ab-leaping-michaels --ns on\|off` | Artificial | ON | +1.090/+1.452 IMPs/bd; inference reader prices slam | fresh | default-on ✓ |
 | set_notrump_balancing | `--ns-balancing` | Artificial | OFF | **A5 pass** (`scripts/ab-a5.sh`, JOBS=12, sha 54a1afa): plain +0.0004/−0.0003, PD −0.0002/−0.0013, sd +0.0008/+0.0003 NV/vul — wash on every scorer (all cells CI⊇0), sd shows no real edge (SEED 1783882108) | fresh | opt-in (= floor) |
-| set_stayman_defense | `--ns-defense-to-their-stayman` | Artificial | OFF | lead-directing (DD-invisible), PD wash | stale-pop | opt-in (DD-blind) |
+| set_stayman_defense | `--ns-defense-to-their-stayman`; `scripts/ab-stayman-defense.sh` | Artificial | OFF | **REFUTED as built 2026-09-27** (409.6k/arm/vul vs BBA, `--isolate-defense --filter-1nt`, seed 1790512003, SHA 42bd3282): plain −0.0040/−0.0034, PD −0.0027/−0.0020, sd plain −0.0058/−0.0050, **SD-PD −0.0052 ±0.0021 / −0.0043 ±0.0026** NV/vul, `X` disclosed to the leader. Split (`ab-dump-sd --by stayman`): the lead-directing `X` where the floor passes is **SD-PD +0.44/+0.47 per fired** — the loss is the owning `Pass 50 hcp(0..)` shadowing the v6 floor's natural overcalls (≈ −2.5k/−1.9k SD-PD IMPs) | fresh | opt-in; improve = keep the `X`, give the non-`X` hands back to the floor without the book's rules misreading the floor's `X`/5-card overcalls |
 | set_transfer_defense | `--ns-transfer-defense` | Artificial | OFF | PD wash (+0.006/fired CI⊇0, 640k); plain loss = light-sac artifact | fresh | opt-in (lead-directing) |
 | set_minor_transfer_defense | `--ns-minor-transfer-defense` | Artificial | OFF | **A5 pass** (`scripts/ab-a5.sh`, `--isolate-defense --filter-1nt`): measured LOSS all scorers — plain −0.0041/−0.0064, PD −0.0060/−0.0082, sd(floor) −0.0041/−0.0060 (every cell CI<0; −3.7…−7.0 IMPs/fired). sd is a floor (ab-dump-sd can't disclose the transfer) yet still negative → the lead-direction can't pay its cost (SEED 1783882432) | fresh | stays opt-in (measured loss) |
 | set_diamond_transfer_defense | `--ns-diamond-transfer-defense` | Artificial | OFF | clear loss over 1M `--filter-1nt` boards (387 fired) | fresh | stays opt-in (measured loss) |
@@ -478,7 +478,7 @@ ab-fuzzy-strength gained a `--sd` blind-lead arbitrator.)*
   conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1. set_reading_scope (then `set_alert_reading`) + set_settle_floor refreshed fresh in the A6 pass 2026-07-13.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
   set_floor_rkcb, `NotrumpDefense::{Natural, DirectDont}`, set_landy,
-  set_natural_double_shape, set_stayman_defense.
+  set_natural_double_shape. *(set_stayman_defense re-measured fresh 2026-09-27 — A5.)*
 ## Encoding audit — bool clusters (2026-08-03, repo-wide)
 
 A review of every place two-plus bool knobs encode one multi-way choice — the
