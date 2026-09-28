@@ -61,13 +61,20 @@ fn matches_candle_fixture_bba_v4() {
     );
 }
 
-/// The honest-reading compact net clears the same parity bar.
+/// Each draw of the honest-reading compact net clears the same parity bar.
 #[test]
 fn matches_candle_fixture_bba_v6() {
-    check_fixture(
+    let fixtures = [
         include_str!("../weights/american_bba_v6.fixture.json"),
-        |x| classify_bba_v6(x).iter().map(|(_, l)| *l).collect(),
-    );
+        include_str!("../weights/american_bba_v6_seed2.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed3.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed4.fixture.json"),
+    ];
+    for (fixture, blob) in fixtures.into_iter().zip(WEIGHTS_BBA_V6.iter()) {
+        check_fixture(fixture, |x| {
+            forward::<IN_V6>(blob, x).iter().map(|(_, l)| *l).collect()
+        });
+    }
 }
 
 #[test]
@@ -103,11 +110,13 @@ fn folded_v8_columns_are_exactly_zero() {
 /// Export gate: the full corpus scan found and folded exactly 30 constants.
 #[test]
 fn folded_v6_columns_are_exactly_zero() {
-    let w1 = &WEIGHTS_BBA_V6[..HID * IN_V6];
-    let zero = (0..IN_V6)
-        .filter(|&i| (0..HID).all(|h| w1[h * IN_V6 + i].to_bits() == 0))
-        .count();
-    assert_eq!(zero, 30, "v6 artifact was not folded against its corpus");
+    for blob in WEIGHTS_BBA_V6.iter() {
+        let w1 = &blob[..HID * IN_V6];
+        let zero = (0..IN_V6)
+            .filter(|&i| (0..HID).all(|h| w1[h * IN_V6 + i].to_bits() == 0))
+            .count();
+        assert_eq!(zero, 30, "v6 artifact was not folded against its corpus");
+    }
 }
 
 #[test]
@@ -335,13 +344,14 @@ fn v7_later_calls_change_the_answer() {
     );
 }
 
-/// A mean of copies of the shipped blob is the shipped net, bit for bit —
-/// the floor sweep's `american-file` arm is inert on the seed-1 artifact.
+/// A mean of copies of one blob is that blob's net, bit for bit — the floor
+/// sweep's `american-file` arm is inert on a single artifact.
 #[test]
-fn v6_mean_of_copies_is_the_shipped_net() {
+fn v6_mean_of_copies_is_the_single_net() {
     let fx: serde_json::Value =
         serde_json::from_str(include_str!("../weights/american_bba_v6.fixture.json")).unwrap();
-    let blobs = [WEIGHTS_BBA_V6.clone(), WEIGHTS_BBA_V6.clone()];
+    let seed1 = &WEIGHTS_BBA_V6[0];
+    let blobs = [seed1.clone(), seed1.clone()];
     for row in fx["features"].as_array().unwrap() {
         let x: Vec<f32> = row
             .as_array()
@@ -349,13 +359,16 @@ fn v6_mean_of_copies_is_the_shipped_net() {
             .iter()
             .map(|v| v.as_f64().unwrap() as f32)
             .collect();
-        let shipped: Vec<f32> = classify_bba_v6(&x).iter().map(|(_, l)| *l).collect();
+        let single: Vec<f32> = forward::<IN_V6>(seed1, &x)
+            .iter()
+            .map(|(_, l)| *l)
+            .collect();
         for k in 1..=2 {
             let mean: Vec<f32> = classify_v6_mean(&blobs[..k], &x)
                 .iter()
                 .map(|(_, l)| *l)
                 .collect();
-            assert_eq!(mean, shipped);
+            assert_eq!(mean, single);
         }
     }
 }

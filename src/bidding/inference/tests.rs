@@ -492,6 +492,17 @@ fn readings_admit_the_bidder() {
                     {
                         continue;
                     }
+                    // No deal holds this hand: the other seats' announced
+                    // minimums leave it too few of the 40 HCP.  A reading
+                    // owes nothing to an impossible bidder.
+                    let before = partnership.infer(RelativeVulnerability::NONE, node);
+                    let others: u8 = [Relative::Lho, Relative::Partner, Relative::Rho]
+                        .into_iter()
+                        .map(|who| before.announced(who).strength.hcp.min)
+                        .sum();
+                    if others + crate::bidding::constraint::raw_hcp(hand) > 40 {
+                        continue;
+                    }
                     let made = chosen_call(&partnership, hand, node);
                     // After `made` and a pass, the seat to act is the bidder's
                     // partner, so `Relative::Partner` is the seat replayed.

@@ -181,6 +181,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The default floor is now a K = 4 logit-mean ensemble (2026-09-28).**
+  `neural::classify_bba_v6` averages the logits of four embedded draws of
+  the unchanged v6 recipe (`--init-seed 1..=4`; seed 1 is the previous
+  shipped blob, seeds 2–4 are `weights/american_bba_v6_seed{2,3,4}.f32`),
+  so `american()` and every `with_floor_v6` sibling (`american_with_card`,
+  `american_with_compact`, `american_floor`) flip together. Bytes and
+  summation order match the measured `american-file` arm (sha256-pinned in
+  `ab-results/sweep-k4/README`). **Measured** (`sweep-k4`, vs BBA, 204,800
+  bd/arm/vul, `SEED_BASE=1790574650`): plain DD **+0.0453 ±0.0084 / +0.0562
+  ±0.0101**, PD **+0.0572 ±0.0092 / +0.0774 ±0.0111**, sd-PD **+0.0507 /
+  +0.0672** (none / both) — *win / win*; doubled contracts 5.57% → 5.60%,
+  redoubled auctions 434 → 403. The five floor rails re-arbitrate as still
+  earning under the ensemble (+0.028 / +0.034 plain, +0.021 / +0.025 PD).
+  **Cost (KR3):** +65 µs/board per member, bidding-only latency 2.2×, ~1%
+  of a solver-bound A/B; crate grows by 1.45 MB of weights. Two floor-choice
+  pins in `defense/overcall/tests.rs` re-pinned; `readings_admit_the_bidder`
+  now skips hands no deal can hold (the node's announced HCP minimums plus
+  the hand's exceed 40) — the ensemble's `3♦` with 16–17 HCP after
+  `1♠ 1NT (X)` was the only witness. **Impact:** default bidding changes;
+  +0.045–0.077 IMPs/board.
 - **`set_stayman_defense`: the doubler's rebid (2026-09-28); still opt-in —
   the plain-DD loss is gone, both SD columns CI-clear positive.** After
   `(1NT) - (2♣) X (2♦/2♥/2♠) -` the doubler passes their `2NT`/`3NT` (the

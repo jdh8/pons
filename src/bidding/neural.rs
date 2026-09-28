@@ -143,19 +143,33 @@ const IN_V6: usize = FEATURES_LEN_V6;
 
 /// Compact-config weights retrained on the live authored reading.  Whole-hand
 /// points and the four fit-specific support ranges are separate inputs.
-static RAW_BBA_V6: &[u8] = include_bytes!("weights/american_bba_v6.f32");
-const _: () = assert!(
-    RAW_BBA_V6.len() == total(IN_V6) * 4,
-    "honest-reading BBA weights artifact size mismatch"
-);
+///
+/// Four draws of one recipe (`--init-seed 1..=4`, seed 1 first): the shipped
+/// floor is their logit mean (`docs/ai-bidder/floor-sweep.md` Phase 1).
+static RAW_BBA_V6: [&[u8]; 4] = [
+    include_bytes!("weights/american_bba_v6.f32"),
+    include_bytes!("weights/american_bba_v6_seed2.f32"),
+    include_bytes!("weights/american_bba_v6_seed3.f32"),
+    include_bytes!("weights/american_bba_v6_seed4.f32"),
+];
+const _: () = {
+    let mut i = 0;
+    while i < RAW_BBA_V6.len() {
+        assert!(
+            RAW_BBA_V6[i].len() == total(IN_V6) * 4,
+            "honest-reading BBA weights artifact size mismatch"
+        );
+        i += 1;
+    }
+};
 
-static WEIGHTS_BBA_V6: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V6));
+static WEIGHTS_BBA_V6: LazyLock<[Vec<f32>; 4]> = LazyLock::new(|| RAW_BBA_V6.map(decode));
 
-/// Evaluate the v6 BBA-distilled floor: 176 features → 38 logits.
+/// Evaluate the v6 BBA-distilled floor: 176 features → 38 logits, the logit
+/// mean of the four embedded draws ([`classify_v6_mean`]).
 #[must_use]
 pub fn classify_bba_v6(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
-    forward::<IN_V6>(&WEIGHTS_BBA_V6, features)
+    classify_v6_mean(&*WEIGHTS_BBA_V6, features)
 }
 
 /// Float count of a v6-shaped blob, for callers that load one at run time.
@@ -165,7 +179,7 @@ pub const V6_FLOATS: usize = total(IN_V6);
 ///
 /// The floor sweep's ensemble arm (`docs/ai-bidder/floor-sweep.md` Phase 1).
 /// Logits, not probabilities, are averaged: consumers read margins, not odds.
-/// One blob reproduces [`classify_bba_v6`] bit for bit when it is that artifact.
+/// The four embedded draws, in order, reproduce [`classify_bba_v6`] bit for bit.
 #[must_use]
 pub fn classify_v6_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");

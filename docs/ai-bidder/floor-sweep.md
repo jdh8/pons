@@ -1,8 +1,8 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
-**Status: Phase 1 won (2026-09-28) — K = 4 ensemble, win / win on every
-cell; the five rails re-arbitrate as still earning. Owed: embed + flip,
-then K = 8 and Phase 2 (jdh8's calls).** Precondition met: jdh8 kicked the
+**Status: Phase 1 shipped (2026-09-28) — K = 4 ensemble, win / win on
+every cell; the five rails re-arbitrate as still earning; embedded and
+flipped as the default floor. Owed: K = 8 and Phase 2 (jdh8's calls).** Precondition met: jdh8 kicked the
 sweep off, un-deferring *training-only* work. The 2026-09-26 deferral was of retrains that
 need a dump (hours) or a relabel (the fleet-week); this plan needs neither.
 Every step below is a 10-minute train on the SSD corpus plus a 90-minute A/B.
@@ -208,8 +208,12 @@ gain K = 4 has not shown is unsaturated — jdh8's call.
 1. ~~KR3 timing, bidding-only, `K = 1` vs `K = 4`.~~ Done above.
 2. ~~Rail re-arbitration of the five shipped rails against the ensemble.~~
    Done below.
-3. Embed the three extra blobs; `american()` becomes the mean; re-bless
-   `smoke-default`; CHANGELOG.
+3. ~~Embed the three extra blobs; `american()` becomes the mean.~~ Done:
+   `neural::classify_bba_v6` is the mean of four embedded draws, so every
+   `with_floor_v6` path flips at once. The KR1 proof is the A/B itself: the
+   embedded bytes are the sha256-pinned `sweep-k4` blobs, in the measured
+   order (float summation is order-sensitive), through the same
+   `classify_v6_mean`.
 4. `K = 8` (seeds 5–8) — the plan's "only if `K = 4` wins" branch is now
    live; timing from 1. can veto it.
 
