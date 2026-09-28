@@ -1,9 +1,9 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
-**Status: Phase 0 read (2026-09-28) — reseeds swing CI-clear, and in one
-direction; see § Phase 0 verdict.** Phase 1 is next but its reading needs the
-shell caveat below. Precondition met: jdh8 kicked the sweep off, un-deferring
-*training-only* work. The 2026-09-26 deferral was of retrains that
+**Status: Phase 1 won (2026-09-28) — K = 4 ensemble, win / win on every
+cell; the five rails re-arbitrate as still earning. Owed: embed + flip,
+then K = 8 and Phase 2 (jdh8's calls).** Precondition met: jdh8 kicked the
+sweep off, un-deferring *training-only* work. The 2026-09-26 deferral was of retrains that
 need a dump (hours) or a relabel (the fleet-week); this plan needs neither.
 Every step below is a 10-minute train on the SSD corpus plus a 90-minute A/B.
 
@@ -206,11 +206,29 @@ gain K = 4 has not shown is unsaturated — jdh8's call.
 
 **Owed before the flip** (rule 6 and Phase 1's own gates):
 1. ~~KR3 timing, bidding-only, `K = 1` vs `K = 4`.~~ Done above.
-2. Rail re-arbitration of the five shipped rails against the ensemble.
+2. ~~Rail re-arbitration of the five shipped rails against the ensemble.~~
+   Done below.
 3. Embed the three extra blobs; `american()` becomes the mean; re-bless
    `smoke-default`; CHANGELOG.
 4. `K = 8` (seeds 5–8) — the plan's "only if `K = 4` wins" branch is now
    live; timing from 1. can veto it.
+
+**Rail re-arbitration (2026-09-28).** One lumped arm, not five:
+`scripts/ab-floor-rails.sh` adds `norail` (K = 4, all five rails off) to
+`sweep-k4` on the same `SEED_BASE` and blobs, so `file` is the rails-on
+control. The rails still earn, CI-clear by 7–10σ on every cell:
+
+| rails on vs off, K = 4 | plain none / both | PD none / both | sd-PD none / both | fired |
+| --- | --- | --- | --- | --- |
+| this run | +0.0283 / +0.0344 | +0.0212 / +0.0252 | +0.0196 / +0.0242 | 0.54% / 0.58% |
+| sum of the five seed-1 ship cells | +0.0285 / +0.0366 | +0.0398 / +0.0496 | | |
+
+Plain is unchanged from seed 1's sum. PD is about half, the expected
+overlap: the ensemble already drops some of the junk doubles the rails
+were vetoing (Phase 1's doubled-contract table). The lumped arm cannot show
+that each rail is positive on its own; the two smallest, the game-pull and
+2NT-bid vetoes, could have gone inert. They were never large enough to
+decide the flip, so they stay on.
 
 No second-`SEED_BASE` confirmation: the plan's seed-2 confirmation is
 for Phase 2 recipe axes, and every cell here clears its CI by ≥ 4×.
@@ -312,6 +330,7 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-28 | `sweep-seed2` (SEED_BASE 1790532496) | 2 | none (reseed) | **+0.0215 ±0.0105** / +0.0085 ±0.0125 | −0.0019 ±0.0116 / −0.0037 ±0.0139 | +0.0100 ±0.0116 / +0.0040 ±0.0139 | *suspect* row; a reseed |
 | 2026-09-28 | `sweep-seed3` (SEED_BASE 1790537586) | 3 | none (reseed) | **+0.0154 ±0.0106** / +0.0063 ±0.0127 | **−0.0195 ±0.0117** / **−0.0153 ±0.0140** | −0.0002 ±0.0117 / +0.0011 ±0.0140 | *suspect* row; a reseed |
 | 2026-09-28 | `sweep-k4` (SEED_BASE 1790574650) | 1–4 | K = 4 logit mean (Phase 1) | **+0.0453 ±0.0084** / **+0.0562 ±0.0101** | **+0.0572 ±0.0092** / **+0.0774 ±0.0111** | **+0.0507 ±0.0093** / **+0.0672 ±0.0111** | **win / win** — ship after timing + rail re-arbitration |
+| 2026-09-28 | `sweep-k4` `norail` (SEED_BASE 1790574650) | 1–4 | K = 4, five rails off; read as rails on − off | **+0.0283 ±0.0030** / **+0.0344 ±0.0035** | **+0.0212 ±0.0030** / **+0.0252 ±0.0035** | **+0.0196 ±0.0029** / **+0.0242 ±0.0035** | rails still earn — keep all five |
 
 ## Out of scope
 
