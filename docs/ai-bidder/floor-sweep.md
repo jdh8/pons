@@ -178,8 +178,34 @@ gain (+0.045 / +0.056) is 2–4× a single reseed's, i.e. more than "the
 shipped draw was below its recipe's mean" — the variance reduction
 itself is worth IMPs.
 
+**KR3 timing (2026-09-28).** `examples/floor-timing.rs`: pons vs pons,
+both sides on the floor under test, 20,000 seeded boards, single thread,
+three interleaved repetitions, the box lightly loaded:
+
+| floor | µs/board | µs/call |
+| --- | ---: | ---: |
+| `american` (embedded, K = 1) | 156–164 | 15.5–16.3 |
+| `american-file`, K = 1 (shipped blob) | 159–166 | 15.7–16.4 |
+| `american-file`, K = 2 | 221–231 | 22.1–23.1 |
+| `american-file`, K = 4 | 351–358 | 35.0–35.8 |
+
+Linear, **+65 µs/board per extra member**, so K = 4 is 2.2× the bidding
+latency and K = 8 extrapolates to ~620 µs/board (~3.9×). The prediction
+above ("~10 µs per contested off-book decision") was wrong by the call
+count, not the pass cost: 65 µs ÷ ~3.2 µs per forward pass ≈ 20 passes per
+board, i.e. **about two per call, on every call**, not on the ~10% that
+diverge. Where the net runs on book-answered calls (the shell, a reading, a
+cache miss) is unexplained and is the cheapest KR3 lever if it matters.
+In the real harness the cost mostly vanishes behind BBA and the solver:
+`sweep-k4` generation took 105 → 112 s (none) and 104 → 112 s (both),
++7%, and generation is ~7 of the run's 62 minutes.
+
+Reading: K = 4 passes KR3 (the solver-bound pipeline slows ~1%; raw
+bidding latency is still ~0.35 ms/board). K = 8 doubles that again for a
+gain K = 4 has not shown is unsaturated — jdh8's call.
+
 **Owed before the flip** (rule 6 and Phase 1's own gates):
-1. KR3 timing, bidding-only, `K = 1` vs `K = 4`.
+1. ~~KR3 timing, bidding-only, `K = 1` vs `K = 4`.~~ Done above.
 2. Rail re-arbitration of the five shipped rails against the ensemble.
 3. Embed the three extra blobs; `american()` becomes the mean; re-bless
    `smoke-default`; CHANGELOG.

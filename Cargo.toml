@@ -217,6 +217,11 @@ path = "examples/probe-divergence/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "floor-timing"
+path = "examples/floor-timing.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "probe-layer-replay"
 path = "examples/probe-layer-replay.rs"
 required-features = ["serde"]
