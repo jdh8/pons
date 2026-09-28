@@ -155,6 +155,40 @@ candidate `K`; the forward pass is ~3 µs per decision at ~40 GMAC/s, so
 `K = 4` should add ~10 µs per contested off-book decision — confirm it,
 and let a measurable slowdown veto `K = 8`.
 
+## Phase 1 verdict (2026-09-28)
+
+**K = 4 wins every cell, on every scorer**, CI-clear by 4–7σ; row in the
+ledger. Fired 9.97% (none), 8.70% (both), +0.45 to +0.89 IMPs/fired. sd
+plain +0.0409 ±0.0088 / +0.0502 ±0.0103. Decision table: *win / win*.
+
+The PD column is the news. Each member alone lands on the *suspect* row
+(plain up, PD down); their logit mean lands on neither: PD is the
+**largest** column, and the junk-double signature is gone —
+
+| none, all 204,800 boards × 2 tables | doubled contracts | auctions ending `XX` |
+| --- | ---: | ---: |
+| shipped (this run's control) | 5.57% | 434 |
+| K = 4 | 5.60% | 403 |
+| (both vul: shipped / K = 4) | 4.67% / 4.62% | 434 / 383 |
+
+So Phase 0's reading holds in the direction it predicted: the reseeds'
+PD tax was idiosyncratic per-draw junk, which averaging cancels, and the
+seed-1 shell does not need re-fitting to serve the ensemble. The plain
+gain (+0.045 / +0.056) is 2–4× a single reseed's, i.e. more than "the
+shipped draw was below its recipe's mean" — the variance reduction
+itself is worth IMPs.
+
+**Owed before the flip** (rule 6 and Phase 1's own gates):
+1. KR3 timing, bidding-only, `K = 1` vs `K = 4`.
+2. Rail re-arbitration of the five shipped rails against the ensemble.
+3. Embed the three extra blobs; `american()` becomes the mean; re-bless
+   `smoke-default`; CHANGELOG.
+4. `K = 8` (seeds 5–8) — the plan's "only if `K = 4` wins" branch is now
+   live; timing from 1. can veto it.
+
+No second-`SEED_BASE` confirmation: the plan's seed-2 confirmation is
+for Phase 2 recipe axes, and every cell here clears its CI by ≥ 4×.
+
 ## Phase 2 — the recipe's free parameters, one axis at a time
 
 Each axis: train at two seeds (both GPUs, 10 min), reject on failed-to-train
@@ -251,6 +285,7 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-09-28 | `sweep-seed2` (SEED_BASE 1790532496) | 2 | none (reseed) | **+0.0215 ±0.0105** / +0.0085 ±0.0125 | −0.0019 ±0.0116 / −0.0037 ±0.0139 | +0.0100 ±0.0116 / +0.0040 ±0.0139 | *suspect* row; a reseed |
 | 2026-09-28 | `sweep-seed3` (SEED_BASE 1790537586) | 3 | none (reseed) | **+0.0154 ±0.0106** / +0.0063 ±0.0127 | **−0.0195 ±0.0117** / **−0.0153 ±0.0140** | −0.0002 ±0.0117 / +0.0011 ±0.0140 | *suspect* row; a reseed |
+| 2026-09-28 | `sweep-k4` (SEED_BASE 1790574650) | 1–4 | K = 4 logit mean (Phase 1) | **+0.0453 ±0.0084** / **+0.0562 ±0.0101** | **+0.0572 ±0.0092** / **+0.0774 ±0.0111** | **+0.0507 ±0.0093** / **+0.0672 ±0.0111** | **win / win** — ship after timing + rail re-arbitration |
 
 ## Out of scope
 
