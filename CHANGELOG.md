@@ -181,6 +181,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Floor sweep: the epochs-600 loss traced, and the campaign doc split
+  (2026-09-29).** `probe-divergence --imps` over both `sweep-ep` cells
+  (27,389 divergent boards): the 600-epoch ensemble is *more conservative*
+  than the shipped K = 4, not looser — it passes where the shipped net bid
+  (−8,691 plain / +7,367 PD IMPs over 11,386 boards) and misses games; no
+  auction node loses more than 98 IMPs; doubled finals fall 5.60 → 5.37%.
+  Nothing reads the floor's logit scale (rails are `-∞` masks, the table
+  argmaxes, the sampler margin fires only at authored nodes), so the
+  "shell fitted to 300-epoch logits" hypothesis is retired. The labels are
+  BBA's calls; fitting them better bids more like BBA, and plain DD rewards
+  the shipped net's accidental aggression while PD prices it at zero. No
+  bidding change. `docs/ai-bidder/floor-sweep.md` now holds the rules, the
+  shipped state, one line per closed axis, the next steps (a Pass-offset
+  A/B on the epochs-600 blobs, 150 epochs, then `--hidden` and `--lr`) and
+  the ledger; the verdict narratives and this trace moved verbatim to
+  `docs/archive/floor-sweep-verdicts.md`.
+
 - **The default floor is now a K = 4 logit-mean ensemble (2026-09-28).**
   `neural::classify_bba_v6` averages the logits of four embedded draws of
   the unchanged v6 recipe (`--init-seed 1..=4`; seed 1 is the previous
