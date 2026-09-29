@@ -18,16 +18,19 @@ use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_LEN_V8, TOKEN_L
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
-/// Shape shared by every distilled floor: hidden width and output (call) width.
+/// Shape shared by every embedded distilled floor: hidden width and output (call) width.
 /// Only the input width changes between feature versions.
 const HID: usize = 256;
 const OUT: usize = 38;
-const N_W2: usize = HID * HID;
-const N_W3: usize = OUT * HID;
 
 /// Float count of an MLP with `in_dim` inputs (`W1,b1,W2,b2,W3,b3`).
 const fn total(in_dim: usize) -> usize {
-    HID * in_dim + HID + N_W2 + HID + N_W3 + OUT
+    total_h(in_dim, HID)
+}
+
+/// [`total`] at hidden width `hid`.
+const fn total_h(in_dim: usize, hid: usize) -> usize {
+    hid * in_dim + hid + hid * hid + hid + OUT * hid + OUT
 }
 
 /// Decode a little-endian `f32` weights blob.
@@ -65,21 +68,26 @@ pub(super) fn relu<const R: usize>(v: &mut SVector<f32, R>) {
 /// Run the MLP: `IN` features → 38 logits in `Call`-index (`encode_call`)
 /// order. `weights` is the layer-ordered blob for an `IN`-input net.
 fn forward<const IN: usize>(weights: &[f32], x: &[f32]) -> Logits {
-    let (w1, rest) = weights.split_at(HID * IN);
-    let (b1, rest) = rest.split_at(HID);
-    let (w2, rest) = rest.split_at(N_W2);
-    let (b2, rest) = rest.split_at(HID);
-    let (w3, b3) = rest.split_at(N_W3);
+    forward_h::<IN, HID>(weights, x)
+}
+
+/// [`forward`] at hidden width `H`.
+fn forward_h<const IN: usize, const H: usize>(weights: &[f32], x: &[f32]) -> Logits {
+    let (w1, rest) = weights.split_at(H * IN);
+    let (b1, rest) = rest.split_at(H);
+    let (w2, rest) = rest.split_at(H * H);
+    let (b2, rest) = rest.split_at(H);
+    let (w3, b3) = rest.split_at(OUT * H);
 
     let x = SVectorView::<f32, IN>::from_slice(x).into_owned();
 
-    let mut h1 = affine::<HID, IN>(w1, b1, &x);
+    let mut h1 = affine::<H, IN>(w1, b1, &x);
     relu(&mut h1);
 
-    let mut h2 = affine::<HID, HID>(w2, b2, &h1);
+    let mut h2 = affine::<H, H>(w2, b2, &h1);
     relu(&mut h2);
 
-    let z = affine::<OUT, HID>(w3, b3, &h2);
+    let z = affine::<OUT, H>(w3, b3, &h2);
 
     // The net's output dim `i` is the logit for `decode_call(i)`, and
     // `iter_mut()` visits slots in that same index order — so a positional zip
@@ -172,8 +180,27 @@ pub fn classify_bba_v6(features: &[f32]) -> Logits {
     classify_v6_mean(&*WEIGHTS_BBA_V6, features)
 }
 
-/// Float count of a v6-shaped blob, for callers that load one at run time.
-pub const V6_FLOATS: usize = total(IN_V6);
+/// Hidden widths a run-time v6 blob may have (`docs/ai-bidder/floor-sweep.md`,
+/// the `--hidden` axis); the embedded nets are all 256.
+pub const V6_WIDTHS: [usize; 3] = [128, 256, 512];
+
+/// The hidden width of a v6 blob `floats` long, if it is one of [`V6_WIDTHS`].
+///
+/// The float count is strictly increasing in the width, so it names one.
+#[must_use]
+pub fn v6_width(floats: usize) -> Option<usize> {
+    V6_WIDTHS.into_iter().find(|&h| total_h(IN_V6, h) == floats)
+}
+
+/// One v6 blob's forward pass at the width its length names.
+fn forward_v6(blob: &[f32], features: &[f32]) -> Logits {
+    match v6_width(blob.len()) {
+        Some(128) => forward_h::<IN_V6, 128>(blob, features),
+        Some(256) => forward_h::<IN_V6, 256>(blob, features),
+        Some(512) => forward_h::<IN_V6, 512>(blob, features),
+        _ => panic!("{} floats is no v6 blob of width {V6_WIDTHS:?}", blob.len()),
+    }
+}
 
 /// Evaluate a **logit mean** over run-time v6 blobs: 176 features → 38 logits.
 ///
@@ -183,9 +210,9 @@ pub const V6_FLOATS: usize = total(IN_V6);
 #[must_use]
 pub fn classify_v6_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
-    let mut mean = forward::<IN_V6>(&blobs[0], features);
+    let mut mean = forward_v6(&blobs[0], features);
     for blob in &blobs[1..] {
-        for ((_, sum), (_, x)) in mean.iter_mut().zip(forward::<IN_V6>(blob, features).iter()) {
+        for ((_, sum), (_, x)) in mean.iter_mut().zip(forward_v6(blob, features).iter()) {
             *sum += x;
         }
     }

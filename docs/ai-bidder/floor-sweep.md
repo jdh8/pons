@@ -129,11 +129,10 @@ confirmed direction; do not grid.
    stays closed. Unmeasured: no ledger row until it runs.
 2. **`--epochs 150`** — the same question from the other side, no code.
    Expected more aggressive and less faithful; read it beside 1.
-3. **`--hidden` 512, and 128.** The in-crate `forward` fixes `HID = 256` as
-   a `const`, so a width arm needs `total`/`forward` generic over the hidden
-   width and a `hidden` field in the sidecar — a small, contained change in
-   `neural.rs`. If 128 measures equal, ship 128: a KR3 win with a KR1
-   non-inferiority proof (CLAUDE.md, checklist item 12).
+3. **`--hidden` 512, and 128.** Wired 2026-09-29: a run-time blob's length
+   names its width (`neural::v6_width`), no sidecar needed. If 128 measures
+   equal, ship 128: a KR3 win with a KR1 non-inferiority proof (CLAUDE.md,
+   checklist item 12).
 4. **`--lr` 3e-4** at 300 epochs. The trainer has no schedule; if this axis
    shows anything, add `--lr-schedule cosine` as a flag and retry once.
 5. **Root cause, deferred (relabel-grade).** The rollout-override rows are
@@ -151,8 +150,9 @@ If Phase 2 found nothing, Phase 1's ensemble alone is the deliverable.
 ## Wiring — the only code (built 2026-09-28)
 
 - `neural::classify_v6_mean(blobs, features) -> Logits`: the elementwise
-  logit mean of `forward::<IN_V6>` over `blobs`; `neural::decode` and
-  `neural::V6_FLOATS` are public for loaders. A mean of copies of the
+  logit mean of the v6 forward pass over `blobs`, each at the hidden width
+  its length names (`neural::v6_width`: 128, 256 or 512, built 2026-09-29
+  for the `--hidden` axis); `neural::decode` is public for loaders. A mean of copies of the
   shipped blob is the shipped net bit for bit
   (`v6_mean_of_copies_is_the_shipped_net`).
 - `ConfiguredFloorV6::new_mean` — the same shell (rails, mask, gates) over
@@ -167,9 +167,8 @@ If Phase 2 found nothing, Phase 1's ensemble alone is the deliverable.
   candidate arm `--our-floor american-file`; it logs each blob's
   `sha256sum` beside `SEED_BASE` and pins them in `$R/weights`, so a resume
   with other blobs fails loudly.
-- Trainer: `--init-seed` and `--device-index` already exist. Width needs
-  the sidecar `hidden` field read at load; a schedule needs a flag. Nothing
-  else.
+- Trainer: `--init-seed`, `--device-index` and `--hidden` already exist; a
+  schedule needs a flag. Nothing else.
 
 ## Runbook
 

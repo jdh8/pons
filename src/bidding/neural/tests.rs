@@ -239,9 +239,9 @@ fn reference_lstm(weights: &[f32], features: &[f32], tokens: &[[f32; TOKEN_LEN_V
     // The head, as three explicit affine layers with ReLU between.
     let (w1, rest) = head.split_at(HID * IN_HEAD);
     let (b1, rest) = rest.split_at(HID);
-    let (w2, rest) = rest.split_at(N_W2);
+    let (w2, rest) = rest.split_at(HID * HID);
     let (b2, rest) = rest.split_at(HID);
-    let (w3, b3) = rest.split_at(N_W3);
+    let (w3, b3) = rest.split_at(OUT * HID);
     let layer = |w: &[f32], b: &[f32], x: &[f64], out: usize| -> Vec<f64> {
         (0..out)
             .map(|r| {
@@ -370,5 +370,25 @@ fn v6_mean_of_copies_is_the_single_net() {
                 .collect();
             assert_eq!(mean, single);
         }
+    }
+}
+
+/// A run-time blob's length names its hidden width, and every width lays out
+/// `b3` last: an all-zero net with only `b3` set returns `b3`.
+#[test]
+fn v6_blob_width_is_read_off_its_length() {
+    for h in V6_WIDTHS {
+        let n = total_h(IN_V6, h);
+        assert_eq!(v6_width(n), Some(h));
+        assert_eq!(v6_width(n + 1), None);
+        let mut blob = vec![0.0; n];
+        for (i, b) in blob[n - OUT..].iter_mut().enumerate() {
+            *b = i as f32;
+        }
+        let logits: Vec<f32> = classify_v6_mean(&[blob], &[1.0; IN_V6])
+            .iter()
+            .map(|(_, l)| *l)
+            .collect();
+        assert_eq!(logits, (0..OUT).map(|i| i as f32).collect::<Vec<_>>());
     }
 }

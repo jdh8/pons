@@ -799,10 +799,10 @@ fn floor_blobs() -> anyhow::Result<std::sync::Arc<[Vec<f32>]>> {
     for path in paths.split(',') {
         let blob = pons::bidding::neural::decode(&std::fs::read(path)?);
         anyhow::ensure!(
-            blob.len() == pons::bidding::neural::V6_FLOATS,
-            "{path}: {} floats, a v6 blob has {}",
+            pons::bidding::neural::v6_width(blob.len()).is_some(),
+            "{path}: {} floats is no v6 blob of width {:?}",
             blob.len(),
-            pons::bidding::neural::V6_FLOATS
+            pons::bidding::neural::V6_WIDTHS
         );
         blobs.push(blob);
     }

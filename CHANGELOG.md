@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Width-generic run-time v6 blobs (2026-09-29): `neural::v6_width`,
+  `neural::V6_WIDTHS` (replaces `neural::V6_FLOATS`).** A file-loaded floor
+  blob may now be 128, 256 or 512 wide; its length names the width, so no
+  sidecar is read. This is the floor sweep's `--hidden` axis
+  (`docs/ai-bidder/floor-sweep.md` Next item 3). The embedded nets stay 256
+  and run the same arithmetic. **Impact:** none on the default system;
+  API- and example-side only.
 - **The floor sweep's file-loaded arm (2026-09-28): `american-file`,
   `american::american_mean`, `neural::classify_v6_mean`,
   `scripts/ab-floor-file.sh`.** A candidate net is now a file, not a build:

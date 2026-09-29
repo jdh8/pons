@@ -181,12 +181,16 @@ impl ConfiguredFloorV6 {
     ///
     /// # Panics
     ///
-    /// When `blobs` is empty or a blob is not [`neural::V6_FLOATS`] long.
+    /// When `blobs` is empty or a blob's length names no width in
+    /// [`neural::V6_WIDTHS`].
     #[must_use]
     pub fn new_mean(compact: CompactConfig, ladder: Arc<Rules>, blobs: Arc<[Vec<f32>]>) -> Self {
         assert!(!blobs.is_empty(), "an ensemble needs a blob");
         for blob in blobs.iter() {
-            assert_eq!(blob.len(), neural::V6_FLOATS, "not a v6-shaped blob");
+            assert!(
+                neural::v6_width(blob.len()).is_some(),
+                "not a v6-shaped blob"
+            );
         }
         Self(compact, ladder, Net::Mean(blobs))
     }
