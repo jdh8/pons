@@ -315,6 +315,32 @@ under-fit and weight decay is the wrong axis. The next axis is 3,
 **`--epochs 600`**. 150 is dropped, because the curve is still descending at
 300.
 
+## Phase 2 axis 3 verdict — `--epochs 600` (2026-09-29, `sweep-ep`, SEED_BASE 1790668875)
+
+The arm is the K = 4 mean of init seeds 1–4 trained for 600 epochs; the
+control is the shipped K = 4. The trainer has no schedule, and seed 1's
+epoch-300 line reproduces the shipped val_ce (0.4163), so each arm net is
+the shipped net trained for 300 more epochs. The comparison is clean.
+
+- **Plain: a loss.** DD −0.0104 ±0.0070 (none, CI-clear) / −0.0081 ±0.0084
+  (both). sd plain is a CI-clear loss on both cells (−0.0162 / −0.0114).
+- **PD: a wash.** DD +0.0041 / +0.0018, sd-PD −0.0035 / −0.0032, all inside
+  their CIs.
+- **Held-out CE improves while the calls get worse.** Final val_ce is
+  0.4091 / 0.4118 / 0.4124 / 0.4178, about 0.005 below each seed's
+  epoch-300 value, and top-1 rises 0.2–0.3 pp. The train − val gap stays
+  near 0.027, so this is not classical overfitting. After axis 1, this is
+  the second axis where the imitation metric and IMPs disagree. The shell
+  (rails + collar) was fitted to 300-epoch nets, and sharper logits may
+  cross its thresholds differently. That was Phase 0's lesson, and it is
+  untested here.
+- **Axis direction: do not train longer.** Under the decision table, a plain
+  loss with a PD wash is closer to *loss* than to *inside σ_ens*, so the
+  candidate is discarded. 150 epochs was dropped only because the CE curve
+  was still falling at 300. That reason is now void, so 150 is a live
+  candidate if the budget allows. Next in order is axis 4 (`--hidden`),
+  which needs the `HID`-generic change in `neural.rs`.
+
 ## Phase 2 — the recipe's free parameters, one axis at a time
 
 Each axis: train **four** seeds at the candidate recipe (two per GPU, ~20
@@ -419,6 +445,7 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-29 | `sweep-k8` `k8` (SEED_BASE 1790624432) | 1–8 | K = 8 logit mean | −0.0002 ±0.0055 / +0.0048 ±0.0064 | +0.0048 ±0.0060 / **+0.0076 ±0.0070** | +0.0043 ±0.0060 / **+0.0072 ±0.0071** | on the 1/K prediction; waits for Phase 3 |
 | 2026-09-29 | `sweep-dd` `dd0.1` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 0.1`, K = 4 | −0.0048 ±0.0074 / −0.0018 ±0.0087 | −0.0020 ±0.0081 / −0.0048 ±0.0097 | **−0.0094 ±0.0081** / −0.0091 ±0.0097 | loss-leaning; discard |
 | 2026-09-29 | `sweep-dd` `dd1.0` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 1.0`, K = 4 | **−0.0133 ±0.0074** / **−0.0119 ±0.0088** | −0.0038 ±0.0081 / −0.0091 ±0.0097 | **−0.0132 ±0.0081** / **−0.0144 ±0.0098** | loss / loss — axis closed at 0 |
+| 2026-09-29 | `sweep-ep` `ep600` (SEED_BASE 1790668875) | 1–4 | `--epochs 600`, K = 4 | **−0.0104 ±0.0070** / −0.0081 ±0.0084 | +0.0041 ±0.0077 / +0.0018 ±0.0092 | −0.0035 ±0.0078 / −0.0032 ±0.0092 | plain loss (sd plain CI-clear both), PD wash — discard; do not train longer |
 
 ## Out of scope
 
