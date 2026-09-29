@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Floor sweep epochs follow-ups and Axis 5 reconciled (2026-09-30).** The
+  existing 600-epoch ensemble with Pass bias −0.0205 loses plain DD
+  **−0.0092 / −0.0136** IMPs/board (none / both, 204,800
+  boards/arm/vulnerability); PD is +0.0005 / −0.0092. The offset matched
+  Pass frequency on corpus rows, not live floor decisions. Recorded that
+  calibration limit and the worst-board trace. The 150-epoch candidate
+  failed the training gate on seeds 3 and 4 and never ran an A/B. Completed
+  all four `--lr 3e-4`, 300-epoch draws: seed 1 narrowly exceeds the
+  predeclared CE gate by 0.000181844, so that candidate also has no IMP
+  verdict. **Impact:** no Phase 2 recipe advances; keep the shipped K = 4,
+  256-wide, 300-epoch, `--lr 0.001` floor. No bidding change.
 - **Floor sweep Phase 2 Axis 4 closed (2026-09-30): keep width 256.**
   The 512-wide K = 4 ensemble, 204,800 boards/arm/vulnerability, measures
   plain DD +0.0017 / +0.0110 and PD **−0.0247 / −0.0114** IMPs/board

@@ -1,4 +1,4 @@
-# Floor sweep — verdict narratives, Phase 0 to Phase 2 axis 4 (2026-09-28–30)
+# Floor sweep — verdict narratives, Phase 0 to Phase 2 (2026-09-28–30)
 
 > **Archived 2026-09-29.** Extracted verbatim from
 > [`docs/ai-bidder/floor-sweep.md`](../ai-bidder/floor-sweep.md) at `c35a9036`,
@@ -8,7 +8,8 @@
 > the record of *why* each row reads as it does — the reseed signature and the
 > shell-fit reading (Phase 0), the ensemble's PD column and KR3 timing
 > (Phase 1), σ_ens and K = 8 (seeds 5–8), and the closed recipe axes.
-> Axis 4's width verdict and full divergence trace were added 2026-09-30.
+> Axis 4's width verdict, its full divergence trace, the epochs follow-up
+> reconciliation, and Axis 5's training gate were added 2026-09-30.
 
 ## Phase 0 — the noise floor
 
@@ -462,3 +463,197 @@ table stops at `1NT (X) - - -`; its symmetric baseline instead continues
 `sweep-hid/check-web{,-exact,-parent}.log`. Preserve both routes pending a
 separate investigation of that declared/symmetric mismatch; this width
 trial changes neither route and does not repair or suppress the test.
+
+## Epochs follow-ups — Pass offset and 150 epochs (2026-09-30)
+
+**Keep the shipped 300-epoch ensemble.** The completed Pass-offset arm
+loses on plain DD at both vulnerabilities; 150 epochs failed its training
+gate and was never measured in IMPs. These are verdicts on the two tested
+recipes, not a rejection of every possible epochs treatment.
+
+### What actually ran
+
+`ab-results/sweep-ep150` contains **only the `ep600p` candidate**, despite
+the directory name. Its 2026-09-29 run used `SEED_BASE=1790678007`,
+32 × 6,400 = **204,800 boards/arm/vulnerability**, against the shipped
+K = 4 `american()` control. The recorded SHA is `4d2aa01a`; the README
+discloses an uncommitted width-generic v6 forward pass. The width refactor's
+separate byte-identity proof is recorded in the Axis 4 section above.
+Results finished at `2026-09-29T11:25:26Z`. Sources are the run's `README`,
+`log`, `diff.ep600p.vs.plain.{none,both}.{plain,pd}.txt`, and
+`sd.ep600p.vs.plain.{none,both}.txt`.
+
+`ep600p` is the mean of four 600-epoch blobs with **0.0205 subtracted from
+each Pass output bias**, leaving every other weight untouched. A binary
+comparison on 2026-09-30 verifies exactly one changed float per blob:
+index 120832, `b3[0]`, with the expected f32 rounding of −0.0205. All four
+SHA256 hashes still match `sweep-ep150/weights.ep600p`. No new environment
+flag or library setting was needed: the existing `PONS_FLOOR_WEIGHTS`
+loader consumed `/mnt/ssd-data/jdh8/pons-sweep/ep600p-s{1..4}.f32`.
+
+**Calibration discrepancy:** the plan called for matching Pass rate at
+served floor nodes. The recorded calibration instead matched the net's
+Pass rate on **roughly 423k contested corpus rows**, from 0.7519 to
+the shipped net's 0.7506. Those rows are not the live distribution selected
+by book fall-through and the floor's masks/gates. The corpus rates are
+reported by the historical README/launcher; this reconciliation verified
+the bias edit, not a fresh corpus-rate calculation or a served-node match.
+Thus this run rejects this **corpus-calibrated offset recipe**; it does not
+establish that a floor-node-calibrated tilt was tested. Keep the default
+untouched and preserve that distinction rather than silently treating the
+planned experiment as completed exactly as specified.
+
+| `ep600p` − shipped, IMPs/board (95% CI) | neither vulnerable | both vulnerable |
+| --- | ---: | ---: |
+| plain DD | **−0.0092 ±0.0071** | **−0.0136 ±0.0084** |
+| perfect defense | +0.0005 ±0.0077 | −0.0092 ±0.0092 |
+| sd-lead plain | **−0.0132 ±0.0074** | **−0.0159 ±0.0086** |
+| sd-lead PD | −0.0057 ±0.0078 | **−0.0122 ±0.0092** |
+
+DD fired: **14,712 / 12,637** boards (7.18% / 6.17%). Plain totals are
+−1,886 / −2,791 IMPs, or −0.128 / −0.221 IMPs/fired; PD totals are
++100 / −1,882, or +0.007 / −0.149 IMPs/fired. SD fired: **20,406 / 17,659**
+(9.96% / 8.62%). Plain totals are −2,707 / −3,258 (−0.133 / −0.184 per
+fired); PD totals are −1,168 / −2,497 (−0.057 / −0.141 per fired).
+The rounded DD-PD vulnerable interval touches zero, so it is not called a
+clear loss here. Plain DD already rejects the candidate in both cells,
+and SD-PD provides no rescue. There is no same-seed unshifted-600 arm in
+this run, so these numbers do **not** isolate the offset's incremental
+effect relative to 600 epochs without the offset.
+
+### Bounded worst-board trace
+
+The union of the five worst deals in each of the four DD reports contains
+**11 unique deals**. Repricing those deals at both original vulnerabilities
+produces **17 divergent records** (9 none / 8 both); all **20/20** published
+worst-board swings reproduce exactly. The five other vulnerability-records
+have identical reached contracts and are omitted by `probe-divergence`.
+This is the selected losing tail, not a population sample or a full trace.
+
+The old `probe-layer-replay` executable predated the ensemble loader. With
+no bidding A/B running, it was rebuilt from `af10a57d` without source
+changes, then used with the original candidate blobs and current shipped
+control. **All 209 recorded NS calls replay exactly** across both arms;
+every first differing call in the 17 records is floor-owned. The following
+examples therefore identify floor decisions, rather than guessing from
+the auction alone. Indices below are local to the extracted tail files;
+`selection.json` maps each back to its original shard and row.
+
+| tail record | first differing call, shipped → candidate | consequence |
+| --- | --- | --- |
+| 0, none | South's `4♠ → -` after `2♠ (3♠) 4♥ -` | South has `AQJ854.98.84.Q98`; North has six spades and no hearts. Candidate passes out 4♥ in a two-card combined fit, taking three tricks; control reaches 6♠ making. −16 plain / −21 PD. |
+| 2, both | North's `3♠ → -` after `(1♥) 1♠ (2♥) 3♥ (X)` | North holds `A8752.6.9876.QJT`, and partner holds three spades. Candidate leaves 3♥ doubled in a three-card combined fit, taking two tricks; control defends 5♥ doubled down two. −21 on both scorers. |
+| 3, none / both | North's `2♦ → -` after `1NT (X) - - XX -` | North has zero HCP, `T98.7643.7643.95`. Candidate leaves 1NT redoubled down five. Control escapes to 3♣ by East (none) or 2♦ by North down five (both). Plain −19 / −20; PD −14 / 0. The vulnerable PD wash erases the real redouble difference. |
+| 7, none | South's `5♣ → 5♥` after `(1♠) - (2♠) 4NT -` | South holds `T763.JT87.K.KQ54`; North is 1=0=6=6. Candidate plays 5♥ doubled in a four-card fit, taking two tricks; control plays 5♣ making twelve. −21 on both scorers. |
+| 8, none | North's `X → 5♦` after `3♣ (3♠) - (4♦) - (4NT) - (5♣)` | North holds `QT.8643..KQJT952` and bids diamonds on a void; partner has two. Candidate takes zero tricks in 5♦ doubled, while control defends their making 5♦. −20 on both scorers. |
+
+The selected tail contains **both harmful passes and wrong non-Pass
+choices**. A shared Pass bias cannot repair the ordering of 5♣ versus 5♥
+or double versus 5♦: it moves only Pass relative to the other logits.
+Matching one aggregate Pass rate also cannot say *which* positions should
+pass. Those are mechanisms visible on these boards, not a claim that they
+account for most of the population loss. Some are failures to continue or
+escape an already artificial-looking auction; the verified decisions are
+on the floor, with the same authored book in both arms. This bounded trace
+does not establish a new, isolated missing book continuation that would
+rescue the recipe, nor does it rule out a shared floor improvement.
+
+Artifacts are in `ab-results/sweep-ep150/tail-20260930/`: `extract.py`,
+`selection.json`, the four extracted arm dumps, `trace.{none,both}.jsonl`,
+and `layers.{plain,ep600p}.{none,both}.jsonl` with their logs. Reproduce
+sequentially (build the two probes first only if needed, with no A/B live):
+
+```sh
+R=ab-results/sweep-ep150/tail-20260930
+python3 "$R/extract.py"
+export PONS_FLOOR_WEIGHTS=$(cut -d ' ' -f 3 ab-results/sweep-ep150/weights.ep600p | paste -sd,)
+for vul in none both; do
+  scripts/idle-run.sh target/release/examples/probe-divergence \
+    "$R/ep600p-$vul.json" "$R/plain-$vul.json" \
+    --imps --jsonl "$R/trace.$vul.jsonl" --show 11
+  scripts/idle-run.sh target/release/examples/probe-layer-replay \
+    "$R/ep600p-$vul.json" --floor american-file \
+    --jsonl "$R/trace.$vul.jsonl" --out "$R/layers.ep600p.$vul.jsonl"
+  scripts/idle-run.sh target/release/examples/probe-layer-replay \
+    "$R/plain-$vul.json" --floor american \
+    --jsonl "$R/trace.$vul.jsonl" --out "$R/layers.plain.$vul.jsonl"
+done
+```
+
+### 150 epochs: training gate only
+
+All four 150-epoch seeds finished training and folded 30 constant columns.
+Validation CE from `/mnt/ssd-data/jdh8/pons-sweep/ep150-sN.json`, rounded
+here to nine decimals:
+
+| seed | validation CE | gate |
+| --- | ---: | --- |
+| 1 | 0.422818601 | pass |
+| 2 | 0.424135476 | pass |
+| 3 | 0.427407265 | fail |
+| 4 | 0.430960476 | fail |
+
+The predeclared per-draw gate is shipped seed-1 CE + 0.010 =
+**0.42631942987442017**. The launcher's rounded 0.4263 threshold makes the
+same decisions. `/mnt/ssd-data/jdh8/pons-sweep/launch-ep150.sh` drops the
+whole K = 4 arm when any seed fails; `ab-results/sweep-ep150.log` records
+seeds 3 and 4 being rejected before bidding. Thus **150 epochs has no IMP
+verdict**, and dropping the two weak draws to measure a selected K = 2
+would be a different experiment. No retraining or A/B is owed for this
+already completed gate check; the next planned recipe axis is learning
+rate.
+
+## Phase 2 axis 5 — learning rate training gate (2026-09-30)
+
+**Keep `--lr 0.001`.** All four draws at `--lr 0.0003`, 300 epochs
+completed, but seed 1 narrowly exceeds the predeclared per-draw CE gate.
+The K = 4 candidate therefore never entered A/B: **zero evaluation boards,
+no IMP verdict**. This is a gate rejection of this recipe, not evidence
+that lower learning rates lose at bridge.
+
+| seed | validation CE | gate |
+| --- | ---: | --- |
+| 1 | 0.426501274 | fail |
+| 2 | 0.424732804 | pass |
+| 3 | 0.423721939 | pass |
+| 4 | 0.425541580 | pass |
+
+The cutoff remains shipped seed-1 CE + 0.010 = **0.42631943**. Seed 1
+misses by **0.000181844**; the other three pass. Do not describe this as
+an optimization failure or a measured score loss. Widening the gate or
+dropping seed 1 after seeing these results would change the experiment.
+The planned cosine-schedule follow-up was conditional on a learning-rate
+signal; no IMP signal was obtained, so no schedule was added or tested.
+Phase 2 supplies no replacement recipe; Phase 1's K = 4 stays shipped.
+
+### Reproduction and provenance
+
+Run SHA: `af10a57d8407e1ddadebe0664acbaef4fd39d0a7`. Only learning rate
+changed from the shipped recipe: 176-feature v6 MLP, width 256, 300 epochs,
+zero weight decay and DD weight, batch 4096, validation fraction 0.10,
+init seeds 1–4. The frozen M32 corpus retains its 20 stems in manifest
+order, **6,766,821 rows**, with 6,090,135 train and 676,686 validation rows.
+Each draw folded the same **30 constant input columns**, leaving 146 live.
+No corpus dump, relabel or new bank slice was needed.
+
+The interrupted attempt had stopped seeds 1 and 2 before export. Its logs
+and provenance were preserved under
+`/mnt/ssd-data/jdh8/pons-sweep/lr3e4-interrupted-20260929T183033Z/`.
+The existing `train-lr3e4.py` was rerun under `scripts/idle-run.sh`, one
+draw on each GPU at a time (seeds 1/2, then 3/4). The restart's four
+commands, trainer binary hash and all **60 corpus-file hashes** matched
+the interrupted attempt. No checkpoint was available, so these were fresh
+draws from the same initial seeds. The runner completed with exit 0.
+
+Artifacts are `/mnt/ssd-data/jdh8/pons-sweep/lr3e4-s{1..4}` with `.f32`,
+`.json`, `.fixture.json` and `.log` siblings. `ab-results/sweep-lr/README`
+records the disposition; `training-provenance.json` holds the exact four
+commands, corpus/trainer hashes, gate and SHA; `training-summary.json`
+holds each final CE, folded-blob hash and gate result. No evaluation seed
+was allocated. These training-only artifacts were not embedded or shipped.
+
+Local checks pass: `cargo fmt`, `cargo test --all-features`,
+`cargo +nightly clippy --all-targets --all-features -- -D warnings`, and
+`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`.
+Logs are `ab-results/sweep-lr/check-{fmt,test,clippy,rustdoc}.log`.
+No Rust source or public API changed; `web/` was not rerun.

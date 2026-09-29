@@ -2,11 +2,14 @@
 
 **Status (2026-09-30): Phase 1 shipped — the K = 4 logit-mean ensemble of
 init seeds 1–4 is the default floor (win / win on every cell, rails
-re-arbitrated). Phase 2 axes 1–4 are closed: `--dd-weight` loses, `--wd` is
+re-arbitrated). Phase 2 axes 1–5 are closed: `--dd-weight` loses, `--wd` is
 skipped by its gate, `--epochs 600` loses on plain and washes on PD, and
 `--hidden 512` loses on PD while 128 fails the training gate. Width stays
-256. K = 8 waits for Phase 3. Next: reconcile the completed Pass-offset /
-150-epoch follow-ups, then Axis 5 (`--lr`).** Axis numbers refer to the
+256. The Pass-offset follow-up also loses on plain DD; 150 epochs fails
+the training gate. Axis 5 (`--lr 3e-4`, 300 epochs) completed all four
+draws, but seed 1 narrowly fails the gate; it has no IMP verdict either.
+No Phase 2 recipe advances. Next: Phase 3's K = 8 disposition; K = 4
+remains shipped.** Axis numbers refer to the
 original Phase 2 plan: **Axis 4 is width; Axis 5 is learning rate**, regardless
 of the order of remaining tasks below. Verdict narratives and divergence traces:
 [../archive/floor-sweep-verdicts.md](../archive/floor-sweep-verdicts.md).
@@ -123,28 +126,35 @@ shipped K = 4; detail in the archive.
   128-wide draws fail the CE gate (0.4758–0.4849 vs 0.426319), so **128
   has no IMP verdict**. Details and reproduction in the archive's
   [Axis 4 verdict](../archive/floor-sweep-verdicts.md#phase-2-axis-4-verdict--hidden-width-2026-09-30).
+- **Epochs follow-ups — neither advances.** In `sweep-ep150`, the measured
+  arm is **600 epochs with Pass bias −0.0205**, not 150 epochs. Plain DD
+  loses at both vulnerabilities (−0.0092 / −0.0136 IMPs/board); PD is
+  +0.0005 / −0.0092, and sd-PD loses with both sides vulnerable. The offset
+  matched the raw Pass rate on contested **corpus rows**, not live floor
+  nodes, so this rejects the measured calibration without settling every
+  possible Pass tilt. The 150-epoch seeds have CE 0.422819 / 0.424135 / 0.427407 /
+  0.430960: seeds 3 and 4 exceed 0.42631943, so no A/B ran. Keep 300 epochs.
+  [Verdict and bounded trace](../archive/floor-sweep-verdicts.md#epochs-follow-ups--pass-offset-and-150-epochs-2026-09-30).
+- **Axis 5, `--lr 3e-4` at 300 epochs — training gate rejection.** All four
+  draws completed and folded 30 columns. CE is 0.426501 / 0.424733 /
+  0.423722 / 0.425542; only seed 1 exceeds 0.42631943, by **0.000181844**.
+  The predeclared gate is per draw, so the K = 4 candidate did not enter
+  A/B. This is a narrow gate miss, **not a measured bridge loss**. Keep
+  `--lr 0.001`; no IMP signal triggered the conditional cosine-schedule
+  trial. [Recipe and provenance](../archive/floor-sweep-verdicts.md#phase-2-axis-5--learning-rate-training-gate-2026-09-30).
 
 ## Next
 
-Each axis: train **four** seeds at the candidate recipe (two per GPU, ~20
-min), reject on failed-to-train only (shipped val_ce + 0.010), A/B their
+For any reopened axis: train **four** seeds at the candidate recipe (two per
+GPU, ~20 min), reject on failed-to-train only (shipped val_ce + 0.010), A/B their
 K = 4 mean vs shipped, and read against σ_ens. Stop an axis after one
 confirmed direction; do not grid.
 
-- **Pass-offset A/B on the epochs-600 ensemble.** The four blobs are on
-   disk (`/mnt/ssd-data/jdh8/pons-sweep/ep600-s{1..4}.f32`). Subtract one
-   scalar from the Pass logit at floor nodes, sized so the arm's pass rate at
-   floor nodes matches the shipped floor's; one env var beside
-   `PONS_FLOOR_WEIGHTS`, example-side only, default path untouched. Win or
-   wash on both scorers reopens the epochs axis with the tilt made
-   deliberate; a PD loss says the conservatism was load-bearing and the axis
-   stays closed. **Run already exists in `ab-results/sweep-ep150`; reconcile
-   its verdict before scheduling another run.**
-- **`--epochs 150`** — the same question from the other side, no code.
-   Expected more aggressive and less faithful; read it beside Pass-offset.
-   Training artifacts already exist; their gate/result write-up is pending.
-- **Axis 5, `--lr` 3e-4** at 300 epochs. The trainer has no schedule; if this axis
-   shows anything, add `--lr-schedule cosine` as a flag and retry once.
+- **Phase 3 disposition.** No Phase 2 recipe passed both the training and
+   IMP gates. Phase 1's shipped K = 4 is the deliverable. Decide whether
+   K = 8's existing small PD increment merits a fresh-seed confirmation at
+   its measured 1.8× bidding latency; no K = 8 promotion is implied by
+   closing Phase 2.
 - **Root cause, deferred (relabel-grade).** The rollout-override rows are
    the only IMP-grounded labels. Test whether the states where the sharper
    net reverted to pass neighbour override rows; if so, upweight them. The
@@ -226,6 +236,9 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-29 | `sweep-ep` `ep600` (SEED_BASE 1790668875) | 1–4 | `--epochs 600`, K = 4 | **−0.0104 ±0.0070** / −0.0081 ±0.0084 | +0.0041 ±0.0077 / +0.0018 ±0.0092 | −0.0035 ±0.0078 / −0.0032 ±0.0092 | plain loss (sd plain CI-clear both), PD wash — discard; do not train longer |
 | 2026-09-29 | `sweep-hid` `h512` (SEED_BASE 1790681184; traced 2026-09-30) | 1–4 | `--hidden 512`, K = 4 | +0.0017 ±0.0086 / **+0.0110 ±0.0102** | **−0.0247 ±0.0093** / **−0.0114 ±0.0112** | −0.0080 ±0.0094 / −0.0042 ±0.0113 | *suspect* — broader aggression, keep 256 |
 | 2026-09-29 | `h128` training gate | 1–4 | `--hidden 128`, K = 4 proposed | not run | not run | not run | all four CE values exceed 0.426319; no IMP verdict |
+| 2026-09-29 (reconciled 2026-09-30) | `sweep-ep150` `ep600p` (SEED_BASE 1790678007) | 1–4 | 600 epochs, Pass bias −0.0205, K = 4 | **−0.0092 ±0.0071** / **−0.0136 ±0.0084** | +0.0005 ±0.0077 / −0.0092 ±0.0092 | −0.0057 ±0.0078 / **−0.0122 ±0.0092** | plain loss both cells; no recovery from this corpus-calibrated tilt |
+| 2026-09-29 (reconciled 2026-09-30) | `ep150` training gate | 1–4 | `--epochs 150`, K = 4 proposed | not run | not run | not run | seeds 3/4 exceed 0.42631943; no IMP verdict |
+| 2026-09-30 | `lr3e4` training gate | 1–4 | `--lr 3e-4`, 300 epochs, K = 4 proposed | not run | not run | not run | seed 1 exceeds 0.42631943 by 0.000181844; other seeds pass; no IMP verdict |
 
 ## Out of scope
 
@@ -238,7 +251,8 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 
 ## Open questions for jdh8
 
-1. Un-defer training-only work (the precondition)?
+1. ~~Un-defer training-only work (the precondition)?~~ **Answered 2026-09-28:**
+   training-only sweep authorized; dump/relabel work remains deferred.
 2. ~~Is `K` embedded blobs acceptable for KR3?~~ **Answered 2026-09-28:
    yes, disk is cheap; keep the computation small** (Phase 1's timing check).
 3. ~~Any objection to pricing `--dd-weight`?~~ Taken as no: jdh8 said
