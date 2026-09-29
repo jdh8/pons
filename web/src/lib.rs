@@ -939,12 +939,19 @@ fn declared_agreements() -> [Agreements; 2] {
 }
 
 /// Bind a genuinely mixed table: each side sees the other's card and books.
+///
+/// Identical profiles are self-play and bind undeclared: a declared opponent
+/// reads *every* call of theirs off their book under `ReadingScope::All`, which
+/// is not the shipped self-play reading even when their book is ours.
 fn partnerships() -> (Partnership, Partnership) {
     let [ns_agreements, ew_agreements] = declared_agreements();
     let ns_card = ConventionCard::capture(&ns_agreements);
     let ew_card = ConventionCard::capture(&ew_agreements);
     let ns = american_with_card(&ns_agreements, &ew_card).bind();
     let ew = american_with_card(&ew_agreements, &ns_card).bind();
+    if ns_agreements == ew_agreements {
+        return (ns, ew);
+    }
     (ns.clone().with_opponents(&ew), ew.with_opponents(&ns))
 }
 

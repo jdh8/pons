@@ -940,6 +940,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web: identical profiles bind as self-play (2026-09-30)** — the web app
+  declared each pair's opponent (`Partnership::with_opponents`) even when both
+  pairs played the same profile. Under `ReadingScope::All` a declared
+  opponent's every call reads off their book, which is not the shipped
+  self-play reading; since the K = 4 floor it moved a bid (`1NT (X) - -` passed
+  instead of `XX`), turning CI's `web` job red on 32fc876c.
+  **Impact:** the default web table now bids exactly as `american()`; mixed
+  profiles unchanged. No engine change.
 - **One perfect-defense scorer: `ns_score_bid`; `ns_score_pd` retired
   (2026-09-27)** — the two PD definitions disagreed by ≈0.07 IMPs/board on
   the BEN anchor (`bba-score` re-derived the penalty from the double-dummy
