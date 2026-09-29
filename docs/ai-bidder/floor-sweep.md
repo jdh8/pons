@@ -2,7 +2,11 @@
 
 **Status: Phase 1 shipped (2026-09-28) — K = 4 ensemble, win / win on
 every cell; the five rails re-arbitrate as still earning; embedded and
-flipped as the default floor. Owed: K = 8 and Phase 2 (jdh8's calls).** Precondition met: jdh8 kicked the
+flipped as the default floor. Seeds 5–8 read 2026-09-29: σ_ens is below
+what 204,800 boards resolve, and K = 8 lands on the 1/K prediction, so it
+waits for Phase 3. Phase 2 axis 1 (`--dd-weight`) is a **loss** — the axis
+stays at 0. Axis 2 (`--wd`) is skipped by its own gate; axis 3 (`--epochs
+600`) is next.** Precondition met: jdh8 kicked the
 sweep off, un-deferring *training-only* work. The 2026-09-26 deferral was of retrains that
 need a dump (hours) or a relabel (the fleet-week); this plan needs neither.
 Every step below is a 10-minute train on the SSD corpus plus a 90-minute A/B.
@@ -56,7 +60,8 @@ This one won because:
 3. **One binary per campaign.** Candidates load their weights from files at
    run time (the `american-file` arm below), so a whole sweep runs on one
    build and the never-rebuild-mid-flight rule holds by construction.
-4. **Control is always the shipped `american()`** (M32 v6, seed 1). Fresh
+4. **Control is always the shipped `american()`** (M32 v6; seed 1 until the
+   2026-09-28 flip, the K = 4 mean of seeds 1–4 since). Fresh
    `SEED_BASE` per experiment, shared by its arms; arms sequential;
    `scripts/idle-run.sh`.
 5. **A win smaller than the seed noise is a reseed, not a recipe.** Phase 0
@@ -237,11 +242,86 @@ decide the flip, so they stay on.
 No second-`SEED_BASE` confirmation: the plan's seed-2 confirmation is
 for Phase 2 recipe axes, and every cell here clears its CI by ≥ 4×.
 
+## Seeds 5–8 — the ensemble noise floor, and K = 8 (2026-09-28)
+
+After the flip, rule 4's control is the K = 4 ensemble, and Phase 0 showed a
+single non-seed-1 draw lands on the *suspect* row by construction (the
+shell-fit tax, ±0.02 of draw noise). So a Phase 2 arm must be a K = 4
+ensemble of its recipe, and its verdict is read against the draw noise of
+**ensembles**, not of single nets. Seeds 5–8 measure both at once, in one
+`sweep-k8` run on one `SEED_BASE`:
+
+- `k4b` = seeds 5–8 alone vs shipped seeds 1–4: σ_ens, the rule-5 bar for
+  every Phase 2 arm.
+- `k8` = seeds 1–8 vs shipped: the K = 8 increment. The 1/K model (K = 4
+  already holds 75% of the variance reduction, K = 8 holds 87.5%) predicts
+  ≈ +0.005 plain, maybe +0.01 PD, for ~1.8× the bidding latency. Unless it
+  clearly beats that, K = 8 waits for Phase 3 (best recipe × K), behind the
+  unexplained two-passes-per-call cost that could halve it.
+
+The launcher's failed-to-train gate was first shipped + 0.005 (0.4213);
+seed 6 landed at 0.4216 (seeds 5/7/8: 0.4174 / 0.4175 / 0.4194) and the chain
+halted. Relaunched 2026-09-29 at shipped + 0.010 (0.4263, the dd arms' gate):
+0.0003 over a guessed cut is draw spread, not a failed train (rule 2), and
+dropping a draw on CE would bias σ_ens low.
+
+`scripts/ab-floor-file.sh` now takes any number of `NAME=a.f32,b.f32,…`
+arms against one control; the no-argument form is Phase 0/1's `file` arm.
+
+### Seeds 5–8 verdict (2026-09-29, `sweep-k8`, SEED_BASE 1790624432)
+
+- **σ_ens is below the harness's resolution.** `k4b` sits inside its CI on
+  7 of 8 cells (the edge case is PD none, −0.0086 ±0.0081), and all four
+  sd cells are within ±0.0025. The two ensembles differ by ≲ 0.007, and that
+  is mostly board noise, so a Phase 2 arm needs ≳ 0.01, CI-clear on both
+  scorers, before it reads as a recipe. The four DD cells are all
+  negative. Seed 1's shell-fit home advantage (Phase 0) survives averaging
+  as a small bias toward the shipped seeds, so a new-seed ensemble starts a
+  hair behind.
+- **K = 8 matches the 1/K prediction and does not beat it.** Plain
+  −0.0002 / +0.0048, PD +0.0048 / **+0.0076 ±0.0070**, sd-PD
+  +0.0043 / **+0.0072 ±0.0071**. The model predicted ≈ +0.005 plain and up
+  to +0.01 PD. That is real but small, and it costs ~1.8× the bidding
+  latency, so K = 8 waits for Phase 3 as the plan said.
+
+## Phase 2 axis 1 verdict — `--dd-weight` (2026-09-29, `sweep-dd`, SEED_BASE 1790629068)
+
+Each arm is the K = 4 mean of init seeds 1–4 at that weight; the control is
+the shipped K = 4.
+
+- **0.1: a loss.** Every cell is negative. The DD cells sit inside their
+  CIs, but the sd cells on none are CI-clear losses on both scorers
+  (−0.0092 / −0.0094).
+- **1.0: loss / loss.** Plain −0.0133 / −0.0119 are both CI-clear, and all
+  four sd cells are CI-clear losses (−0.013 to −0.019). The damage grows
+  with the weight.
+- **Mechanism (training logs).** At weight 1.0 the DD head works: val MSE
+  falls from 26 with no head to 0.02, and the train − val CE gap closes
+  from 0.025 to ≈ 0. It is an effective regulariser, but held-out CE does
+  not move (0.4165 vs 0.4172), and the calls get worse. The trunk spends
+  capacity on trick prediction, and that capacity comes from the
+  distinctions that decide the call. It is the textbook failure of a
+  shared-trunk auxiliary task. Matching CE while losing IMPs is also a
+  reminder that val_ce is not the objective.
+- **Axis closed at 0.** Do not retry above 0. Anything below 0.1 is inside
+  σ_ens by extrapolation.
+
+## Phase 2 axis 2 gate — `--wd` skipped (2026-09-29)
+
+Seed 2's log at 300 epochs, train / val CE: 0.3986 / 0.4204 at epoch 200 and
+0.3920 / 0.4172 at 300. Held-out CE is still falling (−0.003 over the last
+100 epochs), and the gap is only 0.025, so by the axis's own rule the net is
+under-fit and weight decay is the wrong axis. The next axis is 3,
+**`--epochs 600`**. 150 is dropped, because the curve is still descending at
+300.
+
 ## Phase 2 — the recipe's free parameters, one axis at a time
 
-Each axis: train at two seeds (both GPUs, 10 min), reject on failed-to-train
-only, A/B the seed-1 candidate vs shipped, read against σ_seed, and confirm
-with the seed-2 candidate before any flip. Order, with the reason:
+Each axis: train **four** seeds at the candidate recipe (two per GPU, ~20
+min), reject on failed-to-train only, A/B their K = 4 mean vs shipped (the
+K = 4 of seeds 1–4), and read against σ_ens from `k4b`. The seed-2
+confirmation of the original plan is subsumed: an ensemble already averages
+four draws. Order, with the reason:
 
 1. **`--dd-weight`** (shipped 0; the rows carry 20 DD tricks, so the value
    head is live). It is the only signal in the trainer about *tricks* rather
@@ -335,6 +415,10 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-28 | `sweep-seed3` (SEED_BASE 1790537586) | 3 | none (reseed) | **+0.0154 ±0.0106** / +0.0063 ±0.0127 | **−0.0195 ±0.0117** / **−0.0153 ±0.0140** | −0.0002 ±0.0117 / +0.0011 ±0.0140 | *suspect* row; a reseed |
 | 2026-09-28 | `sweep-k4` (SEED_BASE 1790574650) | 1–4 | K = 4 logit mean (Phase 1) | **+0.0453 ±0.0084** / **+0.0562 ±0.0101** | **+0.0572 ±0.0092** / **+0.0774 ±0.0111** | **+0.0507 ±0.0093** / **+0.0672 ±0.0111** | **win / win** — ship after timing + rail re-arbitration |
 | 2026-09-28 | `sweep-k4` `norail` (SEED_BASE 1790574650) | 1–4 | K = 4, five rails off; read as rails on − off | **+0.0283 ±0.0030** / **+0.0344 ±0.0035** | **+0.0212 ±0.0030** / **+0.0252 ±0.0035** | **+0.0196 ±0.0029** / **+0.0242 ±0.0035** | rails still earn — keep all five |
+| 2026-09-29 | `sweep-k8` `k4b` (SEED_BASE 1790624432) | 5–8 | none (K = 4 of fresh seeds) | −0.0072 ±0.0074 / −0.0023 ±0.0088 | −0.0086 ±0.0081 / −0.0067 ±0.0097 | −0.0015 ±0.0081 / −0.0002 ±0.0097 | σ_ens ≲ 0.007 (unresolved) |
+| 2026-09-29 | `sweep-k8` `k8` (SEED_BASE 1790624432) | 1–8 | K = 8 logit mean | −0.0002 ±0.0055 / +0.0048 ±0.0064 | +0.0048 ±0.0060 / **+0.0076 ±0.0070** | +0.0043 ±0.0060 / **+0.0072 ±0.0071** | on the 1/K prediction; waits for Phase 3 |
+| 2026-09-29 | `sweep-dd` `dd0.1` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 0.1`, K = 4 | −0.0048 ±0.0074 / −0.0018 ±0.0087 | −0.0020 ±0.0081 / −0.0048 ±0.0097 | **−0.0094 ±0.0081** / −0.0091 ±0.0097 | loss-leaning; discard |
+| 2026-09-29 | `sweep-dd` `dd1.0` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 1.0`, K = 4 | **−0.0133 ±0.0074** / **−0.0119 ±0.0088** | −0.0038 ±0.0081 / −0.0091 ±0.0097 | **−0.0132 ±0.0081** / **−0.0144 ±0.0098** | loss / loss — axis closed at 0 |
 
 ## Out of scope
 
@@ -350,5 +434,6 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 1. Un-defer training-only work (the precondition)?
 2. ~~Is `K` embedded blobs acceptable for KR3?~~ **Answered 2026-09-28:
    yes, disk is cheap; keep the computation small** (Phase 1's timing check).
-3. Any objection to pricing `--dd-weight`? The recorded reason for 0 is a
+3. ~~Any objection to pricing `--dd-weight`?~~ Taken as no: jdh8 said
+   go on Phase 2 (2026-09-28), whose first axis is `--dd-weight`. The recorded reason for 0 is a
    controlled-comparison choice (configured-net.md gate 1), not a verdict.
