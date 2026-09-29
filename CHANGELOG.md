@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Floor sweep Phase 2 Axis 4 closed (2026-09-30): keep width 256.**
+  The 512-wide K = 4 ensemble, 204,800 boards/arm/vulnerability, measures
+  plain DD +0.0017 / +0.0110 and PD **−0.0247 / −0.0114** IMPs/board
+  (none / both; both PD losses CI-clear). The full divergence trace finds
+  broader aggression across many auction prefixes. All four 128-wide draws
+  fail the training gate; no IMP verdict for 128. Recorded the verdict,
+  trace and Rust fixture parity in `docs/ai-bidder/floor-sweep.md` and its
+  archive. **Impact:** no bidding or model change; no retraining needed to
+  close the existing width experiment.
 - **Width-generic run-time v6 blobs (2026-09-29): `neural::v6_width`,
   `neural::V6_WIDTHS` (replaces `neural::V6_FLOATS`).** A file-loaded floor
   blob may now be 128, 256 or 512 wide; its length names the width, so no
   sidecar is read. This is the floor sweep's `--hidden` axis
-  (`docs/ai-bidder/floor-sweep.md` Next item 3). The embedded nets stay 256
+  (`docs/ai-bidder/floor-sweep.md` Phase 2 Axis 4). The embedded nets stay 256
   and run the same arithmetic. **Impact:** none on the default system;
   API- and example-side only.
 - **The floor sweep's file-loaded arm (2026-09-28): `american-file`,

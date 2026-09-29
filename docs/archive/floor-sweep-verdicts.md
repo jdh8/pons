@@ -1,4 +1,4 @@
-# Floor sweep — verdict narratives, Phase 0 to Phase 2 axis 3 (2026-09-28/29)
+# Floor sweep — verdict narratives, Phase 0 to Phase 2 axis 4 (2026-09-28–30)
 
 > **Archived 2026-09-29.** Extracted verbatim from
 > [`docs/ai-bidder/floor-sweep.md`](../ai-bidder/floor-sweep.md) at `c35a9036`,
@@ -7,7 +7,8 @@
 > closed axis, the plan, the wiring, the runbook and the ledger; this file is
 > the record of *why* each row reads as it does — the reseed signature and the
 > shell-fit reading (Phase 0), the ensemble's PD column and KR3 timing
-> (Phase 1), σ_ens and K = 8 (seeds 5–8), and the three closed recipe axes.
+> (Phase 1), σ_ens and K = 8 (seeds 5–8), and the closed recipe axes.
+> Axis 4's width verdict and full divergence trace were added 2026-09-30.
 
 ## Phase 0 — the noise floor
 
@@ -333,3 +334,131 @@ override flag, so testing it is relabel-grade work.
 Per-board records: the scratchpad `ep600-{none,both}.jsonl` of the session
 that ran the trace; regenerate with the command above on the `sweep-ep`
 arm directories.
+
+## Phase 2 axis 4 verdict — hidden width (2026-09-30)
+
+**Keep the shipped width 256.** The 512-wide ensemble is *suspect*; 128
+fails the training gate and has no IMP measurement. This is the original
+Phase 2 Axis 4 (`--hidden`), not the renumbered live doc's former fourth
+"Next" item (`--lr`, originally Axis 5).
+
+The completed 2026-09-29 run is `ab-results/sweep-hid`, SHA `0c0c8446`,
+`SEED_BASE=1790681184`, 32 × 6,400 = **204,800 boards/arm/vulnerability**.
+Control is the shipped K = 4 width-256 ensemble; candidate is the K = 4
+logit mean of seeds 1–4 at width 512. Both use the same book and rails.
+The frozen M32 corpus, its 20 stems in manifest order, 300 epochs, learning
+rate 0.001, zero weight decay / DD weight, batch 4096 and validation
+fraction 0.10 are unchanged. All eight width artifacts fold 30 columns.
+Blobs and sidecars: `/mnt/ssd-data/jdh8/pons-sweep/h{128,512}-s{1..4}`;
+the runner pins the measured 512 blob hashes in `sweep-hid/weights.h512`.
+
+| hidden width | seed 1 CE | seed 2 CE | seed 3 CE | seed 4 CE | gate |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 512 | 0.407621 | 0.411068 | 0.410023 | 0.410526 | all pass |
+| 128 | 0.475769 | 0.484872 | 0.477461 | 0.479849 | all fail |
+
+The gate is the manifest seed-1 CE + 0.010 = **0.42631943**, applied to
+each draw. The historical launcher used the rounded threshold 0.4263;
+both thresholds give the same decisions for all eight draws.
+Better label fidelity admitted 512 to the A/B; it did not rank
+it above the shipped net. Width 128's rejection says only that this recipe
+misses the fidelity gate, not that 128 was measured to lose at bridge.
+
+| 512 − 256, IMPs/board (95% CI) | neither vulnerable | both vulnerable |
+| --- | ---: | ---: |
+| plain DD | +0.0017 ±0.0086 | +0.0110 ±0.0102 |
+| perfect defense | **−0.0247 ±0.0093** | **−0.0114 ±0.0112** |
+| sd-lead plain | +0.0143 ±0.0089 | +0.0174 ±0.0105 |
+| sd-lead PD | −0.0080 ±0.0094 | −0.0042 ±0.0113 |
+
+DD fired: 21,036 / 18,280 boards (10.27% / 8.93%); plain +0.016 / +0.123,
+PD −0.241 / −0.128 IMPs/fired. SD fired: 29,174 / 25,491 (14.25% / 12.45%);
+plain +0.100 / +0.140, PD −0.056 / −0.034 IMPs/fired. PD loses CI-clear
+in both cells. SD-PD washes and supplies no positive evidence to rescue it.
+No default flip, confirmation run or rail re-arbitration is warranted.
+
+### Full divergence trace
+
+On 2026-09-30, `probe-divergence --imps --jsonl` re-priced all 39,316
+divergent records across both vulnerabilities. Totals reproduce the original
+reports exactly: +341 / +2,255 plain IMPs and −5,063 / −2,337 PD IMPs.
+Every first differing call is ours.
+
+| our first differing call, both cells summed | records | plain IMPs | PD IMPs |
+| --- | ---: | ---: | ---: |
+| acted where 256 passed | 19,788 | +7,520 | −14,229 |
+| passed where 256 acted | 9,993 | −6,252 | +7,533 |
+| a different action | 9,535 | +1,328 | −704 |
+
+The wider net is **more aggressive**. The largest negative call-pair
+buckets are pass → double (−2,249 PD), pass → 3♦ (−1,670), pass → 3♣
+(−1,514), and pass → 4♠ (−1,405). Our game reached only by the candidate
+accounts for 6,451 records, +1,840 plain / −10,537 PD IMPs. In the full
+204,800 table-A auctions per cell, doubled or redoubled finals rise
+**5.567 → 5.910%** (none) and **4.557 → 4.721%** (both); the redoubled
+subset rises 196 → 369 and 188 → 308.
+
+The worst common-prefix bucket, with leading passes removed, is
+`(1NT) 2♦ (X)` (150 records, −229 plain / −654 PD). That is under 9% of
+the total −7,400 PD: removing that entire bucket still leaves −6,746.
+The deficit spans many calls and prefixes; no single prefix dominates.
+This grouping does not rule out defects in continuations shared across
+prefixes, but the trace identifies no isolated repair that rescues 512.
+
+Two worst-board traces illustrate the cost without standing in for the
+population count:
+
+- Record 2,097 (both cells), deal
+  `N:964.3.AJT962.T83 Q853.AKJ964.43.7 J2.T87.Q8.J96542 AKT7.Q52.K75.AKQ`:
+  North first overcalls 2♦ after their 1♥ opening and 2♣ response where
+  256 passes. The candidate later plays 5♥ in South's four-card combined
+  fit, taking zero tricks; control defends 6♥ by East, down one. −22 PD
+  IMPs at each vulnerability.
+- Record 139,533, deal
+  `N:QJ8632.6.Q62.T65 AK95.KQ3.8.A9842 T7.JT92.AK973.J7 4.A8754.JT54.KQ3`:
+  over their 5♦ keycard reply the first change is our 5♥ instead of double.
+  North plays a five-card combined fit for two tricks; control defends
+  6♥ by West, down two. −21 / −22 PD IMPs (none / both).
+
+The inference from the full count is a broad increase in costly actions,
+not a proof about why gradient descent found it. Extra capacity improves
+cross-entropy yet fails the bridge objective again. Close this width trial
+at 256; do not add a new rail merely to make the wider candidate pass.
+
+Reproduce the trace sequentially under `scripts/idle-run.sh`:
+
+```sh
+for vul in none both; do
+  scripts/idle-run.sh target/release/examples/probe-divergence \
+    ab-results/sweep-hid/h512-$vul ab-results/sweep-hid/plain-$vul \
+    --imps --jsonl ab-results/sweep-hid/trace.$vul.jsonl
+done
+```
+
+`sweep-hid/summarize-width.py` produces `trace-summary.txt` from those
+records and the full dumps. The actual Rust `classify_v6_mean` was also
+checked against all eight folded artifacts' Candle fixtures: **64/64
+argmaxes agree**, maximum absolute logit error **0.000732422 < 0.001**.
+The harness, command, output and hashes are in `sweep-hid/parity-*` and
+`parity.rs`. This rules out a detected width-layout/folding error on the
+fixture rows; it does not substitute for the measured IMP verdict.
+
+The width-generic refactor itself has a separate KR1 proof: independently
+rebuilt `smoke-default` at `4d2aa01a` and `0c0c8446`, **20,000 boards**, seed
+**1790703165**, covering all dealer × vulnerability cells, produced
+byte-identical 722,519-byte dumps (SHA256
+`96cb95681f804f3961ba7135b516d8d356115d7d17f26e427a438d981edbf51c`).
+Build logs, distinct executable hashes and both dumps are in
+`sweep-hid/smoke-width-refactor-seed1790703165/`.
+
+Local checks on 2026-09-30: `cargo fmt`, `cargo test --all-features`,
+`cargo +nightly clippy --all-targets --all-features -- -D warnings`, and
+`RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features` pass.
+**Web has a pre-existing failure:** 26 tests pass, but
+`tests::default_mixed_table_matches_the_old_symmetric_table` fails both
+alone at HEAD and at independently compiled parent `4d2aa01a`. The mixed
+table stops at `1NT (X) - - -`; its symmetric baseline instead continues
+`1NT (X) - - XX - 2♣ - 2♠ (X) - - -`. Logs are
+`sweep-hid/check-web{,-exact,-parent}.log`. Preserve both routes pending a
+separate investigation of that declared/symmetric mismatch; this width
+trial changes neither route and does not repair or suppress the test.

@@ -1,11 +1,14 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
-**Status (2026-09-29): Phase 1 shipped — the K = 4 logit-mean ensemble of
+**Status (2026-09-30): Phase 1 shipped — the K = 4 logit-mean ensemble of
 init seeds 1–4 is the default floor (win / win on every cell, rails
-re-arbitrated). Phase 2 axes 1–3 are closed: `--dd-weight` loses, `--wd` is
-skipped by its gate, `--epochs 600` loses on plain and washes on PD. K = 8
-waits for Phase 3. Next: the Pass-offset A/B on the epochs-600 ensemble,
-150 epochs, then axes 4–5.** Verdict narratives and the epochs-600 trace:
+re-arbitrated). Phase 2 axes 1–4 are closed: `--dd-weight` loses, `--wd` is
+skipped by its gate, `--epochs 600` loses on plain and washes on PD, and
+`--hidden 512` loses on PD while 128 fails the training gate. Width stays
+256. K = 8 waits for Phase 3. Next: reconcile the completed Pass-offset /
+150-epoch follow-ups, then Axis 5 (`--lr`).** Axis numbers refer to the
+original Phase 2 plan: **Axis 4 is width; Axis 5 is learning rate**, regardless
+of the order of remaining tasks below. Verdict narratives and divergence traces:
 [../archive/floor-sweep-verdicts.md](../archive/floor-sweep-verdicts.md).
 Precondition met: jdh8 kicked the sweep off 2026-09-28, un-deferring
 *training-only* work (the 2026-09-26 deferral was of retrains that need a
@@ -111,6 +114,15 @@ shipped K = 4; detail in the archive.
   and plain DD rewards the shipped net's accidental aggression while PD
   prices it at zero. Held-out CE improved on both losing axes — rule 2,
   twice more.
+- **Axis 4, `--hidden` 512 / 128 — keep 256.** The 512-wide K = 4 passes
+  the training gate but measures *suspect*: plain wash / win, PD loss at
+  both vulnerabilities (−0.0247 / −0.0114 IMPs/board, CI-clear). The full
+  39,316-record trace finds more action where the shipped net passes:
+  +7,520 plain / −14,229 PD IMPs, outweighing the reverse direction. No
+  single prefix explains the loss; Rust fixture parity passes. All four
+  128-wide draws fail the CE gate (0.4758–0.4849 vs 0.426319), so **128
+  has no IMP verdict**. Details and reproduction in the archive's
+  [Axis 4 verdict](../archive/floor-sweep-verdicts.md#phase-2-axis-4-verdict--hidden-width-2026-09-30).
 
 ## Next
 
@@ -119,23 +131,21 @@ min), reject on failed-to-train only (shipped val_ce + 0.010), A/B their
 K = 4 mean vs shipped, and read against σ_ens. Stop an axis after one
 confirmed direction; do not grid.
 
-1. **Pass-offset A/B on the epochs-600 ensemble.** The four blobs are on
+- **Pass-offset A/B on the epochs-600 ensemble.** The four blobs are on
    disk (`/mnt/ssd-data/jdh8/pons-sweep/ep600-s{1..4}.f32`). Subtract one
    scalar from the Pass logit at floor nodes, sized so the arm's pass rate at
    floor nodes matches the shipped floor's; one env var beside
    `PONS_FLOOR_WEIGHTS`, example-side only, default path untouched. Win or
    wash on both scorers reopens the epochs axis with the tilt made
    deliberate; a PD loss says the conservatism was load-bearing and the axis
-   stays closed. Unmeasured: no ledger row until it runs.
-2. **`--epochs 150`** — the same question from the other side, no code.
-   Expected more aggressive and less faithful; read it beside 1.
-3. **`--hidden` 512, and 128.** Wired 2026-09-29: a run-time blob's length
-   names its width (`neural::v6_width`), no sidecar needed. If 128 measures
-   equal, ship 128: a KR3 win with a KR1 non-inferiority proof (CLAUDE.md,
-   checklist item 12).
-4. **`--lr` 3e-4** at 300 epochs. The trainer has no schedule; if this axis
+   stays closed. **Run already exists in `ab-results/sweep-ep150`; reconcile
+   its verdict before scheduling another run.**
+- **`--epochs 150`** — the same question from the other side, no code.
+   Expected more aggressive and less faithful; read it beside Pass-offset.
+   Training artifacts already exist; their gate/result write-up is pending.
+- **Axis 5, `--lr` 3e-4** at 300 epochs. The trainer has no schedule; if this axis
    shows anything, add `--lr-schedule cosine` as a flag and retry once.
-5. **Root cause, deferred (relabel-grade).** The rollout-override rows are
+- **Root cause, deferred (relabel-grade).** The rollout-override rows are
    the only IMP-grounded labels. Test whether the states where the sharper
    net reverted to pass neighbour override rows; if so, upweight them. The
    corpus carries no per-row override flag, so this needs a dump and sits in
@@ -214,6 +224,8 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-29 | `sweep-dd` `dd0.1` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 0.1`, K = 4 | −0.0048 ±0.0074 / −0.0018 ±0.0087 | −0.0020 ±0.0081 / −0.0048 ±0.0097 | **−0.0094 ±0.0081** / −0.0091 ±0.0097 | loss-leaning; discard |
 | 2026-09-29 | `sweep-dd` `dd1.0` (SEED_BASE 1790629068) | 1–4 | `--dd-weight 1.0`, K = 4 | **−0.0133 ±0.0074** / **−0.0119 ±0.0088** | −0.0038 ±0.0081 / −0.0091 ±0.0097 | **−0.0132 ±0.0081** / **−0.0144 ±0.0098** | loss / loss — axis closed at 0 |
 | 2026-09-29 | `sweep-ep` `ep600` (SEED_BASE 1790668875) | 1–4 | `--epochs 600`, K = 4 | **−0.0104 ±0.0070** / −0.0081 ±0.0084 | +0.0041 ±0.0077 / +0.0018 ±0.0092 | −0.0035 ±0.0078 / −0.0032 ±0.0092 | plain loss (sd plain CI-clear both), PD wash — discard; do not train longer |
+| 2026-09-29 | `sweep-hid` `h512` (SEED_BASE 1790681184; traced 2026-09-30) | 1–4 | `--hidden 512`, K = 4 | +0.0017 ±0.0086 / **+0.0110 ±0.0102** | **−0.0247 ±0.0093** / **−0.0114 ±0.0112** | −0.0080 ±0.0094 / −0.0042 ±0.0113 | *suspect* — broader aggression, keep 256 |
+| 2026-09-29 | `h128` training gate | 1–4 | `--hidden 128`, K = 4 proposed | not run | not run | not run | all four CE values exceed 0.426319; no IMP verdict |
 
 ## Out of scope
 
