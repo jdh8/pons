@@ -300,3 +300,121 @@ fn quantitative_six_notrump_above_each_invite() {
     assert_eq!(best_with(&on, &asked, "KQ5.AQ3.AK3.KQ53"), bid(6, nt));
     assert_eq!(best_with(&on, &asked, "KQ5.AQ3.AK3.Q953"), P);
 }
+
+/// `notrump.rebid_checkback` (shipped default-on): over the 18–19 `2NT` rebid a six-card major
+/// forces with `3M`, a five-card major checks back with three of the new
+/// minor, and four spades over `1♥` bid `3♠`; off, every one of them bids
+/// notrump.  Then the answers and placements.
+#[test]
+fn rebid_checkback_over_two_notrump() {
+    let on = crate::bidding::agreements::Agreements::default();
+    let mut off = on;
+    off.notrump.rebid_checkback = false;
+    let (nt, c, d, h, s) = (
+        Strain::Notrump,
+        Strain::Clubs,
+        Strain::Diamonds,
+        Strain::Hearts,
+        Strain::Spades,
+    );
+    let one_d_one_s = [bid(1, d), P, bid(1, s), P, bid(2, nt), P];
+    let one_c_one_h = [bid(1, c), P, bid(1, h), P, bid(2, nt), P];
+
+    // Six spades: the forcing 3♠ (the anchor's AQJT64.K4.J96.65, and a 5-count).
+    assert_eq!(best_with(&on, &one_d_one_s, "AQJT64.K4.J96.65"), bid(3, s));
+    assert_eq!(
+        best_with(&off, &one_d_one_s, "AQJT64.K4.J96.65"),
+        bid(3, nt)
+    );
+    assert_eq!(best_with(&on, &one_d_one_s, "KJ7643.94.93.J54"), bid(3, s));
+    // Five spades, 10: the checkback; 14 checks back before it bids 6NT.
+    assert_eq!(best_with(&on, &one_d_one_s, "KJ752.AJT.T2.Q84"), bid(3, c));
+    assert_eq!(
+        best_with(&off, &one_d_one_s, "KJ752.AJT.T2.Q84"),
+        bid(3, nt)
+    );
+    assert_eq!(best_with(&on, &one_d_one_s, "AKJ52.AJT.T2.Q84"), bid(3, c));
+    // Five spades with 7 has no game to find below 3NT.
+    assert_eq!(best_with(&on, &one_d_one_s, "KJ752.JT9.T2.Q84"), bid(3, nt));
+    // Over 1♥ the new minor is diamonds, and 4♠4♥ bids the spades 2NT never denied.
+    assert_eq!(best_with(&on, &one_c_one_h, "K4.K9875.JT4.Q98"), bid(3, d));
+    assert_eq!(best_with(&on, &one_c_one_h, "AQJ3.KQ76.QT93.9"), bid(3, s));
+    assert_eq!(
+        best_with(&off, &one_c_one_h, "AQJ3.KQ76.QT93.9"),
+        bid(6, nt)
+    );
+
+    // Opener's answers to 1♦ - 1♠ - 2NT - 3♣: support, the other major, 3NT.
+    let asked = [bid(1, d), P, bid(1, s), P, bid(2, nt), P, bid(3, c), P];
+    assert_eq!(best_with(&on, &asked, "AJ3.KQ4.AKJ5.Q73"), bid(3, s));
+    assert_eq!(best_with(&on, &asked, "AJ.KQ54.AKJ5.Q73"), bid(3, h));
+    assert_eq!(best_with(&on, &asked, "AJ.KQ4.AKJ5.QJ73"), bid(3, nt));
+    // Responder places: the 5-3 game, or RKCB with 14+.
+    let fit = [
+        bid(1, d),
+        P,
+        bid(1, s),
+        P,
+        bid(2, nt),
+        P,
+        bid(3, c),
+        P,
+        bid(3, s),
+        P,
+    ];
+    assert_eq!(best_with(&on, &fit, "KJ752.AJT.T2.Q84"), bid(4, s));
+    assert_eq!(best_with(&on, &fit, "AKJ52.AJT.T2.Q84"), bid(4, nt));
+    // The other major: raise it with four, else the notrump ladder.
+    let shown = [
+        bid(1, d),
+        P,
+        bid(1, s),
+        P,
+        bid(2, nt),
+        P,
+        bid(3, c),
+        P,
+        bid(3, h),
+        P,
+    ];
+    assert_eq!(best_with(&on, &shown, "KJ752.AJT4.T2.Q8"), bid(4, h));
+    assert_eq!(best_with(&on, &shown, "KJ752.AJT.T2.Q84"), bid(3, nt));
+    assert_eq!(best_with(&on, &shown, "AKJ52.AJT.T2.Q84"), bid(6, nt));
+    // Denied: pass, invite, or 6NT.
+    let denied = [
+        bid(1, d),
+        P,
+        bid(1, s),
+        P,
+        bid(2, nt),
+        P,
+        bid(3, c),
+        P,
+        bid(3, nt),
+        P,
+    ];
+    assert_eq!(best_with(&on, &denied, "KJ752.AJT.T2.Q84"), P);
+    assert_eq!(best_with(&on, &denied, "KJ752.QT9.A2.Q84"), bid(4, nt));
+    assert_eq!(best_with(&on, &denied, "AKJ52.AJT.T2.Q84"), bid(6, nt));
+    // The forcing 3♠ is raised, and 12+ keycards over the raise.
+    let forced = [bid(1, d), P, bid(1, s), P, bid(2, nt), P, bid(3, s), P];
+    assert_eq!(best_with(&on, &forced, "AJ.KQ54.AKJ5.Q73"), bid(4, s));
+    let raised = [
+        bid(1, d),
+        P,
+        bid(1, s),
+        P,
+        bid(2, nt),
+        P,
+        bid(3, s),
+        P,
+        bid(4, s),
+        P,
+    ];
+    assert_eq!(best_with(&on, &raised, "AQJT64.K4.J96.65"), P);
+    assert_eq!(best_with(&on, &raised, "AQJT64.K4.A96.65"), bid(4, nt));
+    // 3♠ over 1♥: raised with four spades, else 3NT.
+    let spades = [bid(1, c), P, bid(1, h), P, bid(2, nt), P, bid(3, s), P];
+    assert_eq!(best_with(&on, &spades, "KT94.A2.AK5.AQ73"), bid(4, s));
+    assert_eq!(best_with(&on, &spades, "KT9.A32.AK5.AQ73"), bid(3, nt));
+}

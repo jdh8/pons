@@ -376,3 +376,78 @@ fn new_minor_forcing_accepts_the_natural_2nt_invitation() {
         Call::Pass,
     );
 }
+
+// --- Knob E: the checkback over the 18–19 2NT rebid --------------------------
+
+/// A partnership with `notrump.rebid_checkback` pinned on (the shipped default)
+fn rebid_checkback_partnership() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.notrump.rebid_checkback = true;
+    american(&agreements).bind()
+}
+
+/// Play `auction` on from two hands (responder first to call), one seat at a
+/// time through the bound partnership, until three passes
+fn play_out(system: &Partnership, mut auction: Vec<Call>, hands: [&str; 2]) -> Vec<Call> {
+    for turn in 0.. {
+        let hand = hands[turn % 2];
+        let call = best_call(system, &auction, hand);
+        auction.push(call);
+        auction.push(P);
+        if call == P {
+            break;
+        }
+    }
+    auction
+}
+
+/// The whole checkback lane through the real stance: `1♦ - 1♠ - 2NT`, the
+/// `3♣` ask, opener's `3♠` support, and the 5-3 game — then the slam route.
+#[test]
+fn rebid_checkback_finds_the_five_three_fit_and_the_slam() {
+    let system = rebid_checkback_partnership();
+    let start = || {
+        vec![
+            call(1, Strain::Diamonds),
+            P,
+            call(1, Strain::Spades),
+            P,
+            call(2, Strain::Notrump),
+            P,
+        ]
+    };
+    let opener = "AJ3.KQ4.AKJ5.Q73";
+    // Game values: 3♣ - 3♠ - 4♠, passed out.
+    assert_eq!(
+        play_out(&system, start(), ["KJ752.AJT.T2.Q84", opener]),
+        [
+            start(),
+            vec![
+                call(3, Strain::Clubs),
+                P,
+                call(3, Strain::Spades),
+                P,
+                call(4, Strain::Spades),
+                P,
+                P,
+                P
+            ],
+        ]
+        .concat(),
+    );
+    // Slam values: the ask, the fit, RKCB, and 6♠ on all five keycards.
+    let slam = play_out(&system, start(), ["AKJ52.AJT.T2.Q84", opener]);
+    assert_eq!(slam[6], call(3, Strain::Clubs));
+    assert_eq!(slam[8], call(3, Strain::Spades));
+    assert_eq!(slam[10], call(4, Strain::Notrump));
+    assert!(
+        slam.iter().any(|&c| c == call(6, Strain::Spades)),
+        "{slam:?}"
+    );
+    // A six-card suit forces with 3♠ and is raised.
+    let six = play_out(&system, start(), ["AQJT64.K4.J96.65", opener]);
+    assert_eq!(
+        &six[6..],
+        [call(3, Strain::Spades), P, call(4, Strain::Spades), P, P, P]
+    );
+}

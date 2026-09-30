@@ -3,10 +3,14 @@
 //! Three-level Stayman and transfers with the quantitative `4NT`, shared by the
 //! direct `2NT` opening (20–21) and opener's `2NT` rebid after `2♣` (22–24);
 //! plus the simple continuations after an 18–19 `2NT` rebid over a one-level
-//! response.
+//! response — and, under `notrump.rebid_checkback`, BBA's structure over the
+//! four `1m - 1M - 2NT` lanes: three of the new minor as an alerted checkback
+//! (five of the major, 8+), the forcing six-card `3M`, and `3♠` over `1♥` as
+//! four spades.
 
 use super::stayman::{smolen_at_three, smolen_completion};
 use super::*;
+use crate::bidding::rows::Entry;
 
 /// Responses to a 2NT-strength notrump (3-level Stayman/transfers, 4NT invite)
 ///
@@ -139,13 +143,180 @@ pub(super) fn quantitative_answer(accept_hcp: u8) -> Rules {
 /// Responder's call after opener's 18–19 2NT rebid
 ///
 /// 6+ HCP bids 3NT; 12–13 makes a quantitative 4NT invite; fewer points pass;
-/// 14+ bids `6NT` under `notrump.quantitative_six_notrump`.
-fn after_rebid_two_notrump(agreements: &Agreements) -> Rules {
+/// 14+ bids `6NT` under `notrump.quantitative_six_notrump`.  On a minor–major
+/// `lane` under `notrump.rebid_checkback`, the checkback and forcing majors
+/// of [`rebid_checkback_responder`] sit above all of these.
+fn after_rebid_two_notrump(agreements: &Agreements, lane: Option<(Suit, Suit)>) -> Rules {
     let rules = Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..=13))
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(6..))
         .rule(Call::Pass, 0, hcp(..6));
-    six_notrump(rules, agreements, 14, hcp(0..))
+    let rules = six_notrump(rules, agreements, 14, hcp(0..));
+    match lane {
+        Some((opening, major)) if agreements.notrump.rebid_checkback => {
+            rebid_checkback_responder(rules, opening, major)
+        }
+        _ => rules,
+    }
+}
+
+/// Three of the new minor over the 18–19 `2NT` rebid: exactly five of the
+/// major, 8+ — asks for three-card support or the other four-card major
+const REBID_CHECKBACK: Alert = Alert("rebid-checkback");
+
+/// The minor opener did *not* open — the checkback bids three of it
+fn new_minor(opening: Suit) -> Suit {
+    match opening {
+        Suit::Clubs => Suit::Diamonds,
+        _ => Suit::Clubs,
+    }
+}
+
+/// Responder's checkback and forcing majors over `1m - 1M - 2NT`
+/// (`notrump.rebid_checkback`), above the notrump ladder
+///
+/// | Call | Wt | Meaning |
+/// |------|----|---------|
+/// | 3M | 1.50 | Six-plus, forcing — opener is balanced, so always raised |
+/// | 3(new minor)! | 1.40 | Checkback: exactly five of the major, 8+ |
+/// | 3♠ (over 1♥) | 1.35 | Four spades, at most four hearts, 7+ — `2NT` did not deny them |
+///
+/// A 14+ hand with a five-card major checks back before it bids `6NT`; the
+/// slam calls come after opener's answer.  Weak six-carders use `points`, so
+/// a 5-count with a good suit still reaches the 6-2 game.
+fn rebid_checkback_responder(rules: Rules, opening: Suit, major: Suit) -> Rules {
+    let rules = rules
+        .rule(
+            Bid::new(3, Strain::from(major)),
+            150,
+            len(major, 6..) & points(6..),
+        )
+        .rule(
+            Bid::new(3, Strain::from(new_minor(opening))),
+            140,
+            len(major, 5..=5) & hcp(8..),
+        )
+        .alert(REBID_CHECKBACK);
+    if major == Suit::Hearts {
+        rules.rule(
+            Bid::new(3, Strain::Spades),
+            135,
+            len(Suit::Spades, 4..) & len(Suit::Hearts, ..=4) & hcp(7..),
+        )
+    } else {
+        rules
+    }
+}
+
+/// Opener's answer to the checkback: three-card support, the other four-card
+/// major, else `3NT` — all natural, and the table never passes the force
+fn rebid_checkback_answers(major: Suit) -> Rules {
+    let other = other_major(major);
+    Rules::new()
+        .rule(Bid::new(3, Strain::from(major)), 130, len(major, 3..))
+        .rule(
+            Bid::new(3, Strain::from(other)),
+            125,
+            len(other, 4..) & len(major, ..=2),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+}
+
+/// Responder places the contract once opener shows three-card support: the
+/// major game, or RKCB with 14+ (32+ combined and a 5-3 fit)
+fn after_checkback_fit(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(14..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(4, Strain::from(major)), 100, hcp(0..))
+}
+
+/// Responder after opener shows the other four-card major: raise it with
+/// four, else the notrump ladder (`4NT` 12–13, `6NT` 14+, `3NT`)
+fn after_checkback_other_major(other: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(other)), 120, len(other, 4..))
+        .rule(Bid::new(4, Strain::Notrump), 110, hcp(12..=13))
+        .rule(Bid::new(6, Strain::Notrump), 110, hcp(14..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+}
+
+/// Responder after opener denies a fit with `3NT`: the quantitative pair, or pass
+fn after_checkback_denial() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..=13))
+        .rule(Bid::new(6, Strain::Notrump), 120, hcp(14..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder after the forcing `3M` is raised: RKCB with 12+ (a 6-2 fit
+/// opposite 18–19), else the game stands
+fn after_six_card_raise() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..))
+        .alert(slam::RKCB)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Every node below responder's checkback, forcing `3M` and (over `1♥`) `3♠`
+///
+/// `two_nt_rebid` is the row prefix ending in opener's `2NT` and the pass
+/// (`P* 1♦ - 1♠ - 2NT -`).  The contested tails (they double the checkback)
+/// are left to reading: the ask projects the major and no minor, so the floor
+/// holds no phantom suit — the XYZ precedent.
+fn rebid_checkback_rows(two_nt_rebid: &str, opening: Suit, major: Suit) -> Vec<Entry> {
+    let trump = Strain::from(major);
+    let other = other_major(major);
+    let node = |tail: &str| Pattern::node(&format!("{two_nt_rebid} {tail}"));
+    let four_nt = call(4, Strain::Notrump);
+
+    // The checkback and opener's three answers.
+    let ask = format!("{} -", call(3, Strain::from(new_minor(opening))));
+    let mut entries = rows_of(node(&ask), rebid_checkback_answers(major));
+    let fit = format!("{ask} {} -", call(3, trump));
+    entries.extend(rows_of(node(&fit), after_checkback_fit(major)));
+    entries.extend(slam::rkcb_rows(&format!("{two_nt_rebid} {fit}"), major));
+    entries.extend(slam::rkcb_answerer_rows(
+        &format!("{two_nt_rebid} {fit}"),
+        major,
+    ));
+    let shown = format!("{ask} {} -", call(3, Strain::from(other)));
+    entries.extend(rows_of(node(&shown), after_checkback_other_major(other)));
+    entries.extend(rows_of(
+        node(&format!("{shown} {four_nt} -")),
+        accept_quantitative_nineteen(),
+    ));
+    let denied = format!("{ask} {} -", call(3, Strain::Notrump));
+    entries.extend(rows_of(node(&denied), after_checkback_denial()));
+    entries.extend(rows_of(
+        node(&format!("{denied} {four_nt} -")),
+        accept_quantitative_nineteen(),
+    ));
+
+    // The forcing 3M: opener raises, responder keycards with 12+.
+    let three_m = format!("{} -", call(3, trump));
+    entries.extend(rows_of(
+        node(&three_m),
+        Rules::new().rule(Bid::new(4, trump), 100, hcp(0..)),
+    ));
+    let raised = format!("{three_m} {} -", call(4, trump));
+    entries.extend(rows_of(node(&raised), after_six_card_raise()));
+    entries.extend(slam::rkcb_rows(&format!("{two_nt_rebid} {raised}"), major));
+    entries.extend(slam::rkcb_answerer_rows(
+        &format!("{two_nt_rebid} {raised}"),
+        major,
+    ));
+
+    // Over 1♥, responder's natural 3♠: opener raises with four, else 3NT.
+    if major == Suit::Hearts {
+        entries.extend(rows_of(
+            node(&format!("{} -", call(3, Strain::Spades))),
+            Rules::new()
+                .rule(Bid::new(4, Strain::Spades), 120, len(Suit::Spades, 4..))
+                .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..)),
+        ));
+    }
+    entries
 }
 
 /// Opener's reply to the quantitative raise opposite the 18–19 rebid
@@ -254,19 +425,26 @@ pub(crate) fn two_notrump_rebids() -> Package {
             let one_nt = call(1, Strain::Notrump);
             let two_nt = call(2, Strain::Notrump);
             let four_nt = call(4, Strain::Notrump);
-            let rebid_prefixes: &[&[Call]] = &[
-                &[call(1, Strain::Hearts), call(1, Strain::Spades)],
-                &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
-                &[call(1, Strain::Clubs), call(1, Strain::Hearts)],
-                &[call(1, Strain::Clubs), call(1, Strain::Spades)],
-                &[call(1, Strain::Diamonds), call(1, Strain::Hearts)],
-                &[call(1, Strain::Diamonds), call(1, Strain::Spades)],
-                &[call(1, Strain::Hearts), one_nt],
-                &[call(1, Strain::Spades), one_nt],
+            // The minor–major lanes carry the checkback (`notrump.rebid_checkback`).
+            let lane = |opening: Suit, major: Suit| {
+                (
+                    [call(1, Strain::from(opening)), call(1, Strain::from(major))],
+                    Some((opening, major)),
+                )
+            };
+            let rebid_prefixes = [
+                ([call(1, Strain::Hearts), call(1, Strain::Spades)], None),
+                ([call(1, Strain::Clubs), call(1, Strain::Diamonds)], None),
+                lane(Suit::Clubs, Suit::Hearts),
+                lane(Suit::Clubs, Suit::Spades),
+                lane(Suit::Diamonds, Suit::Hearts),
+                lane(Suit::Diamonds, Suit::Spades),
+                ([call(1, Strain::Hearts), one_nt], None),
+                ([call(1, Strain::Spades), one_nt], None),
             ];
             let mut entries = Vec::new();
 
-            for prefix in rebid_prefixes {
+            for (prefix, lane) in &rebid_prefixes {
                 let prefix = core::iter::once("P*".to_owned())
                     .chain(prefix.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()
@@ -276,7 +454,7 @@ pub(crate) fn two_notrump_rebids() -> Package {
                 let two_nt_rebid = format!("{prefix} {two_nt} -");
                 entries.extend(rows_of(
                     Pattern::node(&two_nt_rebid),
-                    after_rebid_two_notrump(agreements),
+                    after_rebid_two_notrump(agreements, *lane),
                 ));
 
                 // Opener's reply to the quantitative 4NT raise.
@@ -285,6 +463,12 @@ pub(crate) fn two_notrump_rebids() -> Package {
                     Pattern::node(&quantitative_raise),
                     accept_quantitative_nineteen(),
                 ));
+
+                if let Some((opening, major)) = *lane
+                    && agreements.notrump.rebid_checkback
+                {
+                    entries.extend(rebid_checkback_rows(&two_nt_rebid, opening, major));
+                }
             }
 
             entries

@@ -3171,6 +3171,25 @@ pub struct NotrumpKnobs {
     /// `scripts/ab-quantitative-6nt.sh` won all four cells, +0.0031 (none) /
     /// +0.0036 (both) IMPs/board on both scorers, 82 fired per 204,800.
     pub quantitative_six_notrump: bool,
+    /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
+    ///
+    /// Off, responder's only calls are `3NT`, the quantitative `4NT` and
+    /// `6NT`, so a 5-3 or 6-2 major fit is never found and a 14+ hand with a
+    /// long major bids notrump.  On, the four minor–major lanes get BBA's
+    /// structure: **three of the new minor** is an alerted checkback (exactly
+    /// five of the major, 8+) that opener answers with three-card support,
+    /// four of the other major, or `3NT`; **`3M`** is six-plus and forcing
+    /// (opener, balanced, always raises); and `3♠` over a `1♥` response shows
+    /// four spades, which the `2NT` rebid did not deny.  A found fit keycards
+    /// at 14+ (12+ after the six-card route); no fit falls back to the
+    /// `4NT`/`6NT` quantitative pair.  The anchor's round-2 census
+    /// (2026-09-30) prices the missing structure at about −1.8k PD per
+    /// 409,600 boards.  **Shipped default-on 2026-09-30**:
+    /// `scripts/ab-rebid-checkback.sh` won all four cells, +0.0015 / +0.0015
+    /// plain DD and +0.0016 / +0.0017 PD IMPs/board (none / both), 269 / 287
+    /// fired per 204,800.  Owed: the doubled checkback (`3x (X)`) still drops
+    /// to the floor.
+    pub rebid_checkback: bool,
     // --- notrump/crawling_stayman.rs
     // --- notrump/sixcard_invitation.rs
     /// Raw strength floor for inviting with a six-card major
@@ -3440,6 +3459,7 @@ impl Default for NotrumpKnobs {
             transfer_super_accept: false,
             transfer_longer_major: true,
             quantitative_six_notrump: true,
+            rebid_checkback: true,
             sixcard_invite_floor: 13,
             sixcard_accept_floor: 18,
             transfer_slam_try: true,

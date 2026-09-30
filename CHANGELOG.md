@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Checkback and forcing majors over the 18–19 `2NT` rebid
+  (`notrump.rebid_checkback`, shipped default-on 2026-09-30).** The
+  round-2 census's other hole in `1m - 1M - 2NT`: responder's table was
+  `3NT` / `4NT` / `6NT` / pass, so no call ever found a 5-3 or 6-2 major
+  fit, and the 2026-09-26 anchor prices our `3NT`, `4NT` and pass against
+  BBA's `3♥`, `3♠` and checkback at about −1.8k PD per 409,600 boards
+  (our `3NT` vs BBA's `3♥`/`3♠` alone: 399 rows, −1.2k). BBA's structure,
+  read off `probe-bba-book` on the four lanes: three of the **new minor** is
+  its alerted `NMF after 2NT rebid` (exactly five of the major, 8+), `3M`
+  is six-plus and forcing, `3♠` over `1♥` shows four spades (the `2NT`
+  rebid outranks the up-the-line `1♠`, so it never denied them). On, the
+  four minor–major lanes get exactly that: the checkback (opener answers
+  three-card support, four of the other major, else `3NT`), the forcing
+  `3M` (opener is balanced, so always raised; RKCB with 12+ over the
+  raise), `3♠` over `1♥` (raised with four), RKCB with 14+ once a 5-3 fit is
+  shown, the `4(other major)` raise or the `4NT`/`6NT` pair after the other
+  major, and the `4NT`/`6NT` pair after a denial. The checkback's rule
+  projects the major and no minor (`probe-call-reading`: `♠ 5–5`), so the
+  contested tails are left to reading as XYZ's are. Wired as
+  `--ns-rebid-checkback` in `bba-gen`, `render-book` and
+  `probe-call-reading`, a web toggle, and `scripts/ab-rebid-checkback.sh`.
+  Not disclosed: the `.bbsa` schema has no row for BBA's engine id 116.
+  ⚠ Opener's authored `3M` support answer reads as `2–4` of the major
+  where the natural walk read `3–4` — the notrump blanket of
+  `docs/authored-reading-handoff.md`, which also widens the shipped
+  `2NT - 3♣ - 3♠` Stayman answer to `2–5`; the placements after it are all
+  authored, so the reading is inert on the clean lane. **Impact:**
+  `scripts/ab-rebid-checkback.sh` (SEED_BASE 1790760791, 204,800
+  boards/arm/vul) won all four cells: plain DD **+0.0015 (none) / +0.0015
+  (both)**, PD **+0.0016 / +0.0017** IMPs/board, CI ±0.0008–0.0011,
+  269 / 287 fired (+1.1 / +1.2 per fired). Worst boards: the doubled
+  checkback (`1♣ - 1♥ - 2NT - 3♦ (X)` drops to the floor, which bid the
+  5-3 game — the owed contested tail, two boards) and RKCB on a 12-count
+  over the six-card raise (the 12+ floor is a tuning candidate). BBA's
+  own checkback auctions also read differently in our defensive seat,
+  since their `3x` now decodes through the authored node.
 - **Quantitative `6NT` above each invite (`notrump.quantitative_six_notrump`,
   shipped default-on, 2026-09-30).** A census of the anchor's round-2 `3NT` rows
   (`scripts/slam-census.py`, 2,551 rows, −4.1k PD) found every authored

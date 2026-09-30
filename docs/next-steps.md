@@ -96,8 +96,14 @@ criterion 5). **Item 2 is now the top candidate.**
   **shipped default-on 2026-09-30**: +0.0031 / +0.0036 IMPs/board (none /
   both), plain = PD, 82 fired per 204,800 (`ab-results/quantitative-6nt`);
   the checkback / forcing `3M` over the 18–19 `2NT` (BBA's `3♣`/`3♥`/`3♠`,
-  the lane's other −1.5k across wrong-strain and missed-slam rows) is the
-  next lever.
+  the lane's other −1.5k across wrong-strain and missed-slam rows) is
+  **shipped default-on 2026-09-30 as `notrump.rebid_checkback`** (BBA's
+  structure verbatim — new-minor checkback, forcing six-card `3M`, `3♠`
+  over `1♥`): +0.0015 / +0.0015 plain, +0.0016 / +0.0017 PD IMPs/board
+  (none / both), 269 / 287 fired per 204,800
+  (`ab-results/rebid-checkback`). Owed: the doubled checkback's `(X)`
+  tail (floor-owned, two of the ten worst boards) and the 12+ RKCB floor
+  over the six-card raise.
 - Every cheap lever here is spent (bucket marked mined-to-residual on the BBA
   side); expect design work. Even a 10% capture ≈ +0.01/board — more than
   any single rail.

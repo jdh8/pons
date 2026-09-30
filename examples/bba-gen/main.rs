@@ -892,6 +892,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_quantitative_six_notrump: bool,
 
+    /// Withhold the checkback and forcing majors over the 18–19 `2NT` rebid
+    /// (`notrump.rebid_checkback`, **shipped default-on 2026-09-30**: three of
+    /// the new minor asks, `3M` is six-plus and forcing, `3♠` over `1♥` shows
+    /// four spades; this is the disarming flag and the control arm of
+    /// `scripts/ab-rebid-checkback.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_rebid_checkback: bool,
+
     /// Give opener a **notrump out** over the K–K doubler's natural other
     /// major (`1NT (2♦) X (2♥) - - 2♠ -`)
     ///
@@ -2648,6 +2656,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
+    agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
     agreements.competition.multi_doubler_notrump = !args.no_ns_multi_doubler_notrump;
     agreements.competition.multi_doubler_minimum_notrump =
         !args.no_ns_multi_doubler_minimum_notrump;

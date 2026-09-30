@@ -238,6 +238,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_quantitative_six_notrump: bool,
 
+    /// Withhold the checkback and forcing majors over the 18–19 `2NT` rebid
+    /// (`notrump.rebid_checkback`, **shipped default-on 2026-09-30**: three of
+    /// the new minor asks, `3M` is six-plus and forcing, `3♠` over `1♥` shows
+    /// four spades; this is the disarming flag and the control arm of
+    /// `scripts/ab-rebid-checkback.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_rebid_checkback: bool,
+
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
     ///
@@ -318,6 +326,7 @@ fn main() {
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
+    agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(

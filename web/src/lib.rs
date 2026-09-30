@@ -988,6 +988,7 @@ knob!(set_transfer_longer_major, transfer_longer_major, notrump.transfer_longer_
 knob!(set_stayman_cue_continuation, stayman_cue_continuation, notrump.stayman_cue_continuation: bool);
 knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_slam_try: bool);
 knob!(set_quantitative_six_notrump, quantitative_six_notrump, notrump.quantitative_six_notrump: bool);
+knob!(set_rebid_checkback, rebid_checkback, notrump.rebid_checkback: bool);
 knob!(set_splinter_doubled, splinter_doubled, competition.splinter_doubled: bool);
 knob!(set_uvu, uvu, competition.uvu: bool);
 knob!(set_uvu_over_majors, uvu_over_majors, competition.uvu_over_majors: bool);
@@ -1509,6 +1510,7 @@ static SETTINGS: &[Setting] = &[
     toggle("stayman_cue_continuation", NOTRUMP, "", true, set_stayman_cue_continuation, stayman_cue_continuation),
     toggle("stayman_minor_slam_try", NOTRUMP, "", true, set_stayman_minor_slam_try, stayman_minor_slam_try),
     toggle("quantitative_six_notrump", NOTRUMP, "direct 6NT above each quantitative 4NT", true, set_quantitative_six_notrump, quantitative_six_notrump),
+    toggle("rebid_checkback", NOTRUMP, "checkback and forcing 3M over the 18–19 2NT rebid", true, set_rebid_checkback, rebid_checkback),
     toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, set_nt_splinter, nt_splinter),
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),

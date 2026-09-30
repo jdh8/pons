@@ -518,6 +518,9 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
             a.opening.notrump_shape != NotrumpShape::Balanced || a.opening.one_notrump_offshape,
         ),
         "1NT opening shape 6 minor" => i32::from(a.opening.notrump_shape == NotrumpShape::Wide6322),
+        // The 1NT-rebid checkback only.  BBA's engine has a separate `NMF
+        // after 2NT rebid` (id 116) for `notrump.rebid_checkback`, but the
+        // `.bbsa` schema carries no row for it, so that knob is undisclosed.
         "Checkback" => i32::from(a.rebid.new_minor_forcing),
         // `NotrumpKnobs::transfer_super_accept` is **off by default**, so we do not jump
         // super-accept a Jacoby transfer with four-card support and a maximum.
