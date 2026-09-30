@@ -798,6 +798,13 @@ struct Args {
     #[arg(long, default_value = "14", value_name = "off|HCP")]
     ns_passed_hand_major_pass: String,
 
+    /// Withhold Reverse Drury — a passed hand's `2♣!` limit raise of a
+    /// third/fourth-seat `1M`, opener's answers and the contested tails
+    /// (`response.drury`, **shipped default-on 2026-10-01**; this is the
+    /// disarming flag and the control arm of `scripts/ab-drury.sh`).
+    #[arg(long, default_value_t = false)]
+    no_ns_drury: bool,
+
     /// Disable the three-card-minor rebid over the forcing `1NT` — a 5-3-3-2
     /// rebids its five-card major again (shipped default-on; see
     /// `ReadingProfile::forcing_nt_three_card_minor`).
@@ -2878,6 +2885,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             anyhow::anyhow!("--ns-passed-hand-major-pass must be off|HCP, got {n:?}")
         })?),
     };
+    agreements.response.drury = !args.no_ns_drury;
     agreements.decision.reading.forcing_nt_three_card_minor =
         !args.no_ns_forcing_nt_three_card_minor;
     agreements.response.up_the_line = !args.no_ns_up_the_line;

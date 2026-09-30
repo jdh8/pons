@@ -26,6 +26,7 @@ mod inverted_minor;
 mod longer_major;
 mod two_over_one;
 
+use super::raises::DRURY;
 use choice_of_games::with_choice_of_games;
 use inverted_minor::inverted_minor_rows;
 pub(super) use longer_major::with_major_selection;
@@ -152,6 +153,28 @@ pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
 
     rules = with_two_over_one(rules, major, knobs);
     rules
+}
+
+/// Responses to our third- or fourth-seat `1♥`/`1♠` under Reverse Drury
+/// ([`ResponseKnobs::drury`][crate::bidding::agreements::ResponseKnobs::drury]): [`major_responses`] plus the `2♣!` limit raise
+///
+/// Three-plus trumps and 10+ support points (the single raise stops at 9;
+/// the earlier pass caps the top).  Weight 250 sits above the `3M` limit
+/// raise (200) and below the splinters (280), so a passed hand's limit raise
+/// always goes through `2♣`; the 2/1 rules on the same call (110) never win
+/// a passed hand, which cannot hold 13 points.  A separate table, keyed only
+/// under the passed-hand seats, because a rule's seat gate is
+/// projection-blind: on the shared table the Drury box leaked into every
+/// unpassed `1M - 2♣` reading (measured 2026-10-01).
+#[must_use]
+pub fn passed_hand_major_responses(major: Suit, agreements: &Agreements) -> Rules {
+    major_responses(major, agreements)
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            250,
+            support(3..) & support_points(major, 10..),
+        )
+        .alert(DRURY)
 }
 
 /// The splinter bid for major `m` with void/singleton in `x`
@@ -304,11 +327,30 @@ pub(super) fn package() -> Package {
         name: "suit-opening-responses",
         gate: |_| true,
         entries: |agreements| {
-            let mut entries = expand(
-                "P* 1M -",
-                |_| true,
-                |b| major_responses(b.suit('M'), agreements),
-            );
+            let mut entries = if agreements.response.drury {
+                // The passed-hand seats get their own table (Drury).
+                let mut entries = Vec::new();
+                for major in [Suit::Hearts, Suit::Spades] {
+                    let opening = super::call(1, Strain::from(major));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* {opening} -")).with_fan(1),
+                        major_responses(major, agreements),
+                    ));
+                    for seat in ["- -", "- - -"] {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{seat} {opening} -")),
+                            passed_hand_major_responses(major, agreements),
+                        ));
+                    }
+                }
+                entries
+            } else {
+                expand(
+                    "P* 1M -",
+                    |_| true,
+                    |b| major_responses(b.suit('M'), agreements),
+                )
+            };
             entries.extend(expand(
                 "P* 1m -",
                 |_| true,

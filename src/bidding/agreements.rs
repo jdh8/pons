@@ -3836,6 +3836,31 @@ pub struct ResponseKnobs {
     ///
     /// Opener accepts, asks for keycards, or declines.
     pub limit_raise_acceptance: bool,
+    // --- raises/drury.rs
+    /// **Reverse Drury**: a passed hand's `2♣!` over a third- or fourth-seat
+    /// `1M` is the limit raise (three-plus trumps, 10+ support points)
+    ///
+    /// **Default on (shipped 2026-10-01)**; `--no-ns-drury` in `bba-gen`
+    /// for the off arm.  Opener answers `2M` on a minimum (≤12 support
+    /// points), `2♦!` on a full opening (13–15), `4M` on 16–18 and `4NT`
+    /// RKCB on 19+; responder then signs off in `2M` or bids game, and
+    /// re-raises a minimum to `3M` on 12+.  Their double of the `2♣!` or of
+    /// the relay is systems on; their overcall gets a small natural ladder.
+    /// With the knob on the `1M - 2♣` game-force tree keys only under an
+    /// unpassed responder, so a passed hand's `2♣` is never a 2/1.
+    ///
+    /// Vs BBA (`scripts/ab-drury.sh`, 204,800 boards/arm/vul per seed): the
+    /// finished build (seed 1790801205) plain +0.0013 ±0.0012 / +0.0024
+    /// ±0.0017, PD +0.0010 ±0.0013 / +0.0020 ±0.0019 IMPs/board (none /
+    /// both); pooled over four clean seeds (819,200 boards/vul) plain
+    /// +0.0010 ±0.0006 / +0.0019 ±0.0009, PD +0.0007 ±0.0007 / +0.0017
+    /// ±0.0010 — all sixteen cells non-negative.
+    ///
+    /// We play the *reverse* form (the de facto standard, and what BEN's card
+    /// declares); BBA's own side plays the original (`Drury`, id 55) by
+    /// default, and reads ours through the `Reverse drury` card row (id 126)
+    /// exactly as authored: `2♣` 9–11 with 3+, `2♦!` 12–14, `2M` 11–12.
+    pub drury: bool,
 }
 
 impl Default for ResponseKnobs {
@@ -3850,6 +3875,7 @@ impl Default for ResponseKnobs {
             major_choice_of_games: true,
             major_game_tries: true,
             limit_raise_acceptance: true,
+            drury: true,
         }
     }
 }

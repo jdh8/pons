@@ -8,6 +8,7 @@
 //! | [`jacoby`] | opener's descriptive rebid after `1M - 2NT`, and responder's slam try | always on |
 //! | [`game_try`] | long-suit and general game tries after `1M - 2M` | [`ResponseKnobs::major_game_tries`] |
 //! | [`limit_raise`] | opener's acceptance ladder after `1M - 3M` | [`ResponseKnobs::limit_raise_acceptance`] |
+//! | [`drury`] | Reverse Drury: a passed hand's `2♣!` limit raise, opener's answers, responder's rungs | [`ResponseKnobs::drury`] |
 //!
 //! Both knobbed agreements ship default-on, measured on a silenced-opponent
 //! A/B (200k boards/vul, plain-DD + perfect-defense both winning):
@@ -23,12 +24,14 @@ use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
+mod drury;
 mod game_try;
 mod jacoby;
 mod limit_raise;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
+pub(super) use drury::{DRURY, drury_continuations};
 pub(super) use game_try::major_game_try_continuations;
 pub(super) use jacoby::jacoby_continuations;
 pub(super) use limit_raise::limit_raise_acceptance_continuations;
@@ -42,6 +45,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             jacoby_continuations(),
             major_game_try_continuations(),
             limit_raise_acceptance_continuations(),
+            drury_continuations(),
         ],
     );
 }

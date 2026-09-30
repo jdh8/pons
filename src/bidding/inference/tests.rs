@@ -1120,6 +1120,11 @@ fn gated_profiles_preserve_alert_invariant() {
         a.decision.reading.floor_rkcb = true;
         profiles.push(("kickback", a));
     }
+    {
+        let mut a = base;
+        a.response.drury = true;
+        profiles.push(("drury", a));
+    }
 
     let mut worklist = Vec::new();
     for (name, agreements) in profiles {
@@ -1857,7 +1862,10 @@ fn authored_calls_read_what_they_gate() {
         // american's preemptive `3♣` raise (`5+ support & ≤9 support
         // points`), so that rule is metered twice where the old Dutch
         // table, which had no raise, metered it once.  Knob-on stays 0.
-        ("support", 116, 0),
+        // 116 → 118 when Reverse Drury shipped default-on (2026-10-01):
+        // the passed-hand `2♣!` (`3+ support & 10+ support points`) on
+        // each major's passed-hand responder table.  Knob-on stays 0.
+        ("support", 118, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {

@@ -22,6 +22,7 @@
 //! | [`over_our_jacoby`] | when they compete over our Jacoby transfer |
 //! | [`over_our_minor_transfer`] | when they compete over our two-way `2♠` minor response |
 //! | [`over_our_diamond_transfer`] | when they compete over our `2NT` diamond transfer |
+//! | [`over_our_drury`] | when they compete over a passed hand's Drury `2♣!` |
 
 use super::super::agreements::Agreements;
 use super::super::constraint::{
@@ -53,6 +54,7 @@ mod negative_double;
 mod nt_high_overcall;
 mod our_preempts;
 mod over_our_diamond_transfer;
+mod over_our_drury;
 mod over_our_jacoby;
 mod over_our_minor_transfer;
 mod over_our_stayman;
@@ -74,6 +76,7 @@ use negative_double::{
 use nt_high_overcall::nt_high_overcall_package;
 use our_preempts::{strong_two_competition_package, weak_two_competition_package};
 use over_our_diamond_transfer::competition_over_diamond_transfer_package;
+use over_our_drury::competition_over_drury_package;
 use over_our_jacoby::competition_over_transfer_package;
 use over_our_minor_transfer::competition_over_minor_transfer_package;
 use over_our_stayman::competition_over_stayman_package;
@@ -530,6 +533,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
             competition_over_transfer_package(),
             competition_over_minor_transfer_package(),
             competition_over_diamond_transfer_package(),
+            competition_over_drury_package(),
         ],
     );
 

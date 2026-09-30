@@ -133,6 +133,12 @@ struct Args {
     #[arg(long, default_value = "14", value_name = "off|HCP")]
     ns_passed_hand_major_pass: String,
 
+    /// Withhold Reverse Drury — a passed hand's `2♣!` limit raise of a
+    /// third/fourth-seat `1M`, opener's answers and the contested tails
+    /// (`response.drury`, **shipped default-on 2026-10-01**)
+    #[arg(long, default_value_t = false)]
+    no_ns_drury: bool,
+
     /// Leave opener's N1j Landy `4m` slam try to the floor instead of using
     /// the shipped authored answer (`1NT (2♣) 2NT - 3♣ - 4♣ -`)
     ///
@@ -251,6 +257,7 @@ fn main() {
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
+    agreements.response.drury = !args.no_ns_drury;
     agreements.rebid.passed_hand_major_pass = match args.ns_passed_hand_major_pass.as_str() {
         "off" => None,
         n => Some(

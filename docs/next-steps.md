@@ -23,8 +23,9 @@ criterion 5). **Item 2 is now the top candidate.**
 
 ## 2. RKCB / slam accuracy (Constructive / book / round-2)
 
-**Biggest unworked pool on both references. Next lever: Drury, the second
-half of the passed-hand lane (2026-09-30, below; opener's pass shipped).**
+**Biggest unworked pool on both references. The passed-hand lane is done
+(opener's pass shipped 2026-09-30, Reverse Drury shipped 2026-10-01, below);
+next: BBA's strong rungs over Drury and its passed-hand `2NT`.**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -50,8 +51,18 @@ half of the passed-hand lane (2026-09-30, below; opener's pass shipped).**
     −1,931 plain / −2,395 PD. BBA's Drury `2♣` is 1,144 of them (−719 /
     −810); its passed-hand `2NT` 176 rows at −4.1 per row (−726 / −702,
     meaning not yet looked up — `probe-bba-book`); its pass where we respond
-    227 rows (−173 / −560). Drury needs opener's answers and the `(X)` tail
-    authored before it is measured.
+    227 rows (−173 / −560). **Reverse Drury shipped default-on 2026-10-01**
+    as `response.drury`: the `2♣!`, opener's `2M` / `2♦!` / `4M` / `4NT`
+    ladder, responder's rungs, their X of the raise or the relay (systems
+    on) and their overcall (opener's ladder).  Finished build plain +0.0013
+    / +0.0024, PD +0.0010 / +0.0020 (none / both); pooled four seeds plain
+    +0.0010 ±0.0006 / +0.0019 ±0.0009, PD +0.0007 ±0.0007 / +0.0017 ±0.0010
+    (`scripts/ab-drury.sh`, CHANGELOG).  We play the reverse form; BBA reads
+    it off the `Reverse drury` card row and plays the original itself.  Not
+    authored: BBA's natural strong rungs over the raise (`2♥` over `1♠`
+    with four hearts, `2NT`, three-level new suits, splinters) — the next
+    lever in this lane, with BBA's passed-hand `2NT` (176 rows) still to
+    look up.
 
   Order: the opener's pass first (self-contained, shipped), Drury second. The slam
   share is still thin — missed-slam 961 rows −11.4k, missed-grand 176 rows

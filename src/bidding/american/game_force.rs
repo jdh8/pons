@@ -216,7 +216,7 @@ pub(super) fn base() -> Package {
     Package {
         name: "two-over-one-continuations",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
 
             // Five major 2/1 sequences: opener's rebid, responder's rebid
@@ -233,17 +233,24 @@ pub(super) fn base() -> Package {
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
+                    // Under Reverse Drury a passed hand's `2♣` is the limit
+                    // raise (`raises/drury.rs` owns those keys), so the
+                    // club game force keys only under an unpassed responder.
+                    let node = |key: &str| {
+                        if agreements.response.drury && resp == Suit::Clubs {
+                            Pattern::node(key).with_fan(1)
+                        } else {
+                            Pattern::node(key)
+                        }
+                    };
                     let rebid = opener_rebid(major, resp);
                     let rebid_calls = distinct_calls(&rebid);
-                    entries.extend(rows_of(Pattern::node(&prefix), rebid));
+                    entries.extend(rows_of(node(&prefix), rebid));
 
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
                         let after_rebid = format!("{prefix} {rebid_call} -");
-                        entries.extend(rows_of(
-                            Pattern::node(&after_rebid),
-                            responder_rebid(major, resp),
-                        ));
+                        entries.extend(rows_of(node(&after_rebid), responder_rebid(major, resp)));
                         if let Call::Bid(rebid_bid) = rebid_call
                             && rebid_bid < three_major
                         {

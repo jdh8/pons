@@ -103,7 +103,9 @@ pub use defense::{
 pub use notrump::{EUROPEAN, PUPPET, SizeAskEight, notrump_responses};
 pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with};
 
-pub use responses::{TwoOverOneGate, major_responses, minor_responses};
+pub use responses::{
+    TwoOverOneGate, major_responses, minor_responses, passed_hand_major_responses,
+};
 
 // ---------------------------------------------------------------------------
 // Assembly

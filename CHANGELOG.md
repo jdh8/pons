@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reverse Drury, shipped default-on (2026-10-01)** — `response.drury`
+  (`--no-ns-drury` in `bba-gen` for the control arm).  Measured on
+  `scripts/ab-drury.sh` vs BBA, 204,800 boards/arm/vul per seed: the
+  finished build (run 4, seed 1790801205) plain +0.0013 ±0.0012 / +0.0024
+  ±0.0017, PD +0.0010 ±0.0013 / +0.0020 ±0.0019 IMPs/board (none / both),
+  458 / 566 fired; pooled over the four clean seeds (819,200 boards/vul)
+  plain +0.0010 ±0.0006 / +0.0019 ±0.0009, PD +0.0007 ±0.0007 / +0.0017
+  ±0.0010 — all sixteen cells non-negative, a plain-DD win at both
+  vulnerabilities and a PD win vulnerable.  A passed hand's
+  `2♣!` over a third- or fourth-seat `1M` is the limit raise (three-plus
+  trumps, 10+ support points; the single raise stops at 9).  Opener answers
+  `2M` on a minimum (≤12 support points), `2♦!` on a full opening (13–15),
+  `4M` on 16–18, `4NT` RKCB on 19+ (the rung the limit-raise ladder measured
+  as its whole win); after the relay responder signs off in `2M` (≤10) or
+  bids game (11+); after the minimum responder passes or re-raises to `3M`
+  on 12+, which opener accepts on exactly 12.  Their double of the `2♣!` or
+  of the `2♦!` relay is systems on (stripped to a pass — without the relay's
+  strip responder fell to the floor and passed the doubled relay, the worst
+  boards of the first clean run); their overcall gets opener's natural
+  ladder (`4M` 16+, `3M` 13–15, `2M` ≤12 while available, else pass) and
+  responder's continuation is the floor's.  With the knob on the `1M - 2♣` game-force tree keys only
+  under an unpassed responder (`Pattern::with_fan(1)`), so a passed hand's
+  `2♣` is never a 2/1, and the passed-hand seats carry their own responder
+  table (`passed_hand_major_responses`) — a rule's seat gate is
+  projection-blind, and on the shared table the Drury box leaked into every
+  unpassed `1M - 2♣` reading (clubs 0–13, spades 0–13; the first A/B run,
+  `ab-results/drury`, was confounded by it and still read non-negative on
+  all four cells).  A passed hand's `2♣` over their takeout double stays
+  the natural club bid of the `1M (X)` table: the wholesale systems-on strip
+  declines that one shape, or opener's later call would land on the Drury
+  ladders (26 tables per vul in the second run).  New modules
+  `raises/drury.rs` and `competition/over_our_drury.rs`; alerts `drury` and
+  `drury-relay`; `--ns-drury` on `render-book` and `probe-call-reading` too.
+  Disclosure: `Reverse drury` card row = the knob (`Drury` stays 0).  We play
+  the reverse form — the de facto standard, BEN's card too — and BBA reads
+  it off our card exactly as authored (`2♣` 9–11 with 3+, `2♦!` 12–14, `2M`
+  11–12, walked live with `probe-bba-book --conv "Reverse drury=1"`); BBA's
+  own side plays the original (`Drury`, id 55, on without a row) with `2♦!`
+  = minimum.  The anchor lane: a passed hand's response to third/fourth-seat
+  `1M`, 1,890 rows, −1,931 plain / −2,395 PD per 409.6k at `494f0c4b`, of
+  which BBA's Drury `2♣` is 1,144 (−719 / −810).  Not authored: BBA's
+  natural strong rungs over the raise (`2♥` over `1♠` with four hearts,
+  `2NT`, a three-level new suit, splinters, `4NT`); a passed hand's `3M`
+  limit raise is dead under the knob (its four-trump 13 stays Jacoby), and
+  a passed-hand 4333 12-count still takes the choice-of-games `3NT`.
+  Integration tests that encoded the old default now build the control arm
+  explicitly; `tests/fixtures/alert-sites.txt` and `cards/American.bbsa`
+  re-blessed (`Reverse drury = 1`).
 - **Web: Calc tab — exact shape × points probabilities (2026-09-30)** — a
   union-of-boxes calculator (one row per box: four length ranges plus a
   points range, `5+` / `4-6` / `3` / blank, or Rust's `4..=6` / `5..` /

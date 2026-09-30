@@ -2067,3 +2067,109 @@ fn union_hull_aligns_the_sound_reading_with_the_announced_one() {
         "the testbed auction no longer exercises the knob"
     );
 }
+
+/// Reverse Drury (`response.drury`) reads through its rules: a passed hand's
+/// `2♣!` is three-plus trumps and 10+ support points with no club claim,
+/// opener's `2♦!` is a 13–15 full opening with no diamond claim, and the
+/// minimum `2M` keeps the five-card major it opened on.
+#[test]
+fn drury_reads_the_raise_the_relay_and_the_minimum() {
+    let mut agreements = Agreements::default();
+    agreements.response.drury = true;
+    let one_spade_two_clubs = [
+        Call::Pass,
+        Call::Pass,
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Clubs),
+        Call::Pass,
+    ];
+    let seen = read_booked_with(&agreements, &one_spade_two_clubs);
+    let responder = seen.partner();
+    assert_eq!(responder.length(Suit::Spades).min, 3, "{responder:?}");
+    assert_eq!(
+        responder.length(Suit::Clubs),
+        Range::FULL_LENGTH,
+        "{responder:?}"
+    );
+    assert!(
+        responder.strength.support_points[Suit::Spades as usize].min >= 10,
+        "{responder:?}"
+    );
+
+    let relay: Vec<Call> = [
+        &one_spade_two_clubs[..],
+        &[bid(2, Strain::Diamonds), Call::Pass],
+    ]
+    .concat();
+    let seen = read_booked_with(&agreements, &relay);
+    let opener = seen.partner();
+    assert_eq!(
+        opener.length(Suit::Diamonds),
+        Range::FULL_LENGTH,
+        "{opener:?}"
+    );
+    assert_eq!(opener.length(Suit::Spades).min, 5, "{opener:?}");
+    assert!(
+        opener.strength.support_points[Suit::Spades as usize].min >= 13,
+        "{opener:?}"
+    );
+    assert!(
+        opener.strength.support_points[Suit::Spades as usize].max <= 15,
+        "{opener:?}"
+    );
+
+    let minimum: Vec<Call> = [
+        &one_spade_two_clubs[..],
+        &[bid(2, Strain::Spades), Call::Pass],
+    ]
+    .concat();
+    let seen = read_booked_with(&agreements, &minimum);
+    let opener = seen.partner();
+    assert_eq!(opener.length(Suit::Spades).min, 5, "{opener:?}");
+    assert!(
+        opener.strength.support_points[Suit::Spades as usize].max <= 12,
+        "{opener:?}"
+    );
+}
+
+/// Reverse Drury (`response.drury`) must not touch the reading of an
+/// unpassed hand's `2♣`: the 2/1 game force in first and second seat reads
+/// the same with the knob on and off, and so does the table-wide reading of
+/// their `1♠ - 2♣`.
+#[test]
+fn drury_leaves_the_unpassed_two_over_one_reading_alone() {
+    let mut on = Agreements::default();
+    on.response.drury = true;
+    let off = Agreements::default();
+    for auction in [
+        vec![
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+        vec![
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+        // Their 1♠ - 2♣, read from the seat over the response.
+        vec![bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Clubs)],
+    ] {
+        let a = read_booked_with(&on, &auction);
+        let b = read_booked_with(&off, &auction);
+        for seat in [a.partner(), a.lho(), a.rho()]
+            .into_iter()
+            .zip([b.partner(), b.lho(), b.rho()])
+        {
+            assert_eq!(
+                format!("{:?}", seat.0),
+                format!("{:?}", seat.1),
+                "{auction:?}"
+            );
+        }
+    }
+}

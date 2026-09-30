@@ -483,7 +483,37 @@ pub(super) fn direct_seat_package() -> Package {
                     Pattern::node(&format!("{key} (1NT)")),
                     over_their_overcall(opening, Bid::new(1, Strain::Notrump), agreements),
                 ));
-                entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
+                // Systems on over their double — except, under Reverse Drury,
+                // a passed hand's `2♣` over the doubled major: over the double
+                // it is the natural club bid of the `1M (X)` table, and the
+                // strip would answer it with the Drury ladders.  Declining the
+                // rewrite leaves that tail where the shipped book leaves it,
+                // the floor.
+                let drury =
+                    agreements.response.drury && matches!(opening, Suit::Hearts | Suit::Spades);
+                entries.push(rebase(
+                    Pattern::first(&key, "X"),
+                    described_rewrite(
+                        "systems on: their X is stripped to a pass (not a passed hand's Drury-seat 2♣)",
+                        rewriter(move |auction: &[Call], depth: usize| {
+                            if auction.get(depth) != Some(&Call::Double) {
+                                return None;
+                            }
+                            // `depth` is their double; the opening sits at
+                            // `depth - 1`, third or fourth seat iff ≥ 2.
+                            if drury
+                                && depth >= 3
+                                && auction.get(depth + 1)
+                                    == Some(&Call::Bid(Bid::new(2, Strain::Clubs)))
+                            {
+                                return None;
+                            }
+                            let mut rewritten = auction.to_vec();
+                            rewritten[depth] = Call::Pass;
+                            Some(rewritten)
+                        }),
+                    ),
+                ));
             }
             entries
         },

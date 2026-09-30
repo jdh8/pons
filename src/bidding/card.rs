@@ -548,6 +548,11 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // `accepted_LHO_BID_TO_STAYMAN_AND_TRANSFERS`, and the (2♣) systems-on
         // rebase in `competition.rs` rides the same gate as Lebensohl itself.
         "Transfers if RHO bids clubs" => i32::from(a.competition.lebensohl_style != LebensohlStyle::Off),
+        // Reverse Drury (`response.drury`): a passed hand's `2♣!` limit raise,
+        // `2♦!` the full opening, `2M` the minimum — BBA reads all three off
+        // this row.  The original (`Drury`, `2♦!` = minimum) is never ours.
+        "Reverse drury" => i32::from(a.response.drury),
+        "Drury" => 0,
 
         // ---- constant: we author these (or pointedly do not), and no knob moves them ----
         //
@@ -715,7 +720,6 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         | "BROMAD"
         | "Cappelletti"
         | "Direct Jump Cuebid"
-        | "Drury"
         | "Extended Stayman"
         | "Fit showing jumps"
         | "French 2D"
@@ -740,7 +744,6 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         | "Natural 3N entering style"
         | "Raptor 1NT"
         | "Reverse Bergen"
-        | "Reverse drury"
         | "Rubensohl after 1NT"
         | "Rubensohl after 1m"
         | "Snapdragon Double"
