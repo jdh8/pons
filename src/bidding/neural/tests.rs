@@ -69,6 +69,10 @@ fn matches_candle_fixture_bba_v6() {
         include_str!("../weights/american_bba_v6_seed2.fixture.json"),
         include_str!("../weights/american_bba_v6_seed3.fixture.json"),
         include_str!("../weights/american_bba_v6_seed4.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed5.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed6.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed7.fixture.json"),
+        include_str!("../weights/american_bba_v6_seed8.fixture.json"),
     ];
     for (fixture, blob) in fixtures.into_iter().zip(WEIGHTS_BBA_V6.iter()) {
         check_fixture(fixture, |x| {

@@ -1,15 +1,17 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
-**Status (2026-09-30): Phase 1 shipped — the K = 4 logit-mean ensemble of
-init seeds 1–4 is the default floor (win / win on every cell, rails
-re-arbitrated). Phase 2 axes 1–5 are closed: `--dd-weight` loses, `--wd` is
+**Status (2026-09-30): closed. Phase 3 shipped — the K = 8 logit-mean
+ensemble of init seeds 1–8 is the default floor (confirmed on fresh deals:
+plain wash, PD win both cells; rails re-arbitrated), replacing Phase 1's
+K = 4 of seeds 1–4. Phase 2 axes 1–5 are closed: `--dd-weight` loses, `--wd` is
 skipped by its gate, `--epochs 600` loses on plain and washes on PD, and
 `--hidden 512` loses on PD and 128 loses on plain DD and sd-PD. Width stays
 256. The Pass-offset follow-up and 150 epochs also lose on plain DD.
 `--lr 3e-4` reads *suspect* (plain win none, PD loss both). The three
 gate-rejected arms were measured anyway (`sweep-gated`) and none wins.
-No Phase 2 recipe advances. Next: Phase 3's K = 8 disposition; K = 4
-remains shipped.** Axis numbers refer to the
+No Phase 2 recipe advances, so the recipe is unchanged and the ensemble
+is the whole deliverable. The one lever left is relabel-grade and deferred
+(Next).** Axis numbers refer to the
 original Phase 2 plan: **Axis 4 is width; Axis 5 is learning rate**, regardless
 of the order of remaining tasks below. Verdict narratives and divergence traces:
 [../archive/floor-sweep-verdicts.md](../archive/floor-sweep-verdicts.md).
@@ -68,7 +70,8 @@ This one won because:
    run time (the `american-file` arm below), so a whole sweep runs on one
    build and the never-rebuild-mid-flight rule holds by construction.
 4. **Control is always the shipped `american()`** (M32 v6; seed 1 until the
-   2026-09-28 flip, the K = 4 mean of seeds 1–4 since). Fresh
+   2026-09-28 flip, the K = 4 mean of seeds 1–4 until 2026-09-30, the K = 8
+   mean of seeds 1–8 since). Fresh
    `SEED_BASE` per experiment, shared by its arms; arms sequential;
    `scripts/idle-run.sh`.
 5. **A win smaller than the seed noise is a reseed, not a recipe.** Phase 0
@@ -78,9 +81,21 @@ This one won because:
    each rail's runner (floor-rail-campaign.md stop criterion 5) before the
    flip. Then `smoke-default` re-blesses and CHANGELOG records the numbers.
 
-## Shipped state (2026-09-28)
+## Shipped state (2026-09-30)
 
-- **K = 4 logit mean** of init seeds 1–4, embedded; `classify_bba_v6` is the
+- **K = 8 logit mean** of init seeds 1–8, embedded in that order (the
+  `sweep-k8-confirm` blobs, sha256-pinned in its `weights.k8`). Over K = 4,
+  pooled across `sweep-k8` and `sweep-k8-confirm` (409,600 bd/vul): plain
+  +0.0008 ±0.0039 / +0.0044 ±0.0045 (wash), PD **+0.0076 ±0.0042 /
+  +0.0082 ±0.0049** (win both). The embedded default reproduces the
+  measured `american-file` arm board for board. Rails re-arbitrated under
+  K = 8 (rails on − off: plain +0.025 / +0.030, PD +0.016 / +0.019); all
+  five kept.
+- **KR3 (K = 8):** 587 µs/board bidding-only (`floor-timing`, 20,000
+  boards, three reps) vs 343 for K = 4: 1.71× K = 4, ~3.7× the single net.
+  In the harness generation grows 110 → 128 s (+15%), about 2% of an
+  end-to-end A/B. The crate is 8.1 MiB of crates.io's 10 MB.
+- *Phase 1, superseded:* **K = 4 logit mean** of init seeds 1–4, embedded; `classify_bba_v6` is the
   mean, so every `with_floor_v6` path flipped at once. Plain +0.045 / +0.056,
   PD +0.057 / +0.077, sd-PD +0.051 / +0.067 (none / both), CI-clear by
   4–7σ. Single reseeds each land on the *suspect* row (plain up, PD down,
@@ -93,12 +108,12 @@ This one won because:
   +0.028 / +0.034, PD +0.021 / +0.025, CI-clear); kept.
 - **σ_ens ≲ 0.007** (seeds 5–8 vs 1–4), below what 204,800 boards resolve,
   so a Phase 2 arm must read ≳ 0.01 CI-clear on both scorers. **K = 8** sits
-  on the 1/K prediction (PD +0.005 / +0.008) at 1.8× latency; Phase 3's call.
+  on the 1/K prediction (PD +0.005 / +0.008) at 1.8× latency; shipped in Phase 3 (above).
 
 ## Closed axes
 
 Each arm was the K = 4 mean of seeds 1–4 at the candidate recipe against the
-shipped K = 4; detail in the archive.
+then-shipped K = 4; detail in the archive.
 
 - **`--dd-weight` 0.1 / 1.0 — loss / loss**, growing with the weight. The
   auxiliary trick head regularises (the train − val gap closes) but the
@@ -163,17 +178,21 @@ NaN, a stalled loss, or CE far past shipped val_ce + 0.010 (h128 missed by
 measured all three rejected arms and all three lost on IMPs, so the gate cost
 nothing this time. The line is a warning, not a verdict.
 
-- **Phase 3 disposition.** No Phase 2 recipe passed the IMP gate. Phase 1's shipped K = 4 is the deliverable. Decide whether
-   K = 8's existing small PD increment merits a fresh-seed confirmation at
-   its measured 1.8× bidding latency; no K = 8 promotion is implied by
-   closing Phase 2.
+- **Phase 3 — done 2026-09-30.** K = 8 confirmed on fresh deals and
+   shipped. K = 16 is not worth running: the 1/K prediction puts its
+   increment at about half of K = 8's (≈ +0.004 PD), below what 409,600
+   boards resolve, at another ~1.7× latency.
 - **Root cause, deferred (relabel-grade).** The rollout-override rows are
    the only IMP-grounded labels. Test whether the states where the sharper
    net reverted to pass neighbour override rows; if so, upweight them. The
    corpus carries no per-row override flag, so this needs a dump and sits in
    [../next-steps.md](../next-steps.md)'s deferred list.
 
-## Phase 3 — combine and ship
+## Phase 3 — combine and ship (shipped 2026-09-30)
+
+No recipe advanced, so Phase 3 was the ensemble alone at K = 8: the
+confirmation A/B, rail re-arbitration, the embed, CHANGELOG. The plan as
+written:
 
 Best recipe × ensemble (K = 8 if the 1/K increment still pays at that
 recipe), one A/B, rail re-arbitration, `smoke-default` re-bless, CHANGELOG.

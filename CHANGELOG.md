@@ -218,6 +218,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The default floor is now a K = 8 logit-mean ensemble (2026-09-30); the
+  floor sweep is closed.** `neural::classify_bba_v6` averages eight
+  embedded draws of the unchanged v6 recipe (`--init-seed 1..=8`; seeds 5–8
+  are the new `weights/american_bba_v6_seed{5,6,7,8}.f32`), so `american()`
+  and every `with_floor_v6` sibling flip together. The embedded default
+  reproduces the measured `american-file` arm board for board (blobs and
+  order sha256-pinned in `ab-results/sweep-k8-confirm/weights.k8`).
+  **Measured** vs the K = 4 floor, vs BBA, 204,800 bd/arm/vul: `sweep-k8`
+  (`SEED_BASE=1790624432`) and the fresh-deal confirmation `sweep-k8-confirm`
+  (`SEED_BASE=1790749966`) pool to plain DD +0.0008 ±0.0039 / +0.0044
+  ±0.0045 (wash) and PD **+0.0076 ±0.0042 / +0.0082 ±0.0049** (none / both,
+  win both). The confirmation alone read sd-PD +0.0067 ±0.0060 / +0.0049
+  ±0.0071. The decision table says a plain wash with a PD win ships
+  default-on. The five floor rails re-arbitrate as still earning under
+  K = 8 (rails on − off: plain +0.025 / +0.030, PD +0.016 / +0.019,
+  CI-clear). **Cost (KR3):** 587 µs/board bidding-only against 343 for
+  K = 4 (1.71×, `floor-timing`, 20,000 boards). Harness generation takes
+  +15%, about 2% of a solver-bound A/B. The `.crate` grows to 8.1 MiB of the
+  10 MB limit. One floor-choice pin in `defense/overcall/tests.rs` is
+  re-pinned: after `1♦ 2♥ -`, `A42.T94.AKJ2.Q63` raises to `3♥` again, as
+  under M32. K = 4 passed there. **Impact:** default bidding changes;
+  about +0.008 IMPs/board on PD, neutral on plain DD.
 - **`CHANGELOG.md` is excluded from the published crate (2026-09-30).**
   It was 0.55 MB of the 7.32 MB `.crate`, which is now 6.76 MB. That makes
   room under crates.io's 10 MB limit for the K = 8 floor's four extra

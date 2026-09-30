@@ -307,8 +307,8 @@ fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
     );
     assert_eq!(
         advance,
-        Call::Pass,
-        "the K = 4 floor settles this exact weak-jump continuation"
+        call(3, Strain::Hearts),
+        "the K = 8 floor settles this exact weak-jump continuation"
     );
 }
 
@@ -407,7 +407,7 @@ fn direct_minor_weak_jump_is_exactly_one_club_two_diamonds() {
     assert_eq!(
         advance,
         call(3, Strain::Diamonds),
-        "the K = 4 floor chooses the natural preempt continuation",
+        "the K = 8 floor chooses the natural preempt continuation",
     );
 }
 

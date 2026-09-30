@@ -70,14 +70,13 @@ criterion 5). **Item 2 is now the top candidate.**
 
 ## 2b. The floor sweep — seed noise, ensembles, the recipe's free parameters
 
-**Updated 2026-09-30: Phase 1 shipped; Phase 2 supplies no replacement
-recipe.** The K = 4 logit mean of init seeds 1–4 won plain DD
-+0.045 / +0.056 and PD +0.057 / +0.077 IMPs/board (none / both), with
-rails re-arbitrated. The recipe trials either lost, failed the training
-gate, or were skipped by their gate; the final `--lr 3e-4` candidate
-narrowly failed on seed 1 and has no IMP verdict. Keep width 256,
-300 epochs and `--lr 0.001`. Phase 3's remaining decision is whether
-K = 8's small PD increment merits confirmation at 1.8× bidding latency.
+**Closed 2026-09-30: the K = 8 logit mean of init seeds 1–8 is the shipped
+floor.** Phase 1's K = 4 won plain DD +0.045 / +0.056 and PD +0.057 /
++0.077 IMPs/board (none / both); K = 8 added a pooled PD +0.008 / +0.008
+over it at a plain-DD wash, confirmed on fresh deals, rails re-arbitrated,
+at 1.7× K = 4's bidding latency (~2% of an A/B). No Phase 2 recipe trial
+won: keep width 256, 300 epochs and `--lr 0.001`. The one open lever, the
+rollout-override upweighting, needs a dump and sits in the deferred list.
 Numbers, limits and runbook are in
 [ai-bidder/floor-sweep.md](ai-bidder/floor-sweep.md). Training-only work
 was authorized 2026-09-28; the M32 corpus stayed frozen and the separate

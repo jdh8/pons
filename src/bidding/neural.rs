@@ -152,13 +152,17 @@ const IN_V6: usize = FEATURES_LEN_V6;
 /// Compact-config weights retrained on the live authored reading.  Whole-hand
 /// points and the four fit-specific support ranges are separate inputs.
 ///
-/// Four draws of one recipe (`--init-seed 1..=4`, seed 1 first): the shipped
-/// floor is their logit mean (`docs/ai-bidder/floor-sweep.md` Phase 1).
-static RAW_BBA_V6: [&[u8]; 4] = [
+/// Eight draws of one recipe (`--init-seed 1..=8`, seed 1 first): the shipped
+/// floor is their logit mean (`docs/ai-bidder/floor-sweep.md` Phase 3).
+static RAW_BBA_V6: [&[u8]; 8] = [
     include_bytes!("weights/american_bba_v6.f32"),
     include_bytes!("weights/american_bba_v6_seed2.f32"),
     include_bytes!("weights/american_bba_v6_seed3.f32"),
     include_bytes!("weights/american_bba_v6_seed4.f32"),
+    include_bytes!("weights/american_bba_v6_seed5.f32"),
+    include_bytes!("weights/american_bba_v6_seed6.f32"),
+    include_bytes!("weights/american_bba_v6_seed7.f32"),
+    include_bytes!("weights/american_bba_v6_seed8.f32"),
 ];
 const _: () = {
     let mut i = 0;
@@ -171,10 +175,10 @@ const _: () = {
     }
 };
 
-static WEIGHTS_BBA_V6: LazyLock<[Vec<f32>; 4]> = LazyLock::new(|| RAW_BBA_V6.map(decode));
+static WEIGHTS_BBA_V6: LazyLock<[Vec<f32>; 8]> = LazyLock::new(|| RAW_BBA_V6.map(decode));
 
 /// Evaluate the v6 BBA-distilled floor: 176 features → 38 logits, the logit
-/// mean of the four embedded draws ([`classify_v6_mean`]).
+/// mean of the eight embedded draws ([`classify_v6_mean`]).
 #[must_use]
 pub fn classify_bba_v6(features: &[f32]) -> Logits {
     classify_v6_mean(&*WEIGHTS_BBA_V6, features)
@@ -206,7 +210,7 @@ fn forward_v6(blob: &[f32], features: &[f32]) -> Logits {
 ///
 /// The floor sweep's ensemble arm (`docs/ai-bidder/floor-sweep.md` Phase 1).
 /// Logits, not probabilities, are averaged: consumers read margins, not odds.
-/// The four embedded draws, in order, reproduce [`classify_bba_v6`] bit for bit.
+/// The eight embedded draws, in order, reproduce [`classify_bba_v6`] bit for bit.
 #[must_use]
 pub fn classify_v6_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
