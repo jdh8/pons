@@ -1,9 +1,11 @@
 # Next-step candidates, ranked by potential IMP gain
 
-**Ranked 2026-09-26** from the two current anchors — BBA shipping arm at
-`7e0bc648` (2026-09-26, re-anchored after the floor-rail series;
-[bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at `daa8bf4a`
-(2026-09-14, [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
+**Ranked 2026-09-26, item 2 re-read 2026-09-30** from the two current anchors
+— BBA shipping arm at `494f0c4b` (2026-09-30, re-anchored after the K = 8
+floor and the round-2 book ships; bucket order unchanged, so the ranking
+below stands; [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
+`daa8bf4a` (2026-09-14, stale by the same window;
+[ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
 see [Owed / deferred](#owed--deferred).
 Method: pool size on both references × how often the vein has actually
@@ -21,9 +23,35 @@ criterion 5). **Item 2 is now the top candidate.**
 
 ## 2. RKCB / slam accuracy (Constructive / book / round-2)
 
-**Biggest unworked pool on both references; needs a new lever, not a re-run.**
+**Biggest unworked pool on both references. Next lever: the passed-hand
+lane (2026-09-30, below).**
 
-- Pool: #1 on **both** scorers on the BBA shipping arm at `7e0bc648`
+- **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
+  on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
+  bucket by auction prefix with leading passes folded finds one lane no
+  earlier census named, because its rows are game-level and were spread over
+  seats: **BBA treats a passed hand's response as non-forcing and plays
+  Drury; we do neither.** Shipping arm, per 409,600 boards:
+  - *Opener passes a passed hand's `1M` response* (`- - 1x - 1M -`, third
+    or fourth seat): 1,042 rows, **−1,766 plain / −2,683 PD**. BBA's pass is
+    three-card support (1,040 rows) on 12–14 HCP (1,023 rows; −2.0 / −1.7 /
+    −0.8 plain per row at 12 / 13 / 14); we rebid `1NT` on
+    1,008 of them and responder drives on. Both seats and both majors price
+    alike. One rule, one knob, and a Pass reading — the biggest single lever
+    found in this bucket (ceiling ≈ +0.004 plain / +0.007 PD per board).
+  - *A passed hand's response to third/fourth-seat `1M`*: 1,890 rows,
+    −1,931 plain / −2,395 PD. BBA's Drury `2♣` is 1,144 of them (−719 /
+    −810); its passed-hand `2NT` 176 rows at −4.1 per row (−726 / −702,
+    meaning not yet looked up — `probe-bba-book`); its pass where we respond
+    227 rows (−173 / −560). Drury needs opener's answers and the `(X)` tail
+    authored before it is measured.
+
+  Order: the opener's pass first (self-contained), Drury second. The slam
+  share is still thin — missed-slam 961 rows −11.4k, missed-grand 176 rows
+  −2.2k on the instinct arm, no lane above 129 rows (`1♥ - 1♠`) — and the
+  largest call-pair classes are the ones already listed below (`3NT` vs
+  BBA's `4m` / `4NT`, opener's `2x` vs BBA's jump, `1♦ - 1M - 2♦` vs `2♣`).
+- Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN
   −1.58 plain / −1.75 PD per divergent board, the worst PD/div of the BEN
@@ -111,9 +139,9 @@ criterion 5). **Item 2 is now the top candidate.**
   (`ab-results/rebid-checkback`). Owed: the doubled checkback's `(X)`
   tail (floor-owned, two of the ten worst boards) and the 12+ RKCB floor
   over the six-card raise.
-- Every cheap lever here is spent (bucket marked mined-to-residual on the BBA
-  side); expect design work. Even a 10% capture ≈ +0.01/board — more than
-  any single rail.
+- The slam-side cheap levers are spent; the 2026-09-30 passed-hand lane above
+  is the one cheap lever left in the bucket. Even a 10% capture of the pool
+  ≈ +0.01/board — more than any single rail.
 
 ## 2b. The floor sweep — seed noise, ensembles, the recipe's free parameters
 

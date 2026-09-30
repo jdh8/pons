@@ -474,6 +474,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
   and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
   Protocol and limitations: `docs/bidding-performance-handoff.md`.
+- **BBA re-anchor (2026-09-30, `494f0c4b`)**: shipping `american()` scores
+  **−0.3507 plain / −0.1485 perfect-defense IMPs/board** (none −0.3278 /
+  −0.1157, both −0.3736 / −0.1813); `american_instinct()` −0.9721 / −1.0041.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches. PD is priced with `ns_score_bid` from this snapshot on, so the
+  PD column does not continue `7e0bc648`'s; the window is read off paired
+  diffs of the two snapshots instead: shipping +0.0612 / +0.0715 plain and
+  +0.0784 / +0.1005 PD per table (none / both), which covers the summed A/Bs
+  of everything shipped in the window (the K = 4 and K = 8 floor ensembles,
+  the 2NT-bid rail, quantitative 6NT, the `2NT`-rebid checkback, the RKCB
+  asker fix). The paired net gain over instinct is +0.3213 plain / +0.4349
+  PD. Bucket order is unchanged; the re-rank and the new passed-hand lever
+  are in `docs/next-steps.md` item 2.
 - **BBA re-anchor (2026-09-26, `7e0bc648`)**: shipping `american()` scores
   **−0.4805 plain / −0.3449 perfect-defense IMPs/board** (none −0.4451 /
   −0.2866, both −0.5159 / −0.4031), up +0.056 / +0.078 on `c3bb94a7`;
