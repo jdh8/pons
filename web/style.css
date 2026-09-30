@@ -41,7 +41,8 @@ header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.2);
 }
 h1 { font-size: 1.2rem; margin: 0; }
-nav { display: flex; gap: 0.4rem; }
+nav { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.navsep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.3); margin: 0 0.3rem; }
 nav button {
   font: inherit;
   font-size: 0.9rem;
@@ -382,3 +383,17 @@ table.ddtable td.lose { color: var(--heart); }
 /* A settings row whose master knob is off: the engine ignores it, so the UI says
    so rather than offering a control that does nothing. */
 .opt.dimmed { opacity: .45; cursor: not-allowed; }
+
+/* --- Calc tab (union of boxes) --- */
+table.boxes { border-collapse: collapse; }
+table.boxes th { font-weight: 600; padding: 0.2rem 0.4rem; text-align: left; }
+table.boxes td { padding: 0.15rem 0.3rem; }
+table.boxes input {
+  font: inherit;
+  font-family: ui-monospace, monospace;
+  width: 4.5rem;
+  padding: 0.3rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }

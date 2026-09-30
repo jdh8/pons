@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web: Calc tab — exact shape × points probabilities (2026-09-30)** — a
+  union-of-boxes calculator (one row per box: four length ranges plus a
+  points range, `5+` / `4-6` / `3` / blank), priced exactly by convolving
+  per-suit holding censuses over the 560 patterns; gauges HCP, the bidder's
+  points (HCP + `upgrade`) and support points per trump, with the censuses
+  built in wasm from the crate's own evaluators (`point_census()`) so they
+  cannot drift.  The nav is grouped Play / System / Tools.  Crate change:
+  `constraint::wasted` is now `pub`.
+
 - **Checkback and forcing majors over the 18–19 `2NT` rebid
   (`notrump.rebid_checkback`, shipped default-on 2026-09-30).** The
   round-2 census's other hole in `1m - 1M - 2NT`: responder's table was

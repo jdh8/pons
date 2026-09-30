@@ -51,7 +51,7 @@ python3 -m http.server 8137
 # open http://localhost:8137/
 ```
 
-Five tabs:
+Seven tabs, grouped Play / System / Tools:
 
 - **Practice** — pick your seat, dealer, vulnerability, and a minimum HCP,
   then bid with the bidding box; the bots bid the other seats.  After each of
@@ -66,6 +66,12 @@ Five tabs:
   current book is shown.
 - **Edit** — a PBN field two-way-synced with a card palette; build a deal by
   hand, then "Bid it out in Demo".
+- **Calc** — a shape-points probability calculator: a union of boxes (per-suit
+  length ranges plus a points range, one row per box), priced exactly by
+  convolving per-suit holding censuses over the 560 patterns.  Gauges: HCP,
+  the bidder's points (HCP + upgrade), and support points with each trump —
+  the censuses come from the wasm's `point_census()`, built with the crate's
+  own evaluators, so the gauges cannot drift from the bidder's.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families

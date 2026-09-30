@@ -19,7 +19,7 @@ use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
-    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
+    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Holding, Seat, Strain,
 };
 use pons::bidding::agreements::{Agreements, TheirDisclosures};
 use pons::bidding::american::american_book;
@@ -745,6 +745,31 @@ struct RuleJson {
     weight: i16,
     text: String,
     label: &'static str,
+}
+
+/// Per-length holding census for the Calc tab's exact point convolution
+///
+/// For every suit length: how many of the 8192 holdings carry each raw HCP,
+/// split by whether the holding wastes an honor (`hcp[len][hcp][wasted]`,
+/// the two inputs of [`upgrade`][pons::bidding::constraint::upgrade]), and
+/// how many carry each `hcp_plus` value (`plus[len][value]`, the side-suit
+/// term of the support scale).  Built from the crate's own evaluators so the
+/// calculator's gauges cannot drift from the bidder's.
+#[wasm_bindgen]
+#[must_use]
+pub fn point_census() -> String {
+    let mut hcp = vec![vec![[0u32; 2]; 11]; 14];
+    let mut plus = vec![vec![0u32; 11]; 14];
+    for bits in 0..=u16::MAX {
+        let Some(holding) = Holding::from_bits(bits) else {
+            continue;
+        };
+        let len = holding.len();
+        let wasted = usize::from(pons::bidding::constraint::wasted(holding));
+        hcp[len][eval::hcp::<usize>(holding)][wasted] += 1;
+        plus[len][eval::hcp_plus::<usize>(holding)] += 1;
+    }
+    serde_json::json!({ "hcp": hcp, "plus": plus }).to_string()
 }
 
 /// One partnership's authored 2/1 books as JSON, for the browser's book tab

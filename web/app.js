@@ -1,6 +1,6 @@
 // Thin static UI over the pons wasm bidder: the engine holds the deal and the
 // auction; JS rebuilds the DOM from each JSON snapshot (gin-rummy pattern).
-import init, { WebTable, Binky, book, set_option, set_choice, describe_options } from './pkg/pons_web.js';
+import init, { WebTable, Binky, book, point_census, set_option, set_choice, describe_options } from './pkg/pons_web.js';
 
 const SEATS = ['N', 'E', 'S', 'W'];
 const SEAT_NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -46,11 +46,12 @@ async function main() {
   id('b-pair').onchange = (ev) => { bookPair = ev.target.value; loadBook(); };
   initEdit();
   initBinky();
+  initCalc();
   showTab(location.hash.slice(1));
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book', 'edit', 'binky', 'settings'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit', 'binky', 'calc', 'settings'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -970,4 +971,139 @@ function renderBinkyTable() {
     '<table class="ddtable"><thead><tr><th>holding</th><th>μ (tricks)</th><th>predictive var</th>' +
     (hasPhysical ? '<th>physical var</th>' : '') + '<th>deals</th></tr></thead><tbody>' +
     rows.join('') + '</tbody></table>';
+}
+
+// --- Calc tab: exact shape × points probabilities -----------------------------
+// A union of boxes (and any Pavlicek-style constraint) is a predicate over the
+// 560 hand patterns times a set of admitted point values, so the count is an
+// exact convolution of per-suit holding censuses.  The censuses come from the
+// wasm (`point_census`, the crate's own evaluators), the shape terms are
+// mirrored here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor
+// suits, floored at 0; support points swap the side suits to hcp_plus and
+// count the trump suit's plain HCP.  No sampling.
+// ponytail: relative constraints (♠ > ♥) and pattern keys are one predicate on
+// the pattern loop each; add a "shape filter" field when someone asks.
+const TOTAL_HANDS = 635013559600;
+let CENSUS = null; // {hcp: [len][hcp][wasted], plus: [len][plus]} from wasm
+const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
+for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; s + h + d <= 13; d++) {
+  PATTERNS.push([s, h, d, 13 - s - h - d]);
+}
+const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
+const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
+
+// 1-D convolution of count vectors
+function conv(a, b) {
+  const r = new Array(a.length + b.length - 1).fill(0);
+  a.forEach((x, i) => { if (x) b.forEach((y, j) => { r[i + j] += x * y; }); });
+  return r;
+}
+// 2-D: [points][wasted suits]
+function conv2(a, b) {
+  const r = Array.from({ length: a.length + b.length - 1 }, () => new Array(a[0].length + b[0].length - 1).fill(0));
+  a.forEach((ar, i) => ar.forEach((x, w) => { if (x) b.forEach((br, j) => br.forEach((y, v) => { r[i + j][w + v] += x * y; })); }));
+  return r;
+}
+
+// Count of hands of this pattern by gauge value
+function pointHist(lens, gauge) {
+  const hcpRow = (len) => CENSUS.hcp[len].map((pair) => pair[0] + pair[1]);
+  const bonus = twoLongest(lens) >= 10 ? 1 : 0;
+  if (gauge === 'hcp') return lens.reduce((acc, len) => conv(acc, hcpRow(len)), [1]);
+  if (gauge === 'points') {
+    const joint = lens.reduce((acc, len) => conv2(acc, CENSUS.hcp[len]), [[1]]);
+    const base = (isBalanced(lens) ? 0 : 1) + bonus;
+    const hist = [];
+    joint.forEach((row, h) => row.forEach((n, w) => {
+      const p = h + Math.max(0, base - w);
+      hist[p] = (hist[p] || 0) + n;
+    }));
+    return hist;
+  }
+  const trump = HAND_ORDER.indexOf(gauge); // support points, `gauge` is the trump suit
+  const hist = lens.reduce((acc, len, i) => conv(acc, i === trump ? hcpRow(len) : CENSUS.plus[len]), [1]);
+  return bonus ? [0, ...hist] : hist;
+}
+
+// "5+", "4-6", "3", "-2", "" → [min, max]; null when unparseable
+function parseRange(text, cap) {
+  const t = text.replace(/\s/g, '');
+  if (t === '') return [0, cap];
+  let m;
+  if ((m = t.match(/^(\d+)\+$/))) return [+m[1], cap];
+  if ((m = t.match(/^-(\d+)$/))) return [0, +m[1]];
+  if ((m = t.match(/^(\d+)-$/))) return [+m[1], cap];
+  if ((m = t.match(/^(\d+)-(\d+)$/))) return [+m[1], +m[2]];
+  if ((m = t.match(/^(\d+)$/))) return [+m[1], +m[1]];
+  return null;
+}
+
+function initCalc() {
+  CENSUS = JSON.parse(point_census());
+  id('c-add').onclick = () => { addBox(); renderCalc(); };
+  id('c-gauge').onchange = renderCalc;
+  addBox();
+  renderCalc();
+}
+
+function addBox() {
+  const tr = document.createElement('tr');
+  for (let i = 0; i < 5; i++) {
+    const td = document.createElement('td');
+    const input = document.createElement('input');
+    input.type = 'text'; input.spellcheck = false; input.placeholder = 'any';
+    input.oninput = renderCalc;
+    td.append(input); tr.append(td);
+  }
+  const td = document.createElement('td');
+  const rm = document.createElement('button');
+  rm.className = 'secondary'; rm.textContent = '×'; rm.title = 'Remove this box';
+  rm.onclick = () => { tr.remove(); renderCalc(); };
+  td.append(rm); tr.append(td);
+  id('c-boxes').tBodies[0].append(tr);
+}
+
+function readBoxes() {
+  const boxes = [];
+  for (const tr of id('c-boxes').tBodies[0].rows) {
+    const cells = [...tr.querySelectorAll('input')];
+    const lens = cells.slice(0, 4).map((c) => parseRange(c.value, 13));
+    const pts = parseRange(cells[4].value, 60);
+    cells.forEach((c, i) => c.classList.toggle('bad', (i < 4 ? lens[i] : pts) === null));
+    if (lens.every(Boolean) && pts) boxes.push({ lens, pts });
+  }
+  return boxes;
+}
+
+function renderCalc() {
+  const boxes = readBoxes();
+  const gauge = id('c-gauge').value;
+  let total = 0;
+  const byPattern = [];
+  for (const lens of PATTERNS) {
+    const admitted = new Set();
+    for (const box of boxes) {
+      if (!lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1])) continue;
+      for (let p = box.pts[0]; p <= box.pts[1]; p++) admitted.add(p);
+    }
+    if (!admitted.size) continue;
+    const hist = pointHist(lens, gauge);
+    let count = 0;
+    for (const p of admitted) count += hist[p] || 0;
+    if (count) { total += count; byPattern.push([lens, count]); }
+  }
+  const out = id('c-out');
+  if (!boxes.length) { out.innerHTML = '<p class="hint">Enter at least one well-formed box.</p>'; return; }
+  const prob = total / TOTAL_HANDS;
+  byPattern.sort((a, b) => b[1] - a[1]);
+  const top = byPattern.slice(0, 8).map(([lens, n]) =>
+    `<tr><td>${lens.join('-')}</td><td>${(100 * n / TOTAL_HANDS).toFixed(3)}%</td><td>${(100 * n / total).toFixed(1)}%</td></tr>`).join('');
+  out.innerHTML = `
+    <div class="statrow">
+      <div><span class="statlabel">Probability</span><span class="statbig">${(100 * prob).toFixed(4)}%</span></div>
+      <div><span class="statlabel">Odds</span><span class="statbig">${total ? '1 in ' + (1 / prob).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}</span></div>
+      <div><span class="statlabel">Hands</span><span class="statbig">${total.toLocaleString()}</span></div>
+    </div>
+    ${byPattern.length ? `<table class="ddtable"><thead><tr><th>Pattern ♠-♥-♦-♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
+    ${byPattern.length > 8 ? `<p class="hint">…and ${byPattern.length - 8} more patterns.</p>` : ''}`;
 }

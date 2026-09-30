@@ -12,10 +12,13 @@
     <nav>
       <button data-tab="practice">Practice</button>
       <button data-tab="demo">Demo</button>
+      <span class="navsep"></span>
       <button data-tab="book">Book</button>
+      <button data-tab="settings">Settings</button>
+      <span class="navsep"></span>
       <button data-tab="edit">Edit</button>
       <button data-tab="binky">Evaluate</button>
-      <button data-tab="settings">Settings</button>
+      <button data-tab="calc">Calc</button>
     </nav>
   </header>
   <main>
@@ -124,6 +127,29 @@
         <input id="k-filter" type="text" placeholder="filter holdings, e.g. AK or xxxx" spellcheck="false">
         <div id="k-table" class="tablescroll"></div>
       </div>
+    </section>
+    <section id="calc" class="hidden">
+      <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
+        a union of boxes, the same reading the bidder keeps per seat.
+        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>-2</code>, blank = any.</div>
+      <div class="controls">
+        <label>Points <select id="c-gauge">
+          <option value="hcp" selected>HCP</option>
+          <option value="points">Points (HCP + upgrade, the bidder's scale)</option>
+          <option value="♠">Support points, ♠ trumps</option>
+          <option value="♥">Support points, ♥ trumps</option>
+          <option value="♦">Support points, ♦ trumps</option>
+          <option value="♣">Support points, ♣ trumps</option>
+        </select></label>
+        <button id="c-add" class="secondary">+ box</button>
+      </div>
+      <div class="panel">
+        <table class="boxes" id="c-boxes">
+          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="c-out" class="panel"></div>
     </section>
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>

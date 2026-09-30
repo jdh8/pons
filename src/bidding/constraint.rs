@@ -1427,8 +1427,10 @@ fn forces_balanced(lengths: &[Range; 4]) -> bool {
 ///
 /// Honors in shortness are wasted: any of A/K/Q/J in a suit of at most two
 /// cards fails to pull its weight, except the working holdings Ax and Kx.
-/// A wasted honor voids the fuzzy [`upgrade`].
-const fn wasted(holding: Holding) -> bool {
+/// A wasted honor voids the fuzzy [`upgrade`].  Public so the web calculator's
+/// holding census is built from this predicate rather than a copy of it.
+#[must_use]
+pub const fn wasted(holding: Holding) -> bool {
     holding.len() <= 2
         && (holding.contains(Rank::Q)
             || holding.contains(Rank::J)
