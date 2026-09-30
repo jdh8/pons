@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Web: Calc tab — exact shape × points probabilities (2026-09-30)** — a
   union-of-boxes calculator (one row per box: four length ranges plus a
-  points range, `5+` / `4-6` / `3` / blank), priced exactly by convolving
+  points range, `5+` / `4-6` / `3` / blank, or Rust's `4..=6` / `5..` /
+  `..=3`), priced exactly by convolving
   per-suit holding censuses over the 560 patterns; gauges HCP, the bidder's
   points (HCP + `upgrade`) and support points per trump, with the censuses
   built in wasm from the crate's own evaluators (`point_census()`) so they

@@ -131,7 +131,8 @@
     <section id="calc" class="hidden">
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
         a union of boxes, the same reading the bidder keeps per seat.
-        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>0-2</code>, blank = any.
+        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>0-2</code>, blank = any;
+        Rust's <code>4..=6</code>, <code>5..</code>, <code>..=2</code> also work.
         Where: a condition on the lengths <code>s h d c</code> and any of the point gauges
         <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected) —
         <code>s &gt; h</code>, <code>s &gt;= h &gt;= d</code>, <code>max(s, h) &gt;= 5</code>,

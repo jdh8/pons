@@ -1023,11 +1023,17 @@ function gaugeJoint(lens) {
 
 // "5+", "4-6", "3", "" → [min, max]; null when unparseable.  A dash needs a
 // number on both sides: "3-" and "-3" read as "3 minus" and "negative 3".
+// Rust's inclusive and open ranges work too — "4..=6", "5..", "..=3" — but not
+// the exclusive "4..6" or "..3": a bridge range that drops its top is a trap.
+// ponytail: that rejection assumes every gauge is integral; if a fractional
+// one (fifths, Binky) joins GAUGES, review it — a half-open band is then the
+// natural way to write points.
 function parseRange(text, cap) {
   const t = text.replace(/\s/g, '');
   if (t === '') return [0, cap];
   let m;
   if ((m = t.match(/^(\d+)\+$/))) return [+m[1], cap];
+  if ((m = t.match(/^(\d*)\.\.(?:=(\d+))?$/))) return [+m[1], m[2] === undefined ? cap : +m[2]];
   if ((m = t.match(/^(\d+)-(\d+)$/))) return [+m[1], +m[2]];
   if ((m = t.match(/^(\d+)$/))) return [+m[1], +m[1]];
   return null;
