@@ -1021,14 +1021,13 @@ function gaugeJoint(lens) {
   });
 }
 
-// "5+", "4-6", "3", "-2", "" → [min, max]; null when unparseable
+// "5+", "4-6", "3", "" → [min, max]; null when unparseable.  A dash needs a
+// number on both sides: "3-" and "-3" read as "3 minus" and "negative 3".
 function parseRange(text, cap) {
   const t = text.replace(/\s/g, '');
   if (t === '') return [0, cap];
   let m;
   if ((m = t.match(/^(\d+)\+$/))) return [+m[1], cap];
-  if ((m = t.match(/^-(\d+)$/))) return [0, +m[1]];
-  if ((m = t.match(/^(\d+)-$/))) return [+m[1], cap];
   if ((m = t.match(/^(\d+)-(\d+)$/))) return [+m[1], +m[2]];
   if ((m = t.match(/^(\d+)$/))) return [+m[1], +m[1]];
   return null;
