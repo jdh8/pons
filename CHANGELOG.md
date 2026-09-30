@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Quantitative `6NT` above each invite (`notrump.quantitative_six_notrump`,
+  shipped default-on, 2026-09-30).** A census of the anchor's round-2 `3NT` rows
+  (`scripts/slam-census.py`, 2,551 rows, −4.1k PD) found every authored
+  round-2 `3NT` a sign-off — there is no serious/non-serious `3NT` in the
+  book — and three lanes whose responder table ends at the invite:
+  `1m - 1M - 2NT` (`4NT` 12–13, so 14+ bids `3NT`; 894 rows, −2.2k PD),
+  the 1NT Stayman no-fit reverts (`4NT` 16–17, nothing above; 166 rows)
+  and `2NT - 3♣ - 3♦` (no quantitative call at all; 61 rows, −0.5k PD).
+  Each now bids `6NT` at 14+ / 18+ / 13–16 and the denial node gets the
+  `4NT` (11–12) / `6NT` pair with opener's answer. **Impact:**
+  `scripts/ab-quantitative-6nt.sh` (SEED_BASE 1790756588, 204,800
+  boards/arm/vul) won all four cells, **+0.0031 (none) / +0.0036 (both)
+  IMPs/board**, identical on plain DD and PD, 82 fired per arm
+  (+7.7 / +9.1 per fired). The direct-2NT rung's cap at 16 was added after
+  the run: two of its five worst boards were the floor's making `7NT` on a
+  17-count overridden (unmeasured, 2 boards per 204,800).
 - **Floor sweep: the three gate-rejected arms measured (2026-09-30).**
   `sweep-gated` (SEED_BASE 1790714718, 204,800 boards/arm/vulnerability)
   ran each arm's K = 4 mean against shipped. IMPs/board are given as

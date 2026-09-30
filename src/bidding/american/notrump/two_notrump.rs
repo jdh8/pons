@@ -20,7 +20,7 @@ fn two_notrump_responses(agreements: &Agreements) -> Rules {
     // the transfers is arbitrary (a weak 6♠5♥ could transfer to hearts and
     // scramble — the M6.4 A/B caught exactly that board).
     let prefer_longer = agreements.notrump.transfer_longer_major;
-    Rules::new()
+    let rules = Rules::new()
         // 3-level Jacoby transfers.
         .rule(
             Bid::new(3, Strain::Diamonds),
@@ -65,7 +65,44 @@ fn two_notrump_responses(agreements: &Agreements) -> Rules {
             100,
             hcp(5..=10) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
-        .rule(Call::Pass, 0, hcp(..5))
+        .rule(Call::Pass, 0, hcp(..5));
+    // 13–16 only: the table's 17+ hole is deliberate, the floor bids the
+    // grand there (the A/B's two −13 boards were its 7NT overridden).
+    if agreements.notrump.quantitative_six_notrump {
+        rules.rule(
+            Bid::new(6, Strain::Notrump),
+            120,
+            hcp(13..=16) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+        )
+    } else {
+        rules
+    }
+}
+
+/// The direct `6NT` above a quantitative `4NT` (`notrump.quantitative_six_notrump`)
+fn six_notrump(
+    rules: Rules,
+    agreements: &Agreements,
+    floor: u8,
+    shape: Cons<impl Constraint + 'static>,
+) -> Rules {
+    if agreements.notrump.quantitative_six_notrump {
+        rules.rule(Bid::new(6, Strain::Notrump), 120, hcp(floor..) & shape)
+    } else {
+        rules
+    }
+}
+
+/// Responder's quantitative pair once 2NT-strength Stayman finds no major
+/// (`2NT - 3♣ - 3♦`): the same `4NT` / `6NT` the direct responses carry
+fn quantitative_after_stayman_denial(agreements: &Agreements) -> Rules {
+    if agreements.notrump.quantitative_six_notrump {
+        Rules::new()
+            .rule(Bid::new(4, Strain::Notrump), 120, hcp(11..=12))
+            .rule(Bid::new(6, Strain::Notrump), 120, hcp(13..))
+    } else {
+        Rules::new()
+    }
 }
 
 /// Opener's answer to 3-level Stayman: a four-card major, else 3♦
@@ -101,12 +138,14 @@ pub(super) fn quantitative_answer(accept_hcp: u8) -> Rules {
 
 /// Responder's call after opener's 18–19 2NT rebid
 ///
-/// 6+ HCP bids 3NT; 12–13 makes a quantitative 4NT invite; fewer points pass.
-fn after_rebid_two_notrump() -> Rules {
-    Rules::new()
+/// 6+ HCP bids 3NT; 12–13 makes a quantitative 4NT invite; fewer points pass;
+/// 14+ bids `6NT` under `notrump.quantitative_six_notrump`.
+fn after_rebid_two_notrump(agreements: &Agreements) -> Rules {
+    let rules = Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..=13))
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(6..))
-        .rule(Call::Pass, 0, hcp(..6))
+        .rule(Call::Pass, 0, hcp(..6));
+    six_notrump(rules, agreements, 14, hcp(0..))
 }
 
 /// Opener's reply to the quantitative raise opposite the 18–19 rebid
@@ -184,6 +223,14 @@ pub(crate) fn two_notrump_structure() -> Package {
                     smolen_at_three(),
                 ));
                 entries.extend(rows_of(
+                    Pattern::node(&extend2(three_c, three_d)),
+                    quantitative_after_stayman_denial(agreements),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&extend3(three_c, three_d, four_nt)),
+                    quantitative_answer(*accept_hcp),
+                ));
+                entries.extend(rows_of(
                     Pattern::node(&extend3(three_c, three_d, three_h)),
                     smolen_completion(Suit::Spades, agreements),
                 ));
@@ -203,7 +250,7 @@ pub(crate) fn two_notrump_rebids() -> Package {
     Package {
         name: "two-notrump-rebids",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let one_nt = call(1, Strain::Notrump);
             let two_nt = call(2, Strain::Notrump);
             let four_nt = call(4, Strain::Notrump);
@@ -229,7 +276,7 @@ pub(crate) fn two_notrump_rebids() -> Package {
                 let two_nt_rebid = format!("{prefix} {two_nt} -");
                 entries.extend(rows_of(
                     Pattern::node(&two_nt_rebid),
-                    after_rebid_two_notrump(),
+                    after_rebid_two_notrump(agreements),
                 ));
 
                 // Opener's reply to the quantitative 4NT raise.

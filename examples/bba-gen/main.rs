@@ -883,6 +883,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_multi_px_split: bool,
 
+    /// Withhold the direct `6NT` above each quantitative `4NT` (14+ over the
+    /// 18–19 `2NT` rebid, 18+ after 1NT Stayman finds no fit, 13–16 over a
+    /// 2NT-strength opening) and the `4NT`/`6NT` pair after `2NT - 3♣ - 3♦`
+    /// (`notrump.quantitative_six_notrump`, **shipped default-on 2026-09-30**;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-quantitative-6nt.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_quantitative_six_notrump: bool,
+
     /// Give opener a **notrump out** over the K–K doubler's natural other
     /// major (`1NT (2♦) X (2♥) - - 2♠ -`)
     ///
@@ -2638,6 +2647,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
+    agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.competition.multi_doubler_notrump = !args.no_ns_multi_doubler_notrump;
     agreements.competition.multi_doubler_minimum_notrump =
         !args.no_ns_multi_doubler_minimum_notrump;

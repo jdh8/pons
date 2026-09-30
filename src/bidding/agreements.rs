@@ -3158,6 +3158,19 @@ pub struct NotrumpKnobs {
     /// **On by default**; off restores the legacy guards for the A/B (a 6♠5♥
     /// hand could tie into the heart transfer, and `3♦` fired on any 5-5+).
     pub transfer_longer_major: bool,
+    /// Direct `6NT` above each quantitative `4NT`, and the quantitative pair
+    /// after 2NT-strength Stayman is denied
+    ///
+    /// Every notrump lane authored a `4NT` invite but nothing above it, so a
+    /// responder past the invite band bid `3NT`: 14+ opposite the 18–19 `2NT`
+    /// rebid, 18+ opposite a 1NT opening once Stayman found no fit, 13+ opposite
+    /// a 2NT-strength opening.  On, each of those bids `6NT` (32+ combined),
+    /// and `2NT - 3♣ - 3♦` gets the `4NT` (11–12) / `6NT` (13+) pair the direct
+    /// `2NT` responses already have.  Found by the 2026-09-30 round-2 `3NT`
+    /// census (docs/next-steps.md item 2).  **Shipped default-on 2026-09-30**:
+    /// `scripts/ab-quantitative-6nt.sh` won all four cells, +0.0031 (none) /
+    /// +0.0036 (both) IMPs/board on both scorers, 82 fired per 204,800.
+    pub quantitative_six_notrump: bool,
     // --- notrump/crawling_stayman.rs
     // --- notrump/sixcard_invitation.rs
     /// Raw strength floor for inviting with a six-card major
@@ -3426,6 +3439,7 @@ impl Default for NotrumpKnobs {
             minor_min_to_3nt: false,
             transfer_super_accept: false,
             transfer_longer_major: true,
+            quantitative_six_notrump: true,
             sixcard_invite_floor: 13,
             sixcard_accept_floor: 18,
             transfer_slam_try: true,

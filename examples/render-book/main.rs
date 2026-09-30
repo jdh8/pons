@@ -99,6 +99,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_multi_px_split: bool,
 
+    /// Withhold the direct `6NT` above each quantitative `4NT` (14+ over the
+    /// 18–19 `2NT` rebid, 18+ after 1NT Stayman finds no fit, 13–16 over a
+    /// 2NT-strength opening) and the `4NT`/`6NT` pair after `2NT - 3♣ - 3♦`
+    /// (`notrump.quantitative_six_notrump`, **shipped default-on 2026-09-30**;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-quantitative-6nt.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_quantitative_six_notrump: bool,
+
     /// The `4m` slam try above a completed **Puppet** minor transfer
     /// (`1NT - 2♠`→♣, `1NT - 2NT`→♦): a `points` floor (default `13`), or `off`
     ///
@@ -225,6 +234,7 @@ fn main() {
     };
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
+    agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(

@@ -64,6 +64,40 @@ criterion 5). **Item 2 is now the top candidate.**
   item 2 is the slam *decision* — reaching or skipping slam — not the keycard
   mechanics; the next step is a census of the RKCB/slam bucket's divergent
   boards by lane and direction (missed vs overbid) against BBA.
+- **Censused 2026-09-30** (`scripts/slam-census.py` on anchor `7e0bc648`; the bucket's 35,820 rows
+  joined to their shard auctions; direction is `bba-decompose`'s own tag).
+  The slam-flavoured share (either table at 6+ or through 4NT) is 7,402
+  rows, −19.6k of the bucket's −40.0k PD; the rest is game-level round-2.
+  **Missed slams dominate 3:1**: missed-slam 1,073 rows −12.7k PD +
+  missed-grand 182 rows −2.4k, against overbid-slam 373 rows −4.5k; the
+  wrong-strain/level slams ("other", 5,754 rows) net **+4.1k** for us. The
+  misses are spread thin — no lane above 131 rows (`1♥ - 1♠` −1.6k, `1♦ - 1♠`
+  −1.1k, `1♣ - 1♠` −0.9k, `1♦ - 1♥` −0.8k, `1NT - 2♣` −0.7k, `1♠ - 2♣`
+  −0.7k) — and the one recurring shape is **our round-2 `3NT` where BBA
+  makes a forcing or slam-try call** (261 rows, −3.2k PD; BBA's call there is
+  5NT/4NT/4♣/3♣/4♦/3♦/3♥): responder's or opener's 3NT is a settle over a
+  strong 5-5 / 6-5 or a fitting 18+ (e.g. `1♥ - 1♠ - 2NT - 3NT` on
+  AK8543.7.2.AT943, BBA `3♠` then RKCB; `1♥ - 2♣ - 3♥ - 3NT` on
+  x.KQJT96.QJT95.A3, BBA `3♦`). Next in size: opener's 2-level rebid vs
+  BBA's jump (`2♦→3♦` 45, `2♥→3♥` 38 rows, −1.0k) and `1♦ - 1M - 2♦` vs
+  BBA's `2♣` (44 rows, −0.5k; the measured-wash opt-in). Lever: a
+  shape/strength gate that turns the round-2 `3NT` into the forcing bid on
+  those hands; ceiling ≈ +0.008/board PD if fully captured, so it needs the
+  slam continuation to be authored too, not just the trigger.
+  **Classified 2026-09-30:** all 2,551 round-2 `3NT` rows (−4.1k PD) are
+  sign-offs — the book has no serious/non-serious `3NT` (after a 2/1 fit
+  opener's only calls are `4NT` 15+ or `4M`). By class: `1m - 1M - 2NT - 3NT`
+  894 rows −2.2k (no checkback, no forcing `3M`, and **14+ has no slam
+  call** — `4NT` is 12–13); 2/1 `1M - 2m - x - 3NT` 260 rows −0.7k (choice
+  of games, BBA bids `4m`); `2NT - 3♣ - 3♦ - 3NT` 61 rows −0.5k (**no
+  quantitative call**); `1M - 1x - 2y - 3NT` 270 rows −0.3k (no FSF);
+  `1NT - 2♣ - 2x` no-fit 166 rows (**18+ has no call above `4NT`**). The
+  three bold holes are one knob, `notrump.quantitative_six_notrump`,
+  **shipped default-on 2026-09-30**: +0.0031 / +0.0036 IMPs/board (none /
+  both), plain = PD, 82 fired per 204,800 (`ab-results/quantitative-6nt`);
+  the checkback / forcing `3M` over the 18–19 `2NT` (BBA's `3♣`/`3♥`/`3♠`,
+  the lane's other −1.5k across wrong-strain and missed-slam rows) is the
+  next lever.
 - Every cheap lever here is spent (bucket marked mined-to-residual on the BBA
   side); expect design work. Even a 10% capture ≈ +0.01/board — more than
   any single rail.

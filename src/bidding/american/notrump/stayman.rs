@@ -255,6 +255,7 @@ pub(super) fn stayman_major_rebid(major: Suit, agreements: &Agreements) -> Rules
                 9,
             ),
         );
+    let rules = six_notrump(rules, agreements, len(major, ..4));
     // Stayman-then-minor slam try: a natural 5+ minor with slam values (14+) and no
     // fit for opener's major (capped at three, else responder raises or takes the
     // 3OM slam try).  Weight 1.25 outranks the no-fit `3NT`/`4NT` reverts so the
@@ -310,6 +311,7 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
             100,
             stayman_net_seam(hcp(8..), hcp(8..=8), false, Strain::Notrump, 9),
         );
+    let rules = six_notrump(rules, agreements, hcp(0..));
     let rules = if agreements.decision.reading.crawling_stayman {
         // Crawling Stayman: 4-4 majors short in diamonds (a bare 2♥, weak) — both
         // majors, pass-or-correct (see `answer_crawling_stayman`).  Gated by the
@@ -391,6 +393,20 @@ pub(crate) fn smolen_at_three() -> Rules {
         )
         .alert(SMOLEN)
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+}
+
+/// The no-fit `6NT` above the quantitative `4NT`: 18+ opposite 15–17
+/// (`notrump.quantitative_six_notrump`)
+fn six_notrump(
+    rules: Rules,
+    agreements: &Agreements,
+    shape: Cons<impl Constraint + 'static>,
+) -> Rules {
+    if agreements.notrump.quantitative_six_notrump {
+        rules.rule(Bid::new(6, Strain::Notrump), 120, hcp(18..) & shape)
+    } else {
+        rules
+    }
 }
 
 /// Opener accepts a no-fit (2NT) Stayman invitation with a maximum, else passes

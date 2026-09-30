@@ -243,3 +243,60 @@ fn supported_five_diamonds_can_slam_try() {
         bid(4, Strain::Notrump)
     );
 }
+
+/// `notrump.quantitative_six_notrump`: a responder past the invite band bids
+/// `6NT` in each notrump lane instead of settling for `3NT`; off, `3NT`.
+#[test]
+fn quantitative_six_notrump_above_each_invite() {
+    let on = crate::bidding::agreements::Agreements::default();
+    let mut off = on;
+    off.notrump.quantitative_six_notrump = false;
+    let (nt, c, d, s) = (
+        Strain::Notrump,
+        Strain::Clubs,
+        Strain::Diamonds,
+        Strain::Spades,
+    );
+    let lanes: [(&[Call], &str); 4] = [
+        // 14 opposite the 18–19 rebid (the anchor's AT93.A75.K95.A87).
+        (
+            &[bid(1, c), P, bid(1, s), P, bid(2, nt), P],
+            "AT93.A75.K95.A87",
+        ),
+        // 18 opposite 1NT once Stayman finds no fit.
+        (
+            &[bid(1, nt), P, bid(2, c), P, bid(2, d), P],
+            "AQ93.A75.K95.AQ7",
+        ),
+        (
+            &[bid(1, nt), P, bid(2, c), P, bid(2, s), P],
+            "AQ9.A753.K95.AQ7",
+        ),
+        // 13 opposite a 2NT opening once Stayman is denied.
+        (
+            &[bid(2, nt), P, bid(3, c), P, bid(3, d), P],
+            "A932.K75.Q9.AJ72",
+        ),
+    ];
+    for (auction, hand) in lanes {
+        assert_eq!(best_with(&on, auction, hand), bid(6, nt), "{hand}");
+        assert_ne!(best_with(&off, auction, hand), bid(6, nt), "{hand} off");
+    }
+    // The direct 2NT lane's table rejected 13+, so the floor already found
+    // 6NT there; the rung only moves it into the book.
+    assert_eq!(
+        best_with(&on, &[bid(2, nt), P], "A93.K75.Q95.AJ72"),
+        bid(6, nt)
+    );
+    // ...and stays out of its way on 17+, where the floor bids the grand.
+    assert_eq!(
+        best_with(&on, &[bid(2, nt), P], "KJT.AKQ.AQJ3.T53"),
+        bid(7, nt)
+    );
+    // The denial node's invite, and opener's answer to it.
+    let denied = [bid(2, nt), P, bid(3, c), P, bid(3, d), P];
+    assert_eq!(best_with(&on, &denied, "A932.K75.Q95.Q72"), bid(4, nt));
+    let asked = [bid(2, nt), P, bid(3, c), P, bid(3, d), P, bid(4, nt), P];
+    assert_eq!(best_with(&on, &asked, "KQ5.AQ3.AK3.KQ53"), bid(6, nt));
+    assert_eq!(best_with(&on, &asked, "KQ5.AQ3.AK3.Q953"), P);
+}
