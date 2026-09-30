@@ -78,7 +78,7 @@ at 1.7× K = 4's bidding latency (~2% of an A/B). No Phase 2 recipe trial
 won: keep width 256, 300 epochs and `--lr 0.001`. The one open lever, the
 rollout-override upweighting, needs a dump and sits in the deferred list.
 Numbers, limits and runbook are in
-[ai-bidder/floor-sweep.md](ai-bidder/floor-sweep.md). Training-only work
+[archive/floor-sweep.md](archive/floor-sweep.md). Training-only work
 was authorized 2026-09-28; the M32 corpus stayed frozen and the separate
 dump/relabel deferral remains.
 

@@ -249,7 +249,7 @@ pub fn american_v8(agreements: &Agreements) -> System {
 }
 
 /// [`american`] on a logit mean over run-time v6 blobs — the floor sweep's
-/// candidate arm (`docs/ai-bidder/floor-sweep.md`).  The same book, rails and
+/// candidate arm (`docs/archive/floor-sweep.md`).  The same book, rails and
 /// regime input as [`american`]; only the net differs.  Decode each blob with
 /// [`neural::decode`][super::neural::decode].
 ///

@@ -123,7 +123,7 @@ this is not a refutation either: the arm **stays opt-in**, `american()`
 unchanged, and the rails stand (the series then shipped two more on v6 and
 closed; [../floor-rail-campaign.md](../floor-rail-campaign.md)).
 
-**Caveat (2026-09-28, [floor-sweep.md](floor-sweep.md) § Phase 0 verdict).**
+**Caveat (2026-09-28, [floor-sweep.md](../archive/floor-sweep.md) § Phase 0 verdict).**
 Two pure reseeds of the shipped v6 recipe measured +0.022 / −0.002 and
 +0.015 / −0.020 (none, plain / PD), with more doubled contracts and
 redoubles than v8. v8's signature is inside the reseed spread: the verdict

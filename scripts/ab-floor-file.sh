@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-floor-file.sh — file-loaded floor candidates against the shipped v6 floor,
-# vs BBA (docs/ai-bidder/floor-sweep.md).
+# vs BBA (docs/archive/floor-sweep.md).
 #
 #   plain   american as shipped                                     (control)
 #   NAME    american-file: the same book, rails and regime input, the net a

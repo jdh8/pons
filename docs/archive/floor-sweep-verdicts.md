@@ -1,7 +1,7 @@
 # Floor sweep — verdict narratives, Phase 0 to Phase 2 (2026-09-28–30)
 
 > **Archived 2026-09-29.** Extracted verbatim from
-> [`docs/ai-bidder/floor-sweep.md`](../ai-bidder/floor-sweep.md) at `c35a9036`,
+> [`docs/ai-bidder/floor-sweep.md`](floor-sweep.md) (now archived beside this file) at `c35a9036`,
 > plus the epochs-600 divergence trace that the axis-3 verdict had left
 > untraced. The live doc keeps the rules, the shipped state, one line per
 > closed axis, the plan, the wiring, the runbook and the ledger; this file is

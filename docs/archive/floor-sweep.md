@@ -1,5 +1,12 @@
 # The floor sweep — seed noise, ensembles, and the recipe's free parameters
 
+> **Archived 2026-09-30.** Moved whole from `docs/ai-bidder/floor-sweep.md`
+> when the campaign closed with K = 8 shipped. Still the reference for any
+> reopened training-only axis: the rules, the closed axes (do not retry
+> them), the wiring and the runbook hold; the one open lever is
+> relabel-grade and lives in [../next-steps.md](../next-steps.md)'s deferred
+> list.
+
 **Status (2026-09-30): closed. Phase 3 shipped — the K = 8 logit-mean
 ensemble of init seeds 1–8 is the default floor (confirmed on fresh deals:
 plain wash, PD win both cells; rails re-arbitrated), replacing Phase 1's
@@ -14,15 +21,15 @@ is the whole deliverable. The one lever left is relabel-grade and deferred
 (Next).** Axis numbers refer to the
 original Phase 2 plan: **Axis 4 is width; Axis 5 is learning rate**, regardless
 of the order of remaining tasks below. Verdict narratives and divergence traces:
-[../archive/floor-sweep-verdicts.md](../archive/floor-sweep-verdicts.md).
+[../archive/floor-sweep-verdicts.md](floor-sweep-verdicts.md).
 Precondition met: jdh8 kicked the sweep off 2026-09-28, un-deferring
 *training-only* work (the 2026-09-26 deferral was of retrains that need a
 dump or a relabel; this plan needs neither). Every step is a 10-minute
 train on the SSD corpus plus a 90-minute A/B.
 
-Read first: [README.md](README.md) (vocabulary),
-[features-v8.md](features-v8.md) §3 (the manifest command and the fold),
-[02-policy-net.md](02-policy-net.md) ledger (why fidelity never ranks arms),
+Read first: [README.md](../ai-bidder/README.md) (vocabulary),
+[features-v8.md](../ai-bidder/features-v8.md) §3 (the manifest command and the fold),
+[02-policy-net.md](../ai-bidder/02-policy-net.md) ledger (why fidelity never ranks arms),
 [../measurement.md](../measurement.md) (the decision table),
 [../floor-rail-campaign.md](../floor-rail-campaign.md) stop criterion 5
 (a new net re-arbitrates every shipped rail).
@@ -45,7 +52,7 @@ This one won because:
   --wd 0 --batch 4096 --val-frac 0.10 --dd-weight 0 --init-seed 1`. No
   width, regularisation, schedule, or seed was ever compared on IMPs.
 - **Seed noise alone was ≈ 0.02–0.05 IMPs/board** when the init was
-  unseeded ([02-policy-net.md](02-policy-net.md) ledger, 2026-07-24). That
+  unseeded ([02-policy-net.md](../ai-bidder/02-policy-net.md) ledger, 2026-07-24). That
   spread is larger than every convention A/B shipped since. `--init-seed 1`
   made the draw *reproducible*; it did not make it *good*. We have never
   measured how far the shipped draw sits from the mean.
@@ -59,10 +66,10 @@ This one won because:
 
 1. **The corpus is frozen.** M32 labels, v6 features, the 20 stems as the
    manifest lists them. No dump, no relabel, no feature bump — a feature bump
-   is [features-v8.md](features-v8.md)'s programme, not this one. This keeps
+   is [features-v8.md](../ai-bidder/features-v8.md)'s programme, not this one. This keeps
    every arm an equal-data comparison against the shipped artifact.
 2. **Fidelity is a filter, never a predictor** (measured twice,
-   [02-policy-net.md](02-policy-net.md)). Held-out CE / top-1 rejects a run
+   [02-policy-net.md](../ai-bidder/02-policy-net.md)). Held-out CE / top-1 rejects a run
    that failed to train; it never ranks arms. v8 had the best CE ever seen
    and measured *suspect*. Ranking is IMPs on the A/B, both scorers, read
    from the decision table.
@@ -143,7 +150,7 @@ then-shipped K = 4; detail in the archive.
   (−0.0242 / −0.0199), PD win / wash, **sd-PD loss** — the decision
   table's PD-artifact row. The two widths bracket 256 from opposite sides.
   Details and reproduction in the archive's
-  [Axis 4 verdict](../archive/floor-sweep-verdicts.md#phase-2-axis-4-verdict--hidden-width-2026-09-30).
+  [Axis 4 verdict](floor-sweep-verdicts.md#phase-2-axis-4-verdict--hidden-width-2026-09-30).
 - **Epochs follow-ups — neither advances.** In `sweep-ep150`, the measured
   arm is **600 epochs with Pass bias −0.0205**, not 150 epochs. Plain DD
   loses at both vulnerabilities (−0.0092 / −0.0136 IMPs/board); PD is
@@ -155,7 +162,7 @@ then-shipped K = 4; detail in the archive.
   `sweep-gated`: **plain loss** (−0.0093 / −0.0084, the both-vul CI touching
   zero), PD wash, sd plain CI-clear loss both cells. 150 and 600 both lose
   plain to 300. Keep 300 epochs.
-  [Verdict and bounded trace](../archive/floor-sweep-verdicts.md#epochs-follow-ups--pass-offset-and-150-epochs-2026-09-30).
+  [Verdict and bounded trace](floor-sweep-verdicts.md#epochs-follow-ups--pass-offset-and-150-epochs-2026-09-30).
 - **Axis 5, `--lr 3e-4` at 300 epochs — *suspect*.** All four
   draws completed and folded 30 columns. CE is 0.426501 / 0.424733 /
   0.423722 / 0.425542; only seed 1 exceeds 0.42631943, by 0.000181844, so
@@ -163,7 +170,7 @@ then-shipped K = 4; detail in the archive.
   (+0.0088), wash both; **PD loss** both (−0.0162); sd-PD wash. That is
   v8's row, the same one every single reseed and `--hidden 512` landed on,
   and the plain gain is under the 0.01 bar. Keep `--lr 0.001`; no IMP
-  signal triggers the conditional cosine-schedule trial. [Recipe and provenance](../archive/floor-sweep-verdicts.md#phase-2-axis-5--learning-rate-training-gate-2026-09-30).
+  signal triggers the conditional cosine-schedule trial. [Recipe and provenance](floor-sweep-verdicts.md#phase-2-axis-5--learning-rate-training-gate-2026-09-30).
 
 ## Next
 
@@ -278,10 +285,10 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 
 ## Out of scope
 
-- Feature bumps and relabels ([features-v8.md](features-v8.md)); the LSTM
-  (`park/lstm-floor`, [plan.md](plan.md) M5.2); the evaluator net
-  ([evaluator-net.md](evaluator-net.md)); consuming the fitted temperature
-  or the collar ([logit-calibration.md](logit-calibration.md)).
+- Feature bumps and relabels ([features-v8.md](../ai-bidder/features-v8.md)); the LSTM
+  (`park/lstm-floor`, [plan.md](../ai-bidder/plan.md) M5.2); the evaluator net
+  ([evaluator-net.md](../ai-bidder/evaluator-net.md)); consuming the fitted temperature
+  or the collar ([logit-calibration.md](../ai-bidder/logit-calibration.md)).
 - Corpus staleness: the labels are from 2026-09-13 and the book has moved.
   Control and candidate share it, so it cancels inside this campaign.
 

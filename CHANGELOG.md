@@ -218,6 +218,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Floor sweep archived (2026-09-30).** `docs/ai-bidder/floor-sweep.md`
+  moved whole to `docs/archive/floor-sweep.md` beside its verdict
+  narratives; links and source comments repointed. **Impact:** docs only.
 - **The default floor is now a K = 8 logit-mean ensemble (2026-09-30); the
   floor sweep is closed.** `neural::classify_bba_v6` averages eight
   embedded draws of the unchanged v6 recipe (`--init-seed 1..=8`; seeds 5–8

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-floor-rails.sh — re-arbitrate the five shipped floor rails against a
-# file-loaded floor (docs/ai-bidder/floor-sweep.md rule 6), as one lumped arm.
+# file-loaded floor (docs/archive/floor-sweep.md rule 6), as one lumped arm.
 #
 #   file    american-file, rails on       (the candidate as it would ship)
 #   norail  american-file, all five rails off

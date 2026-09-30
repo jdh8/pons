@@ -777,7 +777,7 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         "american-v6-their" => pons::bidding::american::american_v6_their(agreements).bind(),
         "american-v8" => pons::bidding::american::american_v8(agreements).bind(),
         // The floor sweep's candidate: a logit mean over the v6 blobs listed
-        // in `PONS_FLOOR_WEIGHTS` (docs/ai-bidder/floor-sweep.md).
+        // in `PONS_FLOOR_WEIGHTS` (docs/archive/floor-sweep.md).
         "american-file" => {
             pons::bidding::american::american_mean(agreements, floor_blobs()?).bind()
         }

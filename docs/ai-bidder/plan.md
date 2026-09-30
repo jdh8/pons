@@ -427,7 +427,7 @@ The portability dream. Last, because it needs the most prerequisites.
   Plain-DD wash, PD loss, every arm — the decision table's never-ships signature
   ([`../measurement.md`](../measurement.md)). No arm was close.
 
-  **Seed-noise caveat (2026-09-28, [floor-sweep.md](floor-sweep.md) § Phase 0
+  **Seed-noise caveat (2026-09-28, [floor-sweep.md](../archive/floor-sweep.md) § Phase 0
   verdict).** Two reseeds of the v6 MLP itself measured PD none −0.002 and
   −0.020 with a raised doubled rate, so part of every arm's PD loss is the
   shell (rails, collar) being fitted to the seed-1 net. Arms 2–3 lose more

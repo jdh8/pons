@@ -1,6 +1,6 @@
 //! Bidding-only wall time of one floor, both sides seated with it (no DD)
 //!
-//! The floor sweep's KR3 gate (docs/ai-bidder/floor-sweep.md, Phase 1): time
+//! The floor sweep's KR3 gate (docs/archive/floor-sweep.md, Phase 1): time
 //! `american-file` at `K = 1` vs the candidate `K` on the same seeded deals.
 //! Single-threaded, so the numbers are per-core latency, not throughput.
 //!

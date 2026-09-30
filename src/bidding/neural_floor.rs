@@ -177,7 +177,7 @@ impl ConfiguredFloorV6 {
     }
 
     /// Attach a logit mean over run-time v6 blobs (`K = 1` is one file-loaded
-    /// net), as `docs/ai-bidder/floor-sweep.md` measures candidates.
+    /// net), as `docs/archive/floor-sweep.md` measures candidates.
     ///
     /// # Panics
     ///

@@ -153,7 +153,7 @@ const IN_V6: usize = FEATURES_LEN_V6;
 /// points and the four fit-specific support ranges are separate inputs.
 ///
 /// Eight draws of one recipe (`--init-seed 1..=8`, seed 1 first): the shipped
-/// floor is their logit mean (`docs/ai-bidder/floor-sweep.md` Phase 3).
+/// floor is their logit mean (`docs/archive/floor-sweep.md` Phase 3).
 static RAW_BBA_V6: [&[u8]; 8] = [
     include_bytes!("weights/american_bba_v6.f32"),
     include_bytes!("weights/american_bba_v6_seed2.f32"),
@@ -184,7 +184,7 @@ pub fn classify_bba_v6(features: &[f32]) -> Logits {
     classify_v6_mean(&*WEIGHTS_BBA_V6, features)
 }
 
-/// Hidden widths a run-time v6 blob may have (`docs/ai-bidder/floor-sweep.md`,
+/// Hidden widths a run-time v6 blob may have (`docs/archive/floor-sweep.md`,
 /// the `--hidden` axis); the embedded nets are all 256.
 pub const V6_WIDTHS: [usize; 3] = [128, 256, 512];
 
@@ -208,7 +208,7 @@ fn forward_v6(blob: &[f32], features: &[f32]) -> Logits {
 
 /// Evaluate a **logit mean** over run-time v6 blobs: 176 features → 38 logits.
 ///
-/// The floor sweep's ensemble arm (`docs/ai-bidder/floor-sweep.md` Phase 1).
+/// The floor sweep's ensemble arm (`docs/archive/floor-sweep.md` Phase 1).
 /// Logits, not probabilities, are averaged: consumers read margins, not odds.
 /// The eight embedded draws, in order, reproduce [`classify_bba_v6`] bit for bit.
 #[must_use]
