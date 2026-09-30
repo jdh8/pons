@@ -131,7 +131,10 @@
     <section id="calc" class="hidden">
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
         a union of boxes, the same reading the bidder keeps per seat.
-        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>-2</code>, blank = any.</div>
+        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>-2</code>, blank = any.
+        Where: a predicate on the lengths <code>s h d c</code> and points <code>p</code> —
+        <code>s &gt; h</code>, <code>s &gt;= h &gt;= d</code>, <code>max(s, h) &gt;= 5</code>,
+        <code>p + s &gt;= 15</code>; join with <code>and</code> (or a comma), <code>or</code>, <code>not</code>.</div>
       <div class="controls">
         <label>Points <select id="c-gauge">
           <option value="hcp" selected>HCP</option>
@@ -145,7 +148,7 @@
       </div>
       <div class="panel">
         <table class="boxes" id="c-boxes">
-          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points</th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points</th><th>Where</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>

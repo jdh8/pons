@@ -981,8 +981,8 @@ function renderBinkyTable() {
 // mirrored here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor
 // suits, floored at 0; support points swap the side suits to hcp_plus and
 // count the trump suit's plain HCP.  No sampling.
-// ponytail: relative constraints (♠ > ♥) and pattern keys are one predicate on
-// the pattern loop each; add a "shape filter" field when someone asks.
+// Each box also takes a "where" predicate (`compileWhere`), evaluated by brute
+// force on the same loop: 560 patterns × the box's point values.
 const TOTAL_HANDS = 635013559600;
 let CENSUS = null; // {hcp: [len][hcp][wasted], plus: [len][plus]} from wasm
 const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
@@ -1038,7 +1038,69 @@ function parseRange(text, cap) {
   return null;
 }
 
+// A box's "where" predicate over one hand's lengths and points.  Terms are
+// tropical rational functions of ♠ ♥ ♦ ♣ (or s h d c) and p (the gauge's
+// points): integers, + − max() min().  Comparisons chain (s >= h >= d means
+// both) and are worth 1 or 0, so (s>=5)+(h>=5)+(d>=5)+(c>=5) >= 2 counts
+// suits; then `not`, `and` (or a comma), `or`.
+// "" → always true; null when unparseable.
+const WHERE_VARS = { '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4 };
+const WHERE_CMP = {
+  '>': (a, b) => a > b, '>=': (a, b) => a >= b, '≥': (a, b) => a >= b,
+  '<': (a, b) => a < b, '<=': (a, b) => a <= b, '≤': (a, b) => a <= b,
+  '=': (a, b) => a === b, '==': (a, b) => a === b, '!=': (a, b) => a !== b, '≠': (a, b) => a !== b,
+};
+function compileWhere(text) {
+  const toks = text.toLowerCase().match(/\d+|[<>!=]=|[a-z]+|\S/g) || [];
+  if (!toks.length) return () => true;
+  let i = 0;
+  const eat = (...ts) => (ts.includes(toks[i]) ? toks[i++] : null);
+  const need = (t) => { if (!eat(t)) throw new SyntaxError(`expected ${t}`); };
+  // one left-associative binary level
+  const fold = (next, ops) => () => {
+    let l = next();
+    for (let op; (op = eat(...Object.keys(ops)));) {
+      const a = l, b = next(), f = ops[op];
+      l = (v) => f(a(v), b(v));
+    }
+    return l;
+  };
+  const atom = () => {
+    const t = toks[i++];
+    if (/^\d+$/.test(t)) return () => +t;
+    if (Object.hasOwn(WHERE_VARS, t)) return (v) => v[WHERE_VARS[t]];
+    if (t === '-') { const a = atom(); return (v) => -a(v); }
+    if (t === '(') { const e = or(); need(')'); return e; }
+    if (t === 'max' || t === 'min') {
+      need('(');
+      const args = [sum()];
+      while (eat(',')) args.push(sum());
+      need(')');
+      return (v) => Math[t](...args.map((a) => a(v)));
+    }
+    throw new SyntaxError(`unexpected ${t}`);
+  };
+  const sum = fold(atom, { '+': (a, b) => a + b, '-': (a, b) => a - b });
+  const cmp = () => {
+    const terms = [sum()], ops = [];
+    for (let op; (op = eat(...Object.keys(WHERE_CMP)));) { ops.push(WHERE_CMP[op]); terms.push(sum()); }
+    if (!ops.length) return terms[0];
+    return (v) => { const x = terms.map((t) => t(v)); return +ops.every((f, k) => f(x[k], x[k + 1])); };
+  };
+  const not = () => { if (!eat('not')) return cmp(); const a = not(); return (v) => +!a(v); };
+  const and = fold(not, { and: (a, b) => +(!!a && !!b), ',': (a, b) => +(!!a && !!b) });
+  const or = fold(and, { or: (a, b) => +(!!a || !!b) });
+  try {
+    const e = or();
+    if (i < toks.length) return null;
+    return (lens, p) => !!e([...lens, p]);
+  } catch { return null; }
+}
+
 function initCalc() {
+  const chk = (text, lens, p) => compileWhere(text)(lens, p);
+  console.assert(chk('s > h', [5, 4, 2, 2], 0) && !chk('s > h >= d', [5, 2, 4, 2], 0)
+    && chk('p + max(s, h) >= 20, not c', [5, 4, 4, 0], 15) && compileWhere('s >') === null, 'compileWhere');
   CENSUS = JSON.parse(point_census());
   id('c-add').onclick = () => { addBox(); renderCalc(); };
   id('c-gauge').onchange = renderCalc;
@@ -1048,10 +1110,11 @@ function initCalc() {
 
 function addBox() {
   const tr = document.createElement('tr');
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const td = document.createElement('td');
     const input = document.createElement('input');
     input.type = 'text'; input.spellcheck = false; input.placeholder = 'any';
+    if (i === 5) input.className = 'where';
     input.oninput = renderCalc;
     td.append(input); tr.append(td);
   }
@@ -1069,8 +1132,9 @@ function readBoxes() {
     const cells = [...tr.querySelectorAll('input')];
     const lens = cells.slice(0, 4).map((c) => parseRange(c.value, 13));
     const pts = parseRange(cells[4].value, 60);
-    cells.forEach((c, i) => c.classList.toggle('bad', (i < 4 ? lens[i] : pts) === null));
-    if (lens.every(Boolean) && pts) boxes.push({ lens, pts });
+    const where = compileWhere(cells[5].value);
+    cells.forEach((c, i) => c.classList.toggle('bad', [...lens, pts, where][i] === null));
+    if (lens.every(Boolean) && pts && where) boxes.push({ lens, pts, where });
   }
   return boxes;
 }
@@ -1084,7 +1148,7 @@ function renderCalc() {
     const admitted = new Set();
     for (const box of boxes) {
       if (!lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1])) continue;
-      for (let p = box.pts[0]; p <= box.pts[1]; p++) admitted.add(p);
+      for (let p = box.pts[0]; p <= box.pts[1]; p++) if (box.where(lens, p)) admitted.add(p);
     }
     if (!admitted.size) continue;
     const hist = pointHist(lens, gauge);

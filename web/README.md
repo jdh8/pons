@@ -71,7 +71,10 @@ Seven tabs, grouped Play / System / Tools:
   convolving per-suit holding censuses over the 560 patterns.  Gauges: HCP,
   the bidder's points (HCP + upgrade), and support points with each trump —
   the censuses come from the wasm's `point_census()`, built with the crate's
-  own evaluators, so the gauges cannot drift from the bidder's.
+  own evaluators, so the gauges cannot drift from the bidder's.  A box's
+  **where** field adds a predicate on the lengths `s h d c` and points `p`:
+  integers, `+ −`, `max()`, `min()`, chainable comparisons (`s >= h >= d`),
+  `and` (or a comma) / `or` / `not` — e.g. `s > h`, `p + max(s, h) >= 20`.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families

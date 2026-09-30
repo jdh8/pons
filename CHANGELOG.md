@@ -16,7 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   points (HCP + `upgrade`) and support points per trump, with the censuses
   built in wasm from the crate's own evaluators (`point_census()`) so they
   cannot drift.  The nav is grouped Play / System / Tools.  Crate change:
-  `constraint::wasted` is now `pub`.
+  `constraint::wasted` is now `pub`.  Each box also takes a **where**
+  predicate for what a box cannot say — relative lengths (`s > h`,
+  `s >= h >= d`), `max`/`min`/`+`/`−` terms (`max(s, h) >= 5`), and
+  shape-dependent point ranges (`p + s >= 15`) — joined by `and`/`,`, `or`,
+  `not`; still exact, evaluated per pattern × point value.
 
 - **Checkback and forcing majors over the 18–19 `2NT` rebid
   (`notrump.rebid_checkback`, shipped default-on 2026-09-30).** The
