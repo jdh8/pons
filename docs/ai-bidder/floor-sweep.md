@@ -4,10 +4,10 @@
 init seeds 1–4 is the default floor (win / win on every cell, rails
 re-arbitrated). Phase 2 axes 1–5 are closed: `--dd-weight` loses, `--wd` is
 skipped by its gate, `--epochs 600` loses on plain and washes on PD, and
-`--hidden 512` loses on PD while 128 fails the training gate. Width stays
-256. The Pass-offset follow-up also loses on plain DD; 150 epochs fails
-the training gate. Axis 5 (`--lr 3e-4`, 300 epochs) completed all four
-draws, but seed 1 narrowly fails the gate; it has no IMP verdict either.
+`--hidden 512` loses on PD and 128 loses on plain DD and sd-PD. Width stays
+256. The Pass-offset follow-up and 150 epochs also lose on plain DD.
+`--lr 3e-4` reads *suspect* (plain win none, PD loss both). The three
+gate-rejected arms were measured anyway (`sweep-gated`) and none wins.
 No Phase 2 recipe advances. Next: Phase 3's K = 8 disposition; K = 4
 remains shipped.** Axis numbers refer to the
 original Phase 2 plan: **Axis 4 is width; Axis 5 is learning rate**, regardless
@@ -123,8 +123,11 @@ shipped K = 4; detail in the archive.
   39,316-record trace finds more action where the shipped net passes:
   +7,520 plain / −14,229 PD IMPs, outweighing the reverse direction. No
   single prefix explains the loss; Rust fixture parity passes. All four
-  128-wide draws fail the CE gate (0.4758–0.4849 vs 0.426319), so **128
-  has no IMP verdict**. Details and reproduction in the archive's
+  128-wide draws fail the CE gate (0.4758–0.4849 vs 0.426319); measured
+  anyway in `sweep-gated`, 128 is the mirror image: **plain loss**
+  (−0.0242 / −0.0199), PD win / wash, **sd-PD loss** — the decision
+  table's PD-artifact row. The two widths bracket 256 from opposite sides.
+  Details and reproduction in the archive's
   [Axis 4 verdict](../archive/floor-sweep-verdicts.md#phase-2-axis-4-verdict--hidden-width-2026-09-30).
 - **Epochs follow-ups — neither advances.** In `sweep-ep150`, the measured
   arm is **600 epochs with Pass bias −0.0205**, not 150 epochs. Plain DD
@@ -133,25 +136,34 @@ shipped K = 4; detail in the archive.
   matched the raw Pass rate on contested **corpus rows**, not live floor
   nodes, so this rejects the measured calibration without settling every
   possible Pass tilt. The 150-epoch seeds have CE 0.422819 / 0.424135 / 0.427407 /
-  0.430960: seeds 3 and 4 exceed 0.42631943, so no A/B ran. Keep 300 epochs.
+  0.430960: seeds 3 and 4 exceed 0.42631943. Measured anyway in
+  `sweep-gated`: **plain loss** (−0.0093 / −0.0084, the both-vul CI touching
+  zero), PD wash, sd plain CI-clear loss both cells. 150 and 600 both lose
+  plain to 300. Keep 300 epochs.
   [Verdict and bounded trace](../archive/floor-sweep-verdicts.md#epochs-follow-ups--pass-offset-and-150-epochs-2026-09-30).
-- **Axis 5, `--lr 3e-4` at 300 epochs — training gate rejection.** All four
+- **Axis 5, `--lr 3e-4` at 300 epochs — *suspect*.** All four
   draws completed and folded 30 columns. CE is 0.426501 / 0.424733 /
-  0.423722 / 0.425542; only seed 1 exceeds 0.42631943, by **0.000181844**.
-  The predeclared gate is per draw, so the K = 4 candidate did not enter
-  A/B. This is a narrow gate miss, **not a measured bridge loss**. Keep
-  `--lr 0.001`; no IMP signal triggered the conditional cosine-schedule
-  trial. [Recipe and provenance](../archive/floor-sweep-verdicts.md#phase-2-axis-5--learning-rate-training-gate-2026-09-30).
+  0.423722 / 0.425542; only seed 1 exceeds 0.42631943, by 0.000181844, so
+  the gate withheld it. `sweep-gated` measured it: **plain win** none
+  (+0.0088), wash both; **PD loss** both (−0.0162); sd-PD wash. That is
+  v8's row, the same one every single reseed and `--hidden 512` landed on,
+  and the plain gain is under the 0.01 bar. Keep `--lr 0.001`; no IMP
+  signal triggers the conditional cosine-schedule trial. [Recipe and provenance](../archive/floor-sweep-verdicts.md#phase-2-axis-5--learning-rate-training-gate-2026-09-30).
 
 ## Next
 
 For any reopened axis: train **four** seeds at the candidate recipe (two per
-GPU, ~20 min), reject on failed-to-train only (shipped val_ce + 0.010), A/B their
-K = 4 mean vs shipped, and read against σ_ens. Stop an axis after one
-confirmed direction; do not grid.
+GPU, ~20 min), A/B their K = 4 mean vs shipped, and read against σ_ens.
+Stop an axis after one confirmed direction; do not grid.
 
-- **Phase 3 disposition.** No Phase 2 recipe passed both the training and
-   IMP gates. Phase 1's shipped K = 4 is the deliverable. Decide whether
+**The CE gate filters divergence only.** Reject a draw that failed to train:
+NaN, a stalled loss, or CE far past shipped val_ce + 0.010 (h128 missed by
+0.05–0.06). A draw within a few thousandths of the line goes to A/B: a
+0.0002 miss is draw spread (the `sweep-k8` relaunch precedent). `sweep-gated`
+measured all three rejected arms and all three lost on IMPs, so the gate cost
+nothing this time. The line is a warning, not a verdict.
+
+- **Phase 3 disposition.** No Phase 2 recipe passed the IMP gate. Phase 1's shipped K = 4 is the deliverable. Decide whether
    K = 8's existing small PD increment merits a fresh-seed confirmation at
    its measured 1.8× bidding latency; no K = 8 promotion is implied by
    closing Phase 2.
@@ -238,7 +250,10 @@ Write the arm's recipe, seed and blob hashes into the results directory's
 | 2026-09-29 | `h128` training gate | 1–4 | `--hidden 128`, K = 4 proposed | not run | not run | not run | all four CE values exceed 0.426319; no IMP verdict |
 | 2026-09-29 (reconciled 2026-09-30) | `sweep-ep150` `ep600p` (SEED_BASE 1790678007) | 1–4 | 600 epochs, Pass bias −0.0205, K = 4 | **−0.0092 ±0.0071** / **−0.0136 ±0.0084** | +0.0005 ±0.0077 / −0.0092 ±0.0092 | −0.0057 ±0.0078 / **−0.0122 ±0.0092** | plain loss both cells; no recovery from this corpus-calibrated tilt |
 | 2026-09-29 (reconciled 2026-09-30) | `ep150` training gate | 1–4 | `--epochs 150`, K = 4 proposed | not run | not run | not run | seeds 3/4 exceed 0.42631943; no IMP verdict |
-| 2026-09-30 | `lr3e4` training gate | 1–4 | `--lr 3e-4`, 300 epochs, K = 4 proposed | not run | not run | not run | seed 1 exceeds 0.42631943 by 0.000181844; other seeds pass; no IMP verdict |
+| 2026-09-30 | `lr3e4` training gate | 1–4 | `--lr 3e-4`, 300 epochs, K = 4 proposed | not run | not run | not run | seed 1 exceeds 0.42631943 by 0.000181844; other seeds pass; superseded by `sweep-gated` |
+| 2026-09-30 | `sweep-gated` `lr3e4` (SEED_BASE 1790714718) | 1–4 | `--lr 3e-4`, 300 epochs, K = 4 | **+0.0088 ±0.0076** / −0.0004 ±0.0090 | −0.0050 ±0.0084 / **−0.0162 ±0.0100** | −0.0009 ±0.0084 / −0.0078 ±0.0100 | *suspect* — keep `--lr 0.001` |
+| 2026-09-30 | `sweep-gated` `ep150` (SEED_BASE 1790714718) | 1–4 | `--epochs 150`, K = 4 | **−0.0093 ±0.0071** / −0.0084 ±0.0084 | −0.0008 ±0.0077 / −0.0013 ±0.0092 | −0.0040 ±0.0078 / −0.0084 ±0.0093 | plain loss, PD wash — discard; keep 300 epochs |
+| 2026-09-30 | `sweep-gated` `h128` (SEED_BASE 1790714718) | 1–4 | `--hidden 128`, K = 4 | **−0.0242 ±0.0081** / **−0.0199 ±0.0097** | **+0.0096 ±0.0089** / +0.0036 ±0.0107 | **−0.0116 ±0.0090** / **−0.0159 ±0.0108** | plain loss, PD win (artifact row), sd-PD loss — keep 256 |
 
 ## Out of scope
 

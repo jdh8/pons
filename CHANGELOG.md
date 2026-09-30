@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Floor sweep: the three gate-rejected arms measured (2026-09-30).**
+  `sweep-gated` (SEED_BASE 1790714718, 204,800 boards/arm/vulnerability)
+  ran each arm's K = 4 mean against shipped. IMPs/board are given as
+  none / both. `--lr 3e-4` wins plain DD at none (+0.0088) but loses PD at
+  both (−0.0162), which is the *suspect* row. `--epochs 150` loses plain DD
+  (−0.0093 / −0.0084), and PD washes. `--hidden 128` loses plain DD
+  (−0.0242 / −0.0199) and sd-PD (−0.0116 / −0.0159); its PD +0.0096 at none
+  is the artifact row. The CE gate is re-worded as a divergence filter:
+  near misses now go to A/B. **Impact:** no bidding change. The shipped
+  K = 4 at width 256, 300 epochs and `--lr 0.001` stands.
 - **Floor sweep epochs follow-ups and Axis 5 reconciled (2026-09-30).** The
   existing 600-epoch ensemble with Pass bias −0.0205 loses plain DD
   **−0.0092 / −0.0136** IMPs/board (none / both, 204,800
