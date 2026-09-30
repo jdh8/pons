@@ -34,7 +34,9 @@ shift 2
 
 n=${JOBS:-$(nproc)}   # cap worker processes on a shared box; defaults to all cores
 seed_base=${SEED_BASE:-$(date +%s)}
-bin="$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen"
+# BBA_GEN overrides the binary — an A/B whose off arm is a different build (a
+# pre-fix worktree) rather than a flag; see scripts/ab-rkcb-asker.sh.
+bin="${BBA_GEN:-$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen}"
 
 if [ "${SKIP_BUILD:-0}" != 1 ]; then
     cargo build --release --features "${FEATURES:-serde}" --example bba-gen

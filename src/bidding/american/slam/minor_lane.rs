@@ -26,7 +26,7 @@ pub(super) fn asker_after_5c_minor(trump: Suit) -> Rules {
 
 /// Asker after a 5♦ answer when trumps are a minor
 ///
-/// Diamonds: slam set mirrors the major `asker_after_5d` (≤2 assume partner 3,
+/// Diamonds: slam set mirrors the major `asker_after_5d` (1–2 assume partner 3,
 /// or 4+); to stop, Pass to play partner's 5♦.  Clubs: no room below 6♣.
 pub(super) fn asker_after_5d_minor(trump: Suit) -> Rules {
     let t = Strain::from(trump);
@@ -35,7 +35,7 @@ pub(super) fn asker_after_5d_minor(trump: Suit) -> Rules {
             .rule(
                 Bid::new(6, t),
                 100,
-                keycards(trump, 2..=2) | keycards(trump, 4..),
+                keycards(trump, 1..=2) | keycards(trump, 4..),
             )
             .rule(Call::Pass, 50, hcp(0..))
     } else {

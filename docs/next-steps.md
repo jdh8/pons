@@ -56,6 +56,13 @@ criterion 5). **Item 2 is now the top candidate.**
   +0.0001…+0.0004 PD per board (~160 divergent per 1M; the floor already
   reaches six on the rest) — a correctness fix, not a lever. The jump-shift
   lane's wired answerer rows may be paying the same tax; unmeasured.
+  **Fix shipped 2026-09-30** (`scripts/ab-rkcb-asker.sh`, off arm = a
+  pre-fix worktree build via `BBA_GEN`, `ab-results/rkcb-asker`): won 4/4,
+  plain +0.0013 / +0.0019, PD +0.0012 / +0.0018 IMPs/board (none / both),
+  73 / 79 fired per 204,800 — four times the census's pricing, which counted
+  only the exact-book-node windows the floor had not already patched. The
+  1-keycard `5♦` case bids six outright; routing it through the queen relay
+  (the combined count is four, as in the 4-keycard branch) is unmeasured.
 - **Kickback is not a score lever (2026-09-27,
   [ai-bidder/bba-kickback.md §7.16](ai-bidder/bba-kickback.md)).** On the v6
   floor with the net blinded to the regime bit, its rules diverge on 0.03% of

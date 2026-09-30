@@ -301,13 +301,17 @@ fn asker_after_5d(trump: Suit) -> Rules {
         Bid::new(5, Strain::Diamonds),
         keycards(trump, 4..=4) | ((keycards(trump, 2..=2) | keycards(trump, 5..)) & hcp(19..)),
     )
-    // 6T: asker with ≤2 assumes partner has 3 (slam OK), or asker has 4+
+    // 6T: asker with 1–2 assumes partner has 3 (four or five combined), or
+    // asker has 4+.  Was `2..=2` until 2026-09-30, which signed off at five
+    // with one keycard opposite three — the census in docs/next-steps.md item 2
+    // (`probe-rkcb-answerer`) found the floor answerer raising to six to
+    // patch it.  No keycards opposite three is two short: sign off.
     .rule(
         Bid::new(6, t),
         100,
-        keycards(trump, 2..=2) | keycards(trump, 4..),
+        keycards(trump, 1..=2) | keycards(trump, 4..),
     )
-    // 5T: signoff (asker has ≥3 and knows partner has 0)
+    // 5T: signoff (asker has ≥3 and knows partner has 0, or holds none)
     .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
@@ -315,8 +319,14 @@ fn asker_after_5d(trump: Suit) -> Rules {
 fn asker_after_5h(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     Rules::new()
-        // 6T: asker has 3+ keycards → 5+ total, slam interest
-        .rule(Bid::new(6, t), 100, keycards(trump, 3..))
+        // 6T: asker has 3+ keycards → 5+ total, or two plus the trump queen →
+        // four with the queen, the holding `asker_after_5s` already bids six
+        // on when partner supplies the queen (same census as `asker_after_5d`)
+        .rule(
+            Bid::new(6, t),
+            100,
+            keycards(trump, 3..) | (keycards(trump, 2..=2) & has_trump_queen(trump)),
+        )
         // 5T: signoff
         .rule(Bid::new(5, t), 50, hcp(0..))
 }

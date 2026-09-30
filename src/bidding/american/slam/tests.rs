@@ -151,6 +151,48 @@ fn asker_after_5d_response() {
         Call::Bid(Bid::new(6, Strain::Spades)),
         "asker with 2 keycards after 5♦ → assumes 3, bid 6♠"
     );
+
+    // Q852.KQ76.K72.A3 — 1 keycard (A♣) → assumes partner has 3, four
+    // combined → 6♠ (signed off at five before 2026-09-30)
+    assert_eq!(
+        best(&trie, &auction, "Q852.KQ76.K72.A3"),
+        Call::Bid(Bid::new(6, Strain::Spades)),
+        "asker with 1 keycard after 5♦ → assumes 3, bid 6♠"
+    );
+
+    // Q852.KQ76.K72.Q3 — no keycard: partner's three leaves two out → 5♠
+    assert_eq!(
+        best(&trie, &auction, "Q852.KQ76.K72.Q3"),
+        Call::Bid(Bid::new(5, Strain::Spades)),
+        "asker with 0 keycards after 5♦ → sign off 5♠"
+    );
+}
+
+/// Asker's continuation after a 5♥ response (two keycards, no queen)
+#[test]
+fn asker_after_5h_response() {
+    let trie = rkcb_trie();
+    // Auction: `1♠ - 2NT - 3♣ - 4NT - 5♥ -`
+    let auction: Vec<Call> = ANS_AUCTION
+        .iter()
+        .copied()
+        .chain([Call::Bid(Bid::new(5, Strain::Hearts)), Call::Pass])
+        .collect();
+
+    // Q852.AK76.K72.A3 — 2 keycards with the trump queen: four plus the
+    // queen → 6♠ (signed off at five before 2026-09-30)
+    assert_eq!(
+        best(&trie, &auction, "Q852.AK76.K72.A3"),
+        Call::Bid(Bid::new(6, Strain::Spades)),
+        "asker with 2 keycards + Q after 5♥ → bid 6♠"
+    );
+
+    // J852.AK76.K72.A3 — 2 keycards without the queen → 5♠
+    assert_eq!(
+        best(&trie, &auction, "J852.AK76.K72.A3"),
+        Call::Bid(Bid::new(5, Strain::Spades)),
+        "asker with 2 keycards, no Q after 5♥ → sign off 5♠"
+    );
 }
 
 /// King ask after 5♣ response (asker has 4 keycards)

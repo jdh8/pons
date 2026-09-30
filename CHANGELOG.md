@@ -1052,6 +1052,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **RKCB asker tables: six on four keycards plus the queen (2026-09-30,
+  +0.0013 / +0.0019 plain, +0.0012 / +0.0018 PD IMPs/board).** Two holes
+  the 2026-09-27 answerer census (`probe-rkcb-answerer`) traced the floor's
+  raise-over-signoff to: `asker_after_5d` bid six only on exactly two
+  keycards though its doc read "≤2 assume partner has three", so an asker
+  with one keycard signed off at five with four combined; and
+  `asker_after_5h` (two keycards, no queen) signed off holding two keycards
+  and the trump queen — four plus the queen, the holding `asker_after_5s`
+  already bids six on.  Now `1..=2 | 4..` and `3.. | 2 & queen`; the
+  diamond mirror in `minor_lane.rs` alike.  `scripts/ab-rkcb-asker.sh`
+  (204,800 boards/arm/vul, SEED_BASE 1790766739, `ab-results/rkcb-asker`)
+  won all four cells: plain DD +0.0013 (none) / +0.0019 (both), PD +0.0012 /
+  +0.0018 IMPs/board, CI ±0.0009–0.0011, 73 / 79 fired (+3.4…+4.9 per
+  fired) — four times the census's pricing, which counted only windows the
+  floor had not already patched.  Harness: `scripts/bba-gen-parallel.sh`
+  honours `BBA_GEN=<binary>`, so a fix without a knob can A/B against a
+  pre-fix worktree build (the runner's off arm); `rkcb_rows` has twenty
+  callers and no knob path.
+
 - **Web: identical profiles bind as self-play (2026-09-30)** — the web app
   declared each pair's opponent (`Partnership::with_opponents`) even when both
   pairs played the same profile. Under `ReadingScope::All` a declared
