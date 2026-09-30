@@ -218,6 +218,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`CHANGELOG.md` is excluded from the published crate (2026-09-30).**
+  It was 0.55 MB of the 7.32 MB `.crate`, which is now 6.76 MB. That makes
+  room under crates.io's 10 MB limit for the K = 8 floor's four extra
+  blobs, about +1.7 MB compressed. No code reads the file. It stays in the
+  repository and on GitHub.
+
 - **Floor sweep: the epochs-600 loss traced, and the campaign doc split
   (2026-09-29).** `probe-divergence --imps` over both `sweep-ep` cells
   (27,389 divergent boards): the 600-epoch ensemble is *more conservative*
