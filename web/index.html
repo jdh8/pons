@@ -132,17 +132,19 @@
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
         a union of boxes, the same reading the bidder keeps per seat.
         Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>-2</code>, blank = any.
-        Where: a predicate on the lengths <code>s h d c</code> and points <code>p</code> —
+        Where: a condition on the lengths <code>s h d c</code> and any of the point gauges
+        <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected) —
         <code>s &gt; h</code>, <code>s &gt;= h &gt;= d</code>, <code>max(s, h) &gt;= 5</code>,
-        <code>p + s &gt;= 15</code>; join with <code>and</code> (or a comma), <code>or</code>, <code>not</code>.</div>
+        <code>hcp &gt;= 10 &amp; pts &gt;= 12</code>, <code>p + s &gt;= 15 | !(d &gt; c)</code>;
+        a comma is an <em>and</em> that binds loosest.</div>
       <div class="controls">
         <label>Points <select id="c-gauge">
-          <option value="hcp" selected>HCP</option>
-          <option value="points">Points (HCP + upgrade, the bidder's scale)</option>
-          <option value="♠">Support points, ♠ trumps</option>
-          <option value="♥">Support points, ♥ trumps</option>
-          <option value="♦">Support points, ♦ trumps</option>
-          <option value="♣">Support points, ♣ trumps</option>
+          <option value="hcp" selected>HCP (hcp)</option>
+          <option value="pts">Points: HCP + upgrade, the bidder's scale (pts)</option>
+          <option value="sps">Support points, ♠ trumps (sps)</option>
+          <option value="sph">Support points, ♥ trumps (sph)</option>
+          <option value="spd">Support points, ♦ trumps (spd)</option>
+          <option value="spc">Support points, ♣ trumps (spc)</option>
         </select></label>
         <button id="c-add" class="secondary">+ box</button>
       </div>

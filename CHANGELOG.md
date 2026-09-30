@@ -19,8 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `constraint::wasted` is now `pub`.  Each box also takes a **where**
   predicate for what a box cannot say — relative lengths (`s > h`,
   `s >= h >= d`), `max`/`min`/`+`/`−` terms (`max(s, h) >= 5`), and
-  shape-dependent point ranges (`p + s >= 15`) — joined by `and`/`,`, `or`,
-  `not`; still exact, evaluated per pattern × point value.
+  shape-dependent point ranges (`p + s >= 15`) — joined by `!`/`not`,
+  `&`/`and`, `|`/`or`, and a comma (an *and* that binds loosest).  It is typed
+  like Rust: a number is never a condition.  Every gauge is a variable
+  (`hcp`, `pts`, `sps` `sph` `spd` `spc`; `p` is the selected one), so one
+  box can mix them — `hcp >= 10 & pts >= 12` — and the count stays exact:
+  `point_census()` now returns the per-holding **joint** of HCP, wasted and
+  `hcp_plus`, convolved once into a 45k-state joint over the 560 patterns.
 
 - **Checkback and forcing majors over the 18–19 `2NT` rebid
   (`notrump.rebid_checkback`, shipped default-on 2026-09-30).** The

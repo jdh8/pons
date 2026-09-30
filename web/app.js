@@ -975,54 +975,50 @@ function renderBinkyTable() {
 
 // --- Calc tab: exact shape × points probabilities -----------------------------
 // A union of boxes (and any Pavlicek-style constraint) is a predicate over the
-// 560 hand patterns times a set of admitted point values, so the count is an
-// exact convolution of per-suit holding censuses.  The censuses come from the
-// wasm (`point_census`, the crate's own evaluators), the shape terms are
-// mirrored here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor
-// suits, floored at 0; support points swap the side suits to hcp_plus and
-// count the trump suit's plain HCP.  No sampling.
+// 560 hand patterns times the point gauges, so the count is an exact
+// convolution of per-suit holding censuses.  The census comes from the wasm
+// (`point_census`, the crate's own evaluators), the shape terms are mirrored
+// here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor suits,
+// floored at 0; support points swap the side suits to hcp_plus and count the
+// trump suit's plain HCP.  No sampling.
 // Each box also takes a "where" predicate (`compileWhere`), evaluated by brute
-// force on the same loop: 560 patterns × the box's point values.
+// force on every (pattern, gauge values) state the convolution reaches.
 const TOTAL_HANDS = 635013559600;
-let CENSUS = null; // {hcp: [len][hcp][wasted], plus: [len][plus]} from wasm
+const GAUGES = ['hcp', 'pts', 'sps', 'sph', 'spd', 'spc']; // c-gauge's values; sp? = support points, ? trumps
+let CENSUS = null; // [len] → rows of [hcp, wasted, hcp_plus, count], from wasm
 const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
+let JOINT = null; // gaugeJoint by PATTERNS index
 for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; s + h + d <= 13; d++) {
   PATTERNS.push([s, h, d, 13 - s - h - d]);
 }
 const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
 const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
 
-// 1-D convolution of count vectors
-function conv(a, b) {
-  const r = new Array(a.length + b.length - 1).fill(0);
-  a.forEach((x, i) => { if (x) b.forEach((y, j) => { r[i + j] += x * y; }); });
-  return r;
-}
-// 2-D: [points][wasted suits]
-function conv2(a, b) {
-  const r = Array.from({ length: a.length + b.length - 1 }, () => new Array(a[0].length + b[0].length - 1).fill(0));
-  a.forEach((ar, i) => ar.forEach((x, w) => { if (x) b.forEach((br, j) => br.forEach((y, v) => { r[i + j][w + v] += x * y; })); }));
-  return r;
-}
-
-// Count of hands of this pattern by gauge value
-function pointHist(lens, gauge) {
-  const hcpRow = (len) => CENSUS.hcp[len].map((pair) => pair[0] + pair[1]);
+// Hands of this pattern counted jointly by every gauge: a list of [values in
+// GAUGES order, count].  The convolution state packs six sums in base 64 —
+// HCP, wasted suits, and per trump the support sum (hcp_plus on the side
+// suits, plain HCP in trumps).  hcp_plus is nearly HCP plus a function of
+// length, so the joint stays small: 45k states over all 560 patterns.
+function gaugeJoint(lens) {
+  let acc = new Map([[0, 1]]);
+  lens.forEach((len, suit) => {
+    const step = new Map();
+    for (const [hcp, wasted, plus, n] of CENSUS[len]) {
+      let code = hcp + 64 * wasted;
+      for (let t = 0; t < 4; t++) code += 64 ** (2 + t) * (t === suit ? hcp : plus);
+      step.set(code, (step.get(code) || 0) + n);
+    }
+    const next = new Map();
+    for (const [a, x] of acc) for (const [b, y] of step) next.set(a + b, (next.get(a + b) || 0) + x * y);
+    acc = next;
+  });
   const bonus = twoLongest(lens) >= 10 ? 1 : 0;
-  if (gauge === 'hcp') return lens.reduce((acc, len) => conv(acc, hcpRow(len)), [1]);
-  if (gauge === 'points') {
-    const joint = lens.reduce((acc, len) => conv2(acc, CENSUS.hcp[len]), [[1]]);
-    const base = (isBalanced(lens) ? 0 : 1) + bonus;
-    const hist = [];
-    joint.forEach((row, h) => row.forEach((n, w) => {
-      const p = h + Math.max(0, base - w);
-      hist[p] = (hist[p] || 0) + n;
-    }));
-    return hist;
-  }
-  const trump = HAND_ORDER.indexOf(gauge); // support points, `gauge` is the trump suit
-  const hist = lens.reduce((acc, len, i) => conv(acc, i === trump ? hcpRow(len) : CENSUS.plus[len]), [1]);
-  return bonus ? [0, ...hist] : hist;
+  const base = (isBalanced(lens) ? 0 : 1) + bonus;
+  return [...acc].map(([code, n]) => {
+    const sum = (k) => Math.floor(code / 64 ** k) % 64;
+    const support = [2, 3, 4, 5].map((k) => sum(k) + bonus);
+    return [[sum(0), sum(0) + Math.max(0, base - sum(1)), ...support], n];
+  });
 }
 
 // "5+", "4-6", "3", "-2", "" → [min, max]; null when unparseable
@@ -1038,70 +1034,91 @@ function parseRange(text, cap) {
   return null;
 }
 
-// A box's "where" predicate over one hand's lengths and points.  Terms are
-// tropical rational functions of ♠ ♥ ♦ ♣ (or s h d c) and p (the gauge's
-// points): integers, + − max() min().  Comparisons chain (s >= h >= d means
-// both) and are worth 1 or 0, so (s>=5)+(h>=5)+(d>=5)+(c>=5) >= 2 counts
-// suits; then `not`, `and` (or a comma), `or`.
-// "" → always true; null when unparseable.
-const WHERE_VARS = { '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4 };
+// A box's "where" predicate over one hand's lengths and points.  Numbers are
+// tropical rational functions — integers, + − max() min() — of the lengths
+// ♠ ♥ ♦ ♣ (or s h d c), the gauges hcp, pts, sps sph spd spc (or sp♠ …), and
+// p, the gauge the Points column is on.  Comparisons chain (s >= h >= d means
+// both); conditions join with ! (not), & (and), | (or), and a comma — an
+// "and" that binds loosest, so `a | b, c` is (a | b) & c.  Typed like Rust: a
+// number is never a condition, nor the reverse.
+// Returns v → bool over v = [♠, ♥, ♦, ♣, p, ...GAUGES values].
+// "" → always true; null when unparseable or ill-typed.
+const WHERE_VARS = {
+  '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4, hcp: 5, pts: 6,
+  sps: 7, 'sp♠': 7, sph: 8, 'sp♥': 8, spd: 9, 'sp♦': 9, spc: 10, 'sp♣': 10,
+};
 const WHERE_CMP = {
   '>': (a, b) => a > b, '>=': (a, b) => a >= b, '≥': (a, b) => a >= b,
   '<': (a, b) => a < b, '<=': (a, b) => a <= b, '≤': (a, b) => a <= b,
   '=': (a, b) => a === b, '==': (a, b) => a === b, '!=': (a, b) => a !== b, '≠': (a, b) => a !== b,
 };
+const WHERE_AND = (a, b) => a && b;
+const WHERE_OR = (a, b) => a || b;
 function compileWhere(text) {
-  const toks = text.toLowerCase().match(/\d+|[<>!=]=|[a-z]+|\S/g) || [];
+  const toks = text.toLowerCase().match(/\d+|[<>!=]=|&&|\|\||sp[♠♥♦♣]|[a-z]+|\S/g) || [];
   if (!toks.length) return () => true;
   let i = 0;
   const eat = (...ts) => (ts.includes(toks[i]) ? toks[i++] : null);
   const need = (t) => { if (!eat(t)) throw new SyntaxError(`expected ${t}`); };
-  // one left-associative binary level
-  const fold = (next, ops) => () => {
+  // a parsed node is {f, bool}: its evaluator and whether it is a condition
+  const typed = (node, bool) => {
+    if (node.bool !== bool) throw new TypeError(bool ? 'expected a condition' : 'expected a number');
+    return node.f;
+  };
+  const num = (f) => ({ f, bool: false });
+  // one left-associative binary level over operands of one type
+  const fold = (next, ops, bool) => () => {
     let l = next();
     for (let op; (op = eat(...Object.keys(ops)));) {
-      const a = l, b = next(), f = ops[op];
-      l = (v) => f(a(v), b(v));
+      const a = typed(l, bool), b = typed(next(), bool), f = ops[op];
+      l = { f: (v) => f(a(v), b(v)), bool };
     }
     return l;
   };
   const atom = () => {
     const t = toks[i++];
-    if (/^\d+$/.test(t)) return () => +t;
-    if (Object.hasOwn(WHERE_VARS, t)) return (v) => v[WHERE_VARS[t]];
-    if (t === '-') { const a = atom(); return (v) => -a(v); }
-    if (t === '(') { const e = or(); need(')'); return e; }
+    if (/^\d+$/.test(t)) return num(() => +t);
+    if (Object.hasOwn(WHERE_VARS, t)) return num((v) => v[WHERE_VARS[t]]);
+    if (t === '-') { const a = typed(atom(), false); return num((v) => -a(v)); }
+    if (t === '(') { const e = all(); need(')'); return e; }
     if (t === 'max' || t === 'min') {
       need('(');
-      const args = [sum()];
-      while (eat(',')) args.push(sum());
+      const args = [typed(sum(), false)];
+      while (eat(',')) args.push(typed(sum(), false));
       need(')');
-      return (v) => Math[t](...args.map((a) => a(v)));
+      return num((v) => Math[t](...args.map((a) => a(v))));
     }
     throw new SyntaxError(`unexpected ${t}`);
   };
-  const sum = fold(atom, { '+': (a, b) => a + b, '-': (a, b) => a - b });
+  const sum = fold(atom, { '+': (a, b) => a + b, '-': (a, b) => a - b }, false);
   const cmp = () => {
-    const terms = [sum()], ops = [];
-    for (let op; (op = eat(...Object.keys(WHERE_CMP)));) { ops.push(WHERE_CMP[op]); terms.push(sum()); }
-    if (!ops.length) return terms[0];
-    return (v) => { const x = terms.map((t) => t(v)); return +ops.every((f, k) => f(x[k], x[k + 1])); };
+    const first = sum(), rest = [], ops = [];
+    for (let op; (op = eat(...Object.keys(WHERE_CMP)));) { ops.push(WHERE_CMP[op]); rest.push(typed(sum(), false)); }
+    if (!ops.length) return first;
+    const terms = [typed(first, false), ...rest];
+    return { f: (v) => { const x = terms.map((t) => t(v)); return ops.every((f, k) => f(x[k], x[k + 1])); }, bool: true };
   };
-  const not = () => { if (!eat('not')) return cmp(); const a = not(); return (v) => +!a(v); };
-  const and = fold(not, { and: (a, b) => +(!!a && !!b), ',': (a, b) => +(!!a && !!b) });
-  const or = fold(and, { or: (a, b) => +(!!a || !!b) });
+  const not = () => {
+    if (!eat('not', '!')) return cmp();
+    const a = typed(not(), true);
+    return { f: (v) => !a(v), bool: true };
+  };
+  const and = fold(not, { and: WHERE_AND, '&': WHERE_AND, '&&': WHERE_AND }, true);
+  const or = fold(and, { or: WHERE_OR, '|': WHERE_OR, '||': WHERE_OR }, true);
+  const all = fold(or, { ',': WHERE_AND }, true);
   try {
-    const e = or();
-    if (i < toks.length) return null;
-    return (lens, p) => !!e([...lens, p]);
+    const f = typed(all(), true);
+    return i < toks.length ? null : f;
   } catch { return null; }
 }
 
 function initCalc() {
-  const chk = (text, lens, p) => compileWhere(text)(lens, p);
-  console.assert(chk('s > h', [5, 4, 2, 2], 0) && !chk('s > h >= d', [5, 2, 4, 2], 0)
-    && chk('p + max(s, h) >= 20, not c', [5, 4, 4, 0], 15) && compileWhere('s >') === null, 'compileWhere');
+  const chk = (text, ...v) => compileWhere(text)(v);
+  console.assert(chk('s > h', 5, 4, 2, 2) && !chk('s > h >= d', 5, 2, 4, 2)
+    && chk('p + max(s, h) >= 20, !(c > 0 | hcp < 12)', 5, 4, 4, 0, 15, 13)
+    && compileWhere('s >') === null && compileWhere('s + h') === null && compileWhere('!s') === null, 'compileWhere');
   CENSUS = JSON.parse(point_census());
+  JOINT = PATTERNS.map(gaugeJoint);
   id('c-add').onclick = () => { addBox(); renderCalc(); };
   id('c-gauge').onchange = renderCalc;
   addBox();
@@ -1141,21 +1158,19 @@ function readBoxes() {
 
 function renderCalc() {
   const boxes = readBoxes();
-  const gauge = id('c-gauge').value;
+  const g = GAUGES.indexOf(id('c-gauge').value); // what the Points column and `p` gauge
   let total = 0;
   const byPattern = [];
-  for (const lens of PATTERNS) {
-    const admitted = new Set();
-    for (const box of boxes) {
-      if (!lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1])) continue;
-      for (let p = box.pts[0]; p <= box.pts[1]; p++) if (box.where(lens, p)) admitted.add(p);
-    }
-    if (!admitted.size) continue;
-    const hist = pointHist(lens, gauge);
+  PATTERNS.forEach((lens, k) => {
+    const mine = boxes.filter((box) => lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1]));
+    if (!mine.length) return;
     let count = 0;
-    for (const p of admitted) count += hist[p] || 0;
+    for (const [values, n] of JOINT[k]) {
+      const v = [...lens, values[g], ...values];
+      if (mine.some((box) => v[4] >= box.pts[0] && v[4] <= box.pts[1] && box.where(v))) count += n;
+    }
     if (count) { total += count; byPattern.push([lens, count]); }
-  }
+  });
   const out = id('c-out');
   if (!boxes.length) { out.innerHTML = '<p class="hint">Enter at least one well-formed box.</p>'; return; }
   const prob = total / TOTAL_HANDS;

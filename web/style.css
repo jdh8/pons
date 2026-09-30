@@ -396,5 +396,5 @@ table.boxes input {
   border: 1px solid #bbb;
   border-radius: 4px;
 }
-table.boxes input.where { width: 16rem; }
+table.boxes input.where { width: 22rem; }
 table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }

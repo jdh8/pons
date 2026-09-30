@@ -788,19 +788,23 @@ fn feedback_shows_odds_when_an_authored_node_rejects_the_hand() {
 /// worth 5 on the support scale, and `Ax` is the working doubleton.
 #[test]
 fn point_census_counts_every_holding() {
-    let census = parse(&point_census());
-    let hcp = census["hcp"].as_array().expect("hcp table");
-    let plus = census["plus"].as_array().expect("plus table");
-    fn sum(value: &serde_json::Value) -> u64 {
-        match value.as_array() {
-            Some(items) => items.iter().map(sum).sum(),
-            None => value.as_u64().expect("count"),
-        }
-    }
-    assert_eq!(sum(&census["hcp"]), 8192);
-    assert_eq!(sum(&census["plus"]), 8192);
-    assert_eq!(plus[0][3], 1, "a void is 3 hcp_plus");
-    assert_eq!(hcp[1][4][1], 1, "the singleton ace wastes");
-    assert_eq!(plus[1][5], 1, "and is worth 4 + 2 - 1");
-    assert_eq!(hcp[2][4][0], 9, "Ax is the working doubleton");
+    // [len] → rows of [hcp, wasted, hcp_plus, count]
+    let census: Vec<Vec<[u32; 4]>> = serde_json::from_str(&point_census()).expect("census");
+    let count = |len: usize, keep: &dyn Fn(u32, u32, u32) -> bool| -> u32 {
+        let rows = census[len].iter();
+        rows.filter(|r| keep(r[0], r[1], r[2])).map(|r| r[3]).sum()
+    };
+    let total: u32 = (0..14).map(|len| count(len, &|_, _, _| true)).sum();
+    assert_eq!(total, 8192);
+    assert_eq!(census[0], [[0, 0, 3, 1]], "a void is 3 hcp_plus");
+    assert_eq!(
+        count(1, &|hcp, wasted, plus| (hcp, wasted, plus) == (4, 1, 5)),
+        1,
+        "the singleton ace wastes and is worth 4 + 2 - 1"
+    );
+    assert_eq!(
+        count(2, &|hcp, wasted, _| (hcp, wasted) == (4, 0)),
+        9,
+        "Ax is the working doubleton"
+    );
 }

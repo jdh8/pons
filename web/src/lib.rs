@@ -749,27 +749,38 @@ struct RuleJson {
 
 /// Per-length holding census for the Calc tab's exact point convolution
 ///
-/// For every suit length: how many of the 8192 holdings carry each raw HCP,
-/// split by whether the holding wastes an honor (`hcp[len][hcp][wasted]`,
-/// the two inputs of [`upgrade`][pons::bidding::constraint::upgrade]), and
-/// how many carry each `hcp_plus` value (`plus[len][value]`, the side-suit
-/// term of the support scale).  Built from the crate's own evaluators so the
-/// calculator's gauges cannot drift from the bidder's.
+/// For every suit length, the 8192 holdings counted by what the gauges read
+/// off one: `census[len]` lists `[hcp, wasted, hcp_plus, count]` — raw HCP
+/// and whether the holding wastes an honor (the two inputs of
+/// [`upgrade`][pons::bidding::constraint::upgrade]), and `hcp_plus` (the
+/// side-suit term of the support scale).  The three are kept **joint** so the
+/// calculator can price several gauges on one hand.  Built from the crate's
+/// own evaluators so its gauges cannot drift from the bidder's.
 #[wasm_bindgen]
 #[must_use]
 pub fn point_census() -> String {
-    let mut hcp = vec![vec![[0u32; 2]; 11]; 14];
-    let mut plus = vec![vec![0u32; 11]; 14];
+    let mut census = vec![BTreeMap::<(u8, u8, u8), u32>::new(); 14];
     for bits in 0..=u16::MAX {
         let Some(holding) = Holding::from_bits(bits) else {
             continue;
         };
-        let len = holding.len();
-        let wasted = usize::from(pons::bidding::constraint::wasted(holding));
-        hcp[len][eval::hcp::<usize>(holding)][wasted] += 1;
-        plus[len][eval::hcp_plus::<usize>(holding)] += 1;
+        let key = (
+            eval::hcp::<u8>(holding),
+            u8::from(pons::bidding::constraint::wasted(holding)),
+            eval::hcp_plus::<u8>(holding),
+        );
+        *census[holding.len()].entry(key).or_default() += 1;
     }
-    serde_json::json!({ "hcp": hcp, "plus": plus }).to_string()
+    let rows: Vec<Vec<(u8, u8, u8, u32)>> = census
+        .into_iter()
+        .map(|counts| {
+            counts
+                .into_iter()
+                .map(|((hcp, wasted, plus), count)| (hcp, wasted, plus, count))
+                .collect()
+        })
+        .collect();
+    serde_json::to_string(&rows).unwrap_or_else(|_| unreachable!())
 }
 
 /// One partnership's authored 2/1 books as JSON, for the browser's book tab

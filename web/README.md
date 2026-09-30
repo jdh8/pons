@@ -72,9 +72,12 @@ Seven tabs, grouped Play / System / Tools:
   the bidder's points (HCP + upgrade), and support points with each trump —
   the censuses come from the wasm's `point_census()`, built with the crate's
   own evaluators, so the gauges cannot drift from the bidder's.  A box's
-  **where** field adds a predicate on the lengths `s h d c` and points `p`:
-  integers, `+ −`, `max()`, `min()`, chainable comparisons (`s >= h >= d`),
-  `and` (or a comma) / `or` / `not` — e.g. `s > h`, `p + max(s, h) >= 20`.
+  **where** field adds a condition on the lengths `s h d c` and any gauge —
+  `hcp`, `pts`, `sps` `sph` `spd` `spc` (support points by trump), `p` for the
+  selected one: integers, `+ −`, `max()`, `min()`, chainable comparisons
+  (`s >= h >= d`), then `!`, `&`, `|` (or `not`/`and`/`or`) and a comma, an
+  *and* that binds loosest — e.g. `s > h`, `hcp >= 10 & pts >= 12`,
+  `p + max(s, h) >= 20`.  Typed like Rust: a number is never a condition.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families
