@@ -3161,6 +3161,35 @@ pub fn passed_hand() -> Cons<impl Constraint + Clone> {
     Cons(PassedHand)
 }
 
+/// The actor's partner passed on their first turn (the
+/// [`partner_passed_hand`] constraint)
+#[derive(Clone)]
+struct PartnerPassedHand;
+
+impl Constraint for PartnerPassedHand {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.partner_passed_hand())
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("partner is a passed hand")
+    }
+}
+
+/// The partner of the player to act passed on their first turn
+#[must_use]
+pub fn partner_passed_hand() -> Cons<impl Constraint + Clone> {
+    Cons(PartnerPassedHand)
+}
+
 /// The opponents have only passed (the [`undisturbed`] constraint)
 #[derive(Clone)]
 struct Undisturbed;

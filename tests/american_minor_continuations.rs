@@ -451,3 +451,26 @@ fn rebid_checkback_finds_the_five_three_fit_and_the_slam() {
         [call(3, Strain::Spades), P, call(4, Strain::Spades), P, P, P]
     );
 }
+
+/// `rebid.passed_hand_major_pass` (shipped default-on) through the real
+/// stance: third-seat `1♣`, a passed hand's `1♠`, and opener's balanced
+/// 13-count with three spades passes — where the forcing table rebids `1NT`
+/// and a first-seat opener always does.
+#[test]
+fn opener_passes_a_passed_hands_major_response() {
+    let mut agreements = Agreements::default();
+    let system = american(&agreements).bind();
+    agreements.rebid.passed_hand_major_pass = None;
+    let forcing = american(&agreements).bind();
+    let third_seat = [P, P, call(1, Strain::Clubs), P, call(1, Strain::Spades), P];
+    let opener = "K84.Q3.A762.KJ53";
+    assert_eq!(best_call(&system, &third_seat, opener), P);
+    assert_eq!(
+        best_call(&forcing, &third_seat, opener),
+        call(1, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call(&system, &third_seat[2..], opener),
+        call(1, Strain::Notrump)
+    );
+}

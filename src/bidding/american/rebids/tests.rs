@@ -80,6 +80,68 @@ fn one_diamond_two_clubs_knob_shows_the_second_suit() {
     assert_eq!(best(&on, one_d_one_s, six_four), call(2, Strain::Diamonds));
 }
 
+/// `passed_hand_major_pass`: opener passes a passed hand's `1M` response on a
+/// balanced minimum with exactly three-card support — and only there.
+#[test]
+fn passed_hand_major_pass_knob_passes_the_balanced_minimum() {
+    let build = |ceiling: Option<u8>| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.passed_hand_major_pass = ceiling;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[one_heart_one_spade_rebid(), remaining_rebid_bases()],
+        );
+        trie
+    };
+    let (off, on) = (build(None), build(Some(13)));
+    let lane = |passes: usize, opening: Strain, major: Strain| {
+        let mut auction = vec![Call::Pass; passes];
+        auction.extend([call(1, opening), Call::Pass, call(1, major), Call::Pass]);
+        auction
+    };
+    let notrump = call(1, Strain::Notrump);
+    // ♠K84 ♥Q3 ♦A762 ♣KJ53 — 3=2=4=4, 13 HCP.
+    let minimum = "K84.Q3.A762.KJ53";
+    for passes in 0..=3 {
+        let auction = lane(passes, Strain::Clubs, Strain::Spades);
+        assert_eq!(best(&off, &auction, minimum), notrump);
+        // Partner has passed only behind two or three leading passes.
+        let expected = if passes >= 2 { Call::Pass } else { notrump };
+        assert_eq!(best(&on, &auction, minimum), expected, "{passes} passes");
+    }
+    let third = lane(2, Strain::Clubs, Strain::Spades);
+    // ♠K84 ♥K3 ♦A762 ♣KJ53 — 14 HCP is over the ceiling, until it is raised.
+    assert_eq!(best(&on, &third, "K84.K3.A762.KJ53"), notrump);
+    assert_eq!(
+        best(&build(Some(14)), &third, "K84.K3.A762.KJ53"),
+        Call::Pass
+    );
+    // A doubleton still rebids 1NT, four-card support still raises, and an
+    // unbalanced hand keeps its natural rebid.
+    assert_eq!(best(&on, &third, "K8.Q43.A762.KJ53"), notrump);
+    assert_eq!(
+        best(&on, &third, "K842.Q3.A76.KJ53"),
+        call(2, Strain::Spades)
+    );
+    assert_eq!(
+        best(&on, &third, "K84.3.A762.KJ853"),
+        call(2, Strain::Clubs)
+    );
+    // Four spades over 1♥ still go up the line.
+    let over_one_heart = lane(3, Strain::Diamonds, Strain::Hearts);
+    assert_eq!(
+        best(&on, &over_one_heart, "KJ53.Q84.A762.K3"),
+        call(1, Strain::Spades)
+    );
+    assert_eq!(best(&on, &over_one_heart, "K53.Q84.A762.KJ3"), Call::Pass);
+    // 1♥ - 1♠ on a 3=5=3=2.
+    let majors = lane(2, Strain::Hearts, Strain::Spades);
+    assert_eq!(best(&off, &majors, "K84.KJ853.A76.Q3"), notrump);
+    assert_eq!(best(&on, &majors, "K84.KJ853.A76.Q3"), Call::Pass);
+}
+
 /// After `1♠ - 1NT`, a 5-3-3-2 minimum rebids `2♠` by default but its
 /// three-card minor once `forcing_nt_three_card_minor` is on — clubs with 3-3.
 #[test]

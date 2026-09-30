@@ -3896,6 +3896,26 @@ pub struct RebidKnobs {
     /// PD +0.0001 / +0.0007, SD-PD −0.0003 / +0.0000.  The anchor's gain was
     /// the misread `2♦` (six) buying free diamond slams on DD.
     pub one_diamond_two_clubs: bool,
+    /// Pass a passed hand's `1M` response on a balanced minimum with exactly
+    /// three-card support: the HCP ceiling, or `None` for the forcing table
+    ///
+    /// **Default `Some(14)` (shipped 2026-09-30).**  A passed hand's new suit
+    /// is not forcing.  After `- - 1x - 1M -` (third or fourth seat, so
+    /// partner has passed) the forcing table rebids `1NT` and responder drives
+    /// on; BBA passes — three-card support on 1,040 of its 1,042 divergent
+    /// passes, 12–13 HCP on most and about a third of its 14s (anchor
+    /// `494f0c4b`, −1,766 plain / −2,683 PD per 409.6k).  Four spades over
+    /// `1♥` still bid `1♠` up the line, four-card support still raises, and
+    /// an unbalanced hand keeps its natural rebid.  The pass is natural and
+    /// reads through its own gate (the pass reading).
+    ///
+    /// Won all four cells vs BBA (`scripts/ab-passed-hand-pass.sh`, seed
+    /// 1790771281, 204,800 boards/arm/vul): plain +0.0031 / +0.0041, PD
+    /// +0.0043 / +0.0067 IMPs/board (none / both).  `Some(13)`, BBA's own
+    /// band, won less (plain +0.0023 / +0.0037, PD +0.0031 / +0.0056); 14 is
+    /// every balanced hand under the `1NT` opening.  `bba-gen
+    /// --ns-passed-hand-major-pass off` restores the forcing table.
+    pub passed_hand_major_pass: Option<u8>,
     // --- rebids/odwrotka.rs
     /// **Odwrotka**: `1♣ - 1M - 2♦!` is an artificial reverse — game-forcing,
     /// or invitational with exactly three-card support — answered by
@@ -4041,6 +4061,7 @@ impl Default for RebidKnobs {
         Self {
             balanced_1nt_rebid: true,
             one_diamond_two_clubs: false,
+            passed_hand_major_pass: Some(14),
             odwrotka: false,
             major_rebid_tails: true,
             fourth_suit_forcing: true,

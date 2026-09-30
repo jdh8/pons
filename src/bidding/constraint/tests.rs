@@ -692,6 +692,7 @@ fn test_describe_atoms() {
         "2♦ is the cheapest bid"
     );
     assert_eq!(prose(&passed_hand()), "a passed hand");
+    assert_eq!(prose(&partner_passed_hand()), "partner is a passed hand");
     assert_eq!(
         prose(&undisturbed()),
         "the opponents have passed throughout"

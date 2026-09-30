@@ -28,6 +28,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `point_census()` now returns the per-holding **joint** of HCP, wasted and
   `hcp_plus`, convolved once into a 45k-state joint over the 560 patterns.
 
+- **Opener passes a passed hand's `1M` response
+  (`rebid.passed_hand_major_pass`, shipped default `Some(14)` 2026-09-30).**
+  A passed hand's new suit is not forcing, but our rebid table was: after
+  `- - 1x - 1M -` (third or fourth seat) a balanced minimum with three-card
+  support rebid `1NT` and responder drove on. The `494f0c4b` anchor prices
+  that against BBA's pass at −1,766 plain / −2,683 PD per 409,600 boards
+  (1,042 rows); BBA's pass is exactly three-card support, balanced, on most
+  12–13 counts and about a third of its 14s. Now opener passes on exactly
+  three-card support, balanced, at most 14 HCP — every balanced hand under
+  the `1NT` opening — in both `1m - 1M` and `1♥ - 1♠`. Four spades over `1♥`
+  still bid `1♠`, four-card support still raises, an unbalanced hand keeps
+  its natural rebid, and a first- or second-seat opener is untouched. One
+  rule behind the new `constraint::partner_passed_hand()`; the pass is
+  natural, reads through its own gate (three-card support, balanced, capped),
+  and needs no card row. Wired as `--ns-passed-hand-major-pass off|HCP` in
+  `bba-gen`, `render-book` and `probe-call-reading`; no web toggle (the
+  registry has no ceiling-valued control). **Impact:**
+  `scripts/ab-passed-hand-pass.sh` (SEED_BASE 1790771281, 204,800
+  boards/arm/vul) won all four cells: plain DD **+0.0031 ±0.0008 (none) /
+  +0.0041 ±0.0012 (both)**, PD **+0.0043 ±0.0010 / +0.0067 ±0.0015**
+  IMPs/board, 538 / 610 fired (+1.2 / +1.4 plain, +1.7 / +2.2 PD per fired).
+  The `Some(13)` arm, BBA's own band, won less (plain +0.0023 / +0.0037, PD
+  +0.0031 / +0.0056); 14 over 13 is plain +0.0008 ±0.0005 / +0.0004 ±0.0008,
+  PD +0.0012 ±0.0006 / +0.0011 ±0.0010. About 6% of the divergent tables are
+  the reading side — BBA's opener passes and our fourth seat now reads the
+  pass — and the worst boards are there and in the balanced-over tail, both
+  floor-owned.
+
 - **Checkback and forcing majors over the 18–19 `2NT` rebid
   (`notrump.rebid_checkback`, shipped default-on 2026-09-30).** The
   round-2 census's other hole in `1m - 1M - 2NT`: responder's table was

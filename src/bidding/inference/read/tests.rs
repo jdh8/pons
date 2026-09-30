@@ -346,6 +346,32 @@ fn pass_reading_caps_the_silent_responder() {
     assert_eq!(caps.partner().strength.points, Range::new(0, 7));
 }
 
+/// Opener's pass of a passed hand's `1M` response
+/// (`rebid.passed_hand_major_pass`) reads through its own gate: exactly
+/// three-card support, balanced, under the ceiling.
+#[test]
+fn pass_reading_reads_the_passed_hand_major_pass() {
+    let mut agreements = Agreements::default();
+    agreements.rebid.passed_hand_major_pass = Some(13);
+    // `- - 1♣ - 1♠ - -`: fourth seat to act, opener on its right.
+    let seen = read_booked_with(
+        &agreements,
+        &[
+            Call::Pass,
+            Call::Pass,
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            Call::Pass,
+        ],
+    );
+    let opener = seen.rho();
+    assert_eq!(opener.length(Suit::Spades), Range::new(3, 3));
+    assert!(opener.length(Suit::Clubs).max <= 5);
+    assert!(opener.strength.points.max <= 15, "{opener:?}");
+}
+
 #[test]
 fn pass_reading_caps_the_notrump_signoff() {
     let mut agreements = Agreements::default();

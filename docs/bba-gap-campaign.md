@@ -191,7 +191,7 @@ report excludes same-contract divergences, rule 6). Order unchanged since
 | 1 | Defensive / book / round-1 | 47,763 | −67,154 | −1.41 | −74,199 | −1.55 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
 | 2 | Constructive / book / opening | 53,328 | −60,723 | −1.14 | −39,121 | −0.73 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
 | 3 | Competitive / book / round-1 | 15,339 | −34,729 | −2.26 | −38,298 | −2.50 | [one-notrump-competitive.md](one-notrump-competitive.md) — totals unchanged from `3237e037` |
-| 4 | Constructive / book / round-2 | 34,183 | −28,749 | −0.84 | −32,174 | −0.94 | open — the passed-hand lane ([next-steps.md](next-steps.md) item 2); slam residue spread thin |
+| 4 | Constructive / book / round-2 | 34,183 | −28,749 | −0.84 | −32,174 | −0.94 | open — the passed-hand lane ([next-steps.md](next-steps.md) item 2; opener's pass shipped 2026-09-30, Drury next); slam residue spread thin |
 | 5 | Constructive / book / round-1 | 25,291 | −26,615 | −1.05 | −32,322 | −1.28 | mined: `1♥ → 1♠` compression is a measured null; splinter-slam residual |
 | 6 | Defensive / floor#3 / round-2 | 8,176 | −20,372 | −2.49 | −13,324 | −1.63 | open — floor pass discipline (never worked) |
 | 7 | Competitive / book / round-2 | 7,351 | −14,562 | −1.98 | −16,924 | −2.30 | [competitive-book.md](competitive-book.md) |
@@ -382,8 +382,9 @@ In bucket order; each item is its own fresh-seed A/B per
 2. **Const / book / opening, round-2, round-1** — mined to residuals (light-open
    wall refuted; RKCB slam accuracy; splinter-slam). Work only with a new lever.
    **New lever at `494f0c4b`:** the passed-hand lane in round-2 (opener's pass
-   of a passed hand's `1M` response, Drury) — [next-steps.md](next-steps.md)
-   item 2.
+   of a passed hand's `1M` response — shipped 2026-09-30, plain +0.0031 /
+   +0.0041, PD +0.0043 / +0.0067 — then Drury) —
+   [next-steps.md](next-steps.md) item 2.
 3. **Comp / book / round-1** — the [one-notrump-competitive.md](one-notrump-competitive.md)
    queue; re-derive N2c/N2d's price tags from `c5fbee11`'s `boards.jsonl`
    before authoring either.

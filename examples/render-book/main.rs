@@ -126,6 +126,13 @@ struct Args {
     #[arg(long, default_value = "13", value_name = "off|POINTS")]
     ns_minor_transfer_slam_try: String,
 
+    /// Opener's pass of a passed hand's `1M` response on a balanced hand
+    /// with exactly three-card support: the HCP ceiling (default `14`), or
+    /// `off` for the forcing table (`rebid.passed_hand_major_pass`,
+    /// **shipped default-on 2026-09-30**).
+    #[arg(long, default_value = "14", value_name = "off|HCP")]
+    ns_passed_hand_major_pass: String,
+
     /// Leave opener's N1j Landy `4m` slam try to the floor instead of using
     /// the shipped authored answer (`1NT (2♣) 2NT - 3♣ - 4♣ -`)
     ///
@@ -244,6 +251,13 @@ fn main() {
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
+    agreements.rebid.passed_hand_major_pass = match args.ns_passed_hand_major_pass.as_str() {
+        "off" => None,
+        n => Some(
+            n.parse()
+                .expect("--ns-passed-hand-major-pass must be off or an HCP ceiling"),
+        ),
+    };
     agreements.notrump.minor_transfer_slam_try = match args.ns_minor_transfer_slam_try.as_str() {
         "off" => None,
         n => Some(

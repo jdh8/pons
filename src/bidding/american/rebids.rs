@@ -20,7 +20,8 @@
 use super::{call, other_major};
 use crate::bidding::agreements::{Agreements, RebidKnobs};
 use crate::bidding::constraint::{
-    balanced, fifths, hcp, len, longer_suit, partner_suit_is, points, stopper_in, support,
+    balanced, fifths, hcp, len, longer_suit, partner_passed_hand, partner_suit_is, points,
+    stopper_in, support,
 };
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -71,9 +72,27 @@ const OPENER_REVERSE: Alert = Alert("opener-reverse");
 /// Opener's jump-shift — a new suit showing a big two-suiter, game-forcing
 const OPENER_JUMP_SHIFT: Alert = Alert("opener-jump-shift");
 
+/// Opener's pass of a passed hand's `1M` response
+/// ([`RebidKnobs::passed_hand_major_pass`])
+///
+/// A passed hand's new suit is not forcing: a balanced minimum with exactly
+/// three-card support plays the one-level major.  Weight 93 sits above the
+/// balanced `1NT` rebid (92) and below the up-the-line `1♠` (95).
+fn with_passed_hand_pass(rules: Rules, rebid: &RebidKnobs) -> Rules {
+    match rebid.passed_hand_major_pass {
+        Some(ceiling) => rules.rule(
+            Call::Pass,
+            93,
+            partner_passed_hand() & support(3..=3) & balanced() & hcp(..=ceiling),
+        ),
+        None => rules,
+    }
+}
+
 /// Opener's rebid after `1♥ - 1♠`: raise spades, rebid hearts, or show shape
 ///
-/// Forcing on opener — there is no pass rule.
+/// Forcing on opener unless partner is a passed hand
+/// ([`with_passed_hand_pass`]).
 fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new()
         .rule(
@@ -101,6 +120,7 @@ fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
     rules = with_invitational_minors(rules, &agreements.rebid);
     // Major jump-rebid: 1♥ - 1♠ - 3♥ on a six-card major with extras.
     rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades), agreements);
+    rules = with_passed_hand_pass(rules, &agreements.rebid);
     rules
         .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 90, len(Suit::Diamonds, 4..))
@@ -166,8 +186,8 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
 
 /// Opener's rebid raising responder's new major after a minor opening
 ///
-/// Used at `1m - 1M`.  Forcing on opener; a 1NT rebid is the guaranteed-legal
-/// fallback.  Under the up-the-line completion (`up_the_line`) opener
+/// Used at `1m - 1M`.  Forcing on opener unless partner is a passed hand
+/// ([`with_passed_hand_pass`]); a 1NT rebid is the guaranteed-legal fallback.  Under the up-the-line completion (`up_the_line`) opener
 /// also shows four spades over a `1♥` response — without it the 4-4 spade
 /// fit is lost to the 1NT rebid.
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agreements) -> Rules {
@@ -206,6 +226,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
             len(Suit::Clubs, 4..) & len(Suit::Diamonds, ..=5),
         );
     }
+    rules = with_passed_hand_pass(rules, &agreements.rebid);
     // Odwrotka (default off): `2♦!` as the artificial reverse over `1♣ - 1M`.
     rules = with_odwrotka(rules, opener_minor, agreements);
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).

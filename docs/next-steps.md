@@ -23,8 +23,8 @@ criterion 5). **Item 2 is now the top candidate.**
 
 ## 2. RKCB / slam accuracy (Constructive / book / round-2)
 
-**Biggest unworked pool on both references. Next lever: the passed-hand
-lane (2026-09-30, below).**
+**Biggest unworked pool on both references. Next lever: Drury, the second
+half of the passed-hand lane (2026-09-30, below; opener's pass shipped).**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -39,6 +39,13 @@ lane (2026-09-30, below).**
     1,008 of them and responder drives on. Both seats and both majors price
     alike. One rule, one knob, and a Pass reading — the biggest single lever
     found in this bucket (ceiling ≈ +0.004 plain / +0.007 PD per board).
+    **Shipped default `Some(14)` 2026-09-30** as
+    `rebid.passed_hand_major_pass` (exactly three-card support, balanced, at
+    most 14 HCP): won 4/4, plain +0.0031 / +0.0041, PD +0.0043 / +0.0067
+    IMPs/board (none / both), 538 / 610 fired per 204,800
+    (`ab-results/passed-hand-pass`); the 13 ceiling won less. Not tried: the
+    unbalanced three-card pass (BBA passes ~14 of ~70 per HCP step there) and
+    a passed hand's forcing `1NT`.
   - *A passed hand's response to third/fourth-seat `1M`*: 1,890 rows,
     −1,931 plain / −2,395 PD. BBA's Drury `2♣` is 1,144 of them (−719 /
     −810); its passed-hand `2NT` 176 rows at −4.1 per row (−726 / −702,
@@ -46,7 +53,7 @@ lane (2026-09-30, below).**
     227 rows (−173 / −560). Drury needs opener's answers and the `(X)` tail
     authored before it is measured.
 
-  Order: the opener's pass first (self-contained), Drury second. The slam
+  Order: the opener's pass first (self-contained, shipped), Drury second. The slam
   share is still thin — missed-slam 961 rows −11.4k, missed-grand 176 rows
   −2.2k on the instinct arm, no lane above 129 rows (`1♥ - 1♠`) — and the
   largest call-pair classes are the ones already listed below (`3NT` vs

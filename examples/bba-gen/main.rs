@@ -791,6 +791,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_one_diamond_two_clubs: bool,
 
+    /// Opener's pass of a passed hand's `1M` response on a balanced hand
+    /// with exactly three-card support: the HCP ceiling (default `14`), or
+    /// `off` for the forcing table (`rebid.passed_hand_major_pass`,
+    /// **shipped default-on 2026-09-30**).
+    #[arg(long, default_value = "14", value_name = "off|HCP")]
+    ns_passed_hand_major_pass: String,
+
     /// Disable the three-card-minor rebid over the forcing `1NT` — a 5-3-3-2
     /// rebids its five-card major again (shipped default-on; see
     /// `ReadingProfile::forcing_nt_three_card_minor`).
@@ -2865,6 +2872,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
     agreements.rebid.one_diamond_two_clubs = args.ns_one_diamond_two_clubs;
+    agreements.rebid.passed_hand_major_pass = match args.ns_passed_hand_major_pass.as_str() {
+        "off" => None,
+        n => Some(n.parse().map_err(|_| {
+            anyhow::anyhow!("--ns-passed-hand-major-pass must be off|HCP, got {n:?}")
+        })?),
+    };
     agreements.decision.reading.forcing_nt_three_card_minor =
         !args.no_ns_forcing_nt_three_card_minor;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
