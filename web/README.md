@@ -79,18 +79,26 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   Partner's *known* boxes condition, the *query* boxes ask; each of the three
   tables picks its own points gauge.  Pure JS: per suit the two hands draw
   disjoint holdings (the honors A–T by identity, the eight spots by count),
-  giving a joint census of (your HCP, partner's HCP) per length pair; four
-  suits convolve into a 2-D table per shape pair, whose state also carries
-  which boxes every suit so far admits.  The other gauges ride beside a hand's
-  HCP as small sums — the wasted suits behind `up`, the short side suits'
-  extra behind each `sp` — widening that hand's axis.  Dimensions no box reads
-  are collapsed, so a named hand or one shape answers in milliseconds.  Suits
-  no box tells apart permute freely — and so do the suits a distribution
-  reads in any order, `(5431)` or the majors of `(54)xx` — so one shape pair
-  is counted for its whole orbit: 24 to one when the boxes are points only
-  (`16+` opposite `0-7`: half a second).  A wide union of your shapes whose boxes name every
-  suit is seconds, and several times that for each further gauge read — hence
-  a Compute button.
+  giving a joint census of (your HCP, partner's HCP) per length pair.  A pair
+  of shapes **meets in the middle**: ♠♥ convolve into one table and ♦♣ into
+  another, each shared by every pair with those four lengths, and the
+  four-suit table is never built — what the boxes take of (your HCP,
+  partner's HCP) is a few rectangles, which each ♠♥ cell reads off the ♦♣
+  table's prefix sums.  A table is kept per set of boxes its suits admit, by
+  their holding cells and by any `where` conjunct on one suit alone
+  (`s.hcp >= 5`, `h.hcp + my.h.hcp >= 4`).  The other gauges ride beside a
+  hand's HCP as small sums — the wasted suits behind `up`, the short side
+  suits' extra behind each `sp` — a table per value reached.  Dimensions no
+  box reads are collapsed.  Suits no box tells apart permute freely — and so
+  do the suits a distribution reads in any order, `(5431)` or the majors of
+  `(54)xx` — so one shape pair is counted for its whole orbit: 24 to one when
+  the boxes are points only.  Most questions answer in tens of milliseconds;
+  a wide union of your shapes whose boxes name every suit (239,344 shape
+  pairs) takes about half a second on HCP and a second or two on several
+  gauges.  Two things are slower, hence the Compute button: a partner `where`
+  weighing both hands' points (`up + my.up >= 25`) is a staircase, a
+  rectangle per HCP of yours; and a suit's HCP read beside another suit
+  (`s.hcp + h.hcp >= 10`) is enumerated, eleven counts a suit.
 
   Both tabs speak one **box grammar**:
   - A suit cell is a length range (`5+`, `4-6`, `3`, blank = any) or a

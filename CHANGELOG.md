@@ -469,6 +469,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Partner meets shape pairs in the middle, and settles a suit's own
+  HCP at its holdings (2026-10-01)** — slow cases were built on purpose and
+  three costs fell out.  *Every `s.hcp` read re-ran the whole count eleven
+  times*: a top-level conjunct of a `where` on one suit alone
+  (`s.hcp >= 5`, `♠ + ♠.hcp >= 9`, `h.hcp + my.h.hcp >= 4`) now filters the
+  box at that suit's step, as a holding cell does; only a suit HCP read
+  beside another suit or a gauge is still enumerated.  *Every shape pair
+  convolved four suits into a 38 × 38 table*: now ♠♥ and ♦♣ convolve into two
+  half-tables, each shared by every pair with those lengths, and what the
+  boxes take is a few rectangles of (your HCP, partner's HCP) read off the
+  ♦♣ half's prefix sums.  *Every gauge read widened a dense axis*: a
+  half-table is kept per gauge-sum value actually reached.  The conjuncts of
+  a `where` are compiled apart, so one off the points (`s + my.s >= 8`) is
+  asked once a pair and the points mask is shared between pairs.  Old → new,
+  Node 26, same counts:
+
+  | your hand · known · query | old | new |
+  | --- | ---: | ---: |
+  | `15-17` `freak < 3` · any · `h.hcp + my.h.hcp >= 4, d.hcp + my.d.hcp >= 4` | 113.6 s | 33 ms |
+  | `11+` · any · `max(sps, sph, spd, spc) >= 13` | > 120 s | 1.3 s |
+  | `11+` `up >= 12 & sps >= 12` · any · `6+` `sph >= 8 \| up >= 10` | 103.5 s | 1.9 s |
+  | `12+` · any · `max(s + my.s, …, c + my.c) >= 8, up + my.up >= 25` | 86.0 s | 10.7 s |
+  | `5+♠ 4+♥` `11-21` `s.hcp + h.hcp >= 10` · any · `3+♠` `6+` | 24.0 s | 1.0 s |
+  | `12+` · any · `(s + my.s >= 8 \| h + my.h >= 8), hcp + my.hcp >= 25` | 10.2 s | 1.1 s |
+  | five opener boxes · `6+` · three responder boxes | 8.4 s | 0.64 s |
+  | `12+` · `6+` · `s + my.s >= 8 \| h + my.h >= 8` | 7.4 s | 0.39 s |
+  | `5+♠` `11+` `s.hcp >= 5` · any · `3+♠` `6+` | 6.0 s | 59 ms |
+  | `12+` (UP) · any · `up + my.up >= 25` | 1.8 s | 0.64 s |
+  | `16+` · any · `0-7` | 441 ms | 84 ms |
+
+  Checked against the previous counter: 25 benchmarks and 480 random box
+  sets (five seeds) agree to 1e-9 on your hands, known, query and every
+  partner shape; the page loads in headless Chrome with a clean console and
+  its self-checks now cover both suit-HCP paths.  The gauge ceiling is 3.3×
+  looser (2²³ cells of a 21 × 21 half, not of a 38 × 38 table).  **Still
+  slow**, and why: a partner `where` weighing both hands' points is a
+  staircase, a rectangle per HCP of yours (10.7 s above, with every suit
+  named); a suit HCP read beside another suit costs eleven counts a suit
+  (`12+` any shape with `s.hcp + h.hcp >= 10`: 3.9 s).  Not ported to
+  Rust/wasm: the hot loops are typed-array arithmetic V8 already compiles
+  well, and the `where` is a JS closure.  **Impact:** web only; Odds is
+  untouched but for the shared `where` compiler.
+
 - **Web: Partner keeps a distribution's suits alike, and prunes shapes
   through any `where` (2026-10-01)** — a run a distribution reads in any
   order (`(5431)`, the majors of `(54)xx`) no longer names its suits, so the
