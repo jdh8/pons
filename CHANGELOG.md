@@ -469,6 +469,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Calc writes suit-fixed shapes `5=4=3=1`, patterns `(5431)`
+  (2026-10-01)** — the Odds and Partner tables list ordered ♠=♥=♦=♣
+  lengths, which the dashed `5-4-3-1` spelled as a loose pattern; `=` is
+  the tight-bounds form and the only one that carries a 10+ card suit.  The
+  `freak` help lists its patterns the WBF way, `(4333) (4432) (5332)`.
+
 - **Web: Partner counts one pattern pair per suit-symmetry orbit
   (2026-10-01)** — suits no box tells apart (blank cells, no `where` reading
   the suit's length, hcp or sp) permute freely in both hands at once, so the

@@ -1352,14 +1352,14 @@ function renderCalc() {
   const prob = total / TOTAL_HANDS;
   byShape.sort((a, b) => b[1] - a[1]);
   const top = byShape.slice(0, 8).map(([lens, n]) =>
-    `<tr><td>${lens.join('-')}</td><td>${(100 * n / TOTAL_HANDS).toFixed(3)}%</td><td>${(100 * n / total).toFixed(1)}%</td></tr>`).join('');
+    `<tr><td>${lens.join('=')}</td><td>${(100 * n / TOTAL_HANDS).toFixed(3)}%</td><td>${(100 * n / total).toFixed(1)}%</td></tr>`).join('');
   out.innerHTML = `
     <div class="statrow">
       <div><span class="statlabel">Probability</span><span class="statbig">${(100 * prob).toFixed(4)}%</span></div>
       <div><span class="statlabel">Odds</span><span class="statbig">${total ? '1 in ' + (1 / prob).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}</span></div>
       <div><span class="statlabel">Hands</span><span class="statbig">${total.toLocaleString()}</span></div>
     </div>
-    ${byShape.length ? `<table class="ddtable"><thead><tr><th>Shape ♠-♥-♦-♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
+    ${byShape.length ? `<table class="ddtable"><thead><tr><th>Shape ♠=♥=♦=♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
     ${byShape.length > 8 ? `<p class="hint">…and ${byShape.length - 8} more shapes.</p>` : ''}`;
 }
 
@@ -1507,7 +1507,7 @@ function companionCount(mine, known, query) {
   const images = (lens) => [...new Set(perms(anon).map((to) => {
     const image = [...lens];
     anon.forEach((suit, i) => { image[to[i]] = lens[suit]; });
-    return image.join('-');
+    return image.join('=');
   }))];
   // The suit step for (your length, partner's) under the enumerated values:
   // [your boxes admitting, partner's, flat [h1, i1, h2, i2, n, …]] per distinct
@@ -1678,7 +1678,7 @@ function initCompanion() {
     && near(shaped.mine, choose(13, 5) ** 2 * choose(13, 3)) && near(shaped.known, shaped.mine * COMPANION_HANDS)
     && near(shaped.query / shaped.known, fit / COMPANION_HANDS)
     && near(king.mine, choose(25, 12)) && mine > 0 && mine === odds
-    && near(alike.known, alike.mine * COMPANION_HANDS) && near(alike.byShape.get('0-0-0-13')[0], alike.mine)
+    && near(alike.known, alike.mine * COMPANION_HANDS) && near(alike.byShape.get('0=0=0=13')[0], alike.mine)
     && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
     && splitHand('AKT52.K83.-.76432').join() === 'AKTxx,Kxx,0,xxxxx' && splitHand('AK5+') === null
     && compileHolding('AKx*').range.join() === '2,10' && compileHolding('Q4') === null && compileHolding('KA') === null, 'companion');
@@ -1708,15 +1708,15 @@ function renderCompanion() {
   if (!n) { out.innerHTML = '<p class="hint">These boxes read too many point gauges at once to count exactly — ask for fewer, or narrow the shapes.</p>'; return; }
   const pct = (x, y) => (y ? `${(100 * x / y).toFixed(2)}%` : '—');
   const rows = [...n.byShape].sort((a, b) => b[1][0] - a[1][0]);
-  const top = rows.slice(0, 8).map(([pat, [kn, qu]]) =>
-    `<tr><td>${pat}</td><td>${pct(kn, n.known)}</td><td>${pct(qu, kn)}</td></tr>`).join('');
+  const top = rows.slice(0, 8).map(([shape, [kn, qu]]) =>
+    `<tr><td>${shape}</td><td>${pct(kn, n.known)}</td><td>${pct(qu, kn)}</td></tr>`).join('');
   out.innerHTML = `
     <div class="statrow">
       ${query.length ? `<div><span class="statlabel">Query, given known</span><span class="statbig">${pct(n.query, n.known)}</span></div>` : ''}
       <div><span class="statlabel">Known, given your hand</span><span class="statbig">${pct(n.known, n.mine * COMPANION_HANDS)}</span></div>
       <div><span class="statlabel">Partner hands counted</span><span class="statbig">${(n.known / n.mine).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
     </div>
-    ${rows.length ? `<table class="ddtable"><thead><tr><th>Partner ♠-♥-♦-♣</th><th>Of known</th><th>Query within</th></tr></thead><tbody>${top}</tbody></table>` : ''}
+    ${rows.length ? `<table class="ddtable"><thead><tr><th>Partner ♠=♥=♦=♣</th><th>Of known</th><th>Query within</th></tr></thead><tbody>${top}</tbody></table>` : ''}
     ${rows.length > 8 ? `<p class="hint">…and ${rows.length - 8} more shapes.</p>` : ''}
     <p class="hint">${ms.toFixed(0)} ms</p>`;
 }

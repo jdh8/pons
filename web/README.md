@@ -103,7 +103,7 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
     `s h d c` (or `♠ ♥ ♦ ♣`), a suit's own HCP `s.hcp` (`d.hcp = 4`: the ♦A),
     the gauges `hcp`, `up`, `sps` `sph` `spd` `spc` (or `sp♠` …; support
     points by trump), `p` for the gauge the points column is on, and `freak`,
-    Pavlicek's freakness (`freak < 3` = 4333/4432/5332).  Integers, `+ −`,
+    Pavlicek's freakness (`freak < 3` = (4333)/(4432)/(5332)).  Integers, `+ −`,
     `max()`, `min()`, chainable comparisons (`s >= h >= d`), then `!`, `&`, `|`
     (or `not`/`and`/`or`) and a comma, an *and* that binds loosest — e.g.
     `s > h`, `♠ + ♠.hcp >= 9`, `hcp >= 10 & up >= 12`, `p + max(s, h) >= 20`.

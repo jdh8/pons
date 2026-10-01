@@ -150,6 +150,10 @@ two docs above hold the full story; the rules survive summarizing:
   leading-pass fan; use `P`/`(P)` only when discussing legacy input or quoting
   an external format.  Probe/render binaries ignore parentheses in auction
   input; only the row grammar (`rows.rs`) seat-checks them.
+- A **shape** is suit-fixed (♠♥♦♣), a **pattern** suit-interchangeable.  WBF
+  form: shape `5431`, pattern `(5431)`, partial permutation `(54)(31)`.
+  Informal form, the only one that carries a 10+ card suit: shape `5=4=3=1`,
+  pattern `5-4-3-1` — never mix `-` and `=`, and no partial permutations.
 - Never alias `ddss_sys` (`use ddss_sys as dds;` collides with `dds-bridge`).
 - The distributed data-gen fleet is called the **fleet** (`scripts/fleet/` on
   its machines), never a "botnet".
