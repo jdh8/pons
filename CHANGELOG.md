@@ -461,6 +461,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: the Calc and Companion tabs are labelled Odds and Partner, in their
+  own nav group (2026-10-01)** — Edit and Evaluate work on a concrete deal;
+  these two are probability calculators over constraints.  Labels only: the
+  `#calc` and `#companion` hashes still work.
 - **Floor sweep archived (2026-09-30).** `docs/ai-bidder/floor-sweep.md`
   moved whole to `docs/archive/floor-sweep.md` beside its verdict
   narratives; links and source comments repointed. **Impact:** docs only.

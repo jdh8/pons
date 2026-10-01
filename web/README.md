@@ -51,7 +51,7 @@ python3 -m http.server 8137
 # open http://localhost:8137/
 ```
 
-Eight tabs, grouped Play / System / Tools:
+Eight tabs, grouped Play / System / Deal tools / Probability:
 
 - **Practice** — pick your seat, dealer, vulnerability, and a minimum HCP,
   then bid with the bidding box; the bots bid the other seats.  After each of
@@ -66,7 +66,7 @@ Eight tabs, grouped Play / System / Tools:
   current book is shown.
 - **Edit** — a PBN field two-way-synced with a card palette; build a deal by
   hand, then "Bid it out in Demo".
-- **Calc** — a shape-points probability calculator: a union of boxes (per-suit
+- **Odds** (`#calc`) — a shape-points probability calculator: a union of boxes (per-suit
   length ranges plus a points range, one row per box), priced exactly by
   convolving per-suit holding censuses over the 560 patterns.  Gauges: HCP,
   the bidder's points (HCP + upgrade), and support points with each trump —
@@ -79,7 +79,7 @@ Eight tabs, grouped Play / System / Tools:
   *and* that binds loosest — e.g. `s > h`, `hcp >= 10 & pts >= 12`,
   `p + max(s, h) >= 20`.  Typed like Rust: a number is never a condition.
   `freak` is Pavlicek's freakness (`freak < 3` = 4333/4432/5332).
-- **Companion** — partner's hand given yours, exactly, after Pavlicek's
+- **Partner** (`#companion`) — partner's hand given yours, exactly, after Pavlicek's
   [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
   your hand is either cards (`AKxxx.Kxx.xx.xxx`, `x` any spot) **or a union of
   boxes** (`15-17` with `freak < 3`: a 1NT opener).  Partner's *known* boxes
