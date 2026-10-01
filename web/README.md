@@ -68,7 +68,7 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   hand, then "Bid it out in Demo".
 - **Odds** (`#odds`) — a shape-points probability calculator: a union of boxes
   (four suit cells plus a points range, one row per box), priced exactly by
-  convolving per-suit holding censuses over the 560 patterns.  The points
+  convolving per-suit holding censuses over the 560 shapes.  The points
   column's header picks its gauge: HCP, UP (upgraded points, HCP + `upgrade` —
   the bidder's scale), and support points with each trump — the censuses come
   from the wasm's `point_census()`, built with the crate's own evaluators, so
@@ -80,12 +80,12 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   tables picks its own points gauge.  Pure JS: per suit the two hands draw
   disjoint holdings (the honors A–T by identity, the eight spots by count),
   giving a joint census of (your HCP, partner's HCP) per length pair; four
-  suits convolve into a 2-D table per pattern pair, whose state also carries
+  suits convolve into a 2-D table per shape pair, whose state also carries
   which boxes every suit so far admits.  The other gauges ride beside a hand's
   HCP as small sums — the wasted suits behind `up`, the short side suits'
   extra behind each `sp` — widening that hand's axis.  Dimensions no box reads
   are collapsed, so a named hand or one shape answers in milliseconds.  Suits
-  no box tells apart permute freely, so one pattern pair is counted for its
+  no box tells apart permute freely, so one shape pair is counted for its
   whole orbit — 24 to one when the boxes are points only (`16+` opposite
   `0-7`: half a second).  A wide union of your shapes whose boxes name every
   suit is seconds, and several times that for each further gauge read — hence
