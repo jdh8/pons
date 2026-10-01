@@ -451,16 +451,22 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- **Exact hand posteriors — a kill gate is owed** (surveyed 2026-10-01).  The
-  web Odds/Partner counter prices any DNF over a hidden hand exactly; as net
-  inputs that idea is closed three times (MARG, MASS, `features_eval_v4`),
-  but two output-side uses are open: an **evidence gate** on readings our
-  own cards contradict (boxes excluded the truth 8.3% at BBA's seats, 3.3% at
-  partner, 2026-07-29), and a **one-ply reply lookahead** through the
-  evaluator.  Unranked: no IMP figure exists.  Next step is Phase 0 + Phase 1
-  of [exact-posterior.md](exact-posterior.md) — port the counter, re-run
-  `probe-reading-sound`, and test whether the exact mass separates wrong
-  readings from sound ones.  No double-dummy, no retrain, no bidding change.
+- **Exact hand posteriors — every gate read, park decision open**
+  (2026-10-02, [exact-posterior.md](exact-posterior.md)).  The counter is
+  built and pinned; the evidence gate failed (AUROC 0.554), the narrowness
+  gate reaches 0.5% of boards, and a reading is not a reply forecast.  The
+  last experiment (Phase 3b, sampled) split the question: a rollout over
+  worlds our own bidder reproduces beat the book at `1M - 2M` on the true
+  deals (+0.0017 ± 0.0007 plain / +0.0022 ± 0.0008 PD IMPs/board), the same
+  rollout over worlds drawn from the readings did not.  Proposed: park the
+  counter's bidding uses; the lookahead finding is evidence for M8
+  ([ai-bidder/plan.md](ai-bidder/plan.md)), at one seam.
+- **`1M - 2M - 4NT` on 22+ support points** (found 2026-10-02 by the same
+  probe's static control).  Half of that lookahead win is this one rung:
+  a help-suit try instead of the keycard ask is +1.23 ± 0.96 plain /
+  +1.50 ± 1.00 PD per `1♠` hand, about +0.0008 IMPs/board if it holds.
+  One seed, self-play, mechanism untraced.  Next step: trace ten boards,
+  then a knob and an A/B.  No retrain.
 - **A rejecting table does not fall through under a rebase** (found
   2026-10-01, doc/code discrepancy).  `rows.rs` and
   [bidding-architecture.md](bidding-architecture.md) say an exact node that

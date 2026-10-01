@@ -46,6 +46,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the keycard *answer* still drops the asker to the floor in every RKCB
   lane, and the classic `5NT` path elsewhere still wants three kings.
 
+- **Exact hand posteriors: a rollout beats the book at `1M - 2M`, but not
+  through the readings (2026-10-02)** — Phase 3b of
+  [docs/exact-posterior.md](docs/exact-posterior.md), a probe, no bidding
+  change.  The new `examples/probe-seam-lookahead` takes opener's turn after
+  `1♠ - 2♠ -` / `1♥ - 2♥ -` in self-play (9,311 decisions of 600,000 deals,
+  seed 1790874659), rolls every rung the node makes out over 64 sampled
+  worlds, and judges the selected call on the **true** deal against the
+  book's.  Gate fixed before the run.  Worlds our own bidder reproduces
+  (`sample_layouts_replay`): **+0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD
+  IMPs per decision**, +0.0017 / +0.0022 per board, both vulnerabilities
+  positive — passes.  Worlds drawn from the readings (`sample_layouts`):
+  +0.0737 ± 0.0526 / −0.0125 ± 0.0601 — fails; it leaves the book's pass for
+  a game try five times as often and loses there.  So lookahead pays and a
+  forecast counted from the readings would not: the counter's bidding uses
+  are proposed parked, and the finding goes to the search milestone.  About
+  half of the win is one rung a static remap also earns, flagged and
+  untouched: `1M - 2M - 4NT` on 22+ support points loses +1.23 ± 0.96 /
+  +1.50 ± 1.00 per `1♠` hand to a help-suit try.
+
 - **Exact hand posteriors: the narrowness gate is not worth building, and a
   reading is not a reply forecast (2026-10-02)** — Phases 2 and 3a of
   [docs/exact-posterior.md](docs/exact-posterior.md), both probes, no bidding

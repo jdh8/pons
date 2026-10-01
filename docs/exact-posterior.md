@@ -1,11 +1,16 @@
 # Exact hand posteriors — what the web counter is worth to bidding
 
-**Status, 2026-10-02 (HEAD `d54eca62`): Phase 0 built and pinned on all four
+**Status, 2026-10-02 (HEAD `ee175e29`): Phase 0 built and pinned on all four
 pins; Phase 1's kill gate run and read — use A as designed FAILS, and a
 hand-free by-product passes (§5, §7). Phase 2's re-scoped gate reaches 0.5%
 of boards and is not built. Phase 3a fails by the route that needs no new
-API — a reading is not a reply forecast — and the proposed default is to
-park Phase 3; that decision is open.** This document records (1) what the web
+API — a reading is not a reply forecast. Phase 3b with a *sampled* forecast
+was then run at the `1M - 2M` seam: a rollout over worlds our own bidder
+reproduces **beats the book on the true deals on both scorers**, and the same
+rollout over worlds drawn from the *readings* **fails** the gate — so
+lookahead pays, but not through the thing a counter counts. The proposed
+default is to park the counter's bidding uses and hand the lookahead finding
+to the search milestone; that decision is open.** This document records (1) what the web
 crate's Odds/Partner counter is, (2) which uses of an exact posterior this repo
 has already refuted, (3) the literature — bridge engines, other
 imperfect-information games, the general machinery — and (4) a phased plan with
@@ -669,6 +674,120 @@ What is left of Phase 3, and the proposed default — **park it**:
   verdicts): eight eval-net cells crossed zero in the no-major class, and
   `set_stayman_net_force` won its screen and lost live.
 
+**3b with a sampled forecast — design and gate, fixed 2026-10-02 before any
+run** (jdh8 asked for the one experiment that could overturn the park).
+
+*The prior above is incomplete.* [logit-calibration.md](ai-bidder/logit-calibration.md)
+§4 already rolled out the net's top-3 against the book's own call at every
+authored node: on held-out sampled layouts the selected call gained
+**+0.036 ± 0.024 plain / +0.245 ± 0.037 PD** per choice-bearing decision at
+`M = 32` (3,169 decisions) and +0.105 ± 0.037 / +0.329 ± 0.066 at `M = 128`
+(631). So a rollout *can* out-rank the book; what is unmeasured is a named
+seam, the book's own rungs as candidates, and the true deal as the judge.
+
+`examples/probe-seam-lookahead`:
+
+- **Seam:** opener's turn after `1♠ - 2♠ -` and `1♥ - 2♥ -` — pass, a game
+  try (`3M` or a help suit), or game, on 16–18 / 19+ support points. Self-play
+  `american()` at four seats, dealer rotating, vulnerability alternating
+  none / both.
+- **Candidates:** the book's call plus every call the node made on ≥ 1% of
+  its decisions.
+- **Two forecasts**, `M = 64` worlds each (the saturation rung of
+  logit-calibration §4d), every candidate bid out to pass-out by the real
+  bidder and scored double dummy: **replay** (`sample_layouts_replay`, worlds
+  on which our own bidder reproduces the auction — the self-play posterior and
+  so the ceiling of *any* lookahead) and **range** (`sample_layouts`, worlds
+  inside the readings — the ceiling of a forecast *counted* from them).
+- **Selector:** the standing both-scorer rule at a 0.25 IMP margin — deviate
+  iff one candidate has the best mean on plain DD and on PD and clears the
+  margin on both.
+- **Judge:** the true deal, paired — the chosen call's real continuation
+  against the book's, plain and PD.
+- **Gate:** an arm PASSES iff its mean true-deal gain per seam decision has a
+  95% interval above zero on **both** scorers, pooled over the two
+  vulnerability cells, with neither cell negative on either scorer.
+- **Departure from item 3's wording:** the margin is fixed in advance rather
+  than tuned on a held-out half, which would halve the power; the tuned split
+  is printed as a secondary row and decides nothing.
+- **Control:** "always switch `own` to `alt`" on the same true deals. If a
+  static remap earns what the selector earns, the finding is a mistuned
+  threshold and needs no lookahead.
+- **Readings, fixed in advance.** Both arms pass → a reading-sampled lookahead
+  works and the counter's open question is the value term (evaluator vs DD).
+  Replay only → lookahead pays but not through readings: a search finding
+  (M8), nothing for the counter. Neither → use B is closed.
+
+**Result, 2026-10-02 — replay PASSES, range FAILS.** 600,000 deals, seed
+1790874659, 9,311 seam decisions (1.55% of deals), no short draws in either
+arm; 1,201,119 worlds solved in 7,120 s (5.9 ms each). True-deal IMPs per
+seam decision against the book's call, ± 95%, plain / PD:
+
+| forecast | fired | pooled | vul none | vul both | gate |
+| --- | --- | --- | --- | --- | --- |
+| replay | 21.2% | **+0.1105 ± 0.0465 / +0.1388 ± 0.0518** | +0.0682 ± 0.0563 / +0.1035 ± 0.0625 | +0.1475 ± 0.0719 / +0.1696 ± 0.0803 | **PASS** |
+| range | 33.8% | +0.0737 ± 0.0526 / **−0.0125 ± 0.0601** | +0.0726 ± 0.0614 / +0.0376 ± 0.0686 | +0.0746 ± 0.0827 / −0.0561 ± 0.0953 | **FAIL** |
+
+- **Per board** the replay selector is worth **+0.0017 ± 0.0007 plain /
+  +0.0022 ± 0.0008 PD** at this one seam — the size of a shipped convention
+  here, and measured the way an A/B would measure it (same deals, the book
+  against the selector, both scorers).
+- **The secondary row agrees.** Tuning the margin on the even half picks
+  0.25 for replay, and the odd half reads +0.1164 ± 0.0660 / +0.1386 ±
+  0.0727. For range it picks 1.0: +0.1046 ± 0.0594 / +0.0606 ± 0.0665, PD
+  still not clear of zero.
+- **Hindsight scale:** the best rung per deal is worth +2.16 / +2.46; the
+  selector captures about 5% of it.
+- **Why range fails: it invites from a pass.** It leaves the book's pass for
+  a try 511 times against replay's 108, and those are its losses
+  (`1♠ - 2♠ -` `P → 3♥` ×95: −1.96 ± 1.19 / −3.98 ± 1.48; `P → 3♣` ×76:
+  −0.49 / −2.34). The two arms pick the same call on only 63.2% of
+  decisions. Consistent with partner's raise reading wider than the hands
+  that make it (`probe-call-reading`: from opener's seat `2♠` shows ♠ 3+ and
+  no points ceiling on the legacy axis) — **mechanism not traced**.
+- **About half of the win is one mistuned rung, which needs no lookahead.**
+  The book bids `4NT` over the single raise on 22+ support points (378
+  decisions, 4.1%). The selector leaves it 278 times and those swaps carry
+  **55% of its plain gain and 50% of its PD gain** (568 of 1,029 IMPs; 642 of
+  1,292). The static control says a fixed remap earns most of that: always
+  bidding `3♣` instead is **+1.23 ± 0.96 / +1.50 ± 1.00** per `1♠` hand
+  (×258; the other two help-suit tries read the same) and +1.25 ± 1.58 /
+  +1.38 ± 1.61 per `1♥` hand (×120) — 467 / 554 IMPs, 82% / 86% of what the
+  selector earns on those hands. A direct `4M` instead is not clear of zero
+  (+0.33 ± 1.01 / +0.62 ± 1.05), so the try is doing work a blast does not.
+- **The rest of the book's thresholds are sound.** Always trying where the
+  book passes costs −1.9…−2.4 plain / −4.1…−5.2 PD; always inviting where it
+  bids game −2.1…−2.3 / −1.9…−2.2; always bidding game on a try hand
+  +0.1…−0.6 / −0.2…−1.1; always passing one −2.0…−2.7 / −1.3…−2.1. Only
+  `3♠ →` a help-suit try is positive, and on plain alone (+0.25…+0.29 ± 0.23
+  / +0.03…+0.10 ± 0.26).
+- **What is left for lookahead proper** is the other half: +0.050 plain /
+  +0.070 PD per seam decision (461 / 650 IMPs), headed by `3♠ → 4♠` ×115
+  (+1.37 ± 0.79 / +1.12 ± 0.86) and `3♥ → 4♥` ×57. **Its interval was not
+  printed**, so whether the hand-specific part alone clears zero is open.
+
+Read by the rule fixed above — *replay only*: **lookahead pays, and not
+through readings.** Nothing here is for the counter: a forecast counted from
+the readings inherits the range arm's bias, and exactness relative to a
+biased set does not repair it. Post hoc, a stiffer margin rescues the range
+arm on this sample (both-rule at 2 IMPs: +0.0607 ± 0.0325 / +0.0456 ±
+0.0356, 7.1% fired) — one of fifteen grid cells per arm, not the registered
+rule, and it would need its own run on a fresh seed.
+
+What it leaves, and the proposed defaults:
+
+- **Park the counter's bidding uses** (A, B as counted, C until a search
+  consumer exists). Every gate that tested the *readings* as a posterior has
+  now failed; the one that passed used the bidder itself as the likelihood.
+- **The `4NT` rung is a book finding, not a search finding** — §6, and one
+  row in [next-steps.md](next-steps.md). It is an ordinary knob-and-A/B.
+- **The lookahead finding belongs to M8**
+  ([ai-bidder/plan.md](ai-bidder/plan.md)): a seam-gated rollout is worth
+  about +0.002 IMPs/board here at 0.4 s of solving per decision (64 worlds at
+  5.9 ms on this box), half of it available from a threshold. That is evidence for re-deriving
+  the search, at one seam; it does not say which seams, and the search
+  machinery it would run on was deleted.
+
 ### Parked — use C, the sampler
 
 Re-open when DD-search-at-leaves exists
@@ -678,6 +797,25 @@ consumer actually samples. `1NT (X)` is the one such cell today.
 
 ## 6. Flags
 
+- **`1M - 2M - 4NT` on 22+ support points loses to a game try** (2026-10-02,
+  found by Phase 3b's static control). Opener asks for keycards opposite a
+  single raise on 4.1% of `1M - 2M` auctions; always making a help-suit try
+  instead is +1.23 ± 0.96 plain / +1.50 ± 1.00 PD per `1♠` hand (×258) and
+  the same sign, not clear of zero, per `1♥` hand (×120) — about +0.0008
+  IMPs/board if it holds. One seed, self-play, and *why* the try wins (what
+  opener does after the answer) is not traced. Proposed default: leave the
+  book; trace ten boards, then an opt-in knob and an A/B per
+  [measurement.md](measurement.md).
+- **The range sampler over-invites after a single raise** (2026-10-02, Phase
+  3b). Worlds drawn from the readings make a try look right on 511 hands the
+  book passes, at −2 to −4 PD each where it fires most; worlds our bidder
+  reproduces do so on 108. Nothing on the default path samples from the
+  readings, so no call depends on it. Proposed default: leave it; it is the
+  first thing to check if a search consumer ever uses `sample_layouts`
+  without replay.
+- **Phase 3b's hand-specific remainder has no interval.** The probe prints
+  the selector's pooled gain and its swaps, not the gain with the `4NT`
+  hands removed; the +0.050 / +0.070 figure is the swap table's arithmetic.
 - **An invitation's answer reads as nothing** (2026-10-02, found by Phase
   3a). After `1NT - 2♠`, opener's `2NT` and `3♣` both leave 15–18; after
   `1♠ - 3♠`, `4♠` and a pass both leave 10–21; likewise
@@ -741,6 +879,7 @@ consumer actually samples. `1NT (X)` is the one such cell today.
 | 2026-10-02 | §4 D disagreement flag | closed — strict and announced readings disagree on 0 of 125,961 readings |
 | 2026-10-02 | Phase 2 reach | **not built**: 231 [243] of 10,000 boards carry a flagged reading and our side still acts on 53 [47], half of it doubles of artificial slam-zone calls. Logs: `phase2-reach*.log` |
 | 2026-10-02 | Phase 3a, reading route | **FAILS**: log-loss 1.627 against 1.401 for the node's own frequencies; 38 of 461 nodes with a choice countable, the hand helping at 6; accept and decline read the same at every invitation seam. Ladder route unbuilt. Logs: `phase3a-census*.log` |
+| 2026-10-02 | Phase 3b, sampled forecast | `1M - 2M` seam, 9,311 decisions of 600,000 deals, judged on the true deals. **Replay PASSES**: +0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD per decision (+0.0017 / +0.0022 per board). **Range FAILS**: +0.0737 ± 0.0526 / −0.0125 ± 0.0601. Half of replay's gain is the `4NT` rung, which a static remap also earns. Log: `phase3b-sampled-1790874659.log` |
 
 ## 8. Sources
 
