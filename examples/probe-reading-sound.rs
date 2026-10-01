@@ -209,6 +209,13 @@ struct Row {
     excluded: bool,
     /// The strict table reading and the announced overlay tell this hand apart
     disagree: bool,
+    board: usize,
+    /// The reader's call at this node is not a pass
+    acted: bool,
+    /// The auction through the reader's call
+    reply: String,
+    /// The reader's side makes a non-pass call at this node or later
+    later: bool,
 }
 
 /// `C(52, 13)`: every hand, to a counter that has seen no cards
@@ -318,6 +325,7 @@ struct Tally {
 
 /// Every decision node of one bid-out deal, charged into `tally`
 fn census(
+    board: usize,
     partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -366,6 +374,10 @@ fn census(
                 },
                 excluded: !announced,
                 disagree: admits != announced,
+                board,
+                acted: auction[cut] != Call::Pass,
+                reply: auction_key(&auction[..=cut]),
+                later: (auction[cut..].iter().step_by(2)).any(|&call| call != Call::Pass),
             });
             if who == Relative::Partner {
                 keys.entry(auction_key(&auction[..=last]))
@@ -457,7 +469,7 @@ fn main() -> anyhow::Result<()> {
     for (board, deal) in seeded_deals(base, args.count).iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
         let auction = bid_out(&partnership, opponent, true, dealer, vul, deal);
-        census(&partnership, dealer, vul, deal, &auction, &mut tally);
+        census(board, &partnership, dealer, vul, deal, &auction, &mut tally);
     }
     let Tally {
         seats, keys, rows, ..
@@ -587,8 +599,45 @@ fn main() -> anyhow::Result<()> {
         .map(|row| (row.narrowness, row.excluded))
         .collect();
     let narrow = sweep(&mut pairs).2;
+    // What a narrowness gate could touch: it changes a call only where the
+    // reader's side still has one to make.
+    let flagged: Vec<&Row> = (opponents.iter().copied())
+        .filter(|row| row.narrowness >= narrow)
+        .collect();
+    let boards = |keep: fn(&Row) -> bool| {
+        let mut boards: Vec<_> = (flagged.iter().filter(|row| keep(row)))
+            .map(|row| row.board)
+            .collect();
+        boards.sort_unstable();
+        boards.dedup();
+        boards.len()
+    };
+    println!(
+        "\nat −ln m̄ ≥ {narrow:.2}: the reader bids or doubles at {} of {} readings; \
+         {} boards carry one, the reader's side still acts on {}, at that very node on {}",
+        flagged.iter().filter(|row| row.acted).count(),
+        flagged.len(),
+        boards(|_| true),
+        boards(|row| row.later),
+        boards(|row| row.acted),
+    );
+    let mut replies: HashMap<&str, (u64, u64)> = HashMap::new();
+    for row in flagged.iter().filter(|row| row.acted) {
+        let reply = replies.entry(&row.reply).or_default();
+        reply.0 += 1;
+        reply.1 += u64::from(row.excluded);
+    }
+    let mut replies: Vec<_> = replies.into_iter().collect();
+    replies.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    println!(
+        "\n{:>10} {:>10}  auction through the reader's action",
+        "readings", "excluded"
+    );
+    for (reply, (readings, excluded)) in replies.iter().take(args.top) {
+        println!("{readings:>10} {excluded:>10}  {reply}");
+    }
     let mut nodes: HashMap<&str, Cell> = HashMap::new();
-    for row in opponents.iter().filter(|row| row.narrowness >= narrow) {
+    for row in &flagged {
         nodes
             .entry(&row.node)
             .or_default()

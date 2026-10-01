@@ -46,6 +46,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the keycard *answer* still drops the asker to the floor in every RKCB
   lane, and the classic `5NT` path elsewhere still wants three kings.
 
+- **Exact hand posteriors: the narrowness gate is not worth building, and a
+  reading is not a reply forecast (2026-10-02)** — Phases 2 and 3a of
+  [docs/exact-posterior.md](docs/exact-posterior.md), both probes, no bidding
+  change.  `probe-reading-sound` now counts the reach of the narrow opponent
+  readings: 231 of 10,000 boards carry one and our side still acts on 53,
+  half of that being doubles of artificial slam-zone calls — the gate is
+  closed on reach, unbuilt.  The new `examples/probe-reply-count` forecasts
+  partner's next call from the exact mass of the reading each reply would
+  leave, on 20,000 self-play deals: log-loss 1.627 nats against 1.401 for
+  the node's own reply frequencies, and of 461 nodes with a real choice the
+  reader's hand helps at 6.  At every invitation seam (`1NT - 2♠`,
+  `1♠ - 3♠`, `1M - 2M - 3M`) accept and decline leave the same reading, so
+  the forecast there is a coin flip.  Both replicated on a second seed.
+  Flagged, untouched: an invitation's answer reads as nothing, and `1♠ - 2♠`
+  reads with no spade length.
+
 - **Exact hand posteriors: the counter in Rust, and the kill gate read
   (2026-10-02)** — Phases 0 and 1 of
   [docs/exact-posterior.md](docs/exact-posterior.md).  `examples/common/mass.rs`
@@ -53,7 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   census of the unseen cards convolved over the 560 shapes — in 0.37 ms a
   hand and 0.03 ms a reading; the new `examples/probe-exact-mass` pins it
   against `point_count`, `EnvelopeUnion::contains` (every sampled hand),
-  closed forms and a 50k-draw Monte Carlo.  `probe-reading-sound` now ends
+  closed forms and a 50k-draw Monte Carlo — and against the web Partner
+  counter: `scripts/web-counter-crosscheck.py` has a real browser recount
+  `probe-exact-mass --fixtures` with `companionCount`, and all 1,034
+  self-play readings agree (headless Firefox 156).  `probe-reading-sound` now ends
   with the evidence gate.  Re-baselined at 10,000 deals vs BBA, our readings
   exclude the hidden seat's hand 7.82% / 1.33% / 7.87% of the time (LHO /
   partner / RHO; 8.24 / 3.29 / 8.34 in July).  **The gate fails for the idea
@@ -65,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uncontested jump responses and reverses read with our meanings.  The
   strict and announced readings disagree on no reading at all, which closes
   that trust signal.  No bidding change, no public API change; whether the
-  narrowness gate is worth a knob is recorded as an open decision.
+  narrowness gate is worth a knob was counted the same day (entry above).
 
 - **docs: exact hand posteriors — survey and plan (2026-10-01)** —
   [docs/exact-posterior.md](docs/exact-posterior.md) records what the web

@@ -1,9 +1,11 @@
 # Exact hand posteriors — what the web counter is worth to bidding
 
-**Status, 2026-10-02 (HEAD `15242e44`): Phase 0 built and pinned; Phase 1's
-kill gate run and read — use A as designed FAILS, and a hand-free by-product
-passes (§5, §7). Phase 2 is re-scoped and waits on a decision; Phase 3 is
-untouched.** This document records (1) what the web
+**Status, 2026-10-02 (HEAD `d54eca62`): Phase 0 built and pinned on all four
+pins; Phase 1's kill gate run and read — use A as designed FAILS, and a
+hand-free by-product passes (§5, §7). Phase 2's re-scoped gate reaches 0.5%
+of boards and is not built. Phase 3a fails by the route that needs no new
+API — a reading is not a reply forecast — and the proposed default is to
+park Phase 3; that decision is open.** This document records (1) what the web
 crate's Odds/Partner counter is, (2) which uses of an exact posterior this repo
 has already refuted, (3) the literature — bridge engines, other
 imperfect-information games, the general machinery — and (4) a phased plan with
@@ -448,8 +450,14 @@ signature. Phase 3 adds the signature if it is reached.
 | (i) parity | the per-suit keys rebuild `point_count` on 4,000 hands; membership equals `EnvelopeUnion::contains` on every one of ~150M sampled hands |
 | (ii) closed forms | unknown = `C(39,13)` exactly; three lone length ranges = the hypergeometric sum exactly, 1,000 hands |
 | (iii) Monte Carlo | 3,000 self-play readings × 50k draws: z has mean −0.016, sd 1.005 (worst 3.98); at 500k draws sd stays 1.037, so there is no bias for more draws to expose |
-| (iv) browser | **not run** — `web/app.js` is DOM-bound and has no headless entry (§6) |
+| (iv) browser | `companionCount` in headless Firefox 156 recounts 1,034 self-play readings (up to 22 boxes): 2,068 counts — each fixture's total and its query — 1,884 equal to the integer, 184 past 2⁵³ and within 10⁻⁹, none declined |
 | cost | build ≈ 0.37 ms, union query ≈ 0.03 ms (targets 0.35 / 0.1) |
+
+Pin (iv) is repeatable: `probe-exact-mass --fixtures` prints the readings and
+[`scripts/web-counter-crosscheck.py`](../scripts/web-counter-crosscheck.py)
+serves `web/` with a harness appended to `app.js`, so the browser runs the
+page's own code and posts its counts back. The web names my spots by count,
+so it counts my hand `Π C(8, spots)` times over; the script divides that out.
 
 `Counter::new(Hand::EMPTY)` counts over all `C(52,13)` hands — the reading's
 mass for an observer who has seen nothing, which Phase 1 turned out to need.
@@ -522,7 +530,7 @@ seen, a function of the auction alone) and the **cards' own evidence**
 
 ### Phase 2 — the gate as a knob (only if Phase 1 passes)
 
-**Re-scoped 2026-10-02, awaiting a decision.** Phase 1 failed for the
+**Re-scoped 2026-10-02; counted the same day and not built (below).** Phase 1 failed for the
 hand-conditional gate this section describes and passed for a hand-free one,
 so the candidate is now: *an opponent seat whose reading has prior mass under
 ≈ 0.37% reads as `Envelope::unknown`*. Two consequences:
@@ -540,6 +548,35 @@ dumps, how often our side acts at all at a flagged node; build only if that
 is not negligible. The lane-by-lane alternative — reading BBA's jump
 responses as BBA plays them — is the declared-opponent reading, which has its
 own record.
+
+**Counted 2026-10-02 — negligible; not built.** `probe-reading-sound` now
+ends with the reach of the flagged readings (same 10,000 deals, seed
+1790871004, second seed in brackets):
+
+| | count |
+| --- | --- |
+| flagged opponent readings | 943 [926] |
+| boards carrying one | 231 [243] of 10,000 |
+| boards where our side still makes a non-pass call | **53 [47]** |
+| our actions at a flagged reading | 59 [52]: 33 [26] doubles, 26 [26] bids |
+| … of them at a reading that was in fact sound | 9 [11] |
+
+- The gate can change a call on at most **0.5% of boards**, and half of what
+  we do there is double an artificial call on their way to slam
+  (`1♠ - 3♦ - 4♥ X`, `… 4NT - 5♣ X`) — a lead-direction decision made on our
+  own cards, which a blanked reading of theirs should not move.
+- That leaves ≈ 26 bids per 10,000 boards, mostly an overcall after their
+  reverse or jump (`1♦ - 1♠ - 2♥ 2♠`, `1♠ - 3♦ 4♥`). To be worth the 0.001
+  IMPs/board this repo ships at, the gate would have to gain 0.4 IMPs on
+  *every one* of them, through a floor that never saw a gated reading — and
+  one flagged action in six sits on a sound reading, where blanking costs.
+- Passes are not counted: a blanked reading could also turn a pass into an
+  action. On the other ≈ 180 boards we pass throughout from the flagged
+  node on, and which of those passes are live was not examined.
+
+Phase 2 is closed on reach, not on a measured A/B. Re-open if the flagged
+set grows — a different opponent (BEN), or a reading-fidelity change that
+moves the 0.37% line.
 
 The original text follows, for the record.
 
@@ -579,6 +616,59 @@ Use the `author-convention` and `measure-ab` skills.
    scorers at the seam, with a deviation threshold tuned on a held-out half.
 4. Only then a knob and an A/B. Candidates stay inside the book's rungs.
 
+**3a, the cheap route, 2026-10-02 — FAILS; the ladder is not built.** Item 1
+asks for a partition from rule projections, which needs a hand-free view of a
+node's rule chain that the crate does not export. The route that needs
+nothing new was tried first: read the auction once more under each reply `r`
+and take the exact mass `m_r` of the reading `r` leaves of the caller, given
+the observer's cards; the forecast is `m_r / Σ m`. `examples/probe-reply-count`
+scores it on self-play (all four seats `american()`, 20,000 deals, seed
+1790873246, second seed 1791873246 in brackets) against the call actually
+made, beside the same masses with no cards seen and the node's own
+leave-one-out reply frequencies. Gate fixed before the first run: a node met
+≥ 30 times is *countable* iff the made call gets zero mass ≤ 2% of the time
+and the forecast's log-loss is no worse than the node's frequencies.
+
+| calls at nodes met ≥ 30 times | log-loss, nats |
+| --- | --- |
+| exact forecast, observer's cards seen | 1.627 [1.629] |
+| the same masses, no cards seen | 1.685 [1.688] |
+| the node's own reply frequencies | **1.401 [1.399]** |
+
+- **A reading is not a reply forecast.** Over every legal reply, `Σ m`
+  averaged 20 times the caller's mass before the call (200-deal smoke): a
+  call the node never makes reads as *anything*. Cut to the calls each node made on some other deal —
+  the fairest reply set — the replies still overlap 2.6-fold, and a 90–100%
+  forecast comes true 93% of the time.
+- **461 [480] nodes have a choice** (their own frequencies lose > 0.05 nats);
+  **38 [42] are countable**, and the observer's hand saves 0.05 nats at
+  **6 [5]** — two of them on both seeds (the opening passes, `1NT (2♣) -`).
+  The other countable nodes are forced replies, countable for free.
+- **The target seams are the worst case.** At every invitation met —
+  `1NT - 2♠ -`, `1♠ - 3♠ -`, `1♥ - 3♥ -`, `1NT - 2♣ - 2♦ - 2NT -`,
+  `1M - 2M - 3M -` — accept and decline leave the **same** reading
+  (`probe-call-reading`: opener is 15–18 after both `2NT` and `3♣`, 10–21
+  after both `4♠` and a pass), so the forecast is a coin flip — ln 2, or
+  ln 3 where a third reply was met — and equal to three decimals with and
+  without the observer's hand in every such row. That takes out both factors of §4 B's sum at its first target: the
+  reply masses, and `value(reading after r)`, which cannot tell the replies
+  apart either.
+
+What is left of Phase 3, and the proposed default — **park it**:
+
+- The ladder route (first-match over rule projections, hence a partition by
+  construction) is untested. It needs the node's rule chain without a hand —
+  book node, guarded fallbacks, `instinct()` — as new public API, and a
+  first-match method on the counter.
+- Before that build, the cheaper kill test is 3b with a **sampled** forecast:
+  partner's hands drawn from the reading and run through the real bidder are
+  the ceiling of any counted forecast.
+- And 3b's prior is poor on the record. Its value term is the evaluator, and
+  the 1NT invitation seams are already swept
+  ([one-notrump-constructive.md](one-notrump-constructive.md) § Evaluator
+  verdicts): eight eval-net cells crossed zero in the no-major class, and
+  `set_stayman_net_force` won its screen and lost live.
+
 ### Parked — use C, the sampler
 
 Re-open when DD-search-at-leaves exists
@@ -587,6 +677,24 @@ Re-open when DD-search-at-leaves exists
 consumer actually samples. `1NT (X)` is the one such cell today.
 
 ## 6. Flags
+
+- **An invitation's answer reads as nothing** (2026-10-02, found by Phase
+  3a). After `1NT - 2♠`, opener's `2NT` and `3♣` both leave 15–18; after
+  `1♠ - 3♠`, `4♠` and a pass both leave 10–21; likewise
+  `1NT - 2♣ - 2♦ - 2NT` and `1M - 2M - 3M`. The book decides these by rule,
+  so no call depends on it today, and the auction usually ends there.
+  Proposed default: leave it; it belongs to
+  [authored-reading-handoff.md](authored-reading-handoff.md) if a consumer
+  ever reads past an invitation.
+- **`1♠ - 2♠` reads with no spade length** (2026-10-02, seen in passing with
+  `probe-call-reading`): points 1–11, ♠ 0–13. Not investigated — it may be a
+  hull over boxes or a `pred` gate projecting ⊤. Proposed default: one row in
+  the reading-drift queue ([reading-drift-handoff.md](reading-drift-handoff.md)),
+  nothing changed here.
+- **3a's reply set was cut after the first smoke run.** The gate's thresholds
+  were fixed before any run; restricting replies to the calls a node made on
+  another deal came after a 200-deal smoke showed unmade calls reading as
+  ⊤. The cut favours the forecast, and it still fails.
 
 - **Doc/code discrepancy, recorded 2026-10-01.**
   [dnf-migration.md](dnf-migration.md) said the MARG and MASS implementations
@@ -601,9 +709,6 @@ consumer actually samples. `1NT (X)` is the one such cell today.
   ablation 2.99 → 2.53 is Tian et al. (JPS), not Gong et al., whose own table
   reads 2.31 → 1.22. §3.2 carries both as checked. Claims marked P were not
   re-checked the same way.
-- **Pin (iv) of Phase 0 is owed** (2026-10-02): the cross-check against
-  `companionCount` needs a browser session; `web/app.js` has no headless
-  entry. Pins (i)–(iii) do not depend on it.
 - **The Rust counter covers the default `PointScale` only.** `point_count_on`
   is `pub(crate)`, so `mass::points` copies the shipped scale's formula and
   `probe-exact-mass` pins the copy. Phase 0 said "every `PointScale`"; the
@@ -629,10 +734,13 @@ consumer actually samples. `1NT (X)` is the one such cell today.
 | date | phase | result |
 | --- | --- | --- |
 | 2026-10-01 | survey + plan | this document; `probe-replay-yield` re-run (§4 C); nothing built |
-| 2026-10-02 | Phase 0 | counter built in `examples/common/mass.rs`; pins (i)–(iii) pass, (iv) owed; build 0.37 ms, query 0.03 ms |
+| 2026-10-02 | Phase 0 | counter built in `examples/common/mass.rs`; pins (i)–(iii) pass; build 0.37 ms, query 0.03 ms |
+| 2026-10-02 | Phase 0 pin (iv) | the web counter agrees on all 1,034 fixtures, headless Firefox 156 — Phase 0 complete |
 | 2026-10-02 | Phase 1 step 0 | re-baseline 7.82% / 1.33% / 7.87% (LHO / partner / RHO), 10,000 deals, seed 1790871004 |
 | 2026-10-02 | Phase 1 gate | **use A FAILS**: my cards' own evidence AUROC 0.554, 5.6% recall at precision ≥ 50%. By-product **passes**: narrowness alone, AUROC 0.839, 90.6% precision where recall first passes 10% (1.1% of opponent readings flagged). Replicated on seed 1790871902. Logs: `pons-ab-results/exact-posterior/` |
 | 2026-10-02 | §4 D disagreement flag | closed — strict and announced readings disagree on 0 of 125,961 readings |
+| 2026-10-02 | Phase 2 reach | **not built**: 231 [243] of 10,000 boards carry a flagged reading and our side still acts on 53 [47], half of it doubles of artificial slam-zone calls. Logs: `phase2-reach*.log` |
+| 2026-10-02 | Phase 3a, reading route | **FAILS**: log-loss 1.627 against 1.401 for the node's own frequencies; 38 of 461 nodes with a choice countable, the hand helping at 6; accept and decline read the same at every invitation seam. Ladder route unbuilt. Logs: `phase3a-census*.log` |
 
 ## 8. Sources
 

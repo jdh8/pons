@@ -10,6 +10,10 @@
 //!    binomial noise of a sampled one (the retired `probe-exact-mass`
 //!    criterion).
 //!
+//! 4. **The web counter** — `--fixtures` prints each real reading with its
+//!    exact count as a JSON line, for `web/app.js`'s `companionCount` to
+//!    recount in a browser (`docs/exact-posterior.md` Phase 0 has the recipe).
+//!
 //! No double-dummy, no solver.
 //!
 //! ```sh
@@ -47,6 +51,12 @@ struct Args {
     /// Monte Carlo draws per reading
     #[arg(long, default_value = "50000")]
     draws: u32,
+
+    /// Print the readings as JSON fixtures instead of sampling them: the
+    /// reader's hand, each box's four length ranges (♣♦♥♠) and points range,
+    /// and the exact count
+    #[arg(long)]
+    fixtures: bool,
 }
 
 fn choose(n: u64, k: u64) -> u64 {
@@ -115,6 +125,26 @@ fn main() {
             let exact = counter.mass(union);
             query += start.elapsed().as_secs_f64();
             readings += 1;
+            if args.fixtures {
+                let boxes: Vec<String> = (union.boxes().iter())
+                    .map(|envelope| {
+                        let ranges: Vec<String> = (envelope.lengths.iter())
+                            .chain([&envelope.strength.points])
+                            .map(|range| format!("[{},{}]", range.min, range.max))
+                            .collect();
+                        format!("[{}]", ranges.join(","))
+                    })
+                    .collect();
+                if exact < 1.0 {
+                    println!(
+                        r#"{{"hand":"{}","boxes":[{}],"count":{}}}"#,
+                        deal[seat],
+                        boxes.join(","),
+                        counter.count(union)
+                    );
+                }
+                continue;
+            }
             if exact == 0.0 || exact == 1.0 {
                 continue; // no binomial noise to sit inside
             }
@@ -135,6 +165,9 @@ fn main() {
             }
             assert!(z.abs() < 5.0, "exact {exact} sampled {sampled} z {z:.2}");
         }
+    }
+    if args.fixtures {
+        return;
     }
     println!(
         "monte carlo       {readings} readings, worst |z| {:.2} (exact {:.3e}, sampled {:.3e})",
