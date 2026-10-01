@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`2♦` waiting replaces the `2♥` double negative over our strong `2♣`,
+  shipped default-on (2026-10-01)** — `DecisionProfile::strong_two_waiting`
+  (`--no-ns-strong-two-waiting` in `bba-gen` for the control arm).  `2♦`
+  is the waiting catch-all on any strength, `2♥` a natural positive (five
+  hearts to two top honors, 8+, like `2♠`).  Over opener's `2M` a 0–3 hand
+  passes without three-card support and jumps to `4M` with it; over `3m` it
+  passes.  Opener's rebid table gets a finite catch-all (a `2♣` opened on
+  points can fall short of 22 Fifths), and the floor's `2♣` game force now
+  holds for opener after `2♦` and for responder only after a positive.  The
+  reading mirror pins the knob **off**: an undeclared opponent's `2♣`
+  still decodes as the double negative, so the mirror book is now built on
+  every default build (about 80 ms more per system bind), and `probe()`
+  shares its probed map with an undeclared mirror.  Found by the 2026-10-01
+  prefix re-cut (docs/next-steps.md item 2): our double negative against
+  BBA's `2♦` priced at 680 rows, −1.7k plain / −1.2k PD per 409,600 boards.
+  Measured on `scripts/ab-strong-two-waiting.sh` vs BBA, 204,800
+  boards/arm/vul per seed, with the opener isolation gate: round 3 (seed
+  1790832953) plain +0.0003 / +0.0007, PD +0.0001 / +0.0006, 199 / 210
+  fired; round 4 (1790833515) plain +0.0011 / +0.0018, PD +0.0008 /
+  +0.0017, 184 / 191 fired; pooled (409,600 boards/vul) plain +0.0007
+  ±0.0006 / +0.0013 ±0.0007, PD +0.0004 ±0.0006 / +0.0011 ±0.0008
+  IMPs/board (none / both).  Rounds 1–2 were washes: round 1 found opener
+  passing `2♦` and selling out to interference once the force lifted, and
+  round 2 leaked 63 / 104 divergent boards into *their* `2♣` through the
+  reading mirror.  Priced separately (seed 1790834184 plus round 2), reading
+  their `2♣` as waiting too costs plain −0.0005 / −0.0008, PD −0.0002 /
+  −0.0011, though BBA does wait with `2♦` — the v6 floor was trained on
+  the old reading.  Owed: opener's continuation after a natural positive
+  (the worst boards are the floor's `2♣ - 2♥ - 4♠ - 6NT`), BBA's looser
+  positives (7+, any five-card suit).
+- **Responder's bands two lower over the `2♣` rebid's `2NT`, shipped
+  default-on (2026-10-01)** — `notrump.strong_two_notrump_floors`
+  (`--no-ns-strong-two-notrump-floors` in `bba-gen` for the control arm).
+  `2♣ - 2♦ - 2NT` (22–24) reused the `2NT`-opening (20–21) response table:
+  Stayman on 5+, `3NT` on 5–10, pass below 5, so a 3–4 count passed opposite
+  22–24.  Now every HCP band over the `2♣` rebid — Stayman, `3NT`, pass, the
+  quantitative `4NT` / `6NT`, and the pair after `3♣ - 3♦` — sits two
+  lower (Stayman 3+, `3NT` 3–8, pass 0–2, BBA's own split); the direct `2NT`
+  opening is untouched.  Found by re-cutting the 2026-09-30 anchor by auction
+  prefix (the strong `2♣` lane, docs/next-steps.md item 2): 138 rows, −0.7k
+  plain / −0.7k PD per 409,600 boards.  Measured on
+  `scripts/ab-strong-two-notrump.sh` vs BBA (seed 1790830947, 204,800
+  boards/arm/vul): plain +0.0009 ±0.0005 / +0.0016 ±0.0007, PD +0.0006
+  ±0.0005 / +0.0013 ±0.0008 IMPs/board (none / both), 79 / 83 fired
+  (+2.2 / +4.0 plain per fired).  Worst boards: opener's 28-count rebids
+  `2NT` through the 22+ fallback, since the `3NT` rebid stops at 27.
 - **Opener's splinters over Reverse Drury, shipped default-on (2026-10-01)**
   — `response.drury_splinters` (`--no-ns-drury-splinters` in `bba-gen` for
   the control arm).  After `- - 1M - 2♣! -` a jump in a new suit — `3♦`,

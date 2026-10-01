@@ -20,7 +20,7 @@ comp:uvu-major-fourth 8
 comp:uvu-major-raise 16
 comp:uvu-splinter 8
 comp:value-redouble 16
-completion 696
+completion 680
 drury 4
 drury-relay 4
 drury-splinter 12
@@ -34,7 +34,7 @@ game-force 24
 inv-5card-major 60
 inverted-minor 16
 jacoby-2nt 8
-jacoby-transfer 64
+jacoby-transfer 56
 leaping-michaels 24
 michaels 16
 ogust 84
@@ -46,11 +46,10 @@ responsive-double 32
 rkcb 21680
 shortness 24
 slam-try 80
-smolen 120
+smolen 112
 splinter 384
 stayman 80
 strong-2c 4
-strong-2c:negative 4
 strong-2c:waiting 4
 takeout-double 56
 texas 80
@@ -80,9 +79,9 @@ comp:lebensohl-transfer 72 -> 68
 comp:multi-penalty 0 -> 24
 comp:multi-takeout 0 -> 12
 comp:stayman 8 -> 4
-completion 696 -> 692
+completion 680 -> 676
 rkcb 21680 -> 22508
-smolen 120 -> 112
+smolen 112 -> 104
 texas 80 -> 88
 
 [multi-stopper]
@@ -100,6 +99,6 @@ comp:multi-penalty 16 -> 24
 comp:multi-takeout 8 -> 12
 comp:multi-values 4 -> 0
 comp:stayman 8 -> 4
-completion 696 -> 692
+completion 680 -> 676
 rkcb 22216 -> 22508
-smolen 120 -> 112
+smolen 112 -> 104

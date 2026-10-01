@@ -1834,7 +1834,12 @@ fn authored_calls_read_what_they_gate() {
         // 88 → 86 when the natural jump shifts replaced Meckstroth as the
         // default (2026-09-27): the adjunct's `5+ ♣ | 5+ ♦` opener shape-out
         // `3NT` left the american constructive and defensive tries.
-        ("length", 86, 0),
+        // 86 → 88 when `notrump.strong_two_notrump_floors` shipped
+        // (2026-10-01): over the `2♣` rebid's `2NT` the 3-level Stayman is
+        // its own rule (`3+ HCP`, not `5+`), the same not-4333 leak metered
+        // once more in the american and Watermelon constructive tries.
+        // Knob-on stays 0.
+        ("length", 88, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
@@ -1865,7 +1870,12 @@ fn authored_calls_read_what_they_gate() {
         // 116 → 118 when Reverse Drury shipped default-on (2026-10-01):
         // the passed-hand `2♣!` (`3+ support & 10+ support points`) on
         // each major's passed-hand responder table.  Knob-on stays 0.
-        ("support", 118, 0),
+        // 118 → 121 when `decision.strong_two_waiting` shipped (2026-10-01):
+        // the double negative's raises (`4+ support` at `2♣ - 2♥ - x`) left
+        // and the waiting raises over `2♣ - 2♦ - 2M` (`3M` on 4+ HCP, `4M`
+        // on 0–3) arrived, in the american and Watermelon constructive
+        // tries.  Knob-on stays 0.
+        ("support", 121, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {

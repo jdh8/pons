@@ -281,7 +281,18 @@ fn keycard_window_delegates_in_competition() {
 fn forced_to_game_never_passes_below_game() {
     // `2♣ - 2♦ - 2NT -`: the strong 2♣ opening and game-forcing 2♦ waiting
     // response force game, so the shell delegates to instinct and never passes
-    // below game.
+    // below game.  The pre-2026-10-01 structure (`strong_two_waiting` off),
+    // where `2♦` promises 4+; under the shipped wait responder may hold a bust.
+    let mut agreements = Agreements::default();
+    agreements.decision.strong_two_waiting = false;
+    let best = |auction: &[Call], hand: &str| {
+        let logits = shelled_with(&agreements, auction, hand);
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    };
     let auction = [
         call(2, Strain::Clubs),
         Call::Pass,

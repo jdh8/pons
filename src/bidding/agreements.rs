@@ -3190,6 +3190,21 @@ pub struct NotrumpKnobs {
     /// fired per 204,800.  Owed: the doubled checkback (`3x (X)`) still drops
     /// to the floor.
     pub rebid_checkback: bool,
+    /// Responder's floors over the 22–24 `2NT` rebid after `2♣`
+    ///
+    /// `2♣ - 2♦ - 2NT` and `2♣ - 2♥ - 2NT` reuse the `2NT`-opening response
+    /// table, whose bands are set for a 20–21 opener: Stayman on 5+, `3NT` on
+    /// 5–10, pass below 5.  Opposite 22–24 game needs two points fewer, so
+    /// responder passed 3–4 counts where BBA bids `3♣` Stayman (3+) or `3NT`.
+    /// On, every HCP band of that table (Stayman, `3NT`, pass, `4NT`, `6NT`,
+    /// and the quantitative pair after `3♣ - 3♦`) is lowered by two over the
+    /// `2♣` rebid; the direct `2NT` opening is untouched.  The 2026-09-30
+    /// anchor prices the hole at 138 rows, −0.7k plain / −0.7k PD per 409,600
+    /// boards (docs/next-steps.md item 2, the strong `2♣` lane).  **Shipped
+    /// default-on 2026-10-01**: `scripts/ab-strong-two-notrump.sh` won all
+    /// four cells, plain +0.0009 / +0.0016 and PD +0.0006 / +0.0013
+    /// IMPs/board (none / both), 79 / 83 fired per 204,800.
+    pub strong_two_notrump_floors: bool,
     // --- notrump/crawling_stayman.rs
     // --- notrump/sixcard_invitation.rs
     /// Raw strength floor for inviting with a six-card major
@@ -3460,6 +3475,7 @@ impl Default for NotrumpKnobs {
             transfer_longer_major: true,
             quantitative_six_notrump: true,
             rebid_checkback: true,
+            strong_two_notrump_floors: true,
             sixcard_invite_floor: 13,
             sixcard_accept_floor: 18,
             transfer_slam_try: true,

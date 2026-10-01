@@ -26,7 +26,8 @@ criterion 5). **Item 2 is now the top candidate.**
 **Biggest unworked pool on both references. The passed-hand lane is done
 (opener's pass shipped 2026-09-30, Reverse Drury and opener's splinters over
 it shipped 2026-10-01, below); BBA's other rungs and its passed-hand `2NT`
-priced and left alone.**
+priced and left alone. Next: the strong `2♣` lane (re-cut 2026-10-01,
+below).**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -77,6 +78,48 @@ priced and left alone.**
   −2.2k on the instinct arm, no lane above 129 rows (`1♥ - 1♠`) — and the
   largest call-pair classes are the ones already listed below (`3NT` vs
   BBA's `4m` / `4NT`, opener's `2x` vs BBA's jump, `1♦ - 1M - 2♦` vs `2♣`).
+- **Re-cut 2026-10-01 — the strong `2♣` lane.**  The passed-hand lane was
+  found by cutting rows by auction prefix rather than by bucket; the same cut
+  over every shipping-arm bucket at `494f0c4b` (rows joined to their shard
+  auctions, leading passes folded; the script is a scratch join, not kept)
+  ranks the clean lanes, per 409,600 boards:
+
+  | lane | rows | plain | PD | note |
+  | --- | --- | --- | --- | --- |
+  | our `2♣` opening, every continuation | 3,054 | −7,003 | −6,630 | −2.2 per row; split over opening / round-1 / round-2 and seats, so no bucket showed it |
+  | responses to `1♥` / `1♠` | 10,970 | −10,951 | −12,258 | −1.0 per row, spread thin; "mined" (row 5 of the ranking) |
+  | `1♦ - 1♠ -` opener's rebid | ~2,200 | −3.0k | −3.8k | `2♦` vs BBA's `2♣` / `1NT`; the `2♣` arm is a measured-wash opt-in |
+
+  Inside the `2♣` lane: the response 2,017 rows (−4.9k / −4.6k), opener's
+  rebid 1,099 (−1.6k / −1.8k), responder's second call 431 (−1.1k / −1.1k),
+  their interference 289 (−0.6k / −0.8k).  The call pairs: our `2♥` double
+  negative vs BBA's `2♦` waiting 680 rows (−1.7k / −1.2k); our `2♦` vs BBA's
+  natural positive (`2♥` 169, `2♠` 165, `3♣` 145, `3♦` 115 rows, −1.7k /
+  −1.9k together — we have no heart positive, and ours need two top honors
+  and 8+); our pass of `2♣ - 2♦ - 2NT` vs BBA's `3♣` / `3NT` 138 rows
+  (−0.7k / −0.7k); opener's `6NT` jump over the `2NT` positive vs BBA's
+  exploration ~140 rows (−0.4k).  BBA's own structure (EPBot defaults,
+  `probe-bba-book --card none --prefix="2♣ -"`): `2♦` waiting, natural
+  positives on 7–21 with a five-card suit, `2NT` balanced 7+; opener's `2M`
+  rebid is passable (responder passes ≤5 without three-card support, `4M` on
+  ≤2 with it); `2♣ - 2♦ - 2NT` is 22–23 with `3♣` Stayman on 3+ and pass on
+  ≤2.
+  - **`notrump.strong_two_notrump_floors` shipped default-on 2026-10-01**:
+    plain +0.0009 / +0.0016, PD +0.0006 / +0.0013 IMPs/board (none / both),
+    79 / 83 fired (CHANGELOG).
+  - **`decision.strong_two_waiting` shipped default-on 2026-10-01** (no
+    double negative, `2♥` a positive, the bust passes opener's suit rebid,
+    the floor's `2♣` force for opener after `2♦`): pooled two seeds plain
+    +0.0007 / +0.0013, PD +0.0004 / +0.0011 (CHANGELOG).  The reading
+    mirror pins it off — decoding *their* `2♣` as waiting too lost (plain
+    −0.0005 / −0.0008, PD −0.0002 / −0.0011, two seeds), a reading change
+    the v6 floor was not trained on; re-measure the unpinned mirror at the
+    next retrain, when it would also drop the always-built mirror book.
+  - Next in the lane: opener's continuation after a natural positive (the
+    worst boards of both ships are the floor's `2♣ - 2♥ - 4♠ - 6NT`), BBA's
+    looser positives (7+, any five-card suit), opener's game-in-hand jump
+    rebids, opener's 28+ balanced rebid (falls to the `2NT` fallback), the
+    contested tail (289 rows, −0.6k / −0.8k).
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN
@@ -313,6 +356,10 @@ group waits on that decision, the second group does not.
 
 **Retrain-gated (deferred):**
 
+- Re-measure `strong_two_waiting` with the reading mirror unpinned (their
+  `2♣ - 2♦` decoded as waiting, as BBA plays it): lost on the v6 floor
+  (item 2, the strong `2♣` lane); a win after the retrain would also retire
+  the mirror book every default build now carries.
 - Re-arbitrate the five shipped floor rails against the new net — runners and
   rule in [floor-rail-campaign.md](floor-rail-campaign.md) (stop criterion 5).
 - `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling

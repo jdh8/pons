@@ -4291,6 +4291,9 @@ fn opener_forced_past_invitation(context: &Context<'_>) -> bool {
 /// (`2♥`) keeps open the option to stop short, while every other response — the
 /// waiting `2♦` or a natural positive — commits *both* partners to at least
 /// game.  So the force is read off responder's call, not off the 2♣ opening.
+/// Under [`strong_two_waiting`][crate::bidding::context::DecisionProfile::strong_two_waiting]
+/// the `2♦` waiting bid is the one that keeps stopping open — for responder,
+/// who may hold a bust; opener stays forced — and `2♥` is a positive.
 /// (Interference, where responder's seat holds a pass or double rather than a
 /// response, is out of scope and reads as not forced.)
 fn forcing_two_clubs_response(context: &Context<'_>) -> bool {
@@ -4306,10 +4309,20 @@ fn forcing_two_clubs_response(context: &Context<'_>) -> bool {
         return false;
     }
     // Responder sits two seats past the opening; the force is on once that
-    // answer is in and is any bid other than the double-negative 2♥.
+    // answer is in and is any bid other than the double-negative 2♥ — or,
+    // under `strong_two_waiting`, other than the 2♦ catch-all.
+    // Opener, who knows the side holds 22+, stays forced after the 2♦ wait.
+    let bust = if context.decision_profile().strong_two_waiting {
+        if (auction.len() - index).is_multiple_of(4) {
+            return matches!(auction.get(index + 2), Some(&Call::Bid(_)));
+        }
+        Bid::new(2, Strain::Diamonds)
+    } else {
+        Bid::new(2, Strain::Hearts)
+    };
     matches!(
         auction.get(index + 2),
-        Some(&Call::Bid(response)) if response != Bid::new(2, Strain::Hearts)
+        Some(&Call::Bid(response)) if response != bust
     )
 }
 

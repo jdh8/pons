@@ -54,10 +54,15 @@ fn weak_two_overcalled_double_is_values_and_ogust_survives() {
 fn strong_two_contested_stays_strong() {
     let mut arm = Agreements::default();
     arm.competition.strong_two_competition = true;
-    // `2♣ (X)`: systems on — a bust still gives the 2♥ double negative.
+    // `2♣ (X)`: systems on — a bust still waits with 2♦ (the double negative
+    // before `strong_two_waiting` shipped on).
     let doubled = [call(2, Strain::Clubs), Call::Double];
     let (negative, floored) = best_call_with(&arm, &doubled, "9542.Q54.964.432");
-    assert_eq!(negative, call(2, Strain::Hearts), "systems on over their X");
+    assert_eq!(
+        negative,
+        call(2, Strain::Diamonds),
+        "systems on over their X"
+    );
     assert!(!floored, "the rebase resolves to the authored tree");
     // `2♣ (2♠)`: a positive with good hearts bids them naturally (3♥ —
     // the 2-level is gone); a values hand without a suit doubles; a bust

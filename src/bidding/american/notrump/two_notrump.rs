@@ -15,8 +15,10 @@ use crate::bidding::rows::Entry;
 /// Responses to a 2NT-strength notrump (3-level Stayman/transfers, 4NT invite)
 ///
 /// Used after both the direct 2NT opening (20–21 balanced) and opener's 2NT
-/// rebid after 2♣ (22–24 balanced).
-fn two_notrump_responses(agreements: &Agreements) -> Rules {
+/// rebid after 2♣ (22–24 balanced).  `shift` lowers every HCP band by that
+/// much: 0 over the opening, 2 over the `2♣` rebid under
+/// `notrump.strong_two_notrump_floors`.
+fn two_notrump_responses(agreements: &Agreements, shift: u8) -> Rules {
     // The longer-major discipline (see `notrump.transfer_longer_major`): a
     // two-suiter transfers to the longer major, equal lengths to hearts —
     // there is no both-majors bid or slam reroute at this level, so hearts
@@ -55,28 +57,28 @@ fn two_notrump_responses(agreements: &Agreements) -> Rules {
         .rule(
             Bid::new(3, Strain::Clubs),
             150,
-            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(5..) & !flat_4333(),
+            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(5 - shift..) & !flat_4333(),
         )
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
             Bid::new(4, Strain::Notrump),
             120,
-            hcp(11..=12) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(11 - shift..=12 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // 3NT to play: game values, no major fit.
         .rule(
             Bid::new(3, Strain::Notrump),
             100,
-            hcp(5..=10) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(5 - shift..=10 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
-        .rule(Call::Pass, 0, hcp(..5));
+        .rule(Call::Pass, 0, hcp(..5 - shift));
     // 13–16 only: the table's 17+ hole is deliberate, the floor bids the
     // grand there (the A/B's two −13 boards were its 7NT overridden).
     if agreements.notrump.quantitative_six_notrump {
         rules.rule(
             Bid::new(6, Strain::Notrump),
             120,
-            hcp(13..=16) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(13 - shift..=16 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
     } else {
         rules
@@ -98,12 +100,17 @@ fn six_notrump(
 }
 
 /// Responder's quantitative pair once 2NT-strength Stayman finds no major
-/// (`2NT - 3♣ - 3♦`): the same `4NT` / `6NT` the direct responses carry
-fn quantitative_after_stayman_denial(agreements: &Agreements) -> Rules {
+/// (`2NT - 3♣ - 3♦`): the same `4NT` / `6NT` the direct responses carry,
+/// lowered by the same `shift`
+fn quantitative_after_stayman_denial(agreements: &Agreements, shift: u8) -> Rules {
     if agreements.notrump.quantitative_six_notrump {
         Rules::new()
-            .rule(Bid::new(4, Strain::Notrump), 120, hcp(11..=12))
-            .rule(Bid::new(6, Strain::Notrump), 120, hcp(13..))
+            .rule(
+                Bid::new(4, Strain::Notrump),
+                120,
+                hcp(11 - shift..=12 - shift),
+            )
+            .rule(Bid::new(6, Strain::Notrump), 120, hcp(13 - shift..))
     } else {
         Rules::new()
     }
@@ -350,6 +357,17 @@ pub(crate) fn two_notrump_structure() -> Package {
             let mut entries = Vec::new();
 
             for (base, accept_hcp) in bases {
+                // `2♣ - 2♥` is a positive, not the bust, under `strong_two_waiting`.
+                if agreements.decision.strong_two_waiting
+                    && base.get(1) == Some(&call(2, Strain::Hearts))
+                {
+                    continue;
+                }
+                let shift = if base.len() > 1 && agreements.notrump.strong_two_notrump_floors {
+                    2
+                } else {
+                    0
+                };
                 let prefix = core::iter::once("P*".to_owned())
                     .chain(base.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()
@@ -358,7 +376,7 @@ pub(crate) fn two_notrump_structure() -> Package {
                 // Responses to the 2NT bid.
                 entries.extend(rows_of(
                     Pattern::node(&prefix),
-                    two_notrump_responses(agreements),
+                    two_notrump_responses(agreements, shift),
                 ));
 
                 // Stayman answers and transfer completions at the three level.
@@ -395,7 +413,7 @@ pub(crate) fn two_notrump_structure() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend2(three_c, three_d)),
-                    quantitative_after_stayman_denial(agreements),
+                    quantitative_after_stayman_denial(agreements, shift),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend3(three_c, three_d, four_nt)),

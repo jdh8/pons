@@ -11,12 +11,18 @@ fn test_responses_to_two_clubs() {
     let system = partnership();
     let auction = &[call(2, Strain::Clubs), Call::Pass][..];
 
-    // 1 HCP — double negative (0–3 HCP).
+    // 1 HCP — waiting 2♦: no double negative since `strong_two_waiting`
+    // shipped on (2026-10-01).
     assert_eq!(
         best_call(&system, auction, "98532.J76.872.92"),
+        call(2, Strain::Diamonds),
+    );
+    // 10 HCP, five hearts to AKJ — natural positive 2♥.
+    assert_eq!(
+        best_call(&system, auction, "87.AKJ85.762.932"),
         call(2, Strain::Hearts),
     );
-    // 6 HCP — waiting 2♦ (4+ HCP, not strong enough for a positive).
+    // 6 HCP — waiting 2♦ (not strong enough for a positive).
     assert_eq!(
         best_call(&system, auction, "Q543.K76.872.J92"),
         call(2, Strain::Diamonds),

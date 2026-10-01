@@ -444,8 +444,11 @@ fn test_game_force_into_keycards() {
 
 #[test]
 fn test_strong_two_system_on_transfer() {
-    // `2♣ - 2♥ - 2NT`: after the double negative and 22–24 rebid, transfers stay on.
-    let system = partnership();
+    // `2♣ - 2♥ - 2NT`: after the double negative and 22–24 rebid, transfers
+    // stay on.  The pre-2026-10-01 structure (`strong_two_waiting` off).
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.decision.strong_two_waiting = false;
+    let system = pons::american(&agreements).bind();
     let p = Call::Pass;
     let auction = [
         call(2, Strain::Clubs),
@@ -504,4 +507,22 @@ fn test_competition_book_needs_binding() {
         )
         .is_none()
     );
+}
+
+#[test]
+fn test_strong_two_waiting_bust_stops_in_partscore() {
+    // `decision.strong_two_waiting` (default): no double negative, so a bust waits with
+    // `2♦`, transfers over the 22–24 `2NT`, and passes the completion.
+    let system = partnership();
+    let p = Call::Pass;
+    let bust = "832.J9842.962.43";
+    let mut auction = vec![call(2, Strain::Clubs), p];
+    for (next, opener) in [
+        (call(2, Strain::Diamonds), call(2, Strain::Notrump)),
+        (call(3, Strain::Diamonds), call(3, Strain::Hearts)),
+    ] {
+        assert_eq!(best_call(&system, &auction, bust), next);
+        auction.extend([next, p, opener, p]);
+    }
+    assert_eq!(best_call(&system, &auction, bust), p);
 }

@@ -334,6 +334,29 @@ pub struct DecisionProfile {
     /// gates on [`transfer_gf_heart_mirror`](Self::transfer_gf_heart_mirror),
     /// never on this field.
     pub transfer_gf_hearts: bool,
+    /// `2♦` waiting replaces the `2♥` double negative over our strong `2♣`
+    ///
+    /// **Default on (shipped 2026-10-01).**  Off, `2♣ - 2♥` is the 0–3 HCP double negative and
+    /// `2♦` (4+) commits both hands to game.  On, BBA's structure: `2♦` is the
+    /// waiting catch-all on any strength, `2♥` a natural positive like `2♠`,
+    /// and over opener's suit rebid a 0–3 hand passes (raising a major to game
+    /// with three-card support), so `2♣ - 2♦` no longer forces game.  Dual
+    /// read: the book swaps the response table and drops the bust subtrees;
+    /// the floor's strong-`2♣` force (`Interpretation::forced_to_game`) fires
+    /// only on a positive.  The 2026-09-30 anchor prices our double negative
+    /// against BBA's `2♦` at 680 rows, −1.7k plain / −1.2k PD per 409,600
+    /// boards, and the missing heart positive at 169 rows, −0.5k / −0.5k
+    /// (docs/next-steps.md item 2, the strong `2♣` lane).
+    ///
+    /// Ours alone: `common::mirror_agreements` pins it off, so an undeclared
+    /// opponent's `2♣` still decodes as the double negative — which makes the
+    /// mirror book non-`None` on every default build (~80 ms per bind).
+    /// Vs BBA (`scripts/ab-strong-two-waiting.sh`, two seeds, 409,600
+    /// boards/vul): plain +0.0007 ±0.0006 / +0.0013 ±0.0007, PD +0.0004
+    /// ±0.0006 / +0.0011 ±0.0008 IMPs/board (none / both).  Without the
+    /// reset, decoding their `2♣` the same way, it pooled plain −0.0005 /
+    /// −0.0008 and PD −0.0002 / −0.0011.
+    pub strong_two_waiting: bool,
 }
 
 impl DecisionProfile {
@@ -360,6 +383,7 @@ impl Default for DecisionProfile {
             stayman_net_force: false,
             transfer_gf_majors: true,
             transfer_gf_hearts: true,
+            strong_two_waiting: true,
         }
     }
 }

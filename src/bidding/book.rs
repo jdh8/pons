@@ -1175,7 +1175,7 @@ impl Partnership {
         let vacuous = self.agreements.decision.reading.probed_vacuous;
         self.profile_mut().reading.probed = false;
         let first = boxed(harvest(self));
-        self.probed = first;
+        self.set_probed(first);
         self.profile_mut().reading.probed = !vacuous;
         let second = boxed(harvest(self));
         self.profile_mut().reading.probed = was;
@@ -1189,12 +1189,29 @@ impl Partnership {
                 .keys()
                 .filter(|key| !second.contains_key(*key))
                 .count();
-        self.probed = second;
+        self.set_probed(second);
         self.invalidate_cache_identity();
         ProbeReport {
             keys: self.probed.len(),
             drifted,
         }
+    }
+
+    /// Store a probed map, sharing it with an undeclared mirror book
+    ///
+    /// The probe measures our own behavior, which a mirror plays too: their
+    /// calls decode through [`opponents`][Self::opponents], so without the copy
+    /// a mirror would read no probed box at all.  A declared foreign card
+    /// keeps its own (empty) map, as before.
+    fn set_probed(&mut self, probed: HashMap<Vec<Call>, Envelope>) {
+        if !self.opponents_declared
+            && let Some(mirror) = self.opponents.as_mut()
+        {
+            let mirror = Arc::make_mut(mirror);
+            mirror.probed.clone_from(&probed);
+            mirror.invalidate_cache_identity();
+        }
+        self.probed = probed;
     }
 
     /// The sample floor under which a key stores nothing

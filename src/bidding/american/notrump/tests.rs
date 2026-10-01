@@ -418,3 +418,25 @@ fn rebid_checkback_over_two_notrump() {
     assert_eq!(best_with(&on, &spades, "KT94.A2.AK5.AQ73"), bid(4, s));
     assert_eq!(best_with(&on, &spades, "KT9.A32.AK5.AQ73"), bid(3, nt));
 }
+
+/// `notrump.strong_two_notrump_floors`: over the 22–24 `2NT` rebid after
+/// `2♣`, a 3–4 count drives (Stayman with a major, `3NT` without) where the
+/// opening's bands pass; the direct `2NT` opening keeps its bands.
+#[test]
+fn strong_two_notrump_floors_lower_the_bands() {
+    let on = crate::bidding::agreements::Agreements::default();
+    let mut off = on;
+    off.notrump.strong_two_notrump_floors = false;
+    let (nt, c, d) = (Strain::Notrump, Strain::Clubs, Strain::Diamonds);
+    let rebid = [bid(2, c), P, bid(2, d), P, bid(2, nt), P];
+    // 4 HCP, four hearts: Stayman on, pass off.
+    assert_eq!(best_with(&on, &rebid, "T3.Q854.Q432.932"), bid(3, c));
+    assert_eq!(best_with(&off, &rebid, "T3.Q854.Q432.932"), P);
+    // 3 HCP, no major: 3NT on, pass off.
+    assert_eq!(best_with(&on, &rebid, "T32.Q85.J432.932"), bid(3, nt));
+    assert_eq!(best_with(&off, &rebid, "T32.Q85.J432.932"), P);
+    // 2 HCP still passes.
+    assert_eq!(best_with(&on, &rebid, "T32.985.Q432.932"), P);
+    // The direct opening is untouched.
+    assert_eq!(best_with(&on, &[bid(2, nt), P], "T32.Q85.J432.932"), P);
+}

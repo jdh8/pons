@@ -1025,6 +1025,7 @@ knob!(set_stayman_cue_continuation, stayman_cue_continuation, notrump.stayman_cu
 knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_slam_try: bool);
 knob!(set_quantitative_six_notrump, quantitative_six_notrump, notrump.quantitative_six_notrump: bool);
 knob!(set_rebid_checkback, rebid_checkback, notrump.rebid_checkback: bool);
+knob!(set_strong_two_notrump_floors, strong_two_notrump_floors, notrump.strong_two_notrump_floors: bool);
 knob!(set_splinter_doubled, splinter_doubled, competition.splinter_doubled: bool);
 knob!(set_uvu, uvu, competition.uvu: bool);
 knob!(set_uvu_over_majors, uvu_over_majors, competition.uvu_over_majors: bool);
@@ -1083,6 +1084,7 @@ knob!(set_control_bid, control_bid, decision.reading.control_bid: bool);
 knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
 knob!(set_transfer_gf_majors, transfer_gf_majors, decision.transfer_gf_majors: bool);
 knob!(set_transfer_gf_hearts, transfer_gf_hearts, decision.transfer_gf_hearts: bool);
+knob!(set_strong_two_waiting, strong_two_waiting, decision.strong_two_waiting: bool);
 knob!(set_two_over_one_force, two_over_one_force, decision.two_over_one_force: bool);
 knob!(set_one_nt_runout, one_nt_runout, decision.instinct.one_nt_runout: bool);
 knob!(set_one_nt_runout_universal, one_nt_runout_universal, decision.instinct.one_nt_runout_universal: bool);
@@ -1547,6 +1549,7 @@ static SETTINGS: &[Setting] = &[
     toggle("stayman_minor_slam_try", NOTRUMP, "", true, set_stayman_minor_slam_try, stayman_minor_slam_try),
     toggle("quantitative_six_notrump", NOTRUMP, "direct 6NT above each quantitative 4NT", true, set_quantitative_six_notrump, quantitative_six_notrump),
     toggle("rebid_checkback", NOTRUMP, "checkback and forcing 3M over the 18–19 2NT rebid", true, set_rebid_checkback, rebid_checkback),
+    toggle("strong_two_notrump_floors", NOTRUMP, "responder's bands two lower over the 22–24 2NT after 2♣", true, set_strong_two_notrump_floors, strong_two_notrump_floors),
     toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, set_nt_splinter, nt_splinter),
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),
@@ -1633,6 +1636,7 @@ static SETTINGS: &[Setting] = &[
     // was inert on two of its six cells.
     Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice, get: get_rkcb_variant_choice },
     toggle("two_over_one_force", FLOOR, "2/1 forces game", true, set_two_over_one_force, two_over_one_force),
+    toggle("strong_two_waiting", REBIDS, "2♦ waiting replaces the 2♥ double negative over 2♣", true, set_strong_two_waiting, strong_two_waiting),
     gated("penalize_escape_stack", FLOOR, "", true, set_penalize_escape_stack, penalize_escape_stack, "one_nt_runout"),
     gated("penalize_escape_values", FLOOR, "", true, set_penalize_escape_values, penalize_escape_values, "one_nt_runout"),
     gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),

@@ -920,6 +920,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rebid_checkback: bool,
 
+    /// Keep the `2NT`-opening bands over the 22–24 `2NT` rebid after `2♣`
+    /// (`notrump.strong_two_notrump_floors`, **shipped default-on
+    /// 2026-10-01**: Stayman on 3+, `3NT` on 3–8, pass below 3; this is the
+    /// disarming flag and the control arm of `scripts/ab-strong-two-notrump.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_strong_two_notrump_floors: bool,
+
     /// Give opener a **notrump out** over the K–K doubler's natural other
     /// major (`1NT (2♦) X (2♥) - - 2♠ -`)
     ///
@@ -1234,6 +1241,14 @@ struct Args {
     /// GF-majors structure).
     #[arg(long, default_value_t = false)]
     no_ns_transfer_gf_hearts: bool,
+
+    /// Keep the `2♥` double negative over our strong `2♣`
+    /// (`DecisionProfile::strong_two_waiting`, **shipped default-on
+    /// 2026-10-01**: `2♦` waits on any strength, `2♥` is a natural positive;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-strong-two-waiting.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_strong_two_waiting: bool,
 
     /// Disable responder's post-transfer single-suited slam try (`1NT - 2♦ - 2♥ - 3♠` /
     /// `1NT - 2♥ - 2♠ - 3♥`, a 5-card-major RKCB slam try); on by default.
@@ -2440,6 +2455,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })?;
     agreements.decision.transfer_gf_majors = !args.no_ns_transfer_gf_majors;
     agreements.decision.transfer_gf_hearts = !args.no_ns_transfer_gf_hearts;
+    agreements.decision.strong_two_waiting = !args.no_ns_strong_two_waiting;
     agreements.defense.suppress_flat_4333_takeout = !args.no_ns_suppress_flat_4333_takeout;
     agreements.defense.suppress_5332_takeout = !args.no_ns_suppress_5332_takeout;
     agreements.defense.suppress_4432_vs_major = args.ns_suppress_4432_vs_major;
@@ -2677,6 +2693,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
+    agreements.notrump.strong_two_notrump_floors = !args.no_ns_strong_two_notrump_floors;
     agreements.competition.multi_doubler_notrump = !args.no_ns_multi_doubler_notrump;
     agreements.competition.multi_doubler_minimum_notrump =
         !args.no_ns_multi_doubler_minimum_notrump;
@@ -3046,6 +3063,7 @@ fn main() -> anyhow::Result<()> {
                 ambient.decision.two_over_one_force = armed.decision.two_over_one_force;
                 ambient.decision.transfer_gf_majors = armed.decision.transfer_gf_majors;
                 ambient.decision.transfer_gf_hearts = armed.decision.transfer_gf_hearts;
+                ambient.decision.strong_two_waiting = armed.decision.strong_two_waiting;
                 ambient.competition = armed.competition;
                 ambient.defense = armed.defense;
                 ambient.instinct = armed.instinct;

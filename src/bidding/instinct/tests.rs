@@ -2783,6 +2783,9 @@ fn double_negative_two_clubs_may_pass() {
     // 2♣ - 2♥ is the double negative (0–3 HCP); after opener's 2NT the
     // partnership may still stop, so a yarborough passes off-book — the
     // forcing-2♣ floor must not fire once responder has shown the bust.
+    // The pre-2026-10-01 structure: `strong_two_waiting` off.
+    let mut agreements = Agreements::default();
+    agreements.decision.strong_two_waiting = false;
     let auction = [
         call(2, Strain::Clubs),
         Call::Pass,
@@ -2791,7 +2794,10 @@ fn double_negative_two_clubs_may_pass() {
         call(2, Strain::Notrump),
         Call::Pass,
     ];
-    assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
+    assert_eq!(
+        best_with(&agreements, &auction, "8632.J9842.96.42"),
+        Call::Pass
+    );
 }
 
 #[test]

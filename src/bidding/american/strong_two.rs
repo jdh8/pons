@@ -5,7 +5,10 @@
 //! constructive book:
 //!
 //! - **Responses** to 2♣: 2♦ waiting, 2♥ double negative (0–3 HCP),
-//!   and natural positives with a good five-card suit.
+//!   and natural positives with a good five-card suit.  Under
+//!   [`strong_two_waiting`][crate::bidding::context::DecisionProfile::strong_two_waiting]
+//!   there is no double negative: 2♦ waits on any strength, 2♥ is a positive,
+//!   and a 0–3 responder passes opener's suit rebid.
 //! - **Opener's rebid** after 2♦ waiting or the 2♥ double negative.
 //! - **Responder continuations** after each of opener's suit rebids.
 //! - **Opener's decision** after the major or minor raise, including a
@@ -22,6 +25,9 @@ use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
+#[cfg(test)]
+mod tests;
+
 // ---------------------------------------------------------------------------
 // Response tables
 // ---------------------------------------------------------------------------
@@ -35,12 +41,23 @@ const DOUBLE_NEGATIVE: Alert = Alert("strong-2c:negative");
 /// The auction is forcing — there is no [`Call::Pass`] rule.  2♦ is
 /// the waiting bid (a catch-all for weaker hands); 2♥ is the double
 /// negative showing 0–3 HCP; the remaining options are natural positives
-/// with a good five-card suit.
-fn responses() -> Rules {
-    Rules::new()
+/// with a good five-card suit.  `waiting` (`strong_two_waiting`) drops the
+/// double negative: 2♥ is the heart positive and 2♦ the catch-all on 0+.
+fn responses(waiting: bool) -> Rules {
+    let rules = if waiting {
+        // 2♥: natural positive — five hearts to two of the top three honors.
+        Rules::new().rule(
+            Bid::new(2, Strain::Hearts),
+            150,
+            len(Suit::Hearts, 5..) & top_honors(Suit::Hearts, 2..) & points(8..),
+        )
+    } else {
         // 2♥: double negative — 0–3 HCP.
-        .rule(Bid::new(2, Strain::Hearts), 200, hcp(0..=3))
-        .alert(DOUBLE_NEGATIVE)
+        Rules::new()
+            .rule(Bid::new(2, Strain::Hearts), 200, hcp(0..=3))
+            .alert(DOUBLE_NEGATIVE)
+    };
+    rules
         // 2♠: natural positive — five spades to two of the top three honors.
         .rule(
             Bid::new(2, Strain::Spades),
@@ -61,8 +78,13 @@ fn responses() -> Rules {
         )
         // 2NT: balanced positive — 8+ HCP, balanced shape.
         .rule(Bid::new(2, Strain::Notrump), 130, hcp(8..) & balanced())
-        // 2♦: waiting catch-all — 4+ HCP (not strong enough for a positive).
-        .rule(Bid::new(2, Strain::Diamonds), 50, hcp(4..))
+        // 2♦: waiting catch-all — 4+ HCP (not strong enough for a positive),
+        // any strength without the double negative.
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            50,
+            hcp(if waiting { 0 } else { 4 }..),
+        )
         .alert(WAITING)
 }
 
@@ -70,9 +92,11 @@ fn responses() -> Rules {
 ///
 /// Forcing — no [`Call::Pass`] rule.  Opener describes shape and Fifths
 /// range; 2NT is used for a 22–24 balanced minimum and 3NT for 25–27.
-/// A 2NT fallback catches any 22+ hand that has no natural rebid.
-fn opener_rebid_after_waiting() -> Rules {
-    Rules::new()
+/// A 2NT fallback catches any 22+ hand that has no natural rebid; under
+/// `waiting` it catches every hand (a 2♣ opened on points can fall short of
+/// 22 Fifths), since the floor may now pass a 2♦ that no longer forces game.
+fn opener_rebid_after_waiting(waiting: bool) -> Rules {
+    let rules = Rules::new()
         // 2♠: five or more spades.
         .rule(Bid::new(2, Strain::Spades), 155, len(Suit::Spades, 5..))
         // 2♥: five or more hearts.
@@ -94,7 +118,12 @@ fn opener_rebid_after_waiting() -> Rules {
         // 3♦: five or more diamonds.
         .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 5..))
         // 2NT fallback: guaranteed legal for any 22+ hand.
-        .rule(Bid::new(2, Strain::Notrump), 20, fifths(22.0..))
+        .rule(Bid::new(2, Strain::Notrump), 20, fifths(22.0..));
+    if waiting {
+        rules.rule(Bid::new(2, Strain::Notrump), 10, hcp(0..))
+    } else {
+        rules
+    }
 }
 
 /// Opener's rebid after `2♣ - 2♥ -` (at `&[2♣, 2♥]`)
@@ -134,42 +163,37 @@ fn opener_rebid_after_negative() -> Rules {
 
 /// Responder after `2♣ - 2♦ - 2♥ -` (at `&[2♣, 2♦, 2♥]`)
 ///
-/// Raise hearts with three-card support; retreat to 2NT otherwise.
-fn resp_after_waiting_hearts() -> Rules {
-    Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 150, support(3..))
-        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
+/// Raise the major with three-card support; retreat to 2NT otherwise.  Under
+/// `waiting` the 2♦ may be a bust: 0–3 HCP jumps to game with the support
+/// (BBA's weak fast arrival) and passes without it.
+fn resp_after_waiting_major(major: Suit, waiting: bool) -> Rules {
+    let (three, four) = (Bid::new(3, major.into()), Bid::new(4, major.into()));
+    if waiting {
+        Rules::new()
+            .rule(three, 150, support(3..) & hcp(4..))
+            .rule(four, 150, support(3..) & hcp(..=3))
+            .rule(Bid::new(2, Strain::Notrump), 50, hcp(4..))
+            .rule(Call::Pass, 0, hcp(..=3))
+    } else {
+        Rules::new()
+            .rule(three, 150, support(3..))
+            .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
+    }
 }
 
-/// Responder after `2♣ - 2♦ - 2♠ -` (at `&[2♣, 2♦, 2♠]`)
+/// Responder after `2♣ - 2♦ - 3m -` (at `&[2♣, 2♦, 3m]`)
 ///
-/// Raise spades with three-card support; retreat to 2NT otherwise.
-fn resp_after_waiting_spades() -> Rules {
-    Rules::new()
-        .rule(Bid::new(3, Strain::Spades), 150, support(3..))
-        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
-}
-
-/// Responder after `2♣ - 2♦ - 3♣ -` (at `&[2♣, 2♦, 3♣]`)
-///
-/// Raise clubs with four-card support and values; bid 3NT otherwise.
-fn resp_after_waiting_clubs() -> Rules {
-    Rules::new()
-        .rule(Bid::new(4, Strain::Clubs), 120, support(4..) & points(4..))
-        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
-}
-
-/// Responder after `2♣ - 2♦ - 3♦ -` (at `&[2♣, 2♦, 3♦]`)
-///
-/// Raise diamonds with four-card support and values; bid 3NT otherwise.
-fn resp_after_waiting_diamonds() -> Rules {
-    Rules::new()
-        .rule(
-            Bid::new(4, Strain::Diamonds),
-            120,
-            support(4..) & points(4..),
-        )
-        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
+/// Raise the minor with four-card support and values; bid 3NT otherwise.
+/// Under `waiting` a 0–3 hand without the raise passes.
+fn resp_after_waiting_minor(minor: Suit, waiting: bool) -> Rules {
+    let rules = Rules::new().rule(Bid::new(4, minor.into()), 120, support(4..) & points(4..));
+    if waiting {
+        rules
+            .rule(Bid::new(3, Strain::Notrump), 50, hcp(4..))
+            .rule(Call::Pass, 0, hcp(..=3))
+    } else {
+        rules.rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -263,53 +287,47 @@ pub(super) fn package() -> Package {
         name: "strong-two-continuations",
         gate: |_| true,
         entries: |agreements| {
+            let waiting = agreements.decision.strong_two_waiting;
             // Responses to 2♣ and opener's first rebid.
-            let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses());
+            let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses(waiting));
             entries.extend(rows_of(
                 Pattern::node("P* 2♣ - 2♦ -"),
-                opener_rebid_after_waiting(),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♥ -"),
-                opener_rebid_after_negative(),
+                opener_rebid_after_waiting(waiting),
             ));
 
             // Responder continuations after opener's waiting-sequence rebid.
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♦ - 2♥ -"),
-                resp_after_waiting_hearts(),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♦ - 2♠ -"),
-                resp_after_waiting_spades(),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♦ - 3♣ -"),
-                resp_after_waiting_clubs(),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♦ - 3♦ -"),
-                resp_after_waiting_diamonds(),
-            ));
+            for (rebid, suit) in [("2♥", Suit::Hearts), ("2♠", Suit::Spades)] {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* 2♣ - 2♦ - {rebid} -")),
+                    resp_after_waiting_major(suit, waiting),
+                ));
+            }
+            for (rebid, suit) in [("3♣", Suit::Clubs), ("3♦", Suit::Diamonds)] {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* 2♣ - 2♦ - {rebid} -")),
+                    resp_after_waiting_minor(suit, waiting),
+                ));
+            }
 
-            // Responder continuations after opener's double-negative rebid.
-            // Raise to the cheapest level; pass without support.
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♥ - 2♠ -"),
-                resp_after_negative_suit(Bid::new(3, Strain::Spades)),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♥ - 3♣ -"),
-                resp_after_negative_suit(Bid::new(4, Strain::Clubs)),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♥ - 3♦ -"),
-                resp_after_negative_suit(Bid::new(4, Strain::Diamonds)),
-            ));
-            entries.extend(rows_of(
-                Pattern::node("P* 2♣ - 2♥ - 3♥ -"),
-                resp_after_negative_suit(Bid::new(4, Strain::Hearts)),
-            ));
+            // The double-negative subtree: opener's rebid, then responder
+            // raises to the cheapest level or passes without support.
+            if !waiting {
+                entries.extend(rows_of(
+                    Pattern::node("P* 2♣ - 2♥ -"),
+                    opener_rebid_after_negative(),
+                ));
+                for (rebid, raise) in [
+                    ("2♠", Bid::new(3, Strain::Spades)),
+                    ("3♣", Bid::new(4, Strain::Clubs)),
+                    ("3♦", Bid::new(4, Strain::Diamonds)),
+                    ("3♥", Bid::new(4, Strain::Hearts)),
+                ] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* 2♣ - 2♥ - {rebid} -")),
+                        resp_after_negative_suit(raise),
+                    ));
+                }
+            }
 
             // Opener after responder's major raise, followed by the authored
             // RKCB answer ladders.

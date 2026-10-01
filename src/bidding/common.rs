@@ -164,10 +164,11 @@ pub(in crate::bidding) fn with_instinct_floor(system: System, agreements: &Agree
 
 /// The agreements a [mirror book][crate::bidding::book::System::opponents] is
 /// built from — ours with the opponents' disclosures cleared and our opt-in
-/// Watermelon overlays reset
+/// Watermelon overlays reset and the `2♦`-waiting structure pinned off
 ///
-/// [`None`] when nothing is declared and no overlay is on, in which case the
-/// mirror would be a second copy of the same books and is not built at all.
+/// [`None`] when nothing is declared, no overlay is on and `2♦` waiting is off,
+/// in which case the mirror would be a second copy of the same books and is
+/// not built at all.
 pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<Agreements> {
     let mut mirror = *agreements;
     mirror.decision.their = TheirDisclosures::default();
@@ -179,5 +180,13 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.opening.wide_one_club = opening.wide_one_club;
     mirror.opening.multi_two_diamonds = opening.multi_two_diamonds;
     mirror.rebid.odwrotka = rebid.odwrotka;
+    // Our `2♦`-waiting structure over 2♣ is pinned *off* in the mirror: an
+    // undeclared opponent's `2♣ - 2♦` decodes as the double-negative
+    // structure, so the knob moves only boards we open.  Measured
+    // (`scripts/ab-strong-two-waiting.sh`): decoding their 2♣ as waiting too
+    // costs ~0.002 IMPs/board under the v6 floor, though BBA does wait with
+    // 2♦.  Since the knob ships on, this builds a mirror on every default
+    // build; deleting the line is the reversal.
+    mirror.decision.strong_two_waiting = false;
     (mirror != *agreements).then_some(mirror)
 }

@@ -412,7 +412,8 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     // The mirror book: their calls decode in our system with the
     // opponents' disclosures cleared, which are facts about *our* opponents
     // and would otherwise be asserted about theirs — us — once the auction is
-    // rebased.  `None` on every default build.
+    // rebased.  Built on every default build since `strong_two_waiting`
+    // shipped on (the mirror reads their 2♣ as the double negative).
     match super::common::mirror_agreements(&agreements) {
         Some(mirror) => system.with_mirror(book(&mirror)),
         None => system,
