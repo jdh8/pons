@@ -3861,6 +3861,21 @@ pub struct ResponseKnobs {
     /// default, and reads ours through the `Reverse drury` card row (id 126)
     /// exactly as authored: `2♣` 9–11 with 3+, `2♦!` 12–14, `2M` 11–12.
     pub drury: bool,
+    /// Opener's **splinters** over Reverse Drury: after `- - 1M - 2♣! -`, a
+    /// jump in a new suit (`3♦`, the other major at the three level, `4♣`)
+    /// shows a singleton or void there and 16–20 support points (21+ keeps `4NT`)
+    ///
+    /// **Default on (shipped 2026-10-01)**; `--no-ns-drury-splinters` in
+    /// `bba-gen` for the off arm.  Needs [`drury`][Self::drury].  Outranks the `4M` / `4NT` rungs on a short
+    /// hand.  Responder bids `4M`, or the next step (not the trump suit) with
+    /// no king, queen or jack in the short suit and 10+ HCP; over that opener asks `4NT`
+    /// on 19+.  Their double of the splinter or the step is systems on.
+    ///
+    /// Vs BBA (`scripts/ab-drury-splinters.sh`, 204,800 boards/arm/vul per
+    /// seed), pooled over two seeds (409,600 boards/vul): plain +0.0004
+    /// ±0.0004 / +0.0006 ±0.0006, PD +0.0005 ±0.0004 / +0.0007 ±0.0006
+    /// IMPs/board (none / both), all eight per-seed cells non-negative.
+    pub drury_splinters: bool,
 }
 
 impl Default for ResponseKnobs {
@@ -3876,6 +3891,7 @@ impl Default for ResponseKnobs {
             major_game_tries: true,
             limit_raise_acceptance: true,
             drury: true,
+            drury_splinters: true,
         }
     }
 }

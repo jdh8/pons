@@ -23,6 +23,8 @@ comp:value-redouble 16
 completion 696
 drury 4
 drury-relay 4
+drury-splinter 12
+drury-splinter-interest 12
 floor:rkcb 77
 forcing-nt-3nt-long-major 8
 forcing-nt-five-five-invite 12
@@ -41,7 +43,7 @@ opener-reverse 20
 puppet 80
 rebid-checkback 16
 responsive-double 32
-rkcb 21338
+rkcb 21680
 shortness 24
 slam-try 80
 smolen 120
@@ -79,7 +81,7 @@ comp:multi-penalty 0 -> 24
 comp:multi-takeout 0 -> 12
 comp:stayman 8 -> 4
 completion 696 -> 692
-rkcb 21338 -> 22166
+rkcb 21680 -> 22508
 smolen 120 -> 112
 texas 80 -> 88
 
@@ -99,5 +101,5 @@ comp:multi-takeout 8 -> 12
 comp:multi-values 4 -> 0
 comp:stayman 8 -> 4
 completion 696 -> 692
-rkcb 21874 -> 22166
+rkcb 22216 -> 22508
 smolen 120 -> 112

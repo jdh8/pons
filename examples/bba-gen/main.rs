@@ -805,6 +805,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_drury: bool,
 
+    /// Withhold opener's splinters over Reverse Drury
+    /// (`response.drury_splinters`, **shipped default-on 2026-10-01**; the
+    /// control arm of `scripts/ab-drury-splinters.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_drury_splinters: bool,
+
     /// Disable the three-card-minor rebid over the forcing `1NT` — a 5-3-3-2
     /// rebids its five-card major again (shipped default-on; see
     /// `ReadingProfile::forcing_nt_three_card_minor`).
@@ -2886,6 +2892,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })?),
     };
     agreements.response.drury = !args.no_ns_drury;
+    agreements.response.drury_splinters = !args.no_ns_drury_splinters;
     agreements.decision.reading.forcing_nt_three_card_minor =
         !args.no_ns_forcing_nt_three_card_minor;
     agreements.response.up_the_line = !args.no_ns_up_the_line;

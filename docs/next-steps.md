@@ -24,8 +24,9 @@ criterion 5). **Item 2 is now the top candidate.**
 ## 2. RKCB / slam accuracy (Constructive / book / round-2)
 
 **Biggest unworked pool on both references. The passed-hand lane is done
-(opener's pass shipped 2026-09-30, Reverse Drury shipped 2026-10-01, below);
-next: BBA's strong rungs over Drury and its passed-hand `2NT`.**
+(opener's pass shipped 2026-09-30, Reverse Drury and opener's splinters over
+it shipped 2026-10-01, below); BBA's other rungs and its passed-hand `2NT`
+priced and left alone.**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -58,11 +59,18 @@ next: BBA's strong rungs over Drury and its passed-hand `2NT`.**
     / +0.0024, PD +0.0010 / +0.0020 (none / both); pooled four seeds plain
     +0.0010 ±0.0006 / +0.0019 ±0.0009, PD +0.0007 ±0.0007 / +0.0017 ±0.0010
     (`scripts/ab-drury.sh`, CHANGELOG).  We play the reverse form; BBA reads
-    it off the `Reverse drury` card row and plays the original itself.  Not
-    authored: BBA's natural strong rungs over the raise (`2♥` over `1♠`
-    with four hearts, `2NT`, three-level new suits, splinters) — the next
-    lever in this lane, with BBA's passed-hand `2NT` (176 rows) still to
-    look up.
+    it off the `Reverse drury` card row and plays the original itself.  **Opener's
+    splinters over it shipped default-on 2026-10-01** as
+    `response.drury_splinters` (`3♦` / other major / `4♣`, 16–20 support
+    points; responder's no-waste step, opener's `4NT` on 19+): pooled two
+    seeds plain +0.0004 ±0.0004 / +0.0006 ±0.0006, PD +0.0005 ±0.0004 /
+    +0.0007 ±0.0006 (`scripts/ab-drury-splinters.sh`, CHANGELOG).  Priced off
+    the Drury dumps and **not authored**: BBA's natural `2♥` over `1♠` and
+    its minimum `2♠` lose to our ladder; its `2NT` / `3♣` / `3NT` rungs are
+    small and noisy.  BBA's passed-hand `2NT` is its floor's natural
+    11-count, not a convention: uncontested ceiling ≈ +50 IMPs per 204,800
+    boards, the rest BBA's own defenders misdefending a `2NT`.  The lane is
+    closed.
 
   Order: the opener's pass first (self-contained, shipped), Drury second. The slam
   share is still thin — missed-slam 961 rows −11.4k, missed-grand 176 rows

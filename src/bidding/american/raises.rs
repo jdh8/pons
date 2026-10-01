@@ -31,7 +31,7 @@ mod limit_raise;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
-pub(super) use drury::{DRURY, drury_continuations};
+pub(super) use drury::{DRURY, drury_continuations, drury_splinters};
 pub(super) use game_try::major_game_try_continuations;
 pub(super) use jacoby::jacoby_continuations;
 pub(super) use limit_raise::limit_raise_acceptance_continuations;

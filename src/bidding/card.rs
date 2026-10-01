@@ -551,6 +551,10 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // Reverse Drury (`response.drury`): a passed hand's `2♣!` limit raise,
         // `2♦!` the full opening, `2M` the minimum — BBA reads all three off
         // this row.  The original (`Drury`, `2♦!` = minimum) is never ours.
+        // Opener's splinters over it (`response.drury_splinters`) have no row:
+        // under this one and `Splinter` BBA's book already reads `3♦`, the
+        // other major and `4♣` as splinters (walked 2026-10-01); responder's
+        // interest step it does not describe.
         "Reverse drury" => i32::from(a.response.drury),
         "Drury" => 0,
 

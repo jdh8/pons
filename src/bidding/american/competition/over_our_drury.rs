@@ -7,6 +7,10 @@
 //! Their overcall gets a small natural ladder for opener; responder's
 //! continuation is the floor's, which reads `2♣!` as three-plus trumps and
 //! 10+ support points.
+//!
+//! Under `response.drury_splinters`, their double of opener's splinter or of
+//! responder's interest step is systems on as well, and their overcall of
+//! the splinter leaves responder bidding the game the splinter forced.
 
 use super::*;
 use crate::bidding::constraint::support_points;
@@ -37,7 +41,7 @@ pub(super) fn competition_over_drury_package() -> Package {
     Package {
         name: "competition-over-drury",
         gate: |agreements| agreements.response.drury,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for seat in ["- -", "- - -"] {
                 for major in [Suit::Hearts, Suit::Spades] {
@@ -54,6 +58,32 @@ pub(super) fn competition_over_drury_package() -> Package {
                         Pattern::up_to(&key, "3♠"),
                         drury_overcalled_opener(major),
                     ));
+                    if agreements.response.drury_splinters {
+                        let game = Bid::new(4, Strain::from(major));
+                        for (_, jump, step) in
+                            crate::bidding::american::raises::drury_splinters(major)
+                        {
+                            let jumped = format!("{key} - {}", Call::Bid(jump));
+                            entries.push(rebase(
+                                Pattern::first(&jumped, "X"),
+                                ReplaceNext(Call::Pass),
+                            ));
+                            entries.push(rebase(
+                                Pattern::first(&format!("{jumped} - {}", Call::Bid(step)), "X"),
+                                ReplaceNext(Call::Pass),
+                            ));
+                            // Below our game only: 4♦ over hearts, 4♥ over spades.
+                            let below = if major == Suit::Hearts {
+                                "4♦"
+                            } else {
+                                "4♥"
+                            };
+                            entries.extend(rows_of(
+                                Pattern::up_to(&jumped, below),
+                                Rules::new().rule(game, 100, hcp(0..)),
+                            ));
+                        }
+                    }
                 }
             }
             entries

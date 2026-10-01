@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's splinters over Reverse Drury, shipped default-on (2026-10-01)**
+  — `response.drury_splinters` (`--no-ns-drury-splinters` in `bba-gen` for
+  the control arm).  After `- - 1M - 2♣! -` a jump in a new suit — `3♦`,
+  the other major at the three level, `4♣` — is a singleton or void there
+  with 16–20 support points, outranking the `4M` and `4NT` rungs; 21+ keeps
+  the direct `4NT`.  Responder bids `4M`, or the next step (never the trump
+  suit: `3♥`/`3♠` over `3♦`, `3NT` over the major, `4♦` over `4♣`) with no
+  king, queen or jack in the short suit and 10+ HCP; over the step opener
+  asks `4NT` RKCB on 19+ support points, else bids `4M`.  Their double of
+  the splinter or the step is systems on; their overcall of the splinter
+  below our game leaves responder bidding it.  Measured on
+  `scripts/ab-drury-splinters.sh` vs BBA, 204,800 boards/arm/vul per seed:
+  run 2 (seed 1790806037) plain +0.0008 ±0.0005 / +0.0010 ±0.0007, PD
+  +0.0009 ±0.0005 / +0.0012 ±0.0008 IMPs/board (none / both), 38 / 54
+  fired; the confirmation run 3 (seed 1790806590) plain +0.0000 / +0.0002,
+  PD +0.0001 / +0.0003, 64 / 77 fired; pooled (409,600 boards/vul) plain
+  +0.0004 ±0.0004 / +0.0006 ±0.0006, PD +0.0005 ±0.0004 / +0.0007 ±0.0006,
+  all eight cells non-negative.  The gains are the old `4NT` on 19–20
+  support points with shortness, which reached a failing five level or
+  slam off a wasted honor opposite the void.  Run 1 (seed 1790805316) was a
+  wash (plain −0.0003 / −0.0001): responder's step barred the ace in the
+  short suit, and the splinter had no ceiling, so 21+ monsters stopped in
+  `4M`.  Priced beforehand off the Drury A/B's dumps (boards where both
+  tables reach `1M - 2♣ -`): BBA's `1♠` splinters won +122 / +159 plain per
+  204,800 boards over our ladder; its natural `2♥` over `1♠` and its
+  minimum `2♠` *lost* to ours, and its `2NT` / `3♣` / `3NT` rungs are small
+  and noisy, so none of those is authored.  BBA's passed-hand `2NT` over
+  `1M` is its floor's natural 11-count (≤2 trumps), not a convention; its
+  uncontested ceiling is ≈ +50 IMPs per 204,800 boards, and the rest of that
+  bucket is BBA's own defenders misdefending a `2NT` — not authored.
+  Alerts `drury-splinter` and `drury-splinter-interest`;
+  `tests/fixtures/alert-sites.txt` re-blessed; no card row (BBA reads the
+  jumps as splinters under `Reverse drury` + `Splinter`).
+
 - **Reverse Drury, shipped default-on (2026-10-01)** — `response.drury`
   (`--no-ns-drury` in `bba-gen` for the control arm).  Measured on
   `scripts/ab-drury.sh` vs BBA, 204,800 boards/arm/vul per seed: the
