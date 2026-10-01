@@ -3843,6 +3843,29 @@ pub struct ResponseKnobs {
     /// opener needs real extras to move: a long-suit try, the general re-raise,
     /// or a keycard-asking maximum.
     pub major_game_tries: bool,
+    /// Opener's slam try over `1M - 2M` goes through a long-suit game try
+    ///
+    /// **Default on (shipped 2026-10-02)**; `--no-ns-major-raise-slam-try` in
+    /// `bba-gen` for the off arm.  Needs
+    /// [`major_game_tries`][Self::major_game_tries].  Off, opener asks `4NT`
+    /// on 22+ support points whatever the shape.  On, a 22+ opener with a
+    /// four-card side suit makes the long-suit try there instead — the same
+    /// call a 16–18 hand makes — and bids on over the answer: game over a
+    /// decline (the existing 18+ rule), the floor's slam judgement over an
+    /// accept.  A one-suited 22+ hand still asks.  The reading mirror pins it
+    /// off.
+    ///
+    /// Found by `examples/probe-seam-lookahead --trace 4NT` (600,000
+    /// self-play deals, 378 such hands): through `4NT` they play `5M` going
+    /// down about one time in five or `6M` making 58%.
+    ///
+    /// Vs BBA (`scripts/ab-major-raise-slam-try.sh`, three seeds, 614,400
+    /// boards/vul pooled), IMPs/board none / both: plain +0.00038 ±0.00040 /
+    /// +0.00044 ±0.00049, PD +0.00044 ±0.00041 / +0.00052 ±0.00050, all twelve
+    /// per-seed cells positive, about 60 / 66 fired per 204,800.  The whole
+    /// gain is the declined try (+2.7 plain / +3.0 PD per board); after an
+    /// accept the try and the ask come out even.
+    pub major_raise_slam_try: bool,
     // --- raises/limit_raise.rs
     /// Author opener's acceptance ladder after `1M - 3M`
     ///
@@ -3927,6 +3950,7 @@ impl Default for ResponseKnobs {
             up_the_line: true,
             major_choice_of_games: true,
             major_game_tries: true,
+            major_raise_slam_try: true,
             limit_raise_acceptance: true,
             drury: true,
             drury_splinters: true,

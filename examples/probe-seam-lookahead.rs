@@ -33,21 +33,31 @@
 //!
 //! ```sh
 //! cargo run --release --example probe-seam-lookahead -- -c 20000 -m 0   # census only
+//! cargo run --release --example probe-seam-lookahead -- -c 600000 -s 1790874659 --slam-try --trace 4NT
 //! scripts/idle-run.sh cargo run --release --example probe-seam-lookahead -- -c 600000 -s $SEED
 //! ```
+//!
+//! `--trace CALL` skips the pricing and instead bids every rung out on the
+//! true deal for the decisions whose book call is `CALL`, tallying the final
+//! contracts — how the `4NT` rung over a single raise was found wanting.  The
+//! Phase 3b numbers and that trace were taken on the book **before**
+//! `response.major_raise_slam_try` shipped; pass `--slam-try` to walk that
+//! book.
 //!
 //! Heavy: one double-dummy solve per sampled world (2 × `--layouts` + 1 per
 //! decision, ≈ 7 ms each).
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::sampler::sample_layouts;
 use pons::bidding::table::select_legal_call;
+use pons::bidding::{Bidder, Table};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -85,6 +95,19 @@ struct Args {
     /// The pre-registered deviation margin in IMPs (the grid prints regardless)
     #[arg(long, default_value_t = 0.25)]
     margin: f64,
+    /// Trace instead of pricing: for every decision whose book call is this
+    /// (e.g. `4NT`), bid each rung out on the true deal and tally where it ends
+    #[arg(long)]
+    trace: Option<String>,
+    /// Walk the book as it stood before `response.major_raise_slam_try`
+    /// shipped (every 22+ hand asks `4NT`) — the system Phase 3b measured.
+    /// With `--trace` this also adds a `knob` row: the whole continuation bid
+    /// by today's default
+    #[arg(long, default_value_t = false)]
+    slam_try: bool,
+    /// Traced boards to print in full
+    #[arg(long, default_value_t = 10)]
+    show: usize,
 }
 
 struct Decision {
@@ -178,11 +201,147 @@ fn verdict(rows: &[&Priced], arm: usize, rule: usize, margin: f64) -> (usize, [V
     (fired, gains)
 }
 
+/// Where each rung ends on the true deal, for the decisions whose book call
+/// displays as `own`: final contract, how often it makes, and its mean swing
+/// against the book's call.  The first `show` boards print in full.
+#[allow(clippy::cast_precision_loss)]
+fn trace(
+    decisions: &[Decision],
+    rungs: &BTreeMap<&str, Vec<Call>>,
+    policy: &pons::bidding::Partnership,
+    knob: Option<&pons::bidding::Partnership>,
+    own: &str,
+    show: usize,
+) {
+    let rows: Vec<&Decision> = decisions
+        .iter()
+        .filter(|d| d.own.to_string() == own)
+        .collect();
+    let truths: Vec<FullDeal> = rows.iter().map(|d| d.truth).collect();
+    let tables = Solver::lock(None).solve_deals(&truths, NonEmptyStrainFlags::ALL);
+    // (seam, rung) -> final contract -> [count, made, plain IMPs, PD IMPs]
+    let mut tally: BTreeMap<(String, String), BTreeMap<String, [i64; 4]>> = BTreeMap::new();
+    for (n, (d, tricks)) in rows.iter().zip(&tables).enumerate() {
+        let bidder: &dyn Bidder = policy;
+        let table = Table::new(bidder, bidder, d.dealer, VULS[d.vul]);
+        let sign = if matches!(d.seat, Seat::North | Seat::South) {
+            1
+        } else {
+            -1
+        };
+        let knob_table = knob.map(|k| {
+            let k: &dyn Bidder = k;
+            Table::new(k, k, d.dealer, VULS[d.vul])
+        });
+        // `None` lets the knob system pick its own call at the seam.
+        let reach = |call: Option<Call>| {
+            let mut seed = Auction::new();
+            seed.try_extend(d.prefix.iter().copied())
+                .expect("the walk's prefix is legal");
+            let auction = match (call, &knob_table) {
+                (Some(call), _) => {
+                    seed.try_push(call).expect("a rung is legal at its seam");
+                    table.bid_out_from(&d.truth, seed)
+                }
+                (None, Some(knob)) => knob.bid_out_from(&d.truth, seed),
+                (None, None) => unreachable!("the knob row needs --slam-try"),
+            };
+            let reached = final_contract(&auction, d.dealer);
+            let scores = [
+                sign * ns_score_contract(reached, tricks, VULS[d.vul]),
+                sign * ns_score_bid(reached, tricks, VULS[d.vul]),
+            ];
+            (auction, reached, scores)
+        };
+        let (_, _, base) = reach(Some(d.own));
+        if n < show {
+            let partner = Seat::ALL[(d.seat as usize + 2) % 4];
+            println!(
+                "\n#{n} {} vul {}: opener {}  partner {}",
+                d.key,
+                ["none", "both"][d.vul],
+                d.hand,
+                d.truth[partner]
+            );
+        }
+        let rows = rungs[d.key.as_str()]
+            .iter()
+            .map(|&call| (call.to_string(), Some(call)))
+            .chain(knob.map(|_| ("knob".to_owned(), None)));
+        for (call, rung) in rows {
+            let (auction, reached, scores) = reach(rung);
+            let (label, took, made) =
+                reached.map_or(("passed out".to_owned(), 0, true), |(c, by)| {
+                    let took = u8::from(tricks[c.bid.strain].get(by));
+                    (
+                        Call::Bid(c.bid).to_string(),
+                        took,
+                        took >= 6 + c.bid.level.get(),
+                    )
+                });
+            let swing = [imps(scores[0] - base[0]), imps(scores[1] - base[1])];
+            // Whether opener holds a second suit to make a long-suit try in.
+            let side = if Suit::ASC.iter().filter(|&&s| d.hand[s].len() >= 4).count() > 1 {
+                "4+ side suit"
+            } else {
+                "one-suited"
+            };
+            let cell = tally
+                .entry((format!("{} [{side}]", d.key), call.clone()))
+                .or_default()
+                .entry(label.clone())
+                .or_default();
+            for (sum, add) in cell
+                .iter_mut()
+                .zip([1, i64::from(made), swing[0], swing[1]])
+            {
+                *sum += add;
+            }
+            if n < show {
+                println!(
+                    "  {call:<4} {:<44} {label} takes {took:2}  {:+5}  swing {:+3} / {:+3}",
+                    auction_key(&auction),
+                    scores[0],
+                    swing[0],
+                    swing[1]
+                );
+            }
+        }
+    }
+    println!(
+        "\n{} decisions with book call {own}; per rung: contract ×n, made, mean swing plain / PD",
+        rows.len()
+    );
+    for ((key, call), contracts) in &tally {
+        let total: [i64; 4] = contracts.values().fold([0; 4], |mut sum, cell| {
+            for (s, c) in sum.iter_mut().zip(cell) {
+                *s += c;
+            }
+            sum
+        });
+        println!(
+            "{key}  {call}: {:+.3} / {:+.3}",
+            total[2] as f64 / total[0] as f64,
+            total[3] as f64 / total[0] as f64
+        );
+        for (contract, [n, made, plain, pd]) in contracts {
+            println!(
+                "    {contract:<10} ×{n:<4} made {:5.1}%  {:+.2} / {:+.2}",
+                100.0 * *made as f64 / *n as f64,
+                *plain as f64 / *n as f64,
+                *pd as f64 / *n as f64
+            );
+        }
+    }
+}
+
 #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
 fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
-    let policy = american(&Agreements::default()).bind();
+    let mut agreements = Agreements::default();
+    agreements.response.major_raise_slam_try &= !args.slam_try;
+    let policy = american(&agreements).bind();
     let started = std::time::Instant::now();
 
     let decisions: Vec<Decision> = seeded_deals(base, args.count)
@@ -224,6 +383,13 @@ fn main() {
                 .map(|&(call, _)| call)
                 .collect(),
         );
+    }
+    if let Some(own) = &args.trace {
+        let knob = args
+            .slam_try
+            .then(|| american(&Agreements::default()).bind());
+        trace(&decisions, &rungs, &policy, knob.as_ref(), own, args.show);
+        return;
     }
     let m = args.layouts;
     if m == 0 {

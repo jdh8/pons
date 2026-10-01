@@ -122,6 +122,41 @@ fn game_try_declined_stops_in_three() {
 }
 
 #[test]
+fn slam_try_through_a_declined_game_try_stops_in_game() {
+    let system = american(&Agreements::default()).bind();
+
+    // A.AKJ53.86.AKQ52: 22 HCP, five clubs — a slam try over the raise, made
+    // as the club try rather than a `4NT` ask (`major_raise_slam_try`).
+    let opener = "A.AKJ53.86.AKQ52";
+    // xxx.Qxx.KJxx.xxx: a flat minimum raise with nothing in clubs.
+    let responder = "xxx.Qxx.KJxx.xxx";
+
+    let auction = extend(&[], call(1, Strain::Hearts));
+    assert_eq!(
+        best_call(&system, &auction, responder),
+        call(2, Strain::Hearts)
+    );
+    let auction = extend(&auction, call(2, Strain::Hearts));
+    assert_eq!(
+        best_call(&system, &auction, opener),
+        call(3, Strain::Clubs),
+        "22+ with a side suit tries there instead of asking"
+    );
+    let auction = extend(&auction, call(3, Strain::Clubs));
+    assert_eq!(
+        best_call(&system, &auction, responder),
+        call(3, Strain::Hearts),
+        "a wasted minimum declines"
+    );
+    let auction = extend(&auction, call(3, Strain::Hearts));
+    assert_eq!(
+        best_call(&system, &auction, opener),
+        call(4, Strain::Hearts),
+        "over the decline opener settles for game, below the five level"
+    );
+}
+
+#[test]
 fn single_raise_passed_without_extras() {
     let system = partnership_with(true, false, false, false);
 

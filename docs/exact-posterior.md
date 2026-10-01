@@ -806,6 +806,14 @@ consumer actually samples. `1NT (X)` is the one such cell today.
   opener does after the answer) is not traced. Proposed default: leave the
   book; trace ten boards, then an opt-in knob and an A/B per
   [measurement.md](measurement.md).
+  **Resolved the same day — shipped default-on** as
+  `response.major_raise_slam_try`. The trace (`--trace 4NT`): through the ask
+  these hands play `5M`, down one time in five, or `6M` making 58%; through
+  a try, `4M`, or `6M` only opposite an accept. Vs BBA, three seeds, 614,400
+  boards/vul: plain +0.00038 ±0.00040 / +0.00044 ±0.00049, PD +0.00044
+  ±0.00041 / +0.00052 ±0.00050 IMPs/board, +1.29 / +1.37 plain per fired
+  board against the self-play screen's +0.87. A plain wash and a PD win; the
+  whole gain is the declined try.
 - **The range sampler over-invites after a single raise** (2026-10-02, Phase
   3b). Worlds drawn from the readings make a try look right on 511 hands the
   book passes, at −2 to −4 PD each where it fires most; worlds our bidder

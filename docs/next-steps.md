@@ -461,12 +461,16 @@ group waits on that decision, the second group does not.
   rollout over worlds drawn from the readings did not.  Proposed: park the
   counter's bidding uses; the lookahead finding is evidence for M8
   ([ai-bidder/plan.md](ai-bidder/plan.md)), at one seam.
-- **`1M - 2M - 4NT` on 22+ support points** (found 2026-10-02 by the same
-  probe's static control).  Half of that lookahead win is this one rung:
-  a help-suit try instead of the keycard ask is +1.23 ± 0.96 plain /
-  +1.50 ± 1.00 PD per `1♠` hand, about +0.0008 IMPs/board if it holds.
-  One seed, self-play, mechanism untraced.  Next step: trace ten boards,
-  then a knob and an A/B.  No retrain.
+- **`1M - 2M`: the slam try through a game try — shipped 2026-10-02**
+  (`response.major_raise_slam_try`, default on).  Found by
+  `probe-seam-lookahead`'s static control: the `4NT` ask on 22+ ended in
+  `5M` going down one time in five or `6M` making 58%.  A 22+ hand with a
+  four-card side suit now makes the long-suit try instead.  Vs BBA, three
+  seeds, 614,400 boards/vul: plain +0.00038 ±0.00040 / +0.00044 ±0.00049,
+  PD +0.00044 ±0.00041 / +0.00052 ±0.00050, 12/12 cells positive.  Residue,
+  none of it measured as a leak: after an accept opener mostly passes and
+  that washes against the ask (+0.10 / +0.41 plain per board), so an authored
+  ask there has no prior; the 38-in-600k one-suited 22+ hands still ask.
 - **A rejecting table does not fall through under a rebase** (found
   2026-10-01, doc/code discrepancy).  `rows.rs` and
   [bidding-architecture.md](bidding-architecture.md) say an exact node that

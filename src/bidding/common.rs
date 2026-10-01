@@ -195,5 +195,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.rebid.strong_two_positive = false;
     mirror.rebid.strong_two_grand = false;
     mirror.response.strong_two_loose_positive = false;
+    // Likewise the slam try through a game try: their `1M - 2M - 3x` stays a
+    // 16–18 try and their `4NT` any 22+ hand, so the knob moves only boards
+    // we open.
+    mirror.response.major_raise_slam_try = false;
     (mirror != *agreements).then_some(mirror)
 }

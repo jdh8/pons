@@ -46,6 +46,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the keycard *answer* still drops the asker to the floor in every RKCB
   lane, and the classic `5NT` path elsewhere still wants three kings.
 
+- **Opener's slam try over `1M - 2M` goes through a game try, shipped
+  default-on (2026-10-02)** — `ResponseKnobs::major_raise_slam_try`
+  (`--no-ns-major-raise-slam-try` in `bba-gen` for the control arm).  A 22+
+  opener with a four-card side suit now makes the long-suit game try there
+  instead of asking `4NT`: game over a decline, the floor's slam judgement
+  over an accept.  A one-suited 22+ hand still asks; the reading mirror pins
+  the knob off.  Found by the static control of
+  `examples/probe-seam-lookahead` and traced with its new `--trace 4NT`
+  (600,000 self-play deals, 378 such hands): through the ask they played
+  `5M`, going down about one time in five, or `6M` making 58%; through a try
+  they play `4M`, or `6M` only opposite an accept.  Measured on
+  `scripts/ab-major-raise-slam-try.sh` vs BBA, three seeds (1790883190,
+  1790883714, 1790884244), 204,800 boards/arm/vul each, every isolation gate
+  passed; pooled (614,400 boards/vul), IMPs/board none / both: plain
+  +0.00038 ±0.00040 / +0.00044 ±0.00049, PD +0.00044 ±0.00041 / +0.00052
+  ±0.00050, all twelve per-seed cells positive, 181 / 198 fired (+1.29 /
+  +1.37 plain, +1.50 / +1.62 PD per fired) — a plain wash and a PD win, the
+  decision table's default-on row.  The whole gain is the declined try (78
+  / 88 boards at +2.7 plain / +3.0 PD each); after an accept opener mostly
+  passes, which washes against the ask.  The probe gained `--slam-try`,
+  which walks the book as it stood before this knob so the Phase 3b numbers
+  stay reproducible.
+
 - **Exact hand posteriors: a rollout beats the book at `1M - 2M`, but not
   through the readings (2026-10-02)** — Phase 3b of
   [docs/exact-posterior.md](docs/exact-posterior.md), a probe, no bidding

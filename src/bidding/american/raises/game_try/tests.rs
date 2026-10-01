@@ -38,6 +38,51 @@ fn opener_passes_a_flat_minimum() {
     assert_eq!(best(&trie, RAISE_AUCTION, "KQ3.AJ854.K63.93"), Call::Pass);
 }
 
+/// The game tries with every 22+ hand asking (`major_raise_slam_try` off).
+fn classic_ask_trie() -> Trie {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.response.major_raise_slam_try = false;
+    let mut trie = Trie::new();
+    super::super::register(&mut trie, &agreements);
+    trie
+}
+
+#[test]
+fn a_huge_two_suiter_tries_and_asks_with_the_knob_off() {
+    // A.AKJ53.86.AKQ52: 22 HCP and five clubs — far past the 22-point ask.
+    let hand = "A.AKJ53.86.AKQ52";
+    assert_eq!(
+        best(&game_tries_trie(), RAISE_AUCTION, hand),
+        Call::Bid(Bid::new(3, Strain::Clubs)),
+    );
+    assert_eq!(
+        best(&classic_ask_trie(), RAISE_AUCTION, hand),
+        Call::Bid(Bid::new(4, Strain::Notrump)),
+    );
+}
+
+#[test]
+fn a_huge_one_suiter_still_asks() {
+    // AK3.AKQJ853.A2.2: no side suit to try in.
+    assert_eq!(
+        best(&game_tries_trie(), RAISE_AUCTION, "AK3.AKQJ853.A2.2"),
+        Call::Bid(Bid::new(4, Strain::Notrump)),
+    );
+}
+
+#[test]
+fn the_slam_try_leaves_the_game_try_band_alone() {
+    let trie = game_tries_trie();
+    assert_eq!(
+        best(&trie, RAISE_AUCTION, "K52.AK974.3.AQ65"),
+        Call::Bid(Bid::new(3, Strain::Clubs)),
+    );
+    assert_eq!(
+        best(&trie, RAISE_AUCTION, "AQ3.AKQ85.KJ4.92"),
+        Call::Bid(Bid::new(4, Strain::Hearts)),
+    );
+}
+
 /// `1♥ - 2♥ - 3♣ -`: responder's answer to the club try
 fn after_club_try() -> Vec<Call> {
     RAISE_AUCTION

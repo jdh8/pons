@@ -57,8 +57,13 @@ fn game_try_suits(major: Suit) -> Vec<Suit> {
 /// | 2♠/3♣/3♦ (hearts) or 3♣/3♦/3♥ (spades) | Long-suit game try (16–18, 4+ in the suit) |
 /// | 3M | The general re-raise try (16–18), below every suit try in weight |
 /// | Pass | Minimum, nothing more to show |
+///
+/// With `slam_try` ([`ResponseKnobs::major_raise_slam_try`]) a 22+ hand with a
+/// four-card side suit makes the long-suit try there instead of asking: the
+/// five level is not safe opposite a minimum raise, and the answer to the
+/// try says whether the raise is one.
 #[must_use]
-fn opener_after_raise(major: Suit) -> Rules {
+fn opener_after_raise(major: Suit, slam_try: bool) -> Rules {
     let trump = Strain::from(major);
 
     // Opener's seat throughout: the trump is the own five-card major, +5.
@@ -80,6 +85,14 @@ fn opener_after_raise(major: Suit) -> Rules {
             weight,
             len(suit, 4..) & support_points(major, 16..=18),
         );
+        // The slam try through the same call, above the keycard ask.
+        if slam_try {
+            rules = rules.rule(
+                Bid::new(try_level(major, suit), Strain::from(suit)),
+                weight + 140,
+                len(suit, 4..) & support_points(major, 22..),
+            );
+        }
     }
 
     rules
@@ -142,12 +155,16 @@ pub(crate) fn major_game_try_continuations() -> Package {
     Package {
         name: "major-game-try-continuations",
         gate: |a| a.response.major_game_tries,
-        entries: |_| {
+        entries: |agreements| {
+            let slam_try = agreements.response.major_raise_slam_try;
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);
                 let prefix = format!("P* {} - {} -", call(1, trump), call(2, trump));
-                entries.extend(rows_of(Pattern::node(&prefix), opener_after_raise(major)));
+                entries.extend(rows_of(
+                    Pattern::node(&prefix),
+                    opener_after_raise(major, slam_try),
+                ));
                 entries.extend(slam::rkcb_rows(&prefix, major));
 
                 for suit in game_try_suits(major) {

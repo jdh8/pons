@@ -1385,6 +1385,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_major_game_tries: bool,
 
+    /// Keep the `4NT` ask on every 22+ hand over `1M - 2M`
+    /// (`response.major_raise_slam_try`, **shipped default-on 2026-10-02**: a
+    /// 22+ hand with a four-card side suit makes the long-suit try instead;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-major-raise-slam-try.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_major_raise_slam_try: bool,
+
     /// Disable opener's limit-raise acceptance ladder after `1M - 3M`
     /// (shipped default-on; see `response.limit_raise_acceptance`).
     #[arg(long, default_value_t = false)]
@@ -2953,6 +2961,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.response.two_over_one_natural_lengths = args.ns_two_over_one_natural_lengths;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
+    agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;
     agreements.response.limit_raise_acceptance = !args.no_ns_limit_raise_acceptance;
     agreements.rebid.new_minor_forcing = args.ns_new_minor_forcing;
     agreements.rebid.balanced_1nt_rebid = !args.no_ns_balanced_1nt_rebid;
