@@ -404,6 +404,16 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
+- **Exact hand posteriors — a kill gate is owed** (surveyed 2026-10-01).  The
+  web Odds/Partner counter prices any DNF over a hidden hand exactly; as net
+  inputs that idea is closed three times (MARG, MASS, `features_eval_v4`),
+  but two output-side uses are open: an **evidence gate** on readings our
+  own cards contradict (boxes excluded the truth 8.3% at BBA's seats, 3.3% at
+  partner, 2026-07-29), and a **one-ply reply lookahead** through the
+  evaluator.  Unranked: no IMP figure exists.  Next step is Phase 0 + Phase 1
+  of [exact-posterior.md](exact-posterior.md) — port the counter, re-run
+  `probe-reading-sound`, and test whether the exact mass separates wrong
+  readings from sound ones.  No double-dummy, no retrain, no bidding change.
 - **A rejecting table does not fall through under a rebase** (found
   2026-10-01, doc/code discrepancy).  `rows.rs` and
   [bidding-architecture.md](bidding-architecture.md) say an exact node that

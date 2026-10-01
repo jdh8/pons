@@ -63,6 +63,7 @@ scorers (measurement.md, checklist item 12).
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
 | Training any net, or drawing a corpus | [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) — **corpus from `/nfs2/jdh8/pons/`, test on fresh deals**; slice ledger + remaining-rows warning |
 | Hand valuation, point counts, or "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) — additive (μ, σ²) per holding; the gauge statement, and why an additive table sees only ~24% of the pair-level spread |
+| Exact probabilities over a hidden hand — the web Odds/Partner counter, a mass oracle, belief features, an evidence gate on a reading, a reply lookahead — or how other engines (GIB, BEN, poker, Hanabi, Skat) infer hands | [docs/exact-posterior.md](docs/exact-posterior.md) — what is **closed** (exact distributions as net inputs: MARG, MASS, v4), the literature survey with per-claim verification marks, and the phased plan with a kill gate before each build |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |
 
 Repo skills: `author-convention` (end-to-end checklist for a new convention or

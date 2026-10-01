@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: exact hand posteriors — survey and plan (2026-10-01)** —
+  [docs/exact-posterior.md](docs/exact-posterior.md) records what the web
+  Odds/Partner counter is (an exact DNF counter, the only surviving
+  implementation of the dropped `MassOracle`), which uses are already
+  refuted (exact distributions as evaluator inputs: MARG, MASS,
+  `features_eval_v4`), a literature survey — how GIB, BEN and the academic
+  bidders infer hidden hands, and the belief machinery of poker, Hanabi and
+  Skat engines, each claim marked by how it was verified — and a phased plan:
+  port the counter, then a no-DD kill gate on whether the exact mass of a
+  reading separates wrong readings from sound ones, then an evidence-gate
+  knob and a one-ply reply lookahead.  `probe-replay-yield` re-run at
+  `fb8ce92c` sizes the sampler use as small (range fill 100% on 14 of 15
+  auctions) and parks it.  Also corrects
+  [docs/dnf-migration.md](docs/dnf-migration.md): the MARG and MASS archives
+  under `target/` no longer exist.  No bidding change.
+
 - **Looser positives to our strong `2♣`, and the major fit below a positive,
   shipped default-on together (2026-10-01)** —
   `ResponseKnobs::strong_two_loose_positive` and
