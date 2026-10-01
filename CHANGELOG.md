@@ -469,6 +469,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Partner keeps a distribution's suits alike, and prunes shapes
+  through any `where` (2026-10-01)** — a run a distribution reads in any
+  order (`(5431)`, the majors of `(54)xx`) no longer names its suits, so the
+  suit-symmetry orbit holds across it: a `15-17` opener written
+  `(4333) | (4432) | (5332)` opposite any hand, query `0-7`, 381 ms → 27 ms
+  (as `freak < 3` already was), `11+` `(5431)` 845 ms → 34 ms.  A `where` is
+  now three-valued over a hand known only by its shape, so the shapes it
+  rules out are dropped even when it also reads points:
+  `(5431), hcp >= 11` 13.8 s → 40 ms.  Counts agree with the previous
+  counter to float rounding on every partner shape, 13 benchmarks.
+
 - **Web: the box grammar's `where` takes distributions (2026-10-01)** —
   WBF's `5431` (♠♥♦♣ in order), `(5431)` (any order) and `(54)(31)` (within
   each pair), or `7=6=0=0` / `7-6-0-0` for ten or more cards, never mixed;

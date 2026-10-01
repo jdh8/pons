@@ -1028,8 +1028,12 @@ function parseRange(text, cap) {
 // alone carry a 10+ suit, 7=6=0=0 (in order) and 7-6-0-0 (any order), never
 // mixed; x is any number of cards — 54xx, (55)xx, 5-5-x-x.
 // Returns v → bool over the vector `vars` indexes, tagged with `used`, the
-// slots it reads (a caller can skip an unread dimension).  "" → always true;
-// null when unparseable or ill-typed.
+// slots it reads (a caller can skip an unread dimension), and `alike`, the
+// runs of length slots a distribution reads in any order (those suits still
+// permute).  "" → always true; null when unparseable or ill-typed.
+// Over a vector with NaN for what is not known yet the predicate is
+// three-valued: undefined while it hangs on a NaN, so false already rules the
+// known part out.
 const WHERE_NAME = '(?:sp[♠♥♦♣]|[a-z]+|[♠♥♦♣])';
 const WHERE_DIST = '(?:\\d+|x)(?:[-=](?:\\d+|x)){3}(?![\\w=-])|(?=(?:\\(?[\\dx]\\)?){4}(?![\\w(]))(?:[\\dx]|\\([\\dx]{2,4}\\))+';
 const WHERE_TOKEN = new RegExp(`${WHERE_DIST}|\\d+|[<>!=]=|&&|\\|\\||${WHERE_NAME}(?:\\.${WHERE_NAME})*|\\S`, 'g');
@@ -1038,12 +1042,12 @@ const WHERE_CMP = {
   '<': (a, b) => a < b, '<=': (a, b) => a <= b, '≤': (a, b) => a <= b,
   '=': (a, b) => a === b, '==': (a, b) => a === b, '!=': (a, b) => a !== b, '≠': (a, b) => a !== b,
 };
-const WHERE_AND = (a, b) => a && b;
-const WHERE_OR = (a, b) => a || b;
+const WHERE_AND = (a, b) => (a === false || b === false ? false : a === true ? b : a);
+const WHERE_OR = (a, b) => (a === true || b === true ? true : a === false ? b : a);
 function compileWhere(text, vars) {
   const toks = text.toLowerCase().match(WHERE_TOKEN) || [];
-  const used = new Set();
-  if (!toks.length) return Object.assign(() => true, { used });
+  const used = new Set(), alike = [];
+  if (!toks.length) return Object.assign(() => true, { used, alike });
   let i = 0;
   const eat = (...ts) => (ts.includes(toks[i]) ? toks[i++] : null);
   const need = (t) => { if (!eat(t)) throw new SyntaxError(`expected ${t}`); };
@@ -1074,7 +1078,7 @@ function compileWhere(text, vars) {
     let suit = 0;
     const groups = runs.map((run) => ({ slots: run.map(() => vars['shdc'[suit++]]), want: run.filter((len) => len !== 'x').map(Number) }))
       .filter(({ want }) => want.length);
-    for (const { slots } of groups) slots.forEach((slot) => used.add(slot));
+    for (const { slots } of groups) if (slots.length > 1) alike.push(slots); else used.add(slots[0]);
     return { f: (v) => groups.every(({ slots, want }) => {
       const have = slots.map((slot) => v[slot]);
       return want.every((n) => { const k = have.indexOf(n); return k >= 0 && have.splice(k, 1); });
@@ -1102,19 +1106,19 @@ function compileWhere(text, vars) {
     for (let op; (op = eat(...Object.keys(WHERE_CMP)));) { ops.push(WHERE_CMP[op]); rest.push(typed(sum(), false)); }
     if (!ops.length) return first;
     const terms = [typed(first, false), ...rest];
-    return { f: (v) => { const x = terms.map((t) => t(v)); return ops.every((f, k) => f(x[k], x[k + 1])); }, bool: true };
+    return { f: (v) => { const x = terms.map((t) => t(v)); return x.some(Number.isNaN) ? undefined : ops.every((f, k) => f(x[k], x[k + 1])); }, bool: true };
   };
   const not = () => {
     if (!eat('not', '!')) return cmp();
     const a = typed(not(), true);
-    return { f: (v) => !a(v), bool: true };
+    return { f: (v) => { const x = a(v); return x === undefined ? x : !x; }, bool: true };
   };
   const and = fold(not, { and: WHERE_AND, '&': WHERE_AND, '&&': WHERE_AND }, true);
   const or = fold(and, { or: WHERE_OR, '|': WHERE_OR, '||': WHERE_OR }, true);
   const all = fold(or, { ',': WHERE_AND }, true);
   try {
     const f = typed(all(), true);
-    return i < toks.length ? null : Object.assign(f, { used });
+    return i < toks.length ? null : Object.assign(f, { used, alike });
   } catch { return null; }
 }
 
@@ -1346,6 +1350,8 @@ function initCalc() {
     && [...compileWhere('sps > my.♦.hcp', { ...vars, ...handVars(HAND_SLOTS, 0, 'my.') }).used].join() === '6,27'
     && chk('5431', 5, 4, 3, 1) && chk('(54)(31)', 4, 5, 1, 3) && !chk('(54)(31)', 5, 3, 4, 1) && chk('5-5-x-x', 0, 5, 3, 5)
     && chk('7=6=x=x', 7, 6, 0, 0) && chk('!(4432) & 44xx', 4, 4, 4, 1) && [...compileWhere('54xx', vars).used].join() === '0,1'
+    && compileWhere('(54)xx', vars).alike.join() === '0,1' && compileWhere('s > 4 | hcp > 11', vars)([4, , , , NaN]) === undefined
+    && compileWhere('s > 4, hcp > 11', vars)([4, , , , NaN]) === false
     && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0', '5432', '5=4-3-1', 'hcp > 5431'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
   CENSUS = JSON.parse(point_census());
   HELD = CENSUS.map((rows) => {
@@ -1482,15 +1488,14 @@ function gaugeSums(base, read) {
 // or null when the tables would pass MAX_CELLS.
 function companionCount(mine, known, query) {
   const partner = [...known, ...query];
-  // can the box of the hand at `base` take this shape: its cells, and a where
-  // that reads nothing but that hand's lengths and freakness
+  // can the box of the hand at `base` take this shape: its cells, and what
+  // its where says of that hand's lengths and freakness alone
   const shaped = (box, lens, base) => {
     if (!inLens(box, lens)) return false;
-    if ([...box.where.used].some((slot) => slot < base || (slot >= base + 4 && slot !== base + SLOT.freak))) return true;
-    const v = [];
+    const v = new Array(2 * HAND_SLOTS).fill(NaN);
     lens.forEach((len, suit) => { v[base + suit] = len; });
     v[base + SLOT.freak] = freakness(lens);
-    return box.where(v);
+    return box.where(v) !== false;
   };
   const myLens = SHAPES.filter((lens) => mine.some((b) => shaped(b, lens, MINE)));
   const partnerLens = SHAPES.filter((lens) => known.some((b) => shaped(b, lens, 0)));
@@ -1524,28 +1529,36 @@ function companionCount(mine, known, query) {
   // The suits no box tells apart: every cell blank, and no where reading the
   // suit's length, hcp or sp.  Permuting them in both hands at once changes no
   // count, so a pair of shapes stands for its orbit: the pair whose
-  // (partner's length, yours) never rises along these suits.
-  const anon = [0, 1, 2, 3].filter((suit) =>
+  // (partner's length, yours) never rises along these suits.  A distribution
+  // reads a run of suits in any order — (54)xx, (5431) — so it only splits
+  // them into those inside the run and those outside.
+  let alike = [[0, 1, 2, 3].filter((suit) =>
     [...mine, ...partner].every((box) => box.lens[suit][0] <= 0 && box.lens[suit][1] >= 13 && !box.cells[suit])
-    && [0, MINE].every((base) => [SLOT.len, SLOT.suitHcp, SLOT.gauge + 2].every((slot) => !read.has(base + slot + suit))));
+    && [0, MINE].every((base) => [SLOT.len, SLOT.suitHcp, SLOT.gauge + 2].every((slot) => !read.has(base + slot + suit))))];
+  for (const box of [...mine, ...partner]) for (const slots of box.where.alike) {
+    const run = slots.map((slot) => slot % HAND_SLOTS);
+    alike = alike.flatMap((suits) => [suits.filter((suit) => run.includes(suit)), suits.filter((suit) => !run.includes(suit))]);
+  }
   // the size of the pair's orbit, 0 off its representative
   const orbit = (p1, p2) => {
-    let n = 1, run = 1;
-    for (let i = 1; i < anon.length; i++) {
-      const a = anon[i - 1], b = anon[i], drop = (p2[a] - p2[b]) * 14 + p1[a] - p1[b];
-      if (drop < 0) return 0;
-      run = drop ? 1 : run + 1;
-      n = n * (i + 1) / run;
+    let n = 1;
+    for (const suits of alike) {
+      for (let i = 1, run = 1; i < suits.length; i++) {
+        const a = suits[i - 1], b = suits[i], drop = (p2[a] - p2[b]) * 14 + p1[a] - p1[b];
+        if (drop < 0) return 0;
+        run = drop ? 1 : run + 1;
+        n = n * (i + 1) / run;
+      }
     }
     return n;
   };
   const perms = (xs) => (xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms(xs.filter((_, j) => j !== i)).map((rest) => [x, ...rest])));
   // the shapes a representative's partner shape stands for
-  const images = (lens) => [...new Set(perms(anon).map((to) => {
-    const image = [...lens];
-    anon.forEach((suit, i) => { image[to[i]] = lens[suit]; });
-    return image.join('=');
-  }))];
+  const images = (lens) => [...new Set(alike.reduce((all, suits) => all.flatMap((from) => perms(suits).map((to) => {
+    const image = [...from];
+    suits.forEach((suit, i) => { image[to[i]] = from[suit]; });
+    return image;
+  })), [lens]).map((image) => image.join('=')))];
   // The suit step for (your length, partner's) under the enumerated values:
   // [your boxes admitting, partner's, flat [h1, i1, h2, i2, n, …]] per distinct
   // pair of box sets, over every disjoint pair of holdings — each hand's hcp
