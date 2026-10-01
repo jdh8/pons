@@ -23,6 +23,11 @@
 
 * { box-sizing: border-box; }
 
+/* Links sit on the felt (the only one so far is in a boardinfo); the default
+   blue vanishes against the green, gold is the action colour already in use. */
+a { color: var(--gold); }
+.panel a { color: var(--club); }
+
 body {
   margin: 0;
   font: 15px/1.4 "Source Han Suits", system-ui, sans-serif;
@@ -397,4 +402,4 @@ table.boxes input {
   border-radius: 4px;
 }
 table.boxes input.where { width: 22rem; }
-table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }
+table.boxes input.bad, #x-hand.bad { border-color: var(--heart); background: #fff0ee; }

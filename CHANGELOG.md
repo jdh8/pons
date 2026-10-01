@@ -137,6 +137,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Integration tests that encoded the old default now build the control arm
   explicitly; `tests/fixtures/alert-sites.txt` and `cards/American.bbsa`
   re-blessed (`Reverse drury = 1`).
+- **Web: Companion tab — partner's hand given yours (2026-10-01)** — after
+  Pavlicek's Companion Hand Calculator, but *your* hand may be a union of
+  boxes (the Calc grammar: `15-17` with `freak < 3` is a 1NT opener) as well
+  as cards (`AKxxx.Kxx.xx.xxx`, `x` any spot).  Partner's *known* boxes
+  condition, *query* boxes ask: `P(query | known, your hand)` and
+  `P(known | your hand)`, with partner's top patterns.  Exact and HCP-only:
+  per suit the two hands draw disjoint holdings (honors by identity, spots by
+  count), a joint (your HCP, partner's HCP) census per length pair, four suits
+  convolved into a 2-D table per pattern pair.  Where variables: the box's own
+  `s h d c hcp`, per-suit `hcp_s … hcp_c` (`hcp_d = 4`: the ♦A, enumerated
+  outside the convolution), `freak` (Pavlicek's freakness, also new in Calc),
+  and for partner boxes your `my_s … my_hcp my_hcp_s … my_freak` (`s + my_s
+  >= 8`: a fit).  Checked against Monte Carlo and an independent hypergeometric
+  derivation (Pavlicek's example 1 reads 31.96%, example 2's ♦A 67.11%).  Pure
+  JS, no crate change; `compileWhere` takes a variable table and tags the
+  closure with the names it reads, so unread HCP dimensions collapse.
 - **Web: Calc tab — exact shape × points probabilities (2026-09-30)** — a
   union-of-boxes calculator (one row per box: four length ranges plus a
   points range, `5+` / `4-6` / `3` / blank, or Rust's `4..=6` / `5..` /

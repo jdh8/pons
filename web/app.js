@@ -47,11 +47,12 @@ async function main() {
   initEdit();
   initBinky();
   initCalc();
+  initCompanion();
   showTab(location.hash.slice(1));
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book', 'edit', 'binky', 'calc', 'settings'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit', 'binky', 'calc', 'companion', 'settings'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -993,6 +994,9 @@ for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; 
 }
 const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
 const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
+// Pavlicek's freakness: a point per card over four or under three in each
+// suit, plus 1 for a singleton or 2 for a void — 4333 = 0, 4432 = 1, 5332 = 2.
+const freakness = (lens) => lens.reduce((f, l) => f + Math.max(0, l - 4, 3 - l), 0) + (lens.includes(0) ? 2 : lens.includes(1) ? 1 : 0);
 
 // Hands of this pattern counted jointly by every gauge: a list of [values in
 // GAUGES order, count].  The convolution state packs six sums in base 64 —
@@ -1046,11 +1050,11 @@ function parseRange(text, cap) {
 // both); conditions join with ! (not), & (and), | (or), and a comma — an
 // "and" that binds loosest, so `a | b, c` is (a | b) & c.  Typed like Rust: a
 // number is never a condition, nor the reverse.
-// Returns v → bool over v = [♠, ♥, ♦, ♣, p, ...GAUGES values].
+// Returns v → bool over v = [♠, ♥, ♦, ♣, p, ...GAUGES values, freakness].
 // "" → always true; null when unparseable or ill-typed.
 const WHERE_VARS = {
   '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4, hcp: 5, pts: 6,
-  sps: 7, 'sp♠': 7, sph: 8, 'sp♥': 8, spd: 9, 'sp♦': 9, spc: 10, 'sp♣': 10,
+  sps: 7, 'sp♠': 7, sph: 8, 'sp♥': 8, spd: 9, 'sp♦': 9, spc: 10, 'sp♣': 10, freak: 11,
 };
 const WHERE_CMP = {
   '>': (a, b) => a > b, '>=': (a, b) => a >= b, '≥': (a, b) => a >= b,
@@ -1059,10 +1063,11 @@ const WHERE_CMP = {
 };
 const WHERE_AND = (a, b) => a && b;
 const WHERE_OR = (a, b) => a || b;
-function compileWhere(text) {
-  const toks = text.toLowerCase().match(/\d+|[<>!=]=|&&|\|\||sp[♠♥♦♣]|[a-z]+|\S/g) || [];
+function compileWhere(text, vars = WHERE_VARS) {
+  const toks = text.toLowerCase().match(/\d+|[<>!=]=|&&|\|\||sp[♠♥♦♣]|[a-z_]+|\S/g) || [];
   if (!toks.length) return () => true;
   let i = 0;
+  const used = new Set(); // variable names read, for callers that can skip an unread dimension
   const eat = (...ts) => (ts.includes(toks[i]) ? toks[i++] : null);
   const need = (t) => { if (!eat(t)) throw new SyntaxError(`expected ${t}`); };
   // a parsed node is {f, bool}: its evaluator and whether it is a condition
@@ -1083,7 +1088,7 @@ function compileWhere(text) {
   const atom = () => {
     const t = toks[i++];
     if (/^\d+$/.test(t)) return num(() => +t);
-    if (Object.hasOwn(WHERE_VARS, t)) return num((v) => v[WHERE_VARS[t]]);
+    if (Object.hasOwn(vars, t)) { used.add(t); return num((v) => v[vars[t]]); }
     if (t === '-') { const a = typed(atom(), false); return num((v) => -a(v)); }
     if (t === '(') { const e = all(); need(')'); return e; }
     if (t === 'max' || t === 'min') {
@@ -1113,6 +1118,7 @@ function compileWhere(text) {
   const all = fold(or, { ',': WHERE_AND }, true);
   try {
     const f = typed(all(), true);
+    f.used = used;
     return i < toks.length ? null : f;
   } catch { return null; }
 }
@@ -1124,37 +1130,37 @@ function initCalc() {
     && compileWhere('s >') === null && compileWhere('s + h') === null && compileWhere('!s') === null, 'compileWhere');
   CENSUS = JSON.parse(point_census());
   JOINT = PATTERNS.map(gaugeJoint);
-  id('c-add').onclick = () => { addBox(); renderCalc(); };
+  id('c-add').onclick = () => { addBox('c-boxes', renderCalc); renderCalc(); };
   id('c-gauge').onchange = renderCalc;
-  addBox();
+  addBox('c-boxes', renderCalc);
   renderCalc();
 }
 
-function addBox() {
+function addBox(table, onChange) {
   const tr = document.createElement('tr');
   for (let i = 0; i < 6; i++) {
     const td = document.createElement('td');
     const input = document.createElement('input');
     input.type = 'text'; input.spellcheck = false; input.placeholder = 'any';
     if (i === 5) input.className = 'where';
-    input.oninput = renderCalc;
+    input.oninput = onChange;
     td.append(input); tr.append(td);
   }
   const td = document.createElement('td');
   const rm = document.createElement('button');
   rm.className = 'secondary'; rm.textContent = '×'; rm.title = 'Remove this box';
-  rm.onclick = () => { tr.remove(); renderCalc(); };
+  rm.onclick = () => { tr.remove(); onChange(); };
   td.append(rm); tr.append(td);
-  id('c-boxes').tBodies[0].append(tr);
+  id(table).tBodies[0].append(tr);
 }
 
-function readBoxes() {
+function readBoxes(table, vars = WHERE_VARS) {
   const boxes = [];
-  for (const tr of id('c-boxes').tBodies[0].rows) {
+  for (const tr of id(table).tBodies[0].rows) {
     const cells = [...tr.querySelectorAll('input')];
     const lens = cells.slice(0, 4).map((c) => parseRange(c.value, 13));
     const pts = parseRange(cells[4].value, 60);
-    const where = compileWhere(cells[5].value);
+    const where = compileWhere(cells[5].value, vars);
     cells.forEach((c, i) => c.classList.toggle('bad', [...lens, pts, where][i] === null));
     if (lens.every(Boolean) && pts && where) boxes.push({ lens, pts, where });
   }
@@ -1162,7 +1168,7 @@ function readBoxes() {
 }
 
 function renderCalc() {
-  const boxes = readBoxes();
+  const boxes = readBoxes('c-boxes');
   const g = GAUGES.indexOf(id('c-gauge').value); // what the Points column and `p` gauge
   let total = 0;
   const byPattern = [];
@@ -1171,7 +1177,7 @@ function renderCalc() {
     if (!mine.length) return;
     let count = 0;
     for (const [values, n] of JOINT[k]) {
-      const v = [...lens, values[g], ...values];
+      const v = [...lens, values[g], ...values, freakness(lens)];
       if (mine.some((box) => v[4] >= box.pts[0] && v[4] <= box.pts[1] && box.where(v))) count += n;
     }
     if (count) { total += count; byPattern.push([lens, count]); }
@@ -1190,4 +1196,261 @@ function renderCalc() {
     </div>
     ${byPattern.length ? `<table class="ddtable"><thead><tr><th>Pattern ♠-♥-♦-♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
     ${byPattern.length > 8 ? `<p class="hint">…and ${byPattern.length - 8} more patterns.</p>` : ''}`;
+}
+
+// --- Companion tab: partner's hand given yours ---------------------------------
+// After Pavlicek's Companion Hand Calculator, but your hand may be a union of
+// boxes instead of cards.  Exact, HCP only: per suit the two hands draw
+// disjoint holdings — honors A K Q J by identity, the nine spots by count —
+// so each suit gives a joint census of (your hcp, partner's hcp) per
+// (your length, partner's length); four suits convolve into a 2-D table per
+// pattern pair, and the boxes read it.
+// ponytail: O(your patterns × partner patterns × 2-D convolution) — cards or a
+// shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a minute.
+// Upgrade path: when no box reads your lengths, carry your running length in
+// the state instead of enumerating your pattern.
+const COMPANION_HANDS = 8122425444; // 39 choose 13
+const HONOR_BIT = { a: 8, k: 4, q: 2, j: 1 }; // the four hcp honors of one suit
+const honorHcp = (mask) => (mask & 8 ? 4 : 0) + (mask & 4 ? 3 : 0) + (mask & 2 ? 2 : 0) + (mask & 1 ? 1 : 0);
+const popcount = (mask) => (mask & 1) + ((mask >> 1) & 1) + ((mask >> 2) & 1) + ((mask >> 3) & 1);
+function choose(n, k) {
+  if (k < 0 || k > n) return 0;
+  let c = 1;
+  for (let i = 1; i <= k; i++) c = (c * (n - k + i)) / i;
+  return Math.round(c);
+}
+// Partner's holdings of length l2 beside your honors `mask` and `spots`
+// spot cards, as [h2, count] rows (your hcp is fixed by `mask`).
+function companionSuit(mask, spots, l2) {
+  const rows = new Map();
+  for (let b = 0; b < 16; b++) {
+    if (b & mask) continue;
+    const n = choose(9 - spots, l2 - popcount(b));
+    if (n) rows.set(honorHcp(b), (rows.get(honorHcp(b)) || 0) + n);
+  }
+  return [...rows];
+}
+// PAIR[l1][l2]: flat [h1, h2, count, …] over every disjoint pair of holdings
+// of those lengths — your hand summed over its honors.
+const PAIR = Array.from({ length: 14 }, (_, l1) => Array.from({ length: 14 - l1 }, (_, l2) => {
+  const rows = new Map();
+  for (let a = 0; a < 16; a++) {
+    const spots = l1 - popcount(a);
+    if (spots < 0 || spots > 9) continue;
+    for (const [h2, n] of companionSuit(a, spots, l2)) {
+      const key = honorHcp(a) * 64 + h2;
+      rows.set(key, (rows.get(key) || 0) + choose(9, spots) * n);
+    }
+  }
+  return [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n]);
+}));
+
+// "AKxxx.Kxx.xx.xxx" (dots or spaces; x = any spot; - = void) →
+// {lens, hcp, suits: [{mask, spots}]}, or null.
+function parseCompanionHand(text) {
+  const parts = text.trim().toLowerCase().split(/[.\s/]+/);
+  if (parts.length !== 4) return null;
+  const suits = [];
+  for (const part of parts) {
+    let mask = 0, spots = 0;
+    for (const ch of part === '-' ? '' : part) {
+      if (Object.hasOwn(HONOR_BIT, ch)) {
+        if (mask & HONOR_BIT[ch]) return null;
+        mask |= HONOR_BIT[ch];
+      } else if ('t98765432x'.includes(ch)) spots++;
+      else return null;
+    }
+    if (spots > 9) return null;
+    suits.push({ mask, spots });
+  }
+  const lens = suits.map((s) => popcount(s.mask) + s.spots);
+  if (lens.reduce((a, b) => a + b) !== 13) return null;
+  return { lens, hcp: suits.reduce((a, s) => a + honorHcp(s.mask), 0), suits };
+}
+
+// One value vector serves both hands' boxes: partner's lengths and hcp, yours,
+// each hand's per-suit hcp, then the two freaknesses.
+const PARTNER_VARS = {
+  '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4, hcp: 4,
+  my_s: 5, 'my_♠': 5, my_h: 6, 'my_♥': 6, my_d: 7, 'my_♦': 7, my_c: 8, 'my_♣': 8, my_hcp: 9,
+  hcp_s: 10, 'hcp_♠': 10, hcp_h: 11, 'hcp_♥': 11, hcp_d: 12, 'hcp_♦': 12, hcp_c: 13, 'hcp_♣': 13,
+  my_hcp_s: 14, 'my_hcp_♠': 14, my_hcp_h: 15, 'my_hcp_♥': 15, my_hcp_d: 16, 'my_hcp_♦': 16, my_hcp_c: 17, 'my_hcp_♣': 17,
+  freak: 18, my_freak: 19,
+};
+const MY_VARS = {
+  '♠': 5, s: 5, '♥': 6, h: 6, '♦': 7, d: 7, '♣': 8, c: 8, p: 9, hcp: 9,
+  hcp_s: 14, 'hcp_♠': 14, hcp_h: 15, 'hcp_♥': 15, hcp_d: 16, 'hcp_♦': 16, hcp_c: 17, 'hcp_♣': 17,
+  freak: 19,
+};
+const inLens = (box, lens) => lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1]);
+const fits = (box, lens, pts, v) => inLens(box, lens) && pts >= box.pts[0] && pts <= box.pts[1] && box.where(v);
+const reads = (boxes, re) => boxes.some((b) => [...(b.where.used || [])].some((name) => re.test(name)));
+const readsHcp = (boxes, re) => boxes.some((b) => b.pts[0] > 0 || b.pts[1] < 60) || reads(boxes, re);
+const ANY_BOX = { lens: [[0, 13], [0, 13], [0, 13], [0, 13]], pts: [0, 60], where: () => true };
+
+// Count (your hand, partner's hand) pairs: `yours` is a parsed hand, or null
+// to range over the `mine` boxes; `known` conditions partner, `query` asks.
+// Returns {mine, known, query, byPattern}: hands of yours in the union, pairs
+// meeting known, pairs meeting both, and per partner pattern [known, query].
+function companionCount(yours, mine, known, query) {
+  const partner = [...known, ...query];
+  const myPats = yours ? [yours.lens] : PATTERNS.filter((lens) => mine.some((b) => inLens(b, lens)));
+  const partnerPats = PATTERNS.filter((lens) => known.some((b) => inLens(b, lens)));
+  // an hcp dimension nobody reads collapses to 0; a read one is pruned to its range
+  const myRead = yours || readsHcp(mine, /^(p|hcp)$/) || reads(partner, /^my_hcp$/);
+  const myMax = yours ? yours.hcp : myRead ? Math.min(37, Math.max(...mine.map((b) => b.pts[1]))) : 0;
+  const myMin = yours ? 0 : Math.min(...mine.map((b) => b.pts[0]));
+  const partnerRead = readsHcp(partner, /^(p|hcp)$/);
+  const knownMax = partnerRead ? Math.min(37, Math.max(...known.map((b) => b.pts[1]))) : 0;
+  const knownMin = Math.min(...known.map((b) => b.pts[0]));
+  // a per-suit hcp some box reads is enumerated outside the convolution:
+  // that suit's step keeps only the holdings of that value
+  const suitVars = new Map();
+  for (const b of [...mine, ...partner]) {
+    for (const name of b.where.used || []) {
+      const m = name.match(/^(my_)?hcp_([shdc♠♥♦♣])$/);
+      if (!m) continue;
+      const suit = Math.max('shdc'.indexOf(m[2]), '♠♥♦♣'.indexOf(m[2]));
+      suitVars.set(`${m[1] || ''}${suit}`, { mine: Boolean(m[1]), suit });
+    }
+  }
+  const enumerated = [...suitVars.values()];
+  const W = 38;
+  let acc = new Float64Array(W * W), next = new Float64Array(W * W);
+  const out = { mine: yours ? 1 : 0, known: 0, query: 0, byPattern: new Map() };
+  // the suit step for this (your holding class, partner length) under the
+  // enumerated values: flat [h1, h2, n, …], filtered, then collapsed
+  const stepCache = new Map(); // per enumeration: (suit, your length, partner's) → step
+  const stepFor = (suit, p1, l2, values) => {
+    const cacheKey = suit * 4096 + p1[suit] * 64 + l2;
+    const hit = stepCache.get(cacheKey);
+    if (hit) return hit;
+    const raw = yours
+      ? companionSuit(yours.suits[suit].mask, yours.suits[suit].spots, l2).flatMap(([h2, n]) => [honorHcp(yours.suits[suit].mask), h2, n])
+      : PAIR[p1[suit]][l2];
+    const rows = new Map();
+    for (let k = 0; k < raw.length; k += 3) {
+      if (enumerated.some((e, i) => e.suit === suit && raw[k + (e.mine ? 0 : 1)] !== values[i])) continue;
+      const key = (myRead ? raw[k] : 0) * 64 + (partnerRead ? raw[k + 1] : 0);
+      rows.set(key, (rows.get(key) || 0) + raw[k + 2]);
+    }
+    const step = [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n]);
+    stepCache.set(cacheKey, step);
+    return step;
+  };
+  const values = enumerated.map(() => 0);
+  do {
+    stepCache.clear();
+    const v = new Array(20).fill(0);
+    enumerated.forEach((e, i) => { v[(e.mine ? 14 : 10) + e.suit] = values[i]; });
+    const vec = (p2, b, p1, a) => { v[0] = p2[0]; v[1] = p2[1]; v[2] = p2[2]; v[3] = p2[3]; v[4] = b; v[5] = p1[0]; v[6] = p1[1]; v[7] = p1[2]; v[8] = p1[3]; v[9] = a; v[18] = freakness(p2); v[19] = freakness(p1); return v; };
+    // your hands alone: the l2 = 0 column of PAIR is your suit census
+    if (!yours) {
+      for (const p1 of myPats) {
+        let dist = new Float64Array(W); dist[0] = 1;
+        for (let suit = 0; suit < 4; suit++) {
+          const step = stepFor(suit, p1, 0, values), d = new Float64Array(W);
+          for (let a = 0; a < W; a++) if (dist[a]) for (let k = 0; k < step.length; k += 3) if (a + step[k] < W) d[a + step[k]] += dist[a] * step[k + 2];
+          dist = d;
+        }
+        for (let a = 0; a < W; a++) if (dist[a] && mine.some((b) => fits(b, p1, a, vec(p1, 0, p1, a)))) out.mine += dist[a];
+      }
+    }
+    for (const p1 of myPats) {
+      for (const p2 of partnerPats) {
+        if (p1.some((l, i) => l + p2[i] > 13)) continue;
+        acc.fill(0); acc[0] = 1;
+        let hi1 = 0, hi2 = 0;
+        for (let suit = 0; suit < 4; suit++) {
+          const step = stepFor(suit, p1, p2[suit], values), rem = 10 * (3 - suit);
+          next.fill(0);
+          for (let k = 0; k < step.length; k += 3) {
+            const h1 = step[k], h2 = step[k + 1], n = step[k + 2];
+            const aHi = Math.min(hi1, myMax - h1), bHi = Math.min(hi2, knownMax - h2);
+            const bLo = Math.max(0, knownMin - rem - h2);
+            for (let a = Math.max(0, myMin - rem - h1); a <= aHi; a++) {
+              const src = a * W, dst = (a + h1) * W + h2;
+              for (let b = bLo; b <= bHi; b++) next[dst + b] += n * acc[src + b];
+            }
+          }
+          [acc, next] = [next, acc];
+          hi1 = Math.min(myMax, hi1 + 10); hi2 = Math.min(knownMax, hi2 + 10);
+        }
+        let kn = 0, qu = 0;
+        for (let a = 0; a <= hi1; a++) {
+          if (!yours && !mine.some((b) => fits(b, p1, a, vec(p2, 0, p1, a)))) continue;
+          for (let b = 0; b <= hi2; b++) {
+            const x = acc[a * W + b];
+            if (!x) continue;
+            vec(p2, b, p1, a);
+            if (!known.some((box) => fits(box, p2, b, v))) continue;
+            kn += x;
+            if (query.some((box) => fits(box, p2, b, v))) qu += x;
+          }
+        }
+        if (!kn) continue;
+        out.known += kn; out.query += qu;
+        const key = p2.join('-'), row = out.byPattern.get(key) || [0, 0];
+        out.byPattern.set(key, [row[0] + kn, row[1] + qu]);
+      }
+    }
+    // next combination of enumerated values, base 11
+    let i = 0;
+    while (i < values.length && ++values[i] > 10) values[i++] = 0;
+    if (i === values.length) break;
+  } while (true);
+  return out;
+}
+
+function initCompanion() {
+  // cards: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
+  // boxes: one shape, partner's spades hypergeometric
+  const all = companionCount(parseCompanionHand('AKQ.AKQ.AKQ.AKQJ'), [], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
+  const shaped = companionCount(null, [{ ...ANY_BOX, lens: [[5, 5], [5, 5], [3, 3], [0, 0]] }], [ANY_BOX], [{ ...ANY_BOX, lens: [[4, 13], [0, 13], [0, 13], [0, 13]] }]);
+  let fit = 0;
+  for (let k = 4; k <= 8; k++) fit += choose(8, k) * choose(31, 13 - k);
+  const near = (x, y) => Math.abs(x - y) <= 1e-9 * Math.abs(y);
+  console.assert(all.known === COMPANION_HANDS && all.query === choose(36, 10)
+    && near(shaped.mine, choose(13, 5) ** 2 * choose(13, 3)) && near(shaped.known, shaped.mine * COMPANION_HANDS)
+    && near(shaped.query / shaped.known, fit / COMPANION_HANDS)
+    && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
+    && parseCompanionHand('AKxxx Kxx xx xxx').hcp === 10 && parseCompanionHand('AAxxx.Kxx.xx.xxx') === null, 'companion');
+  for (const t of ['x-mine', 'x-known', 'x-query']) {
+    id(`${t}-add`).onclick = () => { addBox(t, validateCompanion); validateCompanion(); };
+    addBox(t, validateCompanion);
+  }
+  id('x-hand').oninput = validateCompanion;
+  id('x-hand').onkeydown = (ev) => { if (ev.key === 'Enter') renderCompanion(); };
+  id('x-run').onclick = renderCompanion;
+}
+
+function readCompanion() {
+  const text = id('x-hand').value;
+  const yours = text.trim() ? parseCompanionHand(text) : null;
+  id('x-hand').classList.toggle('bad', yours === null && text.trim() !== '');
+  const mine = readBoxes('x-mine', MY_VARS), known = readBoxes('x-known', PARTNER_VARS), query = readBoxes('x-query', PARTNER_VARS);
+  return { yours, mine, known: known.length ? known : [ANY_BOX], query };
+}
+function validateCompanion() { readCompanion(); }
+
+function renderCompanion() {
+  const { yours, mine, known, query } = readCompanion();
+  const out = id('x-out');
+  if (!yours && !mine.length) { out.innerHTML = '<p class="hint">Enter your hand as cards, or at least one well-formed box for it.</p>'; return; }
+  const t0 = performance.now();
+  const n = companionCount(yours, mine, known, query);
+  const ms = performance.now() - t0;
+  const pct = (x, y) => (y ? `${(100 * x / y).toFixed(2)}%` : '—');
+  const rows = [...n.byPattern].sort((a, b) => b[1][0] - a[1][0]);
+  const top = rows.slice(0, 8).map(([pat, [kn, qu]]) =>
+    `<tr><td>${pat}</td><td>${pct(kn, n.known)}</td><td>${pct(qu, kn)}</td></tr>`).join('');
+  out.innerHTML = `
+    <div class="statrow">
+      ${query.length ? `<div><span class="statlabel">Query, given known</span><span class="statbig">${pct(n.query, n.known)}</span></div>` : ''}
+      <div><span class="statlabel">Known, given your hand</span><span class="statbig">${pct(n.known, n.mine * COMPANION_HANDS)}</span></div>
+      <div><span class="statlabel">Partner hands counted</span><span class="statbig">${(n.known / n.mine).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+    </div>
+    ${rows.length ? `<table class="ddtable"><thead><tr><th>Partner ♠-♥-♦-♣</th><th>Of known</th><th>Query within</th></tr></thead><tbody>${top}</tbody></table>` : ''}
+    ${rows.length > 8 ? `<p class="hint">…and ${rows.length - 8} more patterns.</p>` : ''}
+    <p class="hint">${ms.toFixed(0)} ms</p>`;
 }

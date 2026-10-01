@@ -51,7 +51,7 @@ python3 -m http.server 8137
 # open http://localhost:8137/
 ```
 
-Seven tabs, grouped Play / System / Tools:
+Eight tabs, grouped Play / System / Tools:
 
 - **Practice** — pick your seat, dealer, vulnerability, and a minimum HCP,
   then bid with the bidding box; the bots bid the other seats.  After each of
@@ -78,6 +78,19 @@ Seven tabs, grouped Play / System / Tools:
   (`s >= h >= d`), then `!`, `&`, `|` (or `not`/`and`/`or`) and a comma, an
   *and* that binds loosest — e.g. `s > h`, `hcp >= 10 & pts >= 12`,
   `p + max(s, h) >= 20`.  Typed like Rust: a number is never a condition.
+  `freak` is Pavlicek's freakness (`freak < 3` = 4333/4432/5332).
+- **Companion** — partner's hand given yours, exactly, after Pavlicek's
+  [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
+  your hand is either cards (`AKxxx.Kxx.xx.xxx`, `x` any spot) **or a union of
+  boxes** (`15-17` with `freak < 3`: a 1NT opener).  Partner's *known* boxes
+  condition, the *query* boxes ask; both read partner's `s h d c hcp`, per-suit
+  `hcp_s … hcp_c`, `freak`, and your hand's `my_s … my_hcp my_hcp_s … my_freak`
+  (`s + my_s >= 8`: a spade fit).  HCP only.  Pure JS: per suit the two hands
+  draw disjoint holdings (honors by identity, the nine spots by count), giving
+  a joint census of (your HCP, partner's HCP) per length pair; four suits
+  convolve into a 2-D table per pattern pair.  Dimensions no box reads are
+  collapsed, so cards or one shape answer in milliseconds; a wide union of your
+  shapes with both HCP totals read is seconds — hence a Compute button.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families

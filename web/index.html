@@ -19,6 +19,7 @@
       <button data-tab="edit">Edit</button>
       <button data-tab="binky">Evaluate</button>
       <button data-tab="calc">Calc</button>
+      <button data-tab="companion">Companion</button>
     </nav>
   </header>
   <main>
@@ -136,7 +137,8 @@
         Where: a condition on the lengths <code>s h d c</code> and any of the point gauges
         <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected) —
         <code>s &gt; h</code>, <code>s &gt;= h &gt;= d</code>, <code>max(s, h) &gt;= 5</code>,
-        <code>hcp &gt;= 10 &amp; pts &gt;= 12</code>, <code>p + s &gt;= 15 | !(d &gt; c)</code>;
+        <code>hcp &gt;= 10 &amp; pts &gt;= 12</code>, <code>p + s &gt;= 15 | !(d &gt; c)</code>,
+        <code>freak &lt; 3</code> (Pavlicek's freakness: balanced);
         a comma is an <em>and</em> that binds loosest.</div>
       <div class="controls">
         <label>Points <select id="c-gauge">
@@ -156,6 +158,43 @@
         </table>
       </div>
       <div id="c-out" class="panel"></div>
+    </section>
+    <section id="companion" class="hidden">
+      <div class="boardinfo">Partner's hand given yours, exactly, after Richard Pavlicek's
+        <a href="https://www.rpbridge.net/cgi-bin/xch1.pl">Companion Hand Calculator</a> — but your hand may be
+        a union of boxes instead of cards.  Cards: <code>AKxxx.Kxx.xx.xxx</code> (dots or spaces, <code>x</code> any spot,
+        <code>-</code> a void); blank uses the boxes.  Partner's <em>known</em> boxes condition (blank = any hand),
+        the <em>query</em> boxes ask.  Ranges as in Calc, HCP only.  Where sees the box's own hand as
+        <code>s h d c hcp</code>, its per-suit HCP <code>hcp_s hcp_h hcp_d hcp_c</code> (<code>hcp_d = 4</code>: the ♦A)
+        and Pavlicek's <code>freak</code> (<code>freak &lt; 3</code>: 4333 4432 5332); a partner box also sees yours as
+        <code>my_s … my_hcp my_hcp_s … my_freak</code> — <code>s + my_s &gt;= 8 | h + my_h &gt;= 8</code>.
+        Press Compute: cards or a shaped box answer at once, a wide union of your shapes takes seconds.</div>
+      <div class="controls">
+        <label>Your hand <input id="x-hand" type="text" spellcheck="false" size="28" placeholder="AKxxx.Kxx.xx.xxx, or blank"></label>
+        <button id="x-run" class="primary">Compute</button>
+      </div>
+      <div class="panel">
+        <div class="controls"><strong>Your hand, when blank above</strong> <button id="x-mine-add" class="secondary">+ box</button></div>
+        <table class="boxes" id="x-mine">
+          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="controls"><strong>Partner known</strong> <button id="x-known-add" class="secondary">+ box</button></div>
+        <table class="boxes" id="x-known">
+          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="controls"><strong>Partner query</strong> <button id="x-query-add" class="secondary">+ box</button></div>
+        <table class="boxes" id="x-query">
+          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="x-out" class="panel"></div>
     </section>
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>
