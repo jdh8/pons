@@ -19,8 +19,8 @@
       <button data-tab="edit">Edit</button>
       <button data-tab="binky">Evaluate</button>
       <span class="navsep"></span>
-      <button data-tab="calc">Odds</button>
-      <button data-tab="companion">Partner</button>
+      <button data-tab="odds">Odds</button>
+      <button data-tab="partner">Partner</button>
     </nav>
   </header>
   <main>
@@ -130,7 +130,7 @@
         <div id="k-table" class="tablescroll"></div>
       </div>
     </section>
-    <section id="calc" class="hidden">
+    <section id="odds" class="hidden">
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
         a union of boxes, the same reading the bidder keeps per seat.
         Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>0-2</code>, blank = any.
@@ -159,7 +159,7 @@
       </div>
       <div id="c-out" class="panel"></div>
     </section>
-    <section id="companion" class="hidden">
+    <section id="partner" class="hidden">
       <div class="boardinfo">Partner's hand given yours, exactly, after Richard Pavlicek's
         <a href="https://www.rpbridge.net/cgi-bin/xch1.pl">Companion Hand Calculator</a> — but each hand is
         a union of boxes.  A suit is a length as in Odds, or a <em>holding</em>: a regex over the suit written high

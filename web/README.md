@@ -66,7 +66,7 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   current book is shown.
 - **Edit** — a PBN field two-way-synced with a card palette; build a deal by
   hand, then "Bid it out in Demo".
-- **Odds** (`#calc`) — a shape-points probability calculator: a union of boxes (per-suit
+- **Odds** (`#odds`) — a shape-points probability calculator: a union of boxes (per-suit
   length ranges plus a points range, one row per box), priced exactly by
   convolving per-suit holding censuses over the 560 patterns.  Gauges: HCP,
   the bidder's points (HCP + upgrade), and support points with each trump —
@@ -79,7 +79,7 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   *and* that binds loosest — e.g. `s > h`, `hcp >= 10 & pts >= 12`,
   `p + max(s, h) >= 20`.  Typed like Rust: a number is never a condition.
   `freak` is Pavlicek's freakness (`freak < 3` = 4333/4432/5332).
-- **Partner** (`#companion`) — partner's hand given yours, exactly, after Pavlicek's
+- **Partner** (`#partner`) — partner's hand given yours, exactly, after Pavlicek's
   [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
   each hand is **a union of boxes** (`15-17` with `freak < 3`: a 1NT opener).
   A suit cell is a length range or a **holding**: a regex over the suit written

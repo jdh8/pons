@@ -389,8 +389,8 @@ table.ddtable td.lose { color: var(--heart); }
    so rather than offering a control that does nothing. */
 .opt.dimmed { opacity: .45; cursor: not-allowed; }
 
-/* --- Calc tab (union of boxes) --- */
-table.boxes { border-collapse: collapse; }
+/* --- Odds and Partner tabs (union of boxes) --- */
+table.boxes { border-collapse: collapse; width: 100%; }
 table.boxes th { font-weight: 600; padding: 0.2rem 0.4rem; text-align: left; }
 table.boxes td { padding: 0.15rem 0.3rem; }
 table.boxes input {
@@ -401,7 +401,8 @@ table.boxes input {
   border: 1px solid #bbb;
   border-radius: 4px;
 }
-table.boxes input.where { width: 22rem; }
-#companion table.boxes input { width: 7rem; } /* room for a holding regex */
-#companion table.boxes input.where { width: 18rem; }
+/* Where takes the rest of the row and shrinks before the row overflows. */
+table.boxes td:has(> input.where) { width: 100%; }
+table.boxes input.where { width: 100%; min-width: 8rem; }
+#partner table.boxes td:nth-child(-n+4) input { width: 7rem; } /* room for a holding regex */
 table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }

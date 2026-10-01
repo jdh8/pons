@@ -52,7 +52,7 @@ async function main() {
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book', 'edit', 'binky', 'calc', 'companion', 'settings'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit', 'binky', 'odds', 'partner', 'settings'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -1464,7 +1464,7 @@ function initCompanion() {
       validateCompanion();
     });
   }
-  id('companion').onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') renderCompanion(); };
+  id('partner').onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') renderCompanion(); };
   id('x-run').onclick = renderCompanion;
 }
 

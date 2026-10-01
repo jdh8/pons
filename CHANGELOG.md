@@ -471,8 +471,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Web: the Calc and Companion tabs are labelled Odds and Partner, in their
   own nav group (2026-10-01)** — Edit and Evaluate work on a concrete deal;
-  these two are probability calculators over constraints.  Labels only: the
-  `#calc` and `#companion` hashes still work.
+  these two are probability calculators over constraints.  The hashes follow:
+  `#odds` and `#partner` (`#calc` and `#companion` now land on Practice).  The
+  boxes' Where column takes the rest of the row, so Partner's wide holding
+  cells no longer push Where and `×` past the panel's right edge.
 - **Floor sweep archived (2026-09-30).** `docs/ai-bidder/floor-sweep.md`
   moved whole to `docs/archive/floor-sweep.md` beside its verdict
   narratives; links and source comments repointed. **Impact:** docs only.
