@@ -267,7 +267,11 @@ Tracing them found the larger defect. `nt_structure_artificial` tests only
 whole continuation blanketed as relays — on both sides. The side gate does not
 fix that; it merely stops half of it leaking, which is why it moves so much.
 
-Both defects are recorded on the function's own doc comment. Fixing either is a
+Both defects are recorded on the function's own doc comment. **Defect 1 is
+fixed** (2026-10-02, `ReadingProfile::nt_structure_opening_gate`, default on;
+8/8 cells vs BBA, pooled plain +0.0057 / +0.0046 IMPs/board none / both — see
+the CHANGELOG and `scripts/ab-nt-structure-opening-gate.sh`); defect 2, the
+side gate, is still open and should be re-measured on top of it. Fixing either was a
 live bidding change on the default system and needs the A/B the iron rules
 demand — the same reason the ~30 other side-blind reading sites in `readers.rs`
 are out of scope for a fidelity-gated commit.

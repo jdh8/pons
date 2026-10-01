@@ -2002,8 +2002,8 @@ fn intersect_overlay(
 ///    minor structure and get their whole continuation blanketed as relays.
 ///    Gated behind
 ///    [`nt_structure_opening_gate`][field@crate::bidding::ReadingProfile::nt_structure_opening_gate]
-///    at the call site (default off, A/B owed): `1♠ - 2♠` "enters" too, which
-///    is why it reads with no spade length.
+///    at the call site, default on since 2026-10-02: `1♠ - 2♠` "entered"
+///    too, which is why it read with no spade length.
 /// 2. **No `is_opening_side` gate,** unlike `nt_splinter_artificial` and
 ///    `nt_blanket` beside it — so the *defenders'* suit bids are suppressed too.
 ///

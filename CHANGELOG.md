@@ -9,17 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`ReadingProfile::nt_structure_opening_gate`, opt-in, A/B owed
-  (2026-10-02)** — `--ns-nt-structure-opening-gate` in `bba-gen` and
-  `probe-call-reading`.  The notrump-structure relay blanket
+- **The notrump-structure relay blanket fires over 1NT only, shipped
+  default-on (2026-10-02)** — `ReadingProfile::nt_structure_opening_gate`
+  (`--no-ns-nt-structure-opening-gate` in `bba-gen` and `probe-call-reading`
+  for the control arm).  The notrump-structure relay blanket
   (`nt_structure_artificial`) suppresses every call after responder's first
   `2♠`/`3♣`/`2NT` as a Puppet relay without checking that the opening was
   1NT, so `1♠ - 2♠` read with no spade length (`1♥ - 2♥` reads ♥3+), and
   the game try `1♠ - 2♠ - 3♥`, `1♠ (X) 2♠` and the calls after Jacoby `2NT`
   read as nothing, from both sides of the table.  On, the blanket fires over
-  1NT only.  Default off is byte-identical; on moves 682 of 40,000
-  self-play boards (`smoke-default --seed 1`), none of them 1NT auctions.
-  The A/B is `scripts/ab-nt-structure-opening-gate.sh`.
+  1NT only.  It moves 682 of 40,000 self-play boards (`smoke-default
+  --seed 1`), none of them 1NT auctions.  Won 8 of 8 cells against BBA
+  (`scripts/ab-nt-structure-opening-gate.sh`, seeds 1790893855 and
+  1790894389, 204,800 boards/arm/vul each), pooled IMPs/board none / both:
+  plain **+0.0057 ±0.0016 / +0.0046 ±0.0018**, PD +0.0036 ±0.0017 /
+  +0.0034 ±0.0020, at 0.53–0.64% fired.  Two-thirds of the divergent
+  boards were opened by BBA: our defenders read their `1♠ - 2♠` and their
+  Jacoby `2NT` continuations as nothing too.
 
 - **The grand rung below a positive to our strong `2♣`, shipped default-on
   (2026-10-01)** — `RebidKnobs::strong_two_grand`

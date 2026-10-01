@@ -737,12 +737,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_nt_wide: bool,
 
-    /// Confine the notrump-structure relay blanket to a 1NT opening for our
-    /// side (`ReadingProfile::nt_structure_opening_gate`, crate default off):
-    /// `1♠ - 2♠` then reads ♠3+, and the calls after a third-call `2♠`/`2NT`
-    /// outside 1NT read naturally instead of as relays.
+    /// Turn **off** the 1NT-opening gate on the notrump-structure relay blanket
+    /// for our side (`ReadingProfile::nt_structure_opening_gate`, default on
+    /// since 2026-10-02): `1♠ - 2♠` then reads with no spade length again, and
+    /// the calls after a third-call `2♠`/`2NT` outside 1NT read as relays.
     #[arg(long, default_value_t = false)]
-    ns_nt_structure_opening_gate: bool,
+    no_ns_nt_structure_opening_gate: bool,
 
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
@@ -2544,7 +2544,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.floor_rkcb = !args.no_ns_floor_rkcb;
     agreements.decision.reading.rkcb_variant = args.ns_rkcb.into();
     agreements.decision.reading.two_notrump_wide = args.ns_two_nt_wide;
-    agreements.decision.reading.nt_structure_opening_gate = args.ns_nt_structure_opening_gate;
+    agreements.decision.reading.nt_structure_opening_gate = !args.no_ns_nt_structure_opening_gate;
     agreements.decision.reading.natural_double_floor = args.ns_double_floor;
     agreements.decision.reading.nt_overcall_systems_on = !args.no_ns_nt_overcall_systems_on;
     agreements.decision.reading.nt_overcall_gladiator = args.ns_nt_overcall_gladiator;

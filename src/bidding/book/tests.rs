@@ -344,6 +344,10 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     // shipped `ReadingScope::All` the free bid's own rule already publishes
     // its suit, so pin the regime the knob was built for.
     partnership.profile_mut().reading.scope = crate::bidding::inference::ReadingScope::Alerted;
+    // The free `2♠` read nothing only because the relay blanket took it for
+    // Puppet's `1NT - 2♠` (defect 1 of `nt_structure_artificial`); the gate
+    // reads it ♠4+, so pin the pre-gate reading this hole was found under.
+    partnership.profile_mut().reading.nt_structure_opening_gate = false;
     let boxed = |spades: Range, points: Range| {
         let mut envelope = Envelope::unknown();
         envelope.lengths[Suit::Spades as usize] = spades;

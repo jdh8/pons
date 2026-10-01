@@ -18,8 +18,8 @@
 # `1♠ - 2♠` 175, `1M - 2NT` 120, contested `2♠` raises ~140, `3♣` after a
 # minor or contested opening, Ogust.  No 1NT auction among them.
 #
-#   gate  `--ns-nt-structure-opening-gate`: the blanket fires over 1NT only
-#   off   the shipped default
+#   gate  the default since 2026-10-02: the blanket fires over 1NT only
+#   off   `--no-ns-nt-structure-opening-gate`: the pre-fix blanket
 #
 # No opener isolation gate: the reading fix applies to both sides' auctions
 # (our defenders read BBA's `1♠ - 2♠` too), so a divergent board opened by
@@ -30,6 +30,20 @@
 # win (docs/measurement.md decision table).  A loss is traced before any
 # verdict; a loss that traces to the floor having trained on the blanketed
 # reading stays opt-in as retrain-gated.
+#
+# SHIPPED default-on 2026-10-02 (plain win at both vulnerabilities, 8/8
+# cells > 0).  Run while the knob was opt-in at 0062a15d (the gate arm was
+# `--ns-nt-structure-opening-gate`, the off arm the bare default; that flag
+# is now `--no-ns-nt-structure-opening-gate`).  IMPs/board none / both:
+#
+#   seed 1790893855  plain +0.0076 ±0.0023 / +0.0032 ±0.0026, 1306 / 1101 fired
+#                    PD    +0.0047 ±0.0024 / +0.0017 ±0.0028
+#   seed 1790894389  plain +0.0037 ±0.0022 / +0.0060 ±0.0026, 1259 / 1093 fired
+#                    PD    +0.0025 ±0.0023 / +0.0050 ±0.0028
+#   pooled           plain +0.0057 ±0.0016 / +0.0046 ±0.0018  (409,600 boards/vul)
+#                    PD    +0.0036 ±0.0017 / +0.0034 ±0.0020
+#
+# Divergent boards opened by BBA: 68% / 70% (seed 1), 63% / 67% (seed 2).
 R=${1:?usage: ab-nt-structure-opening-gate.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -37,8 +51,8 @@ SEED_BASE=$(seed_for nt-structure-gate)
 
 log "=== nt-structure-gate A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm off "$vul"
-    arm gate "$vul" --ns-nt-structure-opening-gate
+    arm off "$vul" --no-ns-nt-structure-opening-gate
+    arm gate "$vul"
     out="$R/divergence.gate.vs.off.$vul.txt"
     [ -s "$out" ] || "$PROBE" "$R/gate-$vul" "$R/off-$vul" >"$out"
     diffpair gate off "$vul"

@@ -852,8 +852,11 @@ Not a trigger: more precision, a faster counter, or a new net input (§2).
   blanketed before the walk's raise arm can floor ♠3. `1♥ - 2♥` is not in the
   entry set, hence the asymmetry. The same blanket hits every unauthored call
   after a `2♠`/`2NT` third call — `1♠ - 2♠ - 3♥` (the game try),
-  `1♠ (X) 2♠`, `1♠ (X) 2NT - 3♣` — from both sides of the table. The fix is
-  the owed defect-1 A/B, not a new row.
+  `1♠ (X) 2♠`, `1♠ (X) 2NT - 3♣` — from both sides of the table. **Fixed
+  and shipped default-on 2026-10-02** as
+  `ReadingProfile::nt_structure_opening_gate` (8/8 cells vs BBA, pooled
+  plain +0.0057 / +0.0046 IMPs/board none / both; CHANGELOG). The 3b
+  replay-arm number at `1♠ - 2♠` was measured before it.
 - **3a's reply set was cut after the first smoke run.** The gate's thresholds
   were fixed before any run; restricting replies to the calls a node made on
   another deal came after a 200-deal smoke showed unmade calls reading as

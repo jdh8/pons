@@ -1163,14 +1163,16 @@ pub struct ReadingProfile {
 
     /// Confine the notrump-structure relay blanket to a 1NT opening
     ///
-    /// **Default off**, byte-identical to the shipped reading.  The blanket
+    /// **Default on since 2026-10-02** (won 8/8 cells vs BBA, pooled plain
+    /// +0.0057 / +0.0046, PD +0.0036 / +0.0034 IMPs/board none / both;
+    /// `scripts/ab-nt-structure-opening-gate.sh`).  The blanket
     /// (`nt_structure_artificial` in `inference/read.rs`) suppresses every call
     /// after responder's first `2♠`/`3♣`/`2NT` as a Puppet or transfer relay,
     /// but never checks that the opening was 1NT — its recorded "defect 1".
     /// So `1♠ - 2♠` reads with no spade length, and the game try
     /// `1♠ - 2♠ - 3♥`, `1♠ (X) 2♠` and `1♠ (X) 2NT - 3♣` read as nothing.
-    /// On, the blanket fires only over a 1NT opening.  A reading change is a
-    /// bidding change under the neural floor, so this ships on an A/B only.
+    /// On, the blanket fires only over a 1NT opening; off recovers the
+    /// pre-fix reading (`--no-ns-nt-structure-opening-gate`).
     pub nt_structure_opening_gate: bool,
 }
 
@@ -1311,7 +1313,7 @@ impl Default for ReadingProfile {
             two_notrump_wide: false,
             floor_rkcb: true,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Plain,
-            nt_structure_opening_gate: false,
+            nt_structure_opening_gate: true,
         }
     }
 }
