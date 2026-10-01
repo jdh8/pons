@@ -469,6 +469,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Partner counts every point gauge, with a picker per table
+  (2026-10-01)** — Your hand, Partner known and Partner query each get the
+  Odds header: the points column's gauge is picked per table (known on `UP
+  12-21`, query on `SP♠ 13+`), `p` in a Where is its own table's gauge and
+  `my.p` yours, and `up` / `sp♠ …` work in every Where, for either hand
+  (`up + my.up >= 25`).  The grammar is now the same in both tabs; Partner
+  only adds `my.`.  Still exact: with both patterns fixed, `up` is the HCP and
+  the count of wasted suits, and a support count the HCP and what the short
+  side suits add (`hcp_plus − hcp`), so each gauge read is one small sum
+  beside that hand's HCP — read off the census, not a copy of the
+  evaluators' formulas — and the dense table's axis widens by its radix (at
+  most 4).  Checked three ways: your hands under gauge boxes equal the Odds
+  count to the unit, pairs (A, B) equal pairs (B, A), and an 8M-deal Monte
+  Carlo agrees within 1.3 σ.  **Cost:** queries that read only HCP are
+  byte-identical and no slower (4.85 s vs 4.82 s, 5.4 s vs 5.7 s on the two
+  wide benchmarks); on a wide union (`15-17` balanced opposite any shape)
+  `up` on both hands is 3.3× the HCP time and `up` plus one `sp` 6.3×.  About
+  six gauges between the two hands is the ceiling: past 2²³ table cells the
+  tab declines to count rather than exhaust memory.  **Impact:** web only.
 - **Web: Odds and Partner speak one box grammar; `pts` is `up`, `hcp_s` is
   `s.hcp` (2026-10-01)** — the two tabs parse their boxes with one variable
   table and one widget, and share one set of help popovers.  **Renamed, no

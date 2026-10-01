@@ -76,14 +76,17 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
 - **Partner** (`#partner`) — partner's hand given yours, exactly, after Pavlicek's
   [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
   each hand is **a union of boxes** (`15-17` with `freak < 3`: a 1NT opener).
-  Partner's *known* boxes condition, the *query* boxes ask.  HCP only.  Pure JS:
-  per suit the two hands draw disjoint holdings (the honors A–T by identity,
-  the eight spots by count), giving a joint census of (your HCP, partner's HCP)
-  per length pair; four suits convolve into a 2-D table per pattern pair, whose
-  state also carries which boxes every suit so far admits.  Dimensions no box
-  reads are collapsed, so a named hand or one shape answers in milliseconds; a
-  wide union of your shapes with both HCP totals read is seconds — hence a
-  Compute button.
+  Partner's *known* boxes condition, the *query* boxes ask; each of the three
+  tables picks its own points gauge.  Pure JS: per suit the two hands draw
+  disjoint holdings (the honors A–T by identity, the eight spots by count),
+  giving a joint census of (your HCP, partner's HCP) per length pair; four
+  suits convolve into a 2-D table per pattern pair, whose state also carries
+  which boxes every suit so far admits.  The other gauges ride beside a hand's
+  HCP as small sums — the wasted suits behind `up`, the short side suits'
+  extra behind each `sp` — widening that hand's axis.  Dimensions no box reads
+  are collapsed, so a named hand or one shape answers in milliseconds; a wide
+  union of your shapes with both HCP totals read is seconds, and several times
+  that for each further gauge read — hence a Compute button.
 
   Both tabs speak one **box grammar**:
   - A suit cell is a length range (`5+`, `4-6`, `3`, blank = any) or a
@@ -102,9 +105,9 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
     (or `not`/`and`/`or`) and a comma, an *and* that binds loosest — e.g.
     `s > h`, `♠ + ♠.hcp >= 9`, `hcp >= 10 & up >= 12`, `p + max(s, h) >= 20`.
     Typed like Rust: a number is never a condition.
-  - In Partner, a partner box also reads your hand under `my.` —
-    `my.s`, `my.hcp`, `my.s.hcp`, `my.freak` (`s + my.s >= 8`: a spade fit) —
-    and, counting HCP only, takes no `up` or `sp`.
+  - In Partner, a partner box also reads your hand under `my.` — `my.s`,
+    `my.hcp`, `my.up`, `my.s.hcp`, `my.freak`, and `my.p` for your table's
+    gauge (`s + my.s >= 8`: a spade fit; `up + my.up >= 25`).
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families

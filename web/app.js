@@ -1157,17 +1157,17 @@ const admits = (box, suit, mask, len) => len >= box.lens[suit][0] && len <= box.
   && (!box.cells[suit] || box.cells[suit][mask * 9 + len - popcount(mask)] === 1);
 const meets = (box, v) => v[box.p] >= box.pts[0] && v[box.p] <= box.pts[1] && box.where(v);
 
-// A table of boxes: its header (with the gauge picker, under `picker`), one
-// empty box, the "+ box" button beside it, and a whole hand pasted into a
-// suit cell filling the row.
-function initBoxes(table, onChange, picker = true) {
+// A table of boxes: its header with the gauge picker, one empty box, the
+// "+ box" button beside it, and a whole hand pasted into a suit cell filling
+// the row.
+function initBoxes(table, onChange) {
   const help = (target) => `<button class="help" popovertarget="help-${target}" aria-label="Help">?</button>`;
   const options = GAUGES.map(([, name, what], g) => `<option value="${g}">${name.toUpperCase()}&emsp;${what}</option>`).join('');
   const gauge = `<label class="gauge"><span>HCP</span><select aria-label="Point gauge" title="The gauge this column's ranges are on">${options}</select></label>`;
   id(table).innerHTML = `<thead><tr><th class="s-s">♠ ${help('suit')}</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th>
-    <th>${picker ? gauge : 'HCP'}</th><th>Where ${help('where')}</th><th></th></tr></thead><tbody></tbody>`;
+    <th>${gauge}</th><th>Where ${help('where')}</th><th></th></tr></thead><tbody></tbody>`;
   const select = id(table).querySelector('select');
-  if (select) select.onchange = () => { select.previousElementSibling.textContent = GAUGES[select.value][0]; onChange(); };
+  select.onchange = () => { select.previousElementSibling.textContent = GAUGES[select.value][0]; onChange(); };
   id(`${table}-add`).onclick = () => { addBox(table, onChange); onChange(); };
   id(table).addEventListener('paste', (ev) => {
     const cells = [...ev.target.closest('tr').querySelectorAll('input')];
@@ -1181,7 +1181,7 @@ function initBoxes(table, onChange, picker = true) {
   addBox(table, onChange);
 }
 // the gauge the table's Points column is on, as a GAUGES index
-const gaugeOf = (table) => +(id(table).querySelector('select')?.value || 0);
+const gaugeOf = (table) => +id(table).querySelector('select').value;
 
 function addBox(table, onChange) {
   const tr = document.createElement('tr');
@@ -1226,12 +1226,17 @@ function readBoxes(table, vars) {
 const TOTAL_HANDS = 635013559600;
 let CENSUS = null; // [len] → rows of [honors, hcp, wasted, hcp_plus, count], from wasm
 const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
+let HELD = null; // [len][honors] → [hcp, wasted, hcp_plus], the census by holding
 let JOINT = null; // gaugeJoint by PATTERNS index
+let GAUGE_SLACK = null; // by gauge, the most it exceeds the hcp; never less
 for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; s + h + d <= 13; d++) {
   PATTERNS.push([s, h, d, 13 - s - h - d]);
 }
 const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
 const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
+// the shape terms of the gauges: every sp's bonus, and what `up` adds before wasted suits
+const longBonus = (lens) => (twoLongest(lens) >= 10 ? 1 : 0);
+const upgradeBase = (lens) => (isBalanced(lens) ? 0 : 1) + longBonus(lens);
 // Pavlicek's freakness: a point per card over four or under three in each
 // suit, plus 1 for a singleton or 2 for a void — 4333 = 0, 4432 = 1, 5332 = 2.
 const freakness = (lens) => lens.reduce((f, l) => f + Math.max(0, l - 4, 3 - l), 0) + (lens.includes(0) ? 2 : lens.includes(1) ? 1 : 0);
@@ -1271,8 +1276,7 @@ function gaugeJoint(lens, boxes = [ANY_BOX], suits = []) {
     }
     acc = next;
   });
-  const bonus = twoLongest(lens) >= 10 ? 1 : 0;
-  const base = (isBalanced(lens) ? 0 : 1) + bonus;
+  const bonus = longBonus(lens), base = upgradeBase(lens);
   return [...acc].flatMap(([side, sums]) => {
     const each = [0, 1, 2, 3].map((suit) => Math.floor(side / SIG / 11 ** suit) % 11);
     return [...sums].map(([code, n]) => {
@@ -1318,7 +1322,19 @@ function initCalc() {
     && [...compileWhere('sps > my.♦.hcp', { ...vars, ...handVars(HAND_SLOTS, 0, 'my.') }).used].join() === '6,27'
     && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
   CENSUS = JSON.parse(point_census());
+  HELD = CENSUS.map((rows) => {
+    const byHonors = [];
+    for (const [honors, hcp, wasted, plus] of rows) byHonors[honors] = [hcp, wasted, plus];
+    return byHonors;
+  });
   JOINT = PATTERNS.map((lens) => gaugeJoint(lens));
+  GAUGE_SLACK = GAUGES.map(() => 0);
+  let under = false;
+  for (const joint of JOINT) for (const [values] of joint) values.forEach((value, g) => {
+    under ||= value < values[0];
+    GAUGE_SLACK[g] = Math.max(GAUGE_SLACK[g], value - values[0]);
+  });
+  console.assert(!under, 'a gauge under the hcp');
   // the ♠K is in C(51,12) hands, the ♠A alone in a suit (4 hcp there) in C(39,12)
   const box = (...texts) => makeBox(parseCells(texts, vars), vars.p);
   console.assert(oddsCount([box('.*K.*', '', '', '', '', '')]).total === choose(51, 12)
@@ -1349,49 +1365,110 @@ function renderCalc() {
 
 // --- Companion tab: partner's hand given yours ---------------------------------
 // After Pavlicek's Companion Hand Calculator, but each hand is a union of
-// boxes.  Exact, HCP only: per suit the two hands draw disjoint holdings —
-// the honors A K Q J T by identity, the eight spots by count — so each suit
-// gives a joint census of (your hcp, partner's hcp) per (your length,
-// partner's length); four suits convolve into a 2-D table per pattern pair,
-// and the boxes read it.  A holding cell reads the honors, which the table
-// does not keep: the convolution state also carries which boxes every suit so
-// far admits (a bit per box), so a fully named hand costs one pattern and one
-// holding a suit.
+// boxes.  Exact: per suit the two hands draw disjoint holdings — the honors
+// A K Q J T by identity, the eight spots by count — so each suit gives a joint
+// census of (your hcp, partner's hcp) per (your length, partner's length);
+// four suits convolve into a 2-D table per pattern pair, and the boxes read
+// it.  A holding cell reads the honors, which the table does not keep: the
+// convolution state also carries which boxes every suit so far admits (a bit
+// per box), so a fully named hand costs one pattern and one holding a suit.
+// The other gauges ride beside a hand's hcp as a few small sums (`gaugeSums`),
+// widening its axis of the table.
 // ponytail: O(your patterns × partner patterns × 2-D convolution) — a named
 // hand or a shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a
 // minute.  Upgrade path: when no box reads your lengths, carry your running
 // length in the state instead of enumerating your pattern.
+// ponytail: the tables are dense, and every gauge a hand's boxes read widens
+// its axis up to fourfold — past MAX_CELLS the count is refused (about six
+// gauges between the two hands).  Upgrade path: sparse tables.
 const COMPANION_HANDS = 8122425444; // 39 choose 13
-const honorHcp = (mask) => (mask & 16 ? 4 : 0) + (mask & 8 ? 3 : 0) + (mask & 4 ? 2 : 0) + (mask & 2 ? 1 : 0);
+const MAX_CELLS = 2 ** 23;
 
 // One value vector serves both hands' boxes: partner's slots, then yours,
 // which a partner box reads under `my.`.
-// ponytail: HCP only until the convolution carries the other gauges
 const MINE = HAND_SLOTS;
-const hcpOnly = (vars) => Object.fromEntries(Object.entries(vars)
-  .filter(([, slot]) => slot % HAND_SLOTS <= SLOT.gauge || slot % HAND_SLOTS >= SLOT.suitHcp));
-const PARTNER_VARS = hcpOnly({ ...handVars(0, 0), ...handVars(MINE, 0, 'my.') });
-const MY_VARS = hcpOnly(handVars(MINE, 0));
 // the slots the boxes read: every where's, and the gauge of a bounded points range
 const slotsRead = (boxes) => new Set(boxes.flatMap((box) =>
   [...box.where.used, ...(box.pts[0] > 0 || box.pts[1] < 60 ? [box.p] : [])]));
 
+// What the boxes make the hand at `base` carry beside its hcp: one sum over
+// the suits per gauge read — the wasted suits behind `up`, and behind each sp
+// what the side suits add to their hcp (hcp_plus − hcp).  A suit's term moves
+// only when the suit is short, so each is counted from its least over the
+// holdings of that length (`lo`), by at most `span`; the sums pack into one
+// index, mixed radix by `place`.
+function gaugeSums(base, read) {
+  const terms = [];
+  const up = base + SLOT.gauge + 1;
+  if (read.has(up)) terms.push({ slot: up, of: (suit, [, wasted]) => wasted });
+  for (let trump = 0; trump < 4; trump++) {
+    const slot = up + 1 + trump;
+    if (read.has(slot)) terms.push({ slot, support: true, of: (suit, [hcp, , plus]) => (suit === trump ? 0 : plus - hcp) });
+  }
+  let size = 1;
+  for (const term of terms) {
+    const ranges = [0, 1, 2, 3].map((suit) => HELD.map((byHonors) => {
+      const values = byHonors.filter(Boolean).map((held) => term.of(suit, held));
+      return [Math.min(...values), Math.max(...values)];
+    }));
+    term.lo = ranges.map((byLen) => byLen.map(([lo]) => lo));
+    term.span = ranges.map((byLen) => byLen.map(([lo, hi]) => hi - lo));
+    term.place = size;
+    term.radix = 1 + Math.max(...PATTERNS.map((lens) => lens.reduce((sum, len, suit) => sum + term.span[suit][len], 0)));
+    size *= term.radix;
+  }
+  // how far one suit can move the index
+  const reach = !terms.length ? () => 0
+    : (suit, len) => terms.reduce((sum, term) => sum + term.place * term.span[suit][len], 0);
+  return {
+    size, reach,
+    // a holding's step along the index
+    offset: !terms.length ? () => 0 : (suit, len, honors) => terms.reduce((sum, term) =>
+      sum + term.place * (term.of(suit, HELD[len][honors]) - term.lo[suit][len]), 0),
+    // a pattern's constants: the index's `top`, and what decoding it needs
+    shape: (lens) => ({
+      lens, freak: freakness(lens), bonus: longBonus(lens), upgrade: upgradeBase(lens),
+      top: lens.reduce((sum, len, suit) => sum + reach(suit, len), 0),
+      least: terms.map((term) => lens.reduce((sum, len, suit) => sum + term.lo[suit][len], 0)),
+    }),
+    // write the hand of this shape, hcp and index into the value vector
+    set(v, shape, hcp, index) {
+      for (let suit = 0; suit < 4; suit++) v[base + suit] = shape.lens[suit];
+      v[base + SLOT.gauge] = hcp;
+      v[base + SLOT.freak] = shape.freak;
+      for (let k = 0; k < terms.length; k++) {
+        const term = terms[k], sum = Math.floor(index / term.place) % term.radix + shape.least[k];
+        v[term.slot] = hcp + (term.support ? sum + shape.bonus : Math.max(0, shape.upgrade - sum));
+      }
+    },
+  };
+}
+
 // Count (your hand, partner's hand) pairs: `mine` boxes your hand, `known`
 // conditions partner, `query` asks.
 // Returns {mine, known, query, byPattern}: hands of yours in the union, pairs
-// meeting known, pairs meeting both, and per partner pattern [known, query].
+// meeting known, pairs meeting both, and per partner pattern [known, query] —
+// or null when the tables would pass MAX_CELLS.
 function companionCount(mine, known, query) {
   const partner = [...known, ...query];
   const myPats = PATTERNS.filter((lens) => mine.some((b) => inLens(b, lens)));
   const partnerPats = PATTERNS.filter((lens) => known.some((b) => inLens(b, lens)));
-  // an hcp dimension nobody reads collapses to 0; a read one is pruned to its range
   const read = slotsRead([...mine, ...partner]);
-  const myRead = read.has(MINE + SLOT.gauge);
+  const mySums = gaugeSums(MINE, read), partnerSums = gaugeSums(0, read);
+  const myShapes = myPats.map(mySums.shape), partnerShapes = partnerPats.map(partnerSums.shape);
+  const W = 38;
+  const top = (shapes) => Math.max(0, ...shapes.map((shape) => shape.top));
+  if ((top(myShapes) + 1) * (top(partnerShapes) + 1) * W * W > MAX_CELLS) return null;
+  // an hcp axis no gauge reads collapses to 0; a read one is pruned to its
+  // range, every gauge being the hcp and at most GAUGE_SLACK more
+  const gauged = (base) => GAUGES.some((_, g) => read.has(base + SLOT.gauge + g));
+  const least = (box) => Math.max(0, box.pts[0] - GAUGE_SLACK[box.p % HAND_SLOTS - SLOT.gauge]);
+  const myRead = gauged(MINE);
   const myMax = myRead ? Math.min(37, Math.max(...mine.map((b) => b.pts[1]))) : 0;
-  const myMin = Math.min(...mine.map((b) => b.pts[0]));
-  const partnerRead = read.has(SLOT.gauge);
+  const myMin = Math.min(...mine.map(least));
+  const partnerRead = gauged(0);
   const knownMax = partnerRead ? Math.min(37, Math.max(...known.map((b) => b.pts[1]))) : 0;
-  const knownMin = Math.min(...known.map((b) => b.pts[0]));
+  const knownMin = Math.min(...known.map(least));
   // a per-suit hcp some box reads is enumerated outside the convolution:
   // that suit's step keeps only the holdings of that value
   const enumerated = [0, MINE].flatMap((base) => [0, 1, 2, 3]
@@ -1399,14 +1476,15 @@ function companionCount(mine, known, query) {
   const values = enumerated.map(() => 0);
   // the boxes still admitted are a bit per box, packed as (yours) * SIG + (partner's)
   const SIG = 2 ** partner.length, knownBits = 2 ** known.length - 1;
-  const W = 38;
-  const pool = [];
-  const take = () => (pool.pop() || new Float64Array(W * W)).fill(0);
+  const pool = new Map(); // spare tables, by size
+  const spare = (size) => { if (!pool.has(size)) pool.set(size, []); return pool.get(size); };
+  const take = (free, size) => (free.pop() || new Float64Array(size)).fill(0);
   const out = { mine: 0, known: 0, query: 0, byPattern: new Map() };
   // The suit step for (your length, partner's) under the enumerated values:
-  // [your boxes admitting, partner's, flat [h1, h2, n, …]] per distinct pair of
-  // box sets, over every disjoint pair of holdings.  `solo` is your hand
-  // alone: partner holds nothing of the suit and his boxes are not asked.
+  // [your boxes admitting, partner's, flat [h1, i1, h2, i2, n, …]] per distinct
+  // pair of box sets, over every disjoint pair of holdings — each hand's hcp
+  // and step along its gauge-sum index.  `solo` is your hand alone: partner
+  // holds nothing of the suit and his boxes are not asked.
   const stepCache = new Map(); // per enumeration
   const stepFor = (suit, l1, l2, solo) => {
     const cacheKey = ((suit * 14 + l1) * 14 + l2) * 2 + (solo ? 1 : 0);
@@ -1419,6 +1497,7 @@ function companionCount(mine, known, query) {
       let sm = 0;
       mine.forEach((box, i) => { if (admits(box, suit, a, l1)) sm |= 1 << i; });
       if (!sm) continue;
+      const h1 = HELD[l1][a][0], i1 = mySums.offset(suit, l1, a);
       for (let b = 0; b < 32; b++) {
         const n = a & b ? 0 : choose(8, spots) * choose(8 - spots, l2 - popcount(b));
         if (!n) continue;
@@ -1428,25 +1507,33 @@ function companionCount(mine, known, query) {
           partner.forEach((box, i) => { if (admits(box, suit, b, l2)) sp |= 1 << i; });
           if (!(sp & knownBits)) continue;
         }
-        const h1 = honorHcp(a), h2 = honorHcp(b);
+        const h2 = HELD[l2][b][0], i2 = solo ? 0 : partnerSums.offset(suit, l2, b);
         if (enumerated.some((e, i) => e.suit === suit && (e.mine ? h1 : h2) !== values[i])) continue;
-        const sig = sm * SIG + sp, key = (myRead ? h1 : 0) * 64 + (partnerRead ? h2 : 0);
+        const sig = sm * SIG + sp;
+        const key = (((myRead ? h1 : 0) * mySums.size + i1) * 16 + (partnerRead ? h2 : 0)) * partnerSums.size + i2;
         if (!groups.has(sig)) groups.set(sig, new Map());
         groups.get(sig).set(key, (groups.get(sig).get(key) || 0) + n);
       }
     }
-    const step = [...groups].map(([sig, rows]) =>
-      [Math.floor(sig / SIG), sig % SIG, [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n])]);
+    const step = [...groups].map(([sig, rows]) => [Math.floor(sig / SIG), sig % SIG, [...rows].flatMap(([key, n]) => {
+      const mineKey = Math.floor(key / partnerSums.size / 16);
+      return [Math.floor(mineKey / mySums.size), mineKey % mySums.size, Math.floor(key / partnerSums.size) % 16, key % partnerSums.size, n];
+    })]);
     stepCache.set(cacheKey, step);
     return step;
   };
-  // Four suits convolved: box sets → (your hcp, partner's hcp) table.  The
-  // caller hands the tables back to the pool.
-  const convolve = (p1, p2, solo) => {
+  // Four suits convolved, for your shape and partner's (none: your hand
+  // alone): box sets → table over (your index, your hcp) × (partner's index,
+  // partner's hcp), a cell at ((i1 * W + h1) * N2 + i2 * W + h2).  The caller
+  // hands the tables back to `free`.
+  const convolve = (s1, s2, free) => {
+    const solo = !s2, p1 = s1.lens, p2 = s2?.lens;
     const kMin = solo ? 0 : knownMin;
-    let acc = new Map([[(2 ** mine.length - 1) * SIG + SIG - 1, take()]]);
+    const N2 = solo ? W : (s2.top + 1) * W;
+    const size = (s1.top + 1) * W * N2;
+    let acc = new Map([[(2 ** mine.length - 1) * SIG + SIG - 1, take(free, size)]]);
     acc.values().next().value[0] = 1;
-    let hi1 = 0, hi2 = 0;
+    let hi1 = 0, hi2 = 0, top1 = 0, top2 = 0;
     for (let suit = 0; suit < 4; suit++) {
       const step = stepFor(suit, p1[suit], solo ? 0 : p2[suit], solo), rem = 10 * (3 - suit);
       const next = new Map();
@@ -1455,21 +1542,29 @@ function companionCount(mine, known, query) {
           const m = Math.floor(sig / SIG) & sm, p = (sig % SIG) & sp;
           if (!m || !(solo || p & knownBits)) continue;
           let dst = next.get(m * SIG + p);
-          if (!dst) next.set(m * SIG + p, dst = take());
-          for (let k = 0; k < rows.length; k += 3) {
-            const h1 = rows[k], h2 = rows[k + 1], n = rows[k + 2];
-            const aHi = Math.min(hi1, myMax - h1), bHi = Math.min(hi2, knownMax - h2);
-            const bLo = Math.max(0, kMin - rem - h2);
-            for (let a = Math.max(0, myMin - rem - h1); a <= aHi; a++) {
-              const from = a * W, to = (a + h1) * W + h2;
-              for (let b = bLo; b <= bHi; b++) dst[to + b] += n * src[from + b];
+          if (!dst) next.set(m * SIG + p, dst = take(free, size));
+          for (let k = 0; k < rows.length; k += 5) {
+            const h1 = rows[k], h2 = rows[k + 2], n = rows[k + 4];
+            const shift = (rows[k + 1] * W + h1) * N2 + rows[k + 3] * W + h2;
+            const aLo = Math.max(0, myMin - rem - h1), aHi = Math.min(hi1, myMax - h1);
+            const bLo = Math.max(0, kMin - rem - h2), bHi = Math.min(hi2, knownMax - h2);
+            for (let i1 = 0; i1 <= top1; i1++) {
+              for (let i2 = 0; i2 <= top2; i2++) {
+                const corner = i1 * W * N2 + i2 * W;
+                for (let a = aLo; a <= aHi; a++) {
+                  const from = corner + a * N2, to = from + shift;
+                  for (let b = bLo; b <= bHi; b++) dst[to + b] += n * src[from + b];
+                }
+              }
             }
           }
         }
-        pool.push(src);
+        free.push(src);
       }
       acc = next;
       hi1 = Math.min(myMax, hi1 + 10); hi2 = Math.min(knownMax, hi2 + 10);
+      top1 += mySums.reach(suit, p1[suit]);
+      if (!solo) top2 += partnerSums.reach(suit, p2[suit]);
     }
     return acc;
   };
@@ -1477,35 +1572,43 @@ function companionCount(mine, known, query) {
     stepCache.clear();
     const v = new Array(2 * HAND_SLOTS).fill(0);
     enumerated.forEach((e, i) => { v[(e.mine ? MINE : 0) + SLOT.suitHcp + e.suit] = values[i]; });
-    const hand = (base, lens, hcp) => {
-      for (let suit = 0; suit < 4; suit++) v[base + suit] = lens[suit];
-      v[base + SLOT.gauge] = hcp; v[base + SLOT.freak] = freakness(lens);
-    };
-    const vec = (p2, b, p1, a) => { hand(0, p2, b); hand(MINE, p1, a); };
-    // is this (your hcp) in one of your boxes that every suit admitted
-    const myFit = (m, p2, p1, a) => { vec(p2, 0, p1, a); return mine.some((box, i) => (m >> i) & 1 && meets(box, v)); };
-    for (const p1 of myPats) {
-      for (const [sig, table] of convolve(p1, null, true)) {
-        for (let a = 0; a <= myMax; a++) if (table[a * W] && myFit(Math.floor(sig / SIG), p1, p1, a)) out.mine += table[a * W];
-        pool.push(table);
-      }
-      for (const p2 of partnerPats) {
-        if (p1.some((l, i) => l + p2[i] > 13)) continue;
-        let kn = 0, qu = 0;
-        for (const [sig, table] of convolve(p1, p2, false)) {
-          const m = Math.floor(sig / SIG), p = sig % SIG;
+    // is this hand of yours in one of your boxes that every suit admitted
+    const myFit = (m, shape, a, i1) => { mySums.set(v, shape, a, i1); return mine.some((box, i) => (m >> i) & 1 && meets(box, v)); };
+    for (const s1 of myShapes) {
+      const p1 = s1.lens, alone = spare((s1.top + 1) * W * W);
+      for (const [sig, table] of convolve(s1, null, alone)) {
+        for (let i1 = 0; i1 <= s1.top; i1++) {
           for (let a = 0; a <= myMax; a++) {
-            if (!myFit(m, p2, p1, a)) continue;
-            for (let b = 0; b <= knownMax; b++) {
-              const x = table[a * W + b];
-              if (!x) continue;
-              vec(p2, b, p1, a);
-              if (!known.some((box, i) => (p >> i) & 1 && meets(box, v))) continue;
-              kn += x;
-              if (query.some((box, i) => (p >> (known.length + i)) & 1 && meets(box, v))) qu += x;
+            const x = table[(i1 * W + a) * W];
+            if (x && myFit(Math.floor(sig / SIG), s1, a, i1)) out.mine += x;
+          }
+        }
+        alone.push(table);
+      }
+      for (const s2 of partnerShapes) {
+        const p2 = s2.lens;
+        if (p1.some((l, i) => l + p2[i] > 13)) continue;
+        const N2 = (s2.top + 1) * W, free = spare((s1.top + 1) * W * N2);
+        let kn = 0, qu = 0;
+        for (const [sig, table] of convolve(s1, s2, free)) {
+          const m = Math.floor(sig / SIG), p = sig % SIG;
+          for (let i1 = 0; i1 <= s1.top; i1++) {
+            for (let a = 0; a <= myMax; a++) {
+              if (!myFit(m, s1, a, i1)) continue;
+              for (let i2 = 0; i2 <= s2.top; i2++) {
+                const row = (i1 * W + a) * N2 + i2 * W;
+                for (let b = 0; b <= knownMax; b++) {
+                  const x = table[row + b];
+                  if (!x) continue;
+                  partnerSums.set(v, s2, b, i2);
+                  if (!known.some((box, i) => (p >> i) & 1 && meets(box, v))) continue;
+                  kn += x;
+                  if (query.some((box, i) => (p >> (known.length + i)) & 1 && meets(box, v))) qu += x;
+                }
+              }
             }
           }
-          pool.push(table);
+          free.push(table);
         }
         if (!kn) continue;
         out.known += kn; out.query += qu;
@@ -1524,29 +1627,36 @@ function companionCount(mine, known, query) {
 function initCompanion() {
   // a named hand: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
   // a shape: partner's spades hypergeometric; a holding: the ♠K is in C(25,12)
-  // hands of the black suits
-  const box = (...texts) => makeBox(parseCells([...texts, '', ''], MY_VARS), MY_VARS.p);
+  // hands of the black suits; a gauge: your hands as Odds counts them
+  const vars = handVars(MINE, 1); // p = up
+  const box = (...texts) => makeBox(parseCells([...texts, '', ''].slice(0, 6), vars), MINE + SLOT.gauge);
   const all = companionCount([box('AKQ', 'AKQ', 'AKQ', 'AKQJ')], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
   const shaped = companionCount([box('5', '5', '3', '0')], [ANY_BOX], [box('4+', '', '', '')]);
   const king = companionCount([box('.*K.*', '0', '0', '')], [box('13', '', '', '')], []);
+  const gauged = ['5', '4', '', '0-1', '', 'p + s >= 18 & sph > up'];
+  const mine = companionCount([makeBox(parseCells(gauged, vars), vars.p)], [box('', '', '', '13')], []).mine;
+  const odds = oddsCount([makeBox(parseCells(gauged, handVars(0, 1)), SLOT.gauge + 1)]).total;
   let fit = 0;
   for (let k = 4; k <= 8; k++) fit += choose(8, k) * choose(31, 13 - k);
   const near = (x, y) => Math.abs(x - y) <= 1e-9 * Math.abs(y);
   console.assert(near(all.known, all.mine * COMPANION_HANDS) && near(all.query, all.mine * choose(36, 10))
     && near(shaped.mine, choose(13, 5) ** 2 * choose(13, 3)) && near(shaped.known, shaped.mine * COMPANION_HANDS)
     && near(shaped.query / shaped.known, fit / COMPANION_HANDS)
-    && near(king.mine, choose(25, 12))
+    && near(king.mine, choose(25, 12)) && mine > 0 && mine === odds
     && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
     && splitHand('AKT52.K83.-.76432').join() === 'AKTxx,Kxx,0,xxxxx' && splitHand('AK5+') === null
     && compileHolding('AKx*').range.join() === '2,10' && compileHolding('Q4') === null && compileHolding('KA') === null, 'companion');
-  for (const table of ['x-mine', 'x-known', 'x-query']) initBoxes(table, validateCompanion, false);
+  for (const table of ['x-mine', 'x-known', 'x-query']) initBoxes(table, validateCompanion);
   id('partner').onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') renderCompanion(); };
   id('x-run').onclick = renderCompanion;
 }
 
+// A partner box reads its own hand, and yours under `my.`; each table's `p`
+// is the gauge its own Points column is on.
 function readCompanion() {
-  const [mine, known, query] = [['x-mine', MY_VARS], ['x-known', PARTNER_VARS], ['x-query', PARTNER_VARS]]
-    .map(([table, vars]) => readBoxes(table, vars));
+  const mine = readBoxes('x-mine', handVars(MINE, gaugeOf('x-mine')));
+  const [known, query] = ['x-known', 'x-query'].map((table) =>
+    readBoxes(table, { ...handVars(0, gaugeOf(table)), ...handVars(MINE, gaugeOf('x-mine'), 'my.') }));
   return { mine, known: known.length ? known : [ANY_BOX], query };
 }
 function validateCompanion() { readCompanion(); }
@@ -1559,6 +1669,7 @@ function renderCompanion() {
   const t0 = performance.now();
   const n = companionCount(mine, known, query);
   const ms = performance.now() - t0;
+  if (!n) { out.innerHTML = '<p class="hint">These boxes read too many point gauges at once to count exactly — ask for fewer, or narrow the shapes.</p>'; return; }
   const pct = (x, y) => (y ? `${(100 * x / y).toFixed(2)}%` : '—');
   const rows = [...n.byPattern].sort((a, b) => b[1][0] - a[1][0]);
   const top = rows.slice(0, 8).map(([pat, [kn, qu]]) =>
