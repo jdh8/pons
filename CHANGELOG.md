@@ -46,6 +46,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the keycard *answer* still drops the asker to the floor in every RKCB
   lane, and the classic `5NT` path elsewhere still wants three kings.
 
+- **Exact hand posteriors: the counter in Rust, and the kill gate read
+  (2026-10-02)** — Phases 0 and 1 of
+  [docs/exact-posterior.md](docs/exact-posterior.md).  `examples/common/mass.rs`
+  counts `P(hidden hand ∈ reading | my thirteen cards)` exactly — a per-suit
+  census of the unseen cards convolved over the 560 shapes — in 0.37 ms a
+  hand and 0.03 ms a reading; the new `examples/probe-exact-mass` pins it
+  against `point_count`, `EnvelopeUnion::contains` (every sampled hand),
+  closed forms and a 50k-draw Monte Carlo.  `probe-reading-sound` now ends
+  with the evidence gate.  Re-baselined at 10,000 deals vs BBA, our readings
+  exclude the hidden seat's hand 7.82% / 1.33% / 7.87% of the time (LHO /
+  partner / RHO; 8.24 / 3.29 / 8.34 in July).  **The gate fails for the idea
+  as designed:** the evidence my own cards add separates wrong opponent
+  readings from sound ones at AUROC 0.554.  What separates them is the
+  reading's narrowness, which needs no hand (AUROC 0.839): an opponent
+  reading admitting under 0.37% of all hands is wrong 90.6% of the time,
+  1.1% of opponent readings, replicated on a second seed.  They sit in BBA's
+  uncontested jump responses and reverses read with our meanings.  The
+  strict and announced readings disagree on no reading at all, which closes
+  that trust signal.  No bidding change, no public API change; whether the
+  narrowness gate is worth a knob is recorded as an open decision.
+
 - **docs: exact hand posteriors — survey and plan (2026-10-01)** —
   [docs/exact-posterior.md](docs/exact-posterior.md) records what the web
   Odds/Partner counter is (an exact DNF counter, the only surviving

@@ -7,6 +7,8 @@
 //! uses only the subset it needs, hence the `#[allow(dead_code)]` on the `mod`.
 
 #[allow(dead_code)]
+pub mod mass;
+#[allow(dead_code)]
 pub mod oracle;
 #[allow(dead_code)]
 pub mod rollout;

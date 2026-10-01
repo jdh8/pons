@@ -1811,6 +1811,11 @@ decision node of our two seats, BBA at the opponent seats.  10,000 deals:
 Disclosure-independent (`--no-disclose`: 8.22 / 3.32 / 8.33%).  The worklists say
 what each number is made of:
 
+> **Re-baselined 2026-10-02** at `15242e44`, 10,000 deals: **7.82% / 1.33% /
+> 7.87%** — the opponent rate barely moved, partner's more than halved.  The
+> same run found the wrong opponent readings are the *narrow* ones, whatever
+> the reader holds: [exact-posterior.md](../exact-posterior.md) §5 Phase 1.
+
 - **Opponents — foreign meanings, read as ours.**  BBA's weak twos head the list
   (`2♠` 37%, `2♥` 33%, `2♦` 35% of readings excluded), and their Multi `2♦` over
   our 1NT is excluded **100%** of the time: we read it as diamonds, they hold a

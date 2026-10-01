@@ -1,7 +1,9 @@
 # Exact hand posteriors — what the web counter is worth to bidding
 
-**Status: RESEARCH + PLAN, 2026-10-01 (HEAD `fb8ce92c`). Nothing built, nothing
-measured beyond one sampler probe.** This document records (1) what the web
+**Status, 2026-10-02 (HEAD `15242e44`): Phase 0 built and pinned; Phase 1's
+kill gate run and read — use A as designed FAILS, and a hand-free by-product
+passes (§5, §7). Phase 2 is re-scoped and waits on a decision; Phase 3 is
+untouched.** This document records (1) what the web
 crate's Odds/Partner counter is, (2) which uses of an exact posterior this repo
 has already refuted, (3) the literature — bridge engines, other
 imperfect-information games, the general machinery — and (4) a phased plan with
@@ -322,6 +324,10 @@ unlikely. BBA's Multi `2♦` read as diamonds was excluded 100% of the time, and
 readings from sound ones at all. That is what Phase 1 measures before anything
 is built.
 
+**Measured 2026-10-02 — the limit is the whole story.** The mass separates
+wrong readings from sound ones, but through the reading's narrowness, not
+through my cards (§5 Phase 1, result).
+
 **Do not confuse with the v4 log-mass column** (+0.0007 NLL as a net input,
 §2). That fed the mass to the net; this acts on the *reading* before any
 consumer sees it.
@@ -394,7 +400,9 @@ a search consumer exists.
   holds two readings of a seat, the strict table reading and the announced
   disclosure overlay (`probe-reading-sound` tests both). Their disagreement is
   a free trust signal that needs **no counter**; worth one column in the
-  Phase 1 probe, not a phase of its own.
+  Phase 1 probe, not a phase of its own.  **Closed 2026-10-02: the two
+  predicates disagree on 0 of 125,961 readings** (and 0 of 125,871 on a
+  second seed) — at the default knob state there is nothing to read.
 - **Reading forensics by exact frequency** — sampling the real bidder already
   answers it at µs per hand; exactness only matters at nodes too rare to
   sample, which is use C again.
@@ -432,6 +440,20 @@ seat's hand lies in the union given my thirteen cards.
 *Not in scope:* two hands, three hands, honors by identity, the bit-per-box
 signature. Phase 3 adds the signature if it is reached.
 
+**Built 2026-10-02** — `examples/common/mass.rs` (`Counter::new(seen)`,
+`count`, `mass`), pinned by `examples/probe-exact-mass`:
+
+| pin | result |
+| --- | --- |
+| (i) parity | the per-suit keys rebuild `point_count` on 4,000 hands; membership equals `EnvelopeUnion::contains` on every one of ~150M sampled hands |
+| (ii) closed forms | unknown = `C(39,13)` exactly; three lone length ranges = the hypergeometric sum exactly, 1,000 hands |
+| (iii) Monte Carlo | 3,000 self-play readings × 50k draws: z has mean −0.016, sd 1.005 (worst 3.98); at 500k draws sd stays 1.037, so there is no bias for more draws to expose |
+| (iv) browser | **not run** — `web/app.js` is DOM-bound and has no headless entry (§6) |
+| cost | build ≈ 0.37 ms, union query ≈ 0.03 ms (targets 0.35 / 0.1) |
+
+`Counter::new(Hand::EMPTY)` counts over all `C(52,13)` hands — the reading's
+mass for an observer who has seen nothing, which Phase 1 turned out to need.
+
 ### Phase 1 — kill gate for A: does evidence separate wrong readings?
 
 No double-dummy, no retrain, no bidding change.
@@ -455,7 +477,71 @@ No double-dummy, no retrain, no bidding change.
 5. A FAIL closes use A and leaves the disagreement flag, if it separates, as a
    counter-free knob candidate.
 
+**Result, 2026-10-02** — `probe-reading-sound -c 10000`, BBA 2/1 at the
+opponent seats, gate fixed at the proposed defaults before the run. Seed
+1790871004, with seed 1790871902 in brackets.
+
+Step 0, the re-baseline: readings exclude the truth **7.82% / 1.33% / 7.87%**
+at LHO / partner / RHO [7.63 / 1.27 / 7.71]. Since July the opponent rate
+barely moved (8.24 / 8.34) and partner's fell by more than half (3.29).
+
+Three scores, each rising with suspicion: `−ln m` is the plan's; it splits
+into the reading's **narrowness** `−ln m̄` (`m̄` = its mass with no cards
+seen, a function of the auction alone) and the **cards' own evidence**
+`logit m̄ − logit m` — §4 A's odds formula. Opponent seats, 83,974 readings
+[83,914]:
+
+| score | AUROC | best recall at precision ≥ 50% | precision at recall ≥ 10% |
+| --- | --- | --- | --- |
+| `−ln m` (my cards seen) | 0.845 [0.842] | 33.6% [32.2%] | 88.8% [85.0%] |
+| `−ln m̄` (narrowness, no hand) | 0.839 [0.834] | 28.7% [28.1%] | 90.6% [88.0%] |
+| `logit m̄ − logit m` (my cards' evidence) | **0.554 [0.552]** | **5.6% [5.9%]** | **28.0% [31.0%]** |
+
+- **Use A as designed FAILS.** `−ln m` clears the letter of the gate, and
+  clears it inside each of the five worst calls (AUROC 0.64–0.92). But that
+  control was too weak: a seat's *last* call does not fix its reading, and
+  the score is the reading's identity — narrowness alone reproduces it. My
+  own cards add 0.006 AUROC. Their evidence by itself misses the gate
+  pooled and in four of the five calls (it scrapes through after `2♠`:
+  11.8% recall at ≥ 50%, 59.7% precision at 10%). This is §4 A's honest
+  limit, measured: a foreign meaning is wrong for everyone, not for the
+  observer whose cards happen to contradict it.
+- **Partner: no signal** on any score (AUROC 0.62 / 0.65 / 0.46; precision
+  reaches 50% on at most 0.2% of the excluded readings).
+- **The by-product passes.** An opponent reading whose mass is under
+  `e^−5.61` ≈ 0.37% of all hands excludes the truth **90.6% [88.0%]** of the
+  time. That flags 943 [926] readings — 1.1% of them, 13% of the excluded —
+  against the gate's "≤ 2% flagged, half rightly".
+- **Where they live:** 369 [370] nodes, a long tail headed by BBA's
+  *uncontested* auctions read with our meanings — jump responses and rebids
+  (`1♠ - 3♦` 32 of 32 excluded, `1♥ - 3♦` 22/22, `1♥ - 2♠` 20/20,
+  `1♠ - 1NT - 3♣` 16/16, `1♣ - 2♣ - 2♦` 16/16) and reverses
+  (`1♦ - 1♠ - 2♥` 16/22). We presumably pass through most of these — not
+  counted yet — which is the reason to doubt the IMPs before building
+  anything.
+
 ### Phase 2 — the gate as a knob (only if Phase 1 passes)
+
+**Re-scoped 2026-10-02, awaiting a decision.** Phase 1 failed for the
+hand-conditional gate this section describes and passed for a hand-free one,
+so the candidate is now: *an opponent seat whose reading has prior mass under
+≈ 0.37% reads as `Envelope::unknown`*. Two consequences:
+
+- item 2's design risk **dissolves** — narrowness is a function of the
+  auction alone, so it lives in the `Inferences` read and its cache, and the
+  one hand-free `Counter` is built once (30 µs a query);
+- item 3's expectation **stands**, with a second reason for a small or null
+  result: the flagged readings sit in the opponents' uncontested auctions
+  ([evaluator-net.md](ai-bidder/evaluator-net.md) already found the
+  soundness gap does not show in the trick estimate).
+
+Proposed default: do **not** build it yet. First count, with the existing
+dumps, how often our side acts at all at a flagged node; build only if that
+is not negligible. The lane-by-lane alternative — reading BBA's jump
+responses as BBA plays them — is the declared-opponent reading, which has its
+own record.
+
+The original text follows, for the record.
 
 Use the `author-convention` and `measure-ab` skills.
 
@@ -515,6 +601,25 @@ consumer actually samples. `1NT (X)` is the one such cell today.
   ablation 2.99 → 2.53 is Tian et al. (JPS), not Gong et al., whose own table
   reads 2.31 → 1.22. §3.2 carries both as checked. Claims marked P were not
   re-checked the same way.
+- **Pin (iv) of Phase 0 is owed** (2026-10-02): the cross-check against
+  `companionCount` needs a browser session; `web/app.js` has no headless
+  entry. Pins (i)–(iii) do not depend on it.
+- **The Rust counter covers the default `PointScale` only.** `point_count_on`
+  is `pub(crate)`, so `mass::points` copies the shipped scale's formula and
+  `probe-exact-mass` pins the copy. Phase 0 said "every `PointScale`"; the
+  fibre key (shape, HCP, wasted holdings) already carries what the other
+  three need. Proposed default: add them as a `match` when the counter moves
+  in-crate, not before.
+- **Phase 1's probe measures the announced union**, because `Inferences` has
+  no public accessor for the strict one. The two agree about the true hand
+  at every reading taken, so the exclusion flag is the strict reading's too;
+  whether they are the same *set* was not tested, and `m` is the announced
+  one's. The planned *alerted*
+  column was not built — the gate does not read it and a verdict was reached
+  without it.
+- **Phase 1's "within calls" control was too weak as written** (a seat's last
+  call does not pin its reading). The narrowness split replaced it; the gate
+  text above is kept as pre-registered.
 - **Counting is exact only relative to the reading.** Pavlicek's own caveat on
   his calculator applies to every use here: what the bidding makes "known" is
   rarely exact.
@@ -524,6 +629,10 @@ consumer actually samples. `1NT (X)` is the one such cell today.
 | date | phase | result |
 | --- | --- | --- |
 | 2026-10-01 | survey + plan | this document; `probe-replay-yield` re-run (§4 C); nothing built |
+| 2026-10-02 | Phase 0 | counter built in `examples/common/mass.rs`; pins (i)–(iii) pass, (iv) owed; build 0.37 ms, query 0.03 ms |
+| 2026-10-02 | Phase 1 step 0 | re-baseline 7.82% / 1.33% / 7.87% (LHO / partner / RHO), 10,000 deals, seed 1790871004 |
+| 2026-10-02 | Phase 1 gate | **use A FAILS**: my cards' own evidence AUROC 0.554, 5.6% recall at precision ≥ 50%. By-product **passes**: narrowness alone, AUROC 0.839, 90.6% precision where recall first passes 10% (1.1% of opponent readings flagged). Replicated on seed 1790871902. Logs: `pons-ab-results/exact-posterior/` |
+| 2026-10-02 | §4 D disagreement flag | closed — strict and announced readings disagree on 0 of 125,961 readings |
 
 ## 8. Sources
 

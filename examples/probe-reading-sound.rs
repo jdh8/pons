@@ -30,6 +30,10 @@
 //! shapes, so total exclusion is survivable; a box that is merely wrong is not
 //! caught anywhere, which is what this counts.
 //!
+//! The last section is the **evidence gate** of `docs/exact-posterior.md`
+//! (Phase 1): does the exact mass of a reading, given the reader's own cards,
+//! tell the readings that exclude the truth from the sound ones?
+//!
 //! No double-dummy, no solver. EPBot is not thread-safe here, so this is serial.
 //!
 //! ```sh
@@ -40,7 +44,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::Call;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::{Bidder, Partnership, Relative};
@@ -50,6 +54,7 @@ use std::ffi::{CString, c_int};
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
+use common::mass::Counter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{auction_key, deviant_floor, seat_to_act, seeded_deals};
 
@@ -181,6 +186,95 @@ impl Cell {
     }
 }
 
+/// One reading of a hidden seat, scored for the evidence gate
+///
+/// Every score is taken on the *announced* union — the set `excluded` tests —
+/// and rises with suspicion.  `surprise` is what a gate would act on; it splits
+/// into `narrowness`, which needs no hand, and `shift`, which is the hand's own
+/// evidence.
+struct Row {
+    opponent: bool,
+    /// The hidden seat's last call
+    call: String,
+    /// The auction through that call
+    node: String,
+    /// `−ln m`, with `m = P(hand ∈ reading | the reader's thirteen cards)`
+    surprise: f64,
+    /// `−ln m̄`, with `m̄` the reading's mass when no cards are seen — how
+    /// narrow the reading is, a function of the auction alone
+    narrowness: f64,
+    /// `logit m̄ − logit m` — the evidence the reader's cards add, free of how
+    /// narrow the reading is to begin with
+    shift: f64,
+    excluded: bool,
+    /// The strict table reading and the announced overlay tell this hand apart
+    disagree: bool,
+}
+
+/// `C(52, 13)`: every hand, to a counter that has seen no cards
+const ALL_HANDS: f64 = 635_013_559_600.0;
+
+fn logit(p: f64) -> f64 {
+    (p / (1.0 - p)).ln()
+}
+
+/// P(a truth-excluding reading outscores a sound one), ties counting half
+fn auroc(pairs: &mut [(f64, bool)]) -> f64 {
+    pairs.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
+    let (mut below, mut wins, mut i) = (0.0, 0.0, 0);
+    while i < pairs.len() {
+        let j = i + pairs[i..].iter().take_while(|p| p.0 == pairs[i].0).count();
+        let bad = pairs[i..j].iter().filter(|p| p.1).count() as f64;
+        let sound = (j - i) as f64 - bad;
+        wins += bad * (below + sound / 2.0);
+        below += sound;
+        i = j;
+    }
+    let bad = pairs.iter().filter(|p| p.1).count() as f64;
+    wins / (bad * (pairs.len() as f64 - bad))
+}
+
+/// Sweep the threshold down from the most suspicious reading: the best recall
+/// of excluded readings that still holds precision ≥ 50%, then the precision
+/// and the threshold where recall first reaches 10%
+fn sweep(pairs: &mut [(f64, bool)]) -> (f64, f64, f64) {
+    pairs.sort_unstable_by(|a, b| b.0.total_cmp(&a.0));
+    let bad = pairs.iter().filter(|p| p.1).count() as f64;
+    let (mut hits, mut recall_at_half, mut at_tenth, mut i) = (0.0, 0.0, None, 0);
+    while i < pairs.len() {
+        let j = i + pairs[i..].iter().take_while(|p| p.0 == pairs[i].0).count();
+        hits += pairs[i..j].iter().filter(|p| p.1).count() as f64;
+        let (precision, recall) = (hits / j as f64, hits / bad);
+        if precision >= 0.5 {
+            recall_at_half = recall;
+        }
+        if recall >= 0.1 {
+            at_tenth.get_or_insert((precision, pairs[i].0));
+        }
+        i = j;
+    }
+    let (precision, threshold) = at_tenth.unwrap_or((f64::NAN, f64::NAN));
+    (recall_at_half, precision, threshold)
+}
+
+/// A suspicion score read off a [`Row`]
+type Score = fn(&Row) -> f64;
+
+/// One line of the evidence report: a slice of readings under one score
+fn evidence_line(label: &str, rows: &[&Row], score: Score) {
+    let bad = rows.iter().filter(|row| row.excluded).count();
+    let mut pairs: Vec<_> = rows.iter().map(|row| (score(row), row.excluded)).collect();
+    let area = auroc(&mut pairs);
+    let (recall, precision, threshold) = sweep(&mut pairs);
+    println!(
+        "{label:<14} {:>8} {:>8.2}% {area:>7.3} {:>8.2}% {:>8.2}% {threshold:>9.2}",
+        rows.len(),
+        100.0 * bad as f64 / rows.len() as f64,
+        100.0 * recall,
+        100.0 * precision,
+    );
+}
+
 /// Parse a `NAME=0|1` convention override for `--their-conv`
 fn parse_override(spec: &str) -> anyhow::Result<(CString, c_int)> {
     let (name, value) = spec
@@ -213,16 +307,31 @@ fn our_card() -> EpbotCard {
     }
 }
 
-/// Every decision node of one bid-out deal, charged into `seats` and `keys`
+/// Everything the census accumulates across deals
+struct Tally {
+    seats: [Cell; 3],
+    keys: HashMap<String, Cell>,
+    rows: Vec<Row>,
+    /// The counter that has seen no cards — the same for every reading
+    prior: Counter,
+}
+
+/// Every decision node of one bid-out deal, charged into `tally`
 fn census(
     partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
     auction: &[Call],
-    seats: &mut [Cell; 3],
-    keys: &mut HashMap<String, Cell>,
+    tally: &mut Tally,
 ) {
+    let Tally {
+        seats,
+        keys,
+        rows,
+        prior,
+    } = tally;
+    let counters = [Seat::North, Seat::South].map(|seat| Counter::new(deal[seat]));
     for cut in 1..auction.len() {
         let seat = seat_to_act(dealer, cut);
         // Only our own seats: a reading taken at an EW seat is one no consumer
@@ -238,8 +347,26 @@ fn census(
             // `back` calls ago is `back` seats counter-clockwise from the actor.
             let hand = deal[Seat::ALL[(seat as usize + 4 - back) % 4]];
             let admits = read.admits(who, hand);
-            let announced = read.announced_union(who).contains(hand);
+            let union = read.announced_union(who);
+            let announced = union.contains(hand);
             seats[slot].add(admits, announced);
+            let mass = counters[usize::from(seat == Seat::South)].mass(union);
+            let prior = prior.count(union) as f64 / ALL_HANDS;
+            rows.push(Row {
+                opponent: who != Relative::Partner,
+                call: auction[last].to_string(),
+                node: auction_key(&auction[..=last]),
+                surprise: -mass.ln(),
+                narrowness: -prior.ln(),
+                // A reading that shows nothing has no odds to shift.
+                shift: if prior == 1.0 {
+                    0.0
+                } else {
+                    logit(prior) - logit(mass)
+                },
+                excluded: !announced,
+                disagree: admits != announced,
+            });
             if who == Relative::Partner {
                 keys.entry(auction_key(&auction[..=last]))
                     .or_default()
@@ -321,21 +448,20 @@ fn main() -> anyhow::Result<()> {
         (None, None) => unreachable!("one of the two is always built"),
     };
 
-    let mut seats = [Cell::default(); 3];
-    let mut keys: HashMap<String, Cell> = HashMap::new();
+    let mut tally = Tally {
+        seats: [Cell::default(); 3],
+        keys: HashMap::new(),
+        rows: Vec::new(),
+        prior: Counter::new(Hand::EMPTY),
+    };
     for (board, deal) in seeded_deals(base, args.count).iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
         let auction = bid_out(&partnership, opponent, true, dealer, vul, deal);
-        census(
-            &partnership,
-            dealer,
-            vul,
-            deal,
-            &auction,
-            &mut seats,
-            &mut keys,
-        );
+        census(&partnership, dealer, vul, deal, &auction, &mut tally);
     }
+    let Tally {
+        seats, keys, rows, ..
+    } = tally;
 
     println!("boards {}  seed {base}", args.count);
     println!(
@@ -409,6 +535,83 @@ fn main() -> anyhow::Result<()> {
             cell.bad,
             cell.readings,
             cell.bad_announced,
+        );
+    }
+
+    // The evidence gate.  `shift` is the control: a score that only names the
+    // reading is a static per-auction prior and needs no hand.
+    println!("\nevidence gate: does the reader's own hand flag a reading that excludes the truth?");
+    println!(
+        "the strict and announced readings disagree on {} of {} readings",
+        rows.iter().filter(|row| row.disagree).count(),
+        rows.len()
+    );
+    let opponents: Vec<&Row> = rows.iter().filter(|row| row.opponent).collect();
+    let partner: Vec<&Row> = rows.iter().filter(|row| !row.opponent).collect();
+    let mut calls: HashMap<&str, u64> = HashMap::new();
+    for row in opponents.iter().filter(|row| row.excluded) {
+        *calls.entry(&row.call).or_default() += 1;
+    }
+    let mut calls: Vec<_> = calls.into_iter().collect();
+    calls.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    let scores: [(&str, Score); 3] = [
+        ("−ln m (the reader's cards seen)", |row| row.surprise),
+        (
+            "−ln m̄ (no cards seen: the reading's narrowness)",
+            |row| row.narrowness,
+        ),
+        ("logit m̄ − logit m (the cards' own evidence)", |row| {
+            row.shift
+        }),
+    ];
+    for (name, score) in scores {
+        println!("\nscore: {name}\n");
+        println!(
+            "{:<14} {:>8} {:>9} {:>7} {:>9} {:>9} {:>9}",
+            "slice", "readings", "excluded", "AUROC", "R@P≥50%", "P@R≥10%", "at score"
+        );
+        evidence_line("opponents", &opponents, score);
+        evidence_line("partner", &partner, score);
+        for (call, _) in calls.iter().take(5) {
+            let slice: Vec<&Row> = (opponents.iter().copied())
+                .filter(|row| row.call == *call)
+                .collect();
+            evidence_line(&format!("opp. {call}"), &slice, score);
+        }
+    }
+
+    // Where the narrow readings live: a handful of lanes is a repair worklist,
+    // a long tail is a gate.  The cut is where narrowness alone first recalls
+    // 10% of the excluded opponent readings.
+    let mut pairs: Vec<_> = (opponents.iter())
+        .map(|row| (row.narrowness, row.excluded))
+        .collect();
+    let narrow = sweep(&mut pairs).2;
+    let mut nodes: HashMap<&str, Cell> = HashMap::new();
+    for row in opponents.iter().filter(|row| row.narrowness >= narrow) {
+        nodes
+            .entry(&row.node)
+            .or_default()
+            .add(!row.excluded, !row.excluded);
+    }
+    let mut nodes: Vec<_> = nodes.into_iter().collect();
+    nodes.sort_unstable_by(|a, b| b.1.readings.cmp(&a.1.readings).then_with(|| a.0.cmp(b.0)));
+    let flagged: u64 = nodes.iter().map(|node| node.1.readings).sum();
+    println!(
+        "\nopponent readings at −ln m̄ ≥ {narrow:.2}: {flagged} over {} nodes; top {}\n",
+        nodes.len(),
+        args.top.min(nodes.len())
+    );
+    println!(
+        "{:>10} {:>10} {:>9}  node (auction through their call)",
+        "readings", "excluded", "%"
+    );
+    for (node, cell) in nodes.iter().take(args.top) {
+        println!(
+            "{:>10} {:>10} {:>8.2}%  {node}",
+            cell.readings,
+            cell.bad,
+            cell.pct(cell.bad)
         );
     }
     Ok(())
