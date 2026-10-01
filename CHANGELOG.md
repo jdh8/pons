@@ -469,6 +469,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: the box grammar's `where` takes distributions (2026-10-01)** —
+  WBF's `5431` (♠♥♦♣ in order), `(5431)` (any order) and `(54)(31)` (within
+  each pair), or `7=6=0=0` / `7-6-0-0` for ten or more cards, never mixed;
+  `x` is any number of cards (`54xx`, `(55)xx`, `5-5-x-x`).  A distribution
+  is a condition like any other (`!(4432) & 44xx`, `(5431) | (5422)`); one
+  whose lengths cannot make a hand (`5432`) marks the cell.  A four-digit
+  integer is no longer a number in a `where`.  Partner now drops the shapes
+  a shape-only `where` (lengths, `freak`, a distribution) rules out before
+  convolving: your hand as `where 5431` 304 ms → 2 ms, a `15-17`,
+  `freak < 3` opener opposite any hand 187 ms → 20 ms, counts unchanged.
+
 - **Web: Calc writes suit-fixed shapes `5=4=3=1`, patterns `(5431)`
   (2026-10-01)** — the Odds and Partner tables list ordered ♠=♥=♦=♣
   lengths, which the dashed `5-4-3-1` spelled as a loose pattern; `=` is

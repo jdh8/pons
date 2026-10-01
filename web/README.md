@@ -103,7 +103,11 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
     `s h d c` (or `♠ ♥ ♦ ♣`), a suit's own HCP `s.hcp` (`d.hcp = 4`: the ♦A),
     the gauges `hcp`, `up`, `sps` `sph` `spd` `spc` (or `sp♠` …; support
     points by trump), `p` for the gauge the points column is on, and `freak`,
-    Pavlicek's freakness (`freak < 3` = (4333)/(4432)/(5332)).  Integers, `+ −`,
+    Pavlicek's freakness (`freak < 3` = (4333)/(4432)/(5332)).  A
+    **distribution** is a condition of its own, `x` any number of cards: WBF's
+    `5431` (♠♥♦♣ in order), `(5431)` (any order), `(54)(31)` (within each
+    pair), `54xx`, `(55)xx` — or, the only way to write ten or more cards,
+    `7=6=0=0` (in order) and `7-6-0-0` (any order), never mixed.  Integers, `+ −`,
     `max()`, `min()`, chainable comparisons (`s >= h >= d`), then `!`, `&`, `|`
     (or `not`/`and`/`or`) and a comma, an *and* that binds loosest — e.g.
     `s > h`, `♠ + ♠.hcp >= 9`, `hcp >= 10 & up >= 12`, `p + max(s, h) >= 20`.

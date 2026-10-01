@@ -1023,11 +1023,16 @@ function parseRange(text, cap) {
 // (s >= h >= d means both); conditions join with ! (not), & (and), | (or),
 // and a comma — an "and" that binds loosest, so `a | b, c` is (a | b) & c.
 // Typed like Rust: a number is never a condition, nor the reverse.
+// A distribution is a condition, lexed whole: WBF's 5431 (♠♥♦♣ in order),
+// (5431) (any order) and (54)(31) (within each pair), or the dashed forms that
+// alone carry a 10+ suit, 7=6=0=0 (in order) and 7-6-0-0 (any order), never
+// mixed; x is any number of cards — 54xx, (55)xx, 5-5-x-x.
 // Returns v → bool over the vector `vars` indexes, tagged with `used`, the
 // slots it reads (a caller can skip an unread dimension).  "" → always true;
 // null when unparseable or ill-typed.
 const WHERE_NAME = '(?:sp[♠♥♦♣]|[a-z]+|[♠♥♦♣])';
-const WHERE_TOKEN = new RegExp(`\\d+|[<>!=]=|&&|\\|\\||${WHERE_NAME}(?:\\.${WHERE_NAME})*|\\S`, 'g');
+const WHERE_DIST = '(?:\\d+|x)(?:[-=](?:\\d+|x)){3}(?![\\w=-])|(?=(?:\\(?[\\dx]\\)?){4}(?![\\w(]))(?:[\\dx]|\\([\\dx]{2,4}\\))+';
+const WHERE_TOKEN = new RegExp(`${WHERE_DIST}|\\d+|[<>!=]=|&&|\\|\\||${WHERE_NAME}(?:\\.${WHERE_NAME})*|\\S`, 'g');
 const WHERE_CMP = {
   '>': (a, b) => a > b, '>=': (a, b) => a >= b, '≥': (a, b) => a >= b,
   '<': (a, b) => a < b, '<=': (a, b) => a <= b, '≤': (a, b) => a <= b,
@@ -1057,8 +1062,27 @@ function compileWhere(text, vars) {
     }
     return l;
   };
+  // a distribution: runs of suits, each holding its lengths in any order
+  const dist = (t) => {
+    const sep = /[-=]/.exec(t)?.[0];
+    const runs = !sep ? [...t.matchAll(/\(([\dx]+)\)|[\dx]/g)].map((m) => [...(m[1] || m[0])])
+      : sep === '=' ? t.split('=').map((len) => [len]) : [t.split('-')];
+    const lens = runs.flat(), sum = lens.reduce((n, len) => n + (len === 'x' ? 0 : +len), 0);
+    if (lens.length !== 4 || !lens.every((len) => /^(?:\d+|x)$/.test(len)) || sum > 13 || (sum < 13 && !lens.includes('x'))) {
+      throw new SyntaxError(`no such distribution: ${t}`);
+    }
+    let suit = 0;
+    const groups = runs.map((run) => ({ slots: run.map(() => vars['shdc'[suit++]]), want: run.filter((len) => len !== 'x').map(Number) }))
+      .filter(({ want }) => want.length);
+    for (const { slots } of groups) slots.forEach((slot) => used.add(slot));
+    return { f: (v) => groups.every(({ slots, want }) => {
+      const have = slots.map((slot) => v[slot]);
+      return want.every((n) => { const k = have.indexOf(n); return k >= 0 && have.splice(k, 1); });
+    }), bool: true };
+  };
   const atom = () => {
     const t = toks[i++];
+    if (/^(?:\d+|x)[-=]/.test(t) || (/^[\dx()]+$/.test(t) && t.replace(/[()]/g, '').length === 4)) return dist(t);
     if (/^\d+$/.test(t)) return num(() => +t);
     if (Object.hasOwn(vars, t)) { const slot = vars[t]; used.add(slot); return num((v) => v[slot]); }
     if (t === '-') { const a = typed(atom(), false); return num((v) => -a(v)); }
@@ -1320,7 +1344,9 @@ function initCalc() {
     && chk('p + max(s, h) >= 20, !(c > 0 | hcp < 12)', 5, 4, 4, 0, 13, 15)
     && chk('♠ + ♠.hcp = 9 & s.hcp > sp♥', 5, 4, 4, 0, 13, 15, 0, 3, 0, 0, 4)
     && [...compileWhere('sps > my.♦.hcp', { ...vars, ...handVars(HAND_SLOTS, 0, 'my.') }).used].join() === '6,27'
-    && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
+    && chk('5431', 5, 4, 3, 1) && chk('(54)(31)', 4, 5, 1, 3) && !chk('(54)(31)', 5, 3, 4, 1) && chk('5-5-x-x', 0, 5, 3, 5)
+    && chk('7=6=x=x', 7, 6, 0, 0) && chk('!(4432) & 44xx', 4, 4, 4, 1) && [...compileWhere('54xx', vars).used].join() === '0,1'
+    && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0', '5432', '5=4-3-1', 'hcp > 5431'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
   CENSUS = JSON.parse(point_census());
   HELD = CENSUS.map((rows) => {
     const byHonors = [];
@@ -1338,7 +1364,8 @@ function initCalc() {
   // the ♠K is in C(51,12) hands, the ♠A alone in a suit (4 hcp there) in C(39,12)
   const box = (...texts) => makeBox(parseCells(texts, vars), vars.p);
   console.assert(oddsCount([box('.*K.*', '', '', '', '', '')]).total === choose(51, 12)
-    && oddsCount([box('1', '', '', '', '', 's.hcp = 4')]).total === choose(39, 12), 'oddsCount');
+    && oddsCount([box('1', '', '', '', '', 's.hcp = 4')]).total === choose(39, 12)
+    && oddsCount([box('', '', '', '', '', '(5431)')]).total === 24 * oddsCount([box('5', '4', '3', '1', '', '')]).total, 'oddsCount');
   initBoxes('c-boxes', renderCalc);
   renderCalc();
 }
@@ -1455,8 +1482,18 @@ function gaugeSums(base, read) {
 // or null when the tables would pass MAX_CELLS.
 function companionCount(mine, known, query) {
   const partner = [...known, ...query];
-  const myLens = SHAPES.filter((lens) => mine.some((b) => inLens(b, lens)));
-  const partnerLens = SHAPES.filter((lens) => known.some((b) => inLens(b, lens)));
+  // can the box of the hand at `base` take this shape: its cells, and a where
+  // that reads nothing but that hand's lengths and freakness
+  const shaped = (box, lens, base) => {
+    if (!inLens(box, lens)) return false;
+    if ([...box.where.used].some((slot) => slot < base || (slot >= base + 4 && slot !== base + SLOT.freak))) return true;
+    const v = [];
+    lens.forEach((len, suit) => { v[base + suit] = len; });
+    v[base + SLOT.freak] = freakness(lens);
+    return box.where(v);
+  };
+  const myLens = SHAPES.filter((lens) => mine.some((b) => shaped(b, lens, MINE)));
+  const partnerLens = SHAPES.filter((lens) => known.some((b) => shaped(b, lens, 0)));
   const read = slotsRead([...mine, ...partner]);
   const mySums = gaugeSums(MINE, read), partnerSums = gaugeSums(0, read);
   const myShapes = myLens.map(mySums.shape), partnerShapes = partnerLens.map(partnerSums.shape);
