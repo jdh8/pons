@@ -469,6 +469,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: the Odds tab's point-gauge picker is the Points column header
+  (2026-10-01)** — the dropdown replaces the word "Points" above the column it
+  governs, showing only a short name when closed (`HCP`, `PTS`, `SP♠`, …); the
+  open list gives each gauge its plain-ASCII Where name (`SPS`) and
+  explanation, and the Points help folds into the lengths tooltip.
+  **Impact:** web only, no behaviour change.
 - **Web: the Odds and Partner box grammar moves into help tooltips
   (2026-10-01)** — the intro says what the tab computes and why; a circled
   `?` beside the suit, Points and Where headers and the Compute button opens

@@ -1173,6 +1173,7 @@ function readBoxes(table, vars = WHERE_VARS, holdings = false) {
 
 function renderCalc() {
   const boxes = readBoxes('c-boxes');
+  id('c-gauge-short').textContent = id('c-gauge').selectedOptions[0].dataset.short;
   const g = GAUGES.indexOf(id('c-gauge').value); // what the Points column and `p` gauge
   let total = 0;
   const byPattern = [];

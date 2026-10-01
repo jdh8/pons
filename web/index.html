@@ -134,27 +134,18 @@
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
         a union of boxes, the same reading the bidder keeps per seat.</div>
       <div class="controls">
-        <label>Points <select id="c-gauge">
-          <option value="hcp" selected>HCP (hcp)</option>
-          <option value="pts">Points: HCP + upgrade, the bidder's scale (pts)</option>
-          <option value="sps">Support points, ♠ trumps (sps)</option>
-          <option value="sph">Support points, ♥ trumps (sph)</option>
-          <option value="spd">Support points, ♦ trumps (spd)</option>
-          <option value="spc">Support points, ♣ trumps (spc)</option>
-        </select></label>
         <button id="c-add" class="secondary">+ box</button>
       </div>
       <div class="panel">
         <table class="boxes" id="c-boxes">
-          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="c-help-len" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points <button class="help" popovertarget="c-help-pts" aria-label="Help">?</button></th><th>Where <button class="help" popovertarget="c-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="c-help-len" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th><label class="gauge"><span id="c-gauge-short">HCP</span><select id="c-gauge" aria-label="Point gauge" title="The gauge this column's ranges are on"><option value="hcp" data-short="HCP" selected>HCP&emsp;high-card points</option><option value="pts" data-short="PTS">PTS&emsp;HCP + upgrade, the bidder's scale</option><option value="sps" data-short="SP♠">SPS&emsp;support points, ♠ trumps</option><option value="sph" data-short="SP♥">SPH&emsp;support points, ♥ trumps</option><option value="spd" data-short="SP♦">SPD&emsp;support points, ♦ trumps</option><option value="spc" data-short="SP♣">SPC&emsp;support points, ♣ trumps</option></select></label></th><th>Where <button class="help" popovertarget="c-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div id="c-out" class="panel"></div>
       <div id="c-help-len" class="helptip" popover>A suit length: <code>5+</code>, <code>4-6</code>, <code>3</code>,
-        <code>0-2</code>; blank = any.</div>
-      <div id="c-help-pts" class="helptip" popover>A range like the lengths — <code>12-14</code>, <code>15+</code>,
-        blank = any — on the gauge selected above.</div>
+        <code>0-2</code>; blank = any.  The points column takes the same ranges
+        (<code>12-14</code>, <code>15+</code>) on the gauge its header selects.</div>
       <div id="c-help-where" class="helptip" popover>A condition on the lengths <code>s h d c</code> and any of the
         point gauges <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected):
         <ul>
