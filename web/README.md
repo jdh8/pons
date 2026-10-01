@@ -66,37 +66,45 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   current book is shown.
 - **Edit** — a PBN field two-way-synced with a card palette; build a deal by
   hand, then "Bid it out in Demo".
-- **Odds** (`#odds`) — a shape-points probability calculator: a union of boxes (per-suit
-  length ranges plus a points range, one row per box), priced exactly by
-  convolving per-suit holding censuses over the 560 patterns.  Gauges: HCP,
-  the bidder's points (HCP + upgrade), and support points with each trump —
-  the censuses come from the wasm's `point_census()`, built with the crate's
-  own evaluators, so the gauges cannot drift from the bidder's.  A box's
-  **where** field adds a condition on the lengths `s h d c` and any gauge —
-  `hcp`, `pts`, `sps` `sph` `spd` `spc` (support points by trump), `p` for the
-  selected one: integers, `+ −`, `max()`, `min()`, chainable comparisons
-  (`s >= h >= d`), then `!`, `&`, `|` (or `not`/`and`/`or`) and a comma, an
-  *and* that binds loosest — e.g. `s > h`, `hcp >= 10 & pts >= 12`,
-  `p + max(s, h) >= 20`.  Typed like Rust: a number is never a condition.
-  `freak` is Pavlicek's freakness (`freak < 3` = 4333/4432/5332).
+- **Odds** (`#odds`) — a shape-points probability calculator: a union of boxes
+  (four suit cells plus a points range, one row per box), priced exactly by
+  convolving per-suit holding censuses over the 560 patterns.  The points
+  column's header picks its gauge: HCP, UP (upgraded points, HCP + `upgrade` —
+  the bidder's scale), and support points with each trump — the censuses come
+  from the wasm's `point_census()`, built with the crate's own evaluators, so
+  the gauges cannot drift from the bidder's.
 - **Partner** (`#partner`) — partner's hand given yours, exactly, after Pavlicek's
   [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
   each hand is **a union of boxes** (`15-17` with `freak < 3`: a 1NT opener).
-  A suit cell is a length range or a **holding**: a regex over the suit written
-  high to low and matched whole — `A K Q J T` by name, `x` a card 2–9, `.` any
-  card — so `AKxx`, `AKx*`, `AK...+` (the AK in a 5+ suit), `.*K.*` (the king
-  anywhere), `[^A]*` (no ace), `[AKQ]{2}.{3,}` (two of the top three, 5+).  A
-  digit is only ever a count: `Q4` is malformed.  Pasting a whole hand
-  (`AKT52.K83.94.762`) into a suit cell fills the row.  Partner's *known* boxes
-  condition, the *query* boxes ask; both read partner's `s h d c hcp`, per-suit
-  `hcp_s … hcp_c`, `freak`, and your hand's `my_s … my_hcp my_hcp_s … my_freak`
-  (`s + my_s >= 8`: a spade fit).  HCP only.  Pure JS: per suit the two hands
-  draw disjoint holdings (the honors A–T by identity, the eight spots by count),
-  giving a joint census of (your HCP, partner's HCP) per length pair; four suits
-  convolve into a 2-D table per pattern pair, whose state also carries which
-  boxes every suit so far admits.  Dimensions no box reads are
-  collapsed, so a named hand or one shape answers in milliseconds; a wide union of your
-  shapes with both HCP totals read is seconds — hence a Compute button.
+  Partner's *known* boxes condition, the *query* boxes ask.  HCP only.  Pure JS:
+  per suit the two hands draw disjoint holdings (the honors A–T by identity,
+  the eight spots by count), giving a joint census of (your HCP, partner's HCP)
+  per length pair; four suits convolve into a 2-D table per pattern pair, whose
+  state also carries which boxes every suit so far admits.  Dimensions no box
+  reads are collapsed, so a named hand or one shape answers in milliseconds; a
+  wide union of your shapes with both HCP totals read is seconds — hence a
+  Compute button.
+
+  Both tabs speak one **box grammar**:
+  - A suit cell is a length range (`5+`, `4-6`, `3`, blank = any) or a
+    **holding**: a regex over the suit written high to low and matched whole —
+    `A K Q J T` by name, `x` a card 2–9, `.` any card — so `AKxx`, `AKx*`,
+    `AK...+` (the AK in a 5+ suit), `.*K.*` (the king anywhere), `[^A]*` (no
+    ace), `[AKQ]{2}.{3,}` (two of the top three, 5+).  A digit is only ever a
+    count: `Q4` is malformed.  Pasting a whole hand (`AKT52.K83.94.762`) into a
+    suit cell fills the row.
+  - The **where** field is a condition on the box's own hand: the lengths
+    `s h d c` (or `♠ ♥ ♦ ♣`), a suit's own HCP `s.hcp` (`d.hcp = 4`: the ♦A),
+    the gauges `hcp`, `up`, `sps` `sph` `spd` `spc` (or `sp♠` …; support
+    points by trump), `p` for the gauge the points column is on, and `freak`,
+    Pavlicek's freakness (`freak < 3` = 4333/4432/5332).  Integers, `+ −`,
+    `max()`, `min()`, chainable comparisons (`s >= h >= d`), then `!`, `&`, `|`
+    (or `not`/`and`/`or`) and a comma, an *and* that binds loosest — e.g.
+    `s > h`, `♠ + ♠.hcp >= 9`, `hcp >= 10 & up >= 12`, `p + max(s, h) >= 20`.
+    Typed like Rust: a number is never a condition.
+  - In Partner, a partner box also reads your hand under `my.` —
+    `my.s`, `my.hcp`, `my.s.hcp`, `my.freak` (`s + my.s >= 8`: a spade fit) —
+    and, counting HCP only, takes no `up` or `sp`.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families

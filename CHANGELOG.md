@@ -469,6 +469,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Odds and Partner speak one box grammar; `pts` is `up`, `hcp_s` is
+  `s.hcp` (2026-10-01)** — the two tabs parse their boxes with one variable
+  table and one widget, and share one set of help popovers.  **Renamed, no
+  aliases:** the bidder's scale `pts` (HCP + `upgrade`) is `up` — every gauge
+  is "points", and `pts` sat one letter from `p`; a suit's own HCP `hcp_s` is
+  `s.hcp` or `♠.hcp`, so `♠ + ♠.hcp` reads as length plus honors; your hand in
+  a partner box is `my.` (`my.s`, `my.hcp`, `my.s.hcp`), the dot being the
+  only separator.  **Odds gains** what only Partner had: holding regexes in
+  the suit cells (`AKx*`, `.*K.*`), per-suit HCP in Where, and a whole hand
+  pasted into a suit cell.  The gauges read a suit's honors and length alone,
+  so these stay exact: a box that names honors or reads a suit's HCP
+  re-convolves the patterns it fits with the boxes still admitted (and the
+  suit HCPs read) beside the gauge sums — 30–120 ms over every shape, about
+  1.4 s if all four suits' HCP are read at once.  `point_census()` now keys
+  its rows by the honors held (`[honors, hcp, wasted, hcp_plus, count]`).
+  Checked against closed forms (the ♠K is in C(51,12) hands; the suit HCPs
+  sum to `hcp` on all 635,013,559,600) and, for every pre-existing query,
+  byte-identical counts.  **Impact:** web only; saved habits `pts` / `hcp_s`
+  / `my_s` are now marked malformed.
 - **Web: the Odds tab's point-gauge picker is the Points column header
   (2026-10-01)** — the dropdown replaces the word "Points" above the column it
   governs, showing only a short name when closed (`HCP`, `PTS`, `SP♠`, …); the

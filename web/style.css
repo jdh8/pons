@@ -466,5 +466,5 @@ table.boxes input {
 /* Where takes the rest of the row and shrinks before the row overflows. */
 table.boxes td:has(> input.where) { width: 100%; }
 table.boxes input.where { width: 100%; min-width: 8rem; }
-#partner table.boxes td:nth-child(-n+4) input { width: 7rem; } /* room for a holding regex */
+table.boxes td:nth-child(-n+4) input { width: 7rem; } /* room for a holding regex */
 table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }

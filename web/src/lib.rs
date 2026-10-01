@@ -19,7 +19,7 @@ use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
-    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Holding, Seat, Strain,
+    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Holding, Rank, Seat, Strain,
 };
 use pons::bidding::agreements::{Agreements, TheirDisclosures};
 use pons::bidding::american::american_book;
@@ -747,36 +747,45 @@ struct RuleJson {
     label: &'static str,
 }
 
-/// Per-length holding census for the Calc tab's exact point convolution
+/// Per-length holding census for the Odds and Partner tabs' exact convolutions
 ///
-/// For every suit length, the 8192 holdings counted by what the gauges read
-/// off one: `census[len]` lists `[hcp, wasted, hcp_plus, count]` — raw HCP
-/// and whether the holding wastes an honor (the two inputs of
+/// For every suit length, the 8192 holdings counted by their honors and what
+/// the gauges read off one: `census[len]` lists
+/// `[honors, hcp, wasted, hcp_plus, count]` — the `AKQJT` held as a bit mask
+/// (the ace is 16; a box's holding cell names them), raw HCP and whether the
+/// holding wastes an honor (the two inputs of
 /// [`upgrade`][pons::bidding::constraint::upgrade]), and `hcp_plus` (the
-/// side-suit term of the support scale).  The three are kept **joint** so the
-/// calculator can price several gauges on one hand.  Built from the crate's
-/// own evaluators so its gauges cannot drift from the bidder's.
+/// side-suit term of the support scale).  They are kept **joint** so the
+/// calculators can price several gauges on one hand.  Built from the crate's
+/// own evaluators so their gauges cannot drift from the bidder's.
 #[wasm_bindgen]
 #[must_use]
 pub fn point_census() -> String {
-    let mut census = vec![BTreeMap::<(u8, u8, u8), u32>::new(); 14];
+    const HONORS: [Rank; 5] = [Rank::A, Rank::K, Rank::Q, Rank::J, Rank::T];
+    let mut census = vec![BTreeMap::<(u8, u8, u8, u8), u32>::new(); 14];
     for bits in 0..=u16::MAX {
         let Some(holding) = Holding::from_bits(bits) else {
             continue;
         };
+        let honors = HONORS
+            .iter()
+            .fold(0, |mask, &rank| 2 * mask + u8::from(holding.contains(rank)));
         let key = (
+            honors,
             eval::hcp::<u8>(holding),
             u8::from(pons::bidding::constraint::wasted(holding)),
             eval::hcp_plus::<u8>(holding),
         );
         *census[holding.len()].entry(key).or_default() += 1;
     }
-    let rows: Vec<Vec<(u8, u8, u8, u32)>> = census
+    let rows: Vec<Vec<[u32; 5]>> = census
         .into_iter()
         .map(|counts| {
             counts
                 .into_iter()
-                .map(|((hcp, wasted, plus), count)| (hcp, wasted, plus, count))
+                .map(|((honors, hcp, wasted, plus), count)| {
+                    [honors.into(), hcp.into(), wasted.into(), plus.into(), count]
+                })
                 .collect()
         })
         .collect();

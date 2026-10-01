@@ -783,28 +783,33 @@ fn feedback_shows_odds_when_an_authored_node_rejects_the_hand() {
     assert!(total <= 100.0 + 1e-3, "odds sum past 100%: {total}");
 }
 
-/// The Calc census counts every holding once and agrees with the evaluators
-/// on the corners: a void is 3 `hcp_plus`, a singleton ace wastes and is
-/// worth 5 on the support scale, and `Ax` is the working doubleton.
+/// The point census counts every holding once, one row per honor set, and
+/// agrees with the evaluators on the corners: a void is 3 `hcp_plus`, a
+/// singleton ace wastes and is worth 5 on the support scale, and `Ax` is the
+/// working doubleton.
 #[test]
 fn point_census_counts_every_holding() {
-    // [len] → rows of [hcp, wasted, hcp_plus, count]
-    let census: Vec<Vec<[u32; 4]>> = serde_json::from_str(&point_census()).expect("census");
-    let count = |len: usize, keep: &dyn Fn(u32, u32, u32) -> bool| -> u32 {
-        let rows = census[len].iter();
-        rows.filter(|r| keep(r[0], r[1], r[2])).map(|r| r[3]).sum()
-    };
-    let total: u32 = (0..14).map(|len| count(len, &|_, _, _| true)).sum();
+    // [len] → rows of [honors, hcp, wasted, hcp_plus, count]
+    let census: Vec<Vec<[u32; 5]>> = serde_json::from_str(&point_census()).expect("census");
+    let total: u32 = census.iter().flatten().map(|row| row[4]).sum();
     assert_eq!(total, 8192);
-    assert_eq!(census[0], [[0, 0, 3, 1]], "a void is 3 hcp_plus");
+    for (len, rows) in census.iter().enumerate() {
+        for &[honors, _, _, _, count] in rows {
+            // the gauges read honors and length alone: the spots only multiply
+            let spots = len as u32 - honors.count_ones();
+            let ways: u32 = (0..spots).fold(1, |c, i| c * (8 - i) / (i + 1));
+            assert_eq!(count, ways, "{len} cards, honors {honors:05b}");
+        }
+    }
+    assert_eq!(census[0], [[0, 0, 0, 3, 1]], "a void is 3 hcp_plus");
     assert_eq!(
-        count(1, &|hcp, wasted, plus| (hcp, wasted, plus) == (4, 1, 5)),
-        1,
+        census[1].iter().find(|row| row[0] == 0b10000),
+        Some(&[0b10000, 4, 1, 5, 1]),
         "the singleton ace wastes and is worth 4 + 2 - 1"
     );
     assert_eq!(
-        count(2, &|hcp, wasted, _| (hcp, wasted) == (4, 0)),
-        9,
+        census[2].iter().find(|row| row[0] == 0b10000),
+        Some(&[0b10000, 4, 0, 4, 8]),
         "Ax is the working doubleton"
     );
 }

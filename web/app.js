@@ -974,55 +974,35 @@ function renderBinkyTable() {
     rows.join('') + '</tbody></table>';
 }
 
-// --- Calc tab: exact shape × points probabilities -----------------------------
-// A union of boxes (and any Pavlicek-style constraint) is a predicate over the
-// 560 hand patterns times the point gauges, so the count is an exact
-// convolution of per-suit holding censuses.  The census comes from the wasm
-// (`point_census`, the crate's own evaluators), the shape terms are mirrored
-// here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor suits,
-// floored at 0; support points swap the side suits to hcp_plus and count the
-// trump suit's plain HCP.  No sampling.
-// Each box also takes a "where" predicate (`compileWhere`), evaluated by brute
-// force on every (pattern, gauge values) state the convolution reaches.
-const TOTAL_HANDS = 635013559600;
-const GAUGES = ['hcp', 'pts', 'sps', 'sph', 'spd', 'spc']; // c-gauge's values; sp? = support points, ? trumps
-let CENSUS = null; // [len] → rows of [hcp, wasted, hcp_plus, count], from wasm
-const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
-let JOINT = null; // gaugeJoint by PATTERNS index
-for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; s + h + d <= 13; d++) {
-  PATTERNS.push([s, h, d, 13 - s - h - d]);
-}
-const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
-const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
-// Pavlicek's freakness: a point per card over four or under three in each
-// suit, plus 1 for a singleton or 2 for a void — 4333 = 0, 4432 = 1, 5332 = 2.
-const freakness = (lens) => lens.reduce((f, l) => f + Math.max(0, l - 4, 3 - l), 0) + (lens.includes(0) ? 2 : lens.includes(1) ? 1 : 0);
-
-// Hands of this pattern counted jointly by every gauge: a list of [values in
-// GAUGES order, count].  The convolution state packs six sums in base 64 —
-// HCP, wasted suits, and per trump the support sum (hcp_plus on the side
-// suits, plain HCP in trumps).  hcp_plus is nearly HCP plus a function of
-// length, so the joint stays small: 45k states over all 560 patterns.
-function gaugeJoint(lens) {
-  let acc = new Map([[0, 1]]);
-  lens.forEach((len, suit) => {
-    const step = new Map();
-    for (const [hcp, wasted, plus, n] of CENSUS[len]) {
-      let code = hcp + 64 * wasted;
-      for (let t = 0; t < 4; t++) code += 64 ** (2 + t) * (t === suit ? hcp : plus);
-      step.set(code, (step.get(code) || 0) + n);
+// --- Boxes: the grammar the Odds and Partner tabs share -----------------------
+// A hand is a union of boxes, one table row each: four suit cells (a length
+// range or a holding), a points range on the gauge the column header names,
+// and a "where" predicate for what the cells cannot say.
+const GAUGES = [ // [column header, plain name in a where, what it counts]
+  ['HCP', 'hcp', 'high-card points'],
+  ['UP', 'up', "upgraded points: HCP + upgrade, the bidder's scale"],
+  ...[...'♠♥♦♣'].map((suit, i) => [`SP${suit}`, `sp${'shdc'[i]}`, `support points, ${suit} trumps`]),
+];
+// One hand's values as a where reads them — its slots, from the hand's base,
+// in the vector the predicate is evaluated on: four lengths, the six gauges,
+// each suit's hcp, freakness.
+const SLOT = { len: 0, gauge: 4, suitHcp: 10, freak: 14 };
+const HAND_SLOTS = 15;
+// The names of the hand at `base`: ♠ ♥ ♦ ♣ (or s h d c) the lengths, ♠.hcp a
+// suit's own hcp, the gauges hcp, up, sp♠ … (or sps …), freak — and p, the
+// gauge the box's Points column is on.
+function handVars(base, gauge, prefix = '') {
+  const vars = {};
+  const name = (text, slot) => { vars[prefix + text] = base + slot; };
+  [...'shdc'].forEach((letter, i) => {
+    for (const suit of [letter, '♠♥♦♣'[i]]) {
+      name(suit, SLOT.len + i);
+      name(`${suit}.hcp`, SLOT.suitHcp + i);
+      name(`sp${suit}`, SLOT.gauge + 2 + i);
     }
-    const next = new Map();
-    for (const [a, x] of acc) for (const [b, y] of step) next.set(a + b, (next.get(a + b) || 0) + x * y);
-    acc = next;
   });
-  const bonus = twoLongest(lens) >= 10 ? 1 : 0;
-  const base = (isBalanced(lens) ? 0 : 1) + bonus;
-  return [...acc].map(([code, n]) => {
-    const sum = (k) => Math.floor(code / 64 ** k) % 64;
-    const support = [2, 3, 4, 5].map((k) => sum(k) + bonus);
-    return [[sum(0), sum(0) + Math.max(0, base - sum(1)), ...support], n];
-  });
+  name('hcp', SLOT.gauge); name('up', SLOT.gauge + 1); name('p', SLOT.gauge + gauge); name('freak', SLOT.freak);
+  return vars;
 }
 
 // "5+", "4-6", "3", "" → [min, max]; null when unparseable.  A dash needs a
@@ -1037,19 +1017,17 @@ function parseRange(text, cap) {
   return null;
 }
 
-// A box's "where" predicate over one hand's lengths and points.  Numbers are
-// tropical rational functions — integers, + − max() min() — of the lengths
-// ♠ ♥ ♦ ♣ (or s h d c), the gauges hcp, pts, sps sph spd spc (or sp♠ …), and
-// p, the gauge the Points column is on.  Comparisons chain (s >= h >= d means
-// both); conditions join with ! (not), & (and), | (or), and a comma — an
-// "and" that binds loosest, so `a | b, c` is (a | b) & c.  Typed like Rust: a
-// number is never a condition, nor the reverse.
-// Returns v → bool over v = [♠, ♥, ♦, ♣, p, ...GAUGES values, freakness].
-// "" → always true; null when unparseable or ill-typed.
-const WHERE_VARS = {
-  '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4, hcp: 5, pts: 6,
-  sps: 7, 'sp♠': 7, sph: 8, 'sp♥': 8, spd: 9, 'sp♦': 9, spc: 10, 'sp♣': 10, freak: 11,
-};
+// A box's "where" predicate.  Numbers are tropical rational functions —
+// integers, + − max() min() — of the names in `vars` (`handVars`; a dot
+// joins a name's parts, as in ♠.hcp and my.♠).  Comparisons chain
+// (s >= h >= d means both); conditions join with ! (not), & (and), | (or),
+// and a comma — an "and" that binds loosest, so `a | b, c` is (a | b) & c.
+// Typed like Rust: a number is never a condition, nor the reverse.
+// Returns v → bool over the vector `vars` indexes, tagged with `used`, the
+// slots it reads (a caller can skip an unread dimension).  "" → always true;
+// null when unparseable or ill-typed.
+const WHERE_NAME = '(?:sp[♠♥♦♣]|[a-z]+|[♠♥♦♣])';
+const WHERE_TOKEN = new RegExp(`\\d+|[<>!=]=|&&|\\|\\||${WHERE_NAME}(?:\\.${WHERE_NAME})*|\\S`, 'g');
 const WHERE_CMP = {
   '>': (a, b) => a > b, '>=': (a, b) => a >= b, '≥': (a, b) => a >= b,
   '<': (a, b) => a < b, '<=': (a, b) => a <= b, '≤': (a, b) => a <= b,
@@ -1057,11 +1035,11 @@ const WHERE_CMP = {
 };
 const WHERE_AND = (a, b) => a && b;
 const WHERE_OR = (a, b) => a || b;
-function compileWhere(text, vars = WHERE_VARS) {
-  const toks = text.toLowerCase().match(/\d+|[<>!=]=|&&|\|\||sp[♠♥♦♣]|[a-z_]+|\S/g) || [];
-  if (!toks.length) return () => true;
+function compileWhere(text, vars) {
+  const toks = text.toLowerCase().match(WHERE_TOKEN) || [];
+  const used = new Set();
+  if (!toks.length) return Object.assign(() => true, { used });
   let i = 0;
-  const used = new Set(); // variable names read, for callers that can skip an unread dimension
   const eat = (...ts) => (ts.includes(toks[i]) ? toks[i++] : null);
   const need = (t) => { if (!eat(t)) throw new SyntaxError(`expected ${t}`); };
   // a parsed node is {f, bool}: its evaluator and whether it is a condition
@@ -1082,7 +1060,7 @@ function compileWhere(text, vars = WHERE_VARS) {
   const atom = () => {
     const t = toks[i++];
     if (/^\d+$/.test(t)) return num(() => +t);
-    if (Object.hasOwn(vars, t)) { used.add(t); return num((v) => v[vars[t]]); }
+    if (Object.hasOwn(vars, t)) { const slot = vars[t]; used.add(slot); return num((v) => v[slot]); }
     if (t === '-') { const a = typed(atom(), false); return num((v) => -a(v)); }
     if (t === '(') { const e = all(); need(')'); return e; }
     if (t === 'max' || t === 'min') {
@@ -1112,114 +1090,11 @@ function compileWhere(text, vars = WHERE_VARS) {
   const all = fold(or, { ',': WHERE_AND }, true);
   try {
     const f = typed(all(), true);
-    f.used = used;
-    return i < toks.length ? null : f;
+    return i < toks.length ? null : Object.assign(f, { used });
   } catch { return null; }
 }
 
-function initCalc() {
-  const chk = (text, ...v) => compileWhere(text)(v);
-  console.assert(chk('s > h', 5, 4, 2, 2) && !chk('s > h >= d', 5, 2, 4, 2)
-    && chk('p + max(s, h) >= 20, !(c > 0 | hcp < 12)', 5, 4, 4, 0, 15, 13)
-    && compileWhere('s >') === null && compileWhere('s + h') === null && compileWhere('!s') === null, 'compileWhere');
-  CENSUS = JSON.parse(point_census());
-  JOINT = PATTERNS.map(gaugeJoint);
-  id('c-add').onclick = () => { addBox('c-boxes', renderCalc); renderCalc(); };
-  id('c-gauge').onchange = renderCalc;
-  addBox('c-boxes', renderCalc);
-  renderCalc();
-}
-
-function addBox(table, onChange) {
-  const tr = document.createElement('tr');
-  for (let i = 0; i < 6; i++) {
-    const td = document.createElement('td');
-    const input = document.createElement('input');
-    input.type = 'text'; input.spellcheck = false; input.placeholder = 'any';
-    if (i === 5) input.className = 'where';
-    input.oninput = onChange;
-    td.append(input); tr.append(td);
-  }
-  const td = document.createElement('td');
-  const rm = document.createElement('button');
-  rm.className = 'secondary'; rm.textContent = '×'; rm.title = 'Remove this box';
-  rm.onclick = () => { tr.remove(); onChange(); };
-  td.append(rm); tr.append(td);
-  id(table).tBodies[0].append(tr);
-}
-
-// One box's six cell texts → [♠, ♥, ♦, ♣, points, where], null where a cell is
-// malformed.  A suit is {range} or, with `holdings`, a parsed holding.
-function parseCells(texts, vars, holdings) {
-  const suits = texts.slice(0, 4).map((t) => {
-    const range = parseRange(t, 13);
-    return range ? { range } : holdings ? compileHolding(t) : null;
-  });
-  return [...suits, parseRange(texts[4], 60), compileWhere(texts[5], vars)];
-}
-const makeBox = ([s, h, d, c, pts, where]) =>
-  ({ lens: [s, h, d, c].map((x) => x.range), cells: [s, h, d, c].map((x) => x.admit), pts, where });
-
-function readBoxes(table, vars = WHERE_VARS, holdings = false) {
-  const boxes = [];
-  for (const tr of id(table).tBodies[0].rows) {
-    const cells = [...tr.querySelectorAll('input')];
-    const parts = parseCells(cells.map((c) => c.value), vars, holdings);
-    cells.forEach((c, i) => c.classList.toggle('bad', parts[i] === null));
-    if (parts.every(Boolean)) boxes.push(makeBox(parts));
-  }
-  return boxes;
-}
-
-function renderCalc() {
-  const boxes = readBoxes('c-boxes');
-  id('c-gauge-short').textContent = id('c-gauge').selectedOptions[0].dataset.short;
-  const g = GAUGES.indexOf(id('c-gauge').value); // what the Points column and `p` gauge
-  let total = 0;
-  const byPattern = [];
-  PATTERNS.forEach((lens, k) => {
-    const mine = boxes.filter((box) => lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1]));
-    if (!mine.length) return;
-    let count = 0;
-    for (const [values, n] of JOINT[k]) {
-      const v = [...lens, values[g], ...values, freakness(lens)];
-      if (mine.some((box) => v[4] >= box.pts[0] && v[4] <= box.pts[1] && box.where(v))) count += n;
-    }
-    if (count) { total += count; byPattern.push([lens, count]); }
-  });
-  const out = id('c-out');
-  if (!boxes.length) { out.innerHTML = '<p class="hint">Enter at least one well-formed box.</p>'; return; }
-  const prob = total / TOTAL_HANDS;
-  byPattern.sort((a, b) => b[1] - a[1]);
-  const top = byPattern.slice(0, 8).map(([lens, n]) =>
-    `<tr><td>${lens.join('-')}</td><td>${(100 * n / TOTAL_HANDS).toFixed(3)}%</td><td>${(100 * n / total).toFixed(1)}%</td></tr>`).join('');
-  out.innerHTML = `
-    <div class="statrow">
-      <div><span class="statlabel">Probability</span><span class="statbig">${(100 * prob).toFixed(4)}%</span></div>
-      <div><span class="statlabel">Odds</span><span class="statbig">${total ? '1 in ' + (1 / prob).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}</span></div>
-      <div><span class="statlabel">Hands</span><span class="statbig">${total.toLocaleString()}</span></div>
-    </div>
-    ${byPattern.length ? `<table class="ddtable"><thead><tr><th>Pattern ♠-♥-♦-♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
-    ${byPattern.length > 8 ? `<p class="hint">…and ${byPattern.length - 8} more patterns.</p>` : ''}`;
-}
-
-// --- Companion tab: partner's hand given yours ---------------------------------
-// After Pavlicek's Companion Hand Calculator, but each hand is a union of
-// boxes.  Exact, HCP only: per suit the two hands draw disjoint holdings —
-// the honors A K Q J T by identity, the eight spots by count — so each suit
-// gives a joint census of (your hcp, partner's hcp) per (your length,
-// partner's length); four suits convolve into a 2-D table per pattern pair,
-// and the boxes read it.  A holding cell reads the honors, which the table
-// does not keep: the convolution state also carries which boxes every suit so
-// far admits (a bit per box), so a fully named hand costs one pattern and one
-// holding a suit.
-// ponytail: O(your patterns × partner patterns × 2-D convolution) — a named
-// hand or a shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a
-// minute.  Upgrade path: when no box reads your lengths, carry your running
-// length in the state instead of enumerating your pattern.
-const COMPANION_HANDS = 8122425444; // 39 choose 13
 const HONORS = 'AKQJT'; // the named cards, bit 16 >> index; the ten is an honor that scores 0 hcp
-const honorHcp = (mask) => (mask & 16 ? 4 : 0) + (mask & 8 ? 3 : 0) + (mask & 4 ? 2 : 0) + (mask & 2 ? 1 : 0);
 const popcount = (mask) => { let n = 0; for (; mask; mask >>= 1) n += mask & 1; return n; };
 function choose(n, k) {
   if (k < 0 || k > n) return 0;
@@ -1262,29 +1137,244 @@ function splitHand(text) {
   return suits.join('').length === 13 ? suits.map((suit) => suit || '0') : null;
 }
 
-// One value vector serves both hands' boxes: partner's lengths and hcp, yours,
-// each hand's per-suit hcp, then the two freaknesses.
-const PARTNER_VARS = {
-  '♠': 0, s: 0, '♥': 1, h: 1, '♦': 2, d: 2, '♣': 3, c: 3, p: 4, hcp: 4,
-  my_s: 5, 'my_♠': 5, my_h: 6, 'my_♥': 6, my_d: 7, 'my_♦': 7, my_c: 8, 'my_♣': 8, my_hcp: 9,
-  hcp_s: 10, 'hcp_♠': 10, hcp_h: 11, 'hcp_♥': 11, hcp_d: 12, 'hcp_♦': 12, hcp_c: 13, 'hcp_♣': 13,
-  my_hcp_s: 14, 'my_hcp_♠': 14, my_hcp_h: 15, 'my_hcp_♥': 15, my_hcp_d: 16, 'my_hcp_♦': 16, my_hcp_c: 17, 'my_hcp_♣': 17,
-  freak: 18, my_freak: 19,
-};
-const MY_VARS = {
-  '♠': 5, s: 5, '♥': 6, h: 6, '♦': 7, d: 7, '♣': 8, c: 8, p: 9, hcp: 9,
-  hcp_s: 14, 'hcp_♠': 14, hcp_h: 15, 'hcp_♥': 15, hcp_d: 16, 'hcp_♦': 16, hcp_c: 17, 'hcp_♣': 17,
-  freak: 19,
-};
-const MAX_BOXES = 26; // yours, and partner's: the admitted boxes are a bit set a side, the two packed in one number
+// One box's six cell texts → [♠, ♥, ♦, ♣, points, where], null where a cell is
+// malformed.  A suit is {range} for a length, {range, admit} for a holding.
+function parseCells(texts, vars) {
+  const suits = texts.slice(0, 4).map((t) => {
+    const range = parseRange(t, 13);
+    return range ? { range } : compileHolding(t);
+  });
+  return [...suits, parseRange(texts[4], 60), compileWhere(texts[5], vars)];
+}
+// `p` is the slot of the gauge the points range is on
+const makeBox = ([s, h, d, c, pts, where], p) =>
+  ({ lens: [s, h, d, c].map((x) => x.range), cells: [s, h, d, c].map((x) => x.admit), pts, p, where });
+const ANY_BOX = makeBox(parseCells(['', '', '', '', '', ''], {}), SLOT.gauge);
+const MAX_BOXES = 26; // to a union: the boxes still admitted are a bit set
 const inLens = (box, lens) => lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1]);
 // does the box's suit cell take this holding: `mask` honors in a `len`-card suit
 const admits = (box, suit, mask, len) => len >= box.lens[suit][0] && len <= box.lens[suit][1]
-  && (!box.cells?.[suit] || box.cells[suit][mask * 9 + len - popcount(mask)] === 1);
-const meets = (box, pts, v) => pts >= box.pts[0] && pts <= box.pts[1] && box.where(v);
-const reads = (boxes, re) => boxes.some((b) => [...(b.where.used || [])].some((name) => re.test(name)));
-const readsHcp = (boxes, re) => boxes.some((b) => b.pts[0] > 0 || b.pts[1] < 60) || reads(boxes, re);
-const ANY_BOX = { lens: [[0, 13], [0, 13], [0, 13], [0, 13]], pts: [0, 60], where: () => true };
+  && (!box.cells[suit] || box.cells[suit][mask * 9 + len - popcount(mask)] === 1);
+const meets = (box, v) => v[box.p] >= box.pts[0] && v[box.p] <= box.pts[1] && box.where(v);
+
+// A table of boxes: its header (with the gauge picker, under `picker`), one
+// empty box, the "+ box" button beside it, and a whole hand pasted into a
+// suit cell filling the row.
+function initBoxes(table, onChange, picker = true) {
+  const help = (target) => `<button class="help" popovertarget="help-${target}" aria-label="Help">?</button>`;
+  const options = GAUGES.map(([, name, what], g) => `<option value="${g}">${name.toUpperCase()}&emsp;${what}</option>`).join('');
+  const gauge = `<label class="gauge"><span>HCP</span><select aria-label="Point gauge" title="The gauge this column's ranges are on">${options}</select></label>`;
+  id(table).innerHTML = `<thead><tr><th class="s-s">♠ ${help('suit')}</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th>
+    <th>${picker ? gauge : 'HCP'}</th><th>Where ${help('where')}</th><th></th></tr></thead><tbody></tbody>`;
+  const select = id(table).querySelector('select');
+  if (select) select.onchange = () => { select.previousElementSibling.textContent = GAUGES[select.value][0]; onChange(); };
+  id(`${table}-add`).onclick = () => { addBox(table, onChange); onChange(); };
+  id(table).addEventListener('paste', (ev) => {
+    const cells = [...ev.target.closest('tr').querySelectorAll('input')];
+    const at = cells.indexOf(ev.target);
+    const hand = at >= 0 && at < 4 && splitHand(ev.clipboardData.getData('text'));
+    if (!hand) return;
+    ev.preventDefault();
+    hand.forEach((text, i) => { cells[i].value = text; });
+    onChange();
+  });
+  addBox(table, onChange);
+}
+// the gauge the table's Points column is on, as a GAUGES index
+const gaugeOf = (table) => +(id(table).querySelector('select')?.value || 0);
+
+function addBox(table, onChange) {
+  const tr = document.createElement('tr');
+  for (let i = 0; i < 6; i++) {
+    const td = document.createElement('td');
+    const input = document.createElement('input');
+    input.type = 'text'; input.spellcheck = false; input.placeholder = 'any';
+    if (i === 5) input.className = 'where';
+    input.oninput = onChange;
+    td.append(input); tr.append(td);
+  }
+  const td = document.createElement('td');
+  const rm = document.createElement('button');
+  rm.className = 'secondary'; rm.textContent = '×'; rm.title = 'Remove this box';
+  rm.onclick = () => { tr.remove(); onChange(); };
+  td.append(rm); tr.append(td);
+  id(table).tBodies[0].append(tr);
+}
+
+// The table's well-formed boxes; a malformed cell is marked and drops its box.
+function readBoxes(table, vars) {
+  const boxes = [];
+  for (const tr of id(table).tBodies[0].rows) {
+    const cells = [...tr.querySelectorAll('input')];
+    const parts = parseCells(cells.map((c) => c.value), vars);
+    cells.forEach((c, i) => c.classList.toggle('bad', parts[i] === null));
+    if (parts.every(Boolean)) boxes.push(makeBox(parts, vars.p));
+  }
+  return boxes;
+}
+
+// --- Calc tab: exact shape × points probabilities -----------------------------
+// A union of boxes (and any Pavlicek-style constraint) is a predicate over the
+// 560 hand patterns times the point gauges, so the count is an exact
+// convolution of per-suit holding censuses.  The census comes from the wasm
+// (`point_census`, the crate's own evaluators), the shape terms are mirrored
+// here: `upgrade` = [unbalanced] + [two longest ≥ 10] − wasted-honor suits,
+// floored at 0; support points swap the side suits to hcp_plus and count the
+// trump suit's plain HCP.  No sampling.
+// Each box's "where" is evaluated by brute force on every (pattern, gauge
+// values) state the convolution reaches.
+const TOTAL_HANDS = 635013559600;
+let CENSUS = null; // [len] → rows of [honors, hcp, wasted, hcp_plus, count], from wasm
+const PATTERNS = []; // [♠,♥,♦,♣] lengths, all 560
+let JOINT = null; // gaugeJoint by PATTERNS index
+for (let s = 0; s <= 13; s++) for (let h = 0; s + h <= 13; h++) for (let d = 0; s + h + d <= 13; d++) {
+  PATTERNS.push([s, h, d, 13 - s - h - d]);
+}
+const twoLongest = (lens) => { const [a, b] = [...lens].sort((x, y) => y - x); return a + b; };
+const isBalanced = (lens) => lens.every((l) => l >= 2) && lens.filter((l) => l === 2).length <= 1;
+// Pavlicek's freakness: a point per card over four or under three in each
+// suit, plus 1 for a singleton or 2 for a void — 4333 = 0, 4432 = 1, 5332 = 2.
+const freakness = (lens) => lens.reduce((f, l) => f + Math.max(0, l - 4, 3 - l), 0) + (lens.includes(0) ? 2 : lens.includes(1) ? 1 : 0);
+
+// Hands of this pattern counted jointly by every gauge: a list of [values in
+// GAUGES order, each suit's hcp, boxes admitting, count].  The convolution
+// state packs six sums in base 64 — HCP, wasted suits, and per trump the
+// support sum (hcp_plus on the side suits, plain HCP in trumps).  hcp_plus is
+// nearly HCP plus a function of length, so the joint stays small: 45k states
+// over all 560 patterns.
+// Beside the sums the state carries what the boxes read off single suits:
+// which of `boxes` every suit's cell admits (a bit per box), and the hcp of
+// each suit in `suits` (base 11 above the bits; the others report 0).
+function gaugeJoint(lens, boxes = [ANY_BOX], suits = []) {
+  const SIG = 2 ** boxes.length;
+  let acc = new Map([[SIG - 1, new Map([[0, 1]])]]); // bits and suit hcps → packed sums → count
+  lens.forEach((len, suit) => {
+    const step = new Map();
+    for (const [honors, hcp, wasted, plus, n] of CENSUS[len]) {
+      let bits = 0;
+      boxes.forEach((box, i) => { if (admits(box, suit, honors, len)) bits |= 1 << i; });
+      if (!bits) continue;
+      let code = hcp + 64 * wasted;
+      for (let t = 0; t < 4; t++) code += 64 ** (2 + t) * (t === suit ? hcp : plus);
+      const side = bits + (suits.includes(suit) ? SIG * 11 ** suit * hcp : 0);
+      if (!step.has(side)) step.set(side, new Map());
+      step.get(side).set(code, (step.get(side).get(code) || 0) + n);
+    }
+    const next = new Map();
+    for (const [a, sums] of acc) for (const [b, more] of step) {
+      const bits = (a % SIG) & (b % SIG);
+      if (!bits) continue;
+      const side = a - (a % SIG) + b - (b % SIG) + bits;
+      if (!next.has(side)) next.set(side, new Map());
+      const dst = next.get(side);
+      for (const [x, m] of sums) for (const [y, n] of more) dst.set(x + y, (dst.get(x + y) || 0) + m * n);
+    }
+    acc = next;
+  });
+  const bonus = twoLongest(lens) >= 10 ? 1 : 0;
+  const base = (isBalanced(lens) ? 0 : 1) + bonus;
+  return [...acc].flatMap(([side, sums]) => {
+    const each = [0, 1, 2, 3].map((suit) => Math.floor(side / SIG / 11 ** suit) % 11);
+    return [...sums].map(([code, n]) => {
+      const sum = (k) => Math.floor(code / 64 ** k) % 64;
+      const support = [2, 3, 4, 5].map((k) => sum(k) + bonus);
+      return [[sum(0), sum(0) + Math.max(0, base - sum(1)), ...support], each, side % SIG, n];
+    });
+  });
+}
+
+// Hands in the union of the boxes: {total, byPattern: [[lens, count], …]}.
+// ponytail: a box that names honors or reads a suit's hcp re-convolves each
+// pattern it fits, and every suit hcp read multiplies the states by up to 11 —
+// instant for one, seconds for all four over every shape.  Upgrade path: a
+// Compute button, as Partner has.
+function oddsCount(boxes) {
+  const suits = [0, 1, 2, 3].filter((suit) => boxes.some((box) => box.where.used.has(SLOT.suitHcp + suit)));
+  const byPattern = [];
+  let total = 0;
+  PATTERNS.forEach((lens, k) => {
+    const mine = boxes.filter((box) => inLens(box, lens));
+    if (!mine.length) return;
+    const named = suits.length > 0 || mine.some((box) => box.cells.some(Boolean));
+    const v = [...lens];
+    v[SLOT.freak] = freakness(lens);
+    let count = 0;
+    for (const [values, each, bits, n] of named ? gaugeJoint(lens, mine, suits) : JOINT[k]) {
+      for (let g = 0; g < 6; g++) v[SLOT.gauge + g] = values[g];
+      for (let suit = 0; suit < 4; suit++) v[SLOT.suitHcp + suit] = each[suit];
+      if (mine.some((box, i) => (!named || (bits >> i) & 1) && meets(box, v))) count += n;
+    }
+    if (count) { total += count; byPattern.push([lens, count]); }
+  });
+  return { total, byPattern };
+}
+
+function initCalc() {
+  const vars = handVars(0, 1); // p = up
+  const chk = (text, ...v) => compileWhere(text, vars)(v);
+  console.assert(chk('s > h', 5, 4, 2, 2) && !chk('s > h >= d', 5, 2, 4, 2)
+    && chk('p + max(s, h) >= 20, !(c > 0 | hcp < 12)', 5, 4, 4, 0, 13, 15)
+    && chk('♠ + ♠.hcp = 9 & s.hcp > sp♥', 5, 4, 4, 0, 13, 15, 0, 3, 0, 0, 4)
+    && [...compileWhere('sps > my.♦.hcp', { ...vars, ...handVars(HAND_SLOTS, 0, 'my.') }).used].join() === '6,27'
+    && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
+  CENSUS = JSON.parse(point_census());
+  JOINT = PATTERNS.map((lens) => gaugeJoint(lens));
+  // the ♠K is in C(51,12) hands, the ♠A alone in a suit (4 hcp there) in C(39,12)
+  const box = (...texts) => makeBox(parseCells(texts, vars), vars.p);
+  console.assert(oddsCount([box('.*K.*', '', '', '', '', '')]).total === choose(51, 12)
+    && oddsCount([box('1', '', '', '', '', 's.hcp = 4')]).total === choose(39, 12), 'oddsCount');
+  initBoxes('c-boxes', renderCalc);
+  renderCalc();
+}
+
+function renderCalc() {
+  const boxes = readBoxes('c-boxes', handVars(0, gaugeOf('c-boxes')));
+  const out = id('c-out');
+  if (!boxes.length) { out.innerHTML = '<p class="hint">Enter at least one well-formed box.</p>'; return; }
+  if (boxes.length > MAX_BOXES) { out.innerHTML = `<p class="hint">At most ${MAX_BOXES} boxes.</p>`; return; }
+  const { total, byPattern } = oddsCount(boxes);
+  const prob = total / TOTAL_HANDS;
+  byPattern.sort((a, b) => b[1] - a[1]);
+  const top = byPattern.slice(0, 8).map(([lens, n]) =>
+    `<tr><td>${lens.join('-')}</td><td>${(100 * n / TOTAL_HANDS).toFixed(3)}%</td><td>${(100 * n / total).toFixed(1)}%</td></tr>`).join('');
+  out.innerHTML = `
+    <div class="statrow">
+      <div><span class="statlabel">Probability</span><span class="statbig">${(100 * prob).toFixed(4)}%</span></div>
+      <div><span class="statlabel">Odds</span><span class="statbig">${total ? '1 in ' + (1 / prob).toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}</span></div>
+      <div><span class="statlabel">Hands</span><span class="statbig">${total.toLocaleString()}</span></div>
+    </div>
+    ${byPattern.length ? `<table class="ddtable"><thead><tr><th>Pattern ♠-♥-♦-♣</th><th>Of all hands</th><th>Of the union</th></tr></thead><tbody>${top}</tbody></table>` : ''}
+    ${byPattern.length > 8 ? `<p class="hint">…and ${byPattern.length - 8} more patterns.</p>` : ''}`;
+}
+
+// --- Companion tab: partner's hand given yours ---------------------------------
+// After Pavlicek's Companion Hand Calculator, but each hand is a union of
+// boxes.  Exact, HCP only: per suit the two hands draw disjoint holdings —
+// the honors A K Q J T by identity, the eight spots by count — so each suit
+// gives a joint census of (your hcp, partner's hcp) per (your length,
+// partner's length); four suits convolve into a 2-D table per pattern pair,
+// and the boxes read it.  A holding cell reads the honors, which the table
+// does not keep: the convolution state also carries which boxes every suit so
+// far admits (a bit per box), so a fully named hand costs one pattern and one
+// holding a suit.
+// ponytail: O(your patterns × partner patterns × 2-D convolution) — a named
+// hand or a shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a
+// minute.  Upgrade path: when no box reads your lengths, carry your running
+// length in the state instead of enumerating your pattern.
+const COMPANION_HANDS = 8122425444; // 39 choose 13
+const honorHcp = (mask) => (mask & 16 ? 4 : 0) + (mask & 8 ? 3 : 0) + (mask & 4 ? 2 : 0) + (mask & 2 ? 1 : 0);
+
+// One value vector serves both hands' boxes: partner's slots, then yours,
+// which a partner box reads under `my.`.
+// ponytail: HCP only until the convolution carries the other gauges
+const MINE = HAND_SLOTS;
+const hcpOnly = (vars) => Object.fromEntries(Object.entries(vars)
+  .filter(([, slot]) => slot % HAND_SLOTS <= SLOT.gauge || slot % HAND_SLOTS >= SLOT.suitHcp));
+const PARTNER_VARS = hcpOnly({ ...handVars(0, 0), ...handVars(MINE, 0, 'my.') });
+const MY_VARS = hcpOnly(handVars(MINE, 0));
+// the slots the boxes read: every where's, and the gauge of a bounded points range
+const slotsRead = (boxes) => new Set(boxes.flatMap((box) =>
+  [...box.where.used, ...(box.pts[0] > 0 || box.pts[1] < 60 ? [box.p] : [])]));
 
 // Count (your hand, partner's hand) pairs: `mine` boxes your hand, `known`
 // conditions partner, `query` asks.
@@ -1295,24 +1385,17 @@ function companionCount(mine, known, query) {
   const myPats = PATTERNS.filter((lens) => mine.some((b) => inLens(b, lens)));
   const partnerPats = PATTERNS.filter((lens) => known.some((b) => inLens(b, lens)));
   // an hcp dimension nobody reads collapses to 0; a read one is pruned to its range
-  const myRead = readsHcp(mine, /^(p|hcp)$/) || reads(partner, /^my_hcp$/);
+  const read = slotsRead([...mine, ...partner]);
+  const myRead = read.has(MINE + SLOT.gauge);
   const myMax = myRead ? Math.min(37, Math.max(...mine.map((b) => b.pts[1]))) : 0;
   const myMin = Math.min(...mine.map((b) => b.pts[0]));
-  const partnerRead = readsHcp(partner, /^(p|hcp)$/);
+  const partnerRead = read.has(SLOT.gauge);
   const knownMax = partnerRead ? Math.min(37, Math.max(...known.map((b) => b.pts[1]))) : 0;
   const knownMin = Math.min(...known.map((b) => b.pts[0]));
   // a per-suit hcp some box reads is enumerated outside the convolution:
   // that suit's step keeps only the holdings of that value
-  const suitVars = new Map();
-  for (const b of [...mine, ...partner]) {
-    for (const name of b.where.used || []) {
-      const m = name.match(/^(my_)?hcp_([shdc♠♥♦♣])$/);
-      if (!m) continue;
-      const suit = Math.max('shdc'.indexOf(m[2]), '♠♥♦♣'.indexOf(m[2]));
-      suitVars.set(`${m[1] || ''}${suit}`, { mine: Boolean(m[1]), suit });
-    }
-  }
-  const enumerated = [...suitVars.values()];
+  const enumerated = [0, MINE].flatMap((base) => [0, 1, 2, 3]
+    .filter((suit) => read.has(base + SLOT.suitHcp + suit)).map((suit) => ({ mine: base === MINE, suit })));
   const values = enumerated.map(() => 0);
   // the boxes still admitted are a bit per box, packed as (yours) * SIG + (partner's)
   const SIG = 2 ** partner.length, knownBits = 2 ** known.length - 1;
@@ -1392,11 +1475,15 @@ function companionCount(mine, known, query) {
   };
   do {
     stepCache.clear();
-    const v = new Array(20).fill(0);
-    enumerated.forEach((e, i) => { v[(e.mine ? 14 : 10) + e.suit] = values[i]; });
-    const vec = (p2, b, p1, a) => { v[0] = p2[0]; v[1] = p2[1]; v[2] = p2[2]; v[3] = p2[3]; v[4] = b; v[5] = p1[0]; v[6] = p1[1]; v[7] = p1[2]; v[8] = p1[3]; v[9] = a; v[18] = freakness(p2); v[19] = freakness(p1); return v; };
+    const v = new Array(2 * HAND_SLOTS).fill(0);
+    enumerated.forEach((e, i) => { v[(e.mine ? MINE : 0) + SLOT.suitHcp + e.suit] = values[i]; });
+    const hand = (base, lens, hcp) => {
+      for (let suit = 0; suit < 4; suit++) v[base + suit] = lens[suit];
+      v[base + SLOT.gauge] = hcp; v[base + SLOT.freak] = freakness(lens);
+    };
+    const vec = (p2, b, p1, a) => { hand(0, p2, b); hand(MINE, p1, a); };
     // is this (your hcp) in one of your boxes that every suit admitted
-    const myFit = (m, p2, p1, a) => { vec(p2, 0, p1, a); return mine.some((box, i) => (m >> i) & 1 && meets(box, a, v)); };
+    const myFit = (m, p2, p1, a) => { vec(p2, 0, p1, a); return mine.some((box, i) => (m >> i) & 1 && meets(box, v)); };
     for (const p1 of myPats) {
       for (const [sig, table] of convolve(p1, null, true)) {
         for (let a = 0; a <= myMax; a++) if (table[a * W] && myFit(Math.floor(sig / SIG), p1, p1, a)) out.mine += table[a * W];
@@ -1413,9 +1500,9 @@ function companionCount(mine, known, query) {
               const x = table[a * W + b];
               if (!x) continue;
               vec(p2, b, p1, a);
-              if (!known.some((box, i) => (p >> i) & 1 && meets(box, b, v))) continue;
+              if (!known.some((box, i) => (p >> i) & 1 && meets(box, v))) continue;
               kn += x;
-              if (query.some((box, i) => (p >> (known.length + i)) & 1 && meets(box, b, v))) qu += x;
+              if (query.some((box, i) => (p >> (known.length + i)) & 1 && meets(box, v))) qu += x;
             }
           }
           pool.push(table);
@@ -1438,7 +1525,7 @@ function initCompanion() {
   // a named hand: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
   // a shape: partner's spades hypergeometric; a holding: the ♠K is in C(25,12)
   // hands of the black suits
-  const box = (...texts) => makeBox(parseCells([...texts, '', ''], MY_VARS, true));
+  const box = (...texts) => makeBox(parseCells([...texts, '', ''], MY_VARS), MY_VARS.p);
   const all = companionCount([box('AKQ', 'AKQ', 'AKQ', 'AKQJ')], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
   const shaped = companionCount([box('5', '5', '3', '0')], [ANY_BOX], [box('4+', '', '', '')]);
   const king = companionCount([box('.*K.*', '0', '0', '')], [box('13', '', '', '')], []);
@@ -1452,26 +1539,14 @@ function initCompanion() {
     && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
     && splitHand('AKT52.K83.-.76432').join() === 'AKTxx,Kxx,0,xxxxx' && splitHand('AK5+') === null
     && compileHolding('AKx*').range.join() === '2,10' && compileHolding('Q4') === null && compileHolding('KA') === null, 'companion');
-  for (const t of ['x-mine', 'x-known', 'x-query']) {
-    id(`${t}-add`).onclick = () => { addBox(t, validateCompanion); validateCompanion(); };
-    addBox(t, validateCompanion);
-    // a whole hand pasted into a suit cell fills the row
-    id(t).addEventListener('paste', (ev) => {
-      const cells = [...ev.target.closest('tr').querySelectorAll('input')];
-      const hand = cells.indexOf(ev.target) < 4 && splitHand(ev.clipboardData.getData('text'));
-      if (!hand) return;
-      ev.preventDefault();
-      hand.forEach((text, i) => { cells[i].value = text; });
-      validateCompanion();
-    });
-  }
+  for (const table of ['x-mine', 'x-known', 'x-query']) initBoxes(table, validateCompanion, false);
   id('partner').onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') renderCompanion(); };
   id('x-run').onclick = renderCompanion;
 }
 
 function readCompanion() {
   const [mine, known, query] = [['x-mine', MY_VARS], ['x-known', PARTNER_VARS], ['x-query', PARTNER_VARS]]
-    .map(([table, vars]) => readBoxes(table, vars, true));
+    .map(([table, vars]) => readBoxes(table, vars));
   return { mine, known: known.length ? known : [ANY_BOX], query };
 }
 function validateCompanion() { readCompanion(); }
