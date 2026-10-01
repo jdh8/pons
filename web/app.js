@@ -1374,10 +1374,14 @@ function renderCalc() {
 // per box), so a fully named hand costs one pattern and one holding a suit.
 // The other gauges ride beside a hand's hcp as a few small sums (`gaugeSums`),
 // widening its axis of the table.
+// Suits no box tells apart permute freely, so one pair of patterns is counted
+// for its whole orbit: 24 to one when the boxes are points only.
 // ponytail: O(your patterns × partner patterns × 2-D convolution) — a named
-// hand or a shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a
-// minute.  Upgrade path: when no box reads your lengths, carry your running
-// length in the state instead of enumerating your pattern.
+// hand or a shaped box is instant, "16+ any shape" opposite any hand (560 ×
+// 560 pairs, 24 to an orbit) takes half a second, and seconds once the boxes
+// name every suit.  Upgrade paths: when no box reads your lengths, carry your
+// running length in the state instead of enumerating your pattern; count a
+// symmetry of the union ("either major"), not only of each box.
 // ponytail: the tables are dense, and every gauge a hand's boxes read widens
 // its axis up to fourfold — past MAX_CELLS the count is refused (about six
 // gauges between the two hands).  Upgrade path: sparse tables.
@@ -1480,6 +1484,31 @@ function companionCount(mine, known, query) {
   const spare = (size) => { if (!pool.has(size)) pool.set(size, []); return pool.get(size); };
   const take = (free, size) => (free.pop() || new Float64Array(size)).fill(0);
   const out = { mine: 0, known: 0, query: 0, byPattern: new Map() };
+  // The suits no box tells apart: every cell blank, and no where reading the
+  // suit's length, hcp or sp.  Permuting them in both hands at once changes no
+  // count, so a pair of patterns stands for its orbit: the pair whose
+  // (partner's length, yours) never rises along these suits.
+  const anon = [0, 1, 2, 3].filter((suit) =>
+    [...mine, ...partner].every((box) => box.lens[suit][0] <= 0 && box.lens[suit][1] >= 13 && !box.cells[suit])
+    && [0, MINE].every((base) => [SLOT.len, SLOT.suitHcp, SLOT.gauge + 2].every((slot) => !read.has(base + slot + suit))));
+  // the size of the pair's orbit, 0 off its representative
+  const orbit = (p1, p2) => {
+    let n = 1, run = 1;
+    for (let i = 1; i < anon.length; i++) {
+      const a = anon[i - 1], b = anon[i], drop = (p2[a] - p2[b]) * 14 + p1[a] - p1[b];
+      if (drop < 0) return 0;
+      run = drop ? 1 : run + 1;
+      n = n * (i + 1) / run;
+    }
+    return n;
+  };
+  const perms = (xs) => (xs.length < 2 ? [xs] : xs.flatMap((x, i) => perms(xs.filter((_, j) => j !== i)).map((rest) => [x, ...rest])));
+  // the patterns a representative's partner pattern stands for
+  const images = (lens) => [...new Set(perms(anon).map((to) => {
+    const image = [...lens];
+    anon.forEach((suit, i) => { image[to[i]] = lens[suit]; });
+    return image.join('-');
+  }))];
   // The suit step for (your length, partner's) under the enumerated values:
   // [your boxes admitting, partner's, flat [h1, i1, h2, i2, n, …]] per distinct
   // pair of box sets, over every disjoint pair of holdings — each hand's hcp
@@ -1587,7 +1616,8 @@ function companionCount(mine, known, query) {
       }
       for (const s2 of partnerShapes) {
         const p2 = s2.lens;
-        if (p1.some((l, i) => l + p2[i] > 13)) continue;
+        const weight = orbit(p1, p2);
+        if (!weight || p1.some((l, i) => l + p2[i] > 13)) continue;
         const N2 = (s2.top + 1) * W, free = spare((s1.top + 1) * W * N2);
         let kn = 0, qu = 0;
         for (const [sig, table] of convolve(s1, s2, free)) {
@@ -1611,9 +1641,12 @@ function companionCount(mine, known, query) {
           free.push(table);
         }
         if (!kn) continue;
-        out.known += kn; out.query += qu;
-        const key = p2.join('-'), row = out.byPattern.get(key) || [0, 0];
-        out.byPattern.set(key, [row[0] + kn, row[1] + qu]);
+        out.known += weight * kn; out.query += weight * qu;
+        const keys = s2.images ||= images(p2), share = weight / keys.length;
+        for (const key of keys) {
+          const row = out.byPattern.get(key) || [0, 0];
+          out.byPattern.set(key, [row[0] + share * kn, row[1] + share * qu]);
+        }
       }
     }
     // next combination of enumerated values, base 11
@@ -1627,12 +1660,14 @@ function companionCount(mine, known, query) {
 function initCompanion() {
   // a named hand: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
   // a shape: partner's spades hypergeometric; a holding: the ♠K is in C(25,12)
-  // hands of the black suits; a gauge: your hands as Odds counts them
+  // hands of the black suits; a gauge: your hands as Odds counts them; an
+  // orbit: the minors alike, partner's thirteen clubs counted off his diamonds
   const vars = handVars(MINE, 1); // p = up
   const box = (...texts) => makeBox(parseCells([...texts, '', ''].slice(0, 6), vars), MINE + SLOT.gauge);
   const all = companionCount([box('AKQ', 'AKQ', 'AKQ', 'AKQJ')], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
   const shaped = companionCount([box('5', '5', '3', '0')], [ANY_BOX], [box('4+', '', '', '')]);
   const king = companionCount([box('.*K.*', '0', '0', '')], [box('13', '', '', '')], []);
+  const alike = companionCount([box('7', '6', '', '')], [ANY_BOX], []);
   const gauged = ['5', '4', '', '0-1', '', 'p + s >= 18 & sph > up'];
   const mine = companionCount([makeBox(parseCells(gauged, vars), vars.p)], [box('', '', '', '13')], []).mine;
   const odds = oddsCount([makeBox(parseCells(gauged, handVars(0, 1)), SLOT.gauge + 1)]).total;
@@ -1643,6 +1678,7 @@ function initCompanion() {
     && near(shaped.mine, choose(13, 5) ** 2 * choose(13, 3)) && near(shaped.known, shaped.mine * COMPANION_HANDS)
     && near(shaped.query / shaped.known, fit / COMPANION_HANDS)
     && near(king.mine, choose(25, 12)) && mine > 0 && mine === odds
+    && near(alike.known, alike.mine * COMPANION_HANDS) && near(alike.byPattern.get('0-0-0-13')[0], alike.mine)
     && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
     && splitHand('AKT52.K83.-.76432').join() === 'AKTxx,Kxx,0,xxxxx' && splitHand('AK5+') === null
     && compileHolding('AKx*').range.join() === '2,10' && compileHolding('Q4') === null && compileHolding('KA') === null, 'companion');

@@ -84,9 +84,12 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   which boxes every suit so far admits.  The other gauges ride beside a hand's
   HCP as small sums — the wasted suits behind `up`, the short side suits'
   extra behind each `sp` — widening that hand's axis.  Dimensions no box reads
-  are collapsed, so a named hand or one shape answers in milliseconds; a wide
-  union of your shapes with both HCP totals read is seconds, and several times
-  that for each further gauge read — hence a Compute button.
+  are collapsed, so a named hand or one shape answers in milliseconds.  Suits
+  no box tells apart permute freely, so one pattern pair is counted for its
+  whole orbit — 24 to one when the boxes are points only (`16+` opposite
+  `0-7`: half a second).  A wide union of your shapes whose boxes name every
+  suit is seconds, and several times that for each further gauge read — hence
+  a Compute button.
 
   Both tabs speak one **box grammar**:
   - A suit cell is a length range (`5+`, `4-6`, `3`, blank = any) or a

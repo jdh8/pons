@@ -469,6 +469,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: Partner counts one pattern pair per suit-symmetry orbit
+  (2026-10-01)** — suits no box tells apart (blank cells, no `where` reading
+  the suit's length, hcp or sp) permute freely in both hands at once, so the
+  counter visits only the pair whose (partner's length, yours) never rises
+  along them and weighs it by its orbit.  Points-only boxes are 24 to one:
+  `16+` opposite any hand, query `0-7` (Precision `1♣ - 1♦`) drops from
+  13 s to 0.6 s; three free suits 6×, two 2×.  Counts agree with the full
+  enumeration to float rounding, per partner pattern.  Not covered: a
+  symmetry of the union rather than of each box ("either major",
+  `max(s, h) >= 5`).
+
 - **Web: Partner counts every point gauge, with a picker per table
   (2026-10-01)** — Your hand, Partner known and Partner query each get the
   Odds header: the points column's gauge is picked per table (known on `UP
