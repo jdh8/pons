@@ -155,3 +155,72 @@ fn test_loose_positive() {
         call(2, Strain::Notrump),
     );
 }
+
+// --- The grand rung ---------------------------------------------------------
+
+/// The 2/1 pair with `rebid.strong_two_grand` off: the classic king ask
+fn classic() -> Partnership {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.rebid.strong_two_grand = false;
+    american(&agreements).bind()
+}
+
+/// Bid `opener` and `responder` out from `2♣ -`, asserting each call
+fn bid_out(system: &Partnership, opener: &str, responder: &str, calls: &[Call]) {
+    let mut auction = vec![call(2, Strain::Clubs), Call::Pass];
+    for (index, &expected) in calls.iter().enumerate() {
+        let hand = if index % 2 == 0 { responder } else { opener };
+        assert_eq!(best_call(system, &auction, hand), expected, "{auction:?}");
+        auction.extend([expected, Call::Pass]);
+    }
+}
+
+/// `2♣ - 2♠ - 4NT - 5♣ - 5NT - 6♦ - 7♠`: all five keycards, the queen, and
+/// a side king each — the classic ladder stops in `6♠` for want of the third
+#[test]
+fn test_grand_rung_on_two_side_kings() {
+    let (opener, responder) = ("KQ3.AQ963.AK.AJ3", "AJT864.4.Q54.KT8");
+    let ask = [
+        call(2, Strain::Spades),
+        call(4, Strain::Notrump),
+        call(5, Strain::Clubs),
+        call(5, Strain::Notrump),
+        call(6, Strain::Diamonds),
+    ];
+    bid_out(
+        &partnership(),
+        opener,
+        responder,
+        &[&ask[..], &[call(7, Strain::Spades), Call::Pass]].concat(),
+    );
+    bid_out(
+        &classic(),
+        opener,
+        responder,
+        &[&ask[..], &[call(6, Strain::Spades)]].concat(),
+    );
+}
+
+/// `2♣ - 3♦ - 4NT - 5♠ - 7♦`: the ask over a minor positive is the floor's,
+/// and the grand rung answers it
+#[test]
+fn test_grand_rung_over_a_minor_positive() {
+    let (opener, responder) = ("AKJ.AK.A63.KJ763", "642.QJ73.KQT82.A");
+    let ask = [
+        call(3, Strain::Diamonds),
+        call(4, Strain::Notrump),
+        call(5, Strain::Spades),
+    ];
+    bid_out(
+        &partnership(),
+        opener,
+        responder,
+        &[&ask[..], &[call(7, Strain::Diamonds), Call::Pass]].concat(),
+    );
+    bid_out(
+        &classic(),
+        opener,
+        responder,
+        &[&ask[..], &[call(6, Strain::Diamonds)]].concat(),
+    );
+}

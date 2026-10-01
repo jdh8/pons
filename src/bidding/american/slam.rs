@@ -53,6 +53,17 @@
 //! king ask and the king responses (6♣/6♦) collide with the trump slam, so
 //! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
 //! usual remedy, is out of scope.
+//!
+//! # The grand rung
+//!
+//! [`grand_rkcb_rows`] is the same ladder with seven bid on **two** of the
+//! three side kings rather than all three, once the asker knows of all five
+//! keycards and the trump queen (held, or made moot by the fit): seven at once
+//! on two side kings of its own, else 5NT, which partner raises to seven with
+//! the kings that make two.  It reaches minor trumps too: a minor 5NT is one
+//! side king short, and partner bids seven with one or six without — though a
+//! minor asker with only three trumps wants all three kings.
+//! Only the lanes that ask for it get it — the classic ladder is unchanged.
 
 use crate::bidding::agreements::Agreements;
 use crate::bidding::{Alert, Rules};
@@ -104,11 +115,11 @@ mod king_ask;
 mod minor_lane;
 mod queen_relay;
 
-use king_ask::{asker_after_6c, asker_after_6d, asker_after_6h, king_answers};
+use king_ask::{asker_after_kings, grand_king_answers, king_answers};
 use minor_lane::{asker_after_5c_minor, asker_after_5d_minor, no_room_six};
 use queen_relay::{
-    asker_after_denial, asker_after_queen, asker_after_relay_kings, king_replies, queen_replies,
-    relay_first,
+    asker_after_denial, asker_after_queen, asker_after_relay_kings, king_replies, queen_moot,
+    queen_replies, relay_first,
 };
 
 // ---------------------------------------------------------------------------
@@ -406,6 +417,86 @@ pub(super) fn rkcb_answerer_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 /// The 4NT bid itself must already be in the caller's table; this produces
 /// everything that comes *after* 4NT.
 pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
+    rkcb_rows_with(prefix, trump, false)
+}
+
+/// [`rkcb_rows`] with the grand rung: seven on two of the three side kings,
+/// for either major or minor trumps (see the module docs)
+///
+/// `probe-strong-two-grand` (8M deals, the auctions below a positive to the
+/// strong 2♣): with all five keycards and the trump queen, seven of a major
+/// makes double-dummy on 43% of the boards with one side king, 69% with two
+/// and 86% with three, against a break-even near 56–58%; seven of a minor on
+/// 30% / 64% / 84% — and on two kings only 55% when the asker has three
+/// trumps, so that hand wants all three ([`grand_kings`]).
+pub(super) fn grand_rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
+    rkcb_rows_with(prefix, trump, true)
+}
+
+/// Our side kings against the grand rung's bar: two of the three, or all
+/// three over a minor with only three trumps
+///
+/// `ask` is the 5NT hand instead — short of the bar by what partner's answer
+/// can supply: any count over a major, whose answers count kings, and exactly
+/// one over a minor, whose answer is seven or six.  The minor bar is the
+/// asker's-seat cut of the same probe: two side kings make seven of a minor on
+/// 63% with four trumps opposite the positive and 55% with three.
+fn grand_kings(
+    trump: Suit,
+    ask: bool,
+) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
+    let major = matches!(trump, Suit::Hearts | Suit::Spades);
+    described(
+        if ask {
+            "short of the side kings for seven"
+        } else {
+            "the side kings for seven"
+        },
+        move |hand: Hand, _: &crate::bidding::context::Context<'_>| {
+            let bar = if major || hand[trump].len() >= 4 {
+                2
+            } else {
+                3
+            };
+            let kings = count_kings_outside(hand, trump);
+            match (ask, major) {
+                (false, _) => kings >= bar,
+                (true, true) => kings < bar,
+                (true, false) => kings + 1 == bar,
+            }
+        },
+    )
+}
+
+/// The grand rung on an asker table: `certain` is the lane's test for all five
+/// keycards and a settled trump queen
+///
+/// Seven at once with the side kings for it, 5NT one short (see
+/// [`grand_kings`]).  Both outweigh every placement and sit below the queen
+/// relay, which `certain` excludes anyway.
+fn grand_rung(
+    rules: Rules,
+    trump: Suit,
+    certain: crate::bidding::constraint::Cons<
+        impl crate::bidding::constraint::Constraint + Clone + 'static,
+    >,
+) -> Rules {
+    let certain = certain & hcp(19..);
+    rules
+        .rule(
+            Bid::new(7, Strain::from(trump)),
+            150,
+            certain.clone() & grand_kings(trump, false),
+        )
+        .rule(
+            Bid::new(5, Strain::Notrump),
+            145,
+            certain & grand_kings(trump, true),
+        )
+        .alert(RKCB)
+}
+
+fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     let ans_5c = Bid::new(5, Strain::Clubs);
     let ans_5d = Bid::new(5, Strain::Diamonds);
     let ans_5h = Bid::new(5, Strain::Hearts);
@@ -441,6 +532,27 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
             no_room_six(trump),
             no_room_six(trump),
         )
+    };
+
+    // The grand rung: per answer, the asker's own count that makes five, and
+    // the queen — unasked where it is moot, denied over 5♥, shown over 5♠.
+    let (after_5c, after_5d, after_5h, after_5s) = if grand {
+        (
+            grand_rung(after_5c, trump, keycards(trump, 4..=4) & queen_moot(trump)),
+            grand_rung(
+                after_5d,
+                trump,
+                (keycards(trump, 2..=2) | keycards(trump, 5..)) & queen_moot(trump),
+            ),
+            grand_rung(
+                after_5h,
+                trump,
+                keycards(trump, 3..) & has_trump_queen(trump),
+            ),
+            grand_rung(after_5s, trump, keycards(trump, 3..)),
+        )
+    } else {
+        (after_5c, after_5d, after_5h, after_5s)
     };
 
     for (answer, table) in [
@@ -506,9 +618,45 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
         }
     }
 
+    if grand {
+        // The answers to the rung's 5NT and the asker's placement, with the
+        // doubled tails — a lead-directing double of the ask or of an
+        // artificial answer must not drop either seat to the floor.  Seven
+        // and a minor six are contracts: the asker passes them.
+        let t = Strain::from(trump);
+        let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
+        for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
+            for ask in ["5NT -", "5NT (X)"] {
+                let kings = format!("{answer} - {ask}");
+                entries.extend(rows_of(node(&kings), grand_king_answers(trump)));
+                entries.extend(rows_of(
+                    node(&format!("{kings} {} -", Bid::new(7, t))),
+                    pass(),
+                ));
+                if matches!(trump, Suit::Clubs | Suit::Diamonds) {
+                    entries.extend(rows_of(
+                        node(&format!("{kings} {} -", Bid::new(6, t))),
+                        pass(),
+                    ));
+                    continue;
+                }
+                for (shown, reply) in ["6♣", "6♦"].into_iter().enumerate() {
+                    for tail in ["-", "(X)"] {
+                        entries.extend(rows_of(
+                            node(&format!("{kings} {reply} {tail}")),
+                            asker_after_kings(trump, shown, 2),
+                        ));
+                    }
+                }
+            }
+        }
+        return entries;
+    }
+
     // ponytail: no grand-slam king ask for minors — plain 4NT has no room for it
     // (5NT misreads as the ask; 6♣/6♦ king answers collide with the trump slam).
-    // Grand-in-minor stays under-bid; the upgrade path is Kickback (out of scope).
+    // Grand-in-minor stays under-bid off the grand rung; the upgrade path is
+    // Kickback (out of scope).
     if matches!(trump, Suit::Clubs | Suit::Diamonds) {
         return entries;
     }
@@ -528,20 +676,15 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     // -----------------------------------------------------------------------
     for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
         let kings = format!("{answer} - 5NT -");
-        entries.extend(rows_of(
-            node(&format!("{kings} 6♣ -")),
-            asker_after_6c(trump),
-        ));
-        entries.extend(rows_of(
-            node(&format!("{kings} 6♦ -")),
-            asker_after_6d(trump),
-        ));
         // 6♥ is a king answer only when trumps are spades; over hearts it is
         // the catch-all signoff.
-        if trump == Suit::Spades {
+        for (shown, reply) in ["6♣", "6♦", "6♥"].into_iter().enumerate() {
+            if reply == "6♥" && trump != Suit::Spades {
+                continue;
+            }
             entries.extend(rows_of(
-                node(&format!("{kings} 6♥ -")),
-                asker_after_6h(trump),
+                node(&format!("{kings} {reply} -")),
+                asker_after_kings(trump, shown, 3),
             ));
         }
     }

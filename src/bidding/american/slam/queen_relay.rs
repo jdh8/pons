@@ -7,7 +7,7 @@ use super::*;
 /// [`has_trump_queen`]: a nine-card fit is not a queen, but hearing "no queen"
 /// over one changes nothing — six is bid anyway — so the round is not worth
 /// spending.  Threshold `QUEEN_BUFF_FIT`.
-fn queen_moot(
+pub(super) fn queen_moot(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
     let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());

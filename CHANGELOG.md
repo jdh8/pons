@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The grand rung below a positive to our strong `2♣`, shipped default-on
+  (2026-10-01)** — `RebidKnobs::strong_two_grand`
+  (`--no-ns-strong-two-grand` in `bba-gen` for the control arm).  Every
+  keycard ask below a natural positive now bids seven on **two** of the
+  three side kings once the asker knows of all five keycards and the trump
+  queen (held, or made moot by a nine-card fit): at once with two side kings
+  of its own, else through `5NT`, which partner raises to seven with the
+  kings that make two.  The classic ladder wanted all three
+  (`2♣ - 2♠ - 4NT - 5♣ - 5NT - 6♦ - 6♠`) and had no king ask at all over a
+  `5♦` or `5♥` answer.  The same ladder (`slam::grand_rkcb_rows`) now answers
+  the floor's `4NT` over a minor positive, whose own minor ladder bid seven
+  only on 37 combined points (`2♣ - 3♦ - 4NT - 5♣ - 6♦`): a minor `5NT` is
+  one king short and partner bids seven with one, six without; a minor asker
+  with only three trumps wants all three kings.  Their double of the `5NT`
+  or of a king answer is systems on.  Other lanes keep the classic ladder;
+  the reading mirror pins the knob off.  Found by re-cutting the three
+  `strong-two-loose` seeds by final contract: in the lane we trailed BBA by
+  −2,316 plain / −2,828 PD per 1,228,800 boards, missed grands 235 rows,
+  −2,022 / −2,010 of it.  The bar comes from the new
+  `examples/probe-strong-two-grand` (8M uncontested self-play deals, 27,427
+  in the lane, every strain solved): with five keycards and the queen, seven
+  of a major makes double-dummy on 43% / 69% / 86% of the boards with one /
+  two / three side kings, seven of a minor on 30% / 64% / 84% (55% on two
+  kings when the asker has three trumps), against a break-even near 56–58%.
+  Measured on `scripts/ab-strong-two-grand.sh` vs BBA, three seeds
+  (1790866672, 1790867173, 1790867674), 204,800 boards/arm/vul each, every
+  isolation gate passed; pooled (614,400 boards/vul), IMPs/board none /
+  both: plain +0.0009 ±0.0005 / +0.0012 ±0.0006, PD +0.0009 ±0.0005 /
+  +0.0011 ±0.0006, all twelve per-seed cells positive, 151 / 161 fired
+  (+3.8 / +4.4 plain per fired).  142 / 152 of those are new grands, 71%
+  making: majors 115 / 122 boards for +476 / +638 plain IMPs, minors 27 / 30
+  for +97 / +71.  With the grand shave (3–10% of the DD-making grands
+  failing, docs/measurement.md) the plain bracket is +0.0008…+0.0005 /
+  +0.0010…+0.0006.  Not touched, and flagged in docs/next-steps.md: a double
+  of the keycard *answer* still drops the asker to the floor in every RKCB
+  lane, and the classic `5NT` path elsewhere still wants three kings.
+
 - **docs: exact hand posteriors — survey and plan (2026-10-01)** —
   [docs/exact-posterior.md](docs/exact-posterior.md) records what the web
   Odds/Partner counter is (an exact DNF counter, the only surviving

@@ -193,6 +193,7 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // itself: their `2♣ - 2NT - 3♠` keeps the floor's reading and their
     // `2♣ - 2♠` the two-honor one, so the knobs move only boards we open.
     mirror.rebid.strong_two_positive = false;
+    mirror.rebid.strong_two_grand = false;
     mirror.response.strong_two_loose_positive = false;
     (mirror != *agreements).then_some(mirror)
 }

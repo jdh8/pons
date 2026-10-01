@@ -633,7 +633,10 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Extended acceptance after NT" => 0,
         // Cue bids, DOPI/ROPI/DEPO over their interference in a keycard
         // auction (the floor's authored rungs in `instinct.rs` — DOPI below
-        // five of trump, DEPO at or above), and the 5NT king ask.
+        // five of trump, DEPO at or above), and the 5NT king ask.  The grand
+        // rung below a positive to our strong 2♣ (`rebid.strong_two_grand`)
+        // is the same 5NT, over minors too; the schema has no row for how
+        // many kings the asker wants, so nothing moves with that knob.
         "Cue bid" | "DOPI" | "ROPI" | "DEPO" | "King ask by 5NT" => 1,
         "King ask by 5NT inviting" => 0,
         // The king ask is 5NT off the knob.  On it, the relay carries its own:

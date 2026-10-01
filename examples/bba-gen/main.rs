@@ -936,6 +936,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_strong_two_positive: bool,
 
+    /// Keep the classic king ask below a natural positive to our strong
+    /// `2♣` (`rebid.strong_two_grand`, **shipped default-on 2026-10-01**:
+    /// seven on two of the three side kings, and the keycard ladder below
+    /// the floor's `4NT` over a minor positive; this is the disarming flag
+    /// and the control arm of `scripts/ab-strong-two-grand.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_strong_two_grand: bool,
+
     /// Keep the `2NT`-opening bands over the 22–24 `2NT` rebid after `2♣`
     /// (`notrump.strong_two_notrump_floors`, **shipped default-on
     /// 2026-10-01**: Stayman on 3+, `3NT` on 3–8, pass below 3; this is the
@@ -2918,6 +2926,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
     agreements.rebid.strong_two_positive = !args.no_ns_strong_two_positive;
+    agreements.rebid.strong_two_grand = !args.no_ns_strong_two_grand;
     agreements.response.strong_two_loose_positive = !args.no_ns_strong_two_loose_positive;
     agreements.rebid.one_diamond_two_clubs = args.ns_one_diamond_two_clubs;
     agreements.rebid.passed_hand_major_pass = match args.ns_passed_hand_major_pass.as_str() {

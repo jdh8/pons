@@ -364,7 +364,10 @@ pub(super) fn package() -> Package {
             ));
 
             if agreements.rebid.strong_two_positive {
-                entries.extend(positive::entries(waiting));
+                entries.extend(positive::entries(
+                    waiting,
+                    agreements.rebid.strong_two_grand,
+                ));
             }
 
             entries

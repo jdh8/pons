@@ -4159,6 +4159,27 @@ pub struct RebidKnobs {
     /// *level* (a 22–24 `3NT` and a quantitative ladder) lost or washed: the
     /// floor's own level is at par.  The reading mirror pins it off.
     pub strong_two_positive: bool,
+    /// The grand rung below a natural positive to the strong `2♣`
+    ///
+    /// **Default on (shipped 2026-10-01)**; `--no-ns-strong-two-grand` in
+    /// `bba-gen` for the off arm.  Needs
+    /// [`strong_two_positive`][RebidKnobs::strong_two_positive].  On, every
+    /// keycard ask below a positive bids seven on **two** of the three side
+    /// kings once the asker knows of all five keycards and the trump queen —
+    /// at once with two side kings of its own, else through `5NT`, which
+    /// partner raises to seven with the kings that make two — where the
+    /// classic ladder wants all three; and the same ladder answers the
+    /// floor's `4NT` over a minor positive, whose own minor ladder has no
+    /// king ask (a minor asker with only three trumps still wants all three
+    /// kings).  Their double of the `5NT` or of a king answer is systems
+    /// on.  The reading mirror pins it off.
+    ///
+    /// Vs BBA (`scripts/ab-strong-two-grand.sh`, three seeds, 614,400
+    /// boards/vul pooled), IMPs/board none / both: plain +0.0009 ±0.0005 /
+    /// +0.0012 ±0.0006, PD +0.0009 ±0.0005 / +0.0011 ±0.0006, all twelve
+    /// per-seed cells positive, about 50 / 54 fired per 204,800; 71% of the
+    /// new grands make double-dummy.
+    pub strong_two_grand: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4178,6 +4199,7 @@ impl Default for RebidKnobs {
             xyz_invite_judgment: true,
             new_minor_forcing: false,
             strong_two_positive: true,
+            strong_two_grand: true,
         }
     }
 }

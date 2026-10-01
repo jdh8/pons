@@ -27,7 +27,7 @@ criterion 5). **Item 2 is now the top candidate.**
 (opener's pass shipped 2026-09-30, Reverse Drury and opener's splinters over
 it shipped 2026-10-01, below); BBA's other rungs and its passed-hand `2NT`
 priced and left alone. The strong `2♣` lane (re-cut 2026-10-01, below) has
-four ships; its grand rung is next.**
+five ships, the grand rung the latest; the direct `6NT` jumps are next.**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -136,13 +136,59 @@ four ships; its grand rung is next.**
       +0.0011 with one seed of three negative (its worst boards are the
       floor's `3NT` on an unbalanced five-card major); the tables alone
       against the old positive wash at 100 fired per 204,800.
-  - Next in the lane: the **grand rung** — minor-suit fits (the minor RKCB
-    tables cannot reach seven; `3♦` positives alone are 15 rows, −175) and
-    the book's king ask stopping in six where the floor's `7M` was right
-    (`2♣ - 2♠ - 4NT - 5♣ - 5NT - 6♦ - 6♠`); responder's second suit over
-    opener's minor (BBA's `2NT - 3♣ - 3♠` finds the 4-4); opener's
-    game-in-hand jump rebids, opener's 28+ balanced rebid (falls to the `2NT`
-    fallback), the contested tail (289 rows, −0.6k / −0.8k).
+  - **`rebid.strong_two_grand` shipped default-on 2026-10-01** (the grand
+    rung: seven on two of the three side kings below a positive, through the
+    book's asks and below the floor's `4NT` over a minor positive): pooled
+    three seeds plain +0.0009 ±0.0005 / +0.0012 ±0.0006, PD +0.0009 ±0.0005
+    / +0.0011 ±0.0006, 12/12 cells positive, 71% of the new grands making
+    (`scripts/ab-strong-two-grand.sh`, CHANGELOG).  What it taught:
+    - *Census by final contract.*  Our shipped arm against BBA's table on
+      the three `strong-two-loose` seeds (the boards we open `2♣` and hear a
+      positive, 1,228,800 boards): −2,316 plain / −2,828 PD, of which
+      missed grands 235 rows, −2,022 / −2,010; missed small slams 166 rows,
+      −616; our extra slams 961 rows, **+830** plain / +326 PD.  The lane's
+      deficit was the grand, not the level below it.
+    - *Kings, not points, once the keycards are in.*
+      `probe-strong-two-grand` (8M self-play deals, 27,427 in the lane):
+      with five keycards and the trump queen, `7M` makes on 43% / 69% / 86%
+      with one / two / three side kings and `7m` on 30% / 64% / 84%; without
+      the queen an eight-card fit is 21% / 32% / 42%.  Combined HCP below
+      30 is the one weak cell on two kings (49%, ~130 boards per 8M) and is
+      not gated.  `7NT` on the same boards trails the suit by 8–16 points of
+      make rate, so the rung plays the suit.
+    - *The floor's ask is fine to keep.*  Book rows below the floor's `4NT`
+      over a minor positive take over its ladder; their small-slam
+      placements agree with the floor's on all but ~90 boards per 8M, net
+      +27 IMPs.  The price is the floor's own 37-point sevens with fewer
+      kings, now stopped in six: 30 boards per 8M, −79 IMPs.
+  - Next in the lane, sized off the same probe (per 8M self-play deals,
+    27,427 in the lane): **the direct `6NT` jumps** — 9,928 boards end in
+    `6NT` with no keycard ask (`2♣ - 2NT - 6NT` alone is 2,985); thirteen
+    tricks are there in notrump on 2,607 of them and only in an eight-card
+    fit on 876 more.  Combined HCP prices `7NT`: 53% at 34, 67% at 35, 86%
+    at 36, 100% at 37+, so the floor's 37 is two points late; the suit
+    grands need the fit found first — responder's second suit over opener's
+    minor, a Stayman-like ask over the `2NT` positive (BBA's `2NT - 3♣ -
+    3♠` finds the 4-4).  Then opener's game-in-hand jump rebids, opener's
+    28+ balanced rebid (falls to the `2NT` fallback), the contested tail
+    (289 rows, −0.6k / −0.8k).
+  - Flagged while tracing, not built (jdh8 to decide):
+    - **A double of the keycard answer drops the asker to the floor in
+      every RKCB lane** (`rkcb_rows` registers `{answer} -` only): `2♣ - 3♦
+      - 3♠ - 4♠ - 4NT - 5♣ (X) 5♠` on a cold grand, one deal in 614,400
+      against BBA.  Proposed default: register each asker table at `{answer}
+      (X)` too, relay rows included, as one default A/B over all lanes; the
+      grand rung already does this for its own `5NT` and king answers.
+    - **The classic `5NT` path in every other lane still wants all three
+      side kings**, while the queen relay beside it and the grand rung bid
+      seven on two ([ai-bidder/bba-kickback.md](ai-bidder/bba-kickback.md),
+      "The two king asks disagree").  Proposed default: `grand_rkcb_rows`
+      for every major lane as its own arm — the asker's `hcp(19..)` gate is
+      a weaker promise outside the `2♣` lane, so it wants a combined-HCP
+      cut first (`probe-trump-queen --grand-hcp`).
+    - The same rung under `2♣ - 2♦ - 2M - 3M - 4NT` and `2♣ - 2♦ - 3m - 4m -
+      4NT` (opener asks on 28+): a different population, unmeasured, left
+      on the classic ladder.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN
@@ -383,9 +429,10 @@ group waits on that decision, the second group does not.
   `2♣ - 2♦` decoded as waiting, as BBA plays it): lost on the v6 floor
   (item 2, the strong `2♣` lane); a win after the retrain would also retire
   the mirror book every default build now carries.
-  `strong_two_loose_positive` and `strong_two_positive` are pinned off in
-  the same mirror, unmeasured unpinned (their first trial leaked two boards
-  per 204,800 through it): re-measure all three together.
+  `strong_two_loose_positive`, `strong_two_positive` and `strong_two_grand`
+  are pinned off in the same mirror, unmeasured unpinned (the first two's
+  first trial leaked two boards per 204,800 through it): re-measure all four
+  together.
 - Re-arbitrate the five shipped floor rails against the new net — runners and
   rule in [floor-rail-campaign.md](floor-rail-campaign.md) (stop criterion 5).
 - `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling

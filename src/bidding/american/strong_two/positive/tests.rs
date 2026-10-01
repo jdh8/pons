@@ -4,12 +4,20 @@ use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
 const C: Strain = Strain::Clubs;
+const D: Strain = Strain::Diamonds;
 const H: Strain = Strain::Hearts;
 const S: Strain = Strain::Spades;
 const NT: Strain = Strain::Notrump;
 
 fn on() -> Agreements {
     Agreements::default()
+}
+
+/// The classic ladder: `strong_two_grand` off
+fn classic() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.rebid.strong_two_grand = false;
+    agreements
 }
 
 fn off() -> Agreements {
@@ -80,4 +88,67 @@ fn opener_does_not_pass_the_doubled_positive() {
     let auction = [bid(2, C), Call::Double, bid(2, NT), P];
     assert_eq!(best_with(&on(), &auction, "A54.AK2.AKJ.QJ82"), bid(3, NT));
     assert_eq!(best_with(&on(), &auction, "AQ.AKJ72.K42.KQ8"), bid(3, H));
+}
+
+/// The grand rung: all five keycards and the trump queen bid seven on two
+/// side kings — at once with both, through `5NT` with one, where the classic
+/// ladder stops in six short of all three.
+#[test]
+fn grand_rung_bids_seven_on_two_side_kings() {
+    let answered = [bid(2, C), P, bid(2, S), P, bid(4, NT), P, bid(5, C), P];
+    // Four keycards and the queen opposite one: two side kings of our own.
+    assert_eq!(best_with(&on(), &answered, "KQ3.AK963.AK.A53"), bid(7, S));
+    // One side king: ask.
+    let asker = "KQ3.AQ963.AK.AJ3";
+    assert_eq!(best_with(&on(), &answered, asker), bid(5, NT));
+
+    let asked = [&answered[..], &[bid(5, NT), P]].concat();
+    assert_eq!(best_with(&on(), &asked, "AJT864.K4.Q54.K8"), bid(7, S));
+    assert_eq!(best_with(&on(), &asked, "AJT864.4.Q54.KT8"), bid(6, D));
+
+    let one = [&asked[..], &[bid(6, D), P]].concat();
+    assert_eq!(best_with(&on(), &one, asker), bid(7, S));
+    assert_eq!(best_with(&classic(), &one, asker), bid(6, S));
+    let none = [&asked[..], &[bid(6, C), P]].concat();
+    assert_eq!(best_with(&on(), &none, asker), bid(6, S));
+
+    // Their lead-directing double of the answer is systems on.
+    let doubled = [&asked[..], &[bid(6, D), Call::Double]].concat();
+    assert_eq!(best_with(&on(), &doubled, asker), bid(7, S));
+}
+
+/// Over `5♥` — two keycards, no queen — the asker's own queen settles the
+/// suit, and the classic table has no king ask at all.
+#[test]
+fn grand_rung_asks_over_the_queenless_answer() {
+    let answered = [bid(2, C), P, bid(2, S), P, bid(4, NT), P, bid(5, H), P];
+    let asker = "KQ2.QJ2.AQJ6.AK9";
+    assert_eq!(best_with(&on(), &answered, asker), bid(5, NT));
+    assert_eq!(best_with(&classic(), &answered, asker), bid(6, S));
+    // Without the queen, six.
+    assert_eq!(best_with(&on(), &answered, "K92.QJ2.AQJ6.AKQ"), bid(6, S));
+}
+
+/// The same ladder answers the floor's `4NT` over a minor positive: seven on
+/// two side kings, `5NT` on exactly one, and partner raises to seven with
+/// another.
+#[test]
+fn grand_rung_reaches_the_minors() {
+    let ask = [bid(2, C), P, bid(3, D), P, bid(4, NT), P];
+    assert_eq!(best_with(&on(), &ask, "642.QJ73.KQT82.A"), bid(5, S));
+
+    let queen = [&ask[..], &[bid(5, S), P]].concat();
+    assert_eq!(best_with(&on(), &queen, "AKJ.AK.A63.KJ763"), bid(7, D));
+
+    // Three trumps want all three kings: with two, ask for the third.
+    assert_eq!(best_with(&on(), &queen, "AKJ.AQ.A63.KJ763"), bid(5, NT));
+
+    let one = [&ask[..], &[bid(5, C), P]].concat();
+    let asker = "AQJ.AK2.AJ63.A63";
+    assert_eq!(best_with(&on(), &one, asker), bid(5, NT));
+    let asked = [&one[..], &[bid(5, NT), P]].concat();
+    assert_eq!(best_with(&on(), &asked, "K6.853.KQ842.J82"), bid(7, D));
+    assert_eq!(best_with(&on(), &asked, "Q6.853.KQ842.Q82"), bid(6, D));
+    let stopped = [&asked[..], &[bid(6, D), P]].concat();
+    assert_eq!(best_with(&on(), &stopped, asker), P);
 }

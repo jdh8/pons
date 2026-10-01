@@ -16,12 +16,18 @@
 //! - **Opener over that `3NT`**: `6NT` on 23+, `4M` on a six-card major, else
 //!   pass.
 //!
-//! Not authored: opener's minors, minor-suit raises (the minor RKCB tables
-//! have no grand rung), responder's second suit, and the contested tails
-//! (every call here but the `4NT` ask is natural, so the floor's `2♣` game
-//! force carries them).
+//! [`RebidKnobs::strong_two_grand`][crate::bidding::agreements::RebidKnobs::strong_two_grand]
+//! (default on) adds the **grand rung**: every keycard ask here bids seven on
+//! two of the three side kings (`slam::grand_rkcb_rows`), and the same ladder
+//! answers the floor's `4NT` over a minor positive — the ask stays the
+//! floor's, since its level judgement is at par, but its own minor ladder
+//! stops in six short of 37 combined points.
+//!
+//! Not authored: opener's minors, minor-suit raises, responder's second suit,
+//! and the contested tails (every call here but the `4NT` ask is natural, so
+//! the floor's `2♣` game force carries them).
 
-use super::super::slam::{RKCB, rkcb_rows};
+use super::super::slam::{RKCB, grand_rkcb_rows, rkcb_rows};
 use crate::bidding::Rules;
 use crate::bidding::constraint::{hcp, len, support};
 use crate::bidding::rows::{Entry, Pattern, rows_of};
@@ -102,8 +108,10 @@ fn ask() -> Rules {
 /// Every row below the natural positives
 ///
 /// `waiting` says whether `2♥` is a positive (`strong_two_waiting`) or the
-/// double negative, which keeps its own subtree.
-pub(super) fn entries(waiting: bool) -> Vec<Entry> {
+/// double negative, which keeps its own subtree.  `grand` is
+/// `strong_two_grand`: the grand rung on every ask, and the ladder below the
+/// floor's `4NT` over a minor positive.
+pub(super) fn entries(waiting: bool, grand: bool) -> Vec<Entry> {
     let mut entries = Vec::new();
     let mut table = |node: &str, rules: Rules| {
         entries.extend(rows_of(Pattern::node(node), rules));
@@ -127,9 +135,10 @@ pub(super) fn entries(waiting: bool) -> Vec<Entry> {
             opener_rebid(positive, true),
         );
 
-        // Opener's RKCB for a major positive.
+        // Opener's RKCB for a major positive — and, on the grand rung, the
+        // floor's for a minor one.
         if let Ok(suit) = Suit::try_from(positive.strain)
-            && matches!(suit, Suit::Hearts | Suit::Spades)
+            && (grand || matches!(suit, Suit::Hearts | Suit::Spades))
         {
             asks.push((rebid.clone(), suit));
         }
@@ -144,8 +153,9 @@ pub(super) fn entries(waiting: bool) -> Vec<Entry> {
         }
     }
 
+    let rkcb = if grand { grand_rkcb_rows } else { rkcb_rows };
     for (prefix, trump) in asks {
-        entries.extend(rkcb_rows(&prefix, trump));
+        entries.extend(rkcb(&prefix, trump));
     }
     entries
 }
