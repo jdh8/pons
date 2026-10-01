@@ -81,15 +81,21 @@ Eight tabs, grouped Play / System / Deal tools / Probability:
   `freak` is Pavlicek's freakness (`freak < 3` = 4333/4432/5332).
 - **Partner** (`#companion`) — partner's hand given yours, exactly, after Pavlicek's
   [Companion Hand Calculator](https://www.rpbridge.net/cgi-bin/xch1.pl) — but
-  your hand is either cards (`AKxxx.Kxx.xx.xxx`, `x` any spot) **or a union of
-  boxes** (`15-17` with `freak < 3`: a 1NT opener).  Partner's *known* boxes
+  each hand is **a union of boxes** (`15-17` with `freak < 3`: a 1NT opener).
+  A suit cell is a length range or a **holding**: a regex over the suit written
+  high to low and matched whole — `A K Q J T` by name, `x` a card 2–9, `.` any
+  card — so `AKxx`, `AKx*`, `AK...+` (the AK in a 5+ suit), `.*K.*` (the king
+  anywhere), `[^A]*` (no ace), `[AKQ]{2}.{3,}` (two of the top three, 5+).  A
+  digit is only ever a count: `Q4` is malformed.  Pasting a whole hand
+  (`AKT52.K83.94.762`) into a suit cell fills the row.  Partner's *known* boxes
   condition, the *query* boxes ask; both read partner's `s h d c hcp`, per-suit
   `hcp_s … hcp_c`, `freak`, and your hand's `my_s … my_hcp my_hcp_s … my_freak`
   (`s + my_s >= 8`: a spade fit).  HCP only.  Pure JS: per suit the two hands
-  draw disjoint holdings (honors by identity, the nine spots by count), giving
-  a joint census of (your HCP, partner's HCP) per length pair; four suits
-  convolve into a 2-D table per pattern pair.  Dimensions no box reads are
-  collapsed, so cards or one shape answer in milliseconds; a wide union of your
+  draw disjoint holdings (the honors A–T by identity, the eight spots by count),
+  giving a joint census of (your HCP, partner's HCP) per length pair; four suits
+  convolve into a 2-D table per pattern pair, whose state also carries which
+  boxes every suit so far admits.  Dimensions no box reads are
+  collapsed, so a named hand or one shape answers in milliseconds; a wide union of your
   shapes with both HCP totals read is seconds — hence a Compute button.
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a

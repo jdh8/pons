@@ -1148,15 +1148,25 @@ function addBox(table, onChange) {
   id(table).tBodies[0].append(tr);
 }
 
-function readBoxes(table, vars = WHERE_VARS) {
+// One box's six cell texts → [♠, ♥, ♦, ♣, points, where], null where a cell is
+// malformed.  A suit is {range} or, with `holdings`, a parsed holding.
+function parseCells(texts, vars, holdings) {
+  const suits = texts.slice(0, 4).map((t) => {
+    const range = parseRange(t, 13);
+    return range ? { range } : holdings ? compileHolding(t) : null;
+  });
+  return [...suits, parseRange(texts[4], 60), compileWhere(texts[5], vars)];
+}
+const makeBox = ([s, h, d, c, pts, where]) =>
+  ({ lens: [s, h, d, c].map((x) => x.range), cells: [s, h, d, c].map((x) => x.admit), pts, where });
+
+function readBoxes(table, vars = WHERE_VARS, holdings = false) {
   const boxes = [];
   for (const tr of id(table).tBodies[0].rows) {
     const cells = [...tr.querySelectorAll('input')];
-    const lens = cells.slice(0, 4).map((c) => parseRange(c.value, 13));
-    const pts = parseRange(cells[4].value, 60);
-    const where = compileWhere(cells[5].value, vars);
-    cells.forEach((c, i) => c.classList.toggle('bad', [...lens, pts, where][i] === null));
-    if (lens.every(Boolean) && pts && where) boxes.push({ lens, pts, where });
+    const parts = parseCells(cells.map((c) => c.value), vars, holdings);
+    cells.forEach((c, i) => c.classList.toggle('bad', parts[i] === null));
+    if (parts.every(Boolean)) boxes.push(makeBox(parts));
   }
   return boxes;
 }
@@ -1193,73 +1203,62 @@ function renderCalc() {
 }
 
 // --- Companion tab: partner's hand given yours ---------------------------------
-// After Pavlicek's Companion Hand Calculator, but your hand may be a union of
-// boxes instead of cards.  Exact, HCP only: per suit the two hands draw
-// disjoint holdings — honors A K Q J by identity, the nine spots by count —
-// so each suit gives a joint census of (your hcp, partner's hcp) per
-// (your length, partner's length); four suits convolve into a 2-D table per
-// pattern pair, and the boxes read it.
-// ponytail: O(your patterns × partner patterns × 2-D convolution) — cards or a
-// shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a minute.
-// Upgrade path: when no box reads your lengths, carry your running length in
-// the state instead of enumerating your pattern.
+// After Pavlicek's Companion Hand Calculator, but each hand is a union of
+// boxes.  Exact, HCP only: per suit the two hands draw disjoint holdings —
+// the honors A K Q J T by identity, the eight spots by count — so each suit
+// gives a joint census of (your hcp, partner's hcp) per (your length,
+// partner's length); four suits convolve into a 2-D table per pattern pair,
+// and the boxes read it.  A holding cell reads the honors, which the table
+// does not keep: the convolution state also carries which boxes every suit so
+// far admits (a bit per box), so a fully named hand costs one pattern and one
+// holding a suit.
+// ponytail: O(your patterns × partner patterns × 2-D convolution) — a named
+// hand or a shaped box is instant, "15–17 any shape" (560 × 560 pairs) takes a
+// minute.  Upgrade path: when no box reads your lengths, carry your running
+// length in the state instead of enumerating your pattern.
 const COMPANION_HANDS = 8122425444; // 39 choose 13
-const HONOR_BIT = { a: 8, k: 4, q: 2, j: 1 }; // the four hcp honors of one suit
-const honorHcp = (mask) => (mask & 8 ? 4 : 0) + (mask & 4 ? 3 : 0) + (mask & 2 ? 2 : 0) + (mask & 1 ? 1 : 0);
-const popcount = (mask) => (mask & 1) + ((mask >> 1) & 1) + ((mask >> 2) & 1) + ((mask >> 3) & 1);
+const HONORS = 'AKQJT'; // the named cards, bit 16 >> index; the ten is an honor that scores 0 hcp
+const honorHcp = (mask) => (mask & 16 ? 4 : 0) + (mask & 8 ? 3 : 0) + (mask & 4 ? 2 : 0) + (mask & 2 ? 1 : 0);
+const popcount = (mask) => { let n = 0; for (; mask; mask >>= 1) n += mask & 1; return n; };
 function choose(n, k) {
   if (k < 0 || k > n) return 0;
   let c = 1;
   for (let i = 1; i <= k; i++) c = (c * (n - k + i)) / i;
   return Math.round(c);
 }
-// Partner's holdings of length l2 beside your honors `mask` and `spots`
-// spot cards, as [h2, count] rows (your hcp is fixed by `mask`).
-function companionSuit(mask, spots, l2) {
-  const rows = new Map();
-  for (let b = 0; b < 16; b++) {
-    if (b & mask) continue;
-    const n = choose(9 - spots, l2 - popcount(b));
-    if (n) rows.set(honorHcp(b), (rows.get(honorHcp(b)) || 0) + n);
-  }
-  return [...rows];
-}
-// PAIR[l1][l2]: flat [h1, h2, count, …] over every disjoint pair of holdings
-// of those lengths — your hand summed over its honors.
-const PAIR = Array.from({ length: 14 }, (_, l1) => Array.from({ length: 14 - l1 }, (_, l2) => {
-  const rows = new Map();
-  for (let a = 0; a < 16; a++) {
-    const spots = l1 - popcount(a);
-    if (spots < 0 || spots > 9) continue;
-    for (const [h2, n] of companionSuit(a, spots, l2)) {
-      const key = honorHcp(a) * 64 + h2;
-      rows.set(key, (rows.get(key) || 0) + choose(9, spots) * n);
-    }
-  }
-  return [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n]);
-}));
 
-// "AKxxx.Kxx.xx.xxx" (dots or spaces; x = any spot; - = void) →
-// {lens, hcp, suits: [{mask, spots}]}, or null.
-function parseCompanionHand(text) {
-  const parts = text.trim().toLowerCase().split(/[.\s/]+/);
-  if (parts.length !== 4) return null;
-  const suits = [];
-  for (const part of parts) {
-    let mask = 0, spots = 0;
-    for (const ch of part === '-' ? '' : part) {
-      if (Object.hasOwn(HONOR_BIT, ch)) {
-        if (mask & HONOR_BIT[ch]) return null;
-        mask |= HONOR_BIT[ch];
-      } else if ('t98765432x'.includes(ch)) spots++;
-      else return null;
-    }
-    if (spots > 9) return null;
-    suits.push({ mask, spots });
+// A suit cell as a holding: a regex over the suit written high to low —
+// A K Q J T by name, x a card 2–9, . any card — matched whole, so "AKxx" is
+// exactly that, "AKx*" any number of small cards under the AK, "AK...+" the AK
+// in a 5+ suit, ".*K.*" the king anywhere, "[^A]*" no ace.  A digit is only
+// ever a count ("x{3}"): "Q4" is malformed, not Q-4 doubleton or Q-fourth.
+// → {range: [min, max] length, admit: [mask * 9 + spots] → 0/1}, or null when
+// malformed or matching no holding.
+const HOLDINGS = []; // [mask, spots, text], all 32 × 9
+for (let mask = 0; mask < 32; mask++) for (let spots = 0; spots <= 8; spots++) {
+  HOLDINGS.push([mask, spots, [...HONORS].filter((_, i) => mask & (16 >> i)).join('') + 'x'.repeat(spots)]);
+}
+function compileHolding(text) {
+  const t = text.replace(/\s/g, '').toUpperCase().replaceAll('X', 'x');
+  if (!/^[AKQJTx.*+?()[\]^|{},\d]+$/.test(t) || /\d/.test(t.replace(/\{\d*,?\d*\}/g, ''))) return null;
+  let re;
+  try { re = new RegExp(`^(?:${t})$`); } catch { return null; }
+  const admit = new Uint8Array(32 * 9);
+  let lo = 14, hi = -1;
+  for (const [mask, spots, holding] of HOLDINGS) {
+    if (!re.test(holding)) continue;
+    admit[mask * 9 + spots] = 1;
+    lo = Math.min(lo, holding.length); hi = Math.max(hi, holding.length);
   }
-  const lens = suits.map((s) => popcount(s.mask) + s.spots);
-  if (lens.reduce((a, b) => a + b) !== 13) return null;
-  return { lens, hcp: suits.reduce((a, s) => a + honorHcp(s.mask), 0), suits };
+  return hi < 0 ? null : { range: [lo, hi], admit };
+}
+// "AKT52.K83.94.762" (dots, or spaces; - or nothing = void) → four cell texts
+// with the spots as x, or null when it is not thirteen distinct cards.
+function splitHand(text) {
+  const parts = text.trim().toUpperCase().split(text.includes('.') ? '.' : /\s+/);
+  if (parts.length !== 4 || !parts.every((part) => /^(-|[AKQJT2-9X]*)$/.test(part))) return null;
+  const suits = parts.map((part) => [...HONORS].filter((ch) => part.includes(ch)).join('') + 'x'.repeat(part.replace(/[-AKQJT]/g, '').length));
+  return suits.join('').length === 13 ? suits.map((suit) => suit || '0') : null;
 }
 
 // One value vector serves both hands' boxes: partner's lengths and hcp, yours,
@@ -1276,24 +1275,28 @@ const MY_VARS = {
   hcp_s: 14, 'hcp_♠': 14, hcp_h: 15, 'hcp_♥': 15, hcp_d: 16, 'hcp_♦': 16, hcp_c: 17, 'hcp_♣': 17,
   freak: 19,
 };
+const MAX_BOXES = 26; // yours, and partner's: the admitted boxes are a bit set a side, the two packed in one number
 const inLens = (box, lens) => lens.every((l, i) => l >= box.lens[i][0] && l <= box.lens[i][1]);
-const fits = (box, lens, pts, v) => inLens(box, lens) && pts >= box.pts[0] && pts <= box.pts[1] && box.where(v);
+// does the box's suit cell take this holding: `mask` honors in a `len`-card suit
+const admits = (box, suit, mask, len) => len >= box.lens[suit][0] && len <= box.lens[suit][1]
+  && (!box.cells?.[suit] || box.cells[suit][mask * 9 + len - popcount(mask)] === 1);
+const meets = (box, pts, v) => pts >= box.pts[0] && pts <= box.pts[1] && box.where(v);
 const reads = (boxes, re) => boxes.some((b) => [...(b.where.used || [])].some((name) => re.test(name)));
 const readsHcp = (boxes, re) => boxes.some((b) => b.pts[0] > 0 || b.pts[1] < 60) || reads(boxes, re);
 const ANY_BOX = { lens: [[0, 13], [0, 13], [0, 13], [0, 13]], pts: [0, 60], where: () => true };
 
-// Count (your hand, partner's hand) pairs: `yours` is a parsed hand, or null
-// to range over the `mine` boxes; `known` conditions partner, `query` asks.
+// Count (your hand, partner's hand) pairs: `mine` boxes your hand, `known`
+// conditions partner, `query` asks.
 // Returns {mine, known, query, byPattern}: hands of yours in the union, pairs
 // meeting known, pairs meeting both, and per partner pattern [known, query].
-function companionCount(yours, mine, known, query) {
+function companionCount(mine, known, query) {
   const partner = [...known, ...query];
-  const myPats = yours ? [yours.lens] : PATTERNS.filter((lens) => mine.some((b) => inLens(b, lens)));
+  const myPats = PATTERNS.filter((lens) => mine.some((b) => inLens(b, lens)));
   const partnerPats = PATTERNS.filter((lens) => known.some((b) => inLens(b, lens)));
   // an hcp dimension nobody reads collapses to 0; a read one is pruned to its range
-  const myRead = yours || readsHcp(mine, /^(p|hcp)$/) || reads(partner, /^my_hcp$/);
-  const myMax = yours ? yours.hcp : myRead ? Math.min(37, Math.max(...mine.map((b) => b.pts[1]))) : 0;
-  const myMin = yours ? 0 : Math.min(...mine.map((b) => b.pts[0]));
+  const myRead = readsHcp(mine, /^(p|hcp)$/) || reads(partner, /^my_hcp$/);
+  const myMax = myRead ? Math.min(37, Math.max(...mine.map((b) => b.pts[1]))) : 0;
+  const myMin = Math.min(...mine.map((b) => b.pts[0]));
   const partnerRead = readsHcp(partner, /^(p|hcp)$/);
   const knownMax = partnerRead ? Math.min(37, Math.max(...known.map((b) => b.pts[1]))) : 0;
   const knownMin = Math.min(...known.map((b) => b.pts[0]));
@@ -1309,78 +1312,112 @@ function companionCount(yours, mine, known, query) {
     }
   }
   const enumerated = [...suitVars.values()];
+  const values = enumerated.map(() => 0);
+  // the boxes still admitted are a bit per box, packed as (yours) * SIG + (partner's)
+  const SIG = 2 ** partner.length, knownBits = 2 ** known.length - 1;
   const W = 38;
-  let acc = new Float64Array(W * W), next = new Float64Array(W * W);
-  const out = { mine: yours ? 1 : 0, known: 0, query: 0, byPattern: new Map() };
-  // the suit step for this (your holding class, partner length) under the
-  // enumerated values: flat [h1, h2, n, …], filtered, then collapsed
-  const stepCache = new Map(); // per enumeration: (suit, your length, partner's) → step
-  const stepFor = (suit, p1, l2, values) => {
-    const cacheKey = suit * 4096 + p1[suit] * 64 + l2;
+  const pool = [];
+  const take = () => (pool.pop() || new Float64Array(W * W)).fill(0);
+  const out = { mine: 0, known: 0, query: 0, byPattern: new Map() };
+  // The suit step for (your length, partner's) under the enumerated values:
+  // [your boxes admitting, partner's, flat [h1, h2, n, …]] per distinct pair of
+  // box sets, over every disjoint pair of holdings.  `solo` is your hand
+  // alone: partner holds nothing of the suit and his boxes are not asked.
+  const stepCache = new Map(); // per enumeration
+  const stepFor = (suit, l1, l2, solo) => {
+    const cacheKey = ((suit * 14 + l1) * 14 + l2) * 2 + (solo ? 1 : 0);
     const hit = stepCache.get(cacheKey);
     if (hit) return hit;
-    const raw = yours
-      ? companionSuit(yours.suits[suit].mask, yours.suits[suit].spots, l2).flatMap(([h2, n]) => [honorHcp(yours.suits[suit].mask), h2, n])
-      : PAIR[p1[suit]][l2];
-    const rows = new Map();
-    for (let k = 0; k < raw.length; k += 3) {
-      if (enumerated.some((e, i) => e.suit === suit && raw[k + (e.mine ? 0 : 1)] !== values[i])) continue;
-      const key = (myRead ? raw[k] : 0) * 64 + (partnerRead ? raw[k + 1] : 0);
-      rows.set(key, (rows.get(key) || 0) + raw[k + 2]);
+    const groups = new Map();
+    for (let a = 0; a < 32; a++) {
+      const spots = l1 - popcount(a);
+      if (spots < 0 || spots > 8) continue;
+      let sm = 0;
+      mine.forEach((box, i) => { if (admits(box, suit, a, l1)) sm |= 1 << i; });
+      if (!sm) continue;
+      for (let b = 0; b < 32; b++) {
+        const n = a & b ? 0 : choose(8, spots) * choose(8 - spots, l2 - popcount(b));
+        if (!n) continue;
+        let sp = SIG - 1;
+        if (!solo) {
+          sp = 0;
+          partner.forEach((box, i) => { if (admits(box, suit, b, l2)) sp |= 1 << i; });
+          if (!(sp & knownBits)) continue;
+        }
+        const h1 = honorHcp(a), h2 = honorHcp(b);
+        if (enumerated.some((e, i) => e.suit === suit && (e.mine ? h1 : h2) !== values[i])) continue;
+        const sig = sm * SIG + sp, key = (myRead ? h1 : 0) * 64 + (partnerRead ? h2 : 0);
+        if (!groups.has(sig)) groups.set(sig, new Map());
+        groups.get(sig).set(key, (groups.get(sig).get(key) || 0) + n);
+      }
     }
-    const step = [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n]);
+    const step = [...groups].map(([sig, rows]) =>
+      [Math.floor(sig / SIG), sig % SIG, [...rows].flatMap(([key, n]) => [key >> 6, key & 63, n])]);
     stepCache.set(cacheKey, step);
     return step;
   };
-  const values = enumerated.map(() => 0);
+  // Four suits convolved: box sets → (your hcp, partner's hcp) table.  The
+  // caller hands the tables back to the pool.
+  const convolve = (p1, p2, solo) => {
+    const kMin = solo ? 0 : knownMin;
+    let acc = new Map([[(2 ** mine.length - 1) * SIG + SIG - 1, take()]]);
+    acc.values().next().value[0] = 1;
+    let hi1 = 0, hi2 = 0;
+    for (let suit = 0; suit < 4; suit++) {
+      const step = stepFor(suit, p1[suit], solo ? 0 : p2[suit], solo), rem = 10 * (3 - suit);
+      const next = new Map();
+      for (const [sig, src] of acc) {
+        for (const [sm, sp, rows] of step) {
+          const m = Math.floor(sig / SIG) & sm, p = (sig % SIG) & sp;
+          if (!m || !(solo || p & knownBits)) continue;
+          let dst = next.get(m * SIG + p);
+          if (!dst) next.set(m * SIG + p, dst = take());
+          for (let k = 0; k < rows.length; k += 3) {
+            const h1 = rows[k], h2 = rows[k + 1], n = rows[k + 2];
+            const aHi = Math.min(hi1, myMax - h1), bHi = Math.min(hi2, knownMax - h2);
+            const bLo = Math.max(0, kMin - rem - h2);
+            for (let a = Math.max(0, myMin - rem - h1); a <= aHi; a++) {
+              const from = a * W, to = (a + h1) * W + h2;
+              for (let b = bLo; b <= bHi; b++) dst[to + b] += n * src[from + b];
+            }
+          }
+        }
+        pool.push(src);
+      }
+      acc = next;
+      hi1 = Math.min(myMax, hi1 + 10); hi2 = Math.min(knownMax, hi2 + 10);
+    }
+    return acc;
+  };
   do {
     stepCache.clear();
     const v = new Array(20).fill(0);
     enumerated.forEach((e, i) => { v[(e.mine ? 14 : 10) + e.suit] = values[i]; });
     const vec = (p2, b, p1, a) => { v[0] = p2[0]; v[1] = p2[1]; v[2] = p2[2]; v[3] = p2[3]; v[4] = b; v[5] = p1[0]; v[6] = p1[1]; v[7] = p1[2]; v[8] = p1[3]; v[9] = a; v[18] = freakness(p2); v[19] = freakness(p1); return v; };
-    // your hands alone: the l2 = 0 column of PAIR is your suit census
-    if (!yours) {
-      for (const p1 of myPats) {
-        let dist = new Float64Array(W); dist[0] = 1;
-        for (let suit = 0; suit < 4; suit++) {
-          const step = stepFor(suit, p1, 0, values), d = new Float64Array(W);
-          for (let a = 0; a < W; a++) if (dist[a]) for (let k = 0; k < step.length; k += 3) if (a + step[k] < W) d[a + step[k]] += dist[a] * step[k + 2];
-          dist = d;
-        }
-        for (let a = 0; a < W; a++) if (dist[a] && mine.some((b) => fits(b, p1, a, vec(p1, 0, p1, a)))) out.mine += dist[a];
-      }
-    }
+    // is this (your hcp) in one of your boxes that every suit admitted
+    const myFit = (m, p2, p1, a) => { vec(p2, 0, p1, a); return mine.some((box, i) => (m >> i) & 1 && meets(box, a, v)); };
     for (const p1 of myPats) {
+      for (const [sig, table] of convolve(p1, null, true)) {
+        for (let a = 0; a <= myMax; a++) if (table[a * W] && myFit(Math.floor(sig / SIG), p1, p1, a)) out.mine += table[a * W];
+        pool.push(table);
+      }
       for (const p2 of partnerPats) {
         if (p1.some((l, i) => l + p2[i] > 13)) continue;
-        acc.fill(0); acc[0] = 1;
-        let hi1 = 0, hi2 = 0;
-        for (let suit = 0; suit < 4; suit++) {
-          const step = stepFor(suit, p1, p2[suit], values), rem = 10 * (3 - suit);
-          next.fill(0);
-          for (let k = 0; k < step.length; k += 3) {
-            const h1 = step[k], h2 = step[k + 1], n = step[k + 2];
-            const aHi = Math.min(hi1, myMax - h1), bHi = Math.min(hi2, knownMax - h2);
-            const bLo = Math.max(0, knownMin - rem - h2);
-            for (let a = Math.max(0, myMin - rem - h1); a <= aHi; a++) {
-              const src = a * W, dst = (a + h1) * W + h2;
-              for (let b = bLo; b <= bHi; b++) next[dst + b] += n * acc[src + b];
+        let kn = 0, qu = 0;
+        for (const [sig, table] of convolve(p1, p2, false)) {
+          const m = Math.floor(sig / SIG), p = sig % SIG;
+          for (let a = 0; a <= myMax; a++) {
+            if (!myFit(m, p2, p1, a)) continue;
+            for (let b = 0; b <= knownMax; b++) {
+              const x = table[a * W + b];
+              if (!x) continue;
+              vec(p2, b, p1, a);
+              if (!known.some((box, i) => (p >> i) & 1 && meets(box, b, v))) continue;
+              kn += x;
+              if (query.some((box, i) => (p >> (known.length + i)) & 1 && meets(box, b, v))) qu += x;
             }
           }
-          [acc, next] = [next, acc];
-          hi1 = Math.min(myMax, hi1 + 10); hi2 = Math.min(knownMax, hi2 + 10);
-        }
-        let kn = 0, qu = 0;
-        for (let a = 0; a <= hi1; a++) {
-          if (!yours && !mine.some((b) => fits(b, p1, a, vec(p2, 0, p1, a)))) continue;
-          for (let b = 0; b <= hi2; b++) {
-            const x = acc[a * W + b];
-            if (!x) continue;
-            vec(p2, b, p1, a);
-            if (!known.some((box) => fits(box, p2, b, v))) continue;
-            kn += x;
-            if (query.some((box) => fits(box, p2, b, v))) qu += x;
-          }
+          pool.push(table);
         }
         if (!kn) continue;
         out.known += kn; out.query += qu;
@@ -1397,42 +1434,54 @@ function companionCount(yours, mine, known, query) {
 }
 
 function initCompanion() {
-  // cards: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
-  // boxes: one shape, partner's spades hypergeometric
-  const all = companionCount(parseCompanionHand('AKQ.AKQ.AKQ.AKQJ'), [], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
-  const shaped = companionCount(null, [{ ...ANY_BOX, lens: [[5, 5], [5, 5], [3, 3], [0, 0]] }], [ANY_BOX], [{ ...ANY_BOX, lens: [[4, 13], [0, 13], [0, 13], [0, 13]] }]);
+  // a named hand: 37 hcp leaves partner three jacks, all of them C(36,10) ways;
+  // a shape: partner's spades hypergeometric; a holding: the ♠K is in C(25,12)
+  // hands of the black suits
+  const box = (...texts) => makeBox(parseCells([...texts, '', ''], MY_VARS, true));
+  const all = companionCount([box('AKQ', 'AKQ', 'AKQ', 'AKQJ')], [ANY_BOX], [{ ...ANY_BOX, pts: [3, 3] }]);
+  const shaped = companionCount([box('5', '5', '3', '0')], [ANY_BOX], [box('4+', '', '', '')]);
+  const king = companionCount([box('.*K.*', '0', '0', '')], [box('13', '', '', '')], []);
   let fit = 0;
   for (let k = 4; k <= 8; k++) fit += choose(8, k) * choose(31, 13 - k);
   const near = (x, y) => Math.abs(x - y) <= 1e-9 * Math.abs(y);
-  console.assert(all.known === COMPANION_HANDS && all.query === choose(36, 10)
+  console.assert(near(all.known, all.mine * COMPANION_HANDS) && near(all.query, all.mine * choose(36, 10))
     && near(shaped.mine, choose(13, 5) ** 2 * choose(13, 3)) && near(shaped.known, shaped.mine * COMPANION_HANDS)
     && near(shaped.query / shaped.known, fit / COMPANION_HANDS)
+    && near(king.mine, choose(25, 12))
     && [[4, 3, 3, 3], [4, 4, 3, 2], [5, 3, 3, 2], [4, 4, 4, 1], [5, 4, 2, 2], [5, 4, 3, 1], [7, 2, 2, 2], [6, 4, 3, 0]].map(freakness).join() === '0,1,2,3,3,4,6,7'
-    && parseCompanionHand('AKxxx Kxx xx xxx').hcp === 10 && parseCompanionHand('AAxxx.Kxx.xx.xxx') === null, 'companion');
+    && splitHand('AKT52.K83.-.76432').join() === 'AKTxx,Kxx,0,xxxxx' && splitHand('AK5+') === null
+    && compileHolding('AKx*').range.join() === '2,10' && compileHolding('Q4') === null && compileHolding('KA') === null, 'companion');
   for (const t of ['x-mine', 'x-known', 'x-query']) {
     id(`${t}-add`).onclick = () => { addBox(t, validateCompanion); validateCompanion(); };
     addBox(t, validateCompanion);
+    // a whole hand pasted into a suit cell fills the row
+    id(t).addEventListener('paste', (ev) => {
+      const cells = [...ev.target.closest('tr').querySelectorAll('input')];
+      const hand = cells.indexOf(ev.target) < 4 && splitHand(ev.clipboardData.getData('text'));
+      if (!hand) return;
+      ev.preventDefault();
+      hand.forEach((text, i) => { cells[i].value = text; });
+      validateCompanion();
+    });
   }
-  id('x-hand').oninput = validateCompanion;
-  id('x-hand').onkeydown = (ev) => { if (ev.key === 'Enter') renderCompanion(); };
+  id('companion').onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') renderCompanion(); };
   id('x-run').onclick = renderCompanion;
 }
 
 function readCompanion() {
-  const text = id('x-hand').value;
-  const yours = text.trim() ? parseCompanionHand(text) : null;
-  id('x-hand').classList.toggle('bad', yours === null && text.trim() !== '');
-  const mine = readBoxes('x-mine', MY_VARS), known = readBoxes('x-known', PARTNER_VARS), query = readBoxes('x-query', PARTNER_VARS);
-  return { yours, mine, known: known.length ? known : [ANY_BOX], query };
+  const [mine, known, query] = [['x-mine', MY_VARS], ['x-known', PARTNER_VARS], ['x-query', PARTNER_VARS]]
+    .map(([table, vars]) => readBoxes(table, vars, true));
+  return { mine, known: known.length ? known : [ANY_BOX], query };
 }
 function validateCompanion() { readCompanion(); }
 
 function renderCompanion() {
-  const { yours, mine, known, query } = readCompanion();
+  const { mine, known, query } = readCompanion();
   const out = id('x-out');
-  if (!yours && !mine.length) { out.innerHTML = '<p class="hint">Enter your hand as cards, or at least one well-formed box for it.</p>'; return; }
+  if (!mine.length) { out.innerHTML = '<p class="hint">Enter at least one well-formed box for your hand.</p>'; return; }
+  if (mine.length > MAX_BOXES || known.length + query.length > MAX_BOXES) { out.innerHTML = `<p class="hint">At most ${MAX_BOXES} boxes for your hand, and ${MAX_BOXES} for partner's.</p>`; return; }
   const t0 = performance.now();
-  const n = companionCount(yours, mine, known, query);
+  const n = companionCount(mine, known, query);
   const ms = performance.now() - t0;
   const pct = (x, y) => (y ? `${(100 * x / y).toFixed(2)}%` : '—');
   const rows = [...n.byPattern].sort((a, b) => b[1][0] - a[1][0]);

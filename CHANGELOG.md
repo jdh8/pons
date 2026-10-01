@@ -138,14 +138,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   explicitly; `tests/fixtures/alert-sites.txt` and `cards/American.bbsa`
   re-blessed (`Reverse drury = 1`).
 - **Web: Companion tab — partner's hand given yours (2026-10-01)** — after
-  Pavlicek's Companion Hand Calculator, but *your* hand may be a union of
-  boxes (the Calc grammar: `15-17` with `freak < 3` is a 1NT opener) as well
-  as cards (`AKxxx.Kxx.xx.xxx`, `x` any spot).  Partner's *known* boxes
+  Pavlicek's Companion Hand Calculator, but each hand is a union of boxes
+  (the Calc grammar: `15-17` with `freak < 3` is a 1NT opener).  A suit cell
+  is a length range or a **holding** — a regex over the suit written high to
+  low and matched whole, `A K Q J T` by name, `x` a card 2–9, `.` any card:
+  `AKxx`, `AKx*`, `AK...+` (the AK in a 5+ suit), `.*K.*` (the king anywhere),
+  `[^A]*` (no ace), `[AKQ]{2}.{3,}` (two of the top three, 5+ cards).  A digit
+  is only ever a count, so `Q4` is malformed rather than misread, and a whole
+  hand pasted into a suit cell (`AKT52.K83.94.762`) fills the row with its
+  spots as `x`; a fully named row is the concrete hand, so there is no
+  separate cards field.  Partner's *known* boxes
   condition, *query* boxes ask: `P(query | known, your hand)` and
   `P(known | your hand)`, with partner's top patterns.  Exact and HCP-only:
-  per suit the two hands draw disjoint holdings (honors by identity, spots by
-  count), a joint (your HCP, partner's HCP) census per length pair, four suits
-  convolved into a 2-D table per pattern pair.  Where variables: the box's own
+  per suit the two hands draw disjoint holdings (the honors A–T by identity,
+  the eight spots by count), a joint (your HCP, partner's HCP) census per
+  length pair, four suits convolved into a 2-D table per pattern pair whose
+  state also carries which boxes every suit so far admits (a holding reads
+  honors the table does not keep).  Where variables: the box's own
   `s h d c hcp`, per-suit `hcp_s … hcp_c` (`hcp_d = 4`: the ♦A, enumerated
   outside the convolution), `freak` (Pavlicek's freakness, also new in Calc),
   and for partner boxes your `my_s … my_hcp my_hcp_s … my_freak` (`s + my_s

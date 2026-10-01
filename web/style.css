@@ -402,4 +402,6 @@ table.boxes input {
   border-radius: 4px;
 }
 table.boxes input.where { width: 22rem; }
-table.boxes input.bad, #x-hand.bad { border-color: var(--heart); background: #fff0ee; }
+#companion table.boxes input { width: 7rem; } /* room for a holding regex */
+#companion table.boxes input.where { width: 18rem; }
+table.boxes input.bad { border-color: var(--heart); background: #fff0ee; }

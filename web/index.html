@@ -161,20 +161,22 @@
     </section>
     <section id="companion" class="hidden">
       <div class="boardinfo">Partner's hand given yours, exactly, after Richard Pavlicek's
-        <a href="https://www.rpbridge.net/cgi-bin/xch1.pl">Companion Hand Calculator</a> — but your hand may be
-        a union of boxes instead of cards.  Cards: <code>AKxxx.Kxx.xx.xxx</code> (dots or spaces, <code>x</code> any spot,
-        <code>-</code> a void); blank uses the boxes.  Partner's <em>known</em> boxes condition (blank = any hand),
-        the <em>query</em> boxes ask.  Ranges as in Odds, HCP only.  Where sees the box's own hand as
+        <a href="https://www.rpbridge.net/cgi-bin/xch1.pl">Companion Hand Calculator</a> — but each hand is
+        a union of boxes.  A suit is a length as in Odds, or a <em>holding</em>: a regex over the suit written high
+        to low, matched whole — <code>A K Q J T</code> by name, <code>x</code> a card 2–9, <code>.</code> any card:
+        <code>AKxx</code>, <code>AKx*</code> (any number of small cards), <code>AK...+</code> (the AK in a 5+ suit),
+        <code>.*K.*</code> (the king anywhere), <code>[^A]*</code> (no ace), <code>[AKQ]{2}.{3,}</code> (two of the
+        top three, 5+ cards).  Paste a whole hand (<code>AKT52.K83.94.762</code>) into a suit to fill the row.
+        Partner's <em>known</em> boxes condition (blank = any hand), the <em>query</em> boxes ask.  HCP only.  Where sees the box's own hand as
         <code>s h d c hcp</code>, its per-suit HCP <code>hcp_s hcp_h hcp_d hcp_c</code> (<code>hcp_d = 4</code>: the ♦A)
         and Pavlicek's <code>freak</code> (<code>freak &lt; 3</code>: 4333 4432 5332); a partner box also sees yours as
         <code>my_s … my_hcp my_hcp_s … my_freak</code> — <code>s + my_s &gt;= 8 | h + my_h &gt;= 8</code>.
-        Press Compute: cards or a shaped box answer at once, a wide union of your shapes takes seconds.</div>
+        Press Compute or Enter: a named hand or a shaped box answers at once, a wide union of your shapes takes seconds.</div>
       <div class="controls">
-        <label>Your hand <input id="x-hand" type="text" spellcheck="false" size="28" placeholder="AKxxx.Kxx.xx.xxx, or blank"></label>
         <button id="x-run" class="primary">Compute</button>
       </div>
       <div class="panel">
-        <div class="controls"><strong>Your hand, when blank above</strong> <button id="x-mine-add" class="secondary">+ box</button></div>
+        <div class="controls"><strong>Your hand</strong> <button id="x-mine-add" class="secondary">+ box</button></div>
         <table class="boxes" id="x-mine">
           <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
           <tbody></tbody>
