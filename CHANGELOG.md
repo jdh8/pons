@@ -469,6 +469,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web: the Odds and Partner box grammar moves into help tooltips
+  (2026-10-01)** — the intro says what the tab computes and why; a circled
+  `?` beside the suit, Points and Where headers and the Compute button opens
+  the length/holding/Where syntax, the paste shortcut and the timing note on
+  demand (native popovers, no script).  **Impact:** web only, no behaviour
+  change.
 - **Web: the Calc and Companion tabs are labelled Odds and Partner, in their
   own nav group (2026-10-01)** — Edit and Evaluate work on a concrete deal;
   these two are probability calculators over constraints.  The hashes follow:

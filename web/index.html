@@ -132,14 +132,7 @@
     </section>
     <section id="odds" class="hidden">
       <div class="boardinfo">Probability that a random hand fits <em>any</em> of the boxes below —
-        a union of boxes, the same reading the bidder keeps per seat.
-        Lengths and points: <code>5+</code>, <code>4-6</code>, <code>3</code>, <code>0-2</code>, blank = any.
-        Where: a condition on the lengths <code>s h d c</code> and any of the point gauges
-        <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected) —
-        <code>s &gt; h</code>, <code>s &gt;= h &gt;= d</code>, <code>max(s, h) &gt;= 5</code>,
-        <code>hcp &gt;= 10 &amp; pts &gt;= 12</code>, <code>p + s &gt;= 15 | !(d &gt; c)</code>,
-        <code>freak &lt; 3</code> (Pavlicek's freakness: balanced);
-        a comma is an <em>and</em> that binds loosest.</div>
+        a union of boxes, the same reading the bidder keeps per seat.</div>
       <div class="controls">
         <label>Points <select id="c-gauge">
           <option value="hcp" selected>HCP (hcp)</option>
@@ -153,50 +146,76 @@
       </div>
       <div class="panel">
         <table class="boxes" id="c-boxes">
-          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points</th><th>Where</th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="c-help-len" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>Points <button class="help" popovertarget="c-help-pts" aria-label="Help">?</button></th><th>Where <button class="help" popovertarget="c-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div id="c-out" class="panel"></div>
+      <div id="c-help-len" class="helptip" popover>A suit length: <code>5+</code>, <code>4-6</code>, <code>3</code>,
+        <code>0-2</code>; blank = any.</div>
+      <div id="c-help-pts" class="helptip" popover>A range like the lengths — <code>12-14</code>, <code>15+</code>,
+        blank = any — on the gauge selected above.</div>
+      <div id="c-help-where" class="helptip" popover>A condition on the lengths <code>s h d c</code> and any of the
+        point gauges <code>hcp pts sps sph spd spc</code> (<code>p</code> = the one selected):
+        <ul>
+          <li><code>s &gt; h</code></li>
+          <li><code>s &gt;= h &gt;= d</code></li>
+          <li><code>max(s, h) &gt;= 5</code></li>
+          <li><code>hcp &gt;= 10 &amp; pts &gt;= 12</code></li>
+          <li><code>p + s &gt;= 15 | !(d &gt; c)</code></li>
+          <li><code>freak &lt; 3</code> — Pavlicek's freakness: balanced</li>
+        </ul>
+        A comma is an <em>and</em> that binds loosest.</div>
     </section>
     <section id="partner" class="hidden">
       <div class="boardinfo">Partner's hand given yours, exactly, after Richard Pavlicek's
         <a href="https://www.rpbridge.net/cgi-bin/xch1.pl">Companion Hand Calculator</a> — but each hand is
-        a union of boxes.  A suit is a length as in Odds, or a <em>holding</em>: a regex over the suit written high
-        to low, matched whole — <code>A K Q J T</code> by name, <code>x</code> a card 2–9, <code>.</code> any card:
-        <code>AKxx</code>, <code>AKx*</code> (any number of small cards), <code>AK...+</code> (the AK in a 5+ suit),
-        <code>.*K.*</code> (the king anywhere), <code>[^A]*</code> (no ace), <code>[AKQ]{2}.{3,}</code> (two of the
-        top three, 5+ cards).  Paste a whole hand (<code>AKT52.K83.94.762</code>) into a suit to fill the row.
-        Partner's <em>known</em> boxes condition (blank = any hand), the <em>query</em> boxes ask.  HCP only.  Where sees the box's own hand as
-        <code>s h d c hcp</code>, its per-suit HCP <code>hcp_s hcp_h hcp_d hcp_c</code> (<code>hcp_d = 4</code>: the ♦A)
-        and Pavlicek's <code>freak</code> (<code>freak &lt; 3</code>: 4333 4432 5332); a partner box also sees yours as
-        <code>my_s … my_hcp my_hcp_s … my_freak</code> — <code>s + my_s &gt;= 8 | h + my_h &gt;= 8</code>.
-        Press Compute or Enter: a named hand or a shaped box answers at once, a wide union of your shapes takes seconds.</div>
+        a union of boxes.  Partner's <em>known</em> boxes condition (blank = any hand), the <em>query</em> boxes ask.
+        HCP only.</div>
       <div class="controls">
         <button id="x-run" class="primary">Compute</button>
+        <button class="help" popovertarget="x-help-run" aria-label="Help">?</button>
       </div>
       <div class="panel">
         <div class="controls"><strong>Your hand</strong> <button id="x-mine-add" class="secondary">+ box</button></div>
         <table class="boxes" id="x-mine">
-          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="x-help-suit" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where <button class="help" popovertarget="x-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="panel">
         <div class="controls"><strong>Partner known</strong> <button id="x-known-add" class="secondary">+ box</button></div>
         <table class="boxes" id="x-known">
-          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="x-help-suit" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where <button class="help" popovertarget="x-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="panel">
         <div class="controls"><strong>Partner query</strong> <button id="x-query-add" class="secondary">+ box</button></div>
         <table class="boxes" id="x-query">
-          <thead><tr><th class="s-s">♠</th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where</th><th></th></tr></thead>
+          <thead><tr><th class="s-s">♠ <button class="help" popovertarget="x-help-suit" aria-label="Help">?</button></th><th class="s-h">♥</th><th class="s-d">♦</th><th class="s-c">♣</th><th>HCP</th><th>Where <button class="help" popovertarget="x-help-where" aria-label="Help">?</button></th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
       <div id="x-out" class="panel"></div>
+      <div id="x-help-run" class="helptip" popover>Or press Enter.  A named hand or a shaped box answers at once;
+        a wide union of your shapes takes seconds.</div>
+      <div id="x-help-suit" class="helptip" popover>A length as in Odds (<code>5+</code>, <code>4-6</code>, blank = any),
+        or a <em>holding</em>: a regex over the suit written high to low, matched whole — <code>A K Q J T</code>
+        by name, <code>x</code> a card 2–9, <code>.</code> any card:
+        <ul>
+          <li><code>AKxx</code></li>
+          <li><code>AKx*</code> — any number of small cards</li>
+          <li><code>AK...+</code> — the AK in a 5+ suit</li>
+          <li><code>.*K.*</code> — the king anywhere</li>
+          <li><code>[^A]*</code> — no ace</li>
+          <li><code>[AKQ]{2}.{3,}</code> — two of the top three, 5+ cards</li>
+        </ul>
+        Paste a whole hand (<code>AKT52.K83.94.762</code>) into a suit to fill the row.</div>
+      <div id="x-help-where" class="helptip" popover>A condition on the box's own hand: <code>s h d c hcp</code>,
+        its per-suit HCP <code>hcp_s hcp_h hcp_d hcp_c</code> (<code>hcp_d = 4</code>: the ♦A) and Pavlicek's
+        <code>freak</code> (<code>freak &lt; 3</code>: 4333 4432 5332).  A partner box also sees yours as
+        <code>my_s … my_hcp my_hcp_s … my_freak</code> — <code>s + my_s &gt;= 8 | h + my_h &gt;= 8</code>.</div>
     </section>
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>
