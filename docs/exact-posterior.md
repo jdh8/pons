@@ -1,6 +1,7 @@
 # Exact hand posteriors — what the web counter is worth to bidding
 
-**Status, 2026-10-02 (HEAD `ee175e29`): Phase 0 built and pinned on all four
+**Status, 2026-10-02 (HEAD `55b4584c`): PARKED by jdh8 — the counter's
+bidding uses are closed until a trigger in §5 "Parked" fires. Phase 0 built and pinned on all four
 pins; Phase 1's kill gate run and read — use A as designed FAILS, and a
 hand-free by-product passes (§5, §7). Phase 2's re-scoped gate reaches 0.5%
 of boards and is not built. Phase 3a fails by the route that needs no new
@@ -8,9 +9,9 @@ API — a reading is not a reply forecast. Phase 3b with a *sampled* forecast
 was then run at the `1M - 2M` seam: a rollout over worlds our own bidder
 reproduces **beats the book on the true deals on both scorers**, and the same
 rollout over worlds drawn from the *readings* **fails** the gate — so
-lookahead pays, but not through the thing a counter counts. The proposed
-default is to park the counter's bidding uses and hand the lookahead finding
-to the search milestone; that decision is open.** This document records (1) what the web
+lookahead pays, but not through the thing a counter counts. The lookahead
+finding went to the search milestone, and the one book defect it exposed
+shipped as `response.major_raise_slam_try`.** This document records (1) what the web
 crate's Odds/Partner counter is, (2) which uses of an exact posterior this repo
 has already refuted, (3) the literature — bridge engines, other
 imperfect-information games, the general machinery — and (4) a phased plan with
@@ -774,13 +775,14 @@ arm on this sample (both-rule at 2 IMPs: +0.0607 ± 0.0325 / +0.0456 ±
 0.0356, 7.1% fired) — one of fifteen grid cells per arm, not the registered
 rule, and it would need its own run on a fresh seed.
 
-What it leaves, and the proposed defaults:
+What it leaves — proposed that day, **decided by jdh8 2026-10-02**:
 
-- **Park the counter's bidding uses** (A, B as counted, C until a search
-  consumer exists). Every gate that tested the *readings* as a posterior has
-  now failed; the one that passed used the bidder itself as the likelihood.
-- **The `4NT` rung is a book finding, not a search finding** — §6, and one
-  row in [next-steps.md](next-steps.md). It is an ordinary knob-and-A/B.
+- **The counter's bidding uses are parked** (A, B as counted, C until a
+  search consumer exists). Every gate that tested the *readings* as a
+  posterior has now failed; the one that passed used the bidder itself as the
+  likelihood. Triggers below.
+- **The `4NT` rung is a book finding, not a search finding** — §6. Shipped
+  the same day as `response.major_raise_slam_try`.
 - **The lookahead finding belongs to M8**
   ([ai-bidder/plan.md](ai-bidder/plan.md)): a seam-gated rollout is worth
   about +0.002 IMPs/board here at 0.4 s of solving per decision (64 worlds at
@@ -788,12 +790,21 @@ What it leaves, and the proposed defaults:
   the search, at one seam; it does not say which seams, and the search
   machinery it would run on was deleted.
 
-### Parked — use C, the sampler
+### Parked — the whole lane (jdh8, 2026-10-02)
 
-Re-open when DD-search-at-leaves exists
-([ben-gap-campaign.md](ben-gap-campaign.md) Phase 3), or when
-`probe-replay-yield` shows a *range* fill below 100% on an auction a live
-consumer actually samples. `1NT (X)` is the one such cell today.
+Nothing here is on a branch: the counter (`examples/common/mass.rs`) and its
+probes are finished code on `main`, and no knob was built. What is parked is
+the *idea* that an exact count over the readings can drive a call. Re-open
+only on one of these, each a measurement rather than an argument:
+
+| trigger | what it re-opens | the test |
+| --- | --- | --- |
+| a search consumer exists (M8 re-derived, [ai-bidder/plan.md](ai-bidder/plan.md)) | use C — the counter as its dealer | `probe-replay-yield` shows a *range* fill below 100% on an auction that consumer samples (`1NT (X)` is the one such cell today) |
+| the readings become a usable posterior | use B as counted | `probe-seam-lookahead`'s **range** arm passes its gate on a fresh seed, at the registered 0.25 margin |
+| an invitation's answer gets a reading (§6) and something reads past it | use B's value term | accept and decline read differently in `probe-call-reading` |
+| a different opponent (BEN) or a reading-fidelity change | Phase 2's narrowness gate | `probe-reading-sound`'s reach count is no longer ≈ 0.5% of boards |
+
+Not a trigger: more precision, a faster counter, or a new net input (§2).
 
 ## 6. Flags
 
@@ -888,6 +899,8 @@ consumer actually samples. `1NT (X)` is the one such cell today.
 | 2026-10-02 | Phase 2 reach | **not built**: 231 [243] of 10,000 boards carry a flagged reading and our side still acts on 53 [47], half of it doubles of artificial slam-zone calls. Logs: `phase2-reach*.log` |
 | 2026-10-02 | Phase 3a, reading route | **FAILS**: log-loss 1.627 against 1.401 for the node's own frequencies; 38 of 461 nodes with a choice countable, the hand helping at 6; accept and decline read the same at every invitation seam. Ladder route unbuilt. Logs: `phase3a-census*.log` |
 | 2026-10-02 | Phase 3b, sampled forecast | `1M - 2M` seam, 9,311 decisions of 600,000 deals, judged on the true deals. **Replay PASSES**: +0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD per decision (+0.0017 / +0.0022 per board). **Range FAILS**: +0.0737 ± 0.0526 / −0.0125 ± 0.0601. Half of replay's gain is the `4NT` rung, which a static remap also earns. Log: `phase3b-sampled-1790874659.log` |
+| 2026-10-02 | the `4NT` rung | traced (`probe-seam-lookahead --trace 4NT`) and shipped default-on as `response.major_raise_slam_try`: vs BBA, 614,400 boards/vul, plain +0.00038 ±0.00040 / +0.00044 ±0.00049, PD +0.00044 ±0.00041 / +0.00052 ±0.00050 |
+| 2026-10-02 | park | **the lane is parked** (jdh8); triggers in §5 "Parked" |
 
 ## 8. Sources
 

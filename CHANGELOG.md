@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the keycard *answer* still drops the asker to the floor in every RKCB
   lane, and the classic `5NT` path elsewhere still wants three kings.
 
+- **docs: exact hand posteriors parked as a bidding input (2026-10-02)** —
+  jdh8's decision after Phase 3b.  [docs/exact-posterior.md](docs/exact-posterior.md)
+  §5 "Parked" lists the four measured triggers that re-open it;
+  [docs/next-steps.md](docs/next-steps.md) carries it under *Parked big
+  ideas*, and the rollout finding is recorded under Milestone 8 of
+  [docs/ai-bidder/plan.md](docs/ai-bidder/plan.md).  No code change: the
+  counter and its probes stay on `main`.
+
 - **Opener's slam try over `1M - 2M` goes through a game try, shipped
   default-on (2026-10-02)** — `ResponseKnobs::major_raise_slam_try`
   (`--no-ns-major-raise-slam-try` in `bba-gen` for the control arm).  A 22+

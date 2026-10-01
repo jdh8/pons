@@ -826,6 +826,19 @@ The three-lever review behind M8 — *do we need BEN's features, more training, 
 search?* — with the pons↔BEN parameter comparison and the post-swap search
 re-basing (Phase 0), is [`archive/stronger-floor.md`](archive/stronger-floor.md).
 
+**Evidence that a rollout pays, at one seam (2026-10-02).**
+`examples/probe-seam-lookahead` ([exact-posterior.md](../exact-posterior.md)
+§5, Phase 3b): at opener's turn after `1M - 2M -`, rolling the book's own
+rungs out over 64 replay-sampled worlds and judging on the **true** deal
+beat the book by +0.1105 ±0.0465 plain / +0.1388 ±0.0518 PD IMPs per
+decision (+0.0017 / +0.0022 per board), at 0.4 s of solving per decision.
+About half was one mistuned rung, since shipped as
+`response.major_raise_slam_try`; the hand-specific half has no interval of
+its own. Worlds drawn from the readings instead of replayed **failed** the
+same gate (they over-invite from a pass), which is M8.1's point measured:
+the sampler must replay, not range-sample. One seam, self-play; it says
+nothing about which other seams pay.
+
 - ⬜ **M8.1 Sampler soundness.** Tight, realistic worlds: land the reading knobs
   (`length_soundness` + the three reading-side washes); rule-replay sampling
   (`set_rule_accept`) is **already default-on** (M8.1b, shipped `74d783d`); the

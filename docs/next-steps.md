@@ -378,6 +378,7 @@ Recorded so future sessions don't re-derive them:
 Four big ideas were weighed on 2026-09-28; the floor sweep (item 2b) won.
 The other three are parked here with the evidence that parked them, so a
 future session re-opens one only against new evidence, not from scratch.
+A fifth joined them on 2026-10-02.
 
 - **Improve the defensive bidding system.** Already the most-mined lane in
   the repo. [defensive-auctions-reference.md](defensive-auctions-reference.md)
@@ -417,6 +418,22 @@ future session re-opens one only against new evidence, not from scratch.
   **Re-open when:** the flip plan's two arms can run, i.e. retrains are
   un-deferred, and only after 2b's σ_seed is known.
 
+- **Exact hand posteriors as a bidding input.** Parked 2026-10-02 after
+  every gate was read ([exact-posterior.md](exact-posterior.md)). The counter
+  is built and pinned against the web one, but each consumer that used the
+  *readings* as a posterior failed: the evidence gate (AUROC 0.554), the
+  narrowness gate (0.5% of boards), the reply forecast (a reading is not
+  one), and a rollout over worlds drawn from the readings (plain +0.074
+  ±0.053, PD −0.013 ±0.060 per decision at `1M - 2M`). The same rollout over
+  worlds our own bidder reproduces **passed** (+0.0017 ±0.0007 plain /
+  +0.0022 ±0.0008 PD IMPs/board at that one seam, about half of it since
+  shipped as `response.major_raise_slam_try`), which is evidence for M8, not
+  for the counter. **Re-open when:** one of the four measured triggers in
+  that doc's §5 "Parked" fires — a search consumer that samples a starved
+  auction, the range arm of `probe-seam-lookahead` passing on a fresh seed,
+  an invitation's answer getting a reading, or the narrow-reading reach
+  moving off 0.5%.
+
 ## Owed / deferred
 
 The live list of work that is **owed but not scheduled**. Retrains are
@@ -451,16 +468,6 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
-- **Exact hand posteriors — every gate read, park decision open**
-  (2026-10-02, [exact-posterior.md](exact-posterior.md)).  The counter is
-  built and pinned; the evidence gate failed (AUROC 0.554), the narrowness
-  gate reaches 0.5% of boards, and a reading is not a reply forecast.  The
-  last experiment (Phase 3b, sampled) split the question: a rollout over
-  worlds our own bidder reproduces beat the book at `1M - 2M` on the true
-  deals (+0.0017 ± 0.0007 plain / +0.0022 ± 0.0008 PD IMPs/board), the same
-  rollout over worlds drawn from the readings did not.  Proposed: park the
-  counter's bidding uses; the lookahead finding is evidence for M8
-  ([ai-bidder/plan.md](ai-bidder/plan.md)), at one seam.
 - **`1M - 2M`: the slam try through a game try — shipped 2026-10-02**
   (`response.major_raise_slam_try`, default on).  Found by
   `probe-seam-lookahead`'s static control: the `4NT` ask on 22+ ended in
