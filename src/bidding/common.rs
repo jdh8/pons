@@ -164,9 +164,10 @@ pub(in crate::bidding) fn with_instinct_floor(system: System, agreements: &Agree
 
 /// The agreements a [mirror book][crate::bidding::book::System::opponents] is
 /// built from — ours with the opponents' disclosures cleared and our opt-in
-/// Watermelon overlays reset and the `2♦`-waiting structure pinned off
+/// Watermelon overlays reset and the `2♦`-waiting structure (with its looser
+/// positives and the tree below them) pinned off
 ///
-/// [`None`] when nothing is declared, no overlay is on and `2♦` waiting is off,
+/// [`None`] when nothing is declared, no overlay is on and those three are off,
 /// in which case the mirror would be a second copy of the same books and is
 /// not built at all.
 pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<Agreements> {
@@ -188,5 +189,10 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // 2♦.  Since the knob ships on, this builds a mirror on every default
     // build; deleting the line is the reversal.
     mirror.decision.strong_two_waiting = false;
+    // Likewise the tree after a natural positive and the looser positive
+    // itself: their `2♣ - 2NT - 3♠` keeps the floor's reading and their
+    // `2♣ - 2♠` the two-honor one, so the knobs move only boards we open.
+    mirror.rebid.strong_two_positive = false;
+    mirror.response.strong_two_loose_positive = false;
     (mirror != *agreements).then_some(mirror)
 }

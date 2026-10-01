@@ -4,14 +4,14 @@ use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
 
-const P: Call = Call::Pass;
+pub(super) const P: Call = Call::Pass;
 
-fn bid(level: u8, strain: Strain) -> Call {
+pub(super) fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
 }
 
 /// The highest-logit call `american()` assigns the hand at the auction
-fn best_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
+pub(super) fn best_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
     let logits = american(agreements)
         .bind()
         .classify(
@@ -151,4 +151,26 @@ fn waiting_does_not_reach_their_two_clubs() {
             .expect("a decision")
     };
     assert_eq!(classify(&waiting()), classify(&double_negative()));
+}
+
+/// `strong_two_loose_positive`: a one-honor five-card suit or a balanced
+/// 7-count bids the positive instead of waiting; a 6-count still waits.
+#[test]
+fn the_loose_positive_needs_no_second_honor() {
+    let on = waiting();
+    let mut off = waiting();
+    off.response.strong_two_loose_positive = false;
+    let opened = [bid(2, Strain::Clubs), P];
+    let (wait, spades, notrump) = (
+        bid(2, Strain::Diamonds),
+        bid(2, Strain::Spades),
+        bid(2, Strain::Notrump),
+    );
+    let one_honor = "KT842.Q3.J432.Q2";
+    assert_eq!(best_with(&off, &opened, one_honor), wait);
+    assert_eq!(best_with(&on, &opened, one_honor), spades);
+    let flat = "K84.Q93.J432.J32";
+    assert_eq!(best_with(&off, &opened, flat), wait);
+    assert_eq!(best_with(&on, &opened, flat), notrump);
+    assert_eq!(best_with(&on, &opened, "KT842.Q3.J32.432"), wait);
 }

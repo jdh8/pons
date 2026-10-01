@@ -5,7 +5,10 @@
 //! constructive book:
 //!
 //! - **Responses** to 2♣: 2♦ waiting, 2♥ double negative (0–3 HCP),
-//!   and natural positives with a good five-card suit.  Under
+//!   and natural positives — any five-card suit or a balanced hand on 7+ HCP
+//!   under
+//!   [`strong_two_loose_positive`][crate::bidding::agreements::ResponseKnobs::strong_two_loose_positive],
+//!   a good five-card suit and 8+ without it.  Under
 //!   [`strong_two_waiting`][crate::bidding::context::DecisionProfile::strong_two_waiting]
 //!   there is no double negative: 2♦ waits on any strength, 2♥ is a positive,
 //!   and a 0–3 responder passes opener's suit rebid.
@@ -13,6 +16,10 @@
 //! - **Responder continuations** after each of opener's suit rebids.
 //! - **Opener's decision** after the major or minor raise, including a
 //!   hook for Roman Key Card Blackwood.
+//! - **After a natural positive**, the `positive` submodule's natural
+//!   game-forcing tree
+//!   ([`strong_two_positive`][crate::bidding::agreements::RebidKnobs::strong_two_positive]),
+//!   which authors the major fit and leaves the rest to the floor.
 //!
 //! Every node in this auction is forcing unless it carries a
 //! [`Call::Pass`] rule; see the module-level note in
@@ -25,6 +32,7 @@ use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
+mod positive;
 #[cfg(test)]
 mod tests;
 
@@ -43,41 +51,39 @@ const DOUBLE_NEGATIVE: Alert = Alert("strong-2c:negative");
 /// negative showing 0–3 HCP; the remaining options are natural positives
 /// with a good five-card suit.  `waiting` (`strong_two_waiting`) drops the
 /// double negative: 2♥ is the heart positive and 2♦ the catch-all on 0+.
-fn responses(waiting: bool) -> Rules {
+/// `loose` (`strong_two_loose_positive`) is BBA's positive: any five-card
+/// suit, or a balanced hand, on 7+ HCP.
+fn responses(waiting: bool, loose: bool) -> Rules {
+    // A natural positive — five cards to two of the top three honors.
+    let positive = |rules: Rules, level: u8, suit: Suit, weight: i16| {
+        let bid = Bid::new(level, suit.into());
+        if loose {
+            rules.rule(bid, weight, len(suit, 5..) & hcp(7..))
+        } else {
+            rules.rule(
+                bid,
+                weight,
+                len(suit, 5..) & top_honors(suit, 2..) & points(8..),
+            )
+        }
+    };
     let rules = if waiting {
-        // 2♥: natural positive — five hearts to two of the top three honors.
-        Rules::new().rule(
-            Bid::new(2, Strain::Hearts),
-            150,
-            len(Suit::Hearts, 5..) & top_honors(Suit::Hearts, 2..) & points(8..),
-        )
+        positive(Rules::new(), 2, Suit::Hearts, 150)
     } else {
         // 2♥: double negative — 0–3 HCP.
         Rules::new()
             .rule(Bid::new(2, Strain::Hearts), 200, hcp(0..=3))
             .alert(DOUBLE_NEGATIVE)
     };
-    rules
-        // 2♠: natural positive — five spades to two of the top three honors.
-        .rule(
-            Bid::new(2, Strain::Spades),
-            150,
-            len(Suit::Spades, 5..) & top_honors(Suit::Spades, 2..) & points(8..),
-        )
-        // 3♣: natural positive — five clubs to two top honors.
-        .rule(
-            Bid::new(3, Strain::Clubs),
-            140,
-            len(Suit::Clubs, 5..) & top_honors(Suit::Clubs, 2..) & points(8..),
-        )
-        // 3♦: natural positive — five diamonds to two top honors.
-        .rule(
-            Bid::new(3, Strain::Diamonds),
-            140,
-            len(Suit::Diamonds, 5..) & top_honors(Suit::Diamonds, 2..) & points(8..),
-        )
+    let rules = positive(rules, 2, Suit::Spades, 150);
+    let rules = positive(rules, 3, Suit::Clubs, 140);
+    positive(rules, 3, Suit::Diamonds, 140)
         // 2NT: balanced positive — 8+ HCP, balanced shape.
-        .rule(Bid::new(2, Strain::Notrump), 130, hcp(8..) & balanced())
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            130,
+            hcp(if loose { 7 } else { 8 }..) & balanced(),
+        )
         // 2♦: waiting catch-all — 4+ HCP (not strong enough for a positive),
         // any strength without the double negative.
         .rule(
@@ -289,7 +295,8 @@ pub(super) fn package() -> Package {
         entries: |agreements| {
             let waiting = agreements.decision.strong_two_waiting;
             // Responses to 2♣ and opener's first rebid.
-            let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses(waiting));
+            let loose = agreements.response.strong_two_loose_positive;
+            let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses(waiting, loose));
             entries.extend(rows_of(
                 Pattern::node("P* 2♣ - 2♦ -"),
                 opener_rebid_after_waiting(waiting),
@@ -355,6 +362,10 @@ pub(super) fn package() -> Package {
                 Pattern::node("P* 2♣ - 2♦ - 3♦ - 4♦ -"),
                 opener_after_diamonds_raise(agreements),
             ));
+
+            if agreements.rebid.strong_two_positive {
+                entries.extend(positive::entries(waiting));
+            }
 
             entries
         },

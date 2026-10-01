@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Looser positives to our strong `2♣`, and the major fit below a positive,
+  shipped default-on together (2026-10-01)** —
+  `ResponseKnobs::strong_two_loose_positive` and
+  `RebidKnobs::strong_two_positive` (`--no-ns-strong-two-loose-positive` and
+  `--no-ns-strong-two-positive` in `bba-gen` for the control arm).  A suit
+  positive is now any five-card suit on 7+ HCP and `2NT` a balanced 7+
+  (BBA's own positive; ours needed two of the top three honors and 8+
+  points, so a one-honor 8-count waited with `2♦` and then stopped in `3NT`
+  opposite 22–24).  After a positive, opener asks `4NT` RKCB with three-card
+  support for responder's major, else shows a five-card major at the cheapest
+  level; responder raises it to game with three (opener then asks), else bids
+  `6NT` on 9+ HCP and `3NT` below, over which opener bids `6NT` on 23+, `4M`
+  on a six-card suit, or passes.  Every other hand keeps the floor's rebid:
+  its level judgement measured at par, so the tables author strain and
+  keycards only.  Over their double of `2♣` opener's node is total (`3NT`),
+  because a hand the table rejects does not reach the floor through the
+  systems-on rebase.  The reading mirror pins both knobs off, like
+  `strong_two_waiting`.  Found by the anchor census (docs/next-steps.md item
+  2): our `2♦` against BBA's positive priced at 769 rows, −2.0k plain / −2.2k
+  PD per 409,600 boards; the floor's rebid after a positive at 393 rows,
+  −0.9k / −1.0k, half of it missed grands.  Measured on
+  `scripts/ab-strong-two-loose-positive.sh` vs BBA, three seeds (1790857656,
+  1790858639, 1790859531), 204,800 boards/arm/vul each, every isolation gate
+  passed; pooled (614,400 boards/vul), IMPs/board none / both: the pair plain
+  +0.0017 ±0.0009 / +0.0022 ±0.0012, PD +0.0016 ±0.0010 / +0.0021 ±0.0012,
+  all twelve per-seed cells positive, ≈ 380 / 405 fired per 204,800; the
+  looser positive alone plain +0.0008 ±0.0009 / +0.0011 ±0.0012, PD +0.0007
+  ±0.0010 / +0.0011 ±0.0012 (seed 2 negative); the tables on top of it plain
+  +0.0009 ±0.0006 / +0.0010 ±0.0008, PD +0.0009 ±0.0006 / +0.0010 ±0.0008.
+  Alone against the old positive the tables are a wash (+0.0001 / +0.0002
+  plain, one seed) — they are reached twice as often once positives are
+  looser.  Two earlier cuts that also authored the level lost (−0.0029, a
+  classical 22–24 `3NT` with a quantitative ladder) or washed (−0.0003 /
+  −0.0004, slam-seeking): double-dummy, slam pays from about 31 combined HCP
+  here.  Owed: minor-suit fits and the grand rung (the minor RKCB tables
+  cannot reach seven), responder's second suit.
 - **`2♦` waiting replaces the `2♥` double negative over our strong `2♣`,
   shipped default-on (2026-10-01)** — `DecisionProfile::strong_two_waiting`
   (`--no-ns-strong-two-waiting` in `bba-gen` for the control arm).  `2♦`

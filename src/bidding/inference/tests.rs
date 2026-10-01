@@ -1875,7 +1875,11 @@ fn authored_calls_read_what_they_gate() {
         // and the waiting raises over `2♣ - 2♦ - 2M` (`3M` on 4+ HCP, `4M`
         // on 0–3) arrived, in the american and Watermelon constructive
         // tries.  Knob-on stays 0.
-        ("support", 121, 0),
+        // 121 → 125 when `rebid.strong_two_positive` shipped (2026-10-01):
+        // the bare `3+ support` gates below a natural positive — opener's
+        // `4NT` ask for responder's major and responder's `4M` raise of
+        // opener's — in the same two tries.  Knob-on stays 0.
+        ("support", 125, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {

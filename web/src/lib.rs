@@ -1094,6 +1094,8 @@ knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
 knob!(set_transfer_gf_majors, transfer_gf_majors, decision.transfer_gf_majors: bool);
 knob!(set_transfer_gf_hearts, transfer_gf_hearts, decision.transfer_gf_hearts: bool);
 knob!(set_strong_two_waiting, strong_two_waiting, decision.strong_two_waiting: bool);
+knob!(set_strong_two_loose_positive, strong_two_loose_positive, response.strong_two_loose_positive: bool);
+knob!(set_strong_two_positive, strong_two_positive, rebid.strong_two_positive: bool);
 knob!(set_two_over_one_force, two_over_one_force, decision.two_over_one_force: bool);
 knob!(set_one_nt_runout, one_nt_runout, decision.instinct.one_nt_runout: bool);
 knob!(set_one_nt_runout_universal, one_nt_runout_universal, decision.instinct.one_nt_runout_universal: bool);
@@ -1646,6 +1648,8 @@ static SETTINGS: &[Setting] = &[
     Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice, get: get_rkcb_variant_choice },
     toggle("two_over_one_force", FLOOR, "2/1 forces game", true, set_two_over_one_force, two_over_one_force),
     toggle("strong_two_waiting", REBIDS, "2♦ waiting replaces the 2♥ double negative over 2♣", true, set_strong_two_waiting, strong_two_waiting),
+    toggle("strong_two_loose_positive", REBIDS, "positive to 2♣ on any five-card suit or balanced hand, 7+ HCP", true, set_strong_two_loose_positive, strong_two_loose_positive),
+    toggle("strong_two_positive", REBIDS, "after a positive to 2♣: opener's five-card major, the raise, RKCB", true, set_strong_two_positive, strong_two_positive),
     gated("penalize_escape_stack", FLOOR, "", true, set_penalize_escape_stack, penalize_escape_stack, "one_nt_runout"),
     gated("penalize_escape_values", FLOOR, "", true, set_penalize_escape_values, penalize_escape_values, "one_nt_runout"),
     gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),

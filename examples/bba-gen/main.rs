@@ -920,6 +920,22 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rebid_checkback: bool,
 
+    /// Keep the two-honor positive to our strong `2♣`
+    /// (`response.strong_two_loose_positive`, **shipped default-on
+    /// 2026-10-01**: any five-card suit, or a balanced hand, on 7+ HCP; this
+    /// is the disarming flag and half the control arm of
+    /// `scripts/ab-strong-two-loose-positive.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_strong_two_loose_positive: bool,
+
+    /// Leave opener's rebid after a natural positive to the floor
+    /// (`rebid.strong_two_positive`, **shipped default-on 2026-10-01**:
+    /// opener shows a five-card major or asks `4NT` with support, responder
+    /// raises with three; this is the disarming flag and the other half of
+    /// that control arm)
+    #[arg(long, default_value_t = false)]
+    no_ns_strong_two_positive: bool,
+
     /// Keep the `2NT`-opening bands over the 22–24 `2NT` rebid after `2♣`
     /// (`notrump.strong_two_notrump_floors`, **shipped default-on
     /// 2026-10-01**: Stayman on 3+, `3NT` on 3–8, pass below 3; this is the
@@ -2901,6 +2917,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.five_five_four_two = args.ns_5542;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
+    agreements.rebid.strong_two_positive = !args.no_ns_strong_two_positive;
+    agreements.response.strong_two_loose_positive = !args.no_ns_strong_two_loose_positive;
     agreements.rebid.one_diamond_two_clubs = args.ns_one_diamond_two_clubs;
     agreements.rebid.passed_hand_major_pass = match args.ns_passed_hand_major_pass.as_str() {
         "off" => None,

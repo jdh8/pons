@@ -26,8 +26,8 @@ criterion 5). **Item 2 is now the top candidate.**
 **Biggest unworked pool on both references. The passed-hand lane is done
 (opener's pass shipped 2026-09-30, Reverse Drury and opener's splinters over
 it shipped 2026-10-01, below); BBA's other rungs and its passed-hand `2NT`
-priced and left alone. Next: the strong `2♣` lane (re-cut 2026-10-01,
-below).**
+priced and left alone. The strong `2♣` lane (re-cut 2026-10-01, below) has
+four ships; its grand rung is next.**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -115,11 +115,34 @@ below).**
     −0.0005 / −0.0008, PD −0.0002 / −0.0011, two seeds), a reading change
     the v6 floor was not trained on; re-measure the unpinned mirror at the
     next retrain, when it would also drop the always-built mirror book.
-  - Next in the lane: opener's continuation after a natural positive (the
-    worst boards of both ships are the floor's `2♣ - 2♥ - 4♠ - 6NT`), BBA's
-    looser positives (7+, any five-card suit), opener's game-in-hand jump
-    rebids, opener's 28+ balanced rebid (falls to the `2NT` fallback), the
-    contested tail (289 rows, −0.6k / −0.8k).
+  - **`response.strong_two_loose_positive` and `rebid.strong_two_positive`
+    shipped default-on together 2026-10-01** (BBA's positive — any five-card
+    suit or a balanced hand on 7+ — and, below a positive, opener's five-card
+    major, the three-card raise and RKCB): pooled three seeds plain +0.0017
+    ±0.0009 / +0.0022 ±0.0012, PD +0.0016 ±0.0010 / +0.0021 ±0.0012, 12/12
+    cells positive (`scripts/ab-strong-two-loose-positive.sh`, CHANGELOG).
+    What the lane taught, so it is not re-derived:
+    - *Census first.*  Our `2♦` against BBA's positive was 769 rows, −2.0k /
+      −2.2k — bigger than the floor's rebid after a positive (393 rows,
+      −0.9k / −1.0k), and inside that rebid the loss is **missed grands** (62
+      rows, −451) and **`6NT` where BBA plays `6M`** (80 rows, −183);
+      stopping in game where we bid slam is only −101 plain on 169 rows.
+    - *The floor's level is at par.*  Double-dummy, slam pays from about 31
+      combined HCP in this lane (stops at 29 gain, at 30 lose a little, at
+      31+ lose 4–11 a board).  A classical ladder (22–24 `3NT`, quantitative
+      `4NT`) lost −0.0029; a slam-seeking one that still authored the level
+      washed.  Author strain and keycards, leave the count to the floor.
+    - *Neither half wins alone.*  The looser positive alone reads +0.0008 /
+      +0.0011 with one seed of three negative (its worst boards are the
+      floor's `3NT` on an unbalanced five-card major); the tables alone
+      against the old positive wash at 100 fired per 204,800.
+  - Next in the lane: the **grand rung** — minor-suit fits (the minor RKCB
+    tables cannot reach seven; `3♦` positives alone are 15 rows, −175) and
+    the book's king ask stopping in six where the floor's `7M` was right
+    (`2♣ - 2♠ - 4NT - 5♣ - 5NT - 6♦ - 6♠`); responder's second suit over
+    opener's minor (BBA's `2NT - 3♣ - 3♠` finds the 4-4); opener's
+    game-in-hand jump rebids, opener's 28+ balanced rebid (falls to the `2NT`
+    fallback), the contested tail (289 rows, −0.6k / −0.8k).
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN
@@ -360,6 +383,9 @@ group waits on that decision, the second group does not.
   `2♣ - 2♦` decoded as waiting, as BBA plays it): lost on the v6 floor
   (item 2, the strong `2♣` lane); a win after the retrain would also retire
   the mirror book every default build now carries.
+  `strong_two_loose_positive` and `strong_two_positive` are pinned off in
+  the same mirror, unmeasured unpinned (their first trial leaked two boards
+  per 204,800 through it): re-measure all three together.
 - Re-arbitrate the five shipped floor rails against the new net — runners and
   rule in [floor-rail-campaign.md](floor-rail-campaign.md) (stop criterion 5).
 - `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling
@@ -378,6 +404,23 @@ group waits on that decision, the second group does not.
 
 **Not retrain-gated (owed, unscheduled):**
 
+- **A rejecting table does not fall through under a rebase** (found
+  2026-10-01, doc/code discrepancy).  `rows.rs` and
+  [bidding-architecture.md](bidding-architecture.md) say an exact node that
+  rejects a hand falls through to the floor.  Reached through a
+  `ReplaceNext` rebase (systems on over their double) it does not: the
+  fall-through pass skips only the *original* auction's exact node, resolves
+  the rebase again, and lands on the same rejecting table — all-−∞, and the
+  driver passes.  `Trie::resolve_floored`'s own `ponytail:` note names the
+  ceiling.  It cost the first cut of `strong_two_positive` five boards per
+  204,800 (opener passing `2♣ (X) 2NT`); that package now carries a total
+  node at `2♣ (X) positive`.  Every other deliberately partial table under
+  a systems-on rebase (the quantitative 15+/17+ holes) is exposed the same
+  way, unverified.  Proposed fix: carry the rejected classifier, not a
+  `skip_exact` flag, through `resolve_at` and skip it by identity wherever a
+  rebase lands on it — three twins (`trie.rs`, `book.rs`, `decoder.rs`) —
+  with a `smoke-default` byte-identity proof, or an A/B if it moves boards.
+  Default until decided: leave the core alone, keep rebased tables total.
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

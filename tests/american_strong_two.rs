@@ -115,3 +115,43 @@ fn test_opener_after_spades_raise() {
         call(4, Strain::Spades),
     );
 }
+
+// --- After a natural positive -----------------------------------------------
+
+/// `2♣ - 2NT - 3♥ - 4♥ - 4NT - 5♦ - 5♥`: the looser positive, opener's
+/// five-card major, the raise, and RKCB finding two keycards missing
+#[test]
+fn test_major_fit_after_the_notrump_positive() {
+    let system = partnership();
+    let (opener, responder) = ("AQ.AKJ72.K42.KQ8", "K63.Q94.J92.KT64");
+    let pass = Call::Pass;
+    let mut auction = vec![call(2, Strain::Clubs), pass];
+    for (hand, expected) in [
+        (responder, call(2, Strain::Notrump)),
+        (opener, call(3, Strain::Hearts)),
+        (responder, call(4, Strain::Hearts)),
+        (opener, call(4, Strain::Notrump)),
+        (responder, call(5, Strain::Diamonds)),
+        (opener, call(5, Strain::Hearts)),
+        (responder, pass),
+    ] {
+        assert_eq!(best_call(&system, &auction, hand), expected, "{auction:?}");
+        auction.extend([expected, pass]);
+    }
+}
+
+/// A one-honor five-card suit on 8 HCP is a positive, and a 7-count balanced
+/// hand bids `2NT`
+#[test]
+fn test_loose_positive() {
+    let system = partnership();
+    let auction = &[call(2, Strain::Clubs), Call::Pass][..];
+    assert_eq!(
+        best_call(&system, auction, "KT842.Q3.J432.Q2"),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&system, auction, "K84.Q93.J432.J32"),
+        call(2, Strain::Notrump),
+    );
+}

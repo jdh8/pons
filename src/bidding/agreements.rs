@@ -3892,6 +3892,28 @@ pub struct ResponseKnobs {
     /// ±0.0004 / +0.0006 ±0.0006, PD +0.0005 ±0.0004 / +0.0007 ±0.0006
     /// IMPs/board (none / both), all eight per-seed cells non-negative.
     pub drury_splinters: bool,
+    // --- strong_two.rs
+    /// BBA's looser positive to the strong `2♣`: any five-card suit, or a
+    /// balanced hand, on 7+ HCP
+    ///
+    /// **Default on (shipped 2026-10-01)** together with
+    /// [`strong_two_positive`][RebidKnobs::strong_two_positive];
+    /// `--no-ns-strong-two-loose-positive` in `bba-gen` for the off arm.
+    /// Off, a suit positive needs two of the top three honors and 8+ points,
+    /// the `2NT` positive 8+ HCP, and everything else waits with `2♦`.  The
+    /// 2026-09-30 anchor prices our `2♦` against BBA's positive at 769 rows,
+    /// −2.0k plain / −2.2k PD per 409,600 boards — the one-honor five-card
+    /// suits on 8–9 HCP alone are 221 rows at −4.5 per row
+    /// (docs/next-steps.md item 2, the strong `2♣` lane).
+    ///
+    /// Vs BBA (`scripts/ab-strong-two-loose-positive.sh`, three seeds,
+    /// 614,400 boards/vul pooled, IMPs/board none / both): alone, plain
+    /// +0.0008 ±0.0009 / +0.0011 ±0.0012 and PD +0.0007 ±0.0010 / +0.0011
+    /// ±0.0012 (one seed of three negative); with `strong_two_positive`,
+    /// plain +0.0017 ±0.0009 / +0.0022 ±0.0012 and PD +0.0016 ±0.0010 /
+    /// +0.0021 ±0.0012, all twelve per-seed cells positive.  The reading
+    /// mirror pins it off, like `strong_two_waiting`.
+    pub strong_two_loose_positive: bool,
 }
 
 impl Default for ResponseKnobs {
@@ -3908,6 +3930,7 @@ impl Default for ResponseKnobs {
             limit_raise_acceptance: true,
             drury: true,
             drury_splinters: true,
+            strong_two_loose_positive: true,
         }
     }
 }
@@ -4112,6 +4135,30 @@ pub struct RebidKnobs {
     /// `ab-minor-continuations`.  When on it overrides XYZ on those four
     /// prefixes only — XYZ still owns the other six one-level auctions.
     pub new_minor_forcing: bool,
+    // --- strong_two/positive.rs
+    /// Author the major fit after a natural positive to the strong `2♣`
+    ///
+    /// **Default on (shipped 2026-10-01)** together with
+    /// [`strong_two_loose_positive`][ResponseKnobs::strong_two_loose_positive];
+    /// `--no-ns-strong-two-positive` in `bba-gen` for the off arm.  Off,
+    /// opener's rebid over `2♣ - 2NT`, `2♣ - 2M` and `2♣ - 3m` is the
+    /// floor's.  On, opener asks `4NT` RKCB with three-card support for a
+    /// major positive, else shows a five-card major at the cheapest level;
+    /// responder raises it to game with three (opener then asks), else bids
+    /// `6NT` on 9+ HCP and `3NT` below, over which opener bids `6NT` on 23+,
+    /// `4M` on six, or passes.  Hands with neither stay with the floor —
+    /// except over their double of `2♣`, where the node is total (`3NT`).
+    ///
+    /// Vs BBA, IMPs/board none / both: alone
+    /// (`scripts/ab-strong-two-loose-positive.sh` header, round 3, one seed)
+    /// a wash, plain +0.0001 / +0.0002, PD +0.0001 / +0.0001, 99 / 106
+    /// fired; on top of the looser positive, which reaches it about twice as
+    /// often (three seeds, 614,400 boards/vul pooled), plain +0.0009 ±0.0006
+    /// / +0.0010 ±0.0008, PD +0.0009 ±0.0006 / +0.0010 ±0.0008, all twelve
+    /// per-seed cells positive.  Two earlier cuts that also authored the
+    /// *level* (a 22–24 `3NT` and a quantitative ladder) lost or washed: the
+    /// floor's own level is at par.  The reading mirror pins it off.
+    pub strong_two_positive: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4130,6 +4177,7 @@ impl Default for RebidKnobs {
             forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
             new_minor_forcing: false,
+            strong_two_positive: true,
         }
     }
 }
