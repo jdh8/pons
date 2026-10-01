@@ -844,10 +844,16 @@ Not a trigger: more precision, a faster counter, or a new net input (§2).
   [authored-reading-handoff.md](authored-reading-handoff.md) if a consumer
   ever reads past an invitation.
 - **`1♠ - 2♠` reads with no spade length** (2026-10-02, seen in passing with
-  `probe-call-reading`): points 1–11, ♠ 0–13. Not investigated — it may be a
-  hull over boxes or a `pred` gate projecting ⊤. Proposed default: one row in
-  the reading-drift queue ([reading-drift-handoff.md](reading-drift-handoff.md)),
-  nothing changed here.
+  `probe-call-reading`): points 1–11, ♠ 0–13. **Traced 2026-10-02: it is
+  defect 1 of `nt_structure_artificial`** (`inference/read.rs`, recorded in
+  [bba-1nt-minors.md](ai-bidder/bba-1nt-minors.md)): the function checks only
+  that responder's first call is `2♠`/`3♣`/`2NT`, never that the opening was
+  1NT, so `1♠ - 2♠` "enters" the Puppet two-way relay and the raise is
+  blanketed before the walk's raise arm can floor ♠3. `1♥ - 2♥` is not in the
+  entry set, hence the asymmetry. The same blanket hits every unauthored call
+  after a `2♠`/`2NT` third call — `1♠ - 2♠ - 3♥` (the game try),
+  `1♠ (X) 2♠`, `1♠ (X) 2NT - 3♣` — from both sides of the table. The fix is
+  the owed defect-1 A/B, not a new row.
 - **3a's reply set was cut after the first smoke run.** The gate's thresholds
   were fixed before any run; restricting replies to the calls a node made on
   another deal came after a 200-deal smoke showed unmade calls reading as

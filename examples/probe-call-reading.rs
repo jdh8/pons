@@ -55,6 +55,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
 
+    /// Confine the notrump-structure relay blanket to a 1NT opening
+    /// (`ReadingProfile::nt_structure_opening_gate`, default off), so
+    /// `1S - 2S` reads its spade support
+    #[arg(long, default_value_t = false)]
+    ns_nt_structure_opening_gate: bool,
+
     /// Declare their `2♣` a Landy (`their.two_clubs_landy`), so the N1j
     /// counter's calls read off `1N (2C) X`, `1N (2C) 2N` and their
     /// continuations
@@ -306,6 +312,7 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.decision.reading.nt_structure_opening_gate = args.ns_nt_structure_opening_gate;
     agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;

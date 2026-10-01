@@ -953,12 +953,14 @@ impl Inferences {
                             // No `is_opening_side` gate, unlike its two neighbours
                             // above — see `nt_structure_artificial`'s own doc for
                             // why adding one is an A/B, not a cleanup.
-                                || nt_structure_artificial(
-                                    auction,
-                                    index,
-                                    opening_index,
-                                    side_profile,
-                                )))
+                                || ((!profile.nt_structure_opening_gate
+                                    || opening_bid == Bid::new(1, Strain::Notrump))
+                                    && nt_structure_artificial(
+                                        auction,
+                                        index,
+                                        opening_index,
+                                        side_profile,
+                                    ))))
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || readings.suppresses(index);
 
@@ -1998,6 +2000,10 @@ fn intersect_overlay(
 /// 1. **No `opening_bid == 1NT` gate.** `entered` looks only at
 ///    `opening_index + 2`, so `1♣ (1♠) 3♣` and `1♠ (2♦) 2♠` enter the notrump
 ///    minor structure and get their whole continuation blanketed as relays.
+///    Gated behind
+///    [`nt_structure_opening_gate`][field@crate::bidding::ReadingProfile::nt_structure_opening_gate]
+///    at the call site (default off, A/B owed): `1♠ - 2♠` "enters" too, which
+///    is why it reads with no spade length.
 /// 2. **No `is_opening_side` gate,** unlike `nt_splinter_artificial` and
 ///    `nt_blanket` beside it — so the *defenders'* suit bids are suppressed too.
 ///

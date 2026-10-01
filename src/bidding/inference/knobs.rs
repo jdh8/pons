@@ -1160,6 +1160,18 @@ pub struct ReadingProfile {
     /// an always-present alerted rule on `4♠` would suppress the natural
     /// reading of *every* floor-classified `4♠` even in the plain stance.
     pub rkcb_variant: crate::bidding::instinct::RkcbVariant,
+
+    /// Confine the notrump-structure relay blanket to a 1NT opening
+    ///
+    /// **Default off**, byte-identical to the shipped reading.  The blanket
+    /// (`nt_structure_artificial` in `inference/read.rs`) suppresses every call
+    /// after responder's first `2♠`/`3♣`/`2NT` as a Puppet or transfer relay,
+    /// but never checks that the opening was 1NT — its recorded "defect 1".
+    /// So `1♠ - 2♠` reads with no spade length, and the game try
+    /// `1♠ - 2♠ - 3♥`, `1♠ (X) 2♠` and `1♠ (X) 2NT - 3♣` read as nothing.
+    /// On, the blanket fires only over a 1NT opening.  A reading change is a
+    /// bidding change under the neural floor, so this ships on an A/B only.
+    pub nt_structure_opening_gate: bool,
 }
 
 impl ReadingProfile {
@@ -1230,6 +1242,7 @@ impl ReadingProfile {
             two_notrump_wide: true,
             floor_rkcb: false,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Kickback,
+            nt_structure_opening_gate: false,
         }
     }
 
@@ -1298,6 +1311,7 @@ impl Default for ReadingProfile {
             two_notrump_wide: false,
             floor_rkcb: true,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Plain,
+            nt_structure_opening_gate: false,
         }
     }
 }
