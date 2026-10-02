@@ -828,6 +828,36 @@ impl Partnership {
             .map(|(_, logits, provenance)| (logits, provenance))
     }
 
+    /// The rungs of the table that answers `hand` here — every call it can make
+    ///
+    /// Resolves exactly as [`classify_with_provenance`][Self::classify_with_provenance],
+    /// then lists the distinct calls of the winning
+    /// [`Rules`][super::rules::Rules] ladder that are live on this face and not
+    /// tombstoned, in declaration order — whether or not `hand` satisfies them.
+    /// Empty when the keyless floor answers or the winner is not rule-backed.
+    /// These are the calls partner can read, hence a lookahead's candidates.
+    #[must_use]
+    pub fn rungs(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Vec<Call> {
+        let bound = self.bound_for(auction);
+        let context = self.decision_context(hand, vul, auction);
+        let mut calls = Vec::new();
+        if let Some((classifier, _, provenance)) = bound.resolve_floored(hand, &context, auction)
+            && provenance.is_authored()
+            && let Some(rules) = classifier.as_rules()
+        {
+            for rule in rules.rules() {
+                let call = rule.call();
+                if rule.face_live(&context)
+                    && !bound.trie.vetoes(auction, call)
+                    && !calls.contains(&call)
+                {
+                    calls.push(call);
+                }
+            }
+        }
+        calls
+    }
+
     /// The pre-decision-cache classification path
     ///
     /// Keep this as a same-process semantic reference for cache parity tests:

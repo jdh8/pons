@@ -841,6 +841,67 @@ same gate (they over-invite from a pass), which is M8.1's point measured:
 the sampler must replay, not range-sample. One seam, self-play; it says
 nothing about which other seams pay.
 
+- 🔁 **M8.0 The search, re-derived (branch `park/m8-search`, 2026-10-02).**
+  The deleted `SearchFloor` returns as
+  [`Lookahead`](../../src/bidding/lookahead.rs), shaped by the probe rather
+  than by M2.3: a `Bidder` wrapping a bound `Partnership` that, at the
+  auctions a caller-supplied gate admits, re-judges the book's call.
+  *Candidates* are the answering table's own live rungs
+  (`Partnership::rungs` — every call partner can read, whether or not this
+  hand satisfies its rule; **not** the net's top-k). *Worlds* are 64 replay
+  draws, seeded from the decision; a short draw keeps the book. *Pricing* is
+  `ev::swings` (moved into the crate from `examples/common/rollout.rs`): one
+  DD solve per world, each rung bid out by the bare partnership at all four
+  seats, IMP swing against the book's call under plain DD and PD. *Rule:* the
+  both-scorer one at a 0.25 IMP margin. Off the gate it is the partnership
+  logit for logit. Differences from the old line, each forced by a verdict
+  above: no net prior, a continuation that is the full book + floor (ex-M7.3),
+  IMP swings on two scorers instead of raw PD points, and a gate that names
+  seams instead of "every non-forced auction".
+  *Harness:* `examples/ab-lookahead` — self-play duplicate, the lookahead's
+  tables bid sequentially on the main thread (a gated `classify` takes the
+  ddss lock), only the tables that reach a seam re-bid.
+  **Gate, fixed before the run:** the two Phase 3b seams (`1♠ - 2♠ -`,
+  `1♥ - 2♥ -`), 600,000 deals, a fresh seed, `M = 64`, margin 0.25. PASS iff
+  the pooled IMPs/board has a 95% interval above zero on **both** scorers
+  with neither vulnerability cell negative on either — the live bidder
+  reproduces the probe's replay arm (+0.0013 / +0.0015 expected). One
+  registered difference from the probe: its candidates were the rungs the
+  node made on ≥ 1% of decisions, the live bidder's are every live rung of
+  the table (it adds rare ones such as `4NT`). FAIL → trace the swaps the
+  probe's census excluded before blaming the search.
+  **Result, 2026-10-02 — PASS.** Seed 1790937422, 600,000 deals, 8,151
+  seam tables (1.36% of deals), 1,592 fired (19.5%), 689 divergent boards;
+  5,648 s of lookahead (0.69 s per gated decision). IMPs/board, ± 95%,
+  plain / PD: pooled **+0.0011 ± 0.0006 / +0.0012 ± 0.0007**; vul none
+  +0.0009 ± 0.0007 / +0.0011 ± 0.0008; vul both +0.0013 ± 0.0010 / +0.0014
+  ± 0.0012. Per seam table +0.0807 ± 0.0468 / +0.0916 ± 0.0520 (the probe's
+  replay arm: +0.0932 / +0.1082 on its own seed). The leading swap replicates
+  a third time: `1♠ - 2♠ - 3♠ → 4♠` ×126, +1.06 ± 0.78 / +0.71 ± 0.87. The
+  rung the probe's census excluded is noise, not a leak: `→ 4NT` ×95 over
+  both seams, no cell clear of zero, about −19 of the 658 plain IMPs. So the
+  live bidder *is* the probe's selector; this is a validation of the
+  machinery, not new evidence about search — same seams, same self-play.
+  Log and binary: `ab-results/m8-lookahead/r1.log`.
+  **Why it is on a branch, not a knob on `main`:** +0.001 IMPs/board for
+  0.69 s per decision is not a default anyone would serve, and a `Bidder`
+  that takes the ddss lock inside `classify` cannot sit in a rayon harness.
+  The idea is unfinished until a gate is found that pays for its latency.
+  *Flip plan — what turns a two-seam validation into IMPs:* (1) **widen the
+  gate.** `ab-lookahead --census N` ranks the undisturbed authored nodes by
+  off-modal calls; on 200,000 deals the two measured seams reach 0.79% and
+  0.60% of deals, against 12.2% for `1♦ -`, 8.5% for `1NT -`, 3.7% for
+  `1♠ - 1NT -` and 0.7–0.8% each for the transfer-completion seams
+  (`ab-results/m8-lookahead/census-200k-seed3.txt`). Which of those are
+  judgement (invite / accept) rather than system structure is a bridge call,
+  and jdh8's; each new seam list is one `ab-lookahead --seam …` run, sized at
+  ~8,000 gated decisions (≈ 1.5 h) to resolve ±0.05 IMPs per decision.
+  (2) the dual-reference A/B (BBA guard, BEN Tier-F) — both harnesses bid
+  sequentially already, but take a `Partnership`, so they need a `Bidder`
+  seat. (3) latency: 0.69 s per gated decision is 64 solves; `M` and a
+  confidence gate (skip when the book's rung is not close) are the levers.
+  *Do-not:* gate a contested auction (the obstruction wall, M7.0); sample from
+  the readings (range arm, failed twice).
 - ⬜ **M8.1 Sampler soundness.** Tight, realistic worlds: land the reading knobs
   (`length_soundness` + the three reading-side washes); rule-replay sampling
   (`set_rule_accept`) is **already default-on** (M8.1b, shipped `74d783d`); the

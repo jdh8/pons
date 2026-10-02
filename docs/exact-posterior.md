@@ -867,6 +867,12 @@ only on one of these, each a measurement rather than an argument:
 
 Not a trigger: more precision, a faster counter, or a new net input (§2).
 
+**Trigger 1, checked 2026-10-02 — not fired.** A search consumer now exists
+on branch `park/m8-search` (`Lookahead`,
+[ai-bidder/plan.md](ai-bidder/plan.md) M8.0). It samples only the two
+`1M - 2M -` seams, where both runs above report no short draws, so there is
+no starved auction for the counter to deal. Re-check when its gate widens.
+
 ## 6. Flags
 
 - **`1M - 2M - 4NT` on 22+ support points loses to a game try** (2026-10-02,

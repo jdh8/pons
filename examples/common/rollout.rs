@@ -1,20 +1,19 @@
 //! The rollout pricer shared by `probe-rollout-label` and `dump-teacher
-//! --relabel`: the restricted proposal, the replay draw, and the per-layout
-//! swing of every candidate against the own call.
+//! --relabel`: the restricted proposal and the replay draw.  The per-layout
+//! swing of every candidate against the own call is `pons::bidding::ev::swings`,
+//! shared with the live `Lookahead`.
 //!
 //! `docs/ai-bidder/logit-calibration.md` §4 designed the measurement and §4d
 //! priced it; the relabel pass inside `dump-teacher` is that same pricing run
 //! over the corpus, so the two binaries must agree byte for byte on what a
 //! swing is.  Both call these.
 
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::TrickCountTable;
+use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::sampler::sample_layouts_replay;
-use pons::bidding::{Bidder, Partnership, Table};
-use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -93,67 +92,4 @@ pub fn sample_for(
     let inferences = policy.infer(rel, prefix);
     let mut rng = StdRng::seed_from_u64(seed);
     sample_layouts_replay(hand, seat, policy, rel, prefix, &inferences, &mut rng, n)
-}
-
-/// Every candidate's swing over the own call, in IMPs, per layout and per
-/// scorer — `[candidate][layout] = [plain DD, perfect defense]`.
-///
-/// `candidates[0]` is the own call, so its row is all zeros by construction;
-/// one double-dummy solve per layout is shared across every candidate, each
-/// seeded onto the real `prefix` and bid out at a table of `ours` (the actor's
-/// side) against `theirs`.
-#[allow(clippy::too_many_arguments)]
-pub fn swings(
-    candidates: &[Call],
-    prefix: &[Call],
-    dealer: Seat,
-    seat: Seat,
-    layouts: &[FullDeal],
-    tables: &[TrickCountTable],
-    ours: &dyn Bidder,
-    theirs: &dyn Bidder,
-    vul: AbsoluteVulnerability,
-) -> Vec<Vec<[i64; 2]>> {
-    let actor_is_ns = matches!(seat, Seat::North | Seat::South);
-    let (ns, ew): (&dyn Bidder, &dyn Bidder) = if actor_is_ns {
-        (ours, theirs)
-    } else {
-        (theirs, ours)
-    };
-    let table = Table::new(ns, ew, dealer, vul);
-    let sign = if actor_is_ns { 1 } else { -1 };
-
-    let priced: Vec<Vec<[i64; 2]>> = candidates
-        .iter()
-        .map(|&call| {
-            layouts
-                .iter()
-                .zip(tables)
-                .map(|(layout, tricks)| {
-                    let mut seed = Auction::new();
-                    seed.try_extend(prefix.iter().copied())
-                        .expect("a prior table auction is legal");
-                    // Every candidate came from `admissible`, which already
-                    // tested `can_push` against this same prefix.
-                    seed.try_push(call).expect("a candidate is legal here");
-                    let reached = final_contract(&table.bid_out_from(layout, seed), dealer);
-                    [
-                        sign * ns_score_contract(reached, tricks, vul),
-                        sign * ns_score_bid(reached, tricks, vul),
-                    ]
-                })
-                .collect()
-        })
-        .collect();
-    let base = priced[0].clone();
-    priced
-        .into_iter()
-        .map(|candidate| {
-            candidate
-                .into_iter()
-                .zip(&base)
-                .map(|(got, want)| [imps(got[0] - want[0]), imps(got[1] - want[1])])
-                .collect()
-        })
-        .collect()
 }

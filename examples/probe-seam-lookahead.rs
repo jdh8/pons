@@ -54,6 +54,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
+use pons::bidding::ev::swings;
 use pons::bidding::sampler::sample_layouts;
 use pons::bidding::table::select_legal_call;
 use pons::bidding::{Bidder, Table};
@@ -66,7 +67,7 @@ use std::collections::BTreeMap;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::rollout::{sample_for, swings};
+use common::rollout::sample_for;
 use common::{auction_key, mean_with_ci, seat_to_act, seeded_deals};
 
 const BRACKETS: [&str; 2] = ["plain DD", "perfect defense"];

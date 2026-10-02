@@ -53,6 +53,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountRow, TrickCountTable};
 use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
+use pons::bidding::ev::swings;
 use pons::pdd;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -61,7 +62,7 @@ use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::SOFTMAX_LEN;
-use crate::common::rollout::{sample_for, swings};
+use crate::common::rollout::sample_for;
 
 /// One net-served decision harvested during the walk, priced after it
 pub struct Decision {

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The search, re-derived: a seam-gated rollout lookahead (branch
+  `park/m8-search`, 2026-10-02; nothing changes for `american()`)** —
+  `bidding::lookahead::Lookahead` wraps a bound `Partnership` and, at the
+  auctions a caller-supplied gate admits, re-judges the book's call: the
+  answering table's own rungs (new `Partnership::rungs`) are bid out over 64
+  replay-sampled worlds and priced as IMP swings on plain DD and perfect
+  defense (`bidding::ev::swings`, moved into the crate from the example
+  helpers), and it deviates only when one rung is best on both scorers by
+  0.25 IMPs.  Off the gate it is the partnership logit for logit.  It
+  succeeds the `SearchFloor` deleted with the M1–M3 line and is AI-bidder
+  M8.0 (`docs/ai-bidder/plan.md`).  `examples/ab-lookahead` is its harness
+  (`--census N` ranks candidate seams without solving).  Validation at the
+  two seams `probe-seam-lookahead` measured (`1♠ - 2♠ -`, `1♥ - 2♥ -`),
+  self-play, 600,000 deals, seed 1790937422, gate fixed before the run —
+  **PASS**: **+0.0011 ±0.0006 plain / +0.0012 ±0.0007 PD IMPs/board**, both
+  vulnerability cells positive on both scorers, at 1.36% of deals and
+  0.69 s per gated decision.  A gated `classify` takes the ddss solver lock,
+  so drive it from the main thread.  Parked on the branch until a wider gate
+  pays for the latency.
+
 - **The notrump-structure relay blanket reads only the 1NT side's calls,
   shipped default-on (2026-10-02)** — `ReadingProfile::nt_structure_side_gate`
   (`--no-ns-nt-structure-side-gate` in `bba-gen` and `probe-call-reading`

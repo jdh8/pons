@@ -34,10 +34,10 @@ use super::Bidder;
 use super::context::Context;
 use super::sampler::{sample_layouts, sample_layouts_replay};
 use super::table::Table;
-use crate::scoring::{final_contract, ns_score_bid};
+use crate::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
+use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use rand::Rng;
 
 /// Cardplay-grounded value of each candidate `call`, in the actor's favour
@@ -144,13 +144,83 @@ pub fn ev_all(
         .collect()
 }
 
+/// Every candidate's swing over the own call, in IMPs, per layout and per
+/// scorer — `[candidate][layout] = [plain DD, perfect defense]`
+///
+/// The paired sibling of [`ev_all`]: where that averages raw points under one
+/// scorer, this keeps each layout's IMP difference against `candidates[0]`
+/// (the own call, so its row is all zeros) under **both** scorers — what the
+/// standing both-scorer rule and
+/// [`Lookahead`][crate::bidding::lookahead::Lookahead] read.  `tables[i]` is
+/// the double-dummy solve of `layouts[i]`, shared across every candidate; each
+/// candidate is seeded onto the real `prefix` and bid out at a table of `ours`
+/// (the actor's side) against `theirs`.
+///
+/// # Panics
+///
+/// Panics if `prefix` is not a legal auction or a candidate is illegal after it.
+#[must_use]
+#[allow(clippy::too_many_arguments)] // each argument is a distinct decision fact
+pub fn swings(
+    candidates: &[Call],
+    prefix: &[Call],
+    dealer: Seat,
+    seat: Seat,
+    layouts: &[FullDeal],
+    tables: &[TrickCountTable],
+    ours: &dyn Bidder,
+    theirs: &dyn Bidder,
+    vul: AbsoluteVulnerability,
+) -> Vec<Vec<[i64; 2]>> {
+    let actor_is_ns = matches!(seat, Seat::North | Seat::South);
+    let (ns, ew): (&dyn Bidder, &dyn Bidder) = if actor_is_ns {
+        (ours, theirs)
+    } else {
+        (theirs, ours)
+    };
+    let table = Table::new(ns, ew, dealer, vul);
+    let sign = if actor_is_ns { 1 } else { -1 };
+
+    let priced: Vec<Vec<[i64; 2]>> = candidates
+        .iter()
+        .map(|&call| {
+            layouts
+                .iter()
+                .zip(tables)
+                .map(|(layout, tricks)| {
+                    let mut seed = Auction::new();
+                    seed.try_extend(prefix.iter().copied())
+                        .expect("a prior table auction is legal");
+                    seed.try_push(call).expect("a candidate is legal here");
+                    let reached = final_contract(&table.bid_out_from(layout, seed), dealer);
+                    [
+                        sign * ns_score_contract(reached, tricks, vul),
+                        sign * ns_score_bid(reached, tricks, vul),
+                    ]
+                })
+                .collect()
+        })
+        .collect();
+    let base = priced[0].clone();
+    priced
+        .into_iter()
+        .map(|candidate| {
+            candidate
+                .into_iter()
+                .zip(&base)
+                .map(|(got, want)| [imps(got[0] - want[0]), imps(got[1] - want[1])])
+                .collect()
+        })
+        .collect()
+}
+
 /// The dealer such that the seat acting after the prior auction is `seat`
 ///
 /// [`Table`] positions a seeded auction from the dealer, so for the rollout's
 /// continuation to attribute calls to the right players, the dealer must place
 /// the actor on move after `prior_len` calls:
 /// `seat_to_act(dealer, prior_len) == seat`.
-fn dealer_of(seat: Seat, prior_len: usize) -> Seat {
+pub(super) fn dealer_of(seat: Seat, prior_len: usize) -> Seat {
     let actor = Seat::ALL
         .iter()
         .position(|&s| s == seat)

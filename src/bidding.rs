@@ -30,6 +30,9 @@ pub mod features;
 /// Per-player shape and strength accumulated from the calls
 pub mod inference;
 pub mod instinct;
+/// Seam-gated rollout lookahead: the book's rungs re-judged by double dummy
+#[cfg(feature = "dd")]
+pub mod lookahead;
 /// [`Call`]-keyed hash map
 pub mod map;
 /// Hand-rolled forward pass for the distilled neural floor
