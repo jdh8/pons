@@ -1174,6 +1174,19 @@ pub struct ReadingProfile {
     /// On, the blanket fires only over a 1NT opening; off recovers the
     /// pre-fix reading (`--no-ns-nt-structure-opening-gate`).
     pub nt_structure_opening_gate: bool,
+
+    /// Confine the notrump-structure relay blanket to the 1NT side's own calls
+    ///
+    /// **Default on since 2026-10-02.**  The blanket
+    /// (`nt_structure_artificial` in `inference/read.rs`) has no
+    /// `is_opening_side` gate — its recorded "defect 2" — so after
+    /// `1NT - 2♠`/`2NT`/`3♣` the *defenders'* suit bids read as relays too.
+    /// On, the blanket covers the opening side only.  Measured a wash on both
+    /// scorers (0.02–0.03% fired vs BBA; `scripts/ab-nt-structure-side-gate.sh`)
+    /// and shipped on the naturalness tiebreak: a natural overcall reads as
+    /// the suit it names.  Off recovers the pre-fix reading
+    /// (`--no-ns-nt-structure-side-gate`).
+    pub nt_structure_side_gate: bool,
 }
 
 impl ReadingProfile {
@@ -1245,6 +1258,7 @@ impl ReadingProfile {
             floor_rkcb: false,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Kickback,
             nt_structure_opening_gate: false,
+            nt_structure_side_gate: false,
         }
     }
 
@@ -1314,6 +1328,7 @@ impl Default for ReadingProfile {
             floor_rkcb: true,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Plain,
             nt_structure_opening_gate: true,
+            nt_structure_side_gate: true,
         }
     }
 }

@@ -61,6 +61,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_structure_opening_gate: bool,
 
+    /// Turn **off** the side gate on the notrump-structure relay blanket
+    /// (`ReadingProfile::nt_structure_side_gate`, default on), so a
+    /// defender's suit bid after `1NT - 2S` reads as a relay again
+    #[arg(long, default_value_t = false)]
+    no_ns_nt_structure_side_gate: bool,
+
     /// Declare their `2♣` a Landy (`their.two_clubs_landy`), so the N1j
     /// counter's calls read off `1N (2C) X`, `1N (2C) 2N` and their
     /// continuations
@@ -313,6 +319,7 @@ fn main() {
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     agreements.decision.reading.nt_structure_opening_gate = !args.no_ns_nt_structure_opening_gate;
+    agreements.decision.reading.nt_structure_side_gate = !args.no_ns_nt_structure_side_gate;
     agreements.decision.their.two_clubs_landy = args.their_2c_landy;
     agreements.competition.landy_doubler_rebids = args.ns_landy_doubler_rebids;
     agreements.competition.landy_doubler_px = !args.no_ns_landy_doubler_px;

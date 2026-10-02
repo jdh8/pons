@@ -950,11 +950,12 @@ impl Inferences {
                         let chain = (!authored_call
                             && (stayman_artificial
                                 || nt_splinter_artificial
-                            // No `is_opening_side` gate, unlike its two neighbours
-                            // above — see `nt_structure_artificial`'s own doc for
-                            // why adding one is an A/B, not a cleanup.
+                            // `is_opening_side` gated only behind a knob, unlike its
+                            // two neighbours above — see `nt_structure_artificial`'s
+                            // own doc for why adding one is an A/B, not a cleanup.
                                 || ((!profile.nt_structure_opening_gate
                                     || opening_bid == Bid::new(1, Strain::Notrump))
+                                    && (!profile.nt_structure_side_gate || is_opening_side)
                                     && nt_structure_artificial(
                                         auction,
                                         index,
@@ -2006,12 +2007,17 @@ fn intersect_overlay(
 ///    too, which is why it read with no spade length.
 /// 2. **No `is_opening_side` gate,** unlike `nt_splinter_artificial` and
 ///    `nt_blanket` beside it — so the *defenders'* suit bids are suppressed too.
+///    Gated behind
+///    [`nt_structure_side_gate`][field@crate::bidding::ReadingProfile::nt_structure_side_gate]
+///    at the call site, default on since 2026-10-02 (a wash, shipped on the
+///    naturalness tiebreak).
 ///
-/// Adding gate 2 alone moves **826 of 40000** boards of the shipped default
+/// Adding gate 2 alone moved **826 of 40000** boards of the pre-gate default
 /// (`smoke-default --count 40000 --seed 1`), 680 of them in auctions containing
-/// no 1NT at all — i.e. mostly defect 1 leaking through. That is a live bidding
-/// change and needs the A/B the iron rules demand, so both stay recorded here
-/// rather than half-fixed.
+/// no 1NT at all — i.e. mostly defect 1 leaking through.  Over today's default
+/// (gate 1 on) it moves **66**, every one a defender's call after
+/// `1NT - 2♠`/`2NT`/`3♣`.  Either is a live bidding change and needs the A/B
+/// the iron rules demand.
 fn nt_structure_artificial(
     auction: &[Call],
     index: usize,

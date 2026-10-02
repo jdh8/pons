@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The notrump-structure relay blanket reads only the 1NT side's calls,
+  shipped default-on (2026-10-02)** — `ReadingProfile::nt_structure_side_gate`
+  (`--no-ns-nt-structure-side-gate` in `bba-gen` and `probe-call-reading`
+  for the control arm).  The notrump-structure relay blanket's second
+  recorded defect: it never checks which side bid the structure, so after
+  `1NT - 2♠`/`2NT`/`3♣` the *defenders'* overcalls and raises read as relays
+  — as nothing.  Now the blanket covers the 1NT side only.  It moves 66 of
+  40,000 self-play boards (`smoke-default
+  --seed 1`), every one a defender's call after the relay.  Against BBA
+  it fires on 0.02–0.03% of boards and washes on both scorers over two
+  seeds (`scripts/ab-nt-structure-side-gate.sh`, 409,600 boards/vul pooled):
+  plain −65 / −18 IMPs, PD −46 / +23 IMPs none / both, every cell inside
+  ±0.0005 IMPs/board.  Shipped on the naturalness tiebreak
+  (docs/measurement.md): an overcall is read as the suit it names.
+
 - **The notrump-structure relay blanket fires over 1NT only, shipped
   default-on (2026-10-02)** — `ReadingProfile::nt_structure_opening_gate`
   (`--no-ns-nt-structure-opening-gate` in `bba-gen` and `probe-call-reading`

@@ -744,6 +744,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_structure_opening_gate: bool,
 
+    /// Turn **off** the side gate on the notrump-structure relay blanket
+    /// (`ReadingProfile::nt_structure_side_gate`, default on since
+    /// 2026-10-02): after `1NT - 2♠`/`2NT`/`3♣` the defenders' suit bids then
+    /// read as relays again.
+    #[arg(long, default_value_t = false)]
+    no_ns_nt_structure_side_gate: bool,
+
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
     /// reference — same BBA opener and responses, only the defender differs (ours
@@ -2545,6 +2552,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.rkcb_variant = args.ns_rkcb.into();
     agreements.decision.reading.two_notrump_wide = args.ns_two_nt_wide;
     agreements.decision.reading.nt_structure_opening_gate = !args.no_ns_nt_structure_opening_gate;
+    agreements.decision.reading.nt_structure_side_gate = !args.no_ns_nt_structure_side_gate;
     agreements.decision.reading.natural_double_floor = args.ns_double_floor;
     agreements.decision.reading.nt_overcall_systems_on = !args.no_ns_nt_overcall_systems_on;
     agreements.decision.reading.nt_overcall_gladiator = args.ns_nt_overcall_gladiator;

@@ -271,7 +271,10 @@ Both defects are recorded on the function's own doc comment. **Defect 1 is
 fixed** (2026-10-02, `ReadingProfile::nt_structure_opening_gate`, default on;
 8/8 cells vs BBA, pooled plain +0.0057 / +0.0046 IMPs/board none / both — see
 the CHANGELOG and `scripts/ab-nt-structure-opening-gate.sh`); defect 2, the
-side gate, is still open and should be re-measured on top of it. Fixing either was a
+side gate, was re-measured on top of it as `nt_structure_side_gate`: 66 of
+40000 smoke boards, a **wash** on both scorers vs BBA over two seeds (0.02–0.03%
+fired; `scripts/ab-nt-structure-side-gate.sh`), shipped default-on the same day on
+the naturalness tiebreak. Fixing either was a
 live bidding change on the default system and needs the A/B the iron rules
 demand — the same reason the ~30 other side-blind reading sites in `readers.rs`
 are out of scope for a fidelity-gated commit.
