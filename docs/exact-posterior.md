@@ -790,6 +790,24 @@ What it leaves — proposed that day, **decided by jdh8 2026-10-02**:
   the search, at one seam; it does not say which seams, and the search
   machinery it would run on was deleted.
 
+**3b re-run on today's default — gate fixed 2026-10-02 before the run**
+(jdh8 asked for more evidence on M8). Since the run above, the book bids
+`response.major_raise_slam_try` and the readings carry
+`nt_structure_opening_gate` (`1♠ - 2♠` reads ♠3+ from every seat; the try
+`1♠ - 2♠ - 3♥` reads naturally). Same probe, seams, `M = 64`, 600,000 deals,
+the registered 0.25 both-rule, a fresh seed, today's default (no
+`--slam-try`). The gate above, per arm, read as:
+
+- **replay** — its pooled gain is now the **residual**, the hand-specific
+  half with its interval. PASS → lookahead pays at this seam beyond any
+  threshold fix: evidence for M8. FAIL → the seam's measurable lookahead value
+  was the mistuned rung; M8 gets nothing new from this seam. Before crediting
+  the selector, the static-control table must show no single remap earning
+  ≥ 80% of it (the bar the `4NT` rung crossed).
+- **range** — PASS fires park trigger 2 below (it is the trigger's own test);
+  that is a report to jdh8, not a re-open. FAIL → the readings' bias was not
+  the misreading, and the `P → try` losses stand as the mechanism to trace.
+
 ### Parked — the whole lane (jdh8, 2026-10-02)
 
 Nothing here is on a branch: the counter (`examples/common/mass.rs`) and its
