@@ -808,6 +808,49 @@ the registered 0.25 both-rule, a fresh seed, today's default (no
   that is a report to jdh8, not a re-open. FAIL → the readings' bias was not
   the misreading, and the `P → try` losses stand as the mechanism to trace.
 
+**Result, 2026-10-02 — replay PASSES (the residual is real), range FAILS
+again.** 600,000 deals, seed 1790927570, 8,206 seam decisions (1.37%), no
+short draws; 6,290 s of solving. Built at `9529016f` plus the then-opt-in
+side gate, which cannot reach this seam (it acts after a 1NT opening only).
+IMPs per seam decision, ± 95%, plain / PD:
+
+| forecast | fired | pooled | vul none | vul both | gate |
+| --- | --- | --- | --- | --- | --- |
+| replay | 18.5% | **+0.0932 ± 0.0431 / +0.1082 ± 0.0485** | +0.0918 ± 0.0528 / +0.1148 ± 0.0585 | +0.0945 ± 0.0662 / +0.1025 ± 0.0751 | **PASS** |
+| range | 35.8% | +0.0279 ± 0.0498 / **−0.0557 ± 0.0581** | +0.0290 ± 0.0580 / −0.0107 ± 0.0659 | +0.0269 ± 0.0782 / −0.0949 ± 0.0924 | **FAIL** |
+
+- **The residual, per board: +0.0013 ± 0.0006 plain / +0.0015 ± 0.0007
+  PD**, against +0.0017 / +0.0022 with the `4NT` rung inside it. The rung is
+  gone from the book (42 `4NT` asks against 378), so this is the
+  hand-specific part, and it is larger than the +0.050 / +0.070 per decision
+  the Phase 3b swap table implied for it.
+- **The static-control bar holds.** The selector earns 765 / 888 IMPs. The
+  best single remap is `1♠ - 2♠ - 3♠ → 3♣` (×519, +0.28 ± 0.26 / +0.08 ±
+  0.29: 146 / 42 IMPs, 19% / 5%), then `1♥ - 2♥ - 4♥ → 2♠` (×786, +0.15 ±
+  0.18 / +0.16 ± 0.18: 16% / 14%). None clears zero on both scorers.
+- **The leading swap replicates:** `1♠ - 2♠ - 3♠ → 4♠` ×121, +1.45 ± 0.80
+  / +1.25 ± 0.86 (Phase 3b: ×115, +1.37 / +1.12), while always accepting is
+  +0.03 / −0.55. Lookahead picks *which* invitation hands to accept, which no
+  threshold can do.
+- **Secondary row agrees:** the even half picks 0.25 for replay again; odd
+  half +0.1026 ± 0.0590 / +0.1160 ± 0.0675. Range picks 2 IMPs: +0.0288 ±
+  0.0336 / +0.0088 ± 0.0383, still not clear.
+- **Range still invites from a pass:** 419 `P → try` swaps against
+  replay's 118 (Phase 3b: 511 / 108), losing as before (`1♠ - 2♠ -` `P →
+  3♦` ×73: −2.70 ± 1.24 / −4.36 ± 1.52). The `1♠ - 2♠` misreading was the
+  *opponents'* reading; opener's reading of partner's raise is unchanged,
+  and that is the one the range arm samples from. Park trigger 2 does not
+  fire.
+- **Side observation, not traced:** the `1♠` seam's reach fell from 5,891
+  to 4,827 decisions (−18%) while `1♥` held (3,420 → 3,379). The opening
+  gate is the only change upstream of the seam, so the fourth seat now
+  competes over `1♠ - 2♠` more often than it did when the raise read with no
+  spades. Hindsight scale: +1.73 / +2.00; the selector captures ~5%.
+
+Read by the rule fixed above: **replay PASS → lookahead pays at this seam
+beyond any threshold fix — evidence for M8**, now with its own interval and
+replicated on a second seed. Still one seam, self-play.
+
 ### Parked — the whole lane (jdh8, 2026-10-02)
 
 Nothing here is on a branch: the counter (`examples/common/mass.rs`) and its
@@ -926,6 +969,7 @@ Not a trigger: more precision, a faster counter, or a new net input (§2).
 | 2026-10-02 | Phase 2 reach | **not built**: 231 [243] of 10,000 boards carry a flagged reading and our side still acts on 53 [47], half of it doubles of artificial slam-zone calls. Logs: `phase2-reach*.log` |
 | 2026-10-02 | Phase 3a, reading route | **FAILS**: log-loss 1.627 against 1.401 for the node's own frequencies; 38 of 461 nodes with a choice countable, the hand helping at 6; accept and decline read the same at every invitation seam. Ladder route unbuilt. Logs: `phase3a-census*.log` |
 | 2026-10-02 | Phase 3b, sampled forecast | `1M - 2M` seam, 9,311 decisions of 600,000 deals, judged on the true deals. **Replay PASSES**: +0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD per decision (+0.0017 / +0.0022 per board). **Range FAILS**: +0.0737 ± 0.0526 / −0.0125 ± 0.0601. Half of replay's gain is the `4NT` rung, which a static remap also earns. Log: `phase3b-sampled-1790874659.log` |
+| 2026-10-02 | Phase 3b re-run, today's default | 8,206 decisions, seed 1790927570, `4NT` rung shipped. **Replay PASSES** on the residual: +0.0932 ± 0.0431 / +0.1082 ± 0.0485 per decision (+0.0013 / +0.0015 per board); best static remap ≤ 19% of it. **Range FAILS**: +0.0279 ± 0.0498 / −0.0557 ± 0.0581. Log: `phase3b-rerun-1790927570.log` |
 | 2026-10-02 | the `4NT` rung | traced (`probe-seam-lookahead --trace 4NT`) and shipped default-on as `response.major_raise_slam_try`: vs BBA, 614,400 boards/vul, plain +0.00038 ±0.00040 / +0.00044 ±0.00049, PD +0.00044 ±0.00041 / +0.00052 ±0.00050 |
 | 2026-10-02 | park | **the lane is parked** (jdh8); triggers in §5 "Parked" |
 
