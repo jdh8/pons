@@ -1437,6 +1437,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_cue_minor_raise_answer: bool,
 
+    /// Withhold opener's answer to the Modern negative double of a one-level
+    /// major overcall (`1m (1♥) X -`, `1m (1♠) X -`), leaving it to the floor
+    /// (default on; see `competition.modern_double_answer`).
+    #[arg(long, default_value_t = false)]
+    no_ns_modern_double_answer: bool,
+
     /// Disable responder's structure over their two-suiters over our 1M — UvU
     /// over their both-minors `(2NT)`, the raise structure over their Michaels
     /// cue, and the two-suiter inference reading (shipped default-on; see
@@ -2796,6 +2802,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
+    agreements.competition.modern_double_answer = !args.no_ns_modern_double_answer;
     agreements.competition.uvu_over_majors = !args.no_ns_uvu_over_majors;
     agreements.competition.uvu_over_minors = args.ns_uvu_over_minors;
     agreements.competition.weak_two_competition = args.ns_weak_two_comp;

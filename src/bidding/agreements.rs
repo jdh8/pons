@@ -60,6 +60,21 @@ pub struct CompetitionKnobs {
     /// minor contribution over the already-shipped major answer.  **Default
     /// on** (`--no-ns-cue-minor-raise-answer` in `bba-gen` for the off arm).
     pub cue_minor_raise_answer: bool,
+    // --- competition/modern_answer.rs
+    /// Opener's authored answer to the Modern negative double of a one-level
+    /// major overcall (`1m (1♥) X -`, `1m (1♠) X -`)
+    ///
+    /// **Default on** — shipped 2026-10-03, won 4/4 cells vs BBA (plain
+    /// +0.0019 / +0.0023, PD +0.0059 / +0.0065 IMPs/board, none / both).
+    /// Off, the instinct floor answers, reading the double as game values: `4M` on any fit from 11 points, `3NT` on 13
+    /// with a stopper, and a penalty pass with four of their suit.  Anchor
+    /// `46d0dc14` vs BBA, per 409,600 boards: 507 rows, −1,323 plain / −2,726
+    /// PD.  On, the table raises by strength (`1♠`/`2M`/`3M`/`4M`), completes
+    /// the major on three, bids `1NT` 12–14 / `2NT` 18–19 with a stopper,
+    /// rebids a long minor, and never passes.  Only under
+    /// [`NegativeDoubleShape::Modern`].
+    /// `bba-gen --no-ns-modern-double-answer` for the off arm.
+    pub modern_double_answer: bool,
     /// Bid (not merely recognize) the delayed cue — 2NT relay, then their suit
     ///
     /// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer
@@ -1953,6 +1968,7 @@ impl Default for CompetitionKnobs {
     fn default() -> Self {
         Self {
             cue_raise_answer: true,
+            modern_double_answer: true,
             cue_minor_raise_answer: true,
             delayed_cue: false,
             free_bids: false,

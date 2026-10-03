@@ -276,7 +276,7 @@ six ships, the notrump count over the `2NT` positive the latest
   | `(2M) - (2NT) 4NT` | 77 | −671 | −714 | not new: the floor-rail series' R4b, a measured wash ([floor-rail-campaign.md](floor-rail-campaign.md)) — do not retry |
   | `1m - 3m -` | 156 | −628 | −868 | shipped after this snapshot (above) |
 
-  The two new lanes, neither built (jdh8 to decide):
+  The two new lanes, both since shipped:
   - **`1♥ (2♠) 3♠ -`: opener passes partner's cue raise.**  A book node at
     depth 4 whose only finite call for a minimum is `3♥`
     (`probe-decision "8.AJ742.QT7.AT53" "1♥ 2♠ 3♠ -"` → `3♥`, rule `0+
@@ -316,6 +316,18 @@ six ships, the notrump count over the `2NT` positive the latest
     alternative is gating rules #6 and #2 on what the double shows, which
     moves every auction they fire in.  The `(1♠)` and `(1♦)` siblings were
     not cut, and the instinct arm's rows for this lane were not counted.
+    **Shipped default-on 2026-10-03** as `competition.modern_double_answer`
+    (`modern_answer.rs`, `scripts/ab-modern-double-answer.sh`, seed
+    1791031962): the authored table at `1m (1♥) X -` and `1m (1♠) X -`, from
+    what BBA's book and BEN's dumps agree on — both raise to `2♠` on a
+    four-card minimum, complete in `1♠` on three, bid `1NT` 12–14 with a
+    stopper, and **never pass** (the floor also converted the double with
+    four hearts, in front of the overcaller, 12–20% of the lane).  Plain
+    +0.0019 / +0.0023, PD +0.0059 / +0.0065 IMPs/board (none / both), 592 /
+    608 fired.  The doubler's second turn stays the floor's (probed sane).
+    Not built: the `1♣ (1♦) X -` both-majors sibling (BEN: `1NT` 20%, `1♥`
+    16%, `2♣` 15%, `2♥`/`2♠` 12% each), the `2♥`/`2♠` strength cue on 16+
+    (BEN's tool for the strong raise), and the splinters.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN

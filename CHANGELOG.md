@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's answer to the Modern negative double, shipped default-on
+  (2026-10-03)** — `CompetitionKnobs::modern_double_answer`
+  (`--no-ns-modern-double-answer` in `bba-gen` for the control arm).  After
+  `1m (1♥) X -` and `1m (1♠) X -` opener had no node, and the instinct floor
+  read the double as game values: `4♠` on any four-card fit from 11 points,
+  `3NT` on 13 with a stopper, and a penalty pass with four of their suit —
+  sitting in front of the overcaller's trumps.  Now opener raises by
+  strength (`2M` to 14 points, `3M` 15–16, `4M` 17+), completes the major on
+  three when nothing else fits a minimum (so `1♠` is exactly three), bids
+  `1NT` 12–14 / `2NT` 18–19 with a stopper, rebids a long minor, and never
+  passes.  The table is what BBA's book and BEN's dumps agree on.  Every
+  call is natural; the reading mirror pins the knob off.  Found by the
+  prefix cut of the re-anchor at `46d0dc14`, per 409,600 boards: 507 rows,
+  −1,323 plain / −2,726 PD.  Measured on `scripts/ab-modern-double-answer.sh`
+  vs BBA (seed 1791031962, 204,800 boards/arm/vul, isolation gate passed),
+  IMPs/board none / both: plain +0.0019 ±0.0012 / +0.0023 ±0.0016, PD +0.0059
+  ±0.0015 / +0.0065 ±0.0021; 592 / 608 fired, +2.0 / +2.2 PD IMPs/fired.  The
+  worst boards are the penalty passes the floor used to collect.  Not built:
+  the `1♣ (1♦) X -` both-majors sibling, the strength cue, splinters.
+
 - **Opener's rebid over the preemptive minor raise, shipped default-on
   (2026-10-03)** — `ResponseKnobs::preemptive_minor_raise_pass: Option<u8>`,
   default `Some(16)` (`--ns-preemptive-minor-raise-pass off` in `bba-gen` for

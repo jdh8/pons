@@ -204,9 +204,13 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   double" there is really a trump-stack values double. Pre-existing; the
   Modern/Cachalot arms don't touch major openings. Revisit if the P3 forensics
   flag it.
-- Modern's opener answer to the minor-opening negative double rides the floor
-  safely *because Modern's double shows the major* — the floor's classic
-  "negative double = the unbid major" instinct is correct for it. Cachalot's
+- Modern's opener answer to the minor-opening negative double used to ride
+  the floor on the theory that its "negative double = the unbid major"
+  instinct is correct for it.  It was not: the floor read the double as game
+  values (`4♠` on minimums, `3NT` on 13) and passed it for penalty with four
+  of their suit.  Authored 2026-10-03 for `1m (1♥)` / `1m (1♠)`
+  (`competition.modern_double_answer`, `modern_answer.rs`, default-on after
+  winning 4/4 cells); the `1♣ (1♦)` both-majors double still rides the floor. Cachalot's
   and Sputnik's answers are authored: Sputnik's double **denies** the major, so
   the same floor instinct is exactly inverted and (measured) jumped the phantom
   denied suit to a doubled 4♠ until `cachalot_takeout_answer` was wired in.

@@ -11,6 +11,7 @@
 //! | [`over_overcall`] | responder's direct-seat action over their overcall |
 //! | [`penalty_double`] | and responder's `X`/`Pass` options within it |
 //! | [`free_bids`], [`negative_double`], [`cue_raise`] | and opener's answer to each |
+//! | [`modern_answer`] | opener's answer to the Modern double of `1m (1M)` |
 //! | [`support_double`] | opener's three-card-support `X`/`XX` |
 //! | [`over_their_double`] | Jordan/Truscott, and our doubled splinter |
 //! | [`high_overcall`] | their jump and three-level overcalls |
@@ -50,6 +51,7 @@ mod cue_raise;
 mod free_bids;
 mod high_overcall;
 mod lebensohl;
+mod modern_answer;
 mod negative_double;
 mod nt_high_overcall;
 mod our_preempts;
@@ -70,6 +72,7 @@ use cue_raise::{cue_minor_raise_answer_package, cue_raise_answer_package};
 use free_bids::{free_bid_answer_package, transfer_free_bid_package};
 use high_overcall::high_overcall_package;
 use lebensohl::lebensohl_package;
+use modern_answer::modern_double_answer_package;
 use negative_double::{
     answer_negative_double_package, cachalot_package, sputnik_residual_answer_package,
 };
@@ -499,6 +502,10 @@ pub fn competition(agreements: &Agreements) -> Competitive {
         agreements,
         &[cachalot_package(), sputnik_residual_answer_package()],
     );
+
+    // Section 9c: opener's answer to the Modern double of a one-level major
+    // overcall (`agreements.competition.modern_double_answer`, default on).
+    compile_into(&mut book, agreements, &[modern_double_answer_package()]);
 
     // Section 7: our contested weak twos (`agreements.competition.weak_two_competition`, default
     // off). Their double: responder's first call at the deeper `2M (X)` node
