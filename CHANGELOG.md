@@ -1697,6 +1697,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A rejecting guarded table now falls through to the floor (2026-10-03).**
+  The fall-through after a book table rejects a hand (all-−∞) skipped only an
+  exact node.  A guarded fallback — every `P*` row table — was resolved again
+  and its empty logits read as Pass.  That's a silent no-op that bit Lebensohl
+  package A, forced the Landy doubler onto an exact node, and turned a
+  deliberately partial `1♣ (1♦) X - 2♣ -` table into no call at all.  Both
+  `resolve_floored` twins now share `Trie::resolve_with_mass`, which keeps
+  the first candidate with mass.  A table reached through a systems-on
+  rebase is unchanged: its rejection still reads as Pass.  Three
+  alternatives were measured against it (the contested floor, the
+  instinct ladder on the rewritten auction, an authored residue table), and
+  none beat it.  Against BBA the lane moved 1–12 boards per 819,200, every
+  delta was 0.0000 IMPs/board, and the raw totals all came in at or below
+  Pass.  No user impact today: `smoke-default` is byte-identical at 20,000
+  (seed 1) and 100,000 (seed 777000) boards.
+
 - **Opener no longer passes partner's cue raise when the cue outranks `3M`
   (2026-10-03, shipped)** — the decline rung of `answer_cue_raise`
   (`competition.cue_raise_answer`) was a bare `3M`, illegal over `1♥ (2♠)

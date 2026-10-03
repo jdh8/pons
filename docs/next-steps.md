@@ -646,6 +646,31 @@ group waits on that decision, the second group does not.
   rebase lands on it — three twins (`trie.rs`, `book.rs`, `decoder.rs`) —
   with a `smoke-default` byte-identity proof, or an A/B if it moves boards.
   Default until decided: leave the core alone, keep rebased tables total.
+  **Guarded half fixed 2026-10-03** (`Trie::resolve_with_mass`): a rejecting
+  guarded table (every `P*` row table — it bit `1♣ (1♦) X - 2♣ -`, Lebensohl
+  package A, and the Landy doubler) is now skipped and the walk goes on to
+  the floor; `smoke-default` byte-identical at 20k (seed 1) and 100k (seed
+  777000).  The rebase half is still open, and now **measured to move
+  boards**: skipping a rejected rebase moved 5 per 100,000, all
+  `1NT (2♣) 2♦ - 2♥ -`-type systems-on rebases, because the skip lands on
+  the **contested net floor** rather than the instinct ladder the rewritten
+  auction gets uncontested — `2♠` on 3 HCP where uncontested passes.  The
+  fix that matches "systems on" is to classify the constructive ladder in
+  the rewritten context.  **Measured 2026-10-03, closed — keep the Pass.**
+  Three policies vs today's Pass, vs BBA, seed 1791042704, 819,200
+  boards/arm/vul: skip to the contested floor, re-classify on the rewritten
+  auction (instinct), or skip into an authored generic residue table
+  (game / invite / pass by HCP).  The lane barely exists vs BBA (its `(2♣)`
+  over our 1NT is artificial): 11–12 / 2–3 / 1 boards moved per arm, every
+  delta 0.0000 IMPs/board, raw totals all at or below Pass (floor −29 / −20
+  PD, instinct −6 / −29, residue −6 / −8 none / both).  The variants were
+  deleted, not kept as knobs.  **Flagged, untraced:** the boards instinct
+  moved were mostly `1♠ (X) 2♣ - 3♣ -`-type, which systems on over their
+  double rewrites to uncontested `1♠ - 2♣ - 3♣ -` — a 2/1 game force — so
+  re-classifying there drove to game opposite a responder the double left
+  non-forcing.  Today's Pass is right on those boards by accident; whether
+  the rewrite should carry a GF 2/1 reading after their X is the open
+  question.
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

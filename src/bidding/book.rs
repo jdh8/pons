@@ -444,15 +444,9 @@ impl BoundBook {
         // The twin of `Trie::resolve_floored`; the tombstone mask applies
         // identically here, after the fall-through decision.
         let veto = self.trie.veto_at(auction);
-        if let Some((classifier, provenance)) = self.trie.resolve(context, auction) {
-            let mut logits = self.classify(classifier, hand, context);
-            if logits.has_mass() {
-                apply_veto(&mut logits, veto);
-                return Some((classifier, logits, provenance));
-            }
-        }
-        let (classifier, provenance) = self.trie.resolve_after_exact_rejection(context, auction)?;
-        let mut logits = self.classify(classifier, hand, context);
+        let (classifier, mut logits, provenance) =
+            self.trie
+                .resolve_with_mass(context, auction, |c| self.classify(c, hand, context))?;
         apply_veto(&mut logits, veto);
         Some((classifier, logits, provenance))
     }

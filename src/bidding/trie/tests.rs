@@ -43,6 +43,42 @@ fn partial_node_falls_through_to_the_floor() {
     assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
 }
 
+/// A partial **guarded** table (every `P*` row table installs as one) falls
+/// through like an exact node.  The single fall-through used to resolve the
+/// same fallback again and return its all-`-∞` logits, which the driver read
+/// as Pass.
+#[test]
+fn partial_guarded_table_falls_through_to_the_floor() {
+    let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
+    let auction = [one_club, Call::Pass];
+    let weak_only = Rules::new().rule(Call::Pass, 0, hcp(..6) & partner_shown_points(0..));
+    let floor = Rules::new().rule(Call::Pass, 0, hcp(0..) & partner_shown_points(0..));
+
+    let mut trie = Trie::new();
+    trie.fallback_at(
+        &[one_club],
+        FirstIs(Call::Pass),
+        Fallback::classify(weak_only),
+    );
+    trie.fallback_at(&[], Always, Fallback::classify(floor));
+
+    let strong: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+    let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(strong);
+    let (logits, provenance) = trie
+        .classify_floored(strong, &context, &auction)
+        .expect("the floor answers");
+    assert!(logits.has_mass(), "the floor gives the hand a finite call");
+    assert_eq!(provenance.depth, 0, "the answer came from the root floor");
+
+    // The guarded table still answers the hands it covers.
+    let weak: Hand = "T852.J43.8764.92".parse().expect("valid test hand");
+    let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(weak);
+    let (_, provenance) = trie
+        .classify_floored(weak, &context, &auction)
+        .expect("the table answers");
+    assert_eq!(provenance.depth, 1);
+}
+
 /// A node that *does* cover the hand keeps its own answer — fall-through
 /// triggers only on a no-mass result, never overriding a live book rule.
 #[test]

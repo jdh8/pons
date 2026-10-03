@@ -79,11 +79,11 @@
 //! Style: prefer `x y z a b c` for suit letters — `o` reads as the `om` tail,
 //! `l` as `1`, `n` as the `N` literal.
 //!
-//! The exact-node/guarded-table distinction is load-bearing, not cosmetic: an
-//! exact node that rejects a hand (all-−∞) falls through to the floor
-//! ([`Trie::classify_floored`]), while a guarded table is consulted again on
-//! the fall-through pass and therefore must stay total — keep a finite
-//! catch-all in every guarded table.
+//! A table that rejects a hand (all-−∞), exact node or guarded, falls through
+//! to the next candidate on the chain and finally the floor
+//! ([`Trie::classify_floored`]).  The exception is a table reached through a
+//! **rebase** (systems on): its rejection still reads as Pass, so keep every
+//! table a rebase can land on total.
 
 use super::agreements::Agreements;
 use super::common::{fallback_all_seats, other_major, other_minor};

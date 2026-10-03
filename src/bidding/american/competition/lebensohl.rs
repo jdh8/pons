@@ -2530,10 +2530,10 @@ fn their_major(over: Option<Bid>) -> Option<Suit> {
 /// **−22,119 plain IMPs NV / −13,364 BV** over 14,717 boards, 14,699 of them
 /// after our own escape, against a baseline whose floor competed to `3♦`.
 /// Those registrations are gone; this table now rides only the rungs that do
-/// promise something, and its residue reaches the floor by rejection —
-/// **which needs an exact `Pattern::node`**, since a guarded fallback's
-/// all-−∞ logits are returned unchecked and read as the same Pass (package
-/// A's silent no-op, `Trie::resolve_floored`).
+/// promise something, and its residue reaches the floor by rejection.  (Until
+/// 2026-10-03 that needed an exact `Pattern::node`: a guarded fallback's
+/// all-−∞ logits were returned unchecked and read as Pass — package A's
+/// silent no-op.)
 ///
 /// * `accept` — the invitation's own acceptance rung, where their call left
 ///   room for it below `3NT`.  It is [`landy_lia_accept`]'s `3NT` verbatim,
@@ -2774,10 +2774,9 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
             ("X (2♦) - (2♥)", Suit::Hearts),
             ("X (2♦) - (2♠)", Suit::Spades),
         ] {
-            // An exact node, not an `after` guard: only an exact node's
-            // rejection falls through to the floor (`Trie::resolve_floored`'s
-            // single fall-through returns a guarded fallback's logits without
-            // checking mass), and rejection is precisely how the
+            // An exact node (from when only an exact node's rejection fell
+            // through to the floor; a guarded table does too since
+            // 2026-10-03): rejection is precisely how the
             // `landy_doubler_catchall=false` arm hands three trumps or fewer
             // back to the floor.
             entries.extend(rows_of(

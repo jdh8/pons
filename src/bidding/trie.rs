@@ -607,7 +607,7 @@ impl Trie {
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(&dyn Classifier, Provenance)> {
-        self.resolve_at(context, auction, 0, false)
+        self.resolve_at(context, auction, 0, false, &mut |_| true)
     }
 
     /// Classify, falling through to the fallback chain when the exact node
@@ -622,10 +622,10 @@ impl Trie {
     /// floor is attached; with no floor (the bare-book ablation) it returns the
     /// degenerate logits, and the driver passes as before.
     ///
-    /// `ponytail:` single fall-through — it assumes the next mass-bearing
-    /// candidate is the floor, which holds for the root-only floor wiring.  If
-    /// intermediate partial fallbacks ever appear, loop until the result has
-    /// mass.
+    /// A guarded fallback (every `P*` row table) that rejects is skipped like
+    /// an exact node, not returned again with its empty logits.  A **rebase**
+    /// still answers with whatever it resolves to, so a rejection there reads
+    /// as Pass (see the note in `resolve_at`).
     #[must_use]
     pub fn classify_floored(
         &self,
@@ -650,31 +650,53 @@ impl Trie {
         // "not this call", not "not this node", so it must not change which
         // classifier answers.
         let veto = self.veto_at(auction);
-        if let Some((classifier, provenance)) = self.resolve(context, auction) {
-            let mut logits = classifier.classify(hand, context);
-            if logits.has_mass() {
-                apply_veto(&mut logits, veto);
-                return Some((classifier, logits, provenance));
-            }
-        }
-        // The exact node rejected this hand — consult the fallback chain.
-        let (classifier, provenance) = self.resolve_at(context, auction, 0, true)?;
-        let mut logits = classifier.classify(hand, context);
+        let (classifier, mut logits, provenance) =
+            self.resolve_with_mass(context, auction, |c| c.classify(hand, context))?;
         apply_veto(&mut logits, veto);
         Some((classifier, logits, provenance))
+    }
+
+    /// The first classifier on the resolution chain whose `classify` has
+    /// mass, with its logits — the fall-through both `resolve_floored` twins
+    /// share
+    ///
+    /// When nothing has mass (the bare-book ablation, no floor attached) it
+    /// returns the first fallback's degenerate logits, or the exact node's
+    /// when there is no fallback, so the driver passes as before.
+    pub(crate) fn resolve_with_mass(
+        &self,
+        context: &Context<'_>,
+        auction: &[Call],
+        mut classify: impl FnMut(&dyn Classifier) -> super::array::Logits,
+    ) -> Option<(&dyn Classifier, super::array::Logits, Provenance)> {
+        let mut found = None;
+        let resolved = self.resolve_at(context, auction, 0, false, &mut |classifier| {
+            found = Some(classify(classifier)).filter(super::array::Logits::has_mass);
+            found.is_some()
+        });
+        if let Some((classifier, provenance)) = resolved {
+            // An unchecked rebase answers without mass, so `found` may be
+            // empty; its logits are the classifier's own all-−∞.
+            let logits = found.unwrap_or_else(|| classify(classifier));
+            return Some((classifier, logits, provenance));
+        }
+        let (classifier, provenance) = self
+            .resolve_after_exact_rejection(context, auction)
+            .or_else(|| self.resolve(context, auction))?;
+        Some((classifier, classify(classifier), provenance))
     }
 
     /// Resolve only the fallback chain after an exact classifier rejected.
     ///
     /// Finalized books use this seam to evaluate a rule-backed classifier
     /// through its compiled sidecar while retaining the trie's authoritative
-    /// routing and single-fall-through semantics.
+    /// routing.
     pub(crate) fn resolve_after_exact_rejection(
         &self,
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(&dyn Classifier, Provenance)> {
-        self.resolve_at(context, auction, 0, true)
+        self.resolve_at(context, auction, 0, true, &mut |_| true)
     }
 
     fn resolve_at(
@@ -683,6 +705,7 @@ impl Trie {
         auction: &[Call],
         rebases: usize,
         skip_exact: bool,
+        accept: &mut dyn FnMut(&dyn Classifier) -> bool,
     ) -> Option<(&dyn Classifier, Provenance)> {
         let mut path = Vec::with_capacity(auction.len() + 1);
         let mut node = &self.root;
@@ -701,6 +724,7 @@ impl Trie {
         if !skip_exact
             && path.len() == auction.len() + 1
             && let Some(classifier) = node.classify.as_deref()
+            && accept(classifier)
         {
             let provenance = Provenance {
                 depth: auction.len(),
@@ -718,6 +742,9 @@ impl Trie {
 
                 match fallback {
                     Fallback::Classify(classifier) => {
+                        if !accept(classifier.as_ref()) {
+                            continue;
+                        }
                         let provenance = Provenance {
                             depth,
                             fallback: Some(index),
@@ -728,8 +755,17 @@ impl Trie {
                     Fallback::Rebase(rewrite) => {
                         if rebases < REBASE_LIMIT
                             && let Some(rewritten) = rewrite.rewrite(auction, depth)
-                            && let Some(found) =
-                                self.resolve_at(context, &rewritten, rebases + 1, false)
+                            && let Some(found) = self.resolve_at(
+                                context,
+                                &rewritten,
+                                rebases + 1,
+                                false,
+                                // A rebase answers as it resolves, mass or not, so
+                                // its rejection reads as Pass.  Skipping it, or
+                                // re-classifying on the rewritten auction, measured
+                                // no better (docs/next-steps.md, 2026-10-03).
+                                &mut |_| true,
+                            )
                         {
                             return Some(found);
                         }
@@ -754,7 +790,8 @@ impl Trie {
         context: &Context<'_>,
         prefix: &[Call],
     ) -> Option<&dyn Classifier> {
-        self.resolve_at(context, prefix, 0, false).map(|(c, _)| c)
+        self.resolve_at(context, prefix, 0, false, &mut |_| true)
+            .map(|(c, _)| c)
     }
 
     /// Every guarded [`Fallback`] in the trie, with the auction of its node
