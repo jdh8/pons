@@ -367,6 +367,7 @@ pub(super) fn package() -> Package {
                 entries.extend(positive::entries(
                     waiting,
                     agreements.rebid.strong_two_grand,
+                    agreements.rebid.strong_two_positive_notrump,
                 ));
             }
 

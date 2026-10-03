@@ -156,6 +156,31 @@ fn test_loose_positive() {
     );
 }
 
+/// `2♣ - 2NT - 3NT`: opener counts instead of blasting, a 7-count passes,
+/// and a 9-count's `6NT` ends the auction
+#[test]
+fn test_notrump_count_after_the_balanced_positive() {
+    let system = partnership();
+    let opener = "AQ4.KQ5.AKJ3.QJ2";
+    let (two, three, six) = (
+        call(2, Strain::Notrump),
+        call(3, Strain::Notrump),
+        call(6, Strain::Notrump),
+    );
+    bid_out(
+        &system,
+        opener,
+        "K84.Q93.J432.J32",
+        &[two, three, Call::Pass],
+    );
+    bid_out(
+        &system,
+        opener,
+        "K84.Q93.K432.J32",
+        &[two, three, six, Call::Pass],
+    );
+}
+
 // --- The grand rung ---------------------------------------------------------
 
 /// The 2/1 pair with `rebid.strong_two_grand` off: the classic king ask

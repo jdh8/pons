@@ -27,7 +27,8 @@ criterion 5). **Item 2 is now the top candidate.**
 (opener's pass shipped 2026-09-30, Reverse Drury and opener's splinters over
 it shipped 2026-10-01, below); BBA's other rungs and its passed-hand `2NT`
 priced and left alone. The strong `2♣` lane (re-cut 2026-10-01, below) has
-five ships, the grand rung the latest; the direct `6NT` jumps are next.**
+six ships, the notrump count over the `2NT` positive the latest
+(2026-10-03); what is left of the direct `6NT` jumps is thin.**
 
 - **Re-anchored 2026-09-30 (`494f0c4b`) — the passed-hand lane.** Still #1
   on both scorers (−31,106 plain / −33,752 PD, 36,007 rows). Re-cutting the
@@ -161,18 +162,50 @@ five ships, the grand rung the latest; the direct `6NT` jumps are next.**
       placements agree with the floor's on all but ~90 boards per 8M, net
       +27 IMPs.  The price is the floor's own 37-point sevens with fewer
       kings, now stopped in six: 30 boards per 8M, −79 IMPs.
-  - Next in the lane, sized off the same probe (per 8M self-play deals,
-    27,427 in the lane): **the direct `6NT` jumps** — 9,928 boards end in
-    `6NT` with no keycard ask (`2♣ - 2NT - 6NT` alone is 2,985); thirteen
-    tricks are there in notrump on 2,607 of them and only in an eight-card
-    fit on 876 more.  Combined HCP prices `7NT`: 53% at 34, 67% at 35, 86%
-    at 36, 100% at 37+, so the floor's 37 is two points late; the suit
-    grands need the fit found first — responder's second suit over opener's
-    minor, a Stayman-like ask over the `2NT` positive (BBA's `2NT - 3♣ -
-    3♠` finds the 4-4).  Then opener's game-in-hand jump rebids, opener's
-    28+ balanced rebid (falls to the `2NT` fallback), the contested tail
-    (289 rows, −0.6k / −0.8k).
+  - **`rebid.strong_two_positive_notrump` shipped default-on 2026-10-03**
+    (over `2♣ - 2NT`, a hand with no five-card major bids `3NT` to 24 HCP,
+    `6NT` on 25–29, `7NT` on 30+; responder raises the `3NT` to six on 9+
+    and seven on 14+, the `6NT` to seven on 11+): pooled three seeds plain
+    +0.0005 ±0.0004 / +0.0005 ±0.0005, PD +0.0006 ±0.0004 / +0.0006
+    ±0.0006, 11/12 cells positive (`scripts/ab-strong-two-positive-notrump.sh`,
+    CHANGELOG); the same-seed self-play pair reads +0.00055 ±0.00013 /
+    +0.00067 ±0.00015 on 8M deals.  What it taught:
+    - *The direct `6NT` jumps were a level leak, not a missed grand.*
+      Per 8M self-play deals (seed 20261003, 27,524 in the lane), 9,868
+      boards ended in `6NT` with no keycard ask.  By combined HCP `6NT`
+      makes on 28% / 43% / 60% / 77% / 89% at 29 / 30 / 31 / 32 / 33, and
+      seven on 57% / 71% / 88% at 34 / 35 / 36.  With both hands' HCP known,
+      stopping at 30 and below is worth +5,875 IMPs and seven at 35+
+      +3,462 — and `2♣ - 2NT - 6NT` alone (2,860 boards, 58% making) holds
+      +4,262 of the first.  The direct jumps over a suit positive
+      (`2♣ - 2♠ - 6NT` and its three siblings) make 66–74%, and stopping
+      there is worth about +700 between the four.
+    - *The looser positive changed the verdict on authoring the level.*
+      The floor's `6NT` there is the evaluator net's, bid on 22 opposite
+      the positive's floor; under the old 8+ positive that was at par
+      (rounds 1–2 above), under the 7+ one opener's 22–24 opposite 7 makes
+      27% on 744 boards.  The count is authored for this one auction only.
+    - *The grand share is small.*  The new sevens are 46 boards per 8M for
+      +306 IMPs; the floor's own sevens on 26–29 that the table now stops
+      in six are 80 boards for −78.
+  - Next in the lane, sized off the same probe: the grands behind the
+    suit-positive `6NT` jumps (≈ +2.7k IMPs per 8M with both counts known,
+    spread over a dozen auctions at +200–400 each, so no single table
+    carries it); a Stayman-like ask over the `2NT` positive (an eight-card
+    major fit out-scores notrump at slam level on 193 boards per 8M,
+    +1,548 IMPs with perfect choice); responder's invitation on exactly 8
+    opposite the counted `3NT` (24 opposite 8 makes 62% on 165 boards,
+    ≈ +435 IMPs).  Each is below what three seeds resolve.  Then opener's
+    game-in-hand jump rebids, opener's 28+ balanced rebid (falls to the
+    `2NT` fallback), the contested tail (289 rows, −0.6k / −0.8k).
   - Flagged while tracing, not built (jdh8 to decide):
+    - **Responder's `7NT` on 14 over the counted `3NT` can be off an ace**
+      (`2♣ - 2NT - 3NT - 7NT` on K92.T642.KQ9.KQJ opposite
+      AQJ3.KQJ3.AJT6.A, 36 HCP, seed 1's worst board).  The row is priced
+      by the probe — 14 opposite at most 24 makes seven on 82% of 28
+      boards per 8M — and no A/B can resolve it.  Proposed default: keep
+      14; the alternative is 15+ (37 combined, never off an ace), worth
+      about −180 IMPs per 8M double-dummy.
     - **A double of the keycard answer drops the asker to the floor in
       every RKCB lane** (`rkcb_rows` registers `{answer} -` only): `2♣ - 3♦
       - 3♠ - 4♠ - 4NT - 5♣ (X) 5♠` on a cold grand, one deal in 614,400
@@ -433,6 +466,15 @@ A fifth joined them on 2026-10-02 and a sixth on 2026-10-03.
   auction, the range arm of `probe-seam-lookahead` passing on a fresh seed,
   an invitation's answer getting a reading, or the narrow-reading reach
   moving off 0.5%.
+- **M8 search as a seam-gated rollout lookahead.** Parked 2026-10-03 by jdh8:
+  too slow at run time. Branch `park/m8-search` (`8eeb9fc6`; design, gate and
+  flip plan in its `docs/ai-bidder/plan.md`, M8.0). Validation passed at the
+  two `1M - 2M -` seams — +0.0011 ±0.0006 plain / +0.0012 ±0.0007 PD
+  IMPs/board, self-play, 600,000 deals — but at 0.69 s per gated decision on
+  1.36% of deals, and a bidder that solves inside `classify` cannot sit in a
+  rayon harness. No wider seam list was run. **Re-open when:** the per-decision
+  cost drops by an order of magnitude (fewer worlds, a confidence gate, or a
+  cheaper pricer than a DD solve per world).
 
 ## Owed / deferred
 
@@ -446,10 +488,10 @@ group waits on that decision, the second group does not.
   `2♣ - 2♦` decoded as waiting, as BBA plays it): lost on the v6 floor
   (item 2, the strong `2♣` lane); a win after the retrain would also retire
   the mirror book every default build now carries.
-  `strong_two_loose_positive`, `strong_two_positive` and `strong_two_grand`
-  are pinned off in the same mirror, unmeasured unpinned (the first two's
-  first trial leaked two boards per 204,800 through it): re-measure all four
-  together.
+  `strong_two_loose_positive`, `strong_two_positive`, `strong_two_grand` and
+  `strong_two_positive_notrump` are pinned off in the same mirror, unmeasured
+  unpinned (the first two's first trial leaked two boards per 204,800 through
+  it): re-measure all five together.
 - Re-arbitrate the five shipped floor rails against the new net — runners and
   rule in [floor-rail-campaign.md](floor-rail-campaign.md) (stop criterion 5).
 - `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling
@@ -466,15 +508,6 @@ group waits on that decision, the second group does not.
   example for the retrain's eval set, not a rail
   ([defensive-auctions-reference.md](defensive-auctions-reference.md) §7).
 
-- **M8 search as a seam-gated rollout lookahead.** Parked 2026-10-03 by jdh8:
-  too slow at run time. Branch `park/m8-search` (`8eeb9fc6`; design, gate and
-  flip plan in its `docs/ai-bidder/plan.md`, M8.0). Validation passed at the
-  two `1M - 2M -` seams — +0.0011 ±0.0006 plain / +0.0012 ±0.0007 PD
-  IMPs/board, self-play, 600,000 deals — but at 0.69 s per gated decision on
-  1.36% of deals, and a bidder that solves inside `classify` cannot sit in a
-  rayon harness. No wider seam list was run. **Re-open when:** the per-decision
-  cost drops by an order of magnitude (fewer worlds, a confidence gate, or a
-  cheaper pricer than a DD solve per world).
 **Not retrain-gated (owed, unscheduled):**
 
 - **`1M - 2M`: the slam try through a game try — shipped 2026-10-02**

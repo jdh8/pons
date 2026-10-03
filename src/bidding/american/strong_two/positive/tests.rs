@@ -26,8 +26,16 @@ fn off() -> Agreements {
     agreements
 }
 
+/// `strong_two_positive_notrump` off: the floor counts notrump
+fn floored() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.rebid.strong_two_positive_notrump = false;
+    agreements
+}
+
 /// Opener shows a five-card major over the `2NT` positive (spades first on
-/// 5-5); without one the table rejects the hand and the floor bids, as off.
+/// 5-5); without one and without the notrump count the table rejects the
+/// hand and the floor bids, as off.
 #[test]
 fn opener_shows_a_major_over_the_notrump_positive() {
     let auction = [bid(2, C), P, bid(2, NT), P];
@@ -35,7 +43,7 @@ fn opener_shows_a_major_over_the_notrump_positive() {
     assert_eq!(best_with(&on(), &auction, "AKJ94.AQ952.A.K2"), bid(3, S));
     let flat = "AQ4.KQ5.AKJ3.QJ2";
     assert_eq!(
-        best_with(&on(), &auction, flat),
+        best_with(&floored(), &auction, flat),
         best_with(&off(), &auction, flat)
     );
 }
@@ -151,4 +159,35 @@ fn grand_rung_reaches_the_minors() {
     assert_eq!(best_with(&on(), &asked, "Q6.853.KQ842.Q82"), bid(6, D));
     let stopped = [&asked[..], &[bid(6, D), P]].concat();
     assert_eq!(best_with(&on(), &stopped, asker), P);
+}
+
+/// Over the `2NT` positive a hand with no five-card major counts: `3NT` to
+/// 24 HCP, `6NT` on 25–29, `7NT` on 30+ — doubled or not.
+#[test]
+fn opener_counts_notrump_over_the_balanced_positive() {
+    for auction in [
+        [bid(2, C), P, bid(2, NT), P],
+        [bid(2, C), Call::Double, bid(2, NT), P],
+    ] {
+        let best = |hand| best_with(&on(), &auction, hand);
+        assert_eq!(best("AQ4.KQ5.AKJ3.QJ2"), bid(3, NT));
+        assert_eq!(best("AK4.KQ5.AKJ3.KJ2"), bid(3, NT));
+        assert_eq!(best("AK4.AQ5.AKJ3.KJ2"), bid(6, NT));
+        assert_eq!(best("AKQ.AKQ.AKJ3.KJ2"), bid(7, NT));
+        assert_eq!(best("AQ.AKJ72.K42.KQ8"), bid(3, H));
+    }
+}
+
+/// Responder raises the counted `3NT` to six on 9+ and seven on 14+, and the
+/// counted `6NT` to seven on 11+.
+#[test]
+fn responder_raises_the_counted_notrump() {
+    let game = [bid(2, C), P, bid(2, NT), P, bid(3, NT), P];
+    assert_eq!(best_with(&on(), &game, "K84.Q93.J432.J32"), P);
+    assert_eq!(best_with(&on(), &game, "K84.Q93.K432.J32"), bid(6, NT));
+    assert_eq!(best_with(&on(), &game, "KQ4.KQ3.K432.J32"), bid(7, NT));
+
+    let slam = [bid(2, C), P, bid(2, NT), P, bid(6, NT), P];
+    assert_eq!(best_with(&on(), &slam, "K84.Q93.K432.J32"), P);
+    assert_eq!(best_with(&on(), &slam, "K84.Q93.K432.K32"), bid(7, NT));
 }

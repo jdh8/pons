@@ -4171,7 +4171,9 @@ pub struct RebidKnobs {
     /// responder raises it to game with three (opener then asks), else bids
     /// `6NT` on 9+ HCP and `3NT` below, over which opener bids `6NT` on 23+,
     /// `4M` on six, or passes.  Hands with neither stay with the floor —
-    /// except over their double of `2♣`, where the node is total (`3NT`).
+    /// except over their double of `2♣`, where the node is total (`3NT`),
+    /// and over the `2NT` positive under
+    /// [`strong_two_positive_notrump`][RebidKnobs::strong_two_positive_notrump].
     ///
     /// Vs BBA, IMPs/board none / both: alone
     /// (`scripts/ab-strong-two-loose-positive.sh` header, round 3, one seed)
@@ -4204,6 +4206,31 @@ pub struct RebidKnobs {
     /// per-seed cells positive, about 50 / 54 fired per 204,800; 71% of the
     /// new grands make double-dummy.
     pub strong_two_grand: bool,
+    /// Count notrump over the balanced `2NT` positive to the strong `2♣`
+    ///
+    /// **Default on (shipped 2026-10-03)**;
+    /// `--no-ns-strong-two-positive-notrump` in `bba-gen` for the off arm.
+    /// Needs [`strong_two_positive`][RebidKnobs::strong_two_positive].  Off, a hand
+    /// with no five-card major falls to the floor, whose `6NT` over `2♣ -
+    /// 2NT` is the evaluator net's and is bid on as little as 22 opposite the
+    /// positive's 7.  On, opener bids `3NT` on up to 24 HCP, `6NT` on 25–29
+    /// and `7NT` on 30+; responder raises the `3NT` to six on 9+ and to seven
+    /// on 14+, and the `6NT` to seven on 11+.  The same tables answer over
+    /// their double of `2♣`.  The reading mirror pins it off.
+    ///
+    /// `probe-strong-two-grand` (8M uncontested self-play deals, seed
+    /// 20261003, 6,314 boards in `2♣ - 2NT -` without a five-card major):
+    /// `6NT` makes double-dummy on 19% / 36% / 57% / 77% of the boards where
+    /// opener holds at most 24 and responder 7 / 8 / 9 / 10; the tables price
+    /// at +0.0006 / +0.0007 IMPs/board (none / both) against the floor, nine
+    /// tenths of it the 1,435 slams no longer bid.
+    ///
+    /// Vs BBA (`scripts/ab-strong-two-positive-notrump.sh`, three seeds,
+    /// 614,400 boards/vul pooled), IMPs/board none / both: plain +0.0005
+    /// ±0.0004 / +0.0005 ±0.0005, PD +0.0006 ±0.0004 / +0.0006 ±0.0006,
+    /// eleven of twelve per-seed cells positive, about 52 / 55 fired per
+    /// 204,800.
+    pub strong_two_positive_notrump: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4224,6 +4251,7 @@ impl Default for RebidKnobs {
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,
+            strong_two_positive_notrump: true,
         }
     }
 }

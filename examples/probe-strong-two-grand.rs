@@ -39,6 +39,11 @@ struct Args {
     /// compare the two)
     #[arg(long)]
     classic: bool,
+
+    /// Bid with `rebid.strong_two_positive_notrump` off (same seed as a
+    /// default run to compare the two)
+    #[arg(long)]
+    no_notrump_count: bool,
 }
 
 fn main() {
@@ -47,6 +52,7 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.rebid.strong_two_grand = !args.classic;
+    agreements.rebid.strong_two_positive_notrump = !args.no_notrump_count;
     let partnership = american(&agreements).bind();
     let two_clubs = Call::Bid(Bid::new(2, Strain::Clubs));
 

@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The notrump count over the balanced positive to our strong `2♣`,
+  shipped default-on (2026-10-03)** — `RebidKnobs::strong_two_positive_notrump`
+  (`--no-ns-strong-two-positive-notrump` in `bba-gen` for the control arm).
+  Over `2♣ - 2NT` a hand with no five-card major was the floor's, and the
+  floor's `6NT` there is the evaluator net's: it was bid on as little as 22
+  HCP opposite a positive that has started at 7 since the looser positive
+  shipped.  Now opener bids `3NT` on up to 24 HCP, `6NT` on 25–29 and `7NT`
+  on 30+, and responder raises the `3NT` to six on 9+ and to seven on 14+,
+  the `6NT` to seven on 11+; the same tables answer over their double of
+  `2♣`.  Every call is natural; the reading mirror pins the knob off.
+  Sized on `examples/probe-strong-two-grand` (8M uncontested self-play
+  deals, seed 20261003): `2♣ - 2NT - 6NT` was 2,860 boards making
+  double-dummy on 58%, and with opener at most 24 `6NT` makes on 19% / 36% /
+  57% / 77% opposite 7 / 8 / 9 / 10.  The same-seed pair with the knob on
+  moves 3,387 boards for +0.00055 ±0.00013 / +0.00067 ±0.00015 IMPs/board
+  (none / both), 1,435 of them slams no longer bid (+4,200 IMPs).  Measured
+  on `scripts/ab-strong-two-positive-notrump.sh` vs BBA, three seeds
+  (1791004115, 1791004618, 1791005119), 204,800 boards/arm/vul each, every
+  isolation gate passed; pooled (614,400 boards/vul), IMPs/board none /
+  both: plain +0.0005 ±0.0004 / +0.0005 ±0.0005, PD +0.0006 ±0.0004 /
+  +0.0006 ±0.0006, eleven of twelve per-seed cells positive, 155 / 164 fired
+  (+1.9 / +2.0 plain per fired).  `probe-strong-two-grand` gains
+  `--no-notrump-count` for the off arm.
+
 - **The notrump-structure relay blanket reads only the 1NT side's calls,
   shipped default-on (2026-10-02)** — `ReadingProfile::nt_structure_side_gate`
   (`--no-ns-nt-structure-side-gate` in `bba-gen` and `probe-call-reading`

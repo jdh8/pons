@@ -194,6 +194,7 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // `2♣ - 2♠` the two-honor one, so the knobs move only boards we open.
     mirror.rebid.strong_two_positive = false;
     mirror.rebid.strong_two_grand = false;
+    mirror.rebid.strong_two_positive_notrump = false;
     mirror.response.strong_two_loose_positive = false;
     // Likewise the slam try through a game try: their `1M - 2M - 3x` stays a
     // 16–18 try and their `4NT` any 22+ hand, so the knob moves only boards
