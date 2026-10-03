@@ -755,3 +755,49 @@ fn answerer_passes_the_placement() {
         "no row at an illegal placement"
     );
 }
+
+/// Their double of the answer changes nothing we bid: the asker's table, the
+/// relay below it, the 5NT king answers and the answerer's pass all sit under
+/// `{answer} (X)` exactly as under `{answer} -`.
+#[test]
+fn doubled_answer_keeps_the_ladder() {
+    let prefix = "P* 1♠ - 3♠ -";
+    let mut trie = eight_card_relay_trie();
+    compile_entries(
+        &mut trie,
+        "rkcb-answerer",
+        rkcb_answerer_rows(prefix, Suit::Spades),
+    );
+    let bid = |level, strain| Call::Bid(Bid::new(level, strain));
+    let clubs = bid(5, Strain::Clubs);
+    let relay = bid(5, Strain::Diamonds);
+    // (calls after the answer and their action over it, hand, the call)
+    let cases: [(&[Call], &str, Call); 6] = [
+        (&[], "AKJ8.AK2.KJ32.42", relay),
+        (&[], "AQJ2.A876.A72.A3", bid(5, Strain::Notrump)),
+        (&[], "QJ982.KQ2.KQ3.K2", bid(5, Strain::Spades)),
+        (
+            &[relay, Call::Pass],
+            "KQ4.K653.8432.92",
+            bid(5, Strain::Hearts),
+        ),
+        (
+            &[bid(5, Strain::Notrump), Call::Pass],
+            "K97.K53.9432.932",
+            bid(6, Strain::Diamonds),
+        ),
+        (
+            &[bid(5, Strain::Spades), Call::Pass],
+            "K97.K53.9432.932",
+            Call::Pass,
+        ),
+    ];
+    for (tail, hand, expected) in cases {
+        for heard in [Call::Pass, Call::Double] {
+            let mut auction = LIMIT_ANS_AUCTION.to_vec();
+            auction.extend([clubs, heard]);
+            auction.extend(tail);
+            assert_eq!(best(&trie, &auction, hand), expected, "{heard:?} {tail:?}");
+        }
+    }
+}

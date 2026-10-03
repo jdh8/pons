@@ -40,6 +40,14 @@
 //! 6♥ (2) or 6♠ (signoff with 3).  For heart trumps 6♥ is the catch-all
 //! signoff (2+ kings).
 //!
+//! # A doubled answer
+//!
+//! Every asker table, and everything below it, is registered under their
+//! double of the answer as well as their pass (`HEARD`): the double is
+//! lead-directing and changes nothing we bid.  Doubles further down (of the
+//! relay, of the classic 5NT and its answers) still fall to the floor, except
+//! on the grand rung.
+//!
 //! # Minor-suit trumps (plain 4NT)
 //!
 //! Minor trumps use the same `5♣/5♦/5♥/5♠` answers, but those answers overshoot
@@ -397,10 +405,12 @@ pub(super) fn rkcb_answerer_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     ] {
         let answer = Bid::new(5, answer);
         for placement in placements.into_iter().filter(|&p| p > answer) {
-            entries.extend(rows_of(
-                Pattern::node(&format!("{ask} {answer} - {placement} -")),
-                Rules::new().rule(Call::Pass, 0, hcp(0..)),
-            ));
+            for heard in HEARD {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{ask} {answer} {heard} {placement} -")),
+                    Rules::new().rule(Call::Pass, 0, hcp(0..)),
+                ));
+            }
         }
     }
     entries
@@ -496,6 +506,14 @@ fn grand_rung(
         .alert(RKCB)
 }
 
+/// What the opponents do over a keycard answer: pass, or double it
+///
+/// Every key below an answer is registered under both.  Registration is
+/// suffix-exact, so a lead-directing double of the answer used to drop the
+/// asker to the floor, which cannot decode the answer (`2♣ - 3♦ - 3♠ - 4♠ -
+/// 4NT - 5♣ (X) 5♠` on a cold grand).  The double changes nothing we bid.
+const HEARD: [&str; 2] = ["-", "(X)"];
+
 fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     let ans_5c = Bid::new(5, Strain::Clubs);
     let ans_5d = Bid::new(5, Strain::Diamonds);
@@ -561,8 +579,15 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
         (ans_5h, after_5h),
         (ans_5s, after_5s),
     ] {
-        entries.extend(rows_of(node(&format!("{answer} -")), table));
+        for heard in HEARD {
+            entries.extend(rows_of(node(&format!("{answer} {heard}")), table.clone()));
+        }
     }
+    let heard_answers = || {
+        [ans_5c, ans_5d, ans_5h, ans_5s]
+            .into_iter()
+            .flat_map(|answer| HEARD.map(|heard| format!("{answer} {heard}")))
+    };
 
     // -----------------------------------------------------------------------
     // 2b. The queen relay, where the lane has room for it
@@ -573,11 +598,14 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     // lands at or below five of trump, which excludes both plain-4NT minors and
     // hearts after a 0-or-3.  Those lanes keep betting the small slam on four
     // keycards, exactly as they do today.
-    for answer in [ans_5c, ans_5d] {
+    for (answer, heard) in [ans_5c, ans_5d]
+        .into_iter()
+        .flat_map(|answer| HEARD.map(|heard| (answer, heard)))
+    {
         let Some(map) = relay_map(answer, trump) else {
             continue;
         };
-        let relay = format!("{answer} - {} -", map.ask);
+        let relay = format!("{answer} {heard} {} -", map.ask);
 
         // The answer lane owns the combined-count decode.  Over 5♣ partner
         // showed one, so four of our own is all five; over 5♦ partner showed
@@ -625,9 +653,9 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
         // and a minor six are contracts: the asker passes them.
         let t = Strain::from(trump);
         let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
-        for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
+        for answer in heard_answers() {
             for ask in ["5NT -", "5NT (X)"] {
-                let kings = format!("{answer} - {ask}");
+                let kings = format!("{answer} {ask}");
                 entries.extend(rows_of(node(&kings), grand_king_answers(trump)));
                 entries.extend(rows_of(
                     node(&format!("{kings} {} -", Bid::new(7, t))),
@@ -664,9 +692,9 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     // -----------------------------------------------------------------------
     // 3. King answers after the 5NT ask
     // -----------------------------------------------------------------------
-    for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
+    for answer in heard_answers() {
         entries.extend(rows_of(
-            node(&format!("{answer} - 5NT -")),
+            node(&format!("{answer} 5NT -")),
             king_answers(trump),
         ));
     }
@@ -674,8 +702,8 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     // -----------------------------------------------------------------------
     // 4. Asker after king answers
     // -----------------------------------------------------------------------
-    for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
-        let kings = format!("{answer} - 5NT -");
+    for answer in heard_answers() {
+        let kings = format!("{answer} 5NT -");
         // 6♥ is a king answer only when trumps are spades; over hearts it is
         // the catch-all signoff.
         for (shown, reply) in ["6♣", "6♦", "6♥"].into_iter().enumerate() {

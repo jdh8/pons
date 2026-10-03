@@ -636,7 +636,10 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // five of trump, DEPO at or above), and the 5NT king ask.  The grand
         // rung below a positive to our strong 2♣ (`rebid.strong_two_grand`)
         // is the same 5NT, over minors too; the schema has no row for how
-        // many kings the asker wants, so nothing moves with that knob.
+        // many kings the asker wants, so nothing moves with that knob.  Nor
+        // has it one for their double of a keycard *answer* (ROPI is the
+        // double of the ask): the book ignores that double (`slam::HEARD`),
+        // undisclosed.
         "Cue bid" | "DOPI" | "ROPI" | "DEPO" | "King ask by 5NT" => 1,
         "King ask by 5NT inviting" => 0,
         // The king ask is 5NT off the knob.  On it, the relay carries its own:
