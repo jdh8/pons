@@ -1054,6 +1054,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
   and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
   Protocol and limitations: `docs/bidding-performance-handoff.md`.
+- **BBA re-anchor (2026-10-03, `46d0dc14`)**: shipping `american()` scores
+  **−0.3195 plain / −0.1170 perfect-defense IMPs/board** (none −0.2992 /
+  −0.0892, both −0.3397 / −0.1447); `american_instinct()` −0.9502 / −0.9815.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches.  Paired to the `494f0c4b` snapshot on the same deals, shipping
+  moved +0.0156 / +0.0171 plain and +0.0158 / +0.0199 PD per table (none /
+  both), which is the summed A/Bs of the window's ships (the passed-hand
+  lane, the strong `2♣` lane, the `1M - 2M` slam try, the 1NT-only
+  relay-blanket reading).  The paired net gain over instinct is +0.3260
+  plain / +0.4409 PD.  Shipping bucket order is unchanged, constructive
+  round-2 still first at −25.5k plain (was −31.1k).  A prefix cut of the
+  snapshot found the preemptive minor raise (shipped above) and two unbuilt
+  lanes — opener passing the cue raise over `1♥ (2♠) 3♠`, and the
+  floor's game jumps over `1m (1♥) X -`; ranking in
+  `docs/bba-gap-campaign.md`, lanes in `docs/next-steps.md` item 2.
 - **BBA re-anchor (2026-09-30, `494f0c4b`)**: shipping `american()` scores
   **−0.3507 plain / −0.1485 perfect-defense IMPs/board** (none −0.3278 /
   −0.1157, both −0.3736 / −0.1813); `american_instinct()` −0.9721 / −1.0041.

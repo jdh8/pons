@@ -1,9 +1,9 @@
 # Next-step candidates, ranked by potential IMP gain
 
-**Ranked 2026-09-26, item 2 re-read 2026-09-30** from the two current anchors
-— BBA shipping arm at `494f0c4b` (2026-09-30, re-anchored after the K = 8
-floor and the round-2 book ships; bucket order unchanged, so the ranking
-below stands; [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
+**Ranked 2026-09-26, item 2 re-read 2026-09-30 and 2026-10-03** from the two
+current anchors — BBA shipping arm at `46d0dc14` (2026-10-03, re-anchored
+after the passed-hand and strong-`2♣` ships; bucket order unchanged, so the
+ranking below stands; [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
 `daa8bf4a` (2026-09-14, stale by the same window;
 [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
@@ -256,7 +256,61 @@ six ships, the notrump count over the `2NT` positive the latest
   per 409,600 (`scripts/ab-preemptive-minor-raise.sh`, CHANGELOG).  Not
   tried: the contested tail (`1m - 3m (X)` and their overcall stay the
   floor's) and BBA's `4m` on an unbalanced 16–20, which the floor already
-  bids.  The re-anchor's full re-rank is still not written up here.
+  bids.
+- **Re-ranked 2026-10-03 at `46d0dc14`.**  The bucket is still #1 on the
+  shipping arm on both scorers, and a fifth smaller: −25,495 plain / −26,677
+  PD on 34,991 rows (−31,106 / −33,752 at `494f0c4b`); headline, tables and
+  the paired window in [bba-gap-campaign.md](bba-gap-campaign.md).  The
+  prefix cut over every shipping-arm bucket, per 409,600 boards (a scratch
+  join again: rows to their shard auctions, leading passes folded):
+
+  | lane | rows | plain | PD | note |
+  | --- | --- | --- | --- | --- |
+  | responses to `1♥` / `1♠` | 8,062 | −9,855 | −11,113 | still the largest, still spread thin (10,970 rows, −10,951 / −12,258 before Drury).  Worst pairs: our forcing `1NT` vs BBA's `3♥` over `1♠` 438 rows (−1,046 / −924), our `1♠` vs BBA's `2♠` over `1♥` 316 rows (−848 / −855); neither BBA call's meaning is looked up yet (`probe-bba-book`) |
+  | our `2♣` opening, every continuation | 2,277 | −3,604 | −3,582 | halved by the lane's six ships (3,054 rows, −7,003 / −6,630) |
+  | `1♦ - 1♠ -` opener's rebid | 2,161 | −2,518 | −3,080 | as before: `2♦` vs BBA's `1NT` 760 rows, vs its `2♣` 847 (the measured-wash opt-in) |
+  | `1♥ - 1♠ -` opener's rebid | 1,147 | −2,436 | −2,329 | `3♥` vs BBA's `4♥` 128 rows (−354 / −387); no pair above 200 rows |
+  | **`1m (1♥) X -` opener's rebid** | 507 | −1,323 | −2,726 | **new** — the floor jumps to game on a minimum; below |
+  | **`1♥ (2♠) 3♠ -` opener's answer** | 58 | −700 | −908 | **new, a book bug** — opener passes the cue raise; below |
+  | responses to our weak `2♠` | 789 | −867 | −1,606 | our raises where BBA passes or raises lower (`4♠` vs `3♠` 89 rows, `3♠` vs pass 268): obstruction, which DD cannot price — not a lane for this harness |
+  | `(2M) - (2NT) 4NT` | 77 | −671 | −714 | not new: the floor-rail series' R4b, a measured wash ([floor-rail-campaign.md](floor-rail-campaign.md)) — do not retry |
+  | `1m - 3m -` | 156 | −628 | −868 | shipped after this snapshot (above) |
+
+  The two new lanes, neither built (jdh8 to decide):
+  - **`1♥ (2♠) 3♠ -`: opener passes partner's cue raise.**  A book node at
+    depth 4 whose only finite call for a minimum is `3♥`
+    (`probe-decision "8.AJ742.QT7.AT53" "1♥ 2♠ 3♠ -"` → `3♥`, rule `0+
+    HCP`), which is not a legal call over `3♠`; the dump shows a pass, and
+    we play `3♠` in their suit — −12 IMPs a row where BBA bids `4♥` (50
+    rows) or `3NT` (8).  A scan of every book pass over `1x (y) cue -` in
+    the snapshot finds no other lane: the weak jump overcall in spades over
+    our `1♥` is the one cue raise that outranks three of our major.
+    Proposed default: the minimum's sign-off is the cheapest legal bid of
+    the major (`4♥` here) — a correctness fix worth about +0.002 per board
+    on both scorers at full capture, and at −12 a row it resolves on one
+    seed.  The minor-opening and `1♠ (3♥)` shapes of the same table are
+    unchecked.
+  - **`1m (1♥) X -`: the floor jumps to game on a minimum.**  Opener's
+    answer to the Modern negative double rides the floor by design
+    ([competitive-book.md](competitive-book.md): "safely *because Modern's
+    double shows the major*").  It bids `4♠` with four spades where BBA
+    bids `1♠` / `2♠` (312 rows, −966 / −1,861) and `3NT` where BBA bids
+    `1NT` / `1♠` / `2♣` (195 rows, −357 / −865): JT75.AQT.KJ973.T bids
+    `1♦ (1♥) X - 4♠` at weight 1.45 over `2♦` 1.10 and `1♠` 1.05, with
+    partner read as exactly four spades and 6–37 HCP.  The weights are the
+    deterministic floor's, not the net's: `PROBE_FLOOR=instinct
+    probe-decision` gives the same three numbers and names the rules —
+    #6 (`4+ ♠, 11+ points`) for the `4♠`, #2 (`13+ HCP, stopper in their
+    suit`) for the `3NT`.  Both read partner's double as game values it
+    does not promise.  Ceiling ≈ +0.003 plain / +0.007 PD per board: the
+    sharpest unworked lane in this cut, about twice the preemptive minor
+    raise on PD.  Proposed default: an authored answer table (the spade
+    raise by strength, notrump by range, the minor rebid) behind a knob at
+    that one node, with a fresh-seed A/B vs BBA; responder's continuations
+    over it must be checked before the measurement, not after.  The
+    alternative is gating rules #6 and #2 on what the double shows, which
+    moves every auction they fire in.  The `(1♠)` and `(1♦)` siblings were
+    not cut, and the instinct arm's rows for this lane were not counted.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN
