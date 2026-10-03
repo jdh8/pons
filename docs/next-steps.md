@@ -378,7 +378,7 @@ Recorded so future sessions don't re-derive them:
 Four big ideas were weighed on 2026-09-28; the floor sweep (item 2b) won.
 The other three are parked here with the evidence that parked them, so a
 future session re-opens one only against new evidence, not from scratch.
-A fifth joined them on 2026-10-02.
+A fifth joined them on 2026-10-02 and a sixth on 2026-10-03.
 
 - **Improve the defensive bidding system.** Already the most-mined lane in
   the repo. [defensive-auctions-reference.md](defensive-auctions-reference.md)
@@ -466,6 +466,15 @@ group waits on that decision, the second group does not.
   example for the retrain's eval set, not a rail
   ([defensive-auctions-reference.md](defensive-auctions-reference.md) §7).
 
+- **M8 search as a seam-gated rollout lookahead.** Parked 2026-10-03 by jdh8:
+  too slow at run time. Branch `park/m8-search` (`8eeb9fc6`; design, gate and
+  flip plan in its `docs/ai-bidder/plan.md`, M8.0). Validation passed at the
+  two `1M - 2M -` seams — +0.0011 ±0.0006 plain / +0.0012 ±0.0007 PD
+  IMPs/board, self-play, 600,000 deals — but at 0.69 s per gated decision on
+  1.36% of deals, and a bidder that solves inside `classify` cannot sit in a
+  rayon harness. No wider seam list was run. **Re-open when:** the per-decision
+  cost drops by an order of magnitude (fewer worlds, a confidence gate, or a
+  cheaper pricer than a DD solve per world).
 **Not retrain-gated (owed, unscheduled):**
 
 - **`1M - 2M`: the slam try through a game try — shipped 2026-10-02**
