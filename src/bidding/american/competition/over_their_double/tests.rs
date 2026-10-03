@@ -79,3 +79,30 @@ fn redouble_answer_shadows_the_rebase_blast() {
         "the off arm: the rebase + floor bids on blindly"
     );
 }
+
+/// The weak new suit is not a 2/1: over opener's raise responder bids game on
+/// a maximum and passes a minimum, instead of replaying the uncontested
+/// game-forcing tree through the systems-on rebase.
+#[test]
+fn weak_new_suit_rebid_is_not_game_forcing() {
+    let arm = Agreements::default();
+    let raised = |opening, suit| {
+        [
+            call(1, opening),
+            Call::Double,
+            call(2, suit),
+            Call::Pass,
+            call(3, suit),
+            Call::Pass,
+        ]
+    };
+    let spades_clubs = raised(Strain::Spades, Strain::Clubs);
+    let (minimum, floored) = best_call_with(&arm, &spades_clubs, "J9.A62.JT4.97543");
+    assert_eq!(minimum, Call::Pass);
+    assert!(!floored, "an authored node, not the rebase");
+    let (maximum, _) = best_call_with(&arm, &spades_clubs, "J9.Q62.KT4.AQ543");
+    assert_eq!(maximum, call(3, Strain::Notrump));
+    let spades_hearts = raised(Strain::Spades, Strain::Hearts);
+    let (game, _) = best_call_with(&arm, &spades_hearts, "J9.AJ962.K43.973");
+    assert_eq!(game, call(4, Strain::Hearts));
+}

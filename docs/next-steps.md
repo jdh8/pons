@@ -668,9 +668,16 @@ group waits on that decision, the second group does not.
   moved were mostly `1♠ (X) 2♣ - 3♣ -`-type, which systems on over their
   double rewrites to uncontested `1♠ - 2♣ - 3♣ -` — a 2/1 game force — so
   re-classifying there drove to game opposite a responder the double left
-  non-forcing.  Today's Pass is right on those boards by accident; whether
-  the rewrite should carry a GF 2/1 reading after their X is the open
-  question.
+  non-forcing.  Today's Pass is right on those boards by accident.
+  **Ruled 2026-10-04 (jdh8): no 2/1 after their X** — strong hands with no
+  fit redouble, so a new suit is weaker than in every other case.  The
+  book already said so for responder's first call and opener's answer
+  (`over_their_double.rs`); responder's *second* turn still replayed the
+  2/1 tree, so it is now authored at `1o (X) 2y - 3y -`
+  (`competition.weak_new_suit_rebid`, `scripts/ab-weak-new-suit-rebid.sh`):
+  **shipped default-on 2026-10-04** on the naturalness tiebreak — vs BBA
+  (seed 1791047769, 409,600 boards/arm/vul) the arms bid every board
+  identically; the node came up 5–6 times per vul, always on a minimum.
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

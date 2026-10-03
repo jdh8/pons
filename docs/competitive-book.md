@@ -216,6 +216,13 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   and Sputnik's answers are authored: Sputnik's double **denies** the major, so
   the same floor instinct is exactly inverted and (measured) jumped the phantom
   denied suit to a doubled 4♠ until `cachalot_takeout_answer` was wired in.
+- **No 2/1 after their double** (jdh8, 2026-10-04): strong hands with no
+  fit redouble, so responder's new suit over their X is weaker than in
+  every other case.  The systems-on rebase still replays the uncontested
+  tree under it, so every turn where a 2/1 reading would leak needs an
+  authored step: responder's first call and opener's answer were already
+  authored (`jordan_truscott`), responder's second turn over the raise is
+  `weak_new_suit_rebid` (default-on).
 - P4's XX/Jordan **contested tails** (advancer bids over them) rebase into a
   dead end and land on the floor with the projected floors — authored
   continuations are a follow-up if the buckets drag.

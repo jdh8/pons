@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **No 2/1 after their double: responder's second turn is authored
+  (2026-10-04)** — `CompetitionKnobs::weak_new_suit_rebid`, default on
+  (`--no-ns-weak-new-suit-rebid` in `bba-gen` for the control arm).
+  Strong hands with no fit redouble, so a new suit over their takeout
+  double is weak (6–9, five-plus) and non-forcing.  Responder's first call
+  and opener's answer already played it that way.  After opener's 15+
+  raise (`1o (X) 2y - 3y -`), the systems-on rebase still replayed the
+  uncontested 2/1 game-forcing tree.  Its tables rejected most of these
+  hands (a Pass by accident) and offered an illegal `3♣` over
+  `1♥ (X) 2♣ - 3♣ -`.  Now responder bids `4♥` on 8+ points or `3NT` on
+  8+ HCP over a minor, and otherwise passes.  No measured impact: vs BBA
+  (seed 1791047769, 409,600 boards/arm/vul) the two arms bid every board
+  identically, since the node came up 5–6 times per vul and always on a
+  minimum.  `smoke-default` is byte-identical at 100,000 boards.  Shipped
+  default-on on the naturalness tiebreak.
+
 - **The both-majors sibling `1♣ (1♦) X -`, shipped default-on
   (2026-10-03)** — `CompetitionKnobs::modern_double_both_majors`
   (`--no-ns-modern-double-both-majors` in `bba-gen` for the control arm).

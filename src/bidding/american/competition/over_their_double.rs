@@ -155,6 +155,20 @@ pub(super) fn jordan_truscott_package() -> Package {
                         .into(),
                     );
                     entries.push(row(weak, Call::Pass, 30, hcp(0..)).into());
+                    // Responder's second turn over the raise: the weak `2y`
+                    // was 6–9, the raise 15+ with four, so game on a maximum
+                    // — not the uncontested 2/1 tree the systems-on rebase
+                    // would replay (`agreements.competition.weak_new_suit_rebid`).
+                    if agreements.competition.weak_new_suit_rebid {
+                        let raised = Pattern::after(&key, &format!("2{xs} - 3{xs} -"));
+                        let game = if x == Suit::Hearts {
+                            row(raised.clone(), Bid::new(4, xs), 90, points(8..))
+                        } else {
+                            row(raised.clone(), Bid::new(3, Strain::Notrump), 90, hcp(8..))
+                        };
+                        entries.push(game.into());
+                        entries.push(row(raised, Call::Pass, 0, hcp(0..)).into());
+                    }
                 }
             }
             entries

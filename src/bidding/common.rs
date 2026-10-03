@@ -207,5 +207,6 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;
     mirror.competition.modern_double_both_majors = false;
+    mirror.competition.weak_new_suit_rebid = false;
     (mirror != *agreements).then_some(mirror)
 }

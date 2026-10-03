@@ -654,6 +654,22 @@ pub struct CompetitionKnobs {
     /// (+0.5…+0.8 IMPs/fired, ~0.8% fired).  `--no-ns-jordan-truscott` in
     /// `bba-gen` for the off arm.
     pub jordan_truscott: bool,
+    /// Responder's second turn after the weak new suit over their double —
+    /// `1o (X) 2y - 3y -`, opener's 15+ raise
+    ///
+    /// Strong hands with no fit redouble, so the 2-level new suit is weak
+    /// (6–9, five-plus) and the auction is not a 2/1 game force.  Off, the
+    /// systems-on rebase replays the uncontested 2/1 tree, whose tables
+    /// reject most of these hands (a Pass by accident) and offer an illegal
+    /// `3♣` over `1♥ (X) 2♣ - 3♣ -`.  On, game on a maximum (`4♥` on 8+
+    /// points, `3NT` on 8+ HCP over a minor), else pass.
+    ///
+    /// **Default on** — shipped 2026-10-04 on the naturalness tiebreak: vs
+    /// BBA (seed 1791047769, 409,600 boards/arm/vul) the two arms bid every
+    /// board identically — our side reached the node 5–6 times per vul,
+    /// always on a minimum both arms pass.
+    /// `bba-gen --no-ns-weak-new-suit-rebid` for the off arm.
+    pub weak_new_suit_rebid: bool,
     /// Author answers to partner's redouble
     ///
     /// Opener's rebid over the value redouble, `1x (X) XX -`; a no-op unless
@@ -2020,6 +2036,7 @@ impl Default for CompetitionKnobs {
             competition_over_minor_transfer: true,
             competition_over_stayman: true,
             jordan_truscott: true,
+            weak_new_suit_rebid: true,
             redouble_answer: true,
             splinter_doubled: true,
             double_style: DoubleStyle::Optional,
