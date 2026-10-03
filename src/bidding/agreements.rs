@@ -3879,13 +3879,16 @@ pub struct ResponseKnobs {
     /// Opener's rebid over the preemptive minor raise `1m - 3m`: pass at or
     /// below this HCP ceiling, `3NT` on a balanced 17+, or `None` for the floor
     ///
-    /// **Default off (measuring).**  Off, the instinct floor's raise rung bids
-    /// `4m` on any 13+ hand.  Anchor `46d0dc14` vs BBA, per 409,600 boards:
-    /// `1♣ - 3♣ - 4♣` where BBA passes or bids `3NT` 155 rows (−658 plain /
-    /// −886 PD), `1♦ - 3♦ - 4♦` 136 rows (−278 plain / −454 PD).  BBA passes
-    /// on 11–16, bids `3NT` on 17–21 balanced and `4m` on 16–20.  Unbalanced
-    /// hands above the ceiling still fall to the floor.  `bba-gen
-    /// --ns-preemptive-minor-raise-pass <n>` for the on arm.
+    /// **Default `Some(16)` (shipped 2026-10-03).**  Off, the instinct floor's
+    /// raise rung bids `4m` on any 13+ hand.  Anchor `46d0dc14` vs BBA, per
+    /// 409,600 boards: `1♣ - 3♣ - 4♣` where BBA passes or bids `3NT` 155 rows
+    /// (−658 plain / −886 PD), `1♦ - 3♦ - 4♦` 136 rows (−278 plain / −454
+    /// PD).  BBA passes on 11–16, bids `3NT` on 17–21 balanced and `4m` on
+    /// 16–20.  Unbalanced hands above the ceiling still fall to the floor.
+    /// Vs BBA, two seeds pooled, IMPs/board none / both: plain +0.0016 /
+    /// +0.0020, PD +0.0022 / +0.0030; the 15 ceiling won 8/8 cells too and 16
+    /// edged it in each.  `bba-gen --ns-preemptive-minor-raise-pass off` for
+    /// the control arm.
     pub preemptive_minor_raise_pass: Option<u8>,
     // --- raises/drury.rs
     /// **Reverse Drury**: a passed hand's `2♣!` over a third- or fourth-seat
@@ -3964,7 +3967,7 @@ impl Default for ResponseKnobs {
             major_game_tries: true,
             major_raise_slam_try: true,
             limit_raise_acceptance: true,
-            preemptive_minor_raise_pass: None,
+            preemptive_minor_raise_pass: Some(16),
             drury: true,
             drury_splinters: true,
             strong_two_loose_positive: true,

@@ -108,10 +108,14 @@ log for the script's own success line:
 
 ```sh
 setsid nohup scripts/idle-run.sh scripts/ab-my.sh ab-results/my >ab-results/my.log 2>&1 &
-PID=$(pgrep -f ab-my.sh | head -1)
-while kill -0 "$PID" 2>/dev/null; do sleep 20; done
+PID=$(pgrep -f '^bash scripts/idle-run.sh scripts/ab-my.sh')
+tail --pid="$PID" -f /dev/null      # returns when the wrapper exits
 tail -5 ab-results/my.log           # then read the diff files in a *separate* command
 ```
+
+The `^bash scripts/idle-run.sh` anchor is the point, not decoration — see the
+self-match note below.  `$!` is not a substitute: under job control `setsid`
+forks, and `$!` names a process that is already gone.
 
 Two failure modes this avoids, both paid for on the Gladiator v6 run:
 
@@ -126,9 +130,17 @@ Two failure modes this avoids, both paid for on the Gladiator v6 run:
   watcher throws away the `ab-dump-diff` output it was going to print. Watch,
   then read the results in a separate command.
 
-**Watcher self-match (2026-07-30):** `while pgrep -f "pass-reading-ab.sh"`
-matched its *own* command line and looped forever. Use a `pgrep -f` pattern
-that cannot occur in the watcher's command, or track the worker PID directly.
+**Watcher self-match (2026-07-30, again 2026-10-03):** `while pgrep -f
+"pass-reading-ab.sh"` matched its *own* command line and looped forever. An
+unanchored `pgrep -f <script>` matches every shell whose command line merely
+*mentions* the script: the watcher itself, and any stale watcher another
+session left behind — so one stuck watcher keeps every later one alive, and
+`| head -1` picks the oldest, i.e. the stale one. On 2026-10-03 three
+sessions' watchers hung this way on runs that had finished cleanly; the old
+recipe above (`pgrep -f ab-my.sh | head -1`) was itself the bug. Anchor the
+pattern at the wrapper's own command line (`^bash scripts/idle-run.sh …`),
+which no `bash -c` watcher can start with. If a watch seems late, read the
+log: `idle-run: <script> exited <n>` is conclusive.
 
 ## Scorers (`src/scoring.rs`)
 

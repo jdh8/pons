@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Opener's rebid over the preemptive minor raise, opt-in (2026-10-03,
-  won one seed; the default flip awaits a second)** — `ResponseKnobs::preemptive_minor_raise_pass: Option<u8>`
-  (`--ns-preemptive-minor-raise-pass <HCP>` in `bba-gen`; default `None`, the
-  default system is unchanged).  Over our weak `1m - 3m` opener had no node,
-  and the instinct floor's raise rung bid `4m` on any 13+ hand.  With the
-  knob, opener passes at or below the HCP ceiling and bids `3NT` on a
-  balanced 17+; an unbalanced hand above the ceiling still falls to the
-  floor.  Every call is natural; the reading mirror pins the knob off.
+- **Opener's rebid over the preemptive minor raise, shipped default-on
+  (2026-10-03)** — `ResponseKnobs::preemptive_minor_raise_pass: Option<u8>`,
+  default `Some(16)` (`--ns-preemptive-minor-raise-pass off` in `bba-gen` for
+  the control arm).  Over our weak `1m - 3m` opener had no node, and the
+  instinct floor's raise rung bid `4m` on any 13+ hand.  Now opener passes
+  on at most 16 HCP and bids `3NT` on a balanced 17+; an unbalanced hand
+  above the ceiling still falls to the floor.  Every call is natural; the
+  reading mirror pins the knob off.
   Found by re-cutting the re-anchor at `46d0dc14` by auction prefix, per
   409,600 boards: `1♣ - 3♣ - 4♣` where BBA passes or bids `3NT` 155 rows
   (−658 plain / −886 PD), `1♦ - 3♦ - 4♦` 136 rows (−278 / −454); BBA passes
@@ -26,7 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMPs/board none / both: plain +0.0016 ±0.0004 / +0.0019 ±0.0006, PD
   +0.0022 ±0.0006 / +0.0031 ±0.0008; 139 / 137 fired, +3.3 / +4.6 PD
   IMPs/fired.  92 of the 139 are the minimum's pass; the worst boards are
-  `3NT` on a balanced 18 down where `4m` makes.
+  `3NT` on a balanced 18 down where `4m` makes.  A second seed (1791018922)
+  agreed — plain +0.0016 ±0.0005 / +0.0020 ±0.0006, PD +0.0021 ±0.0006 /
+  +0.0029 ±0.0008 — so the 15 ceiling won 8/8 cells.  The shipped 16 (BBA's
+  own ceiling) against the floor, two seeds pooled, 409,600 boards per
+  vulnerability, 286 / 293 fired: plain +0.0016 ±0.0003 / +0.0020 ±0.0004,
+  PD +0.0022 ±0.0004 / +0.0030 ±0.0006.  Against 15 it moves 11 / 15 boards,
+  each a 16-count passing `3m`: plain +6 / +13 IMPs, PD +10 / +21, positive
+  in all eight cells and inside the noise in each.
 
 - **The notrump count over the balanced positive to our strong `2♣`,
   shipped default-on (2026-10-03)** — `RebidKnobs::strong_two_positive_notrump`

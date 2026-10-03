@@ -244,6 +244,19 @@ six ships, the notrump count over the `2NT` positive the latest
     - The same rung under `2♣ - 2♦ - 2M - 3M - 4NT` and `2♣ - 2♦ - 3m - 4m -
       4NT` (opener asks on 28+): a different population, unmeasured, left
       on the classic ladder.
+- **Re-cut 2026-10-03 (`46d0dc14`) — the preemptive minor raise.**  The
+  same prefix cut over the re-anchor found one more unauthored node: over
+  our weak `1m - 3m` the floor's raise rung bid `4m` on any 13+ hand, where
+  BBA passes on 11–16 and bids `3NT` on 17–21 balanced (`1♣ - 3♣ - 4♣` 155
+  rows, −658 plain / −886 PD; `1♦ - 3♦ - 4♦` 136 rows, −278 / −454, per
+  409,600 boards).  **Shipped default `Some(16)` 2026-10-03** as
+  `response.preemptive_minor_raise_pass` (pass to the ceiling, `3NT` on a
+  balanced 17+, the rest to the floor): two seeds pooled plain +0.0016 /
+  +0.0020, PD +0.0022 / +0.0030 IMPs/board (none / both), 286 / 293 fired
+  per 409,600 (`scripts/ab-preemptive-minor-raise.sh`, CHANGELOG).  Not
+  tried: the contested tail (`1m - 3m (X)` and their overcall stay the
+  floor's) and BBA's `4m` on an unbalanced 16–20, which the floor already
+  bids.  The re-anchor's full re-rank is still not written up here.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN

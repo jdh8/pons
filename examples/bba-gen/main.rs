@@ -813,9 +813,10 @@ struct Args {
     ns_passed_hand_major_pass: String,
 
     /// Opener's rebid over the preemptive `1m - 3m`: pass at or below this
-    /// HCP ceiling, `3NT` on a balanced 17+ (`response.preemptive_minor_raise_pass`,
-    /// default `off` — the floor).
-    #[arg(long, default_value = "off", value_name = "off|HCP")]
+    /// HCP ceiling (default `16`), `3NT` on a balanced 17+, or `off` for the
+    /// floor (`response.preemptive_minor_raise_pass`, **shipped default-on
+    /// 2026-10-03**).
+    #[arg(long, default_value = "16", value_name = "off|HCP")]
     ns_preemptive_minor_raise_pass: String,
 
     /// Withhold Reverse Drury — a passed hand's `2♣!` limit raise of a

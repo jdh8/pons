@@ -482,9 +482,9 @@ fn opener_passes_a_passed_hands_major_response() {
 #[test]
 fn opener_passes_or_bids_notrump_over_the_preemptive_minor_raise() {
     let mut agreements = Agreements::default();
-    let floor = american(&agreements).bind();
-    agreements.response.preemptive_minor_raise_pass = Some(15);
     let system = american(&agreements).bind();
+    agreements.response.preemptive_minor_raise_pass = None;
+    let floor = american(&agreements).bind();
     let raised = [call(1, Strain::Clubs), P, call(3, Strain::Clubs), P];
     let minimum = "765.AQJ5.J9.AQ97";
     let balanced = "KJ98.AK3.QJ5.AT2";
