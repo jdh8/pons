@@ -3875,6 +3875,18 @@ pub struct ResponseKnobs {
     ///
     /// Opener accepts, asks for keycards, or declines.
     pub limit_raise_acceptance: bool,
+    // --- raises/preemptive_minor.rs
+    /// Opener's rebid over the preemptive minor raise `1m - 3m`: pass at or
+    /// below this HCP ceiling, `3NT` on a balanced 17+, or `None` for the floor
+    ///
+    /// **Default off (measuring).**  Off, the instinct floor's raise rung bids
+    /// `4m` on any 13+ hand.  Anchor `46d0dc14` vs BBA, per 409,600 boards:
+    /// `1♣ - 3♣ - 4♣` where BBA passes or bids `3NT` 155 rows (−658 plain /
+    /// −886 PD), `1♦ - 3♦ - 4♦` 136 rows (−278 plain / −454 PD).  BBA passes
+    /// on 11–16, bids `3NT` on 17–21 balanced and `4m` on 16–20.  Unbalanced
+    /// hands above the ceiling still fall to the floor.  `bba-gen
+    /// --ns-preemptive-minor-raise-pass <n>` for the on arm.
+    pub preemptive_minor_raise_pass: Option<u8>,
     // --- raises/drury.rs
     /// **Reverse Drury**: a passed hand's `2♣!` over a third- or fourth-seat
     /// `1M` is the limit raise (three-plus trumps, 10+ support points)
@@ -3952,6 +3964,7 @@ impl Default for ResponseKnobs {
             major_game_tries: true,
             major_raise_slam_try: true,
             limit_raise_acceptance: true,
+            preemptive_minor_raise_pass: None,
             drury: true,
             drury_splinters: true,
             strong_two_loose_positive: true,

@@ -200,5 +200,8 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // 16–18 try and their `4NT` any 22+ hand, so the knob moves only boards
     // we open.
     mirror.response.major_raise_slam_try = false;
+    // Likewise opener's rebid over the preemptive minor raise: their
+    // `1m - 3m - 3NT` and pass keep the floor's reading.
+    mirror.response.preemptive_minor_raise_pass = None;
     (mirror != *agreements).then_some(mirror)
 }

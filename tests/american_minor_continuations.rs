@@ -474,3 +474,30 @@ fn opener_passes_a_passed_hands_major_response() {
         call(1, Strain::Notrump)
     );
 }
+
+/// `response.preemptive_minor_raise_pass` through the real stance: over the
+/// weak `1♣ - 3♣`, a minimum passes and a balanced 18 bids `3NT`, where the
+/// floor raises both to `4♣` (the anchor's worst boards).  An unbalanced
+/// maximum still falls through to the floor.
+#[test]
+fn opener_passes_or_bids_notrump_over_the_preemptive_minor_raise() {
+    let mut agreements = Agreements::default();
+    let floor = american(&agreements).bind();
+    agreements.response.preemptive_minor_raise_pass = Some(15);
+    let system = american(&agreements).bind();
+    let raised = [call(1, Strain::Clubs), P, call(3, Strain::Clubs), P];
+    let minimum = "765.AQJ5.J9.AQ97";
+    let balanced = "KJ98.AK3.QJ5.AT2";
+    let unbalanced = "AK86.J8.95.AKQJ2";
+    assert_eq!(best_call(&floor, &raised, minimum), call(4, Strain::Clubs));
+    assert_eq!(best_call(&floor, &raised, balanced), call(4, Strain::Clubs));
+    assert_eq!(best_call(&system, &raised, minimum), P);
+    assert_eq!(
+        best_call(&system, &raised, balanced),
+        call(3, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call(&system, &raised, unbalanced),
+        best_call(&floor, &raised, unbalanced)
+    );
+}

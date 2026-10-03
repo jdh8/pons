@@ -812,6 +812,12 @@ struct Args {
     #[arg(long, default_value = "14", value_name = "off|HCP")]
     ns_passed_hand_major_pass: String,
 
+    /// Opener's rebid over the preemptive `1m - 3m`: pass at or below this
+    /// HCP ceiling, `3NT` on a balanced 17+ (`response.preemptive_minor_raise_pass`,
+    /// default `off` — the floor).
+    #[arg(long, default_value = "off", value_name = "off|HCP")]
+    ns_preemptive_minor_raise_pass: String,
+
     /// Withhold Reverse Drury — a passed hand's `2♣!` limit raise of a
     /// third/fourth-seat `1M`, opener's answers and the contested tails
     /// (`response.drury`, **shipped default-on 2026-10-01**; this is the
@@ -2968,6 +2974,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             anyhow::anyhow!("--ns-passed-hand-major-pass must be off|HCP, got {n:?}")
         })?),
     };
+    agreements.response.preemptive_minor_raise_pass =
+        match args.ns_preemptive_minor_raise_pass.as_str() {
+            "off" => None,
+            n => Some(n.parse().map_err(|_| {
+                anyhow::anyhow!("--ns-preemptive-minor-raise-pass must be off|HCP, got {n:?}")
+            })?),
+        };
     agreements.response.drury = !args.no_ns_drury;
     agreements.response.drury_splinters = !args.no_ns_drury_splinters;
     agreements.decision.reading.forcing_nt_three_card_minor =

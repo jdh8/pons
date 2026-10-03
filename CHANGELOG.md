@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's rebid over the preemptive minor raise, opt-in (2026-10-03,
+  A/B in flight)** — `ResponseKnobs::preemptive_minor_raise_pass: Option<u8>`
+  (`--ns-preemptive-minor-raise-pass <HCP>` in `bba-gen`; default `None`, the
+  default system is unchanged).  Over our weak `1m - 3m` opener had no node,
+  and the instinct floor's raise rung bid `4m` on any 13+ hand.  With the
+  knob, opener passes at or below the HCP ceiling and bids `3NT` on a
+  balanced 17+; an unbalanced hand above the ceiling still falls to the
+  floor.  Every call is natural; the reading mirror pins the knob off.
+  Found by re-cutting the re-anchor at `46d0dc14` by auction prefix, per
+  409,600 boards: `1♣ - 3♣ - 4♣` where BBA passes or bids `3NT` 155 rows
+  (−658 plain / −886 PD), `1♦ - 3♦ - 4♦` 136 rows (−278 / −454); BBA passes
+  on 11–16 and bids `3NT` on 17–21 balanced.  Measuring on
+  `scripts/ab-preemptive-minor-raise.sh` (ceiling 15 vs the floor).
+
 - **The notrump count over the balanced positive to our strong `2♣`,
   shipped default-on (2026-10-03)** — `RebidKnobs::strong_two_positive_notrump`
   (`--no-ns-strong-two-positive-notrump` in `bba-gen` for the control arm).
