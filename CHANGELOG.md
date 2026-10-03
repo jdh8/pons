@@ -1660,6 +1660,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opener no longer passes partner's cue raise when the cue outranks `3M`
+  (2026-10-03, shipped)** — the decline rung of `answer_cue_raise`
+  (`competition.cue_raise_answer`) was a bare `3M`, illegal over `1♥ (2♠)
+  3♠` and over the jump cue `1M (1NT) 3NT`; the engine does not mask illegal
+  calls, so a minimum opener fell through to the floor's pass and we played
+  `3♠` in *their* suit.  The table now takes the cue and declines in the
+  cheapest bid of the major above it: `4M` in those nodes, `3M` everywhere
+  else, so every other node's rules **and readings** are byte-identical.
+  Anchor `46d0dc14`, per 409,600 boards: 58 rows, −700 plain / −908 PD, −12
+  IMPs a row where BBA bids `4♥` (50) or `3NT` (8).  No knob — the OFF arm
+  is a pre-fix build (`BBA_GEN`), `scripts/ab-cue-raise-sign-off.sh`.
+  Measured vs BBA (seed 1791029195, 204,800 boards/arm/vul), IMPs/board
+  none / both: plain +0.0011 ±0.0005 / +0.0015 ±0.0007, PD +0.0018 ±0.0007
+  / +0.0020 ±0.0009; 33 / 34 fired, every one a `3♠` cue over `1♥`,
+  +6.8…+12.2 IMPs/fired.  The worst boards are the honest price: in that
+  node `4♥` is forced, so it reads unlimited and responder's slam try over
+  it is rarer.
+  A first build (seed 1791025858) anchored the rung with `min_level_is`
+  like the minor twin, and won by the same margin — but `min_level_is`
+  projects as unconstrained, so the extra `4M` rung widened opener's `4M`
+  reading from 13+ to 11+ in *every* cue-raise node and responder's slam
+  tries over it vanished: 14–18 divergent boards per 204,800 outside the
+  lane, −9…−33 IMPs.  A legality anchor is a *rule* gate, not a *reading*
+  gate; choose the rung per node instead.
+
 - **RKCB asker tables: six on four keycards plus the queen (2026-09-30,
   +0.0013 / +0.0019 plain, +0.0012 / +0.0018 PD IMPs/board).** Two holes
   the 2026-09-27 answerer census (`probe-rkcb-answerer`) traced the floor's

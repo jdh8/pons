@@ -269,10 +269,10 @@ pub(super) fn uvu_over_majors_package() -> Package {
                 let trump = Strain::from(major);
                 let unusual = format!("P* 1{trump} (2NT)");
                 let michaels = format!("P* 1{trump} (2{trump})");
-                let om_cue = if major == Suit::Hearts {
-                    "2♠"
+                let (om_cue, om_cue_bid) = if major == Suit::Hearts {
+                    ("2♠", Bid::new(2, Strain::Spades))
                 } else {
-                    "3♥"
+                    ("3♥", Bid::new(3, Strain::Hearts))
                 };
 
                 // Their (2NT): responder, then opener's answers to the two cues.
@@ -282,7 +282,7 @@ pub(super) fn uvu_over_majors_package() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::after(&unusual, "3♣ -"),
-                    answer_cue_raise(major),
+                    answer_cue_raise(major, Bid::new(3, Strain::Clubs)),
                 ));
                 entries.extend(rows_of(
                     Pattern::after(&unusual, "3♦ -"),
@@ -297,7 +297,7 @@ pub(super) fn uvu_over_majors_package() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::after(&michaels, &format!("{om_cue} -")),
-                    answer_cue_raise(major),
+                    answer_cue_raise(major, om_cue_bid),
                 ));
             }
             entries

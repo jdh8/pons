@@ -285,11 +285,16 @@ six ships, the notrump count over the `2NT` positive the latest
     rows) or `3NT` (8).  A scan of every book pass over `1x (y) cue -` in
     the snapshot finds no other lane: the weak jump overcall in spades over
     our `1♥` is the one cue raise that outranks three of our major.
-    Proposed default: the minimum's sign-off is the cheapest legal bid of
-    the major (`4♥` here) — a correctness fix worth about +0.002 per board
-    on both scorers at full capture, and at −12 a row it resolves on one
-    seed.  The minor-opening and `1♠ (3♥)` shapes of the same table are
-    unchecked.
+    **Shipped 2026-10-03** (`scripts/ab-cue-raise-sign-off.sh`, seed
+    1791029195, `ab-results/cue-raise-sign-off-2`): the sign-off is the
+    cheapest bid of the major above the cue, chosen per node (`4♥` here and
+    over the jump cue `1M (1NT) 3NT`, `3M` everywhere else).  Plain +0.0011
+    / +0.0015, PD +0.0018 / +0.0020 IMPs/board (none / both), 33 / 34 fired,
+    all in this lane.  The minor table already floats its decline rung
+    (`3m`/`4m`), and `1♠ (3♥)` sits above the major package's `2♠` overcall
+    cap (the floor's), so no sibling is owed.  A `min_level_is`-anchored
+    first build won the same but drifted opener's `4M` reading in every
+    other node (CHANGELOG); see the table's doc comment.
   - **`1m (1♥) X -`: the floor jumps to game on a minimum.**  Opener's
     answer to the Modern negative double rides the floor by design
     ([competitive-book.md](competitive-book.md): "safely *because Modern's

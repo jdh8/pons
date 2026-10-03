@@ -121,7 +121,7 @@ pub(super) fn jordan_truscott_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::after(&key, "2NT -"),
                     if is_major {
-                        answer_cue_raise(o)
+                        answer_cue_raise(o, Bid::new(2, Strain::Notrump))
                     } else {
                         answer_cue_minor_raise(o)
                     },

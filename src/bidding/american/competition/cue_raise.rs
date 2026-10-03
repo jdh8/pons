@@ -11,6 +11,14 @@ use super::*;
 /// Opener's answer after `1M (ovc) cue -` (partner cue-raised to a
 /// limit-plus raise of the opening major): accept to game or decline
 ///
+/// `cue` is partner's cue bid: the decline is the cheapest bid of the major
+/// above it — `3M` for every cue below it, `4M` for the one cue that outranks
+/// it (`1♥ (2♠) 3♠`).  The rung is chosen *here*, per node, rather than
+/// legality-anchored with `min_level_is` like the minor twin, because a
+/// `min_level_is` rung projects as unconstrained and would widen the reading
+/// of `4M` in every node where `3M` is legal (measured: opener's `4M` read 11+
+/// instead of 13+, and responder's slam tries over it vanished).
+///
 /// The contested twin of [`opener_after_limit_raise`][super::raises], minus the
 /// keycard ask — offering `4NT` RKCB here would strand it, because the contested
 /// node has no authored keycard *responses* (the uncontested package includes
@@ -21,21 +29,26 @@ use super::*;
 /// The one difference from the uncontested `1M - 3M` version is the **decline**:
 /// there partner already *bid* the major, so opener passes to play it; after a
 /// cuebid partner named the *opponents'* suit, so opener must actively **sign off
-/// in 3M** — passing would leave the cuebid in as the contract (the very bug this
+/// in the major** — passing would leave the cuebid in as the contract (the very bug this
 /// table fixes). The point-gate does the work: a minimum opener fails
-/// `points(13..)` and takes the 3M catch-all.
-pub(super) fn answer_cue_raise(major: Suit) -> Rules {
+/// `points(13..)` and takes the sign-off catch-all.
+pub(super) fn answer_cue_raise(major: Suit, cue: Bid) -> Rules {
     let trump = Strain::from(major);
+    let three = Bid::new(3, trump);
+    // The engine does not mask illegal calls: before this chose the rung, a
+    // bare `3M` was illegal over a `3♠` cue, a minimum opener fell through to
+    // the floor's pass, and we played `3♠` in *their* suit (anchor 46d0dc14:
+    // 58 rows, −12 IMPs a row).
+    let decline = if three > cue {
+        three
+    } else {
+        Bid::new(4, trump)
+    };
     Rules::new()
         // 4M: accept → game.
         .rule(Bid::new(4, trump), 100, points(13..))
-        // 3M: decline → sign off in the major (catch-all).
-        //
-        // ponytail: decline assumes 3M is legal, which holds for every cue below
-        // 3M — all cues over 1♠, and cues over 1♥ except a 3♠ cue. A 3♠ cue over
-        // 1♥ with a minimum opener has 3♥ illegal and falls back through to the
-        // floor pass; rare, revisit if the A/B surfaces it.
-        .rule(Bid::new(3, trump), 0, hcp(0..))
+        // Decline → sign off in the major (catch-all).
+        .rule(decline, 0, hcp(0..))
 }
 
 /// Opener's answer after `1m (ovc) cue -` (partner cue-raised to a
@@ -107,12 +120,19 @@ pub(super) fn cue_raise_answer_package() -> Package {
                             Bid::new(b.level('i').get(), b.suit('x').into()) <= capped
                                 && b.suit('x') != major
                         },
-                        move |_: &Bindings| answer_cue_raise(major),
+                        move |b: &Bindings| {
+                            answer_cue_raise(
+                                major,
+                                Bid::new(b.level('j').get(), b.suit('x').into()),
+                            )
+                        },
                     );
                     entries.extend(expand(
                         &format!("{key} (iN) jN -"),
                         move |b: &Bindings| Bid::new(b.level('i').get(), Strain::Notrump) <= capped,
-                        move |_: &Bindings| answer_cue_raise(major),
+                        move |b: &Bindings| {
+                            answer_cue_raise(major, Bid::new(b.level('j').get(), Strain::Notrump))
+                        },
                     ));
                     entries
                 })
@@ -170,44 +190,59 @@ fn cue_raise_legacy_rows(minors: bool) -> Vec<Entry> {
     } else {
         [Suit::Hearts, Suit::Spades]
     };
+    // A guarded row carries one fixed `Rules`, so the major table — whose
+    // decline rung depends on the cue — is two rows: the cues below `3M`
+    // (sign off in `3M`) and the cues above it (`1♥ (2♠) 3♠`, and the jump
+    // `1M (1NT) 3NT` the notrump column admits; sign off in `4M`).
+    let legacy = move |our: Suit, forced: bool| {
+        let trump = Strain::from(our);
+        let sample = match (our, forced) {
+            (Suit::Spades, true) => "(1NT) 3NT -",
+            (Suit::Spades, false) => "(2♥) 3♥ -",
+            (_, true) => "(2♠) 3♠ -",
+            (_, false) => "(1♠) 2♠ -",
+        };
+        let three = Bid::new(3, trump);
+        rows_of(
+            Pattern::guarded(
+                &format!("P* 1{trump}"),
+                sample,
+                described_guard(
+                    "(overcall) cue -",
+                    guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        matches!(
+                            suffix,
+                            [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                if cue.strain == ovc.strain
+                                    && cue > ovc
+                                    && (if minors {
+                                        *cue <= Bid::new(3, Strain::Spades)
+                                    } else {
+                                        *ovc <= Bid::new(2, Strain::Spades)
+                                    })
+                                    && ovc.strain != trump
+                                    && (minors || (*cue > three) == forced)
+                        )
+                    }),
+                ),
+            ),
+            if minors {
+                answer_cue_minor_raise(our)
+            } else if forced {
+                answer_cue_raise(our, Bid::new(3, Strain::Spades))
+            } else {
+                answer_cue_raise(our, Bid::new(1, Strain::Clubs))
+            },
+        )
+    };
     trumps
         .into_iter()
         .flat_map(|our| {
-            let trump = Strain::from(our);
-            // The sample's overcall must not be in our own suit.
-            let sample = if our == Suit::Spades {
-                "(2♥) 3♥ -"
-            } else {
-                "(1♠) 2♠ -"
-            };
-            rows_of(
-                Pattern::guarded(
-                    &format!("P* 1{trump}"),
-                    sample,
-                    described_guard(
-                        "(overcall) cue -",
-                        guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            matches!(
-                                suffix,
-                                [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                                    if cue.strain == ovc.strain
-                                        && cue > ovc
-                                        && (if minors {
-                                            *cue <= Bid::new(3, Strain::Spades)
-                                        } else {
-                                            *ovc <= Bid::new(2, Strain::Spades)
-                                        })
-                                        && ovc.strain != trump
-                            )
-                        }),
-                    ),
-                ),
-                if minors {
-                    answer_cue_minor_raise(our)
-                } else {
-                    answer_cue_raise(our)
-                },
-            )
+            let mut rows = legacy(our, false);
+            if !minors {
+                rows.extend(legacy(our, true));
+            }
+            rows
         })
         .collect()
 }
