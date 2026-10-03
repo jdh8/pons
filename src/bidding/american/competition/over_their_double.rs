@@ -19,7 +19,8 @@ use super::*;
 /// stay forcing-as-uncontested (their continuations rebase onto the
 /// uncontested tree); 2-level new suits are weak and non-forcing (2/1 is off
 /// over the double), on `agreements.competition.weak_new_suit_length` cards;
-/// `1NT` natural 6–9.
+/// `1NT` natural 6–9, its longest suit capped by
+/// `agreements.competition.doubled_notrump_max_length`.
 ///
 /// Opener's `after` tables shadow exactly the rebase misreads:
 ///
@@ -116,9 +117,36 @@ pub(super) fn jordan_truscott_package() -> Package {
                         .into(),
                     );
                 }
-                entries
-                    .push(row(responder(), Bid::new(1, Strain::Notrump), 110, hcp(6..=9)).into());
+                let nt_max = usize::from(agreements.competition.doubled_notrump_max_length);
+                entries.push(
+                    row(
+                        responder(),
+                        Bid::new(1, Strain::Notrump),
+                        110,
+                        hcp(6..=9)
+                            & len(Suit::Clubs, ..=nt_max)
+                            & len(Suit::Diamonds, ..=nt_max)
+                            & len(Suit::Hearts, ..=nt_max)
+                            & len(Suit::Spades, ..=nt_max),
+                    )
+                    .into(),
+                );
                 entries.push(row(responder(), Call::Pass, 0, hcp(0..)).into());
+                // Opener's answer to the natural `1NT`, which the rebase
+                // would replay as the forcing notrump: no catch-all, so every
+                // hand that is not a balanced non-maximum still rides it
+                // (`agreements.competition.doubled_notrump_pass`).
+                if is_major && agreements.competition.doubled_notrump_pass {
+                    entries.push(
+                        row(
+                            Pattern::after(&key, "1NT -"),
+                            Call::Pass,
+                            60,
+                            balanced() & hcp(..=17),
+                        )
+                        .into(),
+                    );
+                }
 
                 entries.extend(rows_of(
                     Pattern::after(&key, "2NT -"),

@@ -1783,6 +1783,17 @@ struct Args {
     #[arg(long, default_value_t = 6)]
     ns_weak_new_suit_length: u8,
 
+    /// Disable opener's pass of the natural `1M (X) 1NT` with a balanced
+    /// non-maximum — revert to the forcing-notrump rebid the rebase replays
+    /// (default on; see `competition.doubled_notrump_pass`).
+    #[arg(long, default_value_t = false)]
+    no_ns_doubled_notrump_pass: bool,
+
+    /// Longest suit responder's natural `1o (X) 1NT` may hold (see
+    /// `competition.doubled_notrump_max_length`).
+    #[arg(long, default_value_t = 4)]
+    ns_doubled_notrump_max_length: u8,
+
     /// Disable systems-on over their double of our splinter — revert to letting
     /// opener's rebid fall to the floor, which passes the doubled game force
     /// (shipped default-on; see `competition.splinter_doubled`).
@@ -2879,6 +2890,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.weak_new_suit_rebid = !args.no_ns_weak_new_suit_rebid;
     agreements.competition.weak_new_suit_extras = !args.no_ns_weak_new_suit_extras;
     agreements.competition.weak_new_suit_length = args.ns_weak_new_suit_length;
+    agreements.competition.doubled_notrump_pass = !args.no_ns_doubled_notrump_pass;
+    agreements.competition.doubled_notrump_max_length = args.ns_doubled_notrump_max_length;
     agreements.competition.splinter_doubled = !args.no_ns_splinter_doubled;
     agreements.competition.competition_over_minor_transfer = !args.no_ns_comp_over_minor_transfer;
     agreements.competition.competition_over_diamond_transfer =

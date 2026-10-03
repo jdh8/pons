@@ -164,6 +164,18 @@ fn main() {
     {
         agreements.competition.weak_new_suit_length = n;
     }
+    // Opener passes `1M (X) 1NT -` with a balanced non-maximum (shipped
+    // default-on 2026-10-04): `=0` withholds it.
+    if std::env::var("PROBE_DOUBLED_NOTRUMP_PASS").is_ok_and(|v| v == "0") {
+        agreements.competition.doubled_notrump_pass = false;
+    }
+    // Longest suit the natural `1o (X) 1NT` may hold (default 4).
+    if let Some(n) = std::env::var("PROBE_DOUBLED_NOTRUMP_MAX_LENGTH")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        agreements.competition.doubled_notrump_max_length = n;
+    }
     // Opener's answer to the both-majors `1♣ (1♦) X -` (shipped default-on
     // 2026-10-03): `=0` withholds it.
     if std::env::var("PROBE_MODERN_BOTH_MAJORS").is_ok_and(|v| v == "0") {

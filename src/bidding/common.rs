@@ -210,5 +210,7 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.competition.weak_new_suit_rebid = false;
     mirror.competition.weak_new_suit_extras = false;
     mirror.competition.weak_new_suit_length = 5;
+    mirror.competition.doubled_notrump_pass = false;
+    mirror.competition.doubled_notrump_max_length = 13;
     (mirror != *agreements).then_some(mirror)
 }

@@ -1467,6 +1467,15 @@ const KNOWN_WEIGHT_TIES: [&str; 3] = [
     "lebensohl: \"P* 1NT (2♣)\" — 3NT at weight 168, 2 rules",
 ];
 
+// Guarded tables deliberately partial: a rejection falls through to the next
+// candidate (the module doc), so only a table a rebase lands on must be total.
+// Each entry is a key no rebase rewrites onto.
+//
+// `doubled_notrump_pass`: opener passes a balanced non-maximum over the
+// natural `1M (X) 1NT`; every other hand rides the systems-on rebase.
+#[cfg(test)]
+const KNOWN_PARTIAL_TABLES: [&str; 2] = ["P* 1♥ (X) 1NT -", "P* 1♠ (X) 1NT -"];
+
 /// Every pair of rules in one table justifying the same call at the same weight
 ///
 /// Such a pair is redundant, not expressive.  The logit of a call is the
@@ -1597,7 +1606,9 @@ pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Pac
                 Lowered::Fallback(Fallback::Classify(classifier)) => Some(&**classifier),
                 Lowered::Fallback(_) => None,
             };
-            if let (Some(table), true) = (table, pattern.guard.is_some()) {
+            if let (Some(table), true) = (table, pattern.guard.is_some())
+                && !KNOWN_PARTIAL_TABLES.contains(&&*pattern.source)
+            {
                 for &hand in &probes {
                     assert!(
                         table.classify(hand, &context).has_mass(),

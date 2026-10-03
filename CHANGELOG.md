@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The natural `1NT` over their double denies a five-card suit, shipped
+  default (2026-10-04)** — `CompetitionKnobs::doubled_notrump_max_length`,
+  default 4 (`--ns-doubled-notrump-max-length 13` in `bba-gen` for the
+  ungated arm).  Since the weak `2y` needs six cards, `1o (X) 1NT` (6–9
+  HCP) caught every five-card suit below opener's; BBA has no natural
+  `1NT` here and passes.  Now those hands pass.  Vs BBA (seed 1791062049,
+  819,200 boards/arm/vul, control with opener's new pass of the `1NT`):
+  plain **−0.0001 ±0.0003 / +0.0006 ±0.0004**, PD **+0.0012 ±0.0004 /
+  +0.0023 ±0.0006** IMPs/board none/both — a plain wash non-vulnerable,
+  the other three cells CI > 0; 0.10% fired.  The mirror pins 13.
+- **Opener passes the natural `1NT` over their double, shipped default-on
+  (2026-10-04)** — `CompetitionKnobs::doubled_notrump_pass`
+  (`--no-ns-doubled-notrump-pass` in `bba-gen` for the off arm).
+  Responder's `1M (X) 1NT` is 6–9 and non-forcing, but the systems-on
+  rebase replayed `1M - 1NT`, the uncontested forcing notrump: opener never
+  passed, and rebid a three-card minor on a balanced 12-count.  Now a
+  balanced hand of at most 17 HCP passes; every other hand keeps the
+  rebase's natural rebid.  Vs BBA (seed 1791059766, 819,200 boards/arm/vul):
+  plain **+0.0001 ±0.0001 / +0.0001 ±0.0001**, PD **+0.0002 ±0.0001 /
+  +0.0002 ±0.0002** IMPs/board none/both, all four CIs > 0; 0.01% fired,
+  +0.7…+1.8 IMPs/fired.  Known drift inside the win: the new table also
+  authors the *reading* of opener's other rebids (`1♥ (X) 1NT - 3♠` now
+  reads 9–21 HCP, was 16–21).
 - **The weak new suit over their double needs six cards, shipped default
   (2026-10-04)** — `CompetitionKnobs::weak_new_suit_length`, default 6
   (`--ns-weak-new-suit-length 5` in `bba-gen` for the control arm).

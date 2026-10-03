@@ -699,6 +699,37 @@ pub struct CompetitionKnobs {
     /// `bba-gen --ns-weak-new-suit-length 5` for the five-card arm
     /// (`scripts/ab-weak-new-suit-length.sh`).
     pub weak_new_suit_length: u8,
+    /// Opener passes the natural `1NT` over their double with a balanced
+    /// non-maximum, `1M (X) 1NT -`
+    ///
+    /// Responder's `1NT` is 6–9 and non-forcing, but the systems-on rebase
+    /// replays `1M - 1NT`, the uncontested forcing notrump, so opener rebids
+    /// a three-card minor on a balanced 12-count.  On: a balanced hand of
+    /// at most 17 HCP passes; every other hand still rides the rebase
+    /// (a six-card major rebids it, 18–19 bids `2NT`).  Over a minor the
+    /// uncontested `1NT` is already non-forcing, so the knob moves only
+    /// major openings.  The mirror pins it off.
+    ///
+    /// **Default on** — shipped 2026-10-04: vs BBA (seed 1791059766, 819,200
+    /// boards/arm/vul) plain +0.0001/+0.0001, PD +0.0002/+0.0002 IMPs/board
+    /// none/both, all four CIs > 0; 0.01% fired, +0.7…+1.8 IMPs/fired.
+    /// `bba-gen --no-ns-doubled-notrump-pass` for the off arm
+    /// (`scripts/ab-doubled-notrump-pass.sh`).
+    pub doubled_notrump_pass: bool,
+    /// Longest suit responder's natural `1NT` over their double may hold,
+    /// `1o (X) 1NT`
+    ///
+    /// At 13 the call is any 6–9 HCP hand the rows above it decline; at 4 a
+    /// five-card suit below opener's passes instead.  BBA has no natural
+    /// `1NT` here (its `1NT` is a three-card raise) and passes those hands.
+    /// The mirror pins 13.
+    ///
+    /// **Default 4** — shipped 2026-10-04: vs BBA (seed 1791062049, 819,200
+    /// boards/arm/vul) plain −0.0001 ±0.0003 / +0.0006 ±0.0004, PD +0.0012
+    /// ±0.0004 / +0.0023 ±0.0006 IMPs/board none/both; 0.10% fired.
+    /// `bba-gen --ns-doubled-notrump-max-length 13` for the ungated arm
+    /// (`scripts/ab-doubled-notrump-max-length.sh`).
+    pub doubled_notrump_max_length: u8,
     /// Author answers to partner's redouble
     ///
     /// Opener's rebid over the value redouble, `1x (X) XX -`; a no-op unless
@@ -2068,6 +2099,8 @@ impl Default for CompetitionKnobs {
             weak_new_suit_rebid: true,
             weak_new_suit_extras: true,
             weak_new_suit_length: 6,
+            doubled_notrump_pass: true,
+            doubled_notrump_max_length: 4,
             redouble_answer: true,
             splinter_doubled: true,
             double_style: DoubleStyle::Optional,

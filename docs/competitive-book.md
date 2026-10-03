@@ -232,14 +232,25 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   (`weak_new_suit_length`, won all four cells): on five we reached it
   eight times as often as BBA, and the five-card hands lost −2.83 plain /
   −4.66 PD IMPs each to BBA's pass (opener passes in a 5-1 fit with a long
-  suit of its own).  They now bid the natural `1NT` or pass.  **Open:**
-  the pass bucket gained far more per board than the `1NT` bucket (PD
-  +2.4…+3.9 vs +1.0…+1.1), and the anchor's "we bid `1NT`, BBA passes"
-  cell is negative (−0.98 / −1.62 over 169 boards, −3.5 / −4.4 on the 26
-  with a five-card suit) — a shape gate on the `1NT` is the next arm.
-  **Flagged, untraced:** `1♦ (X) 3♦ (3♠) X - 3NT` — our preemptor pulls
-  opener's double to `3NT` on a four-count (three of the ten worst `3o`
-  boards in the anchor).  The anchor's other large cells at this node
+  suit of its own).  They now bid the natural `1NT` or pass.  The anchor's
+  "we bid `1NT`, BBA passes" cell (−0.98 / −1.62 over 169 boards) was
+  mostly **opener's answer**: over a major the rebase replayed the forcing
+  notrump, so opener never passed (pass +2.18 / +1.45 on 11 boards, a new
+  suit −2.33 / −2.31 on 49).  `doubled_notrump_pass` (default-on
+  2026-10-04, won all four cells) passes a balanced ≤17 HCP hand and lets
+  every other hand ride the rebase.  Its residue: the table also authors
+  the *reading* of opener's other rebids (`1♥ (X) 1NT - 3♠` reads 9–21,
+  was 16–21) — the reading twin of the 2026-10-03 rejection fall-through
+  was never built.  The `1NT` itself then lost its five-card hands
+  (`doubled_notrump_max_length`, default 4 2026-10-04): they pass, as
+  BBA's do — plain wash/+0.0006, PD +0.0012/+0.0023 IMPs/board.  Not run:
+  a gate on shortness in opener's suit (12 anchor boards) and no natural
+  `1NT` at all.
+  **Closed:** `1♦ (X) 3♦ (3♠) X - 3NT` was an instinct-floor artifact — the
+  anchor's `none/both` arms run `--our-floor american-instinct`.  The
+  shipping net passes `3♠` on both deals; in 1.64M shipping boards
+  `1o (X) 3o (bid)` came up 7,658 times, opener doubled 7, and nobody
+  pulled to `3NT`.  The anchor's other large cells at this node
   (`2o` vs BBA's support `1NT`, most `3o` cells) are BBA's East-West
   doubling `3♠` and pulling to a failing `3NT` at its own table, not a
   hole in ours.

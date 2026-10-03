@@ -152,7 +152,8 @@ fn weak_new_suit_extras_bid_strong_hands() {
 }
 
 /// The weak new suit's length is a knob: at 6 (the default) a five-card suit
-/// no longer bids `2y` and falls through to the natural `1NT` or pass.
+/// no longer bids `2y` and falls through to pass (the natural `1NT` denies
+/// a five-card suit since `doubled_notrump_max_length` 4).
 #[test]
 fn weak_new_suit_length_gates_the_five_card_suit() {
     let auction = [call(1, Strain::Spades), Call::Double];
@@ -161,11 +162,7 @@ fn weak_new_suit_length_gates_the_five_card_suit() {
     five.competition.weak_new_suit_length = 5;
     let cases = [
         // (hand, five-card arm, default)
-        (
-            "92.KJ853.Q43.J82",
-            call(2, Strain::Hearts),
-            call(1, Strain::Notrump),
-        ),
+        ("92.KJ853.Q43.J82", call(2, Strain::Hearts), Call::Pass),
         ("9.KJ853.T43.J872", call(2, Strain::Hearts), Call::Pass),
         (
             "92.KJ8532.Q4.J82",
@@ -180,4 +177,50 @@ fn weak_new_suit_length_gates_the_five_card_suit() {
         assert_eq!(got, six_call, "{hand} at 6");
         assert!(!floored, "{hand}: authored");
     }
+}
+
+/// `1M (X) 1NT -` is not the forcing notrump: with the knob on (the default), a balanced
+/// minimum passes and every other hand keeps the rebase's natural rebid.
+#[test]
+fn doubled_notrump_pass_drops_the_forcing_rebid() {
+    let auction = [
+        call(1, Strain::Spades),
+        Call::Double,
+        call(1, Strain::Notrump),
+        Call::Pass,
+    ];
+    let mut arm = Agreements::default();
+    arm.competition.doubled_notrump_pass = true;
+    let mut off = Agreements::default();
+    off.competition.doubled_notrump_pass = false;
+    let (got, _) = best_call_with(&off, &auction, "AQ542.K54.Q96.32");
+    assert_ne!(got, Call::Pass, "off: the rebase's forcing-notrump rebid");
+    let (got, floored) = best_call_with(&arm, &auction, "AQ542.K54.Q96.32");
+    assert_eq!(got, Call::Pass, "a balanced minimum passes");
+    assert!(!floored, "authored");
+    let (got, _) = best_call_with(&arm, &auction, "AQ5432.K54.Q9.32");
+    assert_eq!(got, call(2, Strain::Spades), "a six-card suit rebids it");
+    let (got, _) = best_call_with(&arm, &auction, "AK542.K54.AQ6.K2");
+    assert_eq!(got, call(2, Strain::Notrump), "18-19 still invites");
+}
+
+/// The natural `1NT`'s longest suit is a knob: at 4 (the default) the
+/// five-card suit below opener's passes, a balanced hand still bids `1NT`.
+#[test]
+fn doubled_notrump_max_length_passes_the_five_card_suit() {
+    let auction = [call(1, Strain::Spades), Call::Double];
+    let arm = Agreements::default();
+    let mut any = Agreements::default();
+    any.competition.doubled_notrump_max_length = 13;
+    let (got, _) = best_call_with(&any, &auction, "92.KJ853.Q43.J82");
+    assert_eq!(got, call(1, Strain::Notrump), "13: 1NT on five hearts");
+    let (got, floored) = best_call_with(&arm, &auction, "92.KJ853.Q43.J82");
+    assert_eq!(got, Call::Pass, "capped at 4: pass");
+    assert!(!floored, "authored");
+    let (got, _) = best_call_with(&arm, &auction, "92.KJ85.Q43.J872");
+    assert_eq!(
+        got,
+        call(1, Strain::Notrump),
+        "four-card suits still bid 1NT"
+    );
 }
