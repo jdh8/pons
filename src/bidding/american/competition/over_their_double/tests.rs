@@ -150,3 +150,34 @@ fn weak_new_suit_extras_bid_strong_hands() {
     let (sign_off, _) = best_call_with(&arm, &notrump, "9.862.JT4.KQ5432");
     assert_eq!(sign_off, Call::Pass);
 }
+
+/// The weak new suit's length is a knob: at 6 (the default) a five-card suit
+/// no longer bids `2y` and falls through to the natural `1NT` or pass.
+#[test]
+fn weak_new_suit_length_gates_the_five_card_suit() {
+    let auction = [call(1, Strain::Spades), Call::Double];
+    let six = Agreements::default();
+    let mut five = Agreements::default();
+    five.competition.weak_new_suit_length = 5;
+    let cases = [
+        // (hand, five-card arm, default)
+        (
+            "92.KJ853.Q43.J82",
+            call(2, Strain::Hearts),
+            call(1, Strain::Notrump),
+        ),
+        ("9.KJ853.T43.J872", call(2, Strain::Hearts), Call::Pass),
+        (
+            "92.KJ8532.Q4.J82",
+            call(2, Strain::Hearts),
+            call(2, Strain::Hearts),
+        ),
+    ];
+    for (hand, five_call, six_call) in cases {
+        let (got, _) = best_call_with(&five, &auction, hand);
+        assert_eq!(got, five_call, "{hand} at 5");
+        let (got, floored) = best_call_with(&six, &auction, hand);
+        assert_eq!(got, six_call, "{hand} at 6");
+        assert!(!floored, "{hand}: authored");
+    }
+}

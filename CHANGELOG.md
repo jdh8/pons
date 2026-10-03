@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The weak new suit over their double needs six cards, shipped default
+  (2026-10-04)** — `CompetitionKnobs::weak_new_suit_length`, default 6
+  (`--ns-weak-new-suit-length 5` in `bba-gen` for the control arm).
+  Responder bid `1o (X) 2y` on any five-card suit and 6–9 points, about
+  eight times as often as BBA, whose book wants six.  In the 2026-10-03
+  anchor the five-card hands cost −2.83 plain / −4.66 PD IMPs each against
+  BBA's pass while the six-card hands gained +2.56 / +1.80 — opener passes
+  `2y` in a 5-1 fit holding a long suit of its own.  Now the five-card
+  hands fall through to the natural `1NT` (6–9 HCP) or pass.  Vs BBA (seed
+  1791055789, 819,200 boards/arm/vul): plain **+0.0006 ±0.0003 / +0.0008
+  ±0.0004**, PD **+0.0009 ±0.0004 / +0.0011 ±0.0005** IMPs/board none/both,
+  all four CIs > 0; 0.08% fired.  Both replacement calls gain — `1NT`
+  +0.7…+1.1 IMPs/fired, pass +0.6…+3.9.  The mirror pins 5, so their `2y`
+  reads as before.
+
 - **No 2/1 after their double: opener's strong hands bid on over the weak
   new suit, shipped default-on (2026-10-04)** —
   `CompetitionKnobs::weak_new_suit_extras`

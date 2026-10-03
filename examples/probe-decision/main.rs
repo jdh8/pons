@@ -157,6 +157,13 @@ fn main() {
     if std::env::var("PROBE_WEAK_NEW_SUIT_EXTRAS").is_ok_and(|v| v == "0") {
         agreements.competition.weak_new_suit_extras = false;
     }
+    // Minimum length of the weak `2y` over their double (default 6).
+    if let Some(n) = std::env::var("PROBE_WEAK_NEW_SUIT_LENGTH")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        agreements.competition.weak_new_suit_length = n;
+    }
     // Opener's answer to the both-majors `1♣ (1♦) X -` (shipped default-on
     // 2026-10-03): `=0` withholds it.
     if std::env::var("PROBE_MODERN_BOTH_MAJORS").is_ok_and(|v| v == "0") {

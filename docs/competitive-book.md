@@ -228,6 +228,21 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   tail `1o (X) 2y (bid)` stays on the learned floor, which already reads
   `2y` as 6–9; the 5-5 second-suit rebid was left unauthored (14 hands in
   819,200 boards, and its forcing answer would replay the 2/1 tree).
+  The `2y` itself needs **six cards** since 2026-10-04
+  (`weak_new_suit_length`, won all four cells): on five we reached it
+  eight times as often as BBA, and the five-card hands lost −2.83 plain /
+  −4.66 PD IMPs each to BBA's pass (opener passes in a 5-1 fit with a long
+  suit of its own).  They now bid the natural `1NT` or pass.  **Open:**
+  the pass bucket gained far more per board than the `1NT` bucket (PD
+  +2.4…+3.9 vs +1.0…+1.1), and the anchor's "we bid `1NT`, BBA passes"
+  cell is negative (−0.98 / −1.62 over 169 boards, −3.5 / −4.4 on the 26
+  with a five-card suit) — a shape gate on the `1NT` is the next arm.
+  **Flagged, untraced:** `1♦ (X) 3♦ (3♠) X - 3NT` — our preemptor pulls
+  opener's double to `3NT` on a four-count (three of the ten worst `3o`
+  boards in the anchor).  The anchor's other large cells at this node
+  (`2o` vs BBA's support `1NT`, most `3o` cells) are BBA's East-West
+  doubling `3♠` and pulling to a failing `3NT` at its own table, not a
+  hole in ours.
 - P4's XX/Jordan **contested tails** (advancer bids over them) rebase into a
   dead end and land on the floor with the projected floors — authored
   continuations are a follow-up if the buckets drag.

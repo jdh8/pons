@@ -682,7 +682,13 @@ group waits on that decision, the second group does not.
   (`competition.weak_new_suit_extras`,
   `scripts/ab-weak-new-suit-extras.sh`): **shipped default-on
   2026-10-04**, plain +0.0002/+0.0003, PD +0.0003/+0.0003 IMPs/board,
-  all four CIs > 0.
+  all four CIs > 0.  Responder's first call was the larger lever: `2y`
+  now needs six cards (`competition.weak_new_suit_length`,
+  `scripts/ab-weak-new-suit-length.sh`), **shipped default 6 2026-10-04**,
+  plain +0.0006/+0.0008, PD +0.0009/+0.0011, all four CIs > 0.  **Owed:**
+  a shape gate on the natural `1NT` over their double, and the
+  `1♦ (X) 3♦ (3♠) X - 3NT` pull — both in
+  [competitive-book.md](competitive-book.md)'s deferrals.
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

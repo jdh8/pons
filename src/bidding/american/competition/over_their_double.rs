@@ -18,7 +18,8 @@ use super::*;
 /// = 10+ without that fit; the jump raise **flips preemptive**; 1-level suits
 /// stay forcing-as-uncontested (their continuations rebase onto the
 /// uncontested tree); 2-level new suits are weak and non-forcing (2/1 is off
-/// over the double); `1NT` natural 6–9.
+/// over the double), on `agreements.competition.weak_new_suit_length` cards;
+/// `1NT` natural 6–9.
 ///
 /// Opener's `after` tables shadow exactly the rebase misreads:
 ///
@@ -49,6 +50,7 @@ pub(super) fn jordan_truscott_package() -> Package {
                 let jordan_min: usize = if is_major { 4 } else { 5 };
                 let raise_min: usize = if is_major { 3 } else { 5 };
                 let xx_max: usize = if is_major { 3 } else { 4 };
+                let weak_min = usize::from(agreements.competition.weak_new_suit_length);
                 let key = format!("P* 1{o_strain} (X)");
                 let responder = || Pattern::table(&key);
 
@@ -109,7 +111,7 @@ pub(super) fn jordan_truscott_package() -> Package {
                             responder(),
                             Bid::new(2, xs),
                             120,
-                            min_level_is(2, xs) & len(x, 5..) & points(6..=9),
+                            min_level_is(2, xs) & len(x, weak_min..) & points(6..=9),
                         )
                         .into(),
                     );

@@ -683,6 +683,22 @@ pub struct CompetitionKnobs {
     /// IMPs/board none/both, all four CIs > 0; +2.5…+3.0 IMPs/fired, 0.01%
     /// fired.  `bba-gen --no-ns-weak-new-suit-extras` for the off arm.
     pub weak_new_suit_extras: bool,
+    /// Minimum length of responder's weak new suit at the two level over
+    /// their double, `1o (X) 2y`
+    ///
+    /// At 5 the call is any five-card suit on 6–9 points; BBA's book wants
+    /// six (`probe-bba-book --prefix "1♠ (X)"`), and reaches the call about
+    /// a tenth as often.  At 6 the five-card hands fall through to the
+    /// natural `1NT` (6–9 HCP) or pass.  The mirror pins 5, so the knob
+    /// moves only boards we open.
+    ///
+    /// **Default 6** — shipped 2026-10-04: vs BBA (seed 1791055789, 819,200
+    /// boards/arm/vul) plain +0.0006/+0.0008, PD +0.0009/+0.0011 IMPs/board
+    /// none/both, all four CIs > 0; 0.08% fired.  Both replacement calls
+    /// gain: `1NT` +0.7…+1.1 IMPs/fired, pass +0.6…+3.9.
+    /// `bba-gen --ns-weak-new-suit-length 5` for the five-card arm
+    /// (`scripts/ab-weak-new-suit-length.sh`).
+    pub weak_new_suit_length: u8,
     /// Author answers to partner's redouble
     ///
     /// Opener's rebid over the value redouble, `1x (X) XX -`; a no-op unless
@@ -2051,6 +2067,7 @@ impl Default for CompetitionKnobs {
             jordan_truscott: true,
             weak_new_suit_rebid: true,
             weak_new_suit_extras: true,
+            weak_new_suit_length: 6,
             redouble_answer: true,
             splinter_doubled: true,
             double_style: DoubleStyle::Optional,
