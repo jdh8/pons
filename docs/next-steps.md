@@ -199,13 +199,14 @@ six ships, the notrump count over the `2NT` positive the latest
     game-in-hand jump rebids, opener's 28+ balanced rebid (falls to the
     `2NT` fallback), the contested tail (289 rows, −0.6k / −0.8k).
   - Flagged while tracing, not built (jdh8 to decide):
-    - **Responder's `7NT` on 14 over the counted `3NT` can be off an ace**
-      (`2♣ - 2NT - 3NT - 7NT` on K92.T642.KQ9.KQJ opposite
-      AQJ3.KQJ3.AJT6.A, 36 HCP, seed 1's worst board).  The row is priced
-      by the probe — 14 opposite at most 24 makes seven on 82% of 28
-      boards per 8M — and no A/B can resolve it.  Proposed default: keep
-      14; the alternative is 15+ (37 combined, never off an ace), worth
-      about −180 IMPs per 8M double-dummy.
+    - ~~**Responder's `7NT` on 14 over the counted `3NT` can be off an
+      ace**~~ — **decided 2026-10-03 by jdh8: keep 14.**  `7NT` on 36
+      combined, one point under the textbook 37; an ace off is an
+      accepted stake.  (`2♣ - 2NT - 3NT - 7NT` on K92.T642.KQ9.KQJ
+      opposite AQJ3.KQJ3.AJT6.A, 36 HCP, seed 1's worst board.  The probe
+      prices the row at 82% of 28 boards per 8M; 15+ would cost about
+      −180 IMPs per 8M double-dummy.)  The `6NT - 7NT` row on 11 is the
+      same 36 and stays too.
     - **A double of the keycard answer drops the asker to the floor in
       every RKCB lane** (`rkcb_rows` registers `{answer} -` only): `2♣ - 3♦
       - 3♠ - 4♠ - 4NT - 5♣ (X) 5♠` on a cold grand, one deal in 614,400
