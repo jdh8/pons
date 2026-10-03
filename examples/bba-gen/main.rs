@@ -1443,6 +1443,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_modern_double_answer: bool,
 
+    /// Withhold opener's answer to the both-majors Modern double
+    /// `1♣ (1♦) X -` and the doubler's second turn, leaving both to the floor
+    /// (default on; see `competition.modern_double_both_majors`).
+    #[arg(long, default_value_t = false)]
+    no_ns_modern_double_both_majors: bool,
+
     /// Disable responder's structure over their two-suiters over our 1M — UvU
     /// over their both-minors `(2NT)`, the raise structure over their Michaels
     /// cue, and the two-suiter inference reading (shipped default-on; see
@@ -2803,6 +2809,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
     agreements.competition.modern_double_answer = !args.no_ns_modern_double_answer;
+    agreements.competition.modern_double_both_majors = !args.no_ns_modern_double_both_majors;
     agreements.competition.uvu_over_majors = !args.no_ns_uvu_over_majors;
     agreements.competition.uvu_over_minors = args.ns_uvu_over_minors;
     agreements.competition.weak_two_competition = args.ns_weak_two_comp;

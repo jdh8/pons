@@ -206,5 +206,6 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise opener's answer to the Modern double: their `1m (1M) X -`
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;
+    mirror.competition.modern_double_both_majors = false;
     (mirror != *agreements).then_some(mirror)
 }

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The both-majors sibling `1♣ (1♦) X -`, shipped default-on
+  (2026-10-03)** — `CompetitionKnobs::modern_double_both_majors`
+  (`--no-ns-modern-double-both-majors` in `bba-gen` for the control arm).
+  The floor had the sibling's disease here: `4♠` on KJ75.Q43.43.AJ62, `4♥`
+  on a 4-4 minimum, `3NT` on 13 HCP.  Now opener answers the same way:
+  spades on a 4-4 tie, the cheaper major on three, and `2♣` on five clubs
+  (BBA's `2♣`).  Unlike the sibling, the doubler's second turn is authored
+  too.  The net floor raised `2♠` to `3♠` on 7 HCP, with no Pass in its top
+  five, and bid notrump with no diamond stopper.  Now the doubler signs off,
+  invites or bids game by HCP over `1M`, `2M`, `1NT` and `2♣`, with notrump
+  only when diamonds are stopped.  Measured on
+  `scripts/ab-modern-double-both-majors.sh` vs BBA (seed 1791035800,
+  204,800 boards/arm/vul, isolation gate passed), IMPs/board none / both:
+  plain +0.0002 ±0.0004 / +0.0002 ±0.0005 (wash), PD +0.0007 ±0.0005 /
+  +0.0008 ±0.0007 (win).  Rare: 56 / 56 fired, +2.7 / +3.1 PD IMPs/fired.
+
 - **Opener's answer to the Modern negative double, shipped default-on
   (2026-10-03)** — `CompetitionKnobs::modern_double_answer`
   (`--no-ns-modern-double-answer` in `bba-gen` for the control arm).  After
@@ -27,7 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMPs/board none / both: plain +0.0019 ±0.0012 / +0.0023 ±0.0016, PD +0.0059
   ±0.0015 / +0.0065 ±0.0021; 592 / 608 fired, +2.0 / +2.2 PD IMPs/fired.  The
   worst boards are the penalty passes the floor used to collect.  Not built:
-  the `1♣ (1♦) X -` both-majors sibling, the strength cue, splinters.
+  the strength cue, splinters (the `1♣ (1♦)` sibling shipped the same day,
+  above).
 
 - **Opener's rebid over the preemptive minor raise, shipped default-on
   (2026-10-03)** — `ResponseKnobs::preemptive_minor_raise_pass: Option<u8>`,

@@ -149,6 +149,11 @@ fn main() {
     if std::env::var("PROBE_MULTI_DOUBLER_MAJOR").is_ok_and(|v| v == "0") {
         agreements.competition.multi_doubler_major = false;
     }
+    // Opener's answer to the both-majors `1♣ (1♦) X -` (shipped default-on
+    // 2026-10-03): `=0` withholds it.
+    if std::env::var("PROBE_MODERN_BOTH_MAJORS").is_ok_and(|v| v == "0") {
+        agreements.competition.modern_double_both_majors = false;
+    }
     // Responder's P/X information split over their Multi
     // (`competition.multi_px_split`, default off): `PROBE_MULTI_PX_SPLIT=1`
     // arms it.  Implies the natural other major at weight 148 and swaps the

@@ -70,3 +70,29 @@ fn off_leaves_the_answer_to_the_floor() {
     let (_, floored) = best_call_with(&off, &a, "JT75.AQT.KJ973.T");
     assert!(floored);
 }
+
+#[test]
+fn both_majors_double_is_answered() {
+    let a = auction(Strain::Clubs, Strain::Diamonds);
+    let answer = |hand| {
+        let (c, floored) = best_call_with(&on(), &a, hand);
+        assert!(!floored, "{hand}");
+        c
+    };
+    assert_eq!(answer("KJ75.Q43.43.AJ62"), call(2, Strain::Spades));
+    // A 4-4 tie raises spades.
+    assert_eq!(answer("KJ75.Q943.4.AJ62"), call(2, Strain::Spades));
+    assert_eq!(answer("K43.Q42.KJ3.A962"), call(1, Strain::Notrump));
+    assert_eq!(answer("K43.Q42.53.AKJ62"), call(2, Strain::Clubs));
+    // No fit, stopper, or long clubs: the cheaper major on three.
+    assert_eq!(answer("K43.Q42.543.AKJ6"), call(1, Strain::Hearts));
+}
+
+#[test]
+fn both_majors_off_leaves_the_answer_to_the_floor() {
+    let a = auction(Strain::Clubs, Strain::Diamonds);
+    let mut off = Agreements::default();
+    off.competition.modern_double_both_majors = false;
+    let (_, floored) = best_call_with(&off, &a, "KJ75.Q43.43.AJ62");
+    assert!(floored);
+}

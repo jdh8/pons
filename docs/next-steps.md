@@ -325,8 +325,11 @@ six ships, the notrump count over the `2NT` positive the latest
     four hearts, in front of the overcaller, 12–20% of the lane).  Plain
     +0.0019 / +0.0023, PD +0.0059 / +0.0065 IMPs/board (none / both), 592 /
     608 fired.  The doubler's second turn stays the floor's (probed sane).
-    Not built: the `1♣ (1♦) X -` both-majors sibling (BEN: `1NT` 20%, `1♥`
-    16%, `2♣` 15%, `2♥`/`2♠` 12% each), the `2♥`/`2♠` strength cue on 16+
+    The `1♣ (1♦) X -` both-majors sibling **shipped default-on 2026-10-03**
+    as `competition.modern_double_both_majors` (seed 1791035800): plain
+    wash +0.0002 / +0.0002, PD +0.0007 / +0.0008, only 56 fired per
+    204,800.  Its doubler's second turn is authored too, because the net
+    floor's was not sane there.  Not built: the `2♥`/`2♠` strength cue on 16+
     (BEN's tool for the strong raise), and the splinters.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,

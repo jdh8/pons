@@ -75,6 +75,21 @@ pub struct CompetitionKnobs {
     /// [`NegativeDoubleShape::Modern`].
     /// `bba-gen --no-ns-modern-double-answer` for the off arm.
     pub modern_double_answer: bool,
+    /// The same table at the both-majors double `1♣ (1♦) X -`, and the
+    /// doubler's second turn over it
+    ///
+    /// **Default on** — shipped 2026-10-03, plain wash / PD win in both cells
+    /// vs BBA (plain +0.0002 / +0.0002, PD +0.0007 / +0.0008 IMPs/board, none
+    /// / both; 56 fired per 204,800).  Off, the floor answers: `4♠`/`4♥` on
+    /// minimum fits and `3NT` on 13; over its answers the doubler raised `2♠`
+    /// to `3♠` on 7 HCP and bid notrump with no diamond stopper.  On, opener
+    /// raises a four-card major by strength (`2M`/`3M`/`4M`, spades on a 4-4
+    /// tie), completes the cheaper major on three, bids `1NT` 12–14 / `2NT`
+    /// 18–19 with a diamond stopper, `2♣` on five clubs, and never passes;
+    /// the doubler signs off, invites or bids game over `1M`/`2M`/`1NT`/`2♣`.
+    /// Only under [`NegativeDoubleShape::Modern`].
+    /// `bba-gen --no-ns-modern-double-both-majors` for the off arm.
+    pub modern_double_both_majors: bool,
     /// Bid (not merely recognize) the delayed cue — 2NT relay, then their suit
     ///
     /// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer
@@ -1969,6 +1984,7 @@ impl Default for CompetitionKnobs {
         Self {
             cue_raise_answer: true,
             modern_double_answer: true,
+            modern_double_both_majors: true,
             cue_minor_raise_answer: true,
             delayed_cue: false,
             free_bids: false,
