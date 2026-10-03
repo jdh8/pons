@@ -209,10 +209,31 @@ six ships, the notrump count over the `2NT` positive the latest
       same 36 and stays too.
     - **A double of the keycard answer drops the asker to the floor in
       every RKCB lane** (`rkcb_rows` registers `{answer} -` only): `2♣ - 3♦
-      - 3♠ - 4♠ - 4NT - 5♣ (X) 5♠` on a cold grand, one deal in 614,400
-      against BBA.  Proposed default: register each asker table at `{answer}
-      (X)` too, relay rows included, as one default A/B over all lanes; the
-      grand rung already does this for its own `5NT` and king answers.
+      - 3♠ - 4♠ - 4NT - 5♣ (X) 5♠` on a cold grand.  **Built and measured
+      2026-10-03, a non-win, parked on `park/rkcb-doubled-answer`** (jdh8's
+      call; `slam::HEARD` and `scripts/ab-rkcb-doubled.sh` live there,
+      results in `ab-results/rkcb-doubled{,-2}`): every key below an answer
+      registered under `(X)` too, the double ignored.  A wash on both
+      scorers with a negative lean, two seeds, 2,048,000 boards per arm per
+      vulnerability: plain −0.00005 ±0.00007 / −0.00006 ±0.00009, PD
+      −0.00006 ±0.00007 / −0.00008 ±0.00009 IMPs/board, 52 / 58 fired
+      (26–29 per 1M, not the trace's one in 614,400), −1.8…−2.7 per fired.
+      `main` keeps the floor's blind sign-off.  The flip plan is in the
+      park commit: make the asker read the double.  The trace found no
+      wiring hole; what it found instead, neither built:
+      - **Opener's ask over a splinter raise is thin** — 31 of the 52 fired
+        boards are `1M - splinter - 4NT`, for −66 of the −94 IMPs.  Over
+        all lanes, where the book bid six and the floor signed off at five,
+        six made on 12 boards and failed on 17 (none, plain; both contracts
+        failed on 9 more).  The doubled sample only exposes it:
+        undoubled, both arms bid the same six.  Census the undoubled lane
+        before touching the ask's gate.
+      - **A doubled `5♦` is none, not three** — partner held none on 10 of
+        12 boards where the asker with one or two keycards read three (the
+        doubler tends to hold the `♦A`, a keycard partner then cannot
+        have).  A sign-off there recovers about +40 of the −94 IMPs on this
+        sample: twelve boards, some six per 1M, too few to build or to
+        measure on.
     - **The classic `5NT` path in every other lane still wants all three
       side kings**, while the queen relay beside it and the grand rung bid
       seven on two ([ai-bidder/bba-kickback.md](ai-bidder/bba-kickback.md),
