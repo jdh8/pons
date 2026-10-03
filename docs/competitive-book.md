@@ -238,10 +238,10 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   notrump, so opener never passed (pass +2.18 / +1.45 on 11 boards, a new
   suit −2.33 / −2.31 on 49).  `doubled_notrump_pass` (default-on
   2026-10-04, won all four cells) passes a balanced ≤17 HCP hand and lets
-  every other hand ride the rebase.  Its residue: the table also authors
-  the *reading* of opener's other rebids (`1♥ (X) 1NT - 3♠` reads 9–21,
-  was 16–21) — the reading twin of the 2026-10-03 rejection fall-through
-  was never built.  The `1NT` itself then lost its five-card hands
+  every other hand ride the rebase.  Its residue — the table also authored
+  the *reading* of opener's other rebids (`1♥ (X) 1NT - 3♠` read 9–21,
+  not 16–21) — was the missing reading twin of the 2026-10-03 rejection
+  fall-through, fixed the same day (`trie::may_have_made`).  The `1NT` itself then lost its five-card hands
   (`doubled_notrump_max_length`, default 4 2026-10-04): they pass, as
   BBA's do — plain wash/+0.0006, PD +0.0012/+0.0023 IMPs/board.  Not run:
   a gate on shortness in opener's suit (12 anchor boards) and no natural

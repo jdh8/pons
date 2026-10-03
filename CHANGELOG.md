@@ -837,6 +837,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A table that did not make a call no longer reads it (2026-10-04)** —
+  the reading twin of the rejection fall-through (7abcf96f).  Bidding skips
+  a rule table that rejects the hand to the next candidate, but the reader
+  still decoded the call off that table, even when it had no row for it:
+  after `doubled_notrump_pass`, opener's jump shift `1♥ (X) 1NT - 3♠` read
+  9–21 HCP instead of 16–21.  The trie and the decoder now skip a rule
+  table with no row for the call made, at the top level only (inside a
+  rebase the first table still answers, as when bidding).  Vs the previous
+  commit (seed 1791065891, 819,200 boards/arm/vul): 11 / 6 boards moved,
+  plain +24 / +4, PD +14 / −2 IMPs in total — 0.0000 IMPs/board, a wash
+  on both scorers; shipped on correctness.  The decoder's dead
+  `skip_exact` parameter (always `false`) is gone.
+
 - **Web: Partner meets shape pairs in the middle, and settles a suit's own
   HCP at its holdings (2026-10-01)** — slow cases were built on purpose and
   three costs fell out.  *Every `s.hcp` read re-ran the whole count eleven

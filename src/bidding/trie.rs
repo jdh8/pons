@@ -31,6 +31,22 @@ pub trait Classifier: Send + Sync {
     }
 }
 
+/// Whether `classifier` can have made `call` at its node
+///
+/// A rule table makes only the calls it has rows for; any other call means it
+/// rejected the hand (all-−∞) and a later candidate bid, so the reader must
+/// skip it as the bidder did.  Every other classifier (a floor, a computed
+/// table) may make any call, and so may anything when `call` is unknown.
+/// Inside a rebase the bidder answers with the first table, mass or not, so
+/// rebase recursion passes [`None`].
+pub(crate) fn may_have_made(classifier: &dyn Classifier, call: Option<Call>) -> bool {
+    call.is_none_or(|call| {
+        classifier
+            .as_rules()
+            .is_none_or(|rules| rules.rules().iter().any(|rule| rule.call() == call))
+    })
+}
+
 impl fmt::Debug for dyn Classifier + '_ {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Classifier({:p})", &self)
@@ -785,13 +801,28 @@ impl Trie {
     /// guarded fallback (every contested convention — transfers, Leaping Michaels,
     /// the Lebensohl cue) is decoded the same way it was bid.  Used by the
     /// projection pass to read fallback-authored conventions off their rule.
+    ///
+    /// `made` is the call made at `prefix`, when known: a rule table with no
+    /// row for it rejected that hand and the call came from the next
+    /// candidate, as [`resolve_with_mass`][Self::resolve_with_mass] bid it
+    /// ([`may_have_made`]).
     pub(crate) fn authoring_classifier(
         &self,
         context: &Context<'_>,
         prefix: &[Call],
+        made: Option<Call>,
     ) -> Option<&dyn Classifier> {
-        self.resolve_at(context, prefix, 0, false, &mut |_| true)
-            .map(|(c, _)| c)
+        self.authoring_route(context, prefix, made).map(|(c, _)| c)
+    }
+
+    /// [`Self::authoring_classifier`] with the route's [`Provenance`]
+    pub(crate) fn authoring_route(
+        &self,
+        context: &Context<'_>,
+        prefix: &[Call],
+        made: Option<Call>,
+    ) -> Option<(&dyn Classifier, Provenance)> {
+        self.resolve_at(context, prefix, 0, false, &mut |c| may_have_made(c, made))
     }
 
     /// Every guarded [`Fallback`] in the trie, with the auction of its node

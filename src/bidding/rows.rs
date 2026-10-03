@@ -83,7 +83,9 @@
 //! to the next candidate on the chain and finally the floor
 //! ([`Trie::classify_floored`]).  The exception is a table reached through a
 //! **rebase** (systems on): its rejection still reads as Pass, so keep every
-//! table a rebase can land on total.
+//! table a rebase can land on total.  The reader follows the same chain: a
+//! table with no row for the call made did not make it, so the call is read
+//! off the next candidate (`trie::may_have_made`).
 
 use super::agreements::Agreements;
 use super::common::{fallback_all_seats, other_major, other_minor};

@@ -693,9 +693,11 @@ group waits on that decision, the second group does not.
   `1NT` denies a five-card suit (`competition.doubled_notrump_max_length`
   4, **shipped 2026-10-04**, plain wash/+0.0006, PD +0.0012/+0.0023).  The
   `1♦ (X) 3♦ (3♠) X - 3NT` pull was an instinct-floor artifact (closed,
-  [competitive-book.md](competitive-book.md)'s deferrals).  **Owed:** the
-  reading twin of the rejection fall-through (a rejecting table still
-  authors the reading of the calls it has no row for).
+  [competitive-book.md](competitive-book.md)'s deferrals).  The reading
+  twin of the rejection fall-through shipped 2026-10-04 on correctness (a
+  table with no row for the call made no longer authors its reading;
+  `scripts/ab-reading-fallthrough.sh`, 11/6 boards moved per 819,200, a
+  wash on both scorers).
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

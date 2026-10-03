@@ -14,7 +14,7 @@ use super::rows::{
     AuthoringLedger, LedgerPattern, PatternGrammar, PatternId, PreservedTarget,
     PreservedTargetKind, RuleTableId,
 };
-use super::trie::{Classifier, Provenance, REBASE_LIMIT, Trie, TrieNode};
+use super::trie::{Classifier, Provenance, REBASE_LIMIT, Trie, TrieNode, may_have_made};
 use contract_bridge::Bid;
 use contract_bridge::auction::Call;
 use std::collections::HashMap;
@@ -531,7 +531,21 @@ impl AuthoringDecoder {
     ) -> Option<DecodedAuthoring<'a>> {
         let path = self.path(auction);
         let mut cache_stable = true;
-        self.resolve_at(context, auction, &path, 0, false, &mut cache_stable)
+        self.resolve_at(context, auction, &path, 0, None, &mut cache_stable)
+    }
+
+    /// [`Self::resolve`] for the call `made` at `auction` (see
+    /// [`Self::resolve_checked_with_cursor`])
+    #[cfg(test)]
+    pub(crate) fn resolve_made<'a>(
+        &'a self,
+        context: &Context<'_>,
+        auction: &[Call],
+        made: Option<Call>,
+    ) -> Option<DecodedAuthoring<'a>> {
+        let path = self.path(auction);
+        let mut cache_stable = true;
+        self.resolve_at(context, auction, &path, 0, made, &mut cache_stable)
     }
 
     #[cfg(test)]
@@ -558,20 +572,25 @@ impl AuthoringDecoder {
     ) -> Option<DecodedAuthoring<'a>> {
         state.sync(self, prefix);
         let mut cache_stable = true;
-        let found = self.resolve_at(context, prefix, &state.path, 0, false, &mut cache_stable);
+        let found = self.resolve_at(context, prefix, &state.path, 0, None, &mut cache_stable);
         state.cache_stable = cache_stable;
         found
     }
 
+    /// `made` is the call made at `prefix`: a rule table with no row for it
+    /// rejected that hand, so the call came from the next candidate — the
+    /// reading twin of the bidding fall-through ([`may_have_made`]).
     pub(crate) fn resolve_checked_with_cursor<'a>(
         &'a self,
         state: &mut DecoderCursorState,
         context: &Context<'_>,
         prefix: &[Call],
+        made: Option<Call>,
     ) -> CheckedResolution<'a> {
         state.sync(self, prefix);
         let mut cache_stable = true;
-        let found = self.resolve_checked_incremental(state, context, prefix, &mut cache_stable);
+        let found =
+            self.resolve_checked_incremental(state, context, prefix, made, &mut cache_stable);
         state.cache_stable = cache_stable && !matches!(found, CheckedResolution::Opaque);
         found
     }
@@ -604,12 +623,18 @@ impl AuthoringDecoder {
         auction: &[Call],
         path: &[NodeId],
         rebases: usize,
-        skip_exact: bool,
+        made: Option<Call>,
         cache_stable: &mut bool,
     ) -> Option<DecodedAuthoring<'a>> {
         let &deepest = path.last()?;
         let deepest_node = &self.nodes[deepest as usize];
-        if !skip_exact && path.len() == auction.len() + 1 && deepest_node.classifier != NONE {
+        if path.len() == auction.len() + 1
+            && deepest_node.classifier != NONE
+            && may_have_made(
+                self.classifiers[deepest_node.classifier as usize].as_ref(),
+                made,
+            )
+        {
             let classifier = self.classifiers[deepest_node.classifier as usize].as_ref();
             let metadata = metadata_at(&self.metadata, deepest_node.exact_metadata);
             if metadata.is_some_and(|site| site.opaque_target) {
@@ -647,6 +672,11 @@ impl AuthoringDecoder {
                     *cache_stable = false;
                 }
                 match &fallback.action {
+                    DecoderAction::Classify(classifier)
+                        if !may_have_made(
+                            self.classifiers[*classifier as usize].as_ref(),
+                            made,
+                        ) => {}
                     DecoderAction::Classify(classifier) => {
                         return Some(DecodedAuthoring {
                             classifier: self.classifiers[*classifier as usize].as_ref(),
@@ -674,7 +704,7 @@ impl AuthoringDecoder {
                                 &rewritten,
                                 &rewritten_path,
                                 rebases + 1,
-                                false,
+                                None,
                                 cache_stable,
                             ) {
                                 return Some(found);
@@ -693,14 +723,20 @@ impl AuthoringDecoder {
         auction: &[Call],
         path: &[NodeId],
         rebases: usize,
-        skip_exact: bool,
+        made: Option<Call>,
         cache_stable: &mut bool,
     ) -> CheckedResolution<'a> {
         let Some(&deepest) = path.last() else {
             return CheckedResolution::Decoded(None);
         };
         let deepest_node = &self.nodes[deepest as usize];
-        if !skip_exact && path.len() == auction.len() + 1 && deepest_node.classifier != NONE {
+        if path.len() == auction.len() + 1
+            && deepest_node.classifier != NONE
+            && may_have_made(
+                self.classifiers[deepest_node.classifier as usize].as_ref(),
+                made,
+            )
+        {
             let classifier = self.classifiers[deepest_node.classifier as usize].as_ref();
             let metadata = metadata_at(&self.metadata, deepest_node.exact_metadata);
             if metadata.is_some_and(|site| site.opaque_target) {
@@ -739,6 +775,11 @@ impl AuthoringDecoder {
                     *cache_stable = false;
                 }
                 match &fallback.action {
+                    DecoderAction::Classify(classifier)
+                        if !may_have_made(
+                            self.classifiers[*classifier as usize].as_ref(),
+                            made,
+                        ) => {}
                     DecoderAction::Classify(classifier) => {
                         return CheckedResolution::Decoded(Some(DecodedAuthoring {
                             classifier: self.classifiers[*classifier as usize].as_ref(),
@@ -767,7 +808,7 @@ impl AuthoringDecoder {
                                 &rewritten,
                                 &rewritten_path,
                                 rebases + 1,
-                                false,
+                                None,
                                 cache_stable,
                             ) {
                                 CheckedResolution::Decoded(Some(found)) => {
@@ -795,13 +836,20 @@ impl AuthoringDecoder {
         state: &mut DecoderCursorState,
         context: &Context<'_>,
         auction: &[Call],
+        made: Option<Call>,
         cache_stable: &mut bool,
     ) -> CheckedResolution<'a> {
         let Some(&deepest) = state.path.last() else {
             return CheckedResolution::Decoded(None);
         };
         let deepest_node = &self.nodes[deepest as usize];
-        if state.path.len() == auction.len() + 1 && deepest_node.classifier != NONE {
+        if state.path.len() == auction.len() + 1
+            && deepest_node.classifier != NONE
+            && may_have_made(
+                self.classifiers[deepest_node.classifier as usize].as_ref(),
+                made,
+            )
+        {
             let classifier = self.classifiers[deepest_node.classifier as usize].as_ref();
             let metadata = metadata_at(&self.metadata, deepest_node.exact_metadata);
             if metadata.is_some_and(|site| site.opaque_target) {
@@ -893,6 +941,7 @@ impl AuthoringDecoder {
                         fallback_index,
                     },
                     0,
+                    made,
                     cache_stable,
                 ) {
                     CheckedResolution::Decoded(None) => {}
@@ -916,6 +965,7 @@ impl AuthoringDecoder {
         auction: &[Call],
         route: ResolvedRoute,
         rebases: usize,
+        made: Option<Call>,
         cache_stable: &mut bool,
     ) -> CheckedResolution<'a> {
         let fallback = &self.fallbacks[route.fallback as usize];
@@ -933,6 +983,11 @@ impl AuthoringDecoder {
             *cache_stable = false;
         }
         match &fallback.action {
+            DecoderAction::Classify(classifier)
+                if !may_have_made(self.classifiers[*classifier as usize].as_ref(), made) =>
+            {
+                CheckedResolution::Decoded(None)
+            }
             DecoderAction::Classify(classifier) => {
                 CheckedResolution::Decoded(Some(DecodedAuthoring {
                     classifier: self.classifiers[*classifier as usize].as_ref(),
@@ -963,7 +1018,7 @@ impl AuthoringDecoder {
                     &rewritten,
                     &rewritten_path,
                     rebases + 1,
-                    false,
+                    None,
                     cache_stable,
                 )
             }
@@ -1253,32 +1308,28 @@ impl<'a> DecoderCursor<'a> {
         self.sync(prefix);
         let mut cache_stable = true;
         self.decoder
-            .resolve_at(context, prefix, &self.path, 0, false, &mut cache_stable)
+            .resolve_at(context, prefix, &self.path, 0, None, &mut cache_stable)
     }
 
+    /// `made`: see [`AuthoringDecoder::resolve_checked_with_cursor`]
     pub(crate) fn resolve_checked(
         &mut self,
         context: &Context<'_>,
         prefix: &[Call],
+        made: Option<Call>,
     ) -> CheckedResolution<'a> {
         self.sync(prefix);
         let mut cache_stable = true;
         if self.decoder.opaque_routes {
-            self.decoder.resolve_checked_at(
-                context,
-                prefix,
-                &self.path,
-                0,
-                false,
-                &mut cache_stable,
-            )
+            self.decoder
+                .resolve_checked_at(context, prefix, &self.path, 0, made, &mut cache_stable)
         } else {
             CheckedResolution::Decoded(self.decoder.resolve_at(
                 context,
                 prefix,
                 &self.path,
                 0,
-                false,
+                made,
                 &mut cache_stable,
             ))
         }

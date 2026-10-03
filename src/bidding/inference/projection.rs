@@ -858,6 +858,7 @@ impl AuthoringStepCache {
                     partnership.trie_for(auction),
                     &full_context,
                     prefix,
+                    auction[index],
                 );
             } else {
                 assert_eq!(record.own, None, "disabled own route cached at {index}");
@@ -888,6 +889,7 @@ impl AuthoringStepCache {
                     routed_books.trie_for(prefix),
                     &at_time,
                     prefix,
+                    auction[index],
                 );
             } else {
                 assert_eq!(
@@ -1031,6 +1033,7 @@ impl AuthoringStepCache {
                     &mut scan_own_cursor,
                     &full_context,
                     prefix,
+                    Some(made),
                 ) {
                     crate::bidding::decoder::CheckedResolution::Decoded(answer) => answer,
                     crate::bidding::decoder::CheckedResolution::Opaque => return self.disable(),
@@ -1082,6 +1085,7 @@ impl AuthoringStepCache {
                     &mut routed_slot[Self::phase_index(routed_phase)],
                     &at_time,
                     prefix,
+                    Some(made),
                 ) {
                     crate::bidding::decoder::CheckedResolution::Decoded(answer) => answer,
                     crate::bidding::decoder::CheckedResolution::Opaque => return self.disable(),
@@ -1315,9 +1319,10 @@ fn assert_cached_route_matches_one_shot(
     trie: &crate::bidding::trie::Trie,
     context: &Context<'_>,
     prefix: &[Call],
+    made: Call,
 ) {
-    let decoded = decoder.resolve(context, prefix);
-    let legacy = trie.resolve(context, prefix);
+    let decoded = decoder.resolve_made(context, prefix, Some(made));
+    let legacy = trie.authoring_route(context, prefix, Some(made));
     match (decoded, legacy) {
         (None, None) => {}
         (Some(decoded), Some((legacy_classifier, legacy_provenance))) => {
@@ -1525,7 +1530,7 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
             let mut own = Vec::with_capacity(len);
             for index in 0..len {
                 let prefix = &auction[..index];
-                match own_cursor.resolve_checked(context, prefix) {
+                match own_cursor.resolve_checked(context, prefix, Some(auction[index])) {
                     crate::bidding::decoder::CheckedResolution::Decoded(answer) => own.push(answer),
                     crate::bidding::decoder::CheckedResolution::Opaque => {
                         return project_authored_with(context, false);
@@ -1570,8 +1575,11 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
                     crate::bidding::book::Phase::Competitive => 1,
                     crate::bidding::book::Phase::Defensive => 2,
                 };
-                let resolution =
-                    cursors[usize::from(opponent)][phase].resolve_checked(&at_times[index], prefix);
+                let resolution = cursors[usize::from(opponent)][phase].resolve_checked(
+                    &at_times[index],
+                    prefix,
+                    Some(auction[index]),
+                );
                 match resolution {
                     crate::bidding::decoder::CheckedResolution::Decoded(answer) => {
                         routed.push(answer)
@@ -1611,7 +1619,9 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
                 if profile.scope == ReadingScope::All && index % 2 != len % 2 {
                     continue;
                 }
-                if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
+                if let Some(classifier) =
+                    trie.authoring_classifier(context, &auction[..index], Some(auction[index]))
+                {
                     project_call(&at_times[index], index, classifier, None, false);
                 }
             }
@@ -1665,8 +1675,11 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
                     them.compiled_rules_for(prefix, classifier, at_time.reading_profile());
                 project_call(&at_time, index, classifier, compiled, false);
             } else if decoded_routed.is_none()
-                && let Some(classifier) =
-                    them.trie_for(prefix).authoring_classifier(&at_time, prefix)
+                && let Some(classifier) = them.trie_for(prefix).authoring_classifier(
+                    &at_time,
+                    prefix,
+                    Some(auction[index]),
+                )
             {
                 project_call(&at_time, index, classifier, None, false);
             }
@@ -1700,9 +1713,11 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
                 let compiled = them.compiled_rules_for(prefix, classifier, profile);
                 project_call(&at_times[index], index, classifier, compiled, true);
             } else if decoded_routed.is_none()
-                && let Some(classifier) = them
-                    .trie_for(prefix)
-                    .authoring_classifier(&at_times[index], prefix)
+                && let Some(classifier) = them.trie_for(prefix).authoring_classifier(
+                    &at_times[index],
+                    prefix,
+                    Some(auction[index]),
+                )
             {
                 project_call(&at_times[index], index, classifier, None, true);
             }

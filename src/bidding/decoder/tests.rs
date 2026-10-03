@@ -378,10 +378,11 @@ fn deal_cursor_matches_trie_for_every_structured_guard_and_rebase() {
             let prefix = &auction[..depth];
             let context = Context::new(RelativeVulnerability::NONE, prefix);
             let expected = trie.resolve(&context, prefix);
-            let actual = match decoder.resolve_checked_with_cursor(&mut state, &context, prefix) {
-                CheckedResolution::Decoded(answer) => answer,
-                CheckedResolution::Opaque => panic!("structured route became opaque"),
-            };
+            let actual =
+                match decoder.resolve_checked_with_cursor(&mut state, &context, prefix, None) {
+                    CheckedResolution::Decoded(answer) => answer,
+                    CheckedResolution::Opaque => panic!("structured route became opaque"),
+                };
             match (expected, actual) {
                 (None, None) => {}
                 (Some((expected_classifier, expected_provenance)), Some(actual)) => {
@@ -410,7 +411,7 @@ fn deal_cursor_fallback_depth_visits_are_linear_not_triangular() {
         let prefix = &auction[..depth];
         let context = Context::new(RelativeVulnerability::NONE, prefix);
         let expected = trie.resolve(&context, prefix).expect("root floor or exact");
-        let actual = match decoder.resolve_checked_with_cursor(&mut state, &context, prefix) {
+        let actual = match decoder.resolve_checked_with_cursor(&mut state, &context, prefix, None) {
             CheckedResolution::Decoded(Some(answer)) => answer,
             _ => panic!("expected cache-safe structured answer at {prefix:?}"),
         };
@@ -540,4 +541,55 @@ fn streaming_ledger_compile_matches_catalog_with_grafts_and_overwrites() {
         replaced.pattern_id, None,
         "stale authoring was not attached"
     );
+}
+
+/// A rule table with no row for the call made did not make it: the reader
+/// skips it to the next candidate, as the bidder fell through — exact node or
+/// guarded fallback, in the decoder and the trie alike.
+#[test]
+fn reading_skips_a_table_without_the_call() {
+    let floor = marker(60);
+    let partial: Arc<dyn Classifier> = Arc::new(Rules::new().rule(Call::Pass, 0, hcp(..12)));
+    let one_spade = [bid(1, Strain::Spades)];
+    for exact in [true, false] {
+        let mut trie = Trie::new();
+        trie.fallback_at(&[], Always, Fallback::Classify(Arc::clone(&floor)));
+        if exact {
+            trie.insert_arc(&one_spade, Arc::clone(&partial));
+        } else {
+            trie.fallback_at(&one_spade, Always, Fallback::Classify(Arc::clone(&partial)));
+        }
+        let decoder = compile(&trie);
+        let context = Context::new(RelativeVulnerability::NONE, &one_spade);
+        for (made, expected) in [
+            (None, &partial),
+            (Some(Call::Pass), &partial),
+            (Some(bid(2, Strain::Clubs)), &floor),
+        ] {
+            let mut state = DecoderCursorState::default();
+            let CheckedResolution::Decoded(Some(answer)) =
+                decoder.resolve_checked_with_cursor(&mut state, &context, &one_spade, made)
+            else {
+                panic!("decoded");
+            };
+            assert!(
+                core::ptr::addr_eq(answer.classifier, &**expected),
+                "{made:?}"
+            );
+            let mut cursor = decoder.cursor();
+            let CheckedResolution::Decoded(Some(answer)) =
+                cursor.resolve_checked(&context, &one_spade, made)
+            else {
+                panic!("decoded");
+            };
+            assert!(
+                core::ptr::addr_eq(answer.classifier, &**expected),
+                "{made:?}"
+            );
+            let authored = trie
+                .authoring_classifier(&context, &one_spade, made)
+                .expect("authored");
+            assert!(core::ptr::addr_eq(authored, &**expected), "{made:?}");
+        }
+    }
 }
