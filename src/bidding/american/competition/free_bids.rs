@@ -123,7 +123,8 @@ pub(super) fn answer_free_bid(opening: Suit, agreements: &Agreements) -> Rules {
 /// six-carder or a strong five-carder (`FreeBidStyle::Negative`)
 ///
 /// `Pass` is the treatment's whole point: the catch-all drops the capped
-/// hand at the two level (mirroring `answer_weak_new_suit`). Raising to
+/// hand at the two level (mirroring opener's answer to the weak `2y` over
+/// their double, in `over_their_double.rs`). Raising to
 /// three needs a fit and real extras; `2NT` shows a stopper-backed maximum.
 fn answer_negative_free_bid(opening: Suit) -> Rules {
     let mut rules = Rules::new();

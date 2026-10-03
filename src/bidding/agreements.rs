@@ -670,6 +670,19 @@ pub struct CompetitionKnobs {
     /// always on a minimum both arms pass.
     /// `bba-gen --no-ns-weak-new-suit-rebid` for the off arm.
     pub weak_new_suit_rebid: bool,
+    /// Opener's strong hands over the weak new suit, `1o (X) 2y -`
+    ///
+    /// Off, opener raises on 15+ with four and otherwise passes — including
+    /// 16+ hands with a six-card suit and balanced 18–19s.  On: `4M` on a
+    /// six-card major and 18+ points, `3o` on a six-card suit and 16+, `3y`
+    /// on three-card support and 17+, `2NT` on a balanced 18–19, with
+    /// responder's natural answers (game on 8+, else pass).
+    ///
+    /// **Default on** — shipped 2026-10-04: vs BBA (seed 1791050732,
+    /// 819,200 boards/arm/vul) plain +0.0002/+0.0003, PD +0.0003/+0.0003
+    /// IMPs/board none/both, all four CIs > 0; +2.5…+3.0 IMPs/fired, 0.01%
+    /// fired.  `bba-gen --no-ns-weak-new-suit-extras` for the off arm.
+    pub weak_new_suit_extras: bool,
     /// Author answers to partner's redouble
     ///
     /// Opener's rebid over the value redouble, `1x (X) XX -`; a no-op unless
@@ -2037,6 +2050,7 @@ impl Default for CompetitionKnobs {
             competition_over_stayman: true,
             jordan_truscott: true,
             weak_new_suit_rebid: true,
+            weak_new_suit_extras: true,
             redouble_answer: true,
             splinter_doubled: true,
             double_style: DoubleStyle::Optional,

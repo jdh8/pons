@@ -106,3 +106,47 @@ fn weak_new_suit_rebid_is_not_game_forcing() {
     let (game, _) = best_call_with(&arm, &spades_hearts, "J9.AJ962.K43.973");
     assert_eq!(game, call(4, Strain::Hearts));
 }
+
+/// Opener's strong hands over the weak new suit bid on instead of passing it
+/// out, and responder answers the invitations naturally — not as a 2/1.
+#[test]
+fn weak_new_suit_extras_bid_strong_hands() {
+    let arm = Agreements::default();
+    let spades_clubs = [
+        call(1, Strain::Spades),
+        Call::Double,
+        call(2, Strain::Clubs),
+        Call::Pass,
+    ];
+    let cases = [
+        ("AKQJ64.AQ8.Q2.6", call(4, Strain::Spades)), // 18 HCP, six spades
+        ("AKJ764.KQ8.K3.6", call(3, Strain::Spades)), // 16 HCP, six spades
+        ("AKJ76.KQ8.Q2.K62", call(3, Strain::Clubs)), // 18 HCP, three clubs
+        ("AKJ76.KQ8.Q63.K6", call(2, Strain::Notrump)), // 18 HCP, 5=3=3=2
+        ("KQ764.Q85.K32.J6", Call::Pass),             // minimum
+    ];
+    for (hand, expected) in cases {
+        let (got, floored) = best_call_with(&arm, &spades_clubs, hand);
+        assert_eq!(got, expected, "{hand}");
+        assert!(!floored, "{hand}: authored");
+    }
+    let mut off = Agreements::default();
+    off.competition.weak_new_suit_extras = false;
+    let (off, _) = best_call_with(&off, &spades_clubs, "AKJ764.KQ8.K3.6");
+    assert_eq!(off, Call::Pass, "off: the catch-all passes");
+
+    let mut invited = spades_clubs.to_vec();
+    invited.extend([call(3, Strain::Spades), Call::Pass]);
+    let (accept, floored) = best_call_with(&arm, &invited, "J9.A62.JT4.Q8543");
+    assert_eq!(accept, call(4, Strain::Spades));
+    assert!(!floored);
+    let (decline, _) = best_call_with(&arm, &invited, "98.862.JT4.KQ543");
+    assert_eq!(decline, Call::Pass);
+
+    let mut notrump = spades_clubs.to_vec();
+    notrump.extend([call(2, Strain::Notrump), Call::Pass]);
+    let (game, _) = best_call_with(&arm, &notrump, "9.A62.QT4.Q85432");
+    assert_eq!(game, call(3, Strain::Notrump));
+    let (sign_off, _) = best_call_with(&arm, &notrump, "9.862.JT4.KQ5432");
+    assert_eq!(sign_off, Call::Pass);
+}

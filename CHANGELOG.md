@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **No 2/1 after their double: opener's strong hands bid on over the weak
+  new suit, shipped default-on (2026-10-04)** —
+  `CompetitionKnobs::weak_new_suit_extras`
+  (`--no-ns-weak-new-suit-extras` in `bba-gen` for the control arm).  At
+  `1o (X) 2y -` opener used to raise on 15+ with four or pass, so 16+ hands
+  with a six-card suit passed (`2♥` passed on AKQJ642.—.43.AQ52).  Now
+  `4M` on a six-card major and 18+ points, `3o` on a six-card suit and
+  16+, `3y` on three-card support and 17+, `2NT` on a balanced 18–19;
+  responder accepts on 8+ and otherwise passes, rather than replaying the
+  2/1 tree through the systems-on rebase.  Vs BBA (seed 1791050732,
+  819,200 boards/arm/vul): plain **+0.0002 ±0.0001 / +0.0003 ±0.0002**,
+  PD **+0.0003 ±0.0002 / +0.0003 ±0.0002** IMPs/board none/both, all four
+  CIs > 0; +2.5…+3.0 IMPs/fired, 80/93 boards fired; 32 games reached that
+  the off arm missed, none lost.
+
 - **No 2/1 after their double: responder's second turn is authored
   (2026-10-04)** — `CompetitionKnobs::weak_new_suit_rebid`, default on
   (`--no-ns-weak-new-suit-rebid` in `bba-gen` for the control arm).

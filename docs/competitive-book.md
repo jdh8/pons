@@ -222,7 +222,12 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   tree under it, so every turn where a 2/1 reading would leak needs an
   authored step: responder's first call and opener's answer were already
   authored (`jordan_truscott`), responder's second turn over the raise is
-  `weak_new_suit_rebid` (default-on).
+  `weak_new_suit_rebid` (default-on), and opener's strong hands over the
+  weak `2y` — which the catch-all used to pass — are
+  `weak_new_suit_extras` (default-on, won all four cells).  The contested
+  tail `1o (X) 2y (bid)` stays on the learned floor, which already reads
+  `2y` as 6–9; the 5-5 second-suit rebid was left unauthored (14 hands in
+  819,200 boards, and its forcing answer would replay the 2/1 tree).
 - P4's XX/Jordan **contested tails** (advancer bids over them) rebase into a
   dead end and land on the floor with the projected floors — authored
   continuations are a follow-up if the buckets drag.

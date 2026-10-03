@@ -1773,6 +1773,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_weak_new_suit_rebid: bool,
 
+    /// Withhold opener's strong-hand rebids over the weak new suit,
+    /// `1o (X) 2y -` (default on; see `competition.weak_new_suit_extras`).
+    #[arg(long, default_value_t = false)]
+    no_ns_weak_new_suit_extras: bool,
+
     /// Disable systems-on over their double of our splinter — revert to letting
     /// opener's rebid fall to the floor, which passes the doubled game force
     /// (shipped default-on; see `competition.splinter_doubled`).
@@ -2867,6 +2872,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.cachalot_contested_x = !args.no_ns_cachalot_contested_x;
     agreements.competition.jordan_truscott = !args.no_ns_jordan_truscott;
     agreements.competition.weak_new_suit_rebid = !args.no_ns_weak_new_suit_rebid;
+    agreements.competition.weak_new_suit_extras = !args.no_ns_weak_new_suit_extras;
     agreements.competition.splinter_doubled = !args.no_ns_splinter_doubled;
     agreements.competition.competition_over_minor_transfer = !args.no_ns_comp_over_minor_transfer;
     agreements.competition.competition_over_diamond_transfer =

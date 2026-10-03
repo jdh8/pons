@@ -678,6 +678,11 @@ group waits on that decision, the second group does not.
   **shipped default-on 2026-10-04** on the naturalness tiebreak — vs BBA
   (seed 1791047769, 409,600 boards/arm/vul) the arms bid every board
   identically; the node came up 5–6 times per vul, always on a minimum.
+  Opener's strong hands over the weak `2y` followed
+  (`competition.weak_new_suit_extras`,
+  `scripts/ab-weak-new-suit-extras.sh`): **shipped default-on
+  2026-10-04**, plain +0.0002/+0.0003, PD +0.0003/+0.0003 IMPs/board,
+  all four CIs > 0.
 - **Forcing-NT jump shifts — default-on since 2026-09-27** (Meckstroth off):
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the

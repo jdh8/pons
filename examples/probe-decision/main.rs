@@ -153,6 +153,10 @@ fn main() {
     if std::env::var("PROBE_WEAK_NEW_SUIT_REBID").is_ok_and(|v| v == "0") {
         agreements.competition.weak_new_suit_rebid = false;
     }
+    // Opener's strong-hand rebids over the weak `2y` (default on): `=0` withholds them.
+    if std::env::var("PROBE_WEAK_NEW_SUIT_EXTRAS").is_ok_and(|v| v == "0") {
+        agreements.competition.weak_new_suit_extras = false;
+    }
     // Opener's answer to the both-majors `1♣ (1♦) X -` (shipped default-on
     // 2026-10-03): `=0` withholds it.
     if std::env::var("PROBE_MODERN_BOTH_MAJORS").is_ok_and(|v| v == "0") {

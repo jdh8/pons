@@ -154,7 +154,78 @@ pub(super) fn jordan_truscott_package() -> Package {
                         )
                         .into(),
                     );
+                    // Opener's strong hands over the weak `2y`
+                    // (`agreements.competition.weak_new_suit_extras`): a
+                    // six-card suit invites or bids game, a three-card raise
+                    // needs 17+, and a balanced 18–19 invites in notrump —
+                    // instead of the pass the catch-all gives them.
+                    if agreements.competition.weak_new_suit_extras {
+                        if is_major {
+                            entries.push(
+                                row(
+                                    weak.clone(),
+                                    Bid::new(4, o_strain),
+                                    100,
+                                    len(o, 6..) & points(18..),
+                                )
+                                .into(),
+                            );
+                        }
+                        entries.push(
+                            row(
+                                weak.clone(),
+                                Bid::new(3, o_strain),
+                                85,
+                                len(o, 6..) & points(16..),
+                            )
+                            .into(),
+                        );
+                        entries.push(
+                            row(
+                                weak.clone(),
+                                Bid::new(3, xs),
+                                80,
+                                len(x, 3..) & points(17..),
+                            )
+                            .into(),
+                        );
+                        entries.push(
+                            row(
+                                weak.clone(),
+                                Bid::new(2, Strain::Notrump),
+                                75,
+                                balanced() & hcp(18..=19),
+                            )
+                            .into(),
+                        );
+                    }
                     entries.push(row(weak, Call::Pass, 30, hcp(0..)).into());
+                    if agreements.competition.weak_new_suit_extras {
+                        // Responder's answers, each a natural invitation
+                        // the systems-on rebase would replay as a 2/1.
+                        let invited = Pattern::after(&key, &format!("2{xs} - 3{o_strain} -"));
+                        let accept = if is_major {
+                            row(
+                                invited.clone(),
+                                Bid::new(4, o_strain),
+                                90,
+                                len(o, 2..) & points(8..),
+                            )
+                        } else {
+                            row(invited.clone(), Bid::new(3, Strain::Notrump), 90, hcp(8..))
+                        };
+                        entries.push(accept.into());
+                        entries.push(row(invited, Call::Pass, 0, hcp(0..)).into());
+                        let notrump = Pattern::after(&key, &format!("2{xs} - 2NT -"));
+                        entries.push(
+                            row(notrump.clone(), Bid::new(3, Strain::Notrump), 90, hcp(8..)).into(),
+                        );
+                        entries.push(row(notrump, Call::Pass, 0, hcp(0..)).into());
+                        if is_major {
+                            let game = Pattern::after(&key, &format!("2{xs} - 4{o_strain} -"));
+                            entries.push(row(game, Call::Pass, 0, hcp(0..)).into());
+                        }
+                    }
                     // Responder's second turn over the raise: the weak `2y`
                     // was 6–9, the raise 15+ with four, so game on a maximum
                     // — not the uncontested 2/1 tree the systems-on rebase
