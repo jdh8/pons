@@ -14,6 +14,15 @@
 #
 #   off  the floor (default)
 #   p15  pass on ≤15 HCP, `3NT` on balanced 17+; the rest falls to the floor
+#
+# Seed 1 (1791011690, sha 46d0dc14-dirty = 61857a27), 204,800 boards/arm/vul,
+# isolation gate passed.  IMPs/board none / both:
+#
+#   plain +0.0016 ±0.0004 / +0.0019 ±0.0006, 139 / 137 fired
+#   PD    +0.0022 ±0.0006 / +0.0031 ±0.0008, +3.3 / +4.6 per fired
+#
+# Owed: a second seed (`seed_for` reuses this one — pass a fresh results
+# dir), a ceiling-16 arm, then the default flip to `Some(15)`.
 R=${1:?usage: ab-preemptive-minor-raise.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
