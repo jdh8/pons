@@ -20,7 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sits in `1♥ - 1♠` and the forcing `1NT` (partscores, mostly PD) and in
   responder's 15+ hands (slam tries assuming a 12-count); the 2/1s lose
   less, the fitted 13-point 2/1 is under ten boards a vulnerability, and
-  contested auctions win on plain (+478/+413 IMPs).
+  contested auctions win on plain (+478/+413 IMPs).  Closed without a
+  retrain (2026-10-05): slams the on arm reaches cost only −131/−189 PD,
+  the most an evaluator retrain could recover, and the learned policy
+  floor covers only the contested boards that already win; the uncontested
+  loss (opener's rebids at the two level −889/−1501 PD) belongs to the book
+  and `instinct()`, and the lever there is authoring (responder's reading of
+  `1M` and its game gates, opener's `1NT` rebid band), not training.
 
 - **docs: suit and notrump slams — the best count, the control check, wasted
   honours (2026-10-04)** — a double-dummy census over 102M deals,
