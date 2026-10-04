@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: NLTC against point counts, and its trump adjustments (2026-10-04)**
+  — a double-dummy census over 102M deals (172.9M partnerships with an 8+
+  card fit), [docs/nltc.md](docs/nltc.md).  With a fit NLTC beats raw HCP
+  (sd 1.09 against 1.19 tricks) but not a count that prices shortness (1.00
+  for support points and for Zar); it is the noisiest scale with a void or a
+  7+ card suit, overvaluing those hands by 0.77 and 0.38 tricks, and the
+  weakest slam threshold (147 mIMP per case against 219 for support points).
+  The trump suit owes it three adjustments: count trumps as if three cards
+  long (a small doubleton owes 0.63 losers, a singleton 1.69, a void 3.31),
+  half a loser for the 9th trump (0.50; the 10th adds 0.16, the 11th none),
+  and a third for the trump jack.  Adjusted, it passes plain support points
+  at the game decision but not the `pons` gate, support points + trumps.
+  Reproduced by the new `examples/probe-nltc.rs` and
+  `scripts/nltc-report.py`.  No bidding change.
+
 - **docs: game thresholds for 4M, 5m and 3NT (2026-10-04)** — three
   double-dummy censuses over 102M deals,
   [docs/major-game-threshold.md](docs/major-game-threshold.md),
