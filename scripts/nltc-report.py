@@ -6,7 +6,8 @@
 Prints, per evaluator (NLTC, support points, HCP, Zar): the trick fit, the
 fit by shape, the ranking power (AUC) and the IMPs a single threshold wins
 at the game and slam decisions; then the trump terms NLTC is missing, and
-the hand rule built from them.
+the hand rule built from them; last, NLTC counted in the hand with longer
+trumps against the cover cards of the other.
 """
 import bisect
 import sys
@@ -15,17 +16,24 @@ import numpy as np
 
 EVALS = ['nltc', 'sp', 'hcp', 'zar']
 COLS = ['value', 'shape', 'long7', 'major', 'T', 'm', 'q', 'k', 'j', 'tricks', 'n']
-raw = {e: [] for e in EVALS}
+COVER = ['cover', 'blind']  # declarer's losers against dummy's cover cards
+raw = {e: [] for e in EVALS + COVER}
+moments = {}
 with open(sys.argv[1]) as f:
     next(f)
     for line in f:
         e, *rest = line.split('\t')
-        raw[e].append(rest)
+        if e == 'moment':
+            moments[int(rest[0]), int(rest[1])] = float(rest[2])
+        else:
+            raw[e].append(rest)
 D = {e: dict(zip(COLS, np.array(rows, dtype=float).T)) for e, rows in raw.items()}
 for d in D.values():
     # strength: higher is better on every scale; NLTC comes in half losers
     d['x'] = d['value']
 D['nltc']['x'] = D['nltc']['value'] / 2
+D['cover']['x'] = D['cover']['value'] / 2
+D['blind']['x'] = (D['blind']['value'] - 40) / 2  # BLIND_BASE in probe-nltc.rs
 SIGN = {'nltc': -1, 'sp': 1, 'hcp': 1, 'zar': 1}
 
 
@@ -196,3 +204,55 @@ for name, e, pick in [('NLTC <= 12.5', 'nltc', lambda d: d['x'] <= 12.5), ('supp
     wild = (d['shape'] == 3) | (d['long7'] == 1)
     make = lambda s: d['n'][s & (d['tricks'] >= 12)].sum() / d['n'][s].sum()
     print(f"{name:20} | {d['n'][m].sum() / 1e6:.2f}M | {d['n'][m & wild].sum() / d['n'][m].sum():.0%} | {make(m & wild):.0%} / {make(m & ~wild):.0%}")
+
+# Declarer (the longer trumps) counts losers, dummy counts cover cards.  The
+# regressors of `terms` in probe-nltc.rs, in its order; the tricks come last.
+TERMS = ['declarer: one loser', 'side ace', 'side king, 2+ cards', 'side queen, 3+ cards',
+         'singleton side king', 'side queen, 2 or fewer cards', 'trump ace', 'trump king', 'trump queen',
+         'trump jack, either hand']
+TERMS += [f'side {short}, {trumps} trumps' for trumps in ('2 or fewer', '3', '4+')
+          for short in ('void', 'singleton', 'doubleton')]
+TERMS += ['9th trump', '10th trump']
+K = len(TERMS) + 1
+M = np.array([[moments[i, j] for j in range(K + 1)] for i in range(K + 1)])
+
+
+def moment_fit(idx):
+    """Least squares on a subset of the regressors: beta, sd, R2."""
+    beta = np.linalg.solve(M[np.ix_(idx, idx)], M[idx, K])
+    sse, mean = M[K, K] - beta @ M[idx, K], M[0, K] / M[0, 0]
+    return beta, np.sqrt(sse / M[0, 0]), 1 - sse / (M[K, K] - M[0, 0] * mean**2)
+
+
+print("\n== dummy's cover cards, fitted with declarer's NLTC: tricks = losers covered")
+beta, s, r = moment_fit(list(range(K)))
+loser = -2 * beta[1]  # declarer's count comes in half losers
+print(f"{TERMS[0]:36} | {-loser:+.3f}")
+for name, b in zip(TERMS[1:], beta[2:]):
+    print(f'{name:36} | {b:+.3f} | {b / loser:+.2f}')
+print(f'tricks = {beta[0]:.2f} - {loser:.3f} * (losers - covers) | sd {s:.3f} | R2 {r:.3f}')
+_, s, r = moment_fit(list(range(10)))
+print(f'honours only, no shortness or trump length | sd {s:.3f} | R2 {r:.3f}')
+
+print('\n== losers against cover cards: b | a | sd | mean miss, a void / a 7+ card suit | AUC 10+ | AUC 12+ | decisions, major fits')
+
+
+def extras(d):
+    return 0.5 * (d['T'] >= 9) + 0.25 * d['j']
+
+
+for name, e, x in [('NLTC, both hands summed', 'nltc', RULES[0][1]),
+                   ('NLTC, adjusted (Result 4)', 'nltc', RULES[3][1]),
+                   ('losers - cover cards, hands apart', 'blind', D['blind']['x']),
+                   ('+ 9th trump, trump J', 'blind', D['blind']['x'] - extras(D['blind'])),
+                   ('losers left uncovered, hands seen', 'cover', D['cover']['x']),
+                   ('+ 9th trump, trump J', 'cover', D['cover']['x'] - extras(D['cover'])),
+                   ('support points + trumps', 'sp', -D['sp']['x'] - D['sp']['T'])]:
+    d = D[e]
+    y, w, m = d['tricks'], d['n'], d['major'] == 1
+    beta, _, res = ols([x], y, w)
+    miss = [(w * res)[pick(d)].sum() / w[pick(d)].sum() for _, pick in SHAPES[3:]]
+    out = ['{:.0f} ({:g})'.format(*map(abs, threshold(-x[m], gains(hi, lo, vul)[y[m].astype(int)], w[m])))
+           for _, hi, lo, vul in DECISIONS]
+    print(f"{name:34} | {beta[1]:+.3f} | {beta[0]:.2f} | {sd(res, w):.3f} | {miss[0]:+.2f} / {miss[1]:+.2f} | "
+          f"{auc(-x, y >= 10, w):.3f} | {auc(-x, y >= 12, w):.3f} | " + ' | '.join(out))

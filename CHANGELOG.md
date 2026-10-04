@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: NLTC as losers against cover cards (2026-10-04)** — Result 5 of
+  [docs/nltc.md](docs/nltc.md), same census.  The hand with longer trumps
+  counts NLTC and the other counts cover cards.  Summed NLTC turns out to be
+  that count with shortness priced double: dummy's void, singleton and
+  doubleton cover 1.63, 0.92 and 0.30 losers with four trumps (0.96, 0.55,
+  0.15 with three, nothing with fewer), not 3, 1.5 and 0.5.  Counted with the
+  hands apart, the sd falls from 1.094 to 1.011 tricks and the slam threshold
+  wins 202 mIMP per case against 147, still behind support points + trumps
+  (0.945; 226).  With dummy's cards matched against declarer's actual losers
+  it passes every blind scale (sd 0.961; 1448 against 1431 mIMP per case at
+  game, 309 against 226 at slam).  `examples/probe-nltc.rs` gains the `cover`
+  and `blind` counts and the regression moments; the earlier cells are
+  byte-identical.  No bidding change.
+
 - **docs: NLTC against point counts, and its trump adjustments (2026-10-04)**
   — a double-dummy census over 102M deals (172.9M partnerships with an 8+
   card fit), [docs/nltc.md](docs/nltc.md).  With a fit NLTC beats raw HCP

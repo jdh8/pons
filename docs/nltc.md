@@ -1,4 +1,4 @@
-# NLTC vs. point counts, and its trump adjustments — double-dummy census
+# NLTC vs. point counts, its trump adjustments, and cover cards — double-dummy census
 
 Computed 2026-10-04 from the `pons` double-dummy deal bank. This is a plain
 statistic over random deals, with no bidding simulation.
@@ -13,6 +13,9 @@ fit is found. The study asks:
 2. NLTC does not know which suit is trumps. Does it need an adjustment for a
    short trump holding, where shortness has no ruffing value, and for extra
    trumps?
+3. NLTC is not additive: a loser goes away only when partner holds the card
+   that covers it. Is it better to count losers in the hand with longer trumps
+   and cover cards in the other?
 
 ## Data and method
 
@@ -168,6 +171,86 @@ whatever the length of the holding. A small doubleton counts 3 losers instead
 of 2.5, a small singleton 3 instead of 1.5, a void 3 instead of 0. Qx stays
 at 2.5, and a singleton king counts 2 instead of 1.5.
 
+## Result 5 — losers in one hand, cover cards in the other
+
+The hand with longer trumps is **declarer** and counts NLTC. With equal
+trumps, declarer is the hand with fewer losers. The other hand is **dummy**
+and counts cover cards.
+
+Summing NLTC over both hands is already a cover count. A suit of three or
+more cards has 3 losers less 1.5, 1 and 0.5 for its ace, king and queen, and
+a doubleton, singleton and void have 0.5, 1.5 and 3 fewer. So
+
+    NLTC(declarer) + NLTC(dummy) = NLTC(declarer) + 12 − covers(dummy)
+
+with the cover values of the middle column below. The right column is what
+the deals say: one regression of tricks on declarer's NLTC and the listed
+features of dummy's hand, each term divided by the trick value of one loser
+of declarer (0.880).
+
+| dummy holds | summed NLTC credits | losers covered, fitted |
+| --- | --- | --- |
+| side ace | 1.5 | 1.69 |
+| side king, 2+ cards | 1 | 0.99 |
+| side queen, 3+ cards | 0.5 | 0.44 |
+| singleton side king | 0 | 0.50 |
+| side queen, 2 or fewer cards | 0 | 0.33 |
+| trump ace | 1.5 | 1.66 |
+| trump king | 1 (singleton 0) | 1.13 |
+| trump queen | 0.5 (2 or fewer cards 0) | 0.62 |
+| trump jack, either hand | 0 | 0.34 |
+| side void, 4+ trumps | 3 | 1.63 |
+| side singleton, 4+ trumps | 1.5 | 0.92 |
+| side doubleton, 4+ trumps | 0.5 | 0.30 |
+| side void, 3 trumps | 3 | 0.96 |
+| side singleton, 3 trumps | 1.5 | 0.55 |
+| side doubleton, 3 trumps | 0.5 | 0.15 |
+| side void, 2 or fewer trumps | 3 | 0.04 |
+| side singleton, 2 or fewer trumps | 1.5 | −0.10 |
+| side doubleton, 2 or fewer trumps | 0.5 | −0.12 |
+| 9th trump | 0 | 0.49 |
+| 10th trump | 0 | 0.17 |
+
+The fit is tricks = 11.94 − 0.880 × (losers − covers), sd 0.954, R² 0.780.
+With dummy's honours alone (no shortness, no trump length) the sd is 1.065.
+
+Two counts built on this, with nothing fitted:
+
+- **Hands apart.** Dummy counts cover cards without seeing declarer's hand:
+  ace 1.5, king 1 (a singleton side king 0.5), queen 0.5. A side void,
+  singleton and doubleton are 1.5, 1 and 0.5 with four or more trumps, 1, 0.5
+  and 0 with three, and nothing with fewer. The count is declarer's NLTC less
+  these.
+- **Hands seen.** Declarer's losers that dummy's actual cards leave uncovered.
+  NLTC charges a missing ace, king and queen to the first, second and third
+  round of a suit. A loser is covered if dummy holds that honour, or if dummy
+  is out of the side suit by that round and has a trump left to ruff with.
+  An honour of dummy opposite a void, or a king opposite a singleton, covers
+  nothing.
+
+| count | tricks per loser | a | sd | mean miss, a void | mean miss, a 7+ card suit | AUC 10+ | AUC 12+ |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| NLTC, both hands summed | −0.842 | 22.11 | 1.094 | −0.77 | −0.38 | 0.923 | 0.950 |
+| NLTC, adjusted (Result 4) | −0.855 | 22.05 | 1.019 | −0.80 | −0.18 | 0.934 | 0.954 |
+| losers − cover cards, hands apart | −0.919 | 12.62 | 1.011 | −0.56 | +0.05 | 0.934 | 0.954 |
+| + 9th trump −0.5, trump jack −0.25 | −0.903 | 12.19 | 0.977 | −0.60 | −0.08 | 0.938 | 0.955 |
+| losers left uncovered, hands seen | −1.014 | 13.48 | 0.961 | −0.35 | +0.21 | 0.942 | 0.969 |
+| + 9th trump −0.5, trump jack −0.25 | −1.006 | 13.04 | **0.900** | −0.42 | +0.05 | **0.949** | **0.971** |
+| support points + trumps | +0.360 | −2.57 | 0.945 | +0.03 | −0.09 | 0.941 | 0.957 |
+
+Decision value in mIMP per case, major fits, with the best threshold in
+brackets (losers less covers, at most):
+
+| count | 4M over 3M, not vul | 4M over 3M, vul | 6M over 4M, not vul | 6M over 4M, vul |
+| --- | --- | --- | --- | --- |
+| NLTC, both hands summed | 1368 (≤ 15.5) | 2490 (≤ 15.5) | 147 (≤ 12.5) | 170 (≤ 12.5) |
+| NLTC, adjusted (Result 4) | 1401 (≤ 15) | 2536 (≤ 15.25) | 175 (≤ 12.25) | 205 (≤ 12.25) |
+| losers − cover cards, hands apart | 1402 (≤ 3.5) | 2502 (≤ 4) | 202 (≤ 1) | 238 (≤ 1) |
+| + 9th trump, trump jack | 1413 (≤ 3.25) | 2536 (≤ 3.5) | 201 (≤ 0.5) | 237 (≤ 0.5) |
+| losers left uncovered, hands seen | 1448 (≤ 4) | 2571 (≤ 4) | 309 (≤ 2) | 363 (≤ 2) |
+| + 9th trump, trump jack | **1475** (≤ 3.75) | **2627** (≤ 3.75) | **337** (≤ 1.5) | **398** (≤ 1.5) |
+| support points + trumps | 1431 (33) | 2551 (33) | 226 (40) | 266 (40) |
+
 ## Conclusions
 
 1. **With a fit, NLTC beats raw HCP and nothing else.** Its sd is 1.09 tricks
@@ -209,11 +292,37 @@ at 2.5, and a singleton king counts 2 instead of 1.5.
    (1431), and at slam it stays behind every point count that prices
    shortness. The same trump terms improve every scale, so the gap does not
    close: 1.016 for NLTC against 0.936 for support points and 0.915 for Zar.
-9. **Nothing changes in `pons`.** `support_point_count_in` already drops the
-   ruffing value of a short trump holding, and the game gate already adds the
-   trumps. NLTC stays an evaluator (`eval::NLTC`), not a gate. This agrees
-   with the two engine A/Bs that tried it: the weak-two band and the slam
-   entry (see [CHANGELOG.md](../CHANGELOG.md)).
+9. **Summed NLTC is a cover count with the wrong prices for shortness.**
+   It credits dummy's void, singleton and doubleton with 3, 1.5 and 0.5
+   losers in every suit. They cover 1.63, 0.92 and 0.30 with four trumps,
+   0.96, 0.55 and 0.15 with three, and nothing with two or fewer. Dummy's
+   honours are priced almost right (ace 1.69, king 0.99, queen 0.44 against
+   1.5, 1, 0.5). The trump adjustments of Result 3 are the trump-suit part of
+   the same repair: the shorter trump holding is dummy's.
+10. **Counted apart, losers and cover cards beat summed NLTC but not the
+    `pons` gate.** The sd falls from 1.094 to 1.011, and to 0.977 with the 9th
+    trump and the trump jack, against 0.945 for support points + trumps. The
+    gain is largest at slam (202 mIMP per case not vulnerable, against 147
+    summed and 175 adjusted), most likely because dummy's shortness is no
+    longer counted double; support points + trumps still wins 226. A hand with a 7+ card
+    suit is no longer overvalued. A hand with a void still is, by 0.56
+    tricks: declarer's own void counts no losers whatever dummy holds there.
+11. **The non-additivity is real, and it is worth the most at slam.** Once
+    dummy's cards are matched against declarer's actual losers, one uncovered
+    loser is one trick (1.01; tricks = 13.5 − losers left), the sd is 0.961
+    (0.900 with the 9th trump and the jack), and the count passes every blind
+    scale here: 1448 against 1431 mIMP per case at game and 309 against 226
+    at slam, 337 with the trump terms. No sum of two separate hand values can
+    do this, since each hand must know which of its cards work. That is the
+    information a splinter, a control bid and a keycard answer carry.
+12. **Nothing changes in `pons` yet.** `support_point_count_in` already drops
+    the ruffing value of a short trump holding, and the game gate already adds
+    the trumps, so the blind cover count offers the gate nothing. NLTC stays
+    an evaluator (`eval::NLTC`), not a gate. This agrees with the two engine
+    A/Bs that tried it: the weak-two band and the slam entry (see
+    [CHANGELOG.md](../CHANGELOG.md)). The matched count is a candidate for the
+    slam decision after a splinter or a keycard answer, where one hand does
+    know the other's shortness or honours. It needs its own A/B.
 
 ## Reproduce
 
@@ -242,6 +351,12 @@ python3 scripts/nltc-report.py nltc.tsv
   quick losers.
 - The terms of Result 3 are fitted together and are correlated with shape: a
   short trump holding opposite an 8+ card fit implies a long suit opposite.
+- In Result 5 the roles are fixed by trump length alone. The "hands seen"
+  count hands out dummy's ruffs suit by suit, charges nothing for drawing
+  trumps, and gives no credit for discards on dummy's long suit. It is a
+  simple rule with both hands in view, not an upper bound. Support points
+  have no such version in this study, so its rows are compared with blind
+  scales only.
 - `examples/eval-calibrate` drops cases that take fewer than 6 tricks. With
   that filter the NLTC line is 20.9 − 0.76 × losers and the 9th trump is
   worth 0.43 losers. The other terms move by 0.1 or less.
