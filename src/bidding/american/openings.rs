@@ -170,6 +170,22 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
             );
         }
     }
+    // Opt-in: a 10-HCP 5-4-3-1 opens in first/second seat when no short
+    // honour is wasted — at 10 HCP, `points(11..)` with a five-card suit and
+    // a singleton is exactly that hand (`ten_count_majors`).
+    if knobs.ten_count_majors {
+        for (suit, weight) in [(Suit::Spades, 160), (Suit::Hearts, 150)] {
+            rules = rules.rule(
+                Bid::new(1, Strain::from(suit)),
+                weight,
+                hcp(10..=10)
+                    & points(11..)
+                    & len(suit, 5..=5)
+                    & or(Suit::ASC, 1..=1)
+                    & (nth_seat(1) | nth_seat(2)),
+            );
+        }
+    }
     // One-of-a-minor openings (deny a five-card major): better minor, or the
     // 5542 partition — `1♦` on four-plus diamonds (so a (xx)45 opens `1♦` as a
     // canapé), `1♣` on two-plus clubs otherwise (`five_five_four_two`).

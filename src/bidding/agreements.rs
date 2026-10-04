@@ -3739,6 +3739,17 @@ pub struct OpeningKnobs {
     /// opening off the rule.  Third/fourth seat already open `points(11..)`.
     /// `bba-gen --ns-eleven-count-majors` (`scripts/ab-eleven-count-majors.sh`).
     pub eleven_count_majors: bool,
+    /// Open `1M` on a 10-HCP **5-4-3-1** with no wasted short honour in
+    /// first/second seat
+    ///
+    /// **Default off.**  Such a hand reads 11 points, one short of the base
+    /// band; BBA opens it.  Other 10-counts — 5-4-2-2, 5-4-4-0, 6-3-2-2, or any
+    /// wasted holding — still pass.  Independent of
+    /// [`eleven_count_majors`][Self::eleven_count_majors]; the two together
+    /// copy BBA's light major openings.  `bba-gen --ns-ten-count-majors`
+    /// (`scripts/ab-ten-count-majors.sh`).  Measured 2026-10-05: a plain wash
+    /// and a PD loss alone, a doubling artifact with the 11-count knob.
+    pub ten_count_majors: bool,
     /// Play the **wide, non-forcing `1♣`** with its `1♦!` catch-all relay —
     /// the Watermelon Dutch Doubleton plugin (<https://jdh8.github.io/watermelon-dutch/>)
     ///
@@ -3838,6 +3849,7 @@ impl Default for OpeningKnobs {
             weak_two_longest_first: true,
             five_five_four_two: false,
             eleven_count_majors: false,
+            ten_count_majors: false,
             wide_one_club: false,
             multi_two_diamonds: false,
             multi_two_diamonds_champion: true,

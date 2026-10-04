@@ -360,3 +360,28 @@ fn eleven_count_majors_open_flat_and_wasted_eleven_counts() {
     // A 10-count still passes.
     assert_eq!(opens(&on, "AQ986.K94.J72.64"), Call::Pass);
 }
+
+#[test]
+fn ten_count_majors_open_only_the_sound_5431() {
+    let one_s = Call::Bid(Bid::new(1, Strain::Spades));
+    let one_h = Call::Bid(Bid::new(1, Strain::Hearts));
+    // 10-HCP 5-4-3-1s with nothing wasted, in each major.
+    let spades = "AQ986.K942.J72.6";
+    let hearts = "K942.AQ986.J72.6";
+    // Same strength, wasted singleton king; and a 5-4-2-2.
+    let wasted = "AQ986.9842.J72.K";
+    let flat = "AQ986.KJ42.72.62";
+    let off = openings(&Agreements::default());
+    assert_eq!(opens(&off, spades), Call::Pass);
+    assert_eq!(opens(&off, hearts), Call::Pass);
+
+    let mut agreements = Agreements::default();
+    agreements.opening.ten_count_majors = true;
+    let on = openings(&agreements);
+    assert_eq!(opens(&on, spades), one_s);
+    assert_eq!(opens(&on, hearts), one_h);
+    assert_eq!(opens(&on, wasted), Call::Pass);
+    assert_eq!(opens(&on, flat), Call::Pass);
+    // A 9-count still passes.
+    assert_eq!(opens(&on, "AQ986.K942.T72.6"), Call::Pass);
+}

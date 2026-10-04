@@ -795,6 +795,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_eleven_count_majors: bool,
 
+    /// Open `1M` on a 10-HCP 5-4-3-1 with no wasted short honour in
+    /// first/second seat (default off; see `opening.ten_count_majors`).
+    #[arg(long, default_value_t = false)]
+    ns_ten_count_majors: bool,
+
     /// Play the wide, non-forcing `1♣` with its `1♦!` relay (default off; see
     /// `opening.wide_one_club`).
     #[arg(long, default_value_t = false)]
@@ -3014,6 +3019,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.multi_two_diamonds_champion = !args.no_ns_multi_2d_champion;
     agreements.opening.five_five_four_two = args.ns_5542;
     agreements.opening.eleven_count_majors = args.ns_eleven_count_majors;
+    agreements.opening.ten_count_majors = args.ns_ten_count_majors;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
     agreements.rebid.strong_two_positive = !args.no_ns_strong_two_positive;

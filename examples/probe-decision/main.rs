@@ -168,6 +168,10 @@ fn main() {
     if std::env::var("PROBE_ELEVEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.eleven_count_majors = true;
     }
+    // Open `1M` on a non-wasted 10-HCP 5-4-3-1 (default off): `=1` arms it.
+    if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
+        agreements.opening.ten_count_majors = true;
+    }
     // Opener passes `1M (X) 1NT -` with a balanced non-maximum (shipped
     // default-on 2026-10-04): `=0` withholds it.
     if std::env::var("PROBE_DOUBLED_NOTRUMP_PASS").is_ok_and(|v| v == "0") {

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`opening.ten_count_majors`: open `1M` on a 10-HCP 5-4-3-1 with no wasted
+  short honour in first/second seat (2026-10-05, opt-in, measured non-win)** —
+  the hand reads 11 points, one short of `points(12..=21)`; BBA opens it.  Other
+  10-counts still pass.  `bba-gen --ns-ten-count-majors`,
+  `scripts/ab-ten-count-majors.sh`, SEED_BASE 1791135744, 204,800
+  boards/arm/vul.  Alone (0.35% fired): plain +0.0014 ±0.0014 none / +0.0018
+  ±0.0019 both, PD −0.0019 ±0.0016 / −0.0030 ±0.0021 IMPs/board — a plain
+  wash and a PD loss.  With `eleven_count_majors`, a full copy of BBA's light
+  majors (1.26% fired): plain +0.0047 ±0.0025 / +0.0029 ±0.0033, PD −0.0076
+  ±0.0030 / −0.0134 ±0.0039 — a doubling artifact.  Stays off; the same
+  continuation lever as the 11-count (responder's reading of `1M`, opener's
+  two-level rebids) would have to flip both.
+
 - **`opening.eleven_count_majors`: open `1M` on every 11-HCP five-card major
   in first/second seat (2026-10-04, opt-in, measured non-win)** — the base
   band `points(12..=21)` admits an 11-count only when its shape upgrades it;
