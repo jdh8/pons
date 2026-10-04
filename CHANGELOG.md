@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: suit and notrump slams — the best count, the control check, wasted
+  honours (2026-10-04)** — a double-dummy census over 102M deals,
+  [docs/suit-slam.md](docs/suit-slam.md) and
+  [docs/notrump-slam.md](docs/notrump-slam.md).  *Suit:* in the slam zone
+  each honour is worth about half the one above it (4, 2.1, 0.85, 0.35
+  against 4, 2.65, 1.33, 0.65 on all hands), so the count "4-2-1-½, a side
+  void 3, singleton 1½, doubleton ½" wins 279 mIMP per case with no trump
+  term and 301 with one, against 226 for support points + trumps and 229
+  for Zar.  The trumps count less than at game: the 9th is worth 1 point,
+  the 10th ½, the 11th ¼ (1.4, 0.8, 0.4 at game), and nothing with two
+  balanced hands.  A
+  keycard check is worth more than any count (226 to 320), and behind it the
+  blind counts are equal (320 to 325).  An honour facing partner's void is
+  nearly wasted (an ace keeps 28%, a king 27%; a king facing a singleton
+  45%); with that known the count wins 364, and the check then costs,
+  because a void stands in for an ace.  No blind count decides a grand slam.
+  *Notrump:* 6NT wants 31 HCP on actual holdings (51.7% with two balanced
+  hands; 33 is an 89% slam) and 7NT 35; Fifths is the best standard count,
+  the honours do not steepen as in a suit, a five-card suit is worth 0.66
+  of a point (twice its value at game), and no waste adjustment is needed —
+  an honour facing shortness is a stopper.  Reproduced by the new
+  `examples/probe-slam.rs` and `scripts/slam-report.py`.  No bidding change.
+
 - **docs: Zar points against point counts, and the wasted values Zar misses
   (2026-10-04)** — a double-dummy census over 102M deals,
   [docs/zar.md](docs/zar.md).  With a fit Zar ties support points (sd 1.005
