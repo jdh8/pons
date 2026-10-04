@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: game thresholds for 4M, 5m and 3NT (2026-10-04)** — three
+  double-dummy censuses over 102M deals,
+  [docs/major-game-threshold.md](docs/major-game-threshold.md),
+  [docs/minor-game-threshold.md](docs/minor-game-threshold.md) and
+  [docs/notrump-game-threshold.md](docs/notrump-game-threshold.md): the
+  break-even point on three point scales, per trump length (8 to 12+) for a
+  suit game, per length and flatness for 3NT, and 5m vs 3NT.  On the
+  both-hands support-point count a major game wants 25 with eight trumps,
+  1 less per extra trump down to 23; a minor game about 3 more.  3NT wants
+  24 HCP; a five-card suit is worth only ~0.4 HCP, two flat 4-3-3-3 hands
+  cost 0.3, and Fifths beats HCP as a notrump scale.  Reproduced by the new
+  `examples/probe-game-threshold.rs` (`--minor`) and
+  `examples/probe-notrump-threshold.rs`, with
+  `scripts/{game,notrump}-threshold-report.py`.  No bidding change.
+
 - **The natural `1NT` over their double denies a five-card suit, shipped
   default (2026-10-04)** — `CompetitionKnobs::doubled_notrump_max_length`,
   default 4 (`--ns-doubled-notrump-max-length 13` in `bba-gen` for the
