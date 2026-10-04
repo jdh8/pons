@@ -3730,6 +3730,15 @@ pub struct OpeningKnobs {
     /// that input shift, so a fair re-measure needs a floor retrained on a 5542
     /// corpus.
     pub five_five_four_two: bool,
+    /// Open `1M` on **every** 11-HCP five-card major in first/second seat
+    ///
+    /// **Default off.**  The base band is `points(12..=21) & hcp(10..)`, so an
+    /// 11-count opens only when its shape upgrades it — unbalanced with no
+    /// wasted short honour.  On, the flat 5-3-3-2 and the wasted-doubleton
+    /// 11-counts open too.  Nothing else moves: responses read the wider
+    /// opening off the rule.  Third/fourth seat already open `points(11..)`.
+    /// `bba-gen --ns-eleven-count-majors` (`scripts/ab-eleven-count-majors.sh`).
+    pub eleven_count_majors: bool,
     /// Play the **wide, non-forcing `1♣`** with its `1♦!` catch-all relay —
     /// the Watermelon Dutch Doubleton plugin (<https://jdh8.github.io/watermelon-dutch/>)
     ///
@@ -3828,6 +3837,7 @@ impl Default for OpeningKnobs {
             weak_two_major_priority: true,
             weak_two_longest_first: true,
             five_five_four_two: false,
+            eleven_count_majors: false,
             wide_one_club: false,
             multi_two_diamonds: false,
             multi_two_diamonds_champion: true,

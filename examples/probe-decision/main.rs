@@ -164,6 +164,10 @@ fn main() {
     {
         agreements.competition.weak_new_suit_length = n;
     }
+    // Open `1M` on every 11-HCP five-card major (default off): `=1` arms it.
+    if std::env::var("PROBE_ELEVEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
+        agreements.opening.eleven_count_majors = true;
+    }
     // Opener passes `1M (X) 1NT -` with a balanced non-maximum (shipped
     // default-on 2026-10-04): `=0` withholds it.
     if std::env::var("PROBE_DOUBLED_NOTRUMP_PASS").is_ok_and(|v| v == "0") {

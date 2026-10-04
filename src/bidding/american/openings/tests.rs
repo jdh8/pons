@@ -338,3 +338,25 @@ fn openings_suppress_weak_twos_in_fourth_seat() {
     assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
     assert_eq!(best(&o, &[Call::Pass; 3], "KQJ732.53.842.92"), Call::Pass,);
 }
+
+#[test]
+fn eleven_count_majors_open_flat_and_wasted_eleven_counts() {
+    let one_s = Call::Bid(Bid::new(1, Strain::Spades));
+    let one_h = Call::Bid(Bid::new(1, Strain::Hearts));
+    // Flat 5-3-3-2 and a wasted-doubleton 5-2-4-2, both 11 HCP.
+    let flat = "AQ986.K94.Q72.64";
+    let wasted = "AK986.J9.QJT6.64";
+    let hearts = "K94.AQ986.Q72.64";
+    let off = openings(&Agreements::default());
+    assert_eq!(opens(&off, flat), Call::Pass);
+    assert_eq!(opens(&off, wasted), Call::Pass);
+
+    let mut agreements = Agreements::default();
+    agreements.opening.eleven_count_majors = true;
+    let on = openings(&agreements);
+    assert_eq!(opens(&on, flat), one_s);
+    assert_eq!(opens(&on, wasted), one_s);
+    assert_eq!(opens(&on, hearts), one_h);
+    // A 10-count still passes.
+    assert_eq!(opens(&on, "AQ986.K94.J72.64"), Call::Pass);
+}

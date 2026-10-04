@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`opening.eleven_count_majors`: open `1M` on every 11-HCP five-card major
+  in first/second seat (2026-10-04, opt-in, measured non-win)** — the base
+  band `points(12..=21)` admits an 11-count only when its shape upgrades it;
+  on, the flat 5-3-3-2 and wasted-doubleton 11-counts open too
+  (`bba-gen --ns-eleven-count-majors`, `scripts/ab-eleven-count-majors.sh`).
+  SEED_BASE 1791130311, 204,800 boards/arm/vul, 0.91% fired: plain
+  +0.0020 ±0.0022 none / −0.0015 ±0.0028 both, PD −0.0071 ±0.0026 /
+  −0.0120 ±0.0034 IMPs/board.  Stays off.  By responder's call the loss
+  sits in `1♥ - 1♠` and the forcing `1NT` (partscores, mostly PD) and in
+  responder's 15+ hands (slam tries assuming a 12-count); the 2/1s lose
+  less, the fitted 13-point 2/1 is under ten boards a vulnerability, and
+  contested auctions win on plain (+478/+413 IMPs).
+
 - **docs: suit and notrump slams — the best count, the control check, wasted
   honours (2026-10-04)** — a double-dummy census over 102M deals,
   [docs/suit-slam.md](docs/suit-slam.md) and

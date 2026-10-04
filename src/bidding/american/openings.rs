@@ -158,6 +158,18 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
         (11, 8, 20),
         len(Suit::Hearts, 5..) & late,
     );
+    // Opt-in: every 11-HCP five-card major opens in first/second seat, flat
+    // or with wasted shortness — the shapely ones already reach
+    // `points(12..)` above (`eleven_count_majors`).
+    if knobs.eleven_count_majors {
+        for (suit, weight) in [(Suit::Spades, 160), (Suit::Hearts, 150)] {
+            rules = rules.rule(
+                Bid::new(1, Strain::from(suit)),
+                weight,
+                hcp(11..=11) & len(suit, 5..) & (nth_seat(1) | nth_seat(2)),
+            );
+        }
+    }
     // One-of-a-minor openings (deny a five-card major): better minor, or the
     // 5542 partition — `1♦` on four-plus diamonds (so a (xx)45 opens `1♦` as a
     // canapé), `1♣` on two-plus clubs otherwise (`five_five_four_two`).
