@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: Zar points against point counts, and the wasted values Zar misses
+  (2026-10-04)** — a double-dummy census over 102M deals,
+  [docs/zar.md](docs/zar.md).  With a fit Zar ties support points (sd 1.005
+  against 1.004 tricks), trails the `pons` gate (0.945), and is the best
+  standard scale when neither hand has a singleton and at slam; at notrump
+  it is the wrong scale (1.451 against 0.949 for HCP), and with a void or a
+  7+ card suit no better than raw HCP.  Its 6-4-2-1 honours are right for a
+  suit contract (fitted 6.8, 4.5, 2.2, 1.1) and its distribution count is
+  not (the suit lengths are worth 1.1, 1.1, −1.8 against Zar's 2, 1, −1).
+  Zar's 1-point discount for a short honour is right except for the
+  singleton king (2.5); the larger waste, which Zar has no term for, is an
+  honour facing partner's shortness (an ace or king facing a void 2.7 and
+  2.0 points, a king facing a singleton 2.0), and only in a suit contract.
+  Repaired, the slam threshold wins 276 mIMP per case against 229.  The
+  blind count "support points + controls + trumps" beats both Zar and the
+  gate (sd 0.920; 1446 mIMP per case at game against 1431, 279 at slam
+  against 226) — a candidate for the slam gate, A/B owed.  26 Zar is a
+  lighter opening than 12 HCP (it matches 11).  Reproduced by the new
+  `examples/probe-zar.rs` and `scripts/zar-report.py`.  No bidding change.
+
 - **docs: NLTC as losers against cover cards (2026-10-04)** — Result 5 of
   [docs/nltc.md](docs/nltc.md), same census.  The hand with longer trumps
   counts NLTC and the other counts cover cards.  Summed NLTC turns out to be
