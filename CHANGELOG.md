@@ -24,8 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   132).  Pooled plain +0.0012 / +0.0018, PD +0.0014 / +0.0021, every cell
   outside its CI (±0.0005–0.0008), +2.0 to +3.4 IMPs per fired.  Known
   residue: with `2♠` now denying four hearts, opener's unauthored next call
-  over `1♠ - 1NT - 2♥ - 2♠` sometimes bids a thin `3NT`.  The mirror pins it
-  off, so it moves only boards we open.  Off-switch
+  over `1♠ - 1NT - 2♥ - 2♠` sometimes bids a thin `3NT` (refuted double dummy
+  2026-10-06: that `3NT` beats passing `2♠`, see docs/next-steps.md item 2).
+  The mirror pins it off, so it moves only boards we open.  Off-switch
   `bba-gen --no-ns-forcing-notrump-heart-raise`
   (`scripts/ab-forcing-notrump-heart-raise.sh`).
 
