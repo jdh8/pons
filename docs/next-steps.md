@@ -99,6 +99,13 @@ ranking and each lane's unworked residue.
     4-4 spade fit; the keycard answerer raises the asker's `5M` sign-off to
     `6M` (17 / 18 boards, net −1 / −8 plain);
   - five spades and a six-card minor still bid `1♠`;
+  - **shipped 2026-10-06:** `rebid.forcing_notrump_doubleton_raise` —
+    over `1M - 1NT - 2M` the `3M` limit raise takes a doubleton, as BBA
+    bids it (our `2NT` vs its `4♠`, 136 rows, −576 / −564).  Pooled two
+    seeds: plain +0.0020 / +0.0034, PD +0.0021 / +0.0033 IMPs/board, every
+    cell outside its CI.  Neighbours in the same table, uncensused: our
+    `2NT` vs BBA's `4♥` over `1♠ - 1NT - 2♥` (31 rows, −256 / −268) and
+    opener's `2NT` acceptance, which bids `3NT` on six trumps;
   - our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
     strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with
@@ -121,11 +128,17 @@ ranking and each lane's unworked residue.
 - **Slam census 2026-09-30** (`scripts/slam-census.py`, archived): missed
   slams dominate 3:1, spread thin; every round-2 `3NT` is a sign-off.
   Shipped from it: `notrump.quantitative_six_notrump`,
-  `notrump.rebid_checkback`.  Unworked classes: 2/1 `1M - 2m - x - 3NT`
-  (260 rows, −0.7k PD; choice of games, BBA bids `4m`), `1M - 1x - 2y -
-  3NT` (270 rows, −0.3k; no FSF), opener's 2-level rebid vs BBA's jump
-  (`2♦→3♦` 45, `2♥→3♥` 38 rows, −1.0k).  Owed on checkback: the doubled
-  `(X)` tail and the 12+ RKCB floor over the six-card raise.
+  `notrump.rebid_checkback`.  **Its unworked classes are suspect
+  (re-read 2026-10-06):** the script reads `boards.jsonl`, the
+  *instinct* arm, not the shipping arm (`boards-american.jsonl`), and its
+  slam-flavoured filter conditions on the outcome.  Re-cut on the
+  shipping arm at `46d0dc14` with every outcome kept, opener's 2-level
+  rebid vs BBA's jump (all suits) is 390 rows, −71 plain / **+226** PD,
+  and responder's `1M - 2m - x - 3NT` is 133 rows, −353 PD (BBA's `4♣`
+  there flat, +14 on 44): both dead as levers.  `1M - 1x - 2y - 3NT`
+  (270 rows, −0.3k; no FSF) is unchecked the same way.  Owed on
+  checkback: the doubled `(X)` tail and the 12+ RKCB floor over the
+  six-card raise.
 
 ## 2b. The floor sweep — seed noise, ensembles, the recipe's free parameters
 

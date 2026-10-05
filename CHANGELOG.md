@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.forcing_notrump_doubleton_raise`: responder raises opener's
+  six-card `2M` to `3M` on a doubleton (2026-10-06, shipped default-on,
+  measured win)** — after `1M - 1NT - 2M` the limit raise wanted three
+  cards, so 10–12 with two trumps bid the `2NT` invite (or passed on 10),
+  and opener's acceptance played the 6-2 fit in `3NT` or stopped in `2NT`.
+  BBA raises to `3♠` on 10–12 with 2–3 spades; the anchor at `46d0dc14`
+  prices our `2NT` against its `4♠` over `1♠ - 1NT - 2♠` at 136 rows (−576
+  plain / −564 PD per 409,600 boards).  On: the `3M` raise takes `len(2..)`
+  over opener's own `2M` only; opener's acceptance (`4M` on 14+ points) is
+  unchanged.  Two seeds, 204,800 boards/arm/vul, IMPs/board none / both:
+  1791218827 plain +0.0019 / +0.0034, PD +0.0020 / +0.0034 (254 / 286
+  fired); 1791219358 plain +0.0022 / +0.0034, PD +0.0022 / +0.0033 (245 /
+  280).  Pooled plain +0.0020 / +0.0034, PD +0.0021 / +0.0033, every cell
+  outside its CI (±0.0007–0.0013), +1.5 to +2.5 IMPs per fired.  The
+  mirror pins it off, so it moves only boards we open.  Off-switch
+  `bba-gen --no-ns-forcing-notrump-doubleton-raise`
+  (`scripts/ab-forcing-notrump-doubleton-raise.sh`).
+
 - **`rebid.unbalanced_1nt_rebid`: a minimum 5m-4♥ rebids `1NT` over
   `1m - 1♠` (2026-10-05, shipped default-on, measured wash with a positive
   lean)** —

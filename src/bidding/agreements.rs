@@ -4465,6 +4465,23 @@ pub struct RebidKnobs {
     /// against +233 / +275 on 147 for the heart jump): opener passes `3m` on a
     /// minimum where the `2NT` invite found `3NT`.
     pub forcing_notrump_suit_invite: bool,
+    /// Responder's `3M` limit raise over opener's six-card `2M` rebid after
+    /// the forcing `1NT` accepts a doubleton (`1♠ - 1NT - 2♠ - 3♠` on ♠xx)
+    ///
+    /// **Default on**, shipped 2026-10-06: two seeds (1791218827, 1791219358;
+    /// 409,600 boards/vul pooled, 499 / 566 fired), plain +0.0020 / +0.0034,
+    /// PD +0.0021 / +0.0033 IMPs/board (none / both), all eight cells positive
+    /// outside their CIs; +1.5 to +2.5 IMPs per fired.  Off-switch
+    /// `bba-gen --no-ns-forcing-notrump-doubleton-raise`
+    /// (`scripts/ab-forcing-notrump-doubleton-raise.sh`).
+    ///
+    /// Off: the raise wants three cards, so
+    /// 10–12 with a doubleton bids the `2NT` invite (11–12) or passes, and
+    /// opener's `3NT` acceptance plays the 6-2 fit in notrump.  On: two cards
+    /// suffice over `2M` only, as BBA bids it (`3♠` 10–12 on 2–3 spades).  At
+    /// anchor `46d0dc14` our `2NT` where BBA bids `4♠` is 136 rows, −576 plain
+    /// / −564 PD per 409,600 boards.
+    pub forcing_notrump_doubleton_raise: bool,
     // --- game_force.rs
     /// Opener's jump to `3M` after a 2/1 denies a four-card side suit
     ///
@@ -4546,6 +4563,7 @@ impl Default for RebidKnobs {
             strong_two_grand: true,
             strong_two_positive_notrump: true,
             forcing_notrump_suit_invite: true,
+            forcing_notrump_doubleton_raise: true,
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
         }

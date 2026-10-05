@@ -288,3 +288,42 @@ fn forcing_notrump_suit_invite_jumps_in_the_six_card_suit() {
         assert_eq!(best(&on, &three_hearts, hand), answer, "{hand}");
     }
 }
+
+/// `forcing_notrump_doubleton_raise`: after `1♠ - 1NT - 2♠`, 10–12 with a
+/// doubleton raises to `3♠` (the `2NT` invite before); over `2♣` the same hand
+/// still invites in notrump, and a 10-count with a doubleton raises too.
+#[test]
+fn forcing_notrump_doubleton_raise_over_the_six_card_rebid() {
+    let a = |calls: &[Call]| {
+        let mut auction = vec![call(1, Strain::Spades), Call::Pass];
+        for &c in calls {
+            auction.extend([c, Call::Pass]);
+        }
+        auction
+    };
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.forcing_notrump_doubleton_raise = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[forcing_notrump_continuations()],
+        );
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let nt = call(1, Strain::Notrump);
+    let two_spades = a(&[nt, call(2, Strain::Spades)]);
+    // ♠97 ♥QJ52 ♦A8753 ♣A7 — 11 HCP, two spades.
+    let hand = "97.QJ52.A8753.A7";
+    assert_eq!(best(&off, &two_spades, hand), call(2, Strain::Notrump));
+    assert_eq!(best(&on, &two_spades, hand), call(3, Strain::Spades));
+    // ♠T6 ♥KT65 ♦Q32 ♣AJ86 — 10 HCP: no invite before, raises now.
+    let ten = "T6.KT65.Q32.AJ86";
+    assert_ne!(best(&off, &two_spades, ten), call(3, Strain::Spades));
+    assert_eq!(best(&on, &two_spades, ten), call(3, Strain::Spades));
+    // Over `2♣` a doubleton is no fit: still the notrump invite.
+    let two_clubs = a(&[nt, call(2, Strain::Clubs)]);
+    assert_eq!(best(&on, &two_clubs, hand), call(2, Strain::Notrump));
+}

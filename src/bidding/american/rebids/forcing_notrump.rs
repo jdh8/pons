@@ -18,17 +18,32 @@ use super::*;
 ///
 /// | Call   | Wt  | Meaning |
 /// |--------|-----|---------|
-/// | 3M     | 1.5 | Three-card limit raise (10–12 HCP) |
+/// | 3M     | 1.5 | Three-card limit raise (10–12 HCP); two cards over opener's own `2M`, knob `forcing_notrump_doubleton_raise` |
 /// | 3♥     | 1.3 | Six-card invite over `1♠` (10–12 HCP), knob `forcing_notrump_suit_invite`; not over `2♥` |
 /// | 2NT    | 1.2 | Natural notrump invite (11–12 HCP) |
 /// | 2x≠M   | 1.1 | Six-card runout, weak (≤ 9 HCP); dead when illegal |
 /// | 2M     | 1.0 | Preference to the major (7+ HCP, 2+ cards) |
 /// | Pass   | 0.0 | Catch-all: the force was one round only |
-fn responder_after_forcing_notrump(major: Suit, rebid: Call, suit_invite: bool) -> Rules {
+fn responder_after_forcing_notrump(
+    major: Suit,
+    rebid: Call,
+    suit_invite: bool,
+    doubleton_raise: bool,
+) -> Rules {
     let trump = Strain::from(major);
+    // Opener's own `2M` rebid shows six, so a doubleton is an eight-card fit.
+    let support = if doubleton_raise && rebid == call(2, trump) {
+        2
+    } else {
+        3
+    };
     let mut rules = Rules::new()
-        // Three-card limit raise — the standard 2/1 route: 1NT then 3M.
-        .rule(Bid::new(3, trump), 150, len(major, 3..) & hcp(10..=12))
+        // Limit raise — the standard 2/1 route: 1NT then 3M.
+        .rule(
+            Bid::new(3, trump),
+            150,
+            len(major, support..) & hcp(10..=12),
+        )
         // Natural notrump invite.
         .rule(Bid::new(2, Strain::Notrump), 120, hcp(11..=12))
         // Preference to opener's major.
@@ -118,7 +133,12 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                     let suit_invite = agreements.rebid.forcing_notrump_suit_invite;
                     entries.extend(rows_of(
                         Pattern::node(&prefix),
-                        responder_after_forcing_notrump(major, rebid, suit_invite),
+                        responder_after_forcing_notrump(
+                            major,
+                            rebid,
+                            suit_invite,
+                            agreements.rebid.forcing_notrump_doubleton_raise,
+                        ),
                     ));
                     if suit_invite && is_heart_invite(major, rebid) {
                         entries.extend(rows_of(

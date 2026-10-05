@@ -1437,6 +1437,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_forcing_notrump_suit_invite: bool,
 
+    /// Withhold responder's doubleton `3M` raise over opener's six-card `2M`
+    /// rebid (`rebid.forcing_notrump_doubleton_raise`, **shipped default-on
+    /// 2026-10-06**; this is the disarming flag and the control arm of
+    /// `scripts/ab-forcing-notrump-doubleton-raise.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_notrump_doubleton_raise: bool,
+
     /// Lighten `1♠ - 2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
     /// hcp13 gate), the five-card major worth a shade-light game force. Off by
     /// default — on-switch for the A/B (see `response.two_over_one_major_discount`).
@@ -3104,6 +3111,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.response.two_over_one_minor_before_spades =
         !args.no_ns_two_over_one_minor_before_spades;
     agreements.rebid.forcing_notrump_suit_invite = !args.no_ns_forcing_notrump_suit_invite;
+    agreements.rebid.forcing_notrump_doubleton_raise = !args.no_ns_forcing_notrump_doubleton_raise;
     agreements.rebid.two_over_one_side_suit_first = !args.no_ns_two_over_one_side_suit_first;
     agreements.rebid.two_over_one_reverse_extras = !args.no_ns_two_over_one_reverse_extras;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;

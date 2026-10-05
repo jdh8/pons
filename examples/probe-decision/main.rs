@@ -173,6 +173,11 @@ fn main() {
     if std::env::var("PROBE_FORCING_NOTRUMP_SUIT_INVITE").is_ok_and(|v| v == "0") {
         agreements.rebid.forcing_notrump_suit_invite = false;
     }
+    // Responder's doubleton `3M` raise over `1M - 1NT - 2M` (shipped
+    // default-on 2026-10-06): `=0` withholds it.
+    if std::env::var("PROBE_FORCING_NOTRUMP_DOUBLETON_RAISE").is_ok_and(|v| v == "0") {
+        agreements.rebid.forcing_notrump_doubleton_raise = false;
+    }
     // `2♥` over `1♠` whenever hearts are the longest new suit (default off): `=1` arms it.
     if std::env::var("PROBE_TWO_OVER_ONE_HEARTS_FIRST").is_ok_and(|v| v == "1") {
         agreements.response.two_over_one_hearts_first = true;
