@@ -107,10 +107,19 @@ ranking and each lane's unworked residue.
     raises to `3♥` on four hearts and 10–12, and `2♠` denies four hearts
     (was: our `2NT` vs BBA's `4♥`, 31 rows, −256 / −268).  Pooled two
     seeds: plain +0.0012 / +0.0018, PD +0.0014 / +0.0021, every cell
-    outside its CI.  Unworked: BBA's direct `4♥` on shape (not built),
-    opener's unauthored call over `1♠ - 1NT - 2♥ - 2♠` (now bids a thin
-    `3NT` on some hands), and opener's `2NT` acceptance, which bids `3NT`
-    on six trumps;
+    outside its CI.  **Lane closed 2026-10-06** — both residues refuted
+    double dummy, by re-scoring the two ships' on-arm boards (both seeds)
+    against the counterfactual call (`bba-score`, IMPs per fired, none /
+    both): the floor's `3NT` over `1♠ - 1NT - 2♥ - 2♠` (15–17, 5-4; 80
+    boards) beats passing `2♠`, plain +0.34 / +2.50, PD −0.63 / +1.15 — so
+    the node keeps its no-catch-all design (a `Pass` there already lost
+    −242 IMPs on 47 boards, `jump_shifts.rs`); opener's `3NT` on six trumps
+    over `1M - 1NT - 2M - 2NT` (now ≤ 1 trump opposite) beats `4M` in every
+    cell, ♠ (55 boards) plain +0.22 / +0.89, PD +1.04 / +1.89, ♥ (18) +0.3
+    to +0.6.  The authored 5-5 `3♥` invite there is mildly negative (100
+    boards, plain −0.82 / +0.20, PD −1.90 / −1.37 per fired), about
+    −0.0001 IMPs/board — below what an A/B resolves.  BBA's direct `4♥` on
+    shape stays unbuilt: its whole parent pair was 31 rows;
   - our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
     strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with
