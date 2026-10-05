@@ -218,6 +218,8 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise the doubleton raise over opener's six-card `2M`: their
     // `1M - 1NT - 2M - 3M` and `2NT` keep the floor's reading.
     mirror.rebid.forcing_notrump_doubleton_raise = false;
+    // Likewise the heart raise over `1♠ - 1NT - 2♥`.
+    mirror.rebid.forcing_notrump_heart_raise = false;
     // Likewise opener's one-suited jump after a 2/1: their `1M - 2x - 3M`
     // keeps the floor's reading.
     mirror.rebid.two_over_one_side_suit_first = false;

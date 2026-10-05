@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.forcing_notrump_heart_raise`: responder raises opener's `2♥`
+  after `1♠ - 1NT` (2026-10-06, shipped default-on, measured win)** — the shared
+  responder table had no heart raise, so 10–12 with four hearts bid the
+  `2NT` invite (or passed on 10), and a weak hand with two spades and four
+  hearts gave false preference to `2♠`.  BBA raises to `3♥` on 9–12 with 4+
+  hearts; the anchor at `46d0dc14` prices our `2NT` against its `4♥` at 31
+  rows (−256 plain / −268 PD per 409,600 boards).  On: `3♥` on four hearts
+  and 10–12 HCP (above the three-card `3♠` raise), the `2♠` preference
+  denies four hearts, and opener's answer is the limit-raise table (`4♥` on
+  14+ points).  Two seeds, 204,800 boards/arm/vul, IMPs/board none / both:
+  1791221520 plain +0.0012 / +0.0019, PD +0.0013 / +0.0020 (126 / 131
+  fired); 1791222320 plain +0.0012 / +0.0018, PD +0.0016 / +0.0022 (112 /
+  132).  Pooled plain +0.0012 / +0.0018, PD +0.0014 / +0.0021, every cell
+  outside its CI (±0.0005–0.0008), +2.0 to +3.4 IMPs per fired.  Known
+  residue: with `2♠` now denying four hearts, opener's unauthored next call
+  over `1♠ - 1NT - 2♥ - 2♠` sometimes bids a thin `3NT`.  The mirror pins it
+  off, so it moves only boards we open.  Off-switch
+  `bba-gen --no-ns-forcing-notrump-heart-raise`
+  (`scripts/ab-forcing-notrump-heart-raise.sh`).
+
 - **`rebid.forcing_notrump_doubleton_raise`: responder raises opener's
   six-card `2M` to `3M` on a doubleton (2026-10-06, shipped default-on,
   measured win)** — after `1M - 1NT - 2M` the limit raise wanted three

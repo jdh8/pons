@@ -4482,6 +4482,22 @@ pub struct RebidKnobs {
     /// anchor `46d0dc14` our `2NT` where BBA bids `4♠` is 136 rows, −576 plain
     /// / −564 PD per 409,600 boards.
     pub forcing_notrump_doubleton_raise: bool,
+    /// Responder raises opener's `2♥` after `1♠ - 1NT`: `3♥` on four hearts
+    /// and 10–12 HCP, and the `2♠` preference denies four hearts
+    ///
+    /// **Default on**, shipped 2026-10-06: two seeds (1791221520, 1791222320;
+    /// 409,600 boards/vul pooled, 238 / 263 fired), plain +0.0012 / +0.0018,
+    /// PD +0.0014 / +0.0021 IMPs/board (none / both), all eight cells positive
+    /// outside their CIs; +2.0 to +3.4 IMPs per fired.  Off-switch
+    /// `bba-gen --no-ns-forcing-notrump-heart-raise`
+    /// (`scripts/ab-forcing-notrump-heart-raise.sh`).
+    ///
+    /// Off: no heart raise exists, so 10–12 with four hearts bids the `2NT`
+    /// invite (11–12), passes, or gives false preference to `2♠` on a doubleton.
+    /// On: the 4-4 fit is raised, as BBA bids it (`3♥` 9–12 on 4+ hearts, `4♥`
+    /// on shape).  At anchor `46d0dc14` our `2NT` vs BBA's `4♥` is 31 rows, −256
+    /// plain / −268 PD per 409,600 boards.
+    pub forcing_notrump_heart_raise: bool,
     // --- game_force.rs
     /// Opener's jump to `3M` after a 2/1 denies a four-card side suit
     ///
@@ -4564,6 +4580,7 @@ impl Default for RebidKnobs {
             strong_two_positive_notrump: true,
             forcing_notrump_suit_invite: true,
             forcing_notrump_doubleton_raise: true,
+            forcing_notrump_heart_raise: true,
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
         }

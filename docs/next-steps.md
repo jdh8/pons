@@ -92,8 +92,7 @@ ranking and each lane's unworked residue.
   here off a census.  Unworked:
   - after `1M - 2♦ - 3♦` we reach `6NT` / `7NT` where `1M - 2♣ - 2♦ - 3♦`
     finds the diamond slam (mostly 5-5 minors); not traced;
-  - `1♠ - 1NT - 2♥` has no raise of opener's hearts (12 rows, ≈ −56); over
-    `1♠ - 1NT - 3♠` responder bids `3NT` on seven or eight hearts (18 rows,
+  - over `1♠ - 1NT - 3♠` responder bids `3NT` on seven or eight hearts (18 rows,
     −67);
   - after `1♥ - 2m - 3♥` responder has no `3♠` and raises on two, losing a
     4-4 spade fit; the keycard answerer raises the asker's `5M` sign-off to
@@ -103,9 +102,15 @@ ranking and each lane's unworked residue.
     over `1M - 1NT - 2M` the `3M` limit raise takes a doubleton, as BBA
     bids it (our `2NT` vs its `4♠`, 136 rows, −576 / −564).  Pooled two
     seeds: plain +0.0020 / +0.0034, PD +0.0021 / +0.0033 IMPs/board, every
-    cell outside its CI.  Neighbours in the same table, uncensused: our
-    `2NT` vs BBA's `4♥` over `1♠ - 1NT - 2♥` (31 rows, −256 / −268) and
-    opener's `2NT` acceptance, which bids `3NT` on six trumps;
+    cell outside its CI.  **Shipped 2026-10-06 beside it:**
+    `rebid.forcing_notrump_heart_raise` — over `1♠ - 1NT - 2♥` responder
+    raises to `3♥` on four hearts and 10–12, and `2♠` denies four hearts
+    (was: our `2NT` vs BBA's `4♥`, 31 rows, −256 / −268).  Pooled two
+    seeds: plain +0.0012 / +0.0018, PD +0.0014 / +0.0021, every cell
+    outside its CI.  Unworked: BBA's direct `4♥` on shape (not built),
+    opener's unauthored call over `1♠ - 1NT - 2♥ - 2♠` (now bids a thin
+    `3NT` on some hands), and opener's `2NT` acceptance, which bids `3NT`
+    on six trumps;
   - our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
     strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with

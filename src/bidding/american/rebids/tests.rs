@@ -257,6 +257,8 @@ fn forcing_notrump_suit_invite_jumps_in_the_six_card_suit() {
     let build = |on: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.rebid.forcing_notrump_suit_invite = on;
+        // Isolate the invite: over `2♥` the heart raise would bid `3♥` too.
+        agreements.rebid.forcing_notrump_heart_raise = false;
         let mut trie = Trie::new();
         crate::bidding::rows::compile_into(
             &mut trie,
@@ -326,4 +328,46 @@ fn forcing_notrump_doubleton_raise_over_the_six_card_rebid() {
     // Over `2♣` a doubleton is no fit: still the notrump invite.
     let two_clubs = a(&[nt, call(2, Strain::Clubs)]);
     assert_eq!(best(&on, &two_clubs, hand), call(2, Strain::Notrump));
+}
+
+/// `forcing_notrump_heart_raise`: after `1♠ - 1NT - 2♥`, 10–12 with four hearts
+/// raises to `3♥` (passed or bid `2NT` before), a weak doubleton spade with four
+/// hearts passes rather than prefer `2♠`, and opener accepts on 14+ points.
+#[test]
+fn forcing_notrump_heart_raise_over_two_hearts() {
+    let a = |calls: &[Call]| {
+        let mut auction = vec![call(1, Strain::Spades), Call::Pass];
+        for &c in calls {
+            auction.extend([c, Call::Pass]);
+        }
+        auction
+    };
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.forcing_notrump_heart_raise = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[forcing_notrump_continuations()],
+        );
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let nt = call(1, Strain::Notrump);
+    let two_hearts = a(&[nt, call(2, Strain::Hearts)]);
+    // ♠7 ♥KJ54 ♦A8753 ♣Q62 — 10 HCP, four hearts.
+    let ten = "7.KJ54.A8753.Q62";
+    assert_eq!(best(&off, &two_hearts, ten), Call::Pass);
+    assert_eq!(best(&on, &two_hearts, ten), call(3, Strain::Hearts));
+    // ♠97 ♥QJ54 ♦K875 ♣Q62 — 8 HCP: pass, not the false preference.
+    let weak = "97.QJ54.K875.Q62";
+    assert_eq!(best(&off, &two_hearts, weak), call(2, Strain::Spades));
+    assert_eq!(best(&on, &two_hearts, weak), Call::Pass);
+    // Opener ♠AKJ75 ♥AQ63 ♦K4 ♣82 (17 HCP) accepts.
+    let raised = a(&[nt, call(2, Strain::Hearts), call(3, Strain::Hearts)]);
+    assert_eq!(
+        best(&on, &raised, "AKJ75.AQ63.K4.82"),
+        call(4, Strain::Hearts)
+    );
 }

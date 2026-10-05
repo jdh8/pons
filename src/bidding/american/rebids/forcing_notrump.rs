@@ -18,17 +18,19 @@ use super::*;
 ///
 /// | Call   | Wt  | Meaning |
 /// |--------|-----|---------|
+/// | 3♥     | 1.55 | Four-card raise of opener's `2♥` over `1♠` (10–12 HCP), knob `forcing_notrump_heart_raise` |
 /// | 3M     | 1.5 | Three-card limit raise (10–12 HCP); two cards over opener's own `2M`, knob `forcing_notrump_doubleton_raise` |
 /// | 3♥     | 1.3 | Six-card invite over `1♠` (10–12 HCP), knob `forcing_notrump_suit_invite`; not over `2♥` |
 /// | 2NT    | 1.2 | Natural notrump invite (11–12 HCP) |
 /// | 2x≠M   | 1.1 | Six-card runout, weak (≤ 9 HCP); dead when illegal |
-/// | 2M     | 1.0 | Preference to the major (7+ HCP, 2+ cards) |
+/// | 2M     | 1.0 | Preference to the major (7+ HCP, 2+ cards); under the heart raise, not with four hearts over `2♥` |
 /// | Pass   | 0.0 | Catch-all: the force was one round only |
 fn responder_after_forcing_notrump(
     major: Suit,
     rebid: Call,
     suit_invite: bool,
     doubleton_raise: bool,
+    heart_raise: bool,
 ) -> Rules {
     let trump = Strain::from(major);
     // Opener's own `2M` rebid shows six, so a doubleton is an eight-card fit.
@@ -46,10 +48,27 @@ fn responder_after_forcing_notrump(
         )
         // Natural notrump invite.
         .rule(Bid::new(2, Strain::Notrump), 120, hcp(11..=12))
-        // Preference to opener's major.
-        .rule(Bid::new(2, trump), 100, len(major, 2..) & hcp(7..))
         // Catch-all pass; the forcing 1NT is one round only.
         .rule(Call::Pass, 0, hcp(0..));
+
+    // Raise opener's `2♥` over `1♠`: a 4-4 fit outranks the spade preference,
+    // so four hearts invite on 10–12 or pass below that.
+    if heart_raise && major == Suit::Spades && rebid == call(2, Strain::Hearts) {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                155,
+                len(Suit::Hearts, 4..) & hcp(10..=12),
+            )
+            .rule(
+                Bid::new(2, trump),
+                100,
+                len(major, 2..) & len(Suit::Hearts, ..=3) & hcp(7..),
+            );
+    } else {
+        // Preference to opener's major.
+        rules = rules.rule(Bid::new(2, trump), 100, len(major, 2..) & hcp(7..));
+    }
 
     // Six-card runouts into a side suit (dead when the call is illegal in
     // the current auction).
@@ -102,7 +121,8 @@ fn opener_accept_heart_invite() -> Rules {
 /// Meckstroth `3m` jump (handled by
 /// [`invitational_minor_continuations`](super::invitational_minor_continuations)),
 /// nor a two-suiter or jump-shift rung (each has its own package), authors responder's table at `1M - 1NT - rebid -` and opener's acceptances at
-/// `1M - 1NT - rebid - 2NT -` and `1M - 1NT - rebid - 3M -`.
+/// `1M - 1NT - rebid - 2NT -` and `1M - 1NT - rebid - 3M -` (and
+/// `1♠ - 1NT - 2♥ - 3♥ -` under the heart raise).
 pub(crate) fn forcing_notrump_continuations() -> Package {
     Package {
         name: "forcing-notrump-continuations",
@@ -138,8 +158,18 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                             rebid,
                             suit_invite,
                             agreements.rebid.forcing_notrump_doubleton_raise,
+                            agreements.rebid.forcing_notrump_heart_raise,
                         ),
                     ));
+                    if agreements.rebid.forcing_notrump_heart_raise
+                        && major == Suit::Spades
+                        && rebid == call(2, Strain::Hearts)
+                    {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{prefix} 3♥ -")),
+                            opener_accept_limit_raise(Suit::Hearts),
+                        ));
+                    }
                     if suit_invite && is_heart_invite(major, rebid) {
                         entries.extend(rows_of(
                             Pattern::node(&format!("{prefix} 3♥ -")),
