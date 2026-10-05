@@ -134,9 +134,13 @@ ranking and each lane's unworked residue.
   HCP, so the `3m` jump keeps 16–17 (was: `1♦ - 1♠ - 3♦` vs BBA's `3NT`,
   191 rows, −360 / −296; the whole `1m - 1x - 3m` family 667 rows, −1,148
   / −979).  Pooled two seeds: plain +0.0011 / +0.0011, PD +0.0009 /
-  +0.0009, every cell outside its CI.  Residue: responder's slam table over
-  the `3NT` (BBA's `4♣` / `4♦` tries; our `3NT` vs its `6♦` was 12 rows,
-  −129).
+  +0.0009, every cell outside its CI.  **Also shipped 2026-10-06:**
+  `rebid.minor_jump_notrump_slam_try = Some(9)` — responder's `4m` slam try
+  over that `3NT` (2+ support, 9–12 HCP), opener RKCB on 20+ else `5m`.
+  Pooled two seeds: plain +0.0002 / +0.0005, PD +0.0002 / +0.0005 (both-vul
+  outside its CI, none-vul a positive wash).  Unworked: the 13+ fit hand
+  still bids the floor's blind `6NT` rather than `4m` and keycards, and the
+  18–19 sign-off `5m` goes down where `3NT` makes (the worst boards).
 - Levers on file: Stayman major-fit RKCB and post-Smolen continuations
   ([one-notrump-constructive.md](one-notrump-constructive.md)), minor-keycard
   grand handling, the parked four-four shape-slam thresholds.  (Kickback is

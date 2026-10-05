@@ -1436,6 +1436,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_minor_jump_notrump: bool,
 
+    /// Responder's `4m` slam try over `1m - 1x - 3NT`: its HCP floor (default
+    /// `9`), or `off` (`rebid.minor_jump_notrump_slam_try`, **shipped
+    /// default-on 2026-10-06**; `off` is the control arm of
+    /// `scripts/ab-minor-jump-notrump-slam.sh`)
+    #[arg(long, default_value = "9", value_name = "off|HCP")]
+    ns_minor_jump_notrump_slam_try: String,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3130,6 +3137,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.two_over_one_side_suit_first = !args.no_ns_two_over_one_side_suit_first;
     agreements.rebid.two_over_one_reverse_extras = !args.no_ns_two_over_one_reverse_extras;
     agreements.rebid.minor_jump_notrump = !args.no_ns_minor_jump_notrump;
+    agreements.rebid.minor_jump_notrump_slam_try =
+        match args.ns_minor_jump_notrump_slam_try.as_str() {
+            "off" => None,
+            n => Some(n.parse().map_err(|_| {
+                anyhow::anyhow!("--ns-minor-jump-notrump-slam-try must be off|HCP, got {n:?}")
+            })?),
+        };
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

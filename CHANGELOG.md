@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.minor_jump_notrump_slam_try`: responder's `4m` slam try over
+  `1m - 1x - 3NT` (2026-10-06, shipped default-on `Some(9)`, measured
+  win)** — over opener's new `3NT` (six of the minor, 18–21) the floor bid
+  `6NT` on 13+ and passed everything else, so a 9–12 count with a fit
+  played `3NT` when the minor slam was on.  BBA raises to `4m` as a slam
+  try; the anchor at `46d0dc14` held 119 rows where it reached slam that
+  way and we stopped in game.  On: responder raises to `4m` on 2+ support,
+  9–12 HCP and no six-card suit of its own (anything else falls through to
+  the floor, which keeps its `6NT` on 13+); opener asks keycards (`4NT`,
+  RKCB, with the full subtree after a pass or `(X)`) on 20+, else signs off
+  in `5m`.  Two seeds, 204,800 boards/arm/vul, IMPs/board none / both:
+  1791231712 plain +0.0003 / +0.0007, PD +0.0003 / +0.0007 (45 / 52
+  fired); 1791232692 plain +0.0002 / +0.0003, PD +0.0002 / +0.0003 (70 /
+  74).  Pooled plain +0.0002 / +0.0005, PD +0.0002 / +0.0005: every cell
+  positive, both-vul outside its CI, none-vul a positive wash; +0.6 to
+  +2.6 IMPs per fired.  Floors 8 and 11 each measured smaller.  Known
+  cost: the 18–19 `5m` sign-off goes down where `3NT` makes.  Off-switch
+  `bba-gen --ns-minor-jump-notrump-slam-try off`
+  (`scripts/ab-minor-jump-notrump-slam.sh`).
 - **`rebid.minor_jump_notrump`: opener jumps to `3NT` over `1m - 1x` on a
   six-card minor and 18+ HCP (2026-10-06, shipped default-on, measured
   win)** — the `3m` jump rebid was `6+ & points(16..)` with no ceiling, so

@@ -4571,6 +4571,22 @@ pub struct RebidKnobs {
     /// outside its CI.  Off-switch `bba-gen --no-ns-minor-jump-notrump`
     /// (`scripts/ab-minor-jump-notrump.sh`).
     pub minor_jump_notrump: bool,
+    /// Responder's `4m` slam try over `1m - 1x - 3NT`: its HCP floor
+    ///
+    /// **Default `Some(9)` — measured 2026-10-06.**  Opener's
+    /// [`minor_jump_notrump`][Self::minor_jump_notrump] shows six of the minor
+    /// and 18–21; the floor answers it with `6NT` on 13+ and passes everything
+    /// else, so a 9–12 count with a fit plays `3NT` when the minor slam is on.
+    /// BBA raises to `4m` there (`8-22, 2+` support).  `Some(n)`: responder
+    /// raises to `4m` on 2+ support, `n..=12` HCP and no six-card suit of its
+    /// own; opener asks keycards (`4NT`, RKCB) on 20+, else signs off in `5m`.
+    /// Pooled over two seeds, IMPs/board none / both: plain +0.0002 / +0.0005,
+    /// PD +0.0002 / +0.0005 (both-vul outside its CI, none-vul a positive
+    /// wash); `Some(11)` and `Some(8)` each measured smaller.  Inert unless
+    /// `minor_jump_notrump` is on.  Off-switch `bba-gen
+    /// --ns-minor-jump-notrump-slam-try off`
+    /// (`scripts/ab-minor-jump-notrump-slam.sh`).
+    pub minor_jump_notrump_slam_try: Option<u8>,
 }
 
 impl Default for RebidKnobs {
@@ -4599,6 +4615,7 @@ impl Default for RebidKnobs {
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
             minor_jump_notrump: true,
+            minor_jump_notrump_slam_try: Some(9),
         }
     }
 }

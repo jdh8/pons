@@ -10,6 +10,7 @@
 //! | --- | --- | --- |
 //! | [`extras_ladder`] | jump-rebid / reverse / jump-shift after a minor opening | [`opener_extras_ladder`][field@crate::bidding::inference::ReadingProfile::opener_extras_ladder] |
 //! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`opener_major_jump_rebid`][field@crate::bidding::inference::ReadingProfile::opener_major_jump_rebid] |
+//! | [`minor_jump_notrump`] | responder's `4m` slam try over `1m - 1x - 3NT` and opener's answer | [`RebidKnobs::minor_jump_notrump_slam_try`] |
 //! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`RebidKnobs::meckstroth_adjunct`] |
 //! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`RebidKnobs::forcing_nt_two_suiter`] |
 //! | [`jump_shifts`] | natural 18+ jump shifts and the long-major `3NT!` over the forcing `1NT` (the Meckstroth rival) | [`RebidKnobs::forcing_nt_jump_shifts`] |
@@ -34,6 +35,7 @@ mod jump_shifts;
 mod major_jump_rebid;
 mod major_tails;
 mod meckstroth;
+mod minor_jump_notrump;
 mod odwrotka;
 mod two_suiter;
 
@@ -53,6 +55,7 @@ pub(super) use major_tails::{fourth_suit_forcing_continuations, major_rebid_tail
 pub(super) use meckstroth::{
     invitational_minor_continuations, meckstroth_two_notrump_continuations,
 };
+pub(super) use minor_jump_notrump::minor_jump_notrump_slam_continuations;
 pub(super) use odwrotka::odwrotka_continuations;
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
@@ -413,6 +416,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             odwrotka_continuations(),
             invitational_minor_continuations(),
             major_jump_rebid_continuations(),
+            minor_jump_notrump_slam_continuations(),
             forcing_nt_two_suiter_continuations(),
             forcing_nt_jump_shift_continuations(),
             meckstroth_two_notrump_continuations(),
