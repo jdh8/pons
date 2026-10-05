@@ -129,8 +129,14 @@ ranking and each lane's unworked residue.
 - **Re-cut 2026-10-05 — opener's rebid over `1m - 1♠`.**
   `rebid.unbalanced_1nt_rebid` shipped (archived).  Unworked: the rest of
   the `1♣ - 1♠` `2♣` vs `1NT` pair (5♣4♦, no four hearts, BBA `1NT`; the
-  1435 cell gains for us), and `1♦ - 1♠ - 3♦` vs BBA's `3NT` (191 rows,
-  −360 / −296).
+  1435 cell gains for us).  **Shipped 2026-10-06:**
+  `rebid.minor_jump_notrump` — opener's `3NT` on a six-card minor and 18+
+  HCP, so the `3m` jump keeps 16–17 (was: `1♦ - 1♠ - 3♦` vs BBA's `3NT`,
+  191 rows, −360 / −296; the whole `1m - 1x - 3m` family 667 rows, −1,148
+  / −979).  Pooled two seeds: plain +0.0011 / +0.0011, PD +0.0009 /
+  +0.0009, every cell outside its CI.  Residue: responder's slam table over
+  the `3NT` (BBA's `4♣` / `4♦` tries; our `3NT` vs its `6♦` was 12 rows,
+  −129).
 - Levers on file: Stayman major-fit RKCB and post-Smolen continuations
   ([one-notrump-constructive.md](one-notrump-constructive.md)), minor-keycard
   grand handling, the parked four-four shape-slam thresholds.  (Kickback is

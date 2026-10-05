@@ -39,6 +39,18 @@ pub(super) fn with_extras_ladder(
             len(opener, 6..) & points(16..),
         );
     }
+    // Jump to 3NT on a six-card minor and 18+ HCP, above the jump-rebid so it
+    // keeps 16–17 and below the reverse so a four-card side suit is still shown.
+    // Natural: the six-card floor is in opener's own, already-bid suit.
+    if agreements.rebid.minor_jump_notrump && responder.is_some() {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                155,
+                len(opener, 6..) & hcp(18..),
+            )
+            .natural();
+    }
     for second in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if second == opener || responder == Some(second) {
             continue;

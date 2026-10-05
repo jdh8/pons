@@ -56,3 +56,32 @@ fn opener_extras_ladder_reverts_when_off() {
         Call::Bid(Bid::new(2, Strain::Diamonds))
     );
 }
+
+/// `minor_jump_notrump` sends a six-card minor with 18+ HCP to `3NT`; the
+/// `3♦` jump keeps 16–17, and knob off every 16+ hand still jumps to `3♦`.
+#[test]
+fn minor_jump_notrump_takes_eighteen_plus() {
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.minor_jump_notrump = on;
+        let mut trie = Trie::new();
+        register(&mut trie, &agreements);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let three = |strain| Call::Bid(Bid::new(3, strain));
+    // ♠K9 ♥Q7 ♦AQ7432 ♣AKT — 18 HCP, BBA's 3NT.
+    assert_eq!(
+        best(&off, AFTER_1D_1S, "K9.Q7.AQ7432.AKT"),
+        three(Strain::Diamonds)
+    );
+    assert_eq!(
+        best(&on, AFTER_1D_1S, "K9.Q7.AQ7432.AKT"),
+        three(Strain::Notrump)
+    );
+    // 16 HCP keeps the 3♦ jump.
+    assert_eq!(
+        best(&on, AFTER_1D_1S, "653.K3.AKQT854.A"),
+        three(Strain::Diamonds)
+    );
+}

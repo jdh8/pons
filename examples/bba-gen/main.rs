@@ -1429,6 +1429,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_reverse_extras: bool,
 
+    /// Withhold opener's `3NT` over `1m - 1x` on a six-card minor and 18+ HCP,
+    /// so every 16+ hand jumps to `3m` (`rebid.minor_jump_notrump`, **shipped
+    /// default-on 2026-10-06**; this is the disarming flag and the control arm
+    /// of `scripts/ab-minor-jump-notrump.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_minor_jump_notrump: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3122,6 +3129,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.forcing_notrump_heart_raise = !args.no_ns_forcing_notrump_heart_raise;
     agreements.rebid.two_over_one_side_suit_first = !args.no_ns_two_over_one_side_suit_first;
     agreements.rebid.two_over_one_reverse_extras = !args.no_ns_two_over_one_reverse_extras;
+    agreements.rebid.minor_jump_notrump = !args.no_ns_minor_jump_notrump;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

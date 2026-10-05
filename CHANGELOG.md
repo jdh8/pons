@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.minor_jump_notrump`: opener jumps to `3NT` over `1m - 1x` on a
+  six-card minor and 18+ HCP (2026-10-06, shipped default-on, measured
+  win)** — the `3m` jump rebid was `6+ & points(16..)` with no ceiling, so
+  18–21-HCP six-card minors bid `3m` and responder passed on 5–7 with game
+  on.  BBA's `1♦ - 1♠ - 3♦` is 15–18 and its `3NT` 18–21 on six diamonds;
+  the anchor at `46d0dc14` prices our `3m` against its `3NT` at 667 rows
+  (−1,148 plain / −979 PD per 409,600 boards) over `1♦ - 1♠` (191), `1♦ -
+  1♥` (185), `1♣ - 1♠` (141), `1♣ - 1♥` (120) and `1♣ - 1♦` (30).  On:
+  `3NT` takes 18+ HCP (above the `3m` jump, below the reverse and jump
+  shift) and reads 18–21 with six of the minor; `3m` keeps 16–17.  Two
+  seeds, 204,800 boards/arm/vul, IMPs/board none / both: 1791228890 plain
+  +0.0013 / +0.0013, PD +0.0013 / +0.0013 (227 / 258 fired); 1791229495
+  plain +0.0009 / +0.0009, PD +0.0005 / +0.0006 (241 / 255).  Pooled plain
+  +0.0011 / +0.0011, PD +0.0009 / +0.0009, every pooled cell outside its
+  CI, +0.4 to +1.2 IMPs per fired.  Known residue: responder has no slam
+  table over the `3NT` (BBA's `4♣` / `4♦` tries), so the `6♦` BBA reaches
+  stays the floor's.  The mirror pins it off, so it moves only boards we
+  open.  Off-switch `bba-gen --no-ns-minor-jump-notrump`
+  (`scripts/ab-minor-jump-notrump.sh`).
 - **`rebid.forcing_notrump_heart_raise`: responder raises opener's `2♥`
   after `1♠ - 1NT` (2026-10-06, shipped default-on, measured win)** — the shared
   responder table had no heart raise, so 10–12 with four hearts bid the

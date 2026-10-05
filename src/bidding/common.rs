@@ -229,6 +229,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise opener's 5m-4♥ `1NT` over `1m - 1♠`: their `1NT` and `2m`
     // rebids keep the floor's reading.
     mirror.rebid.unbalanced_1nt_rebid = false;
+    // Likewise opener's `3NT` on a six-card minor over `1m - 1x`: their `3m`
+    // and `3NT` rebids keep the floor's reading.
+    mirror.rebid.minor_jump_notrump = false;
     // Likewise opener's answer to the Modern double: their `1m (1M) X -`
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;

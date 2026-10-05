@@ -4556,6 +4556,21 @@ pub struct RebidKnobs {
     /// below 15 HCP; their minimum 4♠5♥ rebids `2NT` 61% of the time, `2♥` on
     /// five 26% (BBA) / 18% (BEN).
     pub two_over_one_reverse_extras: bool,
+    /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
+    ///
+    /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
+    /// minor jumps to `3m`, which has no upper bound, and responder passes it
+    /// on 5–7 HCP with game on.  On, opener's `3NT` (weight 1.55: above the
+    /// `3m` jump, below the reverse and jump shift) takes 18+ HCP and reads
+    /// 18–21 with six of the minor, so `3m` keeps 16–17 — BBA's book, where
+    /// `1♦ - 1♠ - 3♦` is 15–18 and `3NT` 18–21 on six diamonds.  The shipping
+    /// anchor at `46d0dc14` prices our `3m` against BBA's `3NT` at 667 rows,
+    /// −1,148 plain / −979 PD per 409,600 boards over `1♦ - 1♠`, `1♦ - 1♥`,
+    /// `1♣ - 1M` and `1♣ - 1♦`.  Pooled over two seeds, IMPs/board none /
+    /// both: plain +0.0011 / +0.0011, PD +0.0009 / +0.0009, every cell
+    /// outside its CI.  Off-switch `bba-gen --no-ns-minor-jump-notrump`
+    /// (`scripts/ab-minor-jump-notrump.sh`).
+    pub minor_jump_notrump: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4583,6 +4598,7 @@ impl Default for RebidKnobs {
             forcing_notrump_heart_raise: true,
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
+            minor_jump_notrump: true,
         }
     }
 }
