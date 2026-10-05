@@ -168,6 +168,11 @@ fn main() {
     if std::env::var("PROBE_ELEVEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.eleven_count_majors = true;
     }
+    // Responder's `3♥` invite after `1♠ - 1NT` (shipped default-on
+    // 2026-10-05): `=0` withholds it.
+    if std::env::var("PROBE_FORCING_NOTRUMP_SUIT_INVITE").is_ok_and(|v| v == "0") {
+        agreements.rebid.forcing_notrump_suit_invite = false;
+    }
     // `2♥` over `1♠` whenever hearts are the longest new suit (default off): `=1` arms it.
     if std::env::var("PROBE_TWO_OVER_ONE_HEARTS_FIRST").is_ok_and(|v| v == "1") {
         agreements.response.two_over_one_hearts_first = true;

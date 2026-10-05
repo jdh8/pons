@@ -19,11 +19,12 @@ use super::*;
 /// | Call   | Wt  | Meaning |
 /// |--------|-----|---------|
 /// | 3M     | 1.5 | Three-card limit raise (10–12 HCP) |
+/// | 3♥     | 1.3 | Six-card invite over `1♠` (10–12 HCP), knob `forcing_notrump_suit_invite`; not over `2♥` |
 /// | 2NT    | 1.2 | Natural notrump invite (11–12 HCP) |
 /// | 2x≠M   | 1.1 | Six-card runout, weak (≤ 9 HCP); dead when illegal |
 /// | 2M     | 1.0 | Preference to the major (7+ HCP, 2+ cards) |
 /// | Pass   | 0.0 | Catch-all: the force was one round only |
-fn responder_after_forcing_notrump(major: Suit) -> Rules {
+fn responder_after_forcing_notrump(major: Suit, rebid: Call, suit_invite: bool) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new()
         // Three-card limit raise — the standard 2/1 route: 1NT then 3M.
@@ -46,7 +47,37 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
             );
         }
     }
+    // The invitational jump in hearts over `1♠` (over opener's own `2♥` it
+    // would be a raise, not this hand).  The minor invites lost (CHANGELOG):
+    // opener passes `3m` where `2NT` found `3NT`.
+    if suit_invite && is_heart_invite(major, rebid) {
+        rules = rules.rule(
+            Bid::new(3, Strain::Hearts),
+            130,
+            len(Suit::Hearts, 6..) & hcp(10..=12),
+        );
+    }
     rules
+}
+
+/// Whether responder's `3♥` after `1M - 1NT - rebid` is the six-card invite:
+/// over `1♠`, unless opener rebid hearts
+fn is_heart_invite(major: Suit, rebid: Call) -> bool {
+    major == Suit::Spades && rebid != call(2, Strain::Hearts)
+}
+
+/// Opener's answer to responder's six-card heart invite
+///
+/// Game on two-card support and 14+ points, `3NT` on 15+ HCP, else a pass.
+fn opener_accept_heart_invite() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            110,
+            len(Suit::Hearts, 2..) & points(14..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(15..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's second call and opener's acceptance in the forcing-1NT structure
@@ -84,10 +115,17 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
 
                 for rebid in seen {
                     let prefix = format!("P* {} - 1NT - {rebid} -", call(1, Strain::from(major)),);
+                    let suit_invite = agreements.rebid.forcing_notrump_suit_invite;
                     entries.extend(rows_of(
                         Pattern::node(&prefix),
-                        responder_after_forcing_notrump(major),
+                        responder_after_forcing_notrump(major, rebid, suit_invite),
                     ));
+                    if suit_invite && is_heart_invite(major, rebid) {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{prefix} 3♥ -")),
+                            opener_accept_heart_invite(),
+                        ));
+                    }
                     entries.extend(rows_of(
                         Pattern::node(&format!("{prefix} 2NT -")),
                         opener_accept_notrump_invite(),

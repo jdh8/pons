@@ -350,9 +350,17 @@ six ships, the notrump count over the `2NT` positive the latest
   - **A hole the first build found:** after `1M - 2♦ - 3♦` we reach `6NT` /
     `7NT` on hands where `1M - 2♣ - 2♦ - 3♦` finds the diamond slam (the
     −393 above, mostly 5-5 minors).  Not traced further.
-  - **Left in the lane, not built:** `1♠ - 3♥` invitational (438 rows vs our
-    forcing `1NT`, −1,046 / −924, ≈ −925 of it on 10–11 HCP; it costs our weak
-    `3♥`, which is +49 plain / −154 PD against BBA's pass); `1♥ - 1♠` with four
+  - **BBA's `1♠ - 3♥` (438 rows vs our forcing `1NT`, −1,046 / −924) was a
+    hole one round later, now shipped.**  After `1♠ - 1NT - 2x` responder had
+    no long-suit invite, so 10–12 with six hearts passed `2♣` or bid
+    `2NT` / `3NT`.  `rebid.forcing_notrump_suit_invite` (the `3♥` jump, opener's
+    `4♥` / `3NT` / pass) shipped default-on 2026-10-05: plain +0.0005 /
+    +0.0007, PD +0.0005 / +0.0006, two seeds (CHANGELOG).  It keeps our weak
+    `1♠ - 3♥`.  The same jump in a minor lost (opener passes `3m` where `2NT`
+    found `3NT`).  Unworked beside it: `1♠ - 1NT - 2♥` has no raise of opener's
+    hearts (a 10-count with six passes `2♥`; 12 rows, ≈ −56), and over `1♠ -
+    1NT - 3♠` responder bids `3NT` on seven or eight hearts (18 rows, −67).
+  - **Left in the lane, not built:** `1♥ - 1♠` with four
     spades and a longer minor on a game force, where BBA bids the minor (419
     rows, −535 / −474); our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the

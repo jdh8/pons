@@ -1405,6 +1405,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_over_one_hearts_first: bool,
 
+    /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
+    /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
+    /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
+    /// the disarming flag and the control arm of
+    /// `scripts/ab-forcing-notrump-suit-invite.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_notrump_suit_invite: bool,
+
     /// Lighten `1♠ - 2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
     /// hcp13 gate), the five-card major worth a shade-light game force. Off by
     /// default — on-switch for the A/B (see `response.two_over_one_major_discount`).
@@ -3062,6 +3070,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.response.two_over_one_natural_lengths = args.ns_two_over_one_natural_lengths;
     agreements.response.two_over_one_hearts_first = args.ns_two_over_one_hearts_first;
+    agreements.rebid.forcing_notrump_suit_invite = !args.no_ns_forcing_notrump_suit_invite;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

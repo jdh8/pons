@@ -4399,6 +4399,28 @@ pub struct RebidKnobs {
     /// eleven of twelve per-seed cells positive, about 52 / 55 fired per
     /// 204,800.
     pub strong_two_positive_notrump: bool,
+    /// Responder's natural invitational jump to `3♥` on a six-card suit after
+    /// `1♠ - 1NT` (`1♠ - 1NT - 2♣ - 3♥`)
+    ///
+    /// **Default on**, shipped 2026-10-05: two seeds (1791193528, 1791194031;
+    /// 409,600 boards/vul pooled, 174 / 192 fired), plain +0.0005 / +0.0007,
+    /// PD +0.0005 / +0.0006 IMPs/board (none / both), all eight cells positive.
+    /// Off-switch `bba-gen --no-ns-forcing-notrump-suit-invite`
+    /// (`scripts/ab-forcing-notrump-suit-invite.sh`).
+    ///
+    /// Off: responder's table after `1M - 1NT - 2x` has no long-suit
+    /// invitation — the two-level runout is `≤9 HCP` — so 10–12 with six
+    /// hearts passes `2♣` or bids `2NT` / `3NT`.  On: `3♥` on six hearts and
+    /// 10–12 HCP over every rebid but `2♥`, below the three-card limit raise
+    /// and above the `2NT` invite; opener bids `4♥` with two-card support on
+    /// 14+ points, `3NT` on 15+ HCP, and passes the rest.  BBA reaches these
+    /// hands with its invitational `1♠ - 3♥` (9–11, six hearts); at anchor
+    /// `46d0dc14` our forcing `1NT` there is 438 rows, −1,046 plain / −924 PD
+    /// per 409,600 boards.  The same jump in a minor (and over `1♥`) lost
+    /// (2026-10-05, seed 1791192543: −225 plain / −233 PD IMPs on 405 boards,
+    /// against +233 / +275 on 147 for the heart jump): opener passes `3m` on a
+    /// minimum where the `2NT` invite found `3NT`.
+    pub forcing_notrump_suit_invite: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4420,6 +4442,7 @@ impl Default for RebidKnobs {
             strong_two_positive: true,
             strong_two_grand: true,
             strong_two_positive_notrump: true,
+            forcing_notrump_suit_invite: true,
         }
     }
 }

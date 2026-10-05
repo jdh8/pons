@@ -207,3 +207,50 @@ fn one_diamond_two_clubs_preference_returns_to_diamonds() {
             .is_none_or(|l| { (&l.0).into_iter().all(|(_, &w)| w == f32::NEG_INFINITY) })
     );
 }
+
+/// `forcing_notrump_suit_invite`: after `1♠ - 1NT - 2♣`, 10–12 with six hearts
+/// jumps to `3♥` (it passed before), and opener bids `4♥` on a doubleton with
+/// 14+, `3NT` on a singleton with 15+, and passes the minimum.
+#[test]
+fn forcing_notrump_suit_invite_jumps_in_the_six_card_suit() {
+    let a = |calls: &[Call]| {
+        let mut auction = vec![call(1, Strain::Spades), Call::Pass];
+        for &c in calls {
+            auction.extend([c, Call::Pass]);
+        }
+        auction
+    };
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.forcing_notrump_suit_invite = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[forcing_notrump_continuations()],
+        );
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let nt = call(1, Strain::Notrump);
+    let two_clubs = a(&[nt, call(2, Strain::Clubs)]);
+    // ♠8 ♥K96543 ♦AQ98 ♣J5 — 10 HCP, six hearts.
+    let invite = "8.K96543.AQ98.J5";
+    assert_eq!(best(&off, &two_clubs, invite), Call::Pass);
+    assert_eq!(best(&on, &two_clubs, invite), call(3, Strain::Hearts));
+    // A six-card minor stays without an invite (it measured a loss).
+    let minor = "8.K9.AQ9854.J53";
+    assert_ne!(best(&on, &two_clubs, minor), call(3, Strain::Diamonds));
+    // Over opener's own `2♥` the jump is a raise, not this hand.
+    let two_hearts = a(&[nt, call(2, Strain::Hearts)]);
+    assert_ne!(best(&on, &two_hearts, invite), call(3, Strain::Hearts));
+
+    let three_hearts = a(&[nt, call(2, Strain::Clubs), call(3, Strain::Hearts)]);
+    for (hand, answer) in [
+        ("AKJ84.Q2.K3.QJ54", call(4, Strain::Hearts)), // doubleton, 16
+        ("AQJ84.2.KQ3.KJ54", call(3, Strain::Notrump)), // singleton, 16
+        ("AJ984.2.K53.AQ54", Call::Pass),              // singleton, 12
+    ] {
+        assert_eq!(best(&on, &three_hearts, hand), answer, "{hand}");
+    }
+}

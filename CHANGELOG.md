@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.forcing_notrump_suit_invite`: responder's invitational `3♥`
+  after `1♠ - 1NT` (2026-10-05, shipped default-on)** — responder's table
+  after `1M - 1NT - 2x` had no long-suit invitation (its two-level runout is
+  `≤9 HCP`), so 10–12 with six hearts passed `2♣` or bid `2NT` / `3NT` and
+  missed `4♥`.  Now `3♥` shows six hearts and 10–12 HCP over every opener
+  rebid but `2♥`; opener bids `4♥` with two-card support on 14+ points, `3NT`
+  on 15+ HCP, and passes the rest.  BBA reaches the same hands by its
+  invitational `1♠ - 3♥` (9–11, six hearts), and the anchor priced our
+  forcing `1NT` there at −1,046 plain / −924 PD per 409,600 boards.  Two seeds
+  (`scripts/ab-forcing-notrump-suit-invite.sh`, SEED_BASE 1791193528 and
+  1791194031, 409,600 boards/vul pooled, 174 / 192 fired): plain +0.0005 /
+  +0.0007, PD +0.0005 / +0.0006 IMPs/board (none / both), +1.0 to +1.8 per
+  fired, all eight cells positive.  The same jump in a six-card minor (and over
+  `1♥`) lost: a first build with it (seed 1791192543) split +233 plain / +275
+  PD on 147 heart boards against −225 / −233 on 405 minor ones, as opener
+  passes `3m` on a minimum where `2NT` found `3NT`.  Off-switch `bba-gen
+  --no-ns-forcing-notrump-suit-invite`, `PROBE_FORCING_NOTRUMP_SUIT_INVITE=0`
+  in `probe-decision`.
+
 - **`response.two_over_one_hearts_first`: over `1♠`, `2♥` whenever hearts
   are the longest new suit (2026-10-05, opt-in, measured wash)** — the 2/1s
   race on weight, clubs before diamonds before hearts, so `1♠ - 2♣` was bid on
