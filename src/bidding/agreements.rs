@@ -4599,6 +4599,11 @@ pub struct GameForceKnobs {
     /// +0.0018 vul IMPs/board vs BBA).  `1M - 2r - 2x - 3x` gets an opener
     /// rebid (RKCB on extras, else sign off) instead of falling through to the
     /// floor (it fell to the game backstop until that was deleted).
+    ///
+    /// The `points(15..)` ask is the measured optimum (2026-10-05, CHANGELOG):
+    /// 17 and 18 lose on every lane but the reverse, because opener's sign-off
+    /// leaves a 16+ responder to the floor, which passes `4M`; responder's own
+    /// `4NT` over the sign-off on 16+ is a wash that fires on 0.003% of boards.
     pub second_suit_agreement: bool,
 }
 

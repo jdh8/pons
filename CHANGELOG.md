@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The 2/1 second-suit keycard seats, swept and closed (2026-10-05; no
+  code change)** — after `1M - 2r - 2x - 3x` opener asks `4NT` on
+  `points(15..)`, else signs off, and responder's seat over the sign-off is
+  the floor.  Under the shipped reverse-extras knob every `1♥ - 2m - 2♠`
+  holds 15+, so a raise to `3♠` met the ask on every board and that lane
+  lost on both seeds of the side-suit A/B.  Two throwaway knobs measured the
+  repair and were deleted with their scripts; the results dirs
+  (`ab-results/second-suit-keycard`, `second-suit-responder-ask-2`, `-3`)
+  remain.  **Raising the gate loses** (SEED_BASE 1791206765, 204,800
+  boards/arm/vul; IMPs/board none / both): 17 plain −0.0003 / −0.0004, PD
+  −0.0003 / −0.0004 (51 / 52 fired); 18 plain −0.0008 / −0.0010, PD −0.0008
+  / −0.0010 (61 / 63), CI-clear on three cells.  By lane at 17 the reverse
+  `1♥ - 2♣ - 2♠ - 3♠` gains +21 / +25 plain on 2 boards and every other
+  lane loses; every worst board is opener with 15–17 signing off and a 16+
+  responder passing `4M`.  **Responder's own `4NT` over the sign-off** on
+  `points(16..)` (majors only, other hands to the floor) is a wash on two
+  seeds (1791208545: plain +0.0001 / +0.0001, PD +0.0001 / +0.0002, 8 / 8
+  fired; 1791209587: plain +0.0000 / −0.0001, 7 / 6 fired) — pooled +24 /
+  +16 plain IMPs on 15 / 14 boards in 409,600, 0.003% of boards.  Paired
+  with the gate at 17 it recovers most of the gate's loss, not all (ask 16
+  plain −0.0001 / −0.0001, PD −0.0000 / −0.0001, 49 / 51 fired; ask 17
+  plain −0.0002 / −0.0003).  The gate stays at 15 and the lane is closed as
+  a lever: the fit is found at the three level and the ask on 15 is already
+  where the slams are.
+
 - **`rebid.two_over_one_reverse_extras`: opener's reverse after a 2/1
   promises extras (2026-10-05, shipped default-on)** — a new suit after a 2/1
   was shape only, so `1♥ - 2m - 2♠` was any opening with four spades.  BBA

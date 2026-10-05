@@ -385,6 +385,20 @@ six ships, the notrump count over the `2NT` positive the latest
     naturalness (jdh8's call: it is what the other natural bidders play):
     three seeds disagree in sign and sum to +15 / +14 plain IMPs, 0 / +2 PD,
     on 614,400 boards (CHANGELOG).
+    **The keycard gate swept 2026-10-05 and refuted** (a throwaway knob,
+    deleted with its script; `ab-results/second-suit-keycard`, seed
+    1791206765): 17 loses plain
+    −0.0003 / −0.0004 and 18 −0.0008 / −0.0010 (CI-clear), because every
+    lane but the reverse pays — opener with 15–17 signs off and a 16+
+    responder passes `4M`, responder's seat being the floor.  The lever that
+    fell out is **responder's own ask** over the sign-off (also deleted;
+    `ab-results/second-suit-responder-ask-2`, `-3`): n = 16 at gate 15 is all-positive on 8 boards per vul (+3 to +4 per
+    fired, inside the CI) and a wash on seed 2 (0 / −13 IMPs on 7 / 6) —
+    pooled +24 / +16 plain on 15 / 14 boards in 409,600, a wash; paired
+    with gate 17 it recovers most but not all of the gate's loss (n = 16
+    plain −0.0001 / −0.0001, n = 17 −0.0002 / −0.0003).  The 2/1 second-suit
+    keycard seats are closed as a lever: the fit is found at the three level
+    and the ask on 15 is already where the slams are.
     Unworked: five spades and a six-card minor still bid `1♠`.
   - **Left in the lane, not built:** our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
