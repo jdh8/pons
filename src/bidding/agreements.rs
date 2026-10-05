@@ -3949,6 +3949,26 @@ pub struct ResponseKnobs {
     /// over both vulnerabilities, against +229 on 244 for the heart half).  The
     /// hands that respond with a 2/1 at all are the same; only the suit moves.
     pub two_over_one_hearts_first: bool,
+    /// Over `1♥`, a game force with four spades and a longer minor bids the
+    /// minor first
+    ///
+    /// **Default on**, shipped 2026-10-05: two seeds (1791196825, 1791197349;
+    /// 409,600 boards/vul pooled, 213 / 218 fired), plain +0.00025 / +0.00046,
+    /// PD +0.00022 / +0.00042 IMPs/board (none / both), all eight cells
+    /// positive but inside their CIs — a wash/wash that ships on naturalness
+    /// (longer suit first on a game force is standard 2/1).  Off-switch
+    /// `bba-gen --no-ns-two-over-one-minor-before-spades`
+    /// (`scripts/ab-two-over-one-minor-before-spades.sh`).
+    ///
+    /// Off: `1♠` (weight 1.7) outbids every 2/1, so 4=1=3=5 with 15 HCP
+    /// responds `1♠` and the game force waits for the next round.  On: `1♠`
+    /// yields on exactly four spades, `points(13..)`, and five or more clubs
+    /// (or five or more diamonds with at most three clubs, so the 2/1 weight
+    /// race lands on the long minor), and responder's rebid after `1♥ - 2m -
+    /// 2♦/2♥` bids a natural `2♠` (`2NT` already denies four spades) — BBA's
+    /// order (anchor `46d0dc14`: 419 rows, −535 plain / −474 PD per
+    /// 409,600 boards).
+    pub two_over_one_minor_before_spades: bool,
     // --- responses/longer_major.rs
     /// Complete the natural minor tree up the line
     ///
@@ -4114,6 +4134,7 @@ impl Default for ResponseKnobs {
             two_over_one_major_discount: false,
             two_over_one_heart_light: false,
             two_over_one_hearts_first: false,
+            two_over_one_minor_before_spades: true,
             up_the_line: true,
             major_choice_of_games: true,
             major_game_tries: true,

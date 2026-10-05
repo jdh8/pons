@@ -216,3 +216,27 @@ fn two_over_one_hearts_first_bids_the_longer_heart() {
         "1♥ unchanged",
     );
 }
+
+/// `two_over_one_minor_before_spades`: over `1♥` a game force with exactly
+/// four spades and a longer minor bids the 2/1, not `1♠`; invitational hands,
+/// five spades and a four-card minor keep `1♠`.
+#[test]
+fn two_over_one_minor_before_spades_bids_the_minor() {
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.response.two_over_one_minor_before_spades = on;
+        major_responses(Suit::Hearts, &agreements)
+    };
+    let (off, on) = (arm(false), arm(true));
+    let a = [call(1, Strain::Hearts), Call::Pass];
+    for (hand, now) in [
+        ("KQ75.3.A84.AQJ72", call(2, Strain::Clubs)), // 4=1=3=5 GF
+        ("KQ75.3.AQJ72.A84", call(2, Strain::Diamonds)), // 4=1=5=3 GF
+        ("KQ75.3.AQJ7.A842", call(1, Strain::Spades)), // four-card minors
+        ("KQ752.3.A8.AQJ72", call(1, Strain::Spades)), // five spades
+        ("Q975.3.K84.QJ872", call(1, Strain::Spades)), // not a game force
+    ] {
+        assert_eq!(best(&off, &a, hand), call(1, Strain::Spades), "off: {hand}");
+        assert_eq!(best(&on, &a, hand), now, "on: {hand}");
+    }
+}

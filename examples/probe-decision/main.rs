@@ -177,6 +177,11 @@ fn main() {
     if std::env::var("PROBE_TWO_OVER_ONE_HEARTS_FIRST").is_ok_and(|v| v == "1") {
         agreements.response.two_over_one_hearts_first = true;
     }
+    // Over `1♥` a game force with four spades bids its longer minor first
+    // (shipped default-on 2026-10-05): `=0` withholds it.
+    if std::env::var("PROBE_TWO_OVER_ONE_MINOR_BEFORE_SPADES").is_ok_and(|v| v == "0") {
+        agreements.response.two_over_one_minor_before_spades = false;
+    }
     // Open `1M` on a non-wasted 10-HCP 5-4-3-1 (default off): `=1` arms it.
     if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.ten_count_majors = true;

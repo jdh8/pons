@@ -4,7 +4,7 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`], [`ResponseKnobs::two_over_one_hearts_first`] |
+//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`], [`ResponseKnobs::two_over_one_hearts_first`], [`ResponseKnobs::two_over_one_minor_before_spades`] |
 //! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`longer_major_response`][field@crate::bidding::inference::ReadingProfile::longer_major_response], [`ResponseKnobs::up_the_line`] |
 //! | [`choice_of_games`] | `1M - 3NT` choice of games | [`ResponseKnobs::major_choice_of_games`] |
 //! | [`inverted_minor`] | inverted-minor continuation tree | always on |
@@ -108,12 +108,24 @@ pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
         .rule(Call::Pass, 0, hcp(..6));
 
     // 1♠ over 1♥: a new suit at the one level, preferred to a single raise.
+    // Minor before spades (`two_over_one_minor_before_spades`): a game force
+    // with four spades and a longer minor yields to the 2/1 and shows the
+    // spades next round.  The diamond leg caps clubs at three so the 2/1
+    // weight race (clubs first) lands on the five-card suit.  ponytail: keyed
+    // on the default `Points13` gate; a stricter gate drops a yielded 13 to 1NT.
     if major == Suit::Hearts {
-        rules = rules.rule(
-            Bid::new(1, Strain::Spades),
-            170,
-            len(Suit::Spades, 4..) & points(6..) & !support(4..),
-        );
+        let spades = len(Suit::Spades, 4..) & points(6..) & !support(4..);
+        rules = if knobs.two_over_one_minor_before_spades {
+            let longer_minor =
+                len(Suit::Clubs, 5..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, ..=3));
+            rules.rule(
+                Bid::new(1, Strain::Spades),
+                170,
+                spades & !(len(Suit::Spades, ..=4) & points(13..) & longer_minor),
+            )
+        } else {
+            rules.rule(Bid::new(1, Strain::Spades), 170, spades)
+        };
     }
 
     rules = with_choice_of_games(rules, major, knobs);

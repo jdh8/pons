@@ -360,9 +360,16 @@ six ships, the notrump count over the `2NT` positive the latest
     found `3NT`).  Unworked beside it: `1♠ - 1NT - 2♥` has no raise of opener's
     hearts (a 10-count with six passes `2♥`; 12 rows, ≈ −56), and over `1♠ -
     1NT - 3♠` responder bids `3NT` on seven or eight hearts (18 rows, −67).
-  - **Left in the lane, not built:** `1♥ - 1♠` with four
-    spades and a longer minor on a game force, where BBA bids the minor (419
-    rows, −535 / −474); our game-forcing `2♣` where BBA bids `1NT` (448 rows,
+  - **`1♥ - 1♠` with four spades and a longer minor on a game force, where
+    BBA bids the minor (419 rows, −535 / −474), shipped default-on 2026-10-05**
+    as `response.two_over_one_minor_before_spades`: the minor first, a natural
+    `2♠` next round, opener's no-fit `3♥` / `3NT` authored.  Plain +0.00025 /
+    +0.00046, PD +0.00022 / +0.00042, two seeds, all eight cells positive but
+    inside the CI (CHANGELOG).  Unworked beside it: after `1♥ - 2m - 3♥`
+    (opener's solid six) responder has no `3♠` and raises to `4♥` on two,
+    losing a 4-4 spade fit (the worst board, −14); five spades and a six-card
+    minor still bid `1♠`.
+  - **Left in the lane, not built:** our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
     strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with
     five spades; it costs our weak `2♠`, +113 / +181).  The weak jump shifts

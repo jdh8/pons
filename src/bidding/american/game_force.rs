@@ -143,6 +143,25 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
     rules
 }
 
+/// Opener's third call after `1♥ - 2m - R - 2♠`
+/// ([`ResponseKnobs::two_over_one_minor_before_spades`][crate::bidding::agreements::ResponseKnobs::two_over_one_minor_before_spades])
+///
+/// Responder holds exactly four spades, a longer minor and at most two
+/// hearts.  Without a fit, rebid six hearts or bid `3NT`, because the floor
+/// passes `2♠` on some no-fit minimums.  With four spades the table rejects
+/// the hand, so the floor places the spade game or slam.  No
+/// [`Pass`][Call::Pass] rule: the auction is still game forcing.
+fn opener_after_spades() -> Rules {
+    let no_fit = len(Suit::Spades, ..=3);
+    Rules::new()
+        .rule(
+            call(3, Strain::Hearts),
+            120,
+            no_fit.clone() & len(Suit::Hearts, 6..),
+        )
+        .rule(call(3, Strain::Notrump), 80, no_fit)
+}
+
 // ---------------------------------------------------------------------------
 // Minor game force: 1♦ - 2♣
 // ---------------------------------------------------------------------------
@@ -250,7 +269,26 @@ pub(super) fn base() -> Package {
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
                         let after_rebid = format!("{prefix} {rebid_call} -");
-                        entries.extend(rows_of(node(&after_rebid), responder_rebid(major, resp)));
+                        let mut rebid_rules = responder_rebid(major, resp);
+                        // Minor before spades: responder shows the four
+                        // spades it skipped at `1♠`, naturally.  ponytail:
+                        // two-level only; `2NT` already denies four spades
+                        // (5-4 is not `balanced`).
+                        if agreements.response.two_over_one_minor_before_spades
+                            && major == Suit::Hearts
+                            && matches!(rebid_call, Call::Bid(b) if b < Bid::new(2, Strain::Spades))
+                        {
+                            rebid_rules = rebid_rules.rule(
+                                call(2, Strain::Spades),
+                                130,
+                                len(Suit::Spades, 4..),
+                            );
+                            entries.extend(rows_of(
+                                node(&format!("{after_rebid} 2♠ -")),
+                                opener_after_spades(),
+                            ));
+                        }
+                        entries.extend(rows_of(node(&after_rebid), rebid_rules));
                         if let Call::Bid(rebid_bid) = rebid_call
                             && rebid_bid < three_major
                         {

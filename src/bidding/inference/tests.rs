@@ -1839,7 +1839,12 @@ fn authored_calls_read_what_they_gate() {
         // its own rule (`3+ HCP`, not `5+`), the same not-4333 leak metered
         // once more in the american and Watermelon constructive tries.
         // Knob-on stays 0.
-        ("length", 88, 0),
+        // 88 → 90 when `response.two_over_one_minor_before_spades` shipped
+        // (2026-10-05): `1♥ - 1♠` withholds the game force with four spades
+        // and a longer minor, `!(≤4 ♠ & 13+ points & (5+ ♣ | (5+ ♦ & ≤3
+        // ♣)))`, a negated disjunction the legacy hull cannot keep, metered
+        // in the american and Watermelon constructive tries.  Knob-on stays 0.
+        ("length", 90, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`response.two_over_one_minor_before_spades`: over `1♥`, a game force
+  with four spades and a longer minor bids the minor first (2026-10-05,
+  shipped default-on)** — `1♠` (weight 1.7) outbid every 2/1, so 4=1=3=5 with
+  16 HCP responded `1♥ - 1♠`; BBA bids the minor and shows the spades next
+  round, and the anchor (`46d0dc14`) priced the difference at 419 rows,
+  −535 plain / −474 PD per 409,600 boards.  Now `1♠` yields to the 2/1 on
+  exactly four spades, 13+ points and five or more clubs (or five or more
+  diamonds with at most three clubs, so the clubs-first weight race lands on
+  the long suit); responder bids a natural `2♠` after `1♥ - 2m - 2♦` / `2♥`;
+  opener answers `3♥` on six hearts or `3NT` without four spades (the floor
+  passed `2♠` on some no-fit minimums, inside the game force), and the floor
+  places the spade fit.  Two seeds
+  (`scripts/ab-two-over-one-minor-before-spades.sh`, SEED_BASE 1791196825 and
+  1791197349, 409,600 boards/vul pooled, 213 / 218 fired): plain +0.00025 /
+  +0.00046, PD +0.00022 / +0.00042 IMPs/board (none / both), +0.4 to +0.9 per
+  fired, all eight cells positive but each inside its CI — a wash/wash shipped
+  on naturalness (longer suit first on a game force is standard 2/1).
+  Off-switch `bba-gen --no-ns-two-over-one-minor-before-spades`,
+  `PROBE_TWO_OVER_ONE_MINOR_BEFORE_SPADES=0` in `probe-decision`.
+
 - **`rebid.forcing_notrump_suit_invite`: responder's invitational `3♥`
   after `1♠ - 1NT` (2026-10-05, shipped default-on)** — responder's table
   after `1M - 1NT - 2x` had no long-suit invitation (its two-level runout is
