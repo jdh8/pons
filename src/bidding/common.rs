@@ -215,6 +215,12 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise responder's six-card invite after the forcing `1NT`: their
     // `1M - 1NT - 2x - 3y` keeps the floor's reading.
     mirror.rebid.forcing_notrump_suit_invite = false;
+    // Likewise opener's one-suited jump after a 2/1: their `1M - 2x - 3M`
+    // keeps the floor's reading.
+    mirror.rebid.two_over_one_side_suit_first = false;
+    // Likewise opener's reverse after a 2/1: their `1♥ - 2m - 2♠` and `2NT`
+    // keep the floor's reading.
+    mirror.rebid.two_over_one_reverse_extras = false;
     // Likewise opener's answer to the Modern double: their `1m (1M) X -`
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;

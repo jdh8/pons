@@ -1413,6 +1413,22 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_minor_before_spades: bool,
 
+    /// After a 2/1, jump to `3M` on a six-card major with extras even with a
+    /// four-card side suit (`rebid.two_over_one_side_suit_first`, **shipped
+    /// default-on 2026-10-05**: the side suit first; this is the disarming
+    /// flag and the control arm of
+    /// `scripts/ab-two-over-one-side-suit-first.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_side_suit_first: bool,
+
+    /// After a 2/1, let opener reverse (`1♥ - 2m - 2♠`, `1♦ - 2♣ - 2M`) on any
+    /// strength (`rebid.two_over_one_reverse_extras`, **shipped default-on
+    /// 2026-10-05**: the reverse needs extras and the minimum rebids `2NT`;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-two-over-one-reverse-extras.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_reverse_extras: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3081,6 +3097,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.response.two_over_one_minor_before_spades =
         !args.no_ns_two_over_one_minor_before_spades;
     agreements.rebid.forcing_notrump_suit_invite = !args.no_ns_forcing_notrump_suit_invite;
+    agreements.rebid.two_over_one_side_suit_first = !args.no_ns_two_over_one_side_suit_first;
+    agreements.rebid.two_over_one_reverse_extras = !args.no_ns_two_over_one_reverse_extras;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

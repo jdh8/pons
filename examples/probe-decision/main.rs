@@ -182,6 +182,16 @@ fn main() {
     if std::env::var("PROBE_TWO_OVER_ONE_MINOR_BEFORE_SPADES").is_ok_and(|v| v == "0") {
         agreements.response.two_over_one_minor_before_spades = false;
     }
+    // After a 2/1, a six-card major with extras shows a four-card side suit
+    // before jumping to `3M` (shipped default-on 2026-10-05): `=0` withholds it.
+    if std::env::var("PROBE_TWO_OVER_ONE_SIDE_SUIT_FIRST").is_ok_and(|v| v == "0") {
+        agreements.rebid.two_over_one_side_suit_first = false;
+    }
+    // After a 2/1, opener's reverse needs extras (shipped default-on
+    // 2026-10-05): `=0` withholds it.
+    if std::env::var("PROBE_TWO_OVER_ONE_REVERSE_EXTRAS").is_ok_and(|v| v == "0") {
+        agreements.rebid.two_over_one_reverse_extras = false;
+    }
     // Open `1M` on a non-wasted 10-HCP 5-4-3-1 (default off): `=1` arms it.
     if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.ten_count_majors = true;

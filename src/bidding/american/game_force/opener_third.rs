@@ -39,7 +39,8 @@ pub(crate) fn opener_third_continuations() -> Package {
                         call(2, Strain::from(resp)),
                     );
                     let three_major = Bid::new(3, Strain::from(major));
-                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
+                    // The rebid knobs move constraints, never the call set.
+                    for rebid_call in distinct_calls(&opener_rebid(major, resp, false, false)) {
                         if let Call::Bid(rebid_bid) = rebid_call
                             && rebid_bid < three_major
                         {

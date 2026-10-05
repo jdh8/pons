@@ -4442,6 +4442,64 @@ pub struct RebidKnobs {
     /// against +233 / +275 on 147 for the heart jump): opener passes `3m` on a
     /// minimum where the `2NT` invite found `3NT`.
     pub forcing_notrump_suit_invite: bool,
+    // --- game_force.rs
+    /// Opener's jump to `3M` after a 2/1 denies a four-card side suit
+    ///
+    /// **Default on**, shipped 2026-10-05: two seeds (1791200237, 1791200766;
+    /// 409,600 boards/vul pooled, 199 / 206 fired), plain +0.00034 / +0.00053,
+    /// PD +0.00029 / +0.00049 IMPs/board (none / both), all eight cells
+    /// positive but inside their CIs — a wash/wash that ships on naturalness
+    /// (BBA and BEN both bid `2♠` on 4♠6♥ with 15+, never the jump).  A
+    /// third seed on the shipped build (1791204922) confirms the wash: plain
+    /// +0.0001 / −0.0001, PD +0.0001 / −0.0002.
+    /// Off-switch `bba-gen --no-ns-two-over-one-side-suit-first`
+    /// (`scripts/ab-two-over-one-side-suit-first.sh`).
+    ///
+    /// Off: after `1M - 2x`, six of the major and `points(15..)` jumps to `3M`
+    /// (weight 1.7) whatever else the hand holds, and responder's table over
+    /// the jump has only `4M` and `3NT` — so `1♥ - 2m - 3♥ - 4♥` buries a 4-4
+    /// spade fit that
+    /// [`ResponseKnobs::two_over_one_minor_before_spades`] left for the second
+    /// round.  On: the same hand with a four-card suit outside the two bid
+    /// shows it first (`2♠`, or a three-level new suit below responder's), at
+    /// the jump's weight so it also outranks the simple `2M` rebid; the jump
+    /// is left one-suited.  A raise of responder's suit is not affected
+    /// (weight 1.6, below both).
+    ///
+    /// The gain is `2♥` over `1♠` (+102 / +151 plain IMPs on 46 / 48 boards)
+    /// and the minors (+77 / +123 on 102 / 104); `2♠` over `1♥` loses on both
+    /// seeds (−42 / −61 on 25 / 26).  There a raise to `3♠` meets
+    /// [`GameForceKnobs::second_suit_agreement`]'s keycard ask on
+    /// `points(15..)`, which this hand holds by construction, so every fit
+    /// found is driven to the five level or higher (6 boards, −44 both).
+    pub two_over_one_side_suit_first: bool,
+    /// Opener's reverse after a 2/1 promises extras
+    ///
+    /// **Default on**, shipped 2026-10-05 on a measured null: two seeds
+    /// (1791202644, 1791203151; 409,600 boards/vul pooled, 226 / 230 fired)
+    /// disagree in sign on every cell — plain +0.0002 / +0.0002 then −0.0003 /
+    /// −0.0004, pooled −0.00006 / −0.00010; PD pooled −0.00008 / −0.00014
+    /// IMPs/board (none / both); a third seed on the shipped build
+    /// (1791205422) reads plain +0.0002 / +0.0003, PD +0.0002 / +0.0003.  It
+    /// ships on naturalness, jdh8's call: it is what the other natural
+    /// bidders play (below).  Off-switch `bba-gen
+    /// --no-ns-two-over-one-reverse-extras`
+    /// (`scripts/ab-two-over-one-reverse-extras.sh`).
+    ///
+    /// Off: a new suit after a 2/1 is shape only, so `1♥ - 2m - 2♠` is any
+    /// opening with four spades.  On: a two-level new suit above the opened
+    /// suit — `1♥ - 2m - 2♠`, `1♦ - 2♣ - 2M` — needs `points(15..)`.  After
+    /// `1♥ - 2m` the minimum with four spades rebids `2NT` (weight 0.85, below
+    /// every other descriptive rebid), and under
+    /// [`ResponseKnobs::two_over_one_minor_before_spades`] responder shows
+    /// four spades over it with a natural `3♠`; after `1♦ - 2♣` the minimum
+    /// falls to the diamond rebid or the `2NT` fallback.
+    ///
+    /// BBA and BEN both play it: `1♥ - 2m - 2♠` is 15–20 in BBA's book, and in
+    /// their own auctions (183 by BBA in 409,600 boards, 80 by BEN) none is
+    /// below 15 HCP; their minimum 4♠5♥ rebids `2NT` 61% of the time, `2♥` on
+    /// five 26% (BBA) / 18% (BEN).
+    pub two_over_one_reverse_extras: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4464,6 +4522,8 @@ impl Default for RebidKnobs {
             strong_two_grand: true,
             strong_two_positive_notrump: true,
             forcing_notrump_suit_invite: true,
+            two_over_one_side_suit_first: true,
+            two_over_one_reverse_extras: true,
         }
     }
 }

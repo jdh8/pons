@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.two_over_one_reverse_extras`: opener's reverse after a 2/1
+  promises extras (2026-10-05, shipped default-on)** — a new suit after a 2/1
+  was shape only, so `1♥ - 2m - 2♠` was any opening with four spades.  BBA
+  and BEN both gate it: 15–20 in BBA's book, and none of their own reverses
+  (183 by BBA in 409,600 boards, 80 by BEN across the BEN dumps) is below 15
+  HCP; their minimum 4♠5♥ rebids `2NT` 61% of the time.  Now `1♥ - 2m - 2♠`
+  and `1♦ - 2♣ - 2M` need 15+ points; after `1♥ - 2m` the minimum with four
+  spades rebids `2NT` and responder shows four spades over it with a natural
+  `3♠`.  Three seeds (`scripts/ab-two-over-one-reverse-extras.sh`, SEED_BASE
+  1791202644, 1791203151 and 1791205422, 204,800 boards/vul each, 106–121
+  fired), IMPs/board none / both: plain +0.0002 / +0.0002, −0.0003 / −0.0004,
+  +0.0002 / +0.0003; PD +0.0002 / +0.0002, −0.0004 / −0.0004, +0.0002 /
+  +0.0003 — a null (the three sum to +15 / +14 plain IMPs and 0 / +2 PD on
+  614,400 boards), shipped on naturalness because it is what the other
+  natural bidders play.  Mostly the same contract either way; the difference
+  is a few slam swings.  Off-switch `bba-gen
+  --no-ns-two-over-one-reverse-extras`, `PROBE_TWO_OVER_ONE_REVERSE_EXTRAS=0`
+  in `probe-decision`.
+
+- **`rebid.two_over_one_side_suit_first`: after a 2/1, opener's six-card
+  major with extras shows a four-card side suit before jumping to `3M`
+  (2026-10-05, shipped default-on)** — after `1M - 2x`, six of the major and
+  15+ points jumped to `3M` whatever else the hand held, and responder over
+  the jump has only `4M` and `3NT`, so `1♥ - 2m - 3♥ - 4♥` buried a 4-4 spade
+  fit (the worst board of the minor-before-spades A/B, −14).  Now that hand
+  with a four-card suit outside the two bid shows it (`2♠`, or a three-level
+  new suit below responder's) and the jump reads as one-suited; BBA and BEN
+  both bid `2♠` on 4♠6♥ with 15+ and never the jump.  Two seeds
+  (`scripts/ab-two-over-one-side-suit-first.sh`, SEED_BASE 1791200237 and
+  1791200766, 409,600 boards/vul pooled, 199 / 206 fired): plain +0.00034 /
+  +0.00053, PD +0.00029 / +0.00049 IMPs/board (none / both), +0.6 to +1.1 per
+  fired, all eight cells positive but each inside its CI; a third seed on the
+  shipped build (1791204922) reads plain +0.0001 / −0.0001, PD +0.0001 /
+  −0.0002 — a wash/wash shipped on naturalness.  By lane (seeds 1–2) the gain
+  is `2♥` over `1♠` (+102 / +151 plain IMPs, 46 / 48 boards) and the minor
+  side suits (+77 / +123, 102 / 104); `2♠` over `1♥` lost on both seeds (−42 /
+  −61, 25 / 26), because a raise to `3♠` meets the second-suit keycard ask on
+  `points(15..)`, which this hand always holds.  Off-switch `bba-gen
+  --no-ns-two-over-one-side-suit-first`,
+  `PROBE_TWO_OVER_ONE_SIDE_SUIT_FIRST=0` in `probe-decision`.
+
 - **`response.two_over_one_minor_before_spades`: over `1♥`, a game force
   with four spades and a longer minor bids the minor first (2026-10-05,
   shipped default-on)** — `1♠` (weight 1.7) outbid every 2/1, so 4=1=3=5 with

@@ -32,9 +32,10 @@ use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
+use crate::bidding::context::Context;
 use crate::bidding::rows::{Package, Pattern, classified, compile_into, rows_of};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Level, Strain, Suit};
+use contract_bridge::{Bid, Hand, Level, Strain, Suit};
 
 mod backstop;
 mod opener_third;
@@ -52,20 +53,62 @@ pub(super) use second_suit::second_suit_agreement_continuations;
 
 /// Opener's rebid after a 2/1 game-forcing response
 ///
-/// Tables every descriptive rebid: a jump to three of the major on a solid
-/// six-card suit, raising responder, rebidding the major, showing a balanced
+/// Tables every descriptive rebid: a jump to three of the major on six cards
+/// and 15+ points, raising responder, rebidding the major, showing a balanced
 /// minimum or maximum, and introducing a new suit.  A second rule for
 /// two-of-the-major at weight 0.3 is the guaranteed-legal fallback — opener
 /// always holds five of the major so the bid is always available.
 ///
+/// `side_suit_first`
+/// ([`RebidKnobs::two_over_one_side_suit_first`][crate::bidding::agreements::RebidKnobs::two_over_one_side_suit_first]):
+/// the jump denies a four-card suit outside the two bid, and the hand that
+/// held one bids it instead at the jump's weight.
+///
+/// `reverse_extras`
+/// ([`RebidKnobs::two_over_one_reverse_extras`][crate::bidding::agreements::RebidKnobs::two_over_one_reverse_extras]):
+/// a two-level new suit above the major (`1♥ - 2m - 2♠`) needs `points(15..)`,
+/// and the minimum it leaves behind rebids `2NT`.
+///
 /// No [`Pass`][Call::Pass] rule: the auction is game forcing.
-pub(super) fn opener_rebid(major: Suit, resp: Suit) -> Rules {
+pub(super) fn opener_rebid(
+    major: Suit,
+    resp: Suit,
+    side_suit_first: bool,
+    reverse_extras: bool,
+) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
 
-    let mut rules = Rules::new()
-        // Jump to 3M: solid six-card major.
-        .rule(call(3, major_strain), 170, len(major, 6..) & points(15..))
+    // New suits x ∉ {major, resp}, in ascending strain order.
+    let other_suits: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .filter(|&x| x != major && x != resp)
+        .collect();
+
+    // Jump to 3M: six-card major and extras.
+    let jump = len(major, 6..) & points(15..);
+    let mut rules = Rules::new();
+    if side_suit_first {
+        // The major's length stays out of the side suit's projection: a rule
+        // that floors a suit it does not name reads as artificial
+        // (`artificial_calls_are_alerted`).
+        let six = described("six-card major", move |hand: Hand, _: &Context<'_>| {
+            hand[major].len() >= 6
+        });
+        for &x in &other_suits {
+            let level = if Strain::from(x) > resp_strain { 2 } else { 3 };
+            rules = rules.rule(
+                call(level, Strain::from(x)),
+                170,
+                six.clone() & points(15..) & len(x, 4..),
+            );
+        }
+        let one_suited = len(other_suits[0], ..=3) & len(other_suits[1], ..=3);
+        rules = rules.rule(call(3, major_strain), 170, jump & one_suited);
+    } else {
+        rules = rules.rule(call(3, major_strain), 170, jump);
+    }
+    let mut rules = rules
         // Raise responder's suit.
         .rule(call(3, resp_strain), 160, support(4..))
         // Simple rebid of the major.
@@ -77,20 +120,32 @@ pub(super) fn opener_rebid(major: Suit, resp: Suit) -> Rules {
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         );
 
-    // New suits x ∉ {major, resp}.  Collect them in ascending strain order
-    // and assign weights: 1.0 / 0.95 when at the 2 level, 0.9 at the 3 level.
-    let other_suits: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
-        .into_iter()
-        .filter(|&x| x != major && x != resp)
-        .collect();
-
+    // Assign new-suit weights: 1.0 / 0.95 when at the 2 level, 0.9 at the 3
+    // level.
     // Partition into 2-level and 3-level candidates.
     let mut two_level_weight = 100;
     for &x in &other_suits {
         let x_strain = Strain::from(x);
         if x_strain > resp_strain {
             // Above resp → can be bid at the 2 level.
-            rules = rules.rule(call(2, x_strain), two_level_weight, len(x, 4..));
+            rules = if reverse_extras && x_strain > major_strain {
+                // A reverse: extras, and the minimum bids 2NT below every
+                // other descriptive rebid.  Its four cards stay out of the
+                // notrump call's projection, as the major's six do above.
+                let held = described(
+                    "four-card reverse suit",
+                    move |hand: Hand, _: &Context<'_>| hand[x].len() >= 4,
+                );
+                rules
+                    .rule(
+                        call(2, x_strain),
+                        two_level_weight,
+                        len(x, 4..) & points(15..),
+                    )
+                    .rule(call(2, Strain::Notrump), 85, held & points(..15))
+            } else {
+                rules.rule(call(2, x_strain), two_level_weight, len(x, 4..))
+            };
             two_level_weight -= 5;
         }
     }
@@ -144,7 +199,10 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
 }
 
 /// Opener's third call after `1♥ - 2m - R - 2♠`
-/// ([`ResponseKnobs::two_over_one_minor_before_spades`][crate::bidding::agreements::ResponseKnobs::two_over_one_minor_before_spades])
+/// ([`ResponseKnobs::two_over_one_minor_before_spades`][crate::bidding::agreements::ResponseKnobs::two_over_one_minor_before_spades]),
+/// and after `1♥ - 2m - 2NT - 3♠` under
+/// [`RebidKnobs::two_over_one_reverse_extras`][crate::bidding::agreements::RebidKnobs::two_over_one_reverse_extras],
+/// where the `3♥` rule is below the auction and never legal
 ///
 /// Responder holds exactly four spades, a longer minor and at most two
 /// hearts.  Without a fit, rebid six hearts or bid `3NT`, because the floor
@@ -172,9 +230,13 @@ fn opener_after_spades() -> Rules {
 /// rebid is guaranteed.  The 2NT rule at weight 0.2 is the safe fallback;
 /// it ranges over all HCP so it fires whenever nothing better applies.
 ///
+/// `reverse_extras`
+/// ([`RebidKnobs::two_over_one_reverse_extras`][crate::bidding::agreements::RebidKnobs::two_over_one_reverse_extras]):
+/// `2♥` and `2♠` need `points(15..)`.
+///
 /// No [`Pass`][Call::Pass] rule.
-fn opener_rebid_1d_2c() -> Rules {
-    Rules::new()
+fn opener_rebid_1d_2c(reverse_extras: bool) -> Rules {
+    let rules = Rules::new()
         // Raise clubs.
         .rule(call(3, Strain::Clubs), 160, support(4..))
         // Balanced hand.
@@ -182,10 +244,27 @@ fn opener_rebid_1d_2c() -> Rules {
             call(2, Strain::Notrump),
             120,
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
-        )
-        // New four-card majors.
-        .rule(call(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
-        .rule(call(2, Strain::Spades), 95, len(Suit::Spades, 4..))
+        );
+    // New four-card majors: both are reverses, so under `reverse_extras` a
+    // minimum falls to the diamond rebid or the `2NT` fallback.
+    let rules = if reverse_extras {
+        rules
+            .rule(
+                call(2, Strain::Hearts),
+                100,
+                len(Suit::Hearts, 4..) & points(15..),
+            )
+            .rule(
+                call(2, Strain::Spades),
+                95,
+                len(Suit::Spades, 4..) & points(15..),
+            )
+    } else {
+        rules
+            .rule(call(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
+            .rule(call(2, Strain::Spades), 95, len(Suit::Spades, 4..))
+    };
+    rules
         // Long diamonds.
         .rule(call(2, Strain::Diamonds), 100, len(Suit::Diamonds, 6..))
         // Guaranteed-legal fallback (opener may have only three diamonds).
@@ -262,7 +341,12 @@ pub(super) fn base() -> Package {
                             Pattern::node(key)
                         }
                     };
-                    let rebid = opener_rebid(major, resp);
+                    let rebid = opener_rebid(
+                        major,
+                        resp,
+                        agreements.rebid.two_over_one_side_suit_first,
+                        agreements.rebid.two_over_one_reverse_extras,
+                    );
                     let rebid_calls = distinct_calls(&rebid);
                     entries.extend(rows_of(node(&prefix), rebid));
 
@@ -272,19 +356,28 @@ pub(super) fn base() -> Package {
                         let mut rebid_rules = responder_rebid(major, resp);
                         // Minor before spades: responder shows the four
                         // spades it skipped at `1♠`, naturally.  ponytail:
-                        // two-level only; `2NT` already denies four spades
-                        // (5-4 is not `balanced`).
+                        // two-level only; `2NT` denies four spades (5-4 is
+                        // not `balanced`) unless `reverse_extras` routes the
+                        // minimum there, and then responder bids `3♠`.
+                        let two_spades = Bid::new(2, Strain::Spades);
+                        let spades = match rebid_call {
+                            Call::Bid(b) if b < two_spades => Some(2),
+                            Call::Bid(b)
+                                if agreements.rebid.two_over_one_reverse_extras
+                                    && b == Bid::new(2, Strain::Notrump) =>
+                            {
+                                Some(3)
+                            }
+                            _ => None,
+                        };
                         if agreements.response.two_over_one_minor_before_spades
                             && major == Suit::Hearts
-                            && matches!(rebid_call, Call::Bid(b) if b < Bid::new(2, Strain::Spades))
+                            && let Some(level) = spades
                         {
-                            rebid_rules = rebid_rules.rule(
-                                call(2, Strain::Spades),
-                                130,
-                                len(Suit::Spades, 4..),
-                            );
+                            let shown = call(level, Strain::Spades);
+                            rebid_rules = rebid_rules.rule(shown, 130, len(Suit::Spades, 4..));
                             entries.extend(rows_of(
-                                node(&format!("{after_rebid} 2♠ -")),
+                                node(&format!("{after_rebid} {shown} -")),
                                 opener_after_spades(),
                             ));
                         }
@@ -303,7 +396,7 @@ pub(super) fn base() -> Package {
             // The 1♦ - 2♣ minor game force: the same table-derived call set,
             // with no authored third round.
             let prefix = "P* 1♦ - 2♣ -";
-            let rebid = opener_rebid_1d_2c();
+            let rebid = opener_rebid_1d_2c(agreements.rebid.two_over_one_reverse_extras);
             let rebid_calls = distinct_calls(&rebid);
             entries.extend(rows_of(Pattern::node(prefix), rebid));
             for rebid_call in rebid_calls {

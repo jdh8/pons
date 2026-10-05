@@ -47,7 +47,8 @@ pub(crate) fn second_suit_agreement_continuations() -> Package {
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
-                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
+                    // The rebid knobs move constraints, never the call set.
+                    for rebid_call in distinct_calls(&opener_rebid(major, resp, false, false)) {
                         let Call::Bid(rebid_bid) = rebid_call else {
                             continue;
                         };

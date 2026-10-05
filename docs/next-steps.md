@@ -365,10 +365,27 @@ six ships, the notrump count over the `2NT` positive the latest
     as `response.two_over_one_minor_before_spades`: the minor first, a natural
     `2♠` next round, opener's no-fit `3♥` / `3NT` authored.  Plain +0.00025 /
     +0.00046, PD +0.00022 / +0.00042, two seeds, all eight cells positive but
-    inside the CI (CHANGELOG).  Unworked beside it: after `1♥ - 2m - 3♥`
-    (opener's solid six) responder has no `3♠` and raises to `4♥` on two,
-    losing a 4-4 spade fit (the worst board, −14); five spades and a six-card
-    minor still bid `1♠`.
+    inside the CI (CHANGELOG).  Beside it: after `1♥ - 2m - 3♥` (six
+    hearts and 15+ points; the rule has no suit-quality term) responder has no
+    `3♠` and raises to `4♥` on two, losing a 4-4 spade fit (the worst board,
+    −14).  `rebid.two_over_one_side_suit_first` (opener shows a four-card side
+    suit before the jump) measured a wash and **shipped default-on
+    2026-10-05** on naturalness: plain +0.00034 / +0.00053, PD +0.00029 /
+    +0.00049, two seeds, all eight cells positive inside the CI, and a third
+    seed on the shipped build a wash (CHANGELOG).  The gain is `2♥` over `1♠` and the
+    minors; `2♠` over `1♥` lost on both seeds (−42 / −61 plain on 25 / 26
+    boards), because `1♥ - 2m - 2♠ - 3♠` meets the second-suit keycard ask on
+    `points(15..)`, which that opener always holds — **the next lever is that
+    gate** (`game_force/second_suit.rs`, `opener_third_agree`), then re-measure.
+    Also seen there: under the wider reading the keycard answerer raises the
+    asker's `5M` sign-off to `6M` (17 / 18 boards, net −1 / −8 plain).
+    `rebid.two_over_one_reverse_extras` (the `2♠` reverse needs 15+, as in
+    BBA and BEN — none of their 263 reverses is below 15 HCP — and the minimum
+    rebids `2NT`) measured a null the same day and **shipped default-on** on
+    naturalness (jdh8's call: it is what the other natural bidders play):
+    three seeds disagree in sign and sum to +15 / +14 plain IMPs, 0 / +2 PD,
+    on 614,400 boards (CHANGELOG).
+    Unworked: five spades and a six-card minor still bid `1♠`.
   - **Left in the lane, not built:** our game-forcing `2♣` where BBA bids `1NT` (448 rows,
     −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
     strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with
