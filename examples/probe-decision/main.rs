@@ -168,6 +168,10 @@ fn main() {
     if std::env::var("PROBE_ELEVEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.eleven_count_majors = true;
     }
+    // `2♥` over `1♠` whenever hearts are the longest new suit (default off): `=1` arms it.
+    if std::env::var("PROBE_TWO_OVER_ONE_HEARTS_FIRST").is_ok_and(|v| v == "1") {
+        agreements.response.two_over_one_hearts_first = true;
+    }
     // Open `1M` on a non-wasted 10-HCP 5-4-3-1 (default off): `=1` arms it.
     if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.ten_count_majors = true;

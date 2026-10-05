@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`response.two_over_one_hearts_first`: over `1♠`, `2♥` whenever hearts
+  are the longest new suit (2026-10-05, opt-in, measured wash)** — the 2/1s
+  race on weight, clubs before diamonds before hearts, so `1♠ - 2♣` was bid on
+  2=5=2=4 and `1♠ - 2♦` on 1=6=4=2; on, a minor 2/1 yields to `2♥` when hearts
+  are the longest of the three (a four-card tie up the line, a five-card tie
+  to hearts).  At anchor `46d0dc14`, `2♣`/`2♦` where BBA bids `2♥` is 767
+  rows, −1,568 plain / −1,294 PD per 409,600 boards.  Two seeds
+  (`scripts/ab-two-over-one-hearts-first.sh`, SEED_BASE 1791189650 and
+  1791190176, 409,600 boards/vul pooled, 273 / 281 fired): plain +0.0001 /
+  −0.00002, PD +0.00015 / +0.00001 IMPs/board (none / both), so a wash.  The
+  first-call census priced BBA's continuations along with its call.  A first
+  build with BBA's whole order over both majors (also `2♦` on 5-5 minors and
+  longer diamonds) washed too (seed 1791188672: plain +0.0002 / −0.0008, PD
+  +0.0003 / −0.0008).  Split by the changed call, its heart half gained +229
+  plain IMPs on 244 boards and its diamond half lost −393 on 210: after
+  `1M - 2♦ - 3♦` we reach `6NT`/`7NT` where `2♣ - 2♦ - 3♦` found the diamond
+  slam.  New constraint `longest_new_suit` (the 2/1 candidates' longest, an
+  exact length-box union).  `bba-gen --ns-two-over-one-hearts-first`,
+  `PROBE_TWO_OVER_ONE_HEARTS_FIRST=1` in `probe-decision`.
+
 - **`opening.ten_count_majors`: open `1M` on a 10-HCP 5-4-3-1 with no wasted
   short honour in first/second seat (2026-10-05, opt-in, measured non-win)** —
   the hand reads 11 points, one short of `points(12..=21)`; BBA opens it.  Other

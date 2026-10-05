@@ -3933,6 +3933,22 @@ pub struct ResponseKnobs {
     /// candidate — capping the 2/1 reading (a ceiling, not just
     /// `InstinctProfile::two_over_one_slam_strength`'s floor) is the prerequisite.
     pub two_over_one_heart_light: bool,
+    /// Bid `2♥` over `1♠` whenever hearts are the longest new suit
+    ///
+    /// **Default off** (book byte-identical); A/B pending.
+    /// `bba-gen --ns-two-over-one-hearts-first`
+    /// (`scripts/ab-two-over-one-hearts-first.sh`).
+    ///
+    /// Off: the 2/1s race on weight, clubs before diamonds before hearts, so
+    /// `1♠ - 2♣` is bid on 2=5=2=4 and `1♠ - 2♦` on 1=6=4=2.  On: a minor 2/1
+    /// over `1♠` yields to `2♥` when hearts are the longest of the three, a
+    /// four-card tie going up the line and a five-card tie to hearts — BBA's
+    /// order.  The minors keep clubs first between themselves: BBA's full
+    /// longest-first order also bids `2♦` on 5-5 and longer diamonds, and that
+    /// half lost (2026-10-05, seed 1791188672: −393 plain IMPs on 210 boards
+    /// over both vulnerabilities, against +229 on 244 for the heart half).  The
+    /// hands that respond with a 2/1 at all are the same; only the suit moves.
+    pub two_over_one_hearts_first: bool,
     // --- responses/longer_major.rs
     /// Complete the natural minor tree up the line
     ///
@@ -4097,6 +4113,7 @@ impl Default for ResponseKnobs {
             two_over_one_natural_lengths: false,
             two_over_one_major_discount: false,
             two_over_one_heart_light: false,
+            two_over_one_hearts_first: false,
             up_the_line: true,
             major_choice_of_games: true,
             major_game_tries: true,

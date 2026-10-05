@@ -2420,6 +2420,33 @@ pub(crate) fn longest_unbid(suit: Suit, excluded: Suit) -> Cons<impl Constraint 
     shapes(format!("{suit} the longest unbid suit"), boxes)
 }
 
+/// `suit` is the longest of the suits ranking below `major` — the 2/1
+/// candidates over `1M` — a tie going up the line at four cards and to the
+/// higher rank at five or more
+///
+/// Crisp, and a partition like [`longest_unbid`]: of the suits below `major`
+/// exactly one satisfies its instance.  The same box per own-length floor `k`,
+/// each rival capped at `k` or `k − 1` by who wins the tie at `k`; both caps
+/// rise with `k`, so the union is exact.
+pub(crate) fn longest_new_suit(suit: Suit, major: Suit) -> Cons<impl Constraint + Clone> {
+    let boxes = (0..=7u8)
+        .filter_map(|k| {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[suit as usize] = Range::new(k, Range::FULL_LENGTH.max);
+            for rival in Suit::ASC {
+                if rival == suit || rival >= major {
+                    continue;
+                }
+                let rival_wins_tie = (rival > suit) == (k >= 5);
+                let cap = if rival_wins_tie { k.checked_sub(1)? } else { k };
+                lengths[rival as usize] = Range::new(0, cap);
+            }
+            Some(length_box(lengths))
+        })
+        .collect();
+    shapes(format!("{suit} the longest new suit"), boxes)
+}
+
 /// `a` and `b` of exactly equal length — the lattice diagonal, one thin box
 /// per feasible common length (at most six of each)
 ///

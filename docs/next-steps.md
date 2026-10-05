@@ -266,7 +266,7 @@ six ships, the notrump count over the `2NT` positive the latest
 
   | lane | rows | plain | PD | note |
   | --- | --- | --- | --- | --- |
-  | responses to `1♥` / `1♠` | 8,062 | −9,855 | −11,113 | still the largest, still spread thin (10,970 rows, −10,951 / −12,258 before Drury).  Worst pairs: our forcing `1NT` vs BBA's `3♥` over `1♠` 438 rows (−1,046 / −924), our `1♠` vs BBA's `2♠` over `1♥` 316 rows (−848 / −855); neither BBA call's meaning is looked up yet (`probe-bba-book`) |
+  | responses to `1♥` / `1♠` | 8,062 | −9,855 | −11,113 | still the largest, still spread thin (10,970 rows, −10,951 / −12,258 before Drury).  Worst pairs: our forcing `1NT` vs BBA's `3♥` over `1♠` 438 rows (−1,046 / −924), our `1♠` vs BBA's `2♠` over `1♥` 316 rows (−848 / −855); both looked up and the lane re-cut 2026-10-05, below |
   | our `2♣` opening, every continuation | 2,277 | −3,604 | −3,582 | halved by the lane's six ships (3,054 rows, −7,003 / −6,630) |
   | `1♦ - 1♠ -` opener's rebid | 2,161 | −2,518 | −3,080 | as before: `2♦` vs BBA's `1NT` 760 rows, vs its `2♣` 847 (the measured-wash opt-in) |
   | `1♥ - 1♠ -` opener's rebid | 1,147 | −2,436 | −2,329 | `3♥` vs BBA's `4♥` 128 rows (−354 / −387); no pair above 200 rows |
@@ -331,6 +331,35 @@ six ships, the notrump count over the `2NT` positive the latest
     204,800.  Its doubler's second turn is authored too, because the net
     floor's was not sane there.  Not built: the `2♥`/`2♠` strength cue on 16+
     (BEN's tool for the strong raise), and the splinters.
+- **Re-cut 2026-10-05 (`46d0dc14`) — responses to `1♥` / `1♠`.**  Shipping
+  arm rows joined to their auctions, responder's first call to an
+  uncontested `1M`, per 409,600 boards.  BBA's meanings are its own 2/1
+  defaults (`probe-bba-book --card none --prefix="1♠ -"`): `1♠ - 3♥` is
+  natural and invitational, 9–11 HCP with six hearts; `1♥ - 2♠` a strong jump
+  shift, 15+ with five spades; `1♠ - 2♥` promises five; `1M - 2m` four.
+  - **The 2/1 suit choice (1,738 rows, −3,212 / −2,742) washed.**  Ours race
+    on weight, clubs before diamonds before hearts, whatever the lengths; BBA
+    bids the longest (a four-card tie up the line, a five-card tie the
+    higher).  BBA's whole order washed (seed 1791188672); split by the changed
+    call, `2♥` for a minor over `1♠` gained +229 plain on 244 boards and `2♦`
+    for `2♣` lost −393 on 210.  The heart half alone,
+    `response.two_over_one_hearts_first`, washed over two seeds (plain +0.0001
+    / −0.00002, PD +0.00015 / +0.00001; CHANGELOG) and stays opt-in.  **A
+    first-call census prices BBA's continuations along with its call**: −1,568
+    plain on the `2♥` pairs became ≈ +0 against our own continuations.
+  - **A hole the first build found:** after `1M - 2♦ - 3♦` we reach `6NT` /
+    `7NT` on hands where `1M - 2♣ - 2♦ - 3♦` finds the diamond slam (the
+    −393 above, mostly 5-5 minors).  Not traced further.
+  - **Left in the lane, not built:** `1♠ - 3♥` invitational (438 rows vs our
+    forcing `1NT`, −1,046 / −924, ≈ −925 of it on 10–11 HCP; it costs our weak
+    `3♥`, which is +49 plain / −154 PD against BBA's pass); `1♥ - 1♠` with four
+    spades and a longer minor on a game force, where BBA bids the minor (419
+    rows, −535 / −474); our game-forcing `2♣` where BBA bids `1NT` (448 rows,
+    −521 / −874, mostly 12 HCP and shapely 11s — the `Points13` gate); the
+    strong jump shift (316 rows, −848 / −855, slam misses on 16–17 HCP with
+    five spades; it costs our weak `2♠`, +113 / +181).  The weak jump shifts
+    as a family are a plain wash and −1,003 PD against BBA's pass.  Read the
+    first lesson before pricing any of these off the census alone.
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN

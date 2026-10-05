@@ -183,3 +183,36 @@ fn two_over_one_natural_lengths_and_light_major() {
         call(2, Strain::Hearts)
     );
 }
+
+/// `two_over_one_hearts_first`: over `1♠` a minor 2/1 yields to `2♥` when
+/// hearts are the longest new suit; four-card ties go up the line, the minors
+/// keep clubs first, and `1♥` does not move.
+#[test]
+fn two_over_one_hearts_first_bids_the_longer_heart() {
+    let over = |major| [call(1, Strain::from(major)), Call::Pass];
+    let arm = |on: bool, major| {
+        let mut agreements = Agreements::default();
+        agreements.response.two_over_one_hearts_first = on;
+        major_responses(major, &agreements)
+    };
+    let (off, on) = (arm(false, Suit::Spades), arm(true, Suit::Spades));
+    let a = over(Suit::Spades);
+    for (hand, was, now) in [
+        ("K.AQJ832.KQ65.32", Strain::Diamonds, Strain::Hearts), // 1=6=4=2
+        ("Q3.AKJ74.52.KQ84", Strain::Clubs, Strain::Hearts),    // 2=5=2=4
+        ("3.AK874.KQ874.Q2", Strain::Diamonds, Strain::Hearts), // 5-5 reds
+        ("32.KQ74.A2.AQJ74", Strain::Clubs, Strain::Clubs),     // longer clubs
+        ("32.AQ74.K2.KQJ7", Strain::Clubs, Strain::Clubs),      // 4-4 up the line
+        ("Q2.3.AKJ74.KQ974", Strain::Clubs, Strain::Clubs),     // 5-5 minors
+    ] {
+        assert_eq!(best(&off, &a, hand), call(2, was), "off: {hand}");
+        assert_eq!(best(&on, &a, hand), call(2, now), "on: {hand}");
+    }
+    let a = over(Suit::Hearts);
+    let hand = "Q2.3.AKJ74.KQ974";
+    assert_eq!(
+        best(&arm(true, Suit::Hearts), &a, hand),
+        best(&arm(false, Suit::Hearts), &a, hand),
+        "1♥ unchanged",
+    );
+}

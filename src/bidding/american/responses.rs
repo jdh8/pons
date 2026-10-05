@@ -4,7 +4,7 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`] |
+//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`], [`ResponseKnobs::two_over_one_hearts_first`] |
 //! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`longer_major_response`][field@crate::bidding::inference::ReadingProfile::longer_major_response], [`ResponseKnobs::up_the_line`] |
 //! | [`choice_of_games`] | `1M - 3NT` choice of games | [`ResponseKnobs::major_choice_of_games`] |
 //! | [`inverted_minor`] | inverted-minor continuation tree | always on |

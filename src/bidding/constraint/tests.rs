@@ -839,6 +839,40 @@ fn comparative_staircases_match_closures() {
     });
 }
 
+/// G: `longest_new_suit` partitions the 2/1 candidates: exactly one suit below
+/// the major holds, the longest, a four-card tie up the line and a longer tie
+/// to the higher rank — on `eval` and on the knob-on boxes alike.
+#[test]
+fn longest_new_suit_partitions_the_two_over_ones() {
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
+    for major in [Suit::Hearts, Suit::Spades] {
+        let candidates: Vec<Suit> = Suit::ASC.into_iter().filter(|&s| s < major).collect();
+        let rules: Vec<_> = candidates
+            .iter()
+            .map(|&s| (s, longest_new_suit(s, major)))
+            .collect();
+        for_each_shape(|lengths, hand| {
+            let len = |s: Suit| lengths[s as usize];
+            let top = candidates.iter().map(|&s| len(s)).max().unwrap_or(0);
+            let tied = candidates.iter().copied().filter(|&s| len(s) == top);
+            let winner = if top >= 5 { tied.max() } else { tied.min() };
+            for (suit, rule) in &rules {
+                let want = Some(*suit) == winner;
+                assert_eq!(
+                    rule.eval(hand, &ctx).is_finite(),
+                    want,
+                    "{suit} over {major} at {lengths:?}"
+                );
+                assert_eq!(
+                    rule.project(&ctx).contains(hand),
+                    want,
+                    "{suit} boxes over {major} at {lengths:?}"
+                );
+            }
+        });
+    }
+}
+
 /// G: `!balanced` reads the exact 20-box unbalanced union knob-on and
 /// stays ⊤ knob-off.
 #[test]

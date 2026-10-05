@@ -2,7 +2,8 @@ use super::GAME_FORCE;
 use crate::bidding::Rules;
 use crate::bidding::agreements::ResponseKnobs;
 use crate::bidding::constraint::{
-    Cons, Constraint, envelope_union_upgrade, hcp, len, points, support, support_points,
+    Cons, Constraint, envelope_union_upgrade, hcp, len, longest_new_suit, points, support,
+    support_points,
 };
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
 use contract_bridge::{Bid, Strain, Suit};
@@ -66,6 +67,14 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             let bid = Bid::new(2, Strain::from(suit));
+            // Hearts first (`two_over_one_hearts_first`): over 1♠ a minor 2/1
+            // yields to `2♥` when hearts are the longest new suit, instead of
+            // winning the weight race on four cards.  The minors keep their
+            // clubs-first order between themselves.  ponytail: under
+            // `two_over_one_natural_lengths` a 3=4=3=3 loses its catch-all `2♣`
+            // and has no 2/1 left.
+            let yields =
+                knobs.two_over_one_hearts_first && major == Suit::Spades && suit != Suit::Hearts;
             // Suit-length floor: a 2/1 into a major promises five (2♥ over 1♠),
             // and the cheapest 2/1 (2♣ over 1♠) is the catch-all and can be
             // three; every other 2/1 stays four.  Hearts only reaches this loop
@@ -88,33 +97,42 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
             // early-out keeps the gate match below byte-identical.  ponytail:
             // pairs with the shipped fit-split, never `two_over_one_fit: false`.
             if knobs.two_over_one_heart_light && suit == Suit::Hearts {
-                rules = rules
-                    .rule(
-                        bid,
-                        weight,
-                        fit_split_gate(suit, 5, major, hcp(12..), gauge_floor(|s| &mut s.hcp, 12)),
-                    )
-                    .alert(GAME_FORCE);
+                rules = two_over_one_rule(
+                    rules,
+                    yields,
+                    bid,
+                    weight,
+                    fit_split_gate(suit, 5, major, hcp(12..), gauge_floor(|s| &mut s.hcp, 12)),
+                )
+                .alert(GAME_FORCE);
                 weight -= 5;
                 continue;
             }
             rules = match (knobs.two_over_one_fit, knobs.two_over_one_gate) {
-                (false, TwoOverOneGate::Points13) => rules.rule(
+                (false, TwoOverOneGate::Points13) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     len(suit, min_len..) & points(13..) & !support(4..),
                 ),
-                (false, TwoOverOneGate::Points12) => rules.rule(
+                (false, TwoOverOneGate::Points12) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     len(suit, min_len..) & points(12..) & !support(4..),
                 ),
-                (false, gate) => rules.rule(
+                (false, gate) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     len(suit, min_len..) & hcp((gate.hcp_floor() - discount)..) & !support(4..),
                 ),
-                (true, TwoOverOneGate::Points13) => rules.rule(
+                (true, TwoOverOneGate::Points13) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     fit_split_gate(
@@ -125,7 +143,9 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
                         gauge_floor(|s| &mut s.points, 13),
                     ),
                 ),
-                (true, TwoOverOneGate::Points12) => rules.rule(
+                (true, TwoOverOneGate::Points12) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     fit_split_gate(
@@ -136,7 +156,9 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
                         gauge_floor(|s| &mut s.points, 12),
                     ),
                 ),
-                (true, gate) => rules.rule(
+                (true, gate) => two_over_one_rule(
+                    rules,
+                    yields,
                     bid,
                     weight,
                     fit_split_gate(
@@ -153,6 +175,26 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
         }
     }
     rules
+}
+
+/// Add one 2/1 rule, withheld when `yields` and hearts are the longest new
+/// suit over `1♠`
+fn two_over_one_rule(
+    rules: Rules,
+    yields: bool,
+    bid: Bid,
+    weight: i16,
+    gate: Cons<impl Constraint + Clone + 'static>,
+) -> Rules {
+    if yields {
+        rules.rule(
+            bid,
+            weight,
+            gate & !longest_new_suit(Suit::Hearts, Suit::Spades),
+        )
+    } else {
+        rules.rule(bid, weight, gate)
+    }
 }
 
 /// The 2/1 fit-split gate as a native [`EnvelopeUnion`] — the union of the two hands a
