@@ -1729,6 +1729,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_balanced_1nt_rebid: bool,
 
+    /// Rebid the minor on a minimum 5m-4♥ over `1m - 1♠`
+    /// (`rebid.unbalanced_1nt_rebid`, **shipped default-on 2026-10-05**: the
+    /// `1NT` rebid; this is the disarming flag and the control arm of
+    /// `scripts/ab-unbalanced-1nt-rebid.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_unbalanced_1nt_rebid: bool,
+
     /// Disable opener's strength-showing rebid ladder after a minor opening and a
     /// one-level response — revert jump-rebid / reverse / jump-shift to the
     /// minimum natural rebid (shipped default-on; see `ReadingProfile::opener_extras_ladder`).
@@ -3105,6 +3112,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.response.limit_raise_acceptance = !args.no_ns_limit_raise_acceptance;
     agreements.rebid.new_minor_forcing = args.ns_new_minor_forcing;
     agreements.rebid.balanced_1nt_rebid = !args.no_ns_balanced_1nt_rebid;
+    agreements.rebid.unbalanced_1nt_rebid = !args.no_ns_unbalanced_1nt_rebid;
     agreements.rebid.major_rebid_tails = !args.no_ns_major_rebid_tails;
     agreements.rebid.fourth_suit_forcing = !args.no_ns_fourth_suit_forcing;
     agreements.game_force.second_suit_agreement = !args.no_ns_second_suit_agreement;

@@ -211,6 +211,20 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
             fifths(12.0..15.0) & balanced(),
         );
     }
+    // A minimum 5m-4♥ over `1♠` rebids 1NT, so the minor rebid promises six
+    // (BBA's book) and responder's four hearts can still be found.  Weight 93
+    // breaks the same-call tie with the balanced 1NT (92); the passed-hand
+    // pass at 93 needs a balanced three-card raise, which no 5m-4♥ is.
+    if responder_major == Suit::Spades && agreements.rebid.unbalanced_1nt_rebid {
+        rules = rules
+            .rule(
+                Bid::new(1, Strain::Notrump),
+                93,
+                fifths(..15.0) & len(opener_minor, 5..=5) & len(Suit::Hearts, 4..=4),
+            )
+            // The call is natural: its balanced sibling floors no hearts.
+            .natural();
+    }
     // Up the line: four spades over a 1♥ response, ahead of the minor rebid
     // and the notrump fallbacks (a heart raise with four-card support still
     // wins on weight).

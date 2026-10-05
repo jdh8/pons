@@ -49,6 +49,40 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     assert_eq!(best(&on, one_d_one_h, hand), call(1, Strain::Notrump));
 }
 
+/// After `1m - 1♠`, a 5m-4♥ minimum rebids `2m` by default but `1NT` once
+/// `unbalanced_1nt_rebid` is on, singleton spade or not; six of the minor
+/// still rebids `2m`.
+#[test]
+fn unbalanced_1nt_rebid_knob_keeps_2m_for_six() {
+    let auction = |minor| {
+        [
+            call(1, minor),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Pass,
+        ]
+    };
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.unbalanced_1nt_rebid = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let (d, c) = (auction(Strain::Diamonds), auction(Strain::Clubs));
+    for (auction, hand, minor) in [
+        (&d, "Q4.KJ86.AQ752.83", Strain::Diamonds), // 2=4=5=2, 12 HCP
+        (&d, "4.KJ86.AQ752.K83", Strain::Diamonds), // 1=4=5=3, 13 HCP
+        (&c, "Q4.KJ86.83.AQ752", Strain::Clubs),    // 2=4=2=5, 12 HCP
+    ] {
+        assert_eq!(best(&off, auction, hand), call(2, minor), "{hand}");
+        assert_eq!(best(&on, auction, hand), call(1, Strain::Notrump), "{hand}");
+    }
+    // ♠4 ♥KJ86 ♦AQ7652 ♣83 — six diamonds keep the natural rebid.
+    assert_eq!(best(&on, &d, "4.KJ86.AQ7652.83"), call(2, Strain::Diamonds));
+}
+
 /// After `1♦ - 1♠`, a 5♦-4♣ minimum rebids `2♦` by default but the new
 /// lower suit `2♣` once `one_diamond_two_clubs` is on; six diamonds still
 /// rebid `2♦`.

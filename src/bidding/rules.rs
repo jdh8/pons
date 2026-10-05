@@ -94,6 +94,7 @@ pub struct Rule {
     label: &'static str,
     alert: Option<Alert>,
     penalty: bool,
+    natural: bool,
     face: Option<FaceGate>,
     face_id: Option<FaceId>,
     origin: &'static Location<'static>,
@@ -163,6 +164,20 @@ impl Rule {
     #[must_use]
     pub const fn penalty_oriented(&self) -> bool {
         self.penalty
+    }
+
+    /// Whether this rule is **declared natural** despite flooring a suit its
+    /// call does not name
+    ///
+    /// Set with [`Rules::natural`].  Read only by the alert invariants
+    /// (`artificial_calls_are_alerted`, the row package check), which class a
+    /// rule as artificial when its projection floors another suit at four.
+    /// That is per rule, so a natural call whose *other* rules do not floor
+    /// the suit — a `1NT` rebid that is balanced or 5m-4♥ — needs this to say
+    /// so.  It weighs nothing and never reaches the reading.
+    #[must_use]
+    pub const fn declared_natural(&self) -> bool {
+        self.natural
     }
 
     /// Whether this rule is live on the current face of the auction
@@ -349,6 +364,7 @@ impl Rules {
             label: "",
             alert: None,
             penalty: false,
+            natural: false,
             face: None,
             face_id: None,
             origin: Location::caller(),
@@ -427,6 +443,27 @@ impl Rules {
             .last_mut()
             .expect("penalty() requires a preceding rule()")
             .penalty = true;
+        self
+    }
+
+    /// Declare the most recently added rule **natural** although its
+    /// projection floors a suit its call does not name (see
+    /// [`Rule::declared_natural`])
+    ///
+    /// The exemption is per row and greppable (`.natural()`): the alert
+    /// invariants skip this rule only.  An alert is not the alternative —
+    /// alerting one rule of a call narrows the call's reading to its alerted
+    /// rules.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn natural(mut self) -> Self {
+        self.rules
+            .last_mut()
+            .expect("natural() requires a preceding rule()")
+            .natural = true;
         self
     }
 

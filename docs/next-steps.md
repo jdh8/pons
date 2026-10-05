@@ -406,6 +406,21 @@ six ships, the notrump count over the `2NT` positive the latest
     five spades; it costs our weak `2♠`, +113 / +181).  The weak jump shifts
     as a family are a plain wash and −1,003 PD against BBA's pass.  Read the
     first lesson before pricing any of these off the census alone.
+- **Re-cut 2026-10-05 (`46d0dc14`) — opener's rebid over `1m - 1♠`.**  The
+  lane's largest pairs are our `2m` against BBA's `1NT` (`1♦`: 760 rows, −817
+  plain / −1,097 PD; `1♣`: 995 rows, −453 / −540, per 409,600 boards), and
+  every row is a 5m-4♥ opener: BBA's `2m` promises six.  Over our `2m`
+  responder's seat is the floor and never shows four hearts — the lost 4-4
+  fit is −504 / −294 plain.  `rebid.unbalanced_1nt_rebid` (the `1NT` rebid,
+  plus responder's `3♥` over XYZ's `2♦ - 2NT`) measured a wash with a
+  positive lean over two seeds, all eight cells positive (plain +0.0005 /
+  +0.0004 and +0.0008 / +0.0006, PD +0.0001 / +0.0001 and +0.0005 / +0.0002;
+  CHANGELOG).  **Shipped default-on 2026-10-05** on naturalness (jdh8's
+  call: BBA's treatment).  Its losing classes are the style's own: responder passing `1NT`
+  with a diamond fit, and the invitational `2NT` after the relay.
+  Unworked beside it: the rest of the `1♣ - 1♠` `2♣` vs `1NT` pair (5♣4♦,
+  no four hearts, BBA `1NT`; the 1435 cell gains for us), and `1♦ - 1♠ - 3♦`
+  vs BBA's `3NT` (191 rows, −360 / −296).
 - Pool at `7e0bc648`: #1 on **both** scorers on the BBA shipping arm
   (−36,474 plain / −42,267 PD ≈ −0.10/board; was #1 PD only at `c3bb94a7`,
   −45,145); vs BEN

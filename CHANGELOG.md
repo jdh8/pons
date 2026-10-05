@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.unbalanced_1nt_rebid`: a minimum 5m-4♥ rebids `1NT` over
+  `1m - 1♠` (2026-10-05, shipped default-on, measured wash with a positive
+  lean)** —
+  `1♦ - 1♠ - 2♦` and `1♣ - 1♠ - 2♣` promised five, so the 4=5 minimum
+  rebid its minor and responder's floor never showed four hearts over it.
+  BBA's `2m` promises six and its `1NT` is 11–16 on 0–3 spades; the anchor
+  at `46d0dc14` prices our `2♦` against its `1NT` at 760 rows (−817 plain /
+  −1,097 PD) and `2♣` against `1NT` at 995 (−453 / −540) per 409,600
+  boards, every row a 5m-4♥ opener, the lost 4-4 heart fit −504 / −294
+  plain of it.  On: `fifths(..15.0)` with exactly five of the minor and four
+  hearts rebids `1NT` whatever its spade length, and after XYZ's `2♦ - 2NT`
+  responder shows four hearts with `3♥` on at most five spades (the floor
+  bid `3NT`).  Two seeds, 204,800 boards/arm/vul, IMPs/board none / both:
+  1791213731 plain +0.0005 / +0.0004, PD +0.0001 / +0.0001 (448 / 486
+  fired; the `3♥` rung then had no spade cap and a seven-spade hand lost a
+  `4♠`); 1791214349 plain +0.0008 / +0.0006, PD +0.0005 / +0.0002 (463 /
+  491).  All eight cells positive, all inside their CIs (±0.0009–0.0015).
+  By responder's next call on seed 2 (plain, both vuls): the `3♥` rung
+  +122 on 41 boards, `2♣ - 2♦ - 2♠` +71 on 233, `2♦ - 2♠ - 4♠` +127 on 20;
+  responder passing `1NT` −98 on 117 and the invitational `2NT` after the
+  relay −79 on 122.  Shipped default-on on naturalness (jdh8's call: it is
+  BBA's treatment).  Off-switches `bba-gen --no-ns-unbalanced-1nt-rebid` and
+  `PROBE_UNBALANCED_1NT_REBID=0` (`scripts/ab-unbalanced-1nt-rebid.sh`).
+  The `1NT` row carries the new `Rules::natural()` marker: the alert
+  invariants class a rule as artificial when it floors a suit its call does
+  not name, and this row floors hearts while its balanced sibling does not.
+  An alert was not an option — alerting one rule of a call narrows the
+  call's reading to its alerted rules.  The row's weight moved 0.92 → 0.93
+  to break a same-call tie with the balanced `1NT`; a seed-2 shard
+  regenerated on the shipped default is byte-identical to the measured `on`
+  arm.
+
 - **The 2/1 second-suit keycard seats, swept and closed (2026-10-05; no
   code change)** — after `1M - 2r - 2x - 3x` opener asks `4NT` on
   `points(15..)`, else signs off, and responder's seat over the sign-off is

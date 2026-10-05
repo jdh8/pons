@@ -4171,6 +4171,29 @@ pub struct RebidKnobs {
     /// only as a measurement off-switch, not a user-facing toggle (dropped from
     /// the `web` settings registry).
     pub balanced_1nt_rebid: bool,
+    /// Rebid `1NT` on a minimum with five of the minor and four hearts over
+    /// `1m - 1♠`
+    ///
+    /// **Default on**, shipped 2026-10-05 on naturalness (jdh8's call: BBA's
+    /// treatment) from a measured wash with a positive lean.
+    /// Two seeds (1791213731, 1791214349; 204,800 boards/arm/vul), plain
+    /// +0.0005 / +0.0004 and +0.0008 / +0.0006, PD +0.0001 / +0.0001 and
+    /// +0.0005 / +0.0002 IMPs/board (none / both), all eight cells positive
+    /// inside their CIs.  Off-switch `bba-gen --no-ns-unbalanced-1nt-rebid`
+    /// (`scripts/ab-unbalanced-1nt-rebid.sh`).
+    /// Off, `1♦ - 1♠ - 2♦` and `1♣ - 1♠ - 2♣` promise only five, so the
+    /// 4=5 red or 4=5 clubs minimum rebids its minor and responder's floor
+    /// never shows four hearts over it (a weak 5♠4♥ passes, a game force bids
+    /// `3NT`).  On, a minimum (`fifths(..15.0)`) with exactly five of the minor and
+    /// four hearts rebids `1NT` (weight 0.93, above the minor rebid and the
+    /// new lower suit), whatever its spade length — BBA's book, where `2♦`
+    /// promises six and `1NT` is 11–16 on 0–3 spades.  The shipping anchor at
+    /// `46d0dc14` prices our `2♦` against BBA's `1NT` at 760 rows, −817 plain
+    /// / −1,097 PD, and `2♣` against `1NT` at 995 rows, −453 / −540, per
+    /// 409,600 boards; the lost 4-4 heart fit is −504 / −294 plain of it.
+    /// Also on: after XYZ's `1m - 1♠ - 1NT - 2♦ - 2NT` responder shows four
+    /// hearts with `3♥` on at most five spades (the floor bids `3NT` there).
+    pub unbalanced_1nt_rebid: bool,
     /// Rebid a new lower suit after `1♦ - 1M`
     ///
     /// **Default off — measured wash.**  On, opener's `1♦ - 1M - 2♣` shows
@@ -4506,6 +4529,7 @@ impl Default for RebidKnobs {
     fn default() -> Self {
         Self {
             balanced_1nt_rebid: true,
+            unbalanced_1nt_rebid: true,
             one_diamond_two_clubs: false,
             passed_hand_major_pass: Some(14),
             odwrotka: false,

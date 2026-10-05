@@ -203,6 +203,24 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
         Pattern::node(&format!("{prefix} 2♦ -")),
         xyz_gf_answers(opening, response, rebid),
     ));
+    // Under `unbalanced_1nt_rebid` the 1NT over 1♠ often holds four hearts:
+    // responder shows four over the `2NT` answer (the floor bids 3NT).  Every
+    // other hand — a six-card spade suit included — rejects the row and falls
+    // through to the floor.
+    if knobs.unbalanced_1nt_rebid
+        && opening != Suit::Hearts
+        && response == Suit::Spades
+        && rebid == Strain::Notrump
+    {
+        entries.extend(rows_of(
+            Pattern::node(&format!("{prefix} 2♦ - 2NT -")),
+            Rules::new().rule(
+                Bid::new(3, Strain::Hearts),
+                120,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, ..=5),
+            ),
+        ));
+    }
 
     // The invitational round after the relay, and opener's acceptances.
     let relay = format!("{prefix} 2♣ - 2♦ -");

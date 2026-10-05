@@ -192,6 +192,11 @@ fn main() {
     if std::env::var("PROBE_TWO_OVER_ONE_REVERSE_EXTRAS").is_ok_and(|v| v == "0") {
         agreements.rebid.two_over_one_reverse_extras = false;
     }
+    // A minimum 5m-4♥ rebids `1NT` over `1m - 1♠` (shipped default-on
+    // 2026-10-05): `=0` withholds it.
+    if std::env::var("PROBE_UNBALANCED_1NT_REBID").is_ok_and(|v| v == "0") {
+        agreements.rebid.unbalanced_1nt_rebid = false;
+    }
     // Open `1M` on a non-wasted 10-HCP 5-4-3-1 (default off): `=1` arms it.
     if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.ten_count_majors = true;

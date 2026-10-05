@@ -1641,6 +1641,7 @@ pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Pac
                 .find(|rule| {
                     artificial(&rule.project(&hulled), rule.call(), doubled)
                         && rule.alert().is_none()
+                        && !rule.declared_natural()
                 })
                 .map(super::rules::Rule::call);
             assert!(

@@ -787,6 +787,7 @@ fn unalerted_artificial(
             if (super::artificial(&projection, made, doubled)
                 || super::names_short(&projection, made, 1))
                 && rule.alert().is_none()
+                && !rule.declared_natural()
             {
                 worklist.push(format!(
                     "{label}: [{}] {made}  (label: {:?})",
