@@ -779,7 +779,7 @@ impl Trie {
                                 // A rebase answers as it resolves, mass or not, so
                                 // its rejection reads as Pass.  Skipping it, or
                                 // re-classifying on the rewritten auction, measured
-                                // no better (docs/next-steps.md, 2026-10-03).
+                                // no better (docs/archive/next-steps-done.md, 2026-10-03).
                                 &mut |_| true,
                             )
                         {

@@ -80,7 +80,7 @@ auction + hand
   intentional rejection must have the floor behind it.  Exact nodes and
   guarded (`P*`) tables both fall through (guarded since 2026-10-03); a table
   reached through a **rebase** does not — its rejection reads as Pass, so a
-  rebased table must stay total (docs/next-steps.md, "A rejecting table does
+  rebased table must stay total (docs/archive/next-steps-done.md, "A rejecting table does
   not fall through under a rebase").
 - **The floor partition**: learned floors (neural, live search) wrap the
   competitive and defensive books **only**; the constructive book is floored
