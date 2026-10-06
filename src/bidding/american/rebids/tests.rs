@@ -371,3 +371,40 @@ fn forcing_notrump_heart_raise_over_two_hearts() {
         call(4, Strain::Hearts)
     );
 }
+
+/// `heart_rebid_invite_accept`: over `1♥ - 1♠ - 2♥ - 3♥` a six-card 13 accepts
+/// (it passed at 14+), a seven-card 12 accepts, a six-card 12 still passes.
+#[test]
+fn heart_rebid_invite_accept_on_the_fit_sum_gate() {
+    let auction = [
+        call(1, Strain::Hearts),
+        Call::Pass,
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Hearts),
+        Call::Pass,
+    ];
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.heart_rebid_invite_accept = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[major_rebid_tail_continuations()],
+        );
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let game = call(4, Strain::Hearts);
+    // ♠T98 ♥AK9862 ♦AQ ♣83 — 13 HCP, six hearts (anchor board, `4♥` makes).
+    let six_13 = "T98.AK9862.AQ.83";
+    assert_eq!(best(&off, &auction, six_13), Call::Pass);
+    assert_eq!(best(&on, &auction, six_13), game);
+    // ♠K3 ♥KQJT874 ♦K4 ♣84 — 12 HCP, seven hearts.
+    assert_eq!(best(&on, &auction, "K3.KQJT874.K4.84"), game);
+    // ♠Q3 ♥KQT874 ♦K42 ♣84 — 11 HCP, six hearts.
+    assert_eq!(best(&on, &auction, "Q3.KQT874.K42.84"), Call::Pass);
+}

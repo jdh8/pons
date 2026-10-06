@@ -4587,6 +4587,24 @@ pub struct RebidKnobs {
     /// --ns-minor-jump-notrump-slam-try off`
     /// (`scripts/ab-minor-jump-notrump-slam.sh`).
     pub minor_jump_notrump_slam_try: Option<u8>,
+    /// Opener accepts responder's `3♥` invite over `1♥ - 1♠ - 2♥` on the
+    /// floor's fit-sum game gate: 13+ points, or 12+ with seven hearts
+    ///
+    /// **Default on**, shipped 2026-10-07: two seeds (1791317756, 1791318376;
+    /// 409,600 boards/vul pooled, 87 / 90 fired), plain +0.0005 / +0.0010, PD
+    /// +0.0004 / +0.0007 IMPs/board (none / both), every pooled cell outside
+    /// its CI; +1.3 to +4.5 IMPs per fired.  Off-switch
+    /// `bba-gen --no-ns-heart-rebid-invite-accept`
+    /// (`scripts/ab-heart-rebid-invite-accept.sh`).
+    ///
+    /// Off: opener accepts on 14+ points whatever its length, so a six-card
+    /// minimum with 13 passes `3♥` opposite 10–12 and two-plus hearts.  On:
+    /// own points + responder's minimum (10) + the eight-plus trumps ≥ 31, the
+    /// gate the floor uses everywhere else
+    /// ([major-game-threshold.md](../../docs/major-game-threshold.md)).  At
+    /// anchor `25aea82c` our `3♥` vs BBA's `4♥` there is 97 rows, −364 plain /
+    /// −306 PD per 409,600 boards, nearly all a vulnerable game left in `3♥`.
+    pub heart_rebid_invite_accept: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4616,6 +4634,7 @@ impl Default for RebidKnobs {
             two_over_one_reverse_extras: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
+            heart_rebid_invite_accept: true,
         }
     }
 }

@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.heart_rebid_invite_accept`: opener accepts the `3♥` invite over
+  `1♥ - 1♠ - 2♥` on the floor's fit-sum gate (2026-10-07, shipped
+  default-on, measured win)** — opener accepted responder's `3♥` (2+ hearts,
+  10–12) on 14+ points whatever its length, so a six-card 13 passed and the
+  game was left in `3♥`; the book row shadowed the floor's own gate (own +
+  partner's minimum + trumps ≥ 31).  At anchor `25aea82c` the node `1♥ - 1♠ -
+  2♥ -` is 398 rows (−756 plain / −870 PD per 409,600 boards), its largest
+  pair our `3♥` vs BBA's `4♥` (97 rows, −364 / −306: −10 IMPs a board
+  vulnerable, +5 not).  On: 13+ points, or 12+ with seven hearts.  Two
+  seeds, 204,800 boards/arm/vul, IMPs/board none / both: 1791317756 plain
+  +0.0005 / +0.0010, PD +0.0004 / +0.0007 (44 / 45 fired); 1791318376 plain
+  +0.0004 / +0.0009, PD +0.0003 / +0.0006 (43 / 45).  Pooled plain +0.0005 /
+  +0.0010, PD +0.0004 / +0.0007, every cell outside its CI; +1.3 to +4.5
+  IMPs per fired.  Off-switch `bba-gen --no-ns-heart-rebid-invite-accept`
+  (`scripts/ab-heart-rebid-invite-accept.sh`).
 - **`rebid.minor_jump_notrump_slam_try`: responder's `4m` slam try over
   `1m - 1x - 3NT` (2026-10-06, shipped default-on `Some(9)`, measured
   win)** — over opener's new `3NT` (six of the minor, 18–21) the floor bid

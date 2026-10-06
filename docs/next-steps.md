@@ -89,6 +89,16 @@ ranking and each lane's unworked residue.
   rebids, none worth a lane alone.  The one window loss is a keycard
   captaincy hole, below under the re-cut.
 
+- **Re-cut 2026-10-07 — responder's second call over `1♥ - 1♠ - 2♥`.**  The
+  densest responder node at `25aea82c`: 398 rows, −756 / −870.  **Shipped
+  2026-10-07:** `rebid.heart_rebid_invite_accept` — opener accepts the `3♥`
+  invite on 13+ points (12+ with seven hearts), not 14+ (was: our `3♥` vs
+  BBA's `4♥`, 97 rows, −364 / −306, a vulnerable game left in `3♥`).  Pooled
+  two seeds: plain +0.0005 / +0.0010, PD +0.0004 / +0.0007, every cell
+  outside its CI.  Unworked: our `2NT` invite where BBA passes on short
+  hearts (115 rows, −230 / −422; the rung is `points(10..=12)`, outside
+  `nt_invite_hcp`'s reach); no slam try on 16+ (our `4♥` vs BBA's `4NT`, 26
+  rows, −120); likewise `1♥ - 1♠ - 2♣ - 2♦ - 2♠` offers only `4♠`.
 - **Residue of the 2026-10-03 ships.**  Preemptive minor raise: the
   contested tail (`1m - 3m (X)`, their overcall) stays the floor's.  Modern
   double answer: the `2♥`/`2♠` strength cue on 16+ (BEN's tool for the

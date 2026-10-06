@@ -376,9 +376,9 @@ fn heart_rebid_preference_structure() {
     let auction = extend(&auction, call(3, Strain::Hearts));
     assert_eq!(
         best_call(&system, &auction, opener),
-        Call::Pass,
-        "13 points is a minimum, below the 14-point acceptance floor -> the \
-         final contract is 3♥"
+        call(4, Strain::Hearts),
+        "13 points with six hearts meets the fit-sum gate (13 + 10 + 8 trumps \
+         = 31) -> accept to 4♥ (rebid.heart_rebid_invite_accept)"
     );
 }
 

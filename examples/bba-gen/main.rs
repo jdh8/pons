@@ -1443,6 +1443,14 @@ struct Args {
     #[arg(long, default_value = "9", value_name = "off|HCP")]
     ns_minor_jump_notrump_slam_try: String,
 
+    /// Withhold opener's light accept over `1♥ - 1♠ - 2♥ - 3♥`
+    /// (`rebid.heart_rebid_invite_accept`, **shipped default-on 2026-10-07**:
+    /// 13+ points, or 12+ with seven hearts, instead of 14+; this is the
+    /// disarming flag and the control arm of
+    /// `scripts/ab-heart-rebid-invite-accept.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_heart_rebid_invite_accept: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3144,6 +3152,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
                 anyhow::anyhow!("--ns-minor-jump-notrump-slam-try must be off|HCP, got {n:?}")
             })?),
         };
+    agreements.rebid.heart_rebid_invite_accept = !args.no_ns_heart_rebid_invite_accept;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

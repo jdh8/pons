@@ -87,6 +87,23 @@ fn responder_after_heart_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Opener's call over responder's `3♥` invite after `1♥ - 1♠ - 2♥`, under
+/// [`RebidKnobs::heart_rebid_invite_accept`]
+///
+/// The floor's fit-sum game gate: own points + responder's minimum (10) +
+/// trumps (own hearts + two) ≥ 31, i.e. 13+ points with six hearts, 12+ with
+/// seven.
+#[must_use]
+fn opener_accept_heart_rebid_invite() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            100,
+            points(13..) | (len(Suit::Hearts, 7..) & points(12..)),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's call over responder's `2NT` notrump invite after `1♥ - 1♠ - 2♥`
 ///
 /// Forcing: the `3♥` retreat is always legal below `2NT`, so there is no pass
@@ -291,7 +308,11 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
             ));
             entries.extend(rows_of(
                 Pattern::node(&format!("{after_two_hearts} 3♥ -")),
-                opener_accept_limit_raise(Suit::Hearts),
+                if knobs.heart_rebid_invite_accept {
+                    opener_accept_heart_rebid_invite()
+                } else {
+                    opener_accept_limit_raise(Suit::Hearts)
+                },
             ));
             entries.extend(rows_of(
                 Pattern::node(&format!("{after_two_hearts} 2NT -")),

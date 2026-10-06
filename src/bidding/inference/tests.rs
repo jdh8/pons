@@ -1845,7 +1845,11 @@ fn authored_calls_read_what_they_gate() {
         // and a longer minor, `!(≤4 ♠ & 13+ points & (5+ ♣ | (5+ ♦ & ≤3
         // ♣)))`, a negated disjunction the legacy hull cannot keep, metered
         // in the american and Watermelon constructive tries.  Knob-on stays 0.
-        ("length", 90, 0),
+        // 90 → 92 when `rebid.heart_rebid_invite_accept` shipped (2026-10-07):
+        // opener's `4♥` over `1♥ - 1♠ - 2♥ - 3♥` is `13+ points | (7+ ♥ & 12+
+        // points)`, whose seven-heart arm the legacy hull cannot keep (opener
+        // has shown six already), in the same two tries.  Knob-on stays 0.
+        ("length", 92, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
