@@ -1336,10 +1336,10 @@ fn floor_asker_continues_after_the_answer() {
     );
 }
 
-/// The answerer respects the asker's placement — holding at most one
-/// keycard the total cannot be slam-safe, so no milestone past it (with
-/// two-plus the correction stays live: the asker may have read an
-/// ambiguous answer low, or a book table signed off pessimistically)
+/// The answerer respects the asker's placement — holding the low reading
+/// of its answer the asker's count is exact, so no milestone past it (with
+/// the high reading the correction stays live: the asker may have read the
+/// answer low)
 #[test]
 fn floor_answerer_respects_the_signoff() {
     let auction = [
@@ -1360,6 +1360,30 @@ fn floor_answerer_respects_the_signoff() {
         best(&auction, "KQ543.KQJ.KQJ4.K"),
         Call::Pass,
         "the answerer never overrides the asker's signoff short a keycard"
+    );
+}
+
+/// `5♥` is two keycards or five: holding the two, the asker's count is
+/// exact, so its `5♠` stands however strong the answerer is — the
+/// `1♠ - 2♥ - 3♣ - 3♠ - 4NT` hole the 2026-10-06 anchor found
+#[test]
+fn floor_answerer_respects_the_signoff_on_the_low_reading() {
+    let auction = [
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Notrump),
+        Call::Pass,
+        call(5, Strain::Hearts),
+        Call::Pass,
+        call(5, Strain::Spades),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best(&auction, "K954.AKQ.KQJ4.Q2"),
+        Call::Pass,
+        "two keycards after 5♥ is the low reading: the asker held the count"
     );
 }
 

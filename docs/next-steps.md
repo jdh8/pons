@@ -106,24 +106,23 @@ ranking and each lane's unworked residue.
   - after `1♥ - 2m - 3♥` responder has no `3♠` and raises on two, losing a
     4-4 spade fit; the keycard answerer raises the asker's `5M` sign-off to
     `6M` (17 / 18 boards, net −1 / −8 plain);
-  - **the keycard answerer overrides the asker's `5♠` sign-off — measured
-    at the 2026-10-06 anchor, cause bisected.**
-    `1♠ - 2x - 3y - 3♠ - 4NT - 5♥ - 5♠ - 6♠` on 29 boards, −240 plain /
-    −240 PD (≈ −0.0006 per board); the window's only losing lane.  Bisected to `e0736f44`: with
-    side-suit-first a 6-4 can bid `3♣` too, so opener's `3♣` over `1♠ - 2♥`
-    read as `♠5..13`, `♥0..13` (was `♠5`, `♥0..3`), and the extra trumps lift
-    instinct rule #156 to `6♠` (logit 1.65 over pass) over the asker's
-    sign-off.  Example: opener `AKJ76.J7.52.KQJ9`, responder
-    `T54.AKT952.7.A32`.  The ♥ cap lost with it is a possible
-    reading-drift discrepancy of its own — unverified whether the
-    side-suit-first rows should still deny three-card heart support.
-    Proposed fix, not built: author pass for the answerer after the asker's
-    five-level sign-off in every keycard lane (the asker is captain; a pass
-    row shadows #156), check the side-suit-first rows' `♥` reading, and run
-    one fresh-seed A/B.  Reversible
-    default meanwhile: leave `rebid.two_over_one_side_suit_first` on — its
-    own arms net ≈ +28 plain on the anchor deals, and turning it off costs
-    more than this hole;
+  - **the keycard answerer overrode the asker's `5♠` sign-off — fixed
+    2026-10-07.**  `1♠ - 2x - 3y - 3♠ - 4NT - 5♥ - 5♠ - 6♠` on 29 anchor
+    boards (−240 / −240), surfaced by `e0736f44` (opener's `3♣` now reads
+    `♠5..13`, lifting floor rule #156 over the sign-off).  The cause was the
+    floor's `respect_keycard_signoff`, not the lane: any answerer with two+
+    keycards drove past a placement, a patch for the pre-2026-09-30
+    `asker_after_5h`.  The proposed fix (answerer pass rows in every lane)
+    was the 2026-09-27 census's refuted idea; re-run on `main`
+    (`probe-rkcb-answerer`, 1M deals) it split cleanly — passing wins on the
+    `5♥ - 5♠` overrules (+185 / +248, 160 boards), loses on the `5♣`
+    corrections (−239, 22).  Shipped instead: the answerer drives on only
+    holding the high reading of its own answer.  Two seeds, all eight cells
+    positive inside the CI, pooled plain +0.0002 / +0.0003, PD +0.0003 /
+    +0.0004 (CHANGELOG).  The `♥0..13` projection is not drift: every
+    `1♠ - 2♥ - 3♣` path still holds at most three hearts (6♠ + 4♣, or below
+    the `3♥` raise); the projection just cannot see a 13-card-sum cap.
+    The `1♥ - 2m - 3♥` 5M→6M override above is the same rule, unretraced;
   - five spades and a six-card minor still bid `1♠`;
   - **shipped 2026-10-06:** `rebid.forcing_notrump_doubleton_raise` —
     over `1M - 1NT - 2M` the `3M` limit raise takes a doubleton, as BBA

@@ -3356,14 +3356,16 @@ fn answer_doubled() -> Cons<impl Constraint + Clone> {
 /// contract — respect the placement (the asker holds the count); never
 /// milestone past it
 ///
-/// The exception: holding **two or more** keycards ourselves, the milestone
-/// drive stays live — the asker may have taken an ambiguous answer's low
-/// reading, and the book's asker tables sign off pessimistically (after a 5♥
-/// answer with two own keycards the total is four, one missing, yet they
-/// stop); the answerer corrects with a maximum, the standard agreement.
-/// Rounds 2–3 of the A/B lost 11 IMPs a board suppressing exactly those
-/// corrections.  With at most one keycard the total genuinely cannot be
-/// slam-safe, so the placement stands.
+/// The exception: holding the **high** reading of our own answer (four after
+/// `5♣`, three after `5♦`, five after `5♥`/`5♠`), the milestone drive stays
+/// live — the asker may have taken the low reading; the answerer corrects
+/// with a maximum, the standard agreement.  Rounds 2–3 of the A/B lost 11
+/// IMPs a board suppressing exactly those corrections.  Holding the low
+/// reading, the asker's count is exact and the placement stands.  (Until
+/// 2026-10 the exception was "two or more keycards", which also overruled
+/// `5♥ - 5♠` on two — once a patch for the pessimistic `asker_after_5h`,
+/// fixed 2026-09-30; `probe-rkcb-answerer` then priced passing there at
+/// +185 / +248 IMPs per 1M deals, 160 boards.)
 fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
     use super::american::slam::count_keycards;
     pred(|hand: Hand, context: &Context<'_>| {
@@ -3388,9 +3390,9 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
         // are the four five-level suits, so the old `level 5 && is_suit` guard
         // is exactly this one — but a relocated ask's step 1 can be 4NT itself
         // (4♠ asking in hearts), which that guard would have thrown away.
-        if answer_step(ask, answer).is_none() {
+        let Some(step) = answer_step(ask, answer) else {
             return false;
-        }
+        };
         let trump = match signoff.strain.suit() {
             Some(trump) => trump,
             // The doubled-answer escape can land in 5NT (the asker's escape
@@ -3408,7 +3410,8 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
                 }
             }
         };
-        count_keycards(hand, trump) <= 1
+        // The high reading of 1430 steps 1–4: 1-or-4, 0-or-3, 2-or-5 twice.
+        count_keycards(hand, trump) != [4, 3, 5, 5][step - 1]
     })
 }
 

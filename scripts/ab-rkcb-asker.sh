@@ -20,6 +20,10 @@
 # (+3.4…+4.9 per fired).  Worst boards are the honest bet: four keycards
 # plus the queen with an outside loser.
 #
+# Reused 2026-10-07 (BASE=HEAD b0d879ad, ab-results/keycard-signoff-{1,2},
+# seeds 1791315559 / 1791316151) for the answerer's signoff respect in
+# instinct.rs — shipped, numbers in CHANGELOG.
+#
 # Hypothesis (pre-run): a wash by CI (the census priced the fix at +0.0002…+0.0005
 # plain / +0.0001…+0.0004 PD per board, ~160 divergent per 1M boards, mostly
 # the floor answerer already raising to six); ships default-on on the

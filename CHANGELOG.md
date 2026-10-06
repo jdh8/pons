@@ -1190,6 +1190,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The keycard answerer respects the asker's sign-off unless it holds the
+  high reading of its own answer (2026-10-07, measured win on both seeds,
+  inside the CI)** — `respect_keycard_signoff` let any answerer with two or
+  more keycards overrule a five-level placement, a patch for the
+  pessimistic `asker_after_5h` that outlived its fix (2026-09-30).  After
+  `5♥` / `5♠` with two keycards the asker's count is exact, yet the floor
+  bid `6♠` over `5♠` — the 2026-10-06 anchor's only losing lane
+  (`1♠ - 2x - 3y - 3♠ - 4NT - 5♥ - 5♠ - 6♠`, 29 boards, −240 / −240).
+  Now the answerer drives on only with four after `5♣`, three after `5♦`
+  or five after `5♥` / `5♠` (the asker may have read it low), in every
+  keycard lane, book or floor.  `probe-rkcb-answerer` (1M deals, seed
+  1791314980) priced passing the `5♥ - 5♠` overrules at +185 plain / +248
+  PD on 160 boards, and the `5♣` corrections it keeps at +239.  A/B, off
+  arm a pre-fix build (`scripts/ab-rkcb-asker.sh`, `ab-results/keycard-signoff-{1,2}`),
+  204,800 boards/arm/vul, IMPs/board none / both: 1791315559 plain
+  +0.0002 / +0.0003, PD +0.0002 / +0.0004 (23 / 25 fired); 1791316151
+  plain +0.0002 / +0.0003, PD +0.0003 / +0.0004 (23 / 23).  Pooled plain
+  +0.0002 / +0.0003, PD +0.0003 / +0.0004: all eight cells positive, every
+  one inside its CI; +1.6 to +3.3 IMPs per fired.  The worst boards are
+  the honest bet — a keycard and the trump queen missing, slam making
+  double dummy.
+
 - **A table that did not make a call no longer reads it (2026-10-04)** —
   the reading twin of the rejection fall-through (7abcf96f).  Bidding skips
   a rule table that rejects the hand to the next candidate, but the reader
