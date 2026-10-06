@@ -1,9 +1,10 @@
 # Next-step candidates, ranked by potential IMP gain
 
-**Ranked 2026-09-26, item 2 re-read 2026-09-30 and 2026-10-03** from the two
-current anchors — BBA shipping arm at `46d0dc14` (2026-10-03, re-anchored
-after the passed-hand and strong-`2♣` ships; bucket order unchanged, so the
-ranking below stands; [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
+**Ranked 2026-09-26, item 2 re-read 2026-09-30, 2026-10-03 and 2026-10-06** from the two
+current anchors — BBA shipping arm at `25aea82c` (2026-10-06, re-anchored
+after the responses-to-`1M`, `1m - 1♠` and contested-opening ships; opening
+and round-2 tie at #1 / #2 across two seeds, so the ranking below stands;
+[bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
 `daa8bf4a` (2026-09-14, stale by the same window;
 [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
@@ -61,24 +62,32 @@ ranking and each lane's unworked residue.
     - The same rung under `2♣ - 2♦ - 2M - 3M - 4NT` and `2♣ - 2♦ - 3m - 4m -
       4NT` (opener asks on 28+): a different population, unmeasured, left
       on the classic ladder.
-- **Re-ranked 2026-10-03 at `46d0dc14`.**  The bucket is still #1 on the
-  shipping arm on both scorers, and a fifth smaller: −25,495 plain / −26,677
-  PD on 34,991 rows (−31,106 / −33,752 at `494f0c4b`); headline, tables and
-  the paired window in [bba-gap-campaign.md](bba-gap-campaign.md).  The
-  prefix cut over every shipping-arm bucket, per 409,600 boards (a scratch
-  join again: rows to their shard auctions, leading passes folded):
+- **Re-ranked 2026-10-06 at `25aea82c`.**  The bucket is #2 on the
+  shipping arm's plain column behind opening, a tie (the fresh-seed
+  confirmation keeps it #1), and still #1 on PD: −21,551 plain / −22,651 PD
+  on 33,184 rows (−25,495 / −26,677 at `46d0dc14`); headline, tables and the
+  paired window in [bba-gap-campaign.md](bba-gap-campaign.md).  The prefix
+  cut, per 409,600 boards (rows to their shard auctions, keyed by the
+  auction before the divergent call, leading passes folded; both snapshots
+  cut by the same scratch script, so the `46d0dc14` column differs slightly
+  from the 2026-10-03 table's row counts):
 
-  | lane | rows | plain | PD | note |
-  | --- | --- | --- | --- | --- |
-  | responses to `1♥` / `1♠` | 8,062 | −9,855 | −11,113 | still the largest, still spread thin (10,970 rows, −10,951 / −12,258 before Drury).  Worst pairs: our forcing `1NT` vs BBA's `3♥` over `1♠` 438 rows (−1,046 / −924), our `1♠` vs BBA's `2♠` over `1♥` 316 rows (−848 / −855); the lane re-cut 2026-10-05, below |
-  | our `2♣` opening, every continuation | 2,277 | −3,604 | −3,582 | halved by the lane's six ships (3,054 rows, −7,003 / −6,630) |
-  | `1♦ - 1♠ -` opener's rebid | 2,161 | −2,518 | −3,080 | as before: `2♦` vs BBA's `1NT` 760 rows, vs its `2♣` 847 (the measured-wash opt-in) |
-  | `1♥ - 1♠ -` opener's rebid | 1,147 | −2,436 | −2,329 | `3♥` vs BBA's `4♥` 128 rows (−354 / −387); no pair above 200 rows |
-  | `1m (1♥) X -` opener's rebid | 507 | −1,323 | −2,726 | shipped 2026-10-03, `competition.modern_double_answer` (archived) |
-  | `1♥ (2♠) 3♠ -` opener's answer | 58 | −700 | −908 | shipped 2026-10-03, the cue-raise sign-off (archived) |
-  | responses to our weak `2♠` | 789 | −867 | −1,606 | our raises where BBA passes or raises lower (`4♠` vs `3♠` 89 rows, `3♠` vs pass 268): obstruction, which DD cannot price — not a lane for this harness |
-  | `(2M) - (2NT) 4NT` | 77 | −671 | −714 | not new: the floor-rail series' R4b, a measured wash ([floor-rail-campaign.md](floor-rail-campaign.md)) — do not retry |
-  | `1m - 3m -` | 156 | −628 | −868 | shipped after this snapshot (archived) |
+  | lane | rows | plain | PD | at `46d0dc14` | note |
+  | --- | --- | --- | --- | --- | --- |
+  | responses to `1♥` / `1♠` | 9,739 | −8,710 | −10,077 | −9,855 / −11,113 | still the largest, still spread thin.  The forcing `1NT` vs BBA's `3♥` pair is gone (the suit invite); worst now our `2♣` vs BBA's `2♥` over `1♠` 369 rows (−1,053 / −892) — the suit choice `response.two_over_one_hearts_first` washed on — and our `1♠` vs BBA's `2♠` over `1♥` 316 rows (−848 / −855) |
+  | our `2♣` opening, every continuation | 2,930 | −3,604 | −3,582 | identical | no ship in the window |
+  | `1♥ - 1♠ -` opener's rebid | 1,458 | −2,393 | −2,282 | −2,436 / −2,329 | now the largest round-2 prefix, unmoved; no pair above 350 IMPs (`2♥` vs BBA's `2♦` 181 rows −329 / −345, `3♥` vs `4♥` 120 rows −308 / −338) |
+  | `1♣ - 1♠ -` opener's rebid | 1,088 | −1,600 | −1,709 | −1,978 / −2,063 | `3♦` vs BBA's `2♦` 89 rows (−237 / −251), `2♣` vs its `1NT` 480 rows (−218 / −272) |
+  | `1♦ - 1♠ -` opener's rebid | 2,278 | −1,396 | −1,755 | −2,518 / −3,080 | nearly halved by the unbalanced `1NT` and the `3NT` jump |
+  | `1♠ - 1NT -` opener's rebid | 1,680 | −1,235 | −1,160 | −1,891 / −1,850 | the forcing-NT raises |
+  | responses to our weak `2♠` | 948 | −867 | −1,606 | identical | obstruction, which DD cannot price — not a lane for this harness |
+  | `1m - 3m -` | 77 | −163 | −155 | −1,093 / −1,466 | shipped, done |
+  | `1m (1♥) X -` | 457 | +107 | +351 | −1,479 / −2,188 | shipped, now a gain |
+  | `1♥ (2♠) 3♠ -` | 35 | +30 | +38 | −594 / −794 | shipped, now a gain |
+
+  No new sharp lane: the round-2 pool is now the thin tail of many
+  rebids, none worth a lane alone.  The one window loss is a keycard
+  captaincy hole, below under the re-cut.
 
 - **Residue of the 2026-10-03 ships.**  Preemptive minor raise: the
   contested tail (`1m - 3m (X)`, their overcall) stays the floor's.  Modern
@@ -97,6 +106,24 @@ ranking and each lane's unworked residue.
   - after `1♥ - 2m - 3♥` responder has no `3♠` and raises on two, losing a
     4-4 spade fit; the keycard answerer raises the asker's `5M` sign-off to
     `6M` (17 / 18 boards, net −1 / −8 plain);
+  - **the keycard answerer overrides the asker's `5♠` sign-off — measured
+    at the 2026-10-06 anchor, cause bisected.**
+    `1♠ - 2x - 3y - 3♠ - 4NT - 5♥ - 5♠ - 6♠` on 29 boards, −240 plain /
+    −240 PD (≈ −0.0006 per board); the window's only losing lane.  Bisected to `e0736f44`: with
+    side-suit-first a 6-4 can bid `3♣` too, so opener's `3♣` over `1♠ - 2♥`
+    read as `♠5..13`, `♥0..13` (was `♠5`, `♥0..3`), and the extra trumps lift
+    instinct rule #156 to `6♠` (logit 1.65 over pass) over the asker's
+    sign-off.  Example: opener `AKJ76.J7.52.KQJ9`, responder
+    `T54.AKT952.7.A32`.  The ♥ cap lost with it is a possible
+    reading-drift discrepancy of its own — unverified whether the
+    side-suit-first rows should still deny three-card heart support.
+    Proposed fix, not built: author pass for the answerer after the asker's
+    five-level sign-off in every keycard lane (the asker is captain; a pass
+    row shadows #156), check the side-suit-first rows' `♥` reading, and run
+    one fresh-seed A/B.  Reversible
+    default meanwhile: leave `rebid.two_over_one_side_suit_first` on — its
+    own arms net ≈ +28 plain on the anchor deals, and turning it off costs
+    more than this hole;
   - five spades and a six-card minor still bid `1♠`;
   - **shipped 2026-10-06:** `rebid.forcing_notrump_doubleton_raise` —
     over `1M - 1NT - 2M` the `3M` limit raise takes a doubleton, as BBA

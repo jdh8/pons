@@ -1526,6 +1526,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
   and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
   Protocol and limitations: `docs/bidding-performance-handoff.md`.
+- **BBA re-anchor (2026-10-06, `25aea82c`)**: shipping `american()` scores
+  **−0.2880 plain / −0.0701 perfect-defense IMPs/board** (none −0.2729 /
+  −0.0486, both −0.3031 / −0.0915); `american_instinct()` −0.9239 / −0.9417.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches.  Paired to the `46d0dc14` snapshot on the same deals, shipping
+  moved +0.0133 / +0.0191 plain and +0.0212 / +0.0288 PD per table (none /
+  both), about 15% above the summed A/Bs of the window's twenty default-on
+  ships (the responses-to-`1M` lane, the `1m - 1♠` rebids, the preemptive
+  minor raise, the Modern double answers, the cue-raise sign-off, the
+  no-2/1-after-their-double package).  The paired net gain over instinct is
+  +0.3276 plain / +0.4431 PD.  Shipping opening and round-2 now tie for
+  first (−22,951 / −21,551 plain).  A fresh-seed confirmation (seed
+  `1791235546`, the series' second) agrees within ±0.01 on every headline.
+  The window's one losing lane, −240 IMPs on 29 boards: since
+  `e0736f44` the keycard answerer can override the asker's `5♠` sign-off
+  after `1♠ - 2x - 3y - 3♠`; fix proposed in `docs/next-steps.md` item 2.
 - **BBA re-anchor (2026-10-03, `46d0dc14`)**: shipping `american()` scores
   **−0.3195 plain / −0.1170 perfect-defense IMPs/board** (none −0.2992 /
   −0.0892, both −0.3397 / −0.1447); `american_instinct()` −0.9502 / −0.9815.
