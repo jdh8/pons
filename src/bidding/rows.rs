@@ -1475,8 +1475,21 @@ const KNOWN_WEIGHT_TIES: [&str; 3] = [
 //
 // `doubled_notrump_pass`: opener passes a balanced non-maximum over the
 // natural `1M (X) 1NT`; every other hand rides the systems-on rebase.
+//
+// `reverse_weak_responses`: responder's weak answers (≤7 HCP) over opener's
+// reverse; 8+ is the floor's.  The uncontested key *is* one the systems-on
+// rebase rewrites onto, which is why its guard admits only an undisturbed
+// auction — under a rebase the guard refuses, so the rebase never lands on
+// the partial table (`reverse_responses.rs`).
 #[cfg(test)]
-const KNOWN_PARTIAL_TABLES: [&str; 2] = ["P* 1♥ (X) 1NT -", "P* 1♠ (X) 1NT -"];
+const KNOWN_PARTIAL_TABLES: [&str; 6] = [
+    "P* 1♥ (X) 1NT -",
+    "P* 1♠ (X) 1NT -",
+    "P* 1♣ - 1♥ - 2♦ - (undisturbed)",
+    "P* 1♣ - 1♠ - 2♦ - (undisturbed)",
+    "P* 1♣ - 1♠ - 2♥ - (undisturbed)",
+    "P* 1♦ - 1♠ - 2♥ - (undisturbed)",
+];
 
 /// Every pair of rules in one table justifying the same call at the same weight
 ///

@@ -4649,6 +4649,33 @@ pub struct RebidKnobs {
     /// the 10–12 invite.  Off-switch `bba-gen --no-ns-diamond-rebid-fourth-suit`
     /// (`scripts/ab-diamond-rebid-fourth-suit.sh`).
     pub diamond_rebid_fourth_suit: bool,
+    /// Responder's weak answers to opener's reverse (`1♣ - 1♥ - 2♦`, `1♣ -
+    /// 1♠ - 2♦` / `2♥`, `1♦ - 1♠ - 2♥`), at most 7 HCP with a place to go:
+    /// the weak rebid of a six-card suit, the weak raise of the reverse suit
+    /// on four, the preference to opener's minor on three; 8+ HCP and the
+    /// weak misfit are rejected and stay the floor's.  Over the weak raise
+    /// opener passes below 19 HCP
+    ///
+    /// **Off by default — measured wash 2026-10-07.**  Two seeds (1791366826,
+    /// 1791367325; 204,800 boards/arm/vul): plain −0.0000 / −0.0001 then
+    /// +0.0002 / +0.0001, PD −0.0000 / −0.0001 then +0.0002 / +0.0001
+    /// IMPs/board (none / both), 17–21 fired per cell; pooled plain +0.0001 /
+    /// +0.0000, PD +0.0001 / +0.0000, every cell inside its CI.  Off, the net
+    /// floor passes the forcing reverse on a weak hand (43 of the 943
+    /// reverses at anchor `25aea82c`, shipping arms, −372 plain in the lane).
+    /// BBA's whole structure — the fourth suit as a 9+ game force, `2NT`
+    /// 6–8, `3NT` 9–14, a `6NT` rung on 15+ — read a loss first (seeds
+    /// 1791362460, 1791363144: plain −0.0004 / −0.0007 then −0.0002 /
+    /// −0.0003): every loss a game or slam the floor's evaluation had bid
+    /// better than an HCP band, the fourth suit itself at zero, every gain a
+    /// weak hand with a fit the floor had passed.  The table is partial and
+    /// guarded to undisturbed auctions (`KNOWN_PARTIAL_TABLES`): the
+    /// systems-on rebase would otherwise land on it and read its rejection
+    /// as a pass of the reverse.  Residue: the weak heart raise on five-card
+    /// support loses to the floor's direct `4♥` on every seed.  Arming switch
+    /// `bba-gen --ns-reverse-weak-responses`
+    /// (`scripts/ab-reverse-weak-responses.sh`).
+    pub reverse_weak_responses: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4681,6 +4708,7 @@ impl Default for RebidKnobs {
             heart_rebid_invite_accept: true,
             heart_rebid_keycard: true,
             diamond_rebid_fourth_suit: true,
+            reverse_weak_responses: false,
         }
     }
 }

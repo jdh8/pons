@@ -217,6 +217,10 @@ fn main() {
     if std::env::var("PROBE_DIAMOND_REBID_FOURTH_SUIT").is_ok_and(|v| v == "0") {
         agreements.rebid.diamond_rebid_fourth_suit = false;
     }
+    // Responder's weak answers over opener's reverse (default off): `=1` arms it.
+    if std::env::var("PROBE_REVERSE_WEAK_RESPONSES").is_ok_and(|v| v == "1") {
+        agreements.rebid.reverse_weak_responses = true;
+    }
     // A minimum 5m-4♥ rebids `1NT` over `1m - 1♠` (shipped default-on
     // 2026-10-05): `=0` withholds it.
     if std::env::var("PROBE_UNBALANCED_1NT_REBID").is_ok_and(|v| v == "0") {

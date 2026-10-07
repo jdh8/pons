@@ -80,6 +80,7 @@ fn row_package_invariants() {
             rebids::one_diamond_two_clubs_preference(),
             rebids::major_rebid_tail_continuations(),
             rebids::fourth_suit_forcing_continuations(),
+            rebids::reverse_response_continuations(),
             rebids::remaining_rebid_bases(),
             game_force::base(),
             game_force::opener_third_continuations(),

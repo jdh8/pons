@@ -1466,6 +1466,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_diamond_rebid_fourth_suit: bool,
 
+    /// Arm responder's weak answers (at most 7 HCP) over opener's reverse —
+    /// the weak rebid, raise, preference and `2NT` the floor passes on
+    /// (`rebid.reverse_weak_responses`, default off; the treatment arm of
+    /// `scripts/ab-reverse-weak-responses.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_reverse_weak_responses: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3170,6 +3177,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_rebid_invite_accept = !args.no_ns_heart_rebid_invite_accept;
     agreements.rebid.heart_rebid_keycard = !args.no_ns_heart_rebid_keycard;
     agreements.rebid.diamond_rebid_fourth_suit = !args.no_ns_diamond_rebid_fourth_suit;
+    agreements.rebid.reverse_weak_responses = args.ns_reverse_weak_responses;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

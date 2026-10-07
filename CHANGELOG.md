@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.reverse_weak_responses`: responder's weak answers to opener's
+  reverse (2026-10-07, opt-in, measured wash)** — over `1♣ - 1♥ - 2♦`,
+  `1♣ - 1♠ - 2♦` / `2♥` and `1♦ - 1♠ - 2♥` responder's node was the floor's,
+  which passes the forcing reverse on a weak hand.  On, a hand of at most 7
+  HCP rebids a six-card suit, raises the reverse suit on four, or prefers
+  opener's minor on three; 8+ HCP and the weak misfit are rejected and stay
+  the floor's (the table is deliberately partial), and opener passes the weak
+  raise below 19 HCP.  Registered behind an *undisturbed* guard
+  (`KNOWN_PARTIAL_TABLES`): the systems-on rebase strips their double and
+  lands on the uncontested key, where a partial table's rejection reads as a
+  pass of the reverse (−59 IMPs on one seed before the guard).  BBA's whole
+  structure there — the fourth suit as a 9+ game force, `2NT` 6–8, `3NT`
+  9–14, then a `6NT` rung on 15+ — was authored first and read a loss
+  against the net floor (seed 1791362460 plain −0.0004 / −0.0007, PD
+  −0.0004 / −0.0007; seed 1791363144 plain −0.0002 / −0.0003, PD −0.0001 /
+  −0.0002): every loss was a game or slam the floor's shape evaluation bid
+  better than an HCP band (`3NT` / `6NT` / `7NT` jumps that make), the fourth
+  suit itself priced at zero, and every gain was a weak hand with a fit the
+  floor had passed.  The weak table alone, two seeds, 204,800 boards/arm/vul,
+  IMPs/board none / both: 1791366826 plain −0.0000 / −0.0001, PD −0.0000 /
+  −0.0001 (17 / 17 fired); 1791367325 plain +0.0002 / +0.0001, PD +0.0002 /
+  +0.0001 (18 / 21 fired).  Pooled plain +0.0001 / +0.0000, PD +0.0001 /
+  +0.0000, every cell inside its CI — a wash; its earlier forms (with a weak
+  `2NT` catch-all, four seeds) pooled the same sign and size.  Default off.
+  The one consistent loser is the weak heart raise on five-card support
+  where the floor's direct `4♥` makes.  Arming switch
+  `bba-gen --ns-reverse-weak-responses` (`scripts/ab-reverse-weak-responses.sh`).
+
 - **`rebid.diamond_rebid_fourth_suit`: the `3♣` fourth-suit game force over
   `1♥ - 1♠ - 2♦`, with two fast arrivals beside it (2026-10-07, shipped
   default-on, measured win)** — the node's only game rung was `3NT` (13+
