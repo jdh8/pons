@@ -408,3 +408,52 @@ fn heart_rebid_invite_accept_on_the_fit_sum_gate() {
     // ♠Q3 ♥KQT874 ♦K42 ♣84 — 11 HCP, six hearts.
     assert_eq!(best(&on, &auction, "Q3.KQT874.K42.84"), Call::Pass);
 }
+
+/// `heart_rebid_keycard`: responder asks keycards for hearts over `1♥ - 1♠ -
+/// 2♥` on 2+ hearts and 16+ points, and over `1♥ - 1♠ - 3♥` on 14+; a
+/// singleton heart or a 13-count over `2♥` still bids game.
+#[test]
+fn heart_rebid_keycard_asks_on_a_fit() {
+    let over = |rebid: Bid| {
+        [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Pass,
+            Call::Bid(rebid),
+            Call::Pass,
+        ]
+    };
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.heart_rebid_keycard = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[
+                major_rebid_tail_continuations(),
+                major_jump_rebid::major_jump_rebid_continuations(),
+            ],
+        );
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let (two, three) = (
+        over(Bid::new(2, Strain::Hearts)),
+        over(Bid::new(3, Strain::Hearts)),
+    );
+    let ask = call(4, Strain::Notrump);
+    // ♠AKQ95 ♥QJ ♦KQ7 ♣QJ5 — 20 HCP, two hearts (anchor board, BBA `6♥`).
+    let twenty = "AKQ95.QJ.KQ7.QJ5";
+    assert_eq!(best(&off, &two, twenty), call(4, Strain::Hearts));
+    assert_eq!(best(&on, &two, twenty), ask);
+    // ♠AQ876 ♥K9 ♦K84 ♣J32 — 13 HCP: game, not slam.
+    assert_eq!(best(&on, &two, "AQ876.K9.K84.J32"), call(4, Strain::Hearts));
+    // ♠AQT74 ♥4 ♦AK42 ♣K8 — singleton heart: no fit, no ask.
+    assert_ne!(best(&on, &two, "AQT74.4.AK42.K87"), ask);
+    // ♠AKJ76 ♥K8 ♦K4 ♣K532 — 17 HCP over the jump (anchor board, BBA `7♥`).
+    let jump = "AKJ76.K8.K4.K532";
+    assert_eq!(best(&off, &three, jump), call(4, Strain::Hearts));
+    assert_eq!(best(&on, &three, jump), ask);
+}

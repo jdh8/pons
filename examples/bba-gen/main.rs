@@ -1451,6 +1451,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_heart_rebid_invite_accept: bool,
 
+    /// Withhold responder's `4NT` keycard ask for hearts over `1♥ - 1♠ - 2♥`
+    /// (16+) and `1♥ - 1♠ - 3♥` (14+) (`rebid.heart_rebid_keycard`, **shipped
+    /// default-on 2026-10-07**; this is the disarming flag and the control arm
+    /// of `scripts/ab-heart-rebid-keycard.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_heart_rebid_keycard: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3153,6 +3160,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             })?),
         };
     agreements.rebid.heart_rebid_invite_accept = !args.no_ns_heart_rebid_invite_accept;
+    agreements.rebid.heart_rebid_keycard = !args.no_ns_heart_rebid_keycard;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

@@ -6,6 +6,7 @@
 //! [`opener_major_jump_rebid`][field@crate::bidding::inference::ReadingProfile::opener_major_jump_rebid].
 
 use super::*;
+use crate::bidding::american::slam;
 
 /// Append opener's jump-rebid of a six-card major with extras
 ///
@@ -40,9 +41,23 @@ pub(super) fn with_major_jump_rebid(
 /// | 4M   | 1.4 | Accept: major game on an 8+ card fit (2+ support, 8+ points) |
 /// | 3NT  | 1.2 | Accept: notrump game, no major fit (9+ points) |
 /// | Pass | 0.0 | Decline: minimum — play `3M` |
-fn responder_after_major_jump_rebid(major: Suit) -> Rules {
+///
+/// `keycard` (only at `1♥ - 1♠ - 3♥`, under
+/// [`RebidKnobs::heart_rebid_keycard`]) tops the table with a `4NT` keycard
+/// ask on 2+ support and 14+ points, as over the `3♠` jump raise.
+fn responder_after_major_jump_rebid(major: Suit, keycard: bool) -> Rules {
     let trump = Strain::from(major);
-    Rules::new()
+    let mut rules = Rules::new();
+    if keycard {
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Notrump),
+                150,
+                len(major, 2..) & points(14..),
+            )
+            .alert(slam::RKCB);
+    }
+    rules
         .rule(Bid::new(4, trump), 140, len(major, 2..) & points(8..))
         .rule(Bid::new(3, Strain::Notrump), 120, points(9..))
         .rule(Call::Pass, 0, points(0..))
@@ -57,18 +72,23 @@ pub(crate) fn major_jump_rebid_continuations() -> Package {
     Package {
         name: "major-jump-rebid-continuations",
         gate: |a| a.decision.reading.opener_major_jump_rebid,
-        entries: |_| {
+        entries: |agreements| {
+            let keycard = agreements.rebid.heart_rebid_keycard;
             let mut entries = expand(
                 "P* 1M - 1NT - 3M -",
                 |_| true,
-                |b| responder_after_major_jump_rebid(b.suit('M')),
+                |b| responder_after_major_jump_rebid(b.suit('M'), false),
             );
             // 1♥ - 1♠ - 3♥: opener's major is hearts, responder has shown 4+
             // spades.
+            let after_jump = "P* 1♥ - 1♠ - 3♥ -";
             entries.extend(rows_of(
-                Pattern::node("P* 1♥ - 1♠ - 3♥ -"),
-                responder_after_major_jump_rebid(Suit::Hearts),
+                Pattern::node(after_jump),
+                responder_after_major_jump_rebid(Suit::Hearts, keycard),
             ));
+            if keycard {
+                entries.extend(slam::rkcb_rows(after_jump, Suit::Hearts));
+            }
             entries
         },
     }

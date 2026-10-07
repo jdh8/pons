@@ -207,6 +207,11 @@ fn main() {
     if std::env::var("PROBE_HEART_REBID_INVITE_ACCEPT").is_ok_and(|v| v == "0") {
         agreements.rebid.heart_rebid_invite_accept = false;
     }
+    // Responder's heart keycard ask over `1♥ - 1♠ - 2♥` / `3♥` (shipped
+    // default-on 2026-10-07): `=0` withholds it.
+    if std::env::var("PROBE_HEART_REBID_KEYCARD").is_ok_and(|v| v == "0") {
+        agreements.rebid.heart_rebid_keycard = false;
+    }
     // A minimum 5m-4♥ rebids `1NT` over `1m - 1♠` (shipped default-on
     // 2026-10-05): `=0` withholds it.
     if std::env::var("PROBE_UNBALANCED_1NT_REBID").is_ok_and(|v| v == "0") {

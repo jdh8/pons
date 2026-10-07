@@ -62,6 +62,9 @@ fn responder_after_spade_jump() -> Rules {
 /// Opener's `2♥` shows a six-card suit; responder's `1♠` did not deny three
 /// hearts, so a heart fit is common at this node.
 ///
+/// Under [`RebidKnobs::heart_rebid_keycard`] a `4NT` keycard ask for hearts
+/// (2+ hearts, 16+ points, weight 2.0) tops the table.
+///
 /// | Call | Wt  | Meaning |
 /// |------|-----|---------|
 /// | 4♥   | 1.5 | Raise to game, 2+ hearts (13+ points) |
@@ -70,8 +73,18 @@ fn responder_after_spade_jump() -> Rules {
 /// | 2NT  | 1.0 | Natural notrump invite (10–12 points) |
 /// | Pass | 0.0 | Minimum, nothing further |
 #[must_use]
-fn responder_after_heart_rebid() -> Rules {
-    Rules::new()
+fn responder_after_heart_rebid(keycard: bool) -> Rules {
+    let mut rules = Rules::new();
+    if keycard {
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Notrump),
+                200,
+                len(Suit::Hearts, 2..) & points(16..),
+            )
+            .alert(slam::RKCB);
+    }
+    rules
         .rule(
             Bid::new(4, Strain::Hearts),
             150,
@@ -304,8 +317,11 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
             let after_two_hearts = format!("{base} 2♥ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_hearts),
-                responder_after_heart_rebid(),
+                responder_after_heart_rebid(knobs.heart_rebid_keycard),
             ));
+            if knobs.heart_rebid_keycard {
+                entries.extend(slam::rkcb_rows(&after_two_hearts, Suit::Hearts));
+            }
             entries.extend(rows_of(
                 Pattern::node(&format!("{after_two_hearts} 3♥ -")),
                 if knobs.heart_rebid_invite_accept {

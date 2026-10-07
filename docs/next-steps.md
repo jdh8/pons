@@ -99,6 +99,20 @@ ranking and each lane's unworked residue.
   hearts (115 rows, −230 / −422; the rung is `points(10..=12)`, outside
   `nt_invite_hcp`'s reach); no slam try on 16+ (our `4♥` vs BBA's `4NT`, 26
   rows, −120); likewise `1♥ - 1♠ - 2♣ - 2♦ - 2♠` offers only `4♠`.
+- **Re-cut 2026-10-07 — missed slams after `1♥ - 1♠`.**  Our `1♠` vs BBA's
+  strong jump shift `2♠` (328 rows, −817 / −837) is 137 boards of BBA-only
+  slams (−948 plain): responder's 15–20 count signs off at round 2, not
+  the first call.  The uncontested missed-slam pool (BBA ≥ 6, us < 6) is
+  6,238 boards, −22.8k plain; `1♥ - 1♠` its largest lane (620, −3.5k), then
+  `1♠ - 2♣` (−2.4k), `1♦ - 1♠` (−1.4k), `1♣ - 1♠` (−1.3k).  **Shipped
+  2026-10-07:** `rebid.heart_rebid_keycard` — `4NT` RKCB over `1♥ - 1♠ - 2♥`
+  (2+ hearts, 16+) and the `3♥` jump (14+); pooled two seeds plain +0.0017 /
+  +0.0020, PD +0.0017 / +0.0020, every cell outside its CI (CHANGELOG).
+  Unworked in the lane: over `1♥ - 1♠ - 2♦` responder has no game-forcing
+  heart raise — three hearts and 13+ bids `3NT` (88 boards, −561; BBA's slam
+  in hearts on 34, diamonds 29); the fourth-suit tail `2♣ - 2♦` places only
+  at game (82, −760); the misfit `3NT` over `2♥` / `3♥` (108, −772) is BBA's
+  spade slam on responder's own long spades.
 - **Residue of the 2026-10-03 ships.**  Preemptive minor raise: the
   contested tail (`1m - 3m (X)`, their overcall) stays the floor's.  Modern
   double answer: the `2♥`/`2♠` strength cue on 16+ (BEN's tool for the

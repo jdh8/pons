@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.heart_rebid_keycard`: responder asks keycards for hearts over
+  `1♥ - 1♠ - 2♥` and `1♥ - 1♠ - 3♥` (2026-10-07, shipped default-on,
+  measured win)** — both nodes topped out at `4♥` / `3NT`, so a 16–22 count with a
+  heart fit signed off in game.  At anchor `25aea82c` the missed slams after
+  an uncontested `1♥ - 1♠` are 620 boards (−3.5k plain per 409,600), the
+  largest lane of the −22.8k uncontested missed-slam pool; our `4♥` at these
+  two nodes with BBA in slam is 146 boards, −1,045 plain / −1,040 PD (BBA's
+  slam in hearts on 122).  On: `4NT` RKCB on 2+ hearts and 16+ points over
+  `2♥` (11–15), 14+ over the `3♥` jump (16+) — the thresholds of the two
+  spade-raise nodes beside them — with the RKCB tree below; the `4♥`
+  sign-off now reads as no slam interest, so opener passes it where the
+  floor raised it blind to `6♥`.  Two seeds, 204,800 boards/arm/vul,
+  IMPs/board none / both: 1791323769 plain +0.0019 / +0.0022, PD +0.0020 /
+  +0.0023 (79 / 82 fired); 1791324314 plain +0.0014 / +0.0017, PD +0.0014 /
+  +0.0018 (68 / 70).  Pooled plain +0.0017 / +0.0020, PD +0.0017 / +0.0020,
+  every cell of both seeds outside its CI; +4.1 to +5.8 IMPs per fired.
+  Seed 1 split, plain: the asks 104 boards +504, the passes of the capped
+  `4♥` 57 boards +353.  Off-switch `bba-gen --no-ns-heart-rebid-keycard`
+  (`scripts/ab-heart-rebid-keycard.sh`).
 - **`rebid.heart_rebid_invite_accept`: opener accepts the `3♥` invite over
   `1♥ - 1♠ - 2♥` on the floor's fit-sum gate (2026-10-07, shipped
   default-on, measured win)** — opener accepted responder's `3♥` (2+ hearts,

@@ -4605,6 +4605,25 @@ pub struct RebidKnobs {
     /// anchor `25aea82c` our `3♥` vs BBA's `4♥` there is 97 rows, −364 plain /
     /// −306 PD per 409,600 boards, nearly all a vulnerable game left in `3♥`.
     pub heart_rebid_invite_accept: bool,
+    /// Responder asks keycards for hearts over `1♥ - 1♠ - 2♥` (2+ hearts, 16+
+    /// points) and `1♥ - 1♠ - 3♥` (2+ hearts, 14+ points)
+    ///
+    /// **Default on**, shipped 2026-10-07: two seeds (1791323769, 1791324314;
+    /// 409,600 boards/vul pooled, 147 / 152 fired), plain +0.0017 / +0.0020,
+    /// PD +0.0017 / +0.0020 IMPs/board (none / both), every cell of both seeds
+    /// outside its CI; +4.1 to +5.8 IMPs per fired.  Off-switch
+    /// `bba-gen --no-ns-heart-rebid-keycard`
+    /// (`scripts/ab-heart-rebid-keycard.sh`).
+    ///
+    /// Off: both nodes top out at `4♥` / `3NT`, so a 16–22 count with a
+    /// heart fit signs off in game.  On: the `4NT` ask and its RKCB tree,
+    /// on the thresholds of the two spade-raise nodes beside them (16+ over
+    /// the 12–15 raise, 14+ over the 16–18 jump).  At anchor `25aea82c` our
+    /// `4♥` there with BBA in slam is 146 boards, −1,045 plain / −1,040 PD
+    /// per 409,600 (BBA's slam in hearts on 122).  Half the win is the ask;
+    /// the rest is the capped `4♥`, which opener now passes where the floor
+    /// raised it blind to `6♥` (seed 1, plain: 104 asks +504, 57 passes +353).
+    pub heart_rebid_keycard: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4635,6 +4654,7 @@ impl Default for RebidKnobs {
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
+            heart_rebid_keycard: true,
         }
     }
 }
