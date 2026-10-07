@@ -4624,6 +4624,31 @@ pub struct RebidKnobs {
     /// the rest is the capped `4♥`, which opener now passes where the floor
     /// raised it blind to `6♥` (seed 1, plain: 104 asks +504, 57 passes +353).
     pub heart_rebid_keycard: bool,
+    /// Over `1♥ - 1♠ - 2♦` responder's `3♣` is the fourth-suit game force
+    /// for every 13+ HCP hand except the two fast arrivals — the three-card
+    /// heart raise on 13–15 bids `4♥`, a 13–15 minimum with no major fit (at
+    /// most two hearts and four spades) bids `3NT`; through `3♣` heart
+    /// support is 16+ and asks keycards.  Opener answers `3♠` (three spades), `3♥` (six),
+    /// `3NT` (clubs stopped), `3♦` (five), else `3♥`; responder places at
+    /// game or asks
+    ///
+    /// **Default on**, shipped 2026-10-07: two seeds (1791356713, 1791357256;
+    /// 409,600 boards/vul pooled, 196 / 202 fired), plain +0.0007 / +0.0009,
+    /// PD +0.0008 / +0.0009 IMPs/board (none / both), eight of eight cells
+    /// positive, every seed-2 cell outside its CI; +1.4 to +2.0 IMPs per
+    /// fired.  The `4♥` fast arrival carries half; the `3♣` path's slams the
+    /// rest.  Its recurring loser is `3♣ - 3NT` passed when opener holds a
+    /// 19-count that should have jump-shifted — `rebid_one_heart_one_spade`
+    /// has no jump shift, so its `2♦` is 12–19+.
+    ///
+    /// Off: the node's only game rung is `3NT` (13+ HCP), so every 13+ hand
+    /// bids it whatever the fit.  At anchor `25aea82c` three hearts and 13+
+    /// alone are 88 boards, −561 plain per 409,600 (BBA's slam in hearts on
+    /// 34).  BBA's structure there: `3♣` fourth suit 14+, `3♥` a
+    /// game-forcing raise (12+), `4♥` fast arrival (12–22).  Our `3♥` stays
+    /// the 10–12 invite.  Off-switch `bba-gen --no-ns-diamond-rebid-fourth-suit`
+    /// (`scripts/ab-diamond-rebid-fourth-suit.sh`).
+    pub diamond_rebid_fourth_suit: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4655,6 +4680,7 @@ impl Default for RebidKnobs {
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
             heart_rebid_keycard: true,
+            diamond_rebid_fourth_suit: true,
         }
     }
 }

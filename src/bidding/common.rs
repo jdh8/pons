@@ -236,6 +236,8 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.rebid.heart_rebid_invite_accept = false;
     // Likewise responder's heart keycard ask over `1♥ - 1♠ - 2♥` / `3♥`.
     mirror.rebid.heart_rebid_keycard = false;
+    // Likewise responder's heart game raise and slam try over `1♥ - 1♠ - 2♦`.
+    mirror.rebid.diamond_rebid_fourth_suit = false;
     // Likewise opener's answer to the Modern double: their `1m (1M) X -`
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;

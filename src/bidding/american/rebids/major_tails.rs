@@ -4,7 +4,9 @@
 //! are authored to game, and — for the two spade-raise auctions — to slam via
 //! RKCB.  Gated by [`RebidKnobs::major_rebid_tails`].  Two sub-agreements ride
 //! it: fourth-suit forcing ([`RebidKnobs::fourth_suit_forcing`]) and the HCP
-//! gauge on the one no-fit rung ([`RebidKnobs::nt_invite_hcp`]).
+//! gauge on the one no-fit rung ([`RebidKnobs::nt_invite_hcp`]).  A third,
+//! [`RebidKnobs::diamond_rebid_fourth_suit`], is the `3♣` fourth-suit game
+//! force over the `2♦` rebid, with a `4♥` fast-arrival raise beside it.
 
 use super::*;
 use crate::bidding::american::slam;
@@ -140,11 +142,20 @@ fn opener_after_heart_invite() -> Rules {
 /// major-rebid-tails adjunct) extends this table for `minor == Suit::Clubs`
 /// only: a `2♦` response becomes an artificial game force (the fourth suit
 /// below `2♣`) instead of natural diamonds.  `minor == Suit::Diamonds` is
-/// untouched — the fourth suit there would be a `3♣` jump, out of scope here.
+/// untouched by it — the fourth suit there is the `3♣` jump, which
+/// [`RebidKnobs::diamond_rebid_fourth_suit`] authors as the game force for
+/// every 13+ hand but the two fast arrivals: the three-card heart raise on
+/// 13–15 bids `4♥`, and a minimum with no major fit (13–15 HCP, at most two
+/// hearts and four spades) bids `3NT`.  A 16+ hand, or a five-card spade
+/// suit still looking for its fit, goes through `3♣`; under the knob the
+/// unconditional `3NT` rung is replaced by the fast-arrival one.
 ///
 /// | Call | Wt   | Meaning |
 /// |------|------|---------|
 /// | 2♦   | 2.0  | Fourth-suit-forcing game force, 12+ (clubs only, knob-gated) |
+/// | 4♥   | 2.1  | Game raise, 3+ hearts, 13–15 (diamonds only, knob-gated) |
+/// | 3NT  | 2.05 | Minimum game force, no major fit: 13–15 HCP, ≤2♥, ≤4♠ (diamonds only, knob-gated) |
+/// | 3♣   | 2.0  | Fourth-suit game force, 13+ HCP (diamonds only, knob-gated) |
 /// | 3♥   | 1.3  | Invitational jump preference, 3+ hearts (10–12) |
 /// | 3m   | 1.25 | Invitational raise of opener's minor, 5+ (10–12) |
 /// | 2NT  | 1.2  | Natural notrump invite (10–12) |
@@ -163,6 +174,24 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
             .rule(Bid::new(2, Strain::Diamonds), 200, points(12..))
             .alert(FOURTH_SUIT);
     }
+    let fourth_suit = minor == Suit::Diamonds && knobs.diamond_rebid_fourth_suit;
+    if fourth_suit {
+        // The two fast arrivals first, then the game force, HCP-only on
+        // purpose — the projection must claim nothing about shape.
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                210,
+                len(Suit::Hearts, 3..) & points(13..=15),
+            )
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                205,
+                hcp(13..=15) & len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=4),
+            )
+            .rule(Bid::new(3, Strain::Clubs), 200, hcp(13..))
+            .alert(FOURTH_SUIT);
+    }
     rules = rules
         .rule(
             Bid::new(3, Strain::Hearts),
@@ -177,7 +206,7 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
     } else {
         rules.rule(Bid::new(2, Strain::Notrump), 120, points(10..=12))
     };
-    rules
+    rules = rules
         .rule(
             Bid::new(2, Strain::Spades),
             105,
@@ -187,9 +216,11 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
             Bid::new(2, Strain::Hearts),
             100,
             len(Suit::Hearts, 2..) & hcp(6..=9),
-        )
-        .rule(Bid::new(3, Strain::Notrump), 90, hcp(13..))
-        .rule(Call::Pass, 0, hcp(0..))
+        );
+    if !fourth_suit {
+        rules = rules.rule(Bid::new(3, Strain::Notrump), 90, hcp(13..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's call over responder's raise to `3m` after `1♥ - 1♠ - 2m`
@@ -202,6 +233,73 @@ fn opener_accept_minor_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
         .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer at `1♥ - 1♠ - 2♦ - 3♣ -`, the fourth-suit game force
+///
+/// The `2♣` lane's answer table a level higher: forcing, no pass rule, the
+/// `3♥` catch-all always legal on opener's 5+ hearts.
+///
+/// | Call | Wt  | Meaning |
+/// |------|-----|---------|
+/// | 3♠   | 1.4 | Delayed three-card raise |
+/// | 3♥   | 1.3 | Extra heart length, 6+ |
+/// | 3NT  | 1.2 | Notrump with the fourth suit stopped |
+/// | 3♦   | 1.1 | A real second suit, 5+ |
+/// | 3♥   | 0.2 | Guaranteed-legal catch-all |
+#[must_use]
+fn opener_after_three_club_fourth_suit() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Spades), 140, len(Suit::Spades, 3..))
+        .rule(Bid::new(3, Strain::Hearts), 130, len(Suit::Hearts, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 120, stopper_in(Suit::Clubs))
+        .rule(Bid::new(3, Strain::Diamonds), 110, len(Suit::Diamonds, 5..))
+        .rule(Bid::new(3, Strain::Hearts), 20, len(Suit::Hearts, 5..))
+}
+
+/// Responder's placement at `1♥ - 1♠ - 2♦ - 3♣ - answer -`
+///
+/// One table at every answer of [`opener_after_three_club_fourth_suit`].
+/// The three-card heart raise on 13–15 never comes here (it bid `4♥`
+/// directly), so heart support at this node is 16+ and asks keycards at
+/// once; `slam::rkcb_rows` for hearts hangs below each answer.  After
+/// opener's `3NT` the `3NT` landing is illegal and the pass takes over.
+///
+/// | Call | Wt   | Meaning |
+/// |------|------|---------|
+/// | 4♠   | 1.7  | Opener showed three spades; 5-3 fit |
+/// | 4NT  | 1.6  | Keycard ask for hearts, 3+ hearts (16+) |
+/// | 4♥   | 1.1  | Opener rebid hearts (6+); 6-2 fit |
+/// | 3NT  | 0.8  | The game-force landing spot |
+/// | Pass | 0.75 | Opener's `3NT` answer stands |
+#[must_use]
+fn responder_after_three_club_answer() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            170,
+            partner_suit_is(Suit::Spades) & len(Suit::Spades, 5..),
+        )
+        .rule(Bid::new(4, Strain::Notrump), 160, len(Suit::Hearts, 3..))
+        .alert(slam::RKCB)
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            110,
+            partner_suit_is(Suit::Hearts) & len(Suit::Hearts, 2..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 80, hcp(0..))
+        .rule(Call::Pass, 75, hcp(0..))
+}
+
+/// The distinct calls a table authors, in table order
+fn distinct_calls(rules: &Rules) -> Vec<Call> {
+    let mut seen = std::collections::HashSet::new();
+    rules
+        .rules()
+        .iter()
+        .map(|rule| rule.call())
+        .filter(|&call| seen.insert(call))
+        .collect()
 }
 
 /// Opener's answer at `1♥ - 1♠ - 2♣ - 2♦ -`, the fourth-suit-forcing game force
@@ -355,6 +453,22 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
                     Pattern::node(&format!("{after_minor} 3♥ -")),
                     opener_accept_limit_raise(Suit::Hearts),
                 ));
+                if minor == Suit::Diamonds && knobs.diamond_rebid_fourth_suit {
+                    // Responder's 3♣ game force: opener answers naturally,
+                    // responder places or asks keycards for hearts.
+                    let after_fourth_suit = format!("{after_minor} 3♣ -");
+                    let opener_rules = opener_after_three_club_fourth_suit();
+                    let answers = distinct_calls(&opener_rules);
+                    entries.extend(rows_of(Pattern::node(&after_fourth_suit), opener_rules));
+                    for answer in answers {
+                        let after_answer = format!("{after_fourth_suit} {answer} -");
+                        entries.extend(rows_of(
+                            Pattern::node(&after_answer),
+                            responder_after_three_club_answer(),
+                        ));
+                        entries.extend(slam::rkcb_rows(&after_answer, Suit::Hearts));
+                    }
+                }
             }
 
             entries
@@ -375,21 +489,7 @@ pub(crate) fn fourth_suit_forcing_continuations() -> Package {
         entries: |_| {
             let prefix = "P* 1♥ - 1♠ - 2♣ - 2♦ -";
             let opener_rules = opener_after_fourth_suit();
-            let answers: Vec<Call> = {
-                let mut seen = std::collections::HashSet::new();
-                opener_rules
-                    .rules()
-                    .iter()
-                    .filter_map(|rule| {
-                        let answer = rule.call();
-                        if seen.insert(answer) {
-                            Some(answer)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            };
+            let answers = distinct_calls(&opener_rules);
             let mut entries = rows_of(Pattern::node(prefix), opener_rules);
             for answer in answers {
                 entries.extend(rows_of(

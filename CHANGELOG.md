@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.diamond_rebid_fourth_suit`: the `3♣` fourth-suit game force over
+  `1♥ - 1♠ - 2♦`, with two fast arrivals beside it (2026-10-07, shipped
+  default-on, measured win)** — the node's only game rung was `3NT` (13+
+  HCP, whatever the fit): at anchor `25aea82c` three hearts and 13+ alone are
+  88 boards, −561 plain per 409,600, BBA's slam in hearts on 34.  On: `4♥` on
+  three hearts and 13–15 points, `3NT` on a 13–15 minimum with no major fit
+  (at most two hearts and four spades), and the alerted `3♣` game force for
+  every other 13+ HCP hand — 16+ of any shape, or five spades still looking
+  for their fit.  Opener answers `3♠` (three spades), `3♥` (six), `3NT`
+  (clubs stopped), `3♦` (five), else `3♥`; responder places `4♠` on a 5-3,
+  `4♥` on a 6-2, `3NT`, or passes opener's `3NT`, and with three hearts (so
+  16+) asks `4NT` keycards, RKCB tree below.  BBA's own structure there:
+  `3♣` fourth suit 14+, `3♥` a game-forcing raise 12+, `4♥` fast arrival;
+  our `3♥` stays the 10–12 invite.  Two seeds, 204,800 boards/arm/vul,
+  IMPs/board none / both: 1791356713 plain +0.0006 / +0.0008, PD +0.0007 /
+  +0.0008 (93 / 96 fired; the none-plain cell on its ±0.0006 CI, the rest
+  outside); 1791357256 plain +0.0008 / +0.0009, PD +0.0009 / +0.0010 (103 /
+  106, every cell outside its CI).  Pooled plain +0.0007 / +0.0009, PD
+  +0.0008 / +0.0009, eight of eight cells positive; +1.4 to +2.0 IMPs per
+  fired.  Split (plain, none): the `4♥` raise 26 / 25 boards +67 / +59 and
+  the floor's keycard ask over it 8 / 8 boards +46 / +46; the `3♣` path's
+  slams 14 / 17 boards +25 / +14, its game boards 45 / 53 boards −5 / +47.
+  The one recurring loser is `3♣ - 3NT` passed (26 / 23 boards, −22 / −7):
+  opener's `2♦` over `1♥ - 1♠` is 12–19+ because that rebid table has no
+  jump shift (`rebid_one_heart_one_spade` never calls the extras ladder), so
+  a 19-count answers `3NT` with no way to show it, where the floor used to
+  raise responder's uncapped `3NT` to a making `6NT`.  A first cut with
+  `3♣` as a bare heart slam try (three hearts, 16+; opener asking on 14+)
+  read plain +0.0006 / +0.0007 pooled over two seeds, the `4♥` raise carrying
+  it, and was superseded before shipping.  Off-switch
+  `bba-gen --no-ns-diamond-rebid-fourth-suit`
+  (`scripts/ab-diamond-rebid-fourth-suit.sh`).  Not authored: opener's
+  jump shift over `1♥ - 1♠` (the fix for the loser above), opener's call
+  over the `4♥` raise (the floor's), their double of `3♣`, and a slam try
+  in the `2♣` sibling's `2♦` fourth suit, which still places only at game.
 - **`rebid.heart_rebid_keycard`: responder asks keycards for hearts over
   `1♥ - 1♠ - 2♥` and `1♥ - 1♠ - 3♥` (2026-10-07, shipped default-on,
   measured win)** — both nodes topped out at `4♥` / `3NT`, so a 16–22 count with a

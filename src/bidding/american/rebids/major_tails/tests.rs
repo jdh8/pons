@@ -4,6 +4,20 @@ use crate::bidding::{Bidder, Trie};
 use contract_bridge::Hand;
 use contract_bridge::auction::RelativeVulnerability;
 
+/// [`best`] through production's legal-call selector, for a node whose
+/// landing rung can be insufficient (the `3NT` after opener's own `3NT`)
+fn best_legal(trie: &Trie, auction: &[Call], hand: &str) -> Call {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let logits = trie
+        .classify(hand, RelativeVulnerability::NONE, auction)
+        .expect("trie covers this auction");
+    let mut built = contract_bridge::auction::Auction::new();
+    for &call in auction {
+        built.push(call);
+    }
+    crate::bidding::table::select_legal_call(Some(logits), &built)
+}
+
 /// Compile the major-rebid tail packages under `agreements`.
 fn register_major_rebid_packages(trie: &mut Trie, agreements: &Agreements) {
     crate::bidding::rows::compile_into(
@@ -82,6 +96,16 @@ const AFTER_2C: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Spades)),
     Call::Pass,
     Call::Bid(Bid::new(2, Strain::Clubs)),
+    Call::Pass,
+];
+
+/// The raw table auction `1♥ - 1♠ - 2♦ -`.
+const AFTER_2D: &[Call] = &[
+    Call::Bid(Bid::new(1, Strain::Hearts)),
+    Call::Pass,
+    Call::Bid(Bid::new(1, Strain::Spades)),
+    Call::Pass,
+    Call::Bid(Bid::new(2, Strain::Diamonds)),
     Call::Pass,
 ];
 
@@ -384,4 +408,90 @@ fn fourth_suit_forcing_rule_is_alerted() {
         fsf_rule.alert().is_some(),
         "fourth-suit-forcing must carry an alert"
     );
+}
+
+/// `diamond_rebid_fourth_suit`: over `1♥ - 1♠ - 2♦` every 13+ hand bids the
+/// `3♣` game force except the two fast arrivals — the three-card heart raise
+/// on 13–15 bids `4♥`, a 13–15 minimum with no major fit bids `3NT`; opener
+/// answers `3♠` / `3♥` / `3NT` / `3♦` / the `3♥` catch-all;
+/// responder places or asks keycards for hearts.  Off, 13+ bids `3NT`.
+#[test]
+fn diamond_rebid_fourth_suit_game_force() {
+    let mut agreements = tail_agreements(true, true);
+    agreements.rebid.diamond_rebid_fourth_suit = false;
+    let off = trie_of(&agreements);
+    agreements.rebid.diamond_rebid_fourth_suit = true;
+    let on = trie_of(&agreements);
+    let bid = |level, strain| Call::Bid(Bid::new(level, strain));
+    let (notrump, game, force) = (
+        bid(3, Strain::Notrump),
+        bid(4, Strain::Hearts),
+        bid(3, Strain::Clubs),
+    );
+    // ♠AQ76 ♥K83 ♦K4 ♣Q953 — 14 HCP, three hearts: fast arrival.
+    assert_eq!(best(&off, AFTER_2D, "AQ76.K83.K4.Q953"), notrump);
+    assert_eq!(best(&on, AFTER_2D, "AQ76.K83.K4.Q953"), game);
+    // ♠AKJ6 ♥K83 ♦A4 ♣Q953 — 18 HCP, three hearts: through the force.
+    assert_eq!(best(&off, AFTER_2D, "AKJ6.K83.A4.Q953"), notrump);
+    assert_eq!(best(&on, AFTER_2D, "AKJ6.K83.A4.Q953"), force);
+    // ♠AQJ76 ♥K3 ♦K4 ♣J953 — 13 HCP, five spades, two hearts: the force.
+    assert_eq!(best(&on, AFTER_2D, "AQJ76.K3.K4.J953"), force);
+    // ♠AQ76 ♥K3 ♦K42 ♣Q953 — 14 HCP, four spades, two hearts: fast arrival.
+    assert_eq!(best(&on, AFTER_2D, "AQ76.K3.K42.Q953"), notrump);
+    // ♠AQ76 ♥K3 ♦AK2 ♣Q953 — 17 HCP, the same shape: the force.
+    assert_eq!(best(&on, AFTER_2D, "AQ76.K3.AK2.Q953"), force);
+    // ♠AQ76 ♥K3 ♦Q42 ♣J953 — 12 HCP: still the notrump invite.
+    assert_eq!(
+        best(&on, AFTER_2D, "AQ76.K3.Q42.J953"),
+        bid(2, Strain::Notrump)
+    );
+
+    let after = |calls: &[Call]| -> Vec<Call> {
+        AFTER_2D
+            .iter()
+            .copied()
+            .chain(calls.iter().copied())
+            .collect()
+    };
+    let after_force = after(&[force, Call::Pass]);
+    // ♠K72 ♥AQJ75 ♦KQ64 ♣8 — three spades: the delayed raise.
+    assert_eq!(
+        best(&on, &after_force, "K72.AQJ75.KQ64.8"),
+        bid(3, Strain::Spades)
+    );
+    // ♠7 ♥AQJ753 ♦KQ64 ♣J8 — six hearts.
+    assert_eq!(
+        best(&on, &after_force, "7.AQJ753.KQ64.J8"),
+        bid(3, Strain::Hearts)
+    );
+    // ♠72 ♥AQJ75 ♦KQ64 ♣KJ — the club stopper.
+    assert_eq!(best(&on, &after_force, "72.AQJ75.KQ64.KJ"), notrump);
+    // ♠72 ♥AQJ75 ♦KQ643 ♣8 — five diamonds.
+    assert_eq!(
+        best(&on, &after_force, "72.AQJ75.KQ643.8"),
+        bid(3, Strain::Diamonds)
+    );
+    // ♠72 ♥AQJ75 ♦KQ64 ♣J8 — nothing to say: the catch-all.
+    assert_eq!(
+        best(&on, &after_force, "72.AQJ75.KQ64.J8"),
+        bid(3, Strain::Hearts)
+    );
+
+    let ask = bid(4, Strain::Notrump);
+    let after_spades = after(&[force, Call::Pass, bid(3, Strain::Spades), Call::Pass]);
+    assert_eq!(
+        best(&on, &after_spades, "AQJ76.K3.K4.J953"),
+        bid(4, Strain::Spades)
+    );
+    assert_eq!(best(&on, &after_spades, "AKJ6.K83.A4.Q953"), ask);
+    let after_notrump = after(&[force, Call::Pass, notrump, Call::Pass]);
+    assert_eq!(best(&on, &after_notrump, "AKJ6.K83.A4.Q953"), ask);
+    assert_eq!(
+        best_legal(&on, &after_notrump, "AQJ76.K3.K4.J953"),
+        Call::Pass
+    );
+    let after_hearts = after(&[force, Call::Pass, bid(3, Strain::Hearts), Call::Pass]);
+    assert_eq!(best(&on, &after_hearts, "AQJ76.K3.K4.J953"), game);
+    let after_diamonds = after(&[force, Call::Pass, bid(3, Strain::Diamonds), Call::Pass]);
+    assert_eq!(best(&on, &after_diamonds, "AQJ76.K3.K4.J953"), notrump);
 }

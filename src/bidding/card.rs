@@ -527,7 +527,11 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // The hand-written card declared `= 1` here; that was a claim to a
         // convention we do not play, and generating it fixes the disclosure.
         "Super acceptance after NT" => i32::from(a.notrump.transfer_super_accept),
-        "Fourth suit" | "Fourth suit game force" => i32::from(a.rebid.fourth_suit_forcing),
+        // Two lanes share the row: the clubs-lane `2♦` and the `3♣` over
+        // `1♥ - 1♠ - 2♦` (`rebid.diamond_rebid_fourth_suit`).
+        "Fourth suit" | "Fourth suit game force" => {
+            i32::from(a.rebid.fourth_suit_forcing || a.rebid.diamond_rebid_fourth_suit)
+        }
         "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman),
         "Jordan Truscott 2NT" => i32::from(a.competition.jordan_truscott),
         // `landy` carries the (min, max) two-suiter range when on; the

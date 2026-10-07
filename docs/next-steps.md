@@ -108,11 +108,57 @@ ranking and each lane's unworked residue.
   2026-10-07:** `rebid.heart_rebid_keycard` — `4NT` RKCB over `1♥ - 1♠ - 2♥`
   (2+ hearts, 16+) and the `3♥` jump (14+); pooled two seeds plain +0.0017 /
   +0.0020, PD +0.0017 / +0.0020, every cell outside its CI (CHANGELOG).
-  Unworked in the lane: over `1♥ - 1♠ - 2♦` responder has no game-forcing
-  heart raise — three hearts and 13+ bids `3NT` (88 boards, −561; BBA's slam
-  in hearts on 34, diamonds 29); the fourth-suit tail `2♣ - 2♦` places only
-  at game (82, −760); the misfit `3NT` over `2♥` / `3♥` (108, −772) is BBA's
-  spade slam on responder's own long spades.
+  **Shipped 2026-10-07:** `rebid.diamond_rebid_fourth_suit` — over `1♥ - 1♠
+  - 2♦` the `3♣` fourth-suit game force (13+ HCP), with `4♥` (three hearts,
+  13–15) and `3NT` (13–15, no major fit) as fast arrivals beside it; opener
+  answers naturally, responder places or asks keycards for hearts.  Was 88
+  boards of `3NT` on three hearts, −561, BBA's slam in hearts on 34; pooled
+  two seeds plain +0.0007 / +0.0009, PD +0.0008 / +0.0009, eight of eight
+  cells positive (CHANGELOG).  **Next lever in the lane, found by its worst
+  boards:** `rebid_one_heart_one_spade` never calls the extras ladder, so
+  opener has no jump shift over `1♥ - 1♠` and its `2♣` / `2♦` is 12–19+; a
+  19-count answers the fourth suit with `3NT` and gets passed (26 / 23
+  boards per seed, −22 / −7).  Author `3♣` / `3♦` jump shifts (18+, 5-4) on
+  the minor lanes' ladder, then re-read the `3NT` answer as 12–17.  Residue:
+  BBA's diamond slams there (29 boards) have no rung; opener's call over
+  the `4♥` raise is the floor's (it asks on 15 opposite the 13–15 cap).
+  Unworked in the lane: the fourth-suit tail `2♣ - 2♦` places only at game
+  (82, −760) — no slam try, where the `2♦` sibling's `3♣` now has one; the
+  misfit `3NT` over `2♥` / `3♥` (108, −772) is BBA's spade slam on
+  responder's own long spades.
+- **Fourth-suit census, 2026-10-07** (jdh8's ask after the `2♦` lane: is
+  4SF a system-wide agreement?).  It is not.  Read-only walk of
+  `src/bidding/american`, nothing measured:
+  - Authored 4SF: the `1♥ - 1♠` lane only — `2♣ - 2♦` (`points` 12+,
+    answers + game-only placements, no slam try: 82 boards −760) and
+    `2♦ - 3♣` (HCP 13+, this ship).  The two are not symmetric (`points` vs
+    HCP; the clubs answer table has no four-card `3♦` rung).
+  - The four `1x - 1y - 1z` lanes belong to XYZ (`xyz.rs`), whose table is
+    total, so the floor never fires there.  `1♣ - 1♥ - 1♠ - 2♦` is the XYZ
+    game force and so *is* 4SF by coincidence; `1♦ - 1♥ - 1♠ - 2♣` is the
+    XYZ relay (invitational), correct and not a gap.  **Gap:** responder's
+    placement after every XYZ game-force answer is the floor's, and
+    opener's `2NT` answer promises no stopper in the fourth suit.  The
+    commonest prefixes in the census — first candidate.
+  - **Reverses** (`1♣ - 1♥ - 2♦`, `1♣ - 1♠ - 2♦` / `2♥`, `1♦ - 1♠ - 2♥`,
+    17+): responder's whole node is the floor — no 4SF, no Ingberman /
+    Lebensohl `2NT`; the instinct floor is natural only
+    (`instinct.rs:18-25`).  Second candidate; rarer than the XYZ lanes.
+  - `1♦ - 1M - 2♣`: our opener never reaches it by default
+    (`one_diamond_two_clubs` off, a wash); with it on the fourth suit is
+    the floor's, by design (`rebids.rs:378-382`).
+  - Opener's jump shifts (18+, `extras_ladder.rs`): responder's node is
+    wholly floor.  Rarest.
+  - Disclosure: `card.rs` sets "Fourth suit" / "Fourth suit game force" to
+    1 whenever either knob is on, so the card claims 4SF everywhere while
+    the book plays it in one lane; `docs/ai-bidder/21gf-ledger.md:251`
+    still lists 4SF as "gap (floored)".  Both owe a correction once the
+    agreement is decided: either author 4SF as a system rule (every
+    three-suit round-2 node, one shared answer/placement scheme) or narrow
+    the card row.  **jdh8 to decide** — proposed default: keep the row
+    (BBA reads our fourth suit as 4SF in every lane regardless, and the
+    floor's natural reading only matters to us), author the XYZ
+    placements next.
 - **Residue of the 2026-10-03 ships.**  Preemptive minor raise: the
   contested tail (`1m - 3m (X)`, their overcall) stays the floor's.  Modern
   double answer: the `2♥`/`2♠` strength cue on 16+ (BEN's tool for the
