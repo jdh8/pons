@@ -81,7 +81,15 @@ auction + hand
   guarded (`P*`) tables both fall through (guarded since 2026-10-03); a table
   reached through a **rebase** does not — its rejection reads as Pass, so a
   rebased table must stay total (docs/archive/next-steps-done.md, "A rejecting table does
-  not fall through under a rebase").
+  not fall through under a rebase").  A partial table whose key a rebase
+  *can* land on (the reverse responses, 2026-10-07: their double stripped,
+  the rejection read as a pass of the forcing reverse, −59 IMPs on three
+  boards) is made safe by a `Pattern::guarded` row admitting only
+  `context.undisturbed()` — under a rebase the guard refuses, so the rebase
+  never reaches the partial table.  Every deliberately partial table is
+  listed in `KNOWN_PARTIAL_TABLES` (`rows.rs`), and that guard is the idiom
+  for any book node that means to leave hands to the floor
+  (docs/fourth-suit.md).
 - **The floor partition**: learned floors (neural, live search) wrap the
   competitive and defensive books **only**; the constructive book is floored
   by deterministic `instinct()`. Measured, not just triage: the net on
