@@ -59,6 +59,14 @@ cargo run --release --features serde --example probe-bba-book -- \
 RUN=ab-results/bba-book/$(date +%F)-$(git rev-parse --short HEAD)
 scripts/idle-run.sh scripts/bba-book.sh "$RUN" --corpus corpus --min-reach 2
 
+# One node by its rules, in well under a second: end the prefix with the pass
+# that puts the seat you want on lead, and cap the length at prefix + 1
+# (calls, passes included) — a cap below the prefix length did not bound the
+# walk when tried (2026-10-07: 1,200 nodes, four minutes).  EPBot is single-threaded, so read
+# several nodes as several processes, not one walk.
+cargo run --release --features serde --example probe-bba-book -- \
+    --prefix "1♥ - 1♠ - 2♣ -" --max-depth 7 -o node.jsonl
+
 # Read one lane back.
 cargo run --release --features serde --example probe-bba-book -- \
     --render "$RUN" --prefix "1♠ (2♥)"
