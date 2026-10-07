@@ -175,7 +175,7 @@ fn count_label(range: &impl RangeBounds<usize>, noun: &str) -> String {
 ///
 /// Satisfied when the count of keycards (four aces + trump king) is within
 /// `range`.  Use for both responder and asker constraints.
-fn keycards(
+pub(super) fn keycards(
     trump: Suit,
     range: impl RangeBounds<usize> + Clone + Send + Sync + 'static,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {

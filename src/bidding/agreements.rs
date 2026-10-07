@@ -4649,6 +4649,25 @@ pub struct RebidKnobs {
     /// the 10–12 invite.  Off-switch `bba-gen --no-ns-diamond-rebid-fourth-suit`
     /// (`scripts/ab-diamond-rebid-fourth-suit.sh`).
     pub diamond_rebid_fourth_suit: bool,
+    /// Over opener's answer to the fourth suit in `1♥ - 1♠ - 2♣ - 2♦`,
+    /// responder asks keycards on 16+ points with a known fit — spades over
+    /// the `2♠` delayed raise (5+ spades), hearts over every other answer
+    /// (3+ hearts)
+    ///
+    /// **Default off** — a measured wash (2026-10-07; two seeds 1791372729,
+    /// 1791373228, 204,800 boards/arm/vul: plain +0.0001 / +0.0001 then
+    /// +0.0002 / +0.0003 IMPs/board none / both, PD the same, every cell
+    /// positive and inside its CI, ~14 fired per vul).  A convention on a
+    /// wash stays opt-in.  The ask also requires two keycards: a
+    /// one-keycard asker hearing `5♠` over hearts has no `5♥` sign-off and
+    /// the RKCB tree bids `6♥` off two.  Off: responder's placement table
+    /// tops out at game, the `2♦` sibling's `3♣` path the only one with a
+    /// slam try.  At anchor `25aea82c` (shipping arm) the lane is 757
+    /// boards, −1,114 plain per 409,600; our game against BBA's slam or grand
+    /// is 104 of them, −909 (BBA's slam in hearts on 14 deals, spades on 8,
+    /// clubs on 17 — clubs out of reach of a `4NT` that names one suit per
+    /// node).  Rides [`fourth_suit_forcing`][Self::fourth_suit_forcing].
+    pub fourth_suit_keycard: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4681,6 +4700,7 @@ impl Default for RebidKnobs {
             heart_rebid_invite_accept: true,
             heart_rebid_keycard: true,
             diamond_rebid_fourth_suit: true,
+            fourth_suit_keycard: false,
         }
     }
 }

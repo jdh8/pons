@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.fourth_suit_keycard`: responder's keycard ask after the fourth
+  suit in `1♥ - 1♠ - 2♣ - 2♦` (2026-10-07, opt-in, measured wash)** — over
+  opener's answer, responder with 16+ points, two keycards and a known fit
+  bids `4NT` RKCB instead of signing off in game: spades over the `2♠`
+  delayed raise (5+ spades), hearts over every other answer (3+ hearts).  At
+  anchor `25aea82c` (shipping arm) the lane is 757 boards, −1,114 plain per
+  409,600, of which our game against BBA's slam or grand is 104 boards,
+  −909 (by deal: clubs 17, hearts 14, spades 8, notrump 10 — the club and
+  notrump slams are out of this ask's reach).  Two seeds, 204,800
+  boards/arm/vul, IMPs/board none / both: 1791372729 plain +0.0001 /
+  +0.0001, PD +0.0001 / +0.0001 (14 / 14 fired); 1791373228 plain +0.0002 /
+  +0.0003, PD +0.0002 / +0.0003 (13 / 14); every cell positive, every cell
+  inside its CI, +1.5 to +3.7 IMPs per fired.  The losers are 28–31 HCP
+  slams with four or five keycards that fail double-dummy (trump queen or a
+  side king offside).  A wash on both scorers, and an artificial `4NT`
+  against a natural sign-off earns only an opt-in knob on a wash
+  ([measurement.md](docs/measurement.md) § Ship rules).  A first cut with no
+  keycard gate (1791371551, 1791372096: plain +0.0004 / +0.0004 then
+  +0.0001 / +0.0001) bid `6♥` off two keycards when a one-keycard asker
+  heard `5♠`: over hearts that answer leaves no `5♥` sign-off and the RKCB
+  tree's catch-all bids six.  `bba-gen --ns-fourth-suit-keycard`
+  (`scripts/ab-fourth-suit-keycard.sh`).  Default system byte-identical.
+
 - **`rebid.diamond_rebid_fourth_suit`: the `3♣` fourth-suit game force over
   `1♥ - 1♠ - 2♦`, with two fast arrivals beside it (2026-10-07, shipped
   default-on, measured win)** — the node's only game rung was `3NT` (13+

@@ -122,8 +122,9 @@ ranking and each lane's unworked residue.
   the minor lanes' ladder, then re-read the `3NT` answer as 12–17.  Residue:
   BBA's diamond slams there (29 boards) have no rung; opener's call over
   the `4♥` raise is the floor's (it asks on 15 opposite the 13–15 cap).
-  Unworked in the lane: the fourth-suit tail `2♣ - 2♦` places only at game
-  (82, −760) — no slam try, where the `2♦` sibling's `3♣` now has one; the
+  The fourth-suit tail `2♣ - 2♦`'s major-fit keycard ask measured a wash
+  2026-10-07 (opt-in `rebid.fourth_suit_keycard`; its club and notrump
+  slams unworked, [fourth-suit.md](fourth-suit.md) § Owed).  Unworked: the
   misfit `3NT` over `2♥` / `3♥` (108, −772) is BBA's spade slam on
   responder's own long spades.
 - **Fourth-suit census, 2026-10-07** — moved to

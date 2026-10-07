@@ -125,8 +125,15 @@ Results in `ab-results/reverse-fourth-suit-v{1,2}` and
 
 ## Owed
 
-- The `1♥ - 1♠ - 2♣ - 2♦` tail places only at game (82 boards, −760) — no
-  slam try, where the `2♦` sibling's `3♣` has one.
+- The `1♥ - 1♠ - 2♣ - 2♦` tail places only at game.  Re-counted on the
+  shipping arm: 757 boards, −1,114 plain per 409,600, our game against
+  BBA's slam or grand 104 of them, −909 (by deal: clubs 17, hearts 14,
+  spades 8, notrump 10).  The major-fit keycard ask
+  (`rebid.fourth_suit_keycard`, 16+ points, two keycards) measured a
+  **wash** 2026-10-07 (two seeds, every cell +0.0001 to +0.0003 and inside
+  its CI; CHANGELOG) and stays opt-in.  Untouched: the club slams (a `4NT`
+  names one suit per node, so clubs need their own ask — a `4♣` set-trump
+  or Kickback) and the no-fit notrump slams (a quantitative `4NT`).
 - The card row / ledger row 58 correction, once the disclosure decision
   lands.
 - **Flag — `1♠ - 2♣ - 2♦ - 4♥`:** 22 boards, responder 11–12 HCP with a

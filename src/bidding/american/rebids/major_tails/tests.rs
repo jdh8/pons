@@ -495,3 +495,49 @@ fn diamond_rebid_fourth_suit_game_force() {
     let after_diamonds = after(&[force, Call::Pass, bid(3, Strain::Diamonds), Call::Pass]);
     assert_eq!(best(&on, &after_diamonds, "AQJ76.K3.K4.J953"), notrump);
 }
+
+/// `fourth_suit_keycard`: over opener's answer to `1♥ - 1♠ - 2♣ - 2♦`
+/// responder asks keycards on 16+ points with a known fit — spades over
+/// `2♠` (5+), hearts over every other answer (3+).  Off, the same hands
+/// sign off in game.
+#[test]
+fn fourth_suit_keycard_asks_with_a_fit() {
+    let mut agreements = tail_agreements(true, true);
+    let off = trie_of(&agreements);
+    agreements.rebid.fourth_suit_keycard = true;
+    let on = trie_of(&agreements);
+    let bid = |level, strain| Call::Bid(Bid::new(level, strain));
+    let ask = bid(4, Strain::Notrump);
+    // ♠AQJ76 ♥K32 ♦AK4 ♣Q9 — 19 HCP, five spades, three hearts.
+    let big = "AQJ76.K32.AK4.Q9";
+    assert_eq!(best(&off, AFTER_2C_2D_2S, big), bid(4, Strain::Spades));
+    assert_eq!(best(&on, AFTER_2C_2D_2S, big), ask);
+    assert_eq!(best(&off, AFTER_2C_2D_2NT, big), bid(4, Strain::Hearts));
+    assert_eq!(best(&on, AFTER_2C_2D_2NT, big), ask);
+    // ♠AKJ6 ♥K32 ♦AK4 ♣Q9 — four spades: no spade fit over `2♠`, game.
+    assert_eq!(
+        best(&on, AFTER_2C_2D_2S, "AKJ6.K32.AK4.Q93"),
+        bid(4, Strain::Hearts)
+    );
+    // ♠KQJ76 ♥K32 ♦KQ4 ♣K9 — 17 HCP, one keycard: no ask, game.
+    assert_eq!(
+        best(&on, AFTER_2C_2D_2NT, "KQJ76.K32.KQ4.K9"),
+        bid(4, Strain::Hearts)
+    );
+    // ♠AQJ76 ♥K32 ♦Q54 ♣Q9 — 14 HCP: below the ask, game.
+    assert_eq!(
+        best(&on, AFTER_2C_2D_2NT, "AQJ76.K32.Q54.Q9"),
+        bid(4, Strain::Hearts)
+    );
+    // The answer rows hang below the ask: opener answers it.
+    let asked: Vec<Call> = AFTER_2C_2D_2NT
+        .iter()
+        .copied()
+        .chain([ask, Call::Pass])
+        .collect();
+    let hand: Hand = "K2.AQJ75.Q3.KJ84".parse().expect("valid test hand");
+    assert!(
+        on.classify(hand, RelativeVulnerability::NONE, &asked)
+            .is_some()
+    );
+}

@@ -338,15 +338,34 @@ fn opener_after_fourth_suit() -> Rules {
 /// game: `3NT` is always legal since every `X` is at or below `3♣`, so there
 /// is no pass rule.
 ///
+/// Under [`RebidKnobs::fourth_suit_keycard`] a `4NT` keycard ask on 16+
+/// points and two keycards tops the table, its trump fixed by the answer
+/// (`keycard`): spades over the `2♠` delayed raise (5+ spades, a 5-3 fit),
+/// hearts over every other answer (3+ hearts, a 5-3 fit).  One keycard
+/// stays out: it bids slam only over `5♦`, and over hearts a `5♠` answer
+/// leaves no `5♥` sign-off, so the RKCB tree's catch-all bids `6♥` off two.
+///
 /// | Call | Wt  | Meaning |
 /// |------|-----|---------|
+/// | 4NT  | 1.6 | Keycard ask for `keycard`, 16+ points (knob-gated) |
 /// | 4♠   | 1.5 | Opener showed 3-card spade support; 5-3 fit |
 /// | 4♥   | 1.2 | Opener opened `1♥` (5+); 5-3 fit |
 /// | 4♥   | 1.1 | Opener rebid hearts twice (6+); 6-2 fit |
 /// | 3NT  | 0.8 | The game-force landing spot, always legal |
 #[must_use]
-fn responder_after_fourth_suit_answer() -> Rules {
-    Rules::new()
+fn responder_after_fourth_suit_answer(keycard: Option<Suit>) -> Rules {
+    let mut rules = Rules::new();
+    if let Some(trump) = keycard {
+        let fit = if trump == Suit::Spades { 5.. } else { 3.. };
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Notrump),
+                160,
+                len(trump, fit) & points(16..) & slam::keycards(trump, 2..),
+            )
+            .alert(slam::RKCB);
+    }
+    rules
         .rule(
             Bid::new(4, Strain::Spades),
             150,
@@ -486,16 +505,26 @@ pub(crate) fn fourth_suit_forcing_continuations() -> Package {
     Package {
         name: "fourth-suit-forcing-continuations",
         gate: |a| fourth_suit_forcing_continuations_enabled(&a.rebid),
-        entries: |_| {
+        entries: |agreements| {
             let prefix = "P* 1♥ - 1♠ - 2♣ - 2♦ -";
             let opener_rules = opener_after_fourth_suit();
             let answers = distinct_calls(&opener_rules);
             let mut entries = rows_of(Pattern::node(prefix), opener_rules);
             for answer in answers {
+                let after_answer = format!("{prefix} {answer} -");
+                let trump = if answer == Call::Bid(Bid::new(2, Strain::Spades)) {
+                    Suit::Spades
+                } else {
+                    Suit::Hearts
+                };
+                let keycard = agreements.rebid.fourth_suit_keycard.then_some(trump);
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{prefix} {answer} -")),
-                    responder_after_fourth_suit_answer(),
+                    Pattern::node(&after_answer),
+                    responder_after_fourth_suit_answer(keycard),
                 ));
+                if keycard.is_some() {
+                    entries.extend(slam::rkcb_rows(&after_answer, trump));
+                }
             }
             entries
         },
