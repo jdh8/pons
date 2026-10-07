@@ -102,7 +102,10 @@ treatment) and `measure-ab` (running and interpreting an A/B). Use them.
      `pub` getter that `src/` never reads still breaks the build.
   5. Update [CHANGELOG.md](CHANGELOG.md) with the change and its user impact
      (measured IMPs where applicable).
-  6. Propose a clear, descriptive commit message.
+  6. Propose a commit message: a **one-sentence subject line** (≤ 72
+     characters, `area: what changed`), blank line, then the body carries the
+     auction, the knob, the numbers and the verdict. Never pack those into
+     the subject.
 
 ## Iron rules
 
