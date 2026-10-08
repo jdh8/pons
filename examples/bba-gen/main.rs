@@ -1473,6 +1473,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_fourth_suit_keycard: bool,
 
+    /// Withhold opener's natural `3♣` / `3♦` jump shift over `1♥ - 1♠`
+    /// (five hearts, 4+ minor, 18+ points) and responder's answers
+    /// (`rebid.heart_spade_jump_shift`, **shipped default-on 2026-10-08**;
+    /// this is the disarming flag and the control arm of
+    /// `scripts/ab-heart-spade-jump-shift.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_heart_spade_jump_shift: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3178,6 +3186,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_rebid_keycard = !args.no_ns_heart_rebid_keycard;
     agreements.rebid.diamond_rebid_fourth_suit = !args.no_ns_diamond_rebid_fourth_suit;
     agreements.rebid.fourth_suit_keycard = args.ns_fourth_suit_keycard;
+    agreements.rebid.heart_spade_jump_shift = !args.no_ns_heart_spade_jump_shift;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

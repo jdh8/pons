@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.heart_spade_jump_shift`: opener's natural jump shift over
+  `1♥ - 1♠` (2026-10-08, shipped default-on, measured win)** — `3♣` / `3♦`
+  on exactly five hearts, 4+ in the minor and 18+ points, game-forcing (the
+  minor openings' extras-ladder rung).  Off, the `2♣` / `2♦` rebid is
+  12–19+, so an 18+ two-suiter is passed in `2m` or answers the fourth suit
+  `3NT` and is passed there.  The floor passes a jump shift with a weak
+  responder (`1♥ - 1♠ - 3♣ -` with ♠KJ8752 ♥42 ♦Q93 ♣84), so responder's whole
+  node is authored, every call past `3m`: `4NT` heart keycards (3+ hearts,
+  14+ points), `4♥` (3+ hearts), `4m` (4+ support, 14+ points; opener asks
+  minor keycards — the club slam path), `3♠` (six spades; opener `4♠` on 2+,
+  `4♥` on six, else `3NT`), `5m` (4+ support, at most one in the other
+  minor), `3NT`; the `(X)` tails share the tables.  Two seeds, 204,800
+  boards/arm/vul, IMPs/board none / both: 1791443084 plain +0.0011 /
+  +0.0017, PD +0.0009 / +0.0015 (133 / 133 fired, every cell outside its
+  CI); 1791443608 plain +0.0005 / +0.0008, PD +0.0002 / +0.0005 (127 / 131);
+  pooled plain +0.0008 / +0.0013, PD +0.0005 / +0.0010, eight of eight
+  cells positive, +0.2 to +2.6 IMPs per fired.  A first cut on 5+ hearts
+  (1791442363) was a wash — plain +0.0002 / +0.0005, PD −0.0002 / +0.0000 —
+  because it took the six-heart hands from the `3♥` jump rebid (−66 / −62
+  plain on 35 / 37 boards, responder's `3NT` on a doubleton heart) while the
+  `2m` hands won (+97 / +158 on 143 / 150).  Off-switch
+  `bba-gen --no-ns-heart-spade-jump-shift`
+  (`scripts/ab-heart-spade-jump-shift.sh`); no card row (a strong jump shift
+  is natural), `tests/fixtures/alert-sites.txt` re-blessed.
+
 - **`rebid.fourth_suit_keycard`: responder's keycard ask after the fourth
   suit in `1♥ - 1♠ - 2♣ - 2♦` (2026-10-07, opt-in, measured wash)** — over
   opener's answer, responder with 16+ points, two keycards and a known fit

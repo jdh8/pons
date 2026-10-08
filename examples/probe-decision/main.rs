@@ -217,6 +217,11 @@ fn main() {
     if std::env::var("PROBE_DIAMOND_REBID_FOURTH_SUIT").is_ok_and(|v| v == "0") {
         agreements.rebid.diamond_rebid_fourth_suit = false;
     }
+    // Opener's `3♣` / `3♦` jump shift over `1♥ - 1♠` (shipped default-on
+    // 2026-10-08): `=0` withholds it.
+    if std::env::var("PROBE_HEART_SPADE_JUMP_SHIFT").is_ok_and(|v| v == "0") {
+        agreements.rebid.heart_spade_jump_shift = false;
+    }
     // A minimum 5m-4♥ rebids `1NT` over `1m - 1♠` (shipped default-on
     // 2026-10-05): `=0` withholds it.
     if std::env::var("PROBE_UNBALANCED_1NT_REBID").is_ok_and(|v| v == "0") {

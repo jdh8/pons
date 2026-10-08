@@ -227,6 +227,12 @@ const fn not_defined() -> usize {
 // retired default they replace, the `meckstroth-2nt*` family, had no row
 // either.
 //
+// `opener-jump-shift` (opener's natural 18+ jump shift — the minor openings'
+// extras ladder and `1♥ - 1♠ - 3m`, `rebid.heart_spade_jump_shift`, default
+// since 2026-10-08): no schema name.  A strong jump shift is standard
+// natural bidding; the tag is ours because the rule floors opener's first
+// suit, which the alert invariant counts as artificial.
+//
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the
 // card already declares (Jacoby/Texas/Stayman/Puppet answers, lebensohl 3♣,

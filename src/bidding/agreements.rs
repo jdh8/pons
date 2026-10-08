@@ -4637,9 +4637,8 @@ pub struct RebidKnobs {
     /// PD +0.0008 / +0.0009 IMPs/board (none / both), eight of eight cells
     /// positive, every seed-2 cell outside its CI; +1.4 to +2.0 IMPs per
     /// fired.  The `4♥` fast arrival carries half; the `3♣` path's slams the
-    /// rest.  Its recurring loser is `3♣ - 3NT` passed when opener holds a
-    /// 19-count that should have jump-shifted — `rebid_one_heart_one_spade`
-    /// has no jump shift, so its `2♦` is 12–19+.
+    /// rest.  Its recurring loser was `3♣ - 3NT` passed when opener holds a
+    /// 19-count, now the [`heart_spade_jump_shift`][Self::heart_spade_jump_shift].
     ///
     /// Off: the node's only game rung is `3NT` (13+ HCP), so every 13+ hand
     /// bids it whatever the fit.  At anchor `25aea82c` three hearts and 13+
@@ -4668,6 +4667,27 @@ pub struct RebidKnobs {
     /// clubs on 17 — clubs out of reach of a `4NT` that names one suit per
     /// node).  Rides [`fourth_suit_forcing`][Self::fourth_suit_forcing].
     pub fourth_suit_keycard: bool,
+    /// Opener's natural jump shift over `1♥ - 1♠`: `3♣` / `3♦` on exactly
+    /// five hearts, 4+ in the minor and 18+ points, game-forcing, plus
+    /// responder's whole answer table (`4NT` heart keycards, `4♥`, the
+    /// `4m` slam raise opener answers with minor keycards, `3♠`, `5m`, `3NT`)
+    ///
+    /// **Default on**, shipped 2026-10-08: two seeds (1791443084,
+    /// 1791443608; 409,600 boards/vul pooled, 260 / 264 fired), plain
+    /// +0.0008 / +0.0013, PD +0.0005 / +0.0010 IMPs/board (none / both),
+    /// eight of eight cells positive, every seed-1 cell outside its CI.
+    /// Six hearts keep the `3♥` jump rebid: the 5+ cut was a wash, the
+    /// six-heart hands it took losing −66 / −62 on 35 / 37 boards.
+    ///
+    /// Off: `rebid_one_heart_one_spade` has no jump shift, so its `2♣` /
+    /// `2♦` is 12–19+ and a 19-count that answers the fourth suit `3NT` is
+    /// passed — the recurring loser of
+    /// [`diamond_rebid_fourth_suit`][Self::diamond_rebid_fourth_suit].  The
+    /// floor would pass the jump shift itself with a weak responder, so the
+    /// answer table is not optional.  Off-switch
+    /// `bba-gen --no-ns-heart-spade-jump-shift`
+    /// (`scripts/ab-heart-spade-jump-shift.sh`).
+    pub heart_spade_jump_shift: bool,
 }
 
 impl Default for RebidKnobs {
@@ -4701,6 +4721,7 @@ impl Default for RebidKnobs {
             heart_rebid_keycard: true,
             diamond_rebid_fourth_suit: true,
             fourth_suit_keycard: false,
+            heart_spade_jump_shift: true,
         }
     }
 }

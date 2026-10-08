@@ -240,6 +240,8 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.rebid.diamond_rebid_fourth_suit = false;
     // Likewise responder's keycard ask over `1♥ - 1♠ - 2♣ - 2♦ - answer`.
     mirror.rebid.fourth_suit_keycard = false;
+    // Likewise opener's jump shift over `1♥ - 1♠`.
+    mirror.rebid.heart_spade_jump_shift = false;
     // Likewise opener's answer to the Modern double: their `1m (1M) X -`
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;

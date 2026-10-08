@@ -1,6 +1,6 @@
 # Fourth suit forcing
 
-**Status (2026-10-07):** 4SF is **not** a system-wide agreement.  Authored in
+**Status (2026-10-08):** 4SF is **not** a system-wide agreement.  Authored in
 the `1♥ - 1♠` lane only; the ten `1x - 1y - 1z` one-level prefixes belong to
 XYZ by decision; the reverses were measured and closed as a wash (parked on
 `park/reverse-weak-responses`); the net floor already plays BBA's reverse
@@ -30,8 +30,11 @@ below is a read-only walk of `src/bidding/american` at anchor `25aea82c`
 - `1♦ - 1M - 2♣`: our opener never reaches it by default
   (`one_diamond_two_clubs` off, a wash); with it on the fourth suit is the
   floor's, by design (`rebids.rs:378-382`).
-- **Opener's jump shifts** (18+, `extras_ladder.rs`): responder's node is
-  wholly floor.  Rarest.
+- **Opener's jump shifts** (18+): over `1♥ - 1♠` authored with responder's
+  whole answer table (`rebid.heart_spade_jump_shift`, shipped 2026-10-08,
+  CHANGELOG).  After a minor opening (`extras_ladder.rs`) responder's node
+  is still wholly floor — and the floor **passes** the forcing jump shift
+  with a weak hand (`1♦ - 1♠ - 3♣ -` with ♠KJ8752 ♥42 ♦Q93 ♣84), see Owed.
 - **Disclosure:** `card.rs` sets "Fourth suit" / "Fourth suit game force" to
   1 whenever either knob is on, so the card claims 4SF everywhere while the
   book plays it in one lane.  Owes a correction once the agreement is
@@ -141,3 +144,9 @@ Results in `ab-results/reverse-fourth-suit-v{1,2}` and
   passed 22 / 22.  Proposed default: a natural `2♥` rung (BBA's reading) in
   `responder_rebid`, measured with the lane.  Low priority.
 - The park's flip plan (table above).
+- **Flag — the minor-lane jump shifts are passed by the floor.**  The
+  default-on extras ladder's `1m - 1x - 3y` has no responder table, and the
+  floor passes it with a weak responder.  Proposed: give each lane the
+  `1♥ - 1♠ - 3m` table's shape (fit raises, keycards on 14+, a six-card
+  rebid of responder's suit, `3NT` catch-all) and A/B it as a default-system
+  change.  **jdh8 to decide.**

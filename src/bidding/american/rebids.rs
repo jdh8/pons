@@ -16,6 +16,7 @@
 //! | [`jump_shifts`] | natural 18+ jump shifts and the long-major `3NT!` over the forcing `1NT` (the Meckstroth rival) | [`RebidKnobs::forcing_nt_jump_shifts`] |
 //! | [`odwrotka`] | `1♣ - 1M - 2♦!` artificial reverse and its 445566 steps | [`RebidKnobs::odwrotka`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
+//! | [`heart_spade_jump_shift`] | `1♥ - 1♠ - 3m` 18+ jump shift and responder's answers | [`RebidKnobs::heart_spade_jump_shift`] |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
 use super::{call, other_major};
@@ -31,6 +32,7 @@ use contract_bridge::{Bid, Strain, Suit};
 
 mod extras_ladder;
 mod forcing_notrump;
+mod heart_spade_jump_shift;
 mod jump_shifts;
 mod major_jump_rebid;
 mod major_tails;
@@ -40,6 +42,7 @@ mod odwrotka;
 mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
+use heart_spade_jump_shift::with_heart_spade_jump_shift;
 use jump_shifts::{forcing_nt_jump_shifts_on, with_forcing_nt_jump_shifts};
 use major_jump_rebid::with_major_jump_rebid;
 use meckstroth::with_invitational_minors;
@@ -49,6 +52,7 @@ use two_suiter::with_forcing_nt_two_suiter;
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
 pub(super) use forcing_notrump::forcing_notrump_continuations;
+pub(super) use heart_spade_jump_shift::heart_spade_jump_shift_continuations;
 pub(super) use jump_shifts::forcing_nt_jump_shift_continuations;
 pub(super) use major_jump_rebid::major_jump_rebid_continuations;
 pub(super) use major_tails::{fourth_suit_forcing_continuations, major_rebid_tail_continuations};
@@ -124,6 +128,8 @@ fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
     // Major jump-rebid: 1♥ - 1♠ - 3♥ on a six-card major with extras.
     rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades), agreements);
     rules = with_passed_hand_pass(rules, &agreements.rebid);
+    // Natural 18+ jump shift (default on).
+    rules = with_heart_spade_jump_shift(rules, &agreements.rebid);
     rules
         .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 90, len(Suit::Diamonds, 4..))
@@ -421,6 +427,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             forcing_nt_jump_shift_continuations(),
             meckstroth_two_notrump_continuations(),
             one_heart_one_spade_rebid(),
+            heart_spade_jump_shift_continuations(),
             one_diamond_two_clubs_preference(),
             major_rebid_tail_continuations(),
             fourth_suit_forcing_continuations(),
