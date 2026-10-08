@@ -34,7 +34,8 @@ below is a read-only walk of `src/bidding/american` at anchor `25aea82c`
   whole answer table (`rebid.heart_spade_jump_shift`, shipped 2026-10-08,
   CHANGELOG).  After a minor opening (`extras_ladder.rs`) responder's node
   is still wholly floor — and the floor **passes** the forcing jump shift
-  with a weak hand (`1♦ - 1♠ - 3♣ -` with ♠KJ8752 ♥42 ♦Q93 ♣84), see Owed.
+  with a weak hand (`1♦ - 1♠ - 3♣ -` with ♠KJ8752 ♥42 ♦Q93 ♣84); authoring
+  the answers lost, verdict under Owed.
 - **Disclosure:** `card.rs` sets "Fourth suit" / "Fourth suit game force" to
   1 whenever either knob is on, so the card claims 4SF everywhere while the
   book plays it in one lane.  Owes a correction once the agreement is
@@ -144,9 +145,20 @@ Results in `ab-results/reverse-fourth-suit-v{1,2}` and
   passed 22 / 22.  Proposed default: a natural `2♥` rung (BBA's reading) in
   `responder_rebid`, measured with the lane.  Low priority.
 - The park's flip plan (table above).
-- **Flag — the minor-lane jump shifts are passed by the floor.**  The
-  default-on extras ladder's `1m - 1x - 3y` has no responder table, and the
-  floor passes it with a weak responder.  Proposed: give each lane the
-  `1♥ - 1♠ - 3m` table's shape (fit raises, keycards on 14+, a six-card
-  rebid of responder's suit, `3NT` catch-all) and A/B it as a default-system
-  change.  **jdh8 to decide.**
+- **The minor-lane jump shifts are passed by the floor — authoring the
+  answers measured a loss (2026-10-08).**  The extras ladder's
+  `1m - 1x - J(y)` has no responder table, and the floor passes it with a
+  weak responder.  The `1♥ - 1♠ - 3m` table's shape on all ten nodes
+  (major-fit keycards / raise, minor slam raises with opener's keycard ask,
+  six-card major rebid, `5m`, `3NT`; code dropped, built on `85522eba`) lost
+  on seed 1791445201: plain −0.0015 / −0.0017, PD −0.0017 / −0.0019, every
+  cell outside its CI.  Every responder band from 8 HCP loses — the floor's
+  `6NT` / `7NT` / `6m` against our `3NT` catch-all, the reverse lesson again;
+  at ≤7 HCP the repaired passes (+43 / +58) are cancelled by the floor's
+  weak `4♠` on five spades (−71 / −99).  A ≤7 guarded cut caps at the
+  passes, ~+0.0003 — the reverses' weak cut measured that size as a wash.
+  So the passes stay: they cost less than any table we can write over the
+  floor.  Why the `1♥ - 1♠` table won where this lost (unverified): there
+  it rode a new rebid that moved hands *into* the jump shift, so the gain
+  was the rebid's; here only the answers change.  Results in
+  `ab-results/minor-jump-shift-answers`.
