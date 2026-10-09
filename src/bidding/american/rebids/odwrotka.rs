@@ -8,9 +8,10 @@
 //! becomes a game force, or an invitation with exactly three-card support
 //! (`with_odwrotka`); responder's six steps pin the major's length and the
 //! strength at once, the strong step *below* the weak at each length so the
-//! weak hand never declares notrump — Ingberman's idea, taken one step further
-//! so a seven-card fit can still play at the two level.  Opener's continuation
-//! after a step is the floor's: the book does not specify it.
+//! weak hand never declares notrump — the idea from the Blackout convention,
+//! taken one step further so a seven-card fit can still play at the two level.
+//! Opener's continuation after a step is the floor's: the book does not specify
+//! it.
 
 use super::*;
 

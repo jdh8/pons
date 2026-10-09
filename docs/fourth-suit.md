@@ -24,7 +24,7 @@ below is a read-only walk of `src/bidding/american` at anchor `25aea82c`
   `2NT` answer promises no stopper in the fourth suit.  The commonest
   prefixes in the census.
 - **Reverses** (`1♣ - 1♥ - 2♦`, `1♣ - 1♠ - 2♦` / `2♥`, `1♦ - 1♠ - 2♥`, 17+):
-  responder's whole node is the floor — no 4SF, no Ingberman / Lebensohl
+  responder's whole node is the floor — no 4SF, no Blackout / Ingberman / Lebensohl
   `2NT`; the instinct floor is natural only (`instinct.rs:18-25`).  Measured
   below.
 - `1♦ - 1M - 2♣`: our opener never reaches it by default
