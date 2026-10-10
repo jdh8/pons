@@ -1,11 +1,11 @@
 # Next-step candidates, ranked by potential IMP gain
 
-**Ranked 2026-09-26, item 2 re-read 2026-09-30, 2026-10-03 and 2026-10-06** from the two
-current anchors — BBA shipping arm at `25aea82c` (2026-10-06, re-anchored
-after the responses-to-`1M`, `1m - 1♠` and contested-opening ships; opening
-and round-2 tie at #1 / #2 across two seeds, so the ranking below stands;
+**Ranked 2026-09-26, item 2 re-read 2026-09-30, 2026-10-03, 2026-10-06 and
+2026-10-10** from the two current anchors — BBA shipping arm at `7838d8c2`
+(2026-10-10, re-anchored after the `1♥ - 1♠` round-2 ships; opening #1 plain,
+round-2 #1 PD, so the ranking below stands;
 [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
-`daa8bf4a` (2026-09-14, stale by the same window;
+`daa8bf4a` (2026-09-14, stale;
 [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
 see [Owed / deferred](#owed--deferred).
@@ -62,6 +62,20 @@ ranking and each lane's unworked residue.
     - The same rung under `2♣ - 2♦ - 2M - 3M - 4NT` and `2♣ - 2♦ - 3m - 4m -
       4NT` (opener asks on 28+): a different population, unmeasured, left
       on the classic ladder.
+- **Re-anchored 2026-10-10 at `7838d8c2` — no sharp lane left.**  Round-2
+  −21,551 → −19,420 plain, −22,651 → −20,631 PD; the paired window
+  (+0.0042 / +0.0062 plain, +0.0040 / +0.0060 PD) matches the five ships'
+  summed A/Bs.  The uncontested missed-slam pool's `1♥ - 1♠` lane fell
+  −2,463 → −1,643; every other lane is −0.3k to −1.1k with no node past
+  −110 (`1♠ - 2♣` −968 on 155 boards, spread over a dozen nodes), so the
+  `1♠ - 2♣` missed-slam lead is closed.  The sharpest constructive pairs
+  are known washes: the 2/1 suit choice over `1♠` (~1,030 rows, −2.3k /
+  −2.1k; `response.two_over_one_hearts_first`) and opener's `2♦` vs `2♣`
+  on 5♦4♣ over `1♦ - 1M` (~1,515 rows, −1.3k / −1.4k;
+  `rebid.one_diamond_two_clubs`).  Cut and tables in
+  [bba-gap-campaign.md](bba-gap-campaign.md) § Current ranking.  The
+  item's book vein is now the thin tail below; the next IMPs need a
+  different lever (item 3 or 4) or a retrain.
 - **Re-ranked 2026-10-06 at `25aea82c`.**  The bucket is #2 on the
   shipping arm's plain column behind opening, a tie (the fresh-seed
   confirmation keeps it #1), and still #1 on PD: −21,551 plain / −22,651 PD
@@ -114,12 +128,12 @@ ranking and each lane's unworked residue.
   answers naturally, responder places or asks keycards for hearts.  Was 88
   boards of `3NT` on three hearts, −561, BBA's slam in hearts on 34; pooled
   two seeds plain +0.0007 / +0.0009, PD +0.0008 / +0.0009, eight of eight
-  cells positive (CHANGELOG).  **Next lever in the lane, found by its worst
-  boards:** `rebid_one_heart_one_spade` never calls the extras ladder, so
-  opener has no jump shift over `1♥ - 1♠` and its `2♣` / `2♦` is 12–19+; a
-  19-count answers the fourth suit with `3NT` and gets passed (26 / 23
-  boards per seed, −22 / −7).  Author `3♣` / `3♦` jump shifts (18+, 5-4) on
-  the minor lanes' ladder, then re-read the `3NT` answer as 12–17.  Residue:
+  cells positive (CHANGELOG).  **Shipped 2026-10-08:** `rebid.heart_spade_jump_shift` —
+  opener's `3♣` / `3♦` jump shift (exactly five hearts, 4+ in the minor,
+  18+) with responder's answer table, so the `2m` rebid keeps 12–17 (pooled
+  two seeds plain +0.0008 / +0.0013, PD +0.0005 / +0.0010).  Not done: the
+  fourth-suit `3NT` answer still reads uncapped (a reading change, so an
+  A/B under the net floor; fold into the next visit).  Residue:
   BBA's diamond slams there (29 boards) have no rung; opener's call over
   the `4♥` raise is the floor's (it asks on 15 opposite the 13–15 cap).
   The fourth-suit tail `2♣ - 2♦`'s major-fit keycard ask measured a wash

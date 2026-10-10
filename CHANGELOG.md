@@ -1665,6 +1665,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
   and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
   Protocol and limitations: `docs/bidding-performance-handoff.md`.
+- **BBA re-anchor (2026-10-10, `7838d8c2`)**: shipping `american()` scores
+  **−0.2805 plain / −0.0631 perfect-defense IMPs/board** (none −0.2668 /
+  −0.0430, both −0.2942 / −0.0831); `american_instinct()` −0.9163 / −0.9346.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches.  Paired to the `25aea82c` snapshot on the same deals, shipping
+  moved +0.0042 / +0.0062 plain and +0.0040 / +0.0060 PD per table (none /
+  both; 356 / 378 boards fired), 8–20% above the summed A/Bs of the
+  window's five default-on ships (the `1♥ - 1♠` round-2 lane: the `3♥`
+  invite accept, the heart keycard ask, the `3♣` fourth suit over `2♦`, the
+  opener's jump shift; and the keycard sign-off fix).  The paired net gain
+  over instinct is unchanged at +0.3276 plain / +0.4431 PD.  Shipping
+  round-2 −21,551 → −19,420 plain; opening stays #1 on plain, round-2 #1 on
+  PD.  The lane cut finds no new sharp lane: the two sharpest constructive
+  pairs (the 2/1 suit choice over `1♠`, opener's `2♦` vs `2♣` with both
+  minors) are earlier measured washes.
 - **BBA re-anchor (2026-10-06, `25aea82c`)**: shipping `american()` scores
   **−0.2880 plain / −0.0701 perfect-defense IMPs/board** (none −0.2729 /
   −0.0486, both −0.3031 / −0.0915); `american_instinct()` −0.9239 / −0.9417.
