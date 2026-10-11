@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Competitive accountant, session D arm 2: knobs built and sized, A/B
+  owed (2026-10-12).** `InstinctProfile::competitive_pass_demotion`
+  (default **on**, the shipped gate; off keeps the bid veto and the double
+  mask and pushes no double) and `competitive_push_natural_only` (default
+  **off**; on, the push is confined to their side's first bid or a strain it
+  already named, so a cue, a splinter or Blackwood is never doubled on the
+  accountant's say-so).  Default system byte-identical (`smoke-default
+  --count 20000 --seed 1` = `8cde73af…` at `main` and after).  New
+  `bba-decompose --demotion-census` replays an anchor's trigger nodes with
+  the demotion off and prices each flip under the gate's own leaf: on both
+  anchors (BEN Tier-S `c72dd03e`, BBA `7838d8c2`, replay 100%) the pushed
+  doubles that stood are worth +0.0067 / +0.0123 (BEN) and +0.0083 /
+  +0.0168 (BBA) IMPs/board none / both — the gate's whole measured plain win
+  — and ~70% of the flips sit over an artificial four-plus bid, the fourth
+  leaf approximation now sized.  The O4-vul meta check on next-steps item
+  4's pool (`scripts/accountant-pool-meta.py`) found it PD-overpriced the
+  same way as O4-vul and at the 2–3 level the gate never reaches: re-filed
+  under §O4-vul.  Flags `bba-gen` / `ben-gen
+  --no-ns-competitive-pass-demotion --ns-competitive-push-natural-only`;
+  runners `scripts/ab-competitive-demotion.sh` and
+  `scripts/ab-ben-competitive-demotion.sh`.  Design, tables and the
+  pre-registered decision rule in `docs/ai-bidder/competitive-accountant.md`
+  §"Session D arm 2".
+
 - **`defense.nt_overcall_major_band`: O1's major denial confined to 15–17
   HCP (2026-10-12, opt-in, measured non-replicating wash)** — with
   `nt_overcall_no_major`, a balanced 15–17 with an unbid five-card major

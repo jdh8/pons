@@ -27,7 +27,7 @@ mod common;
 use clap::{Parser, ValueEnum};
 use common::{Dump, Reached, mean_with_ci, next_call, seat_to_act};
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Penalty, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::american::{american, american_instinct, american_v6_their};
 use pons::bidding::context::relative;
@@ -48,12 +48,11 @@ enum OurFloor {
 }
 
 impl OurFloor {
-    fn partnership(self) -> Partnership {
-        let agreements = pons::bidding::agreements::Agreements::default();
+    fn with(self, agreements: &pons::bidding::agreements::Agreements) -> Partnership {
         match self {
-            Self::American => american(&agreements),
-            Self::AmericanV6Their => american_v6_their(&agreements),
-            Self::AmericanInstinct => american_instinct(&agreements),
+            Self::American => american(agreements),
+            Self::AmericanV6Their => american_v6_their(agreements),
+            Self::AmericanInstinct => american_instinct(agreements),
         }
         .bind()
     }
@@ -144,6 +143,15 @@ struct Args {
     /// (off pending its A/B); pass `true` to replay alert-on arms.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     completion_alerts: Option<bool>,
+
+    /// Size arm 2 of the competitive accountant offline: replay every our-side
+    /// node at the gate's trigger (their live undoubled bid at the four-level
+    /// or higher, we did not pass) with `competitive_pass_demotion` off, and
+    /// price each call that flips to Pass under the gate's own leaf — passing
+    /// ends the auction and their bid plays undoubled — against the table's
+    /// actual result, the other table fixed.  Prints to stdout.
+    #[arg(long)]
+    demotion_census: bool,
 
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
@@ -435,68 +443,76 @@ fn main() -> anyhow::Result<()> {
     let landy = args
         .landy_counter
         .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BBA")));
-    let partnership = if landy {
-        let mut agreements =
-            common::vs_bba_agreements(pons::bidding::agreements::Agreements::default());
-        if !args.landy_stack.unwrap_or(true) {
-            // Dumps from between the base-counter ship and the stack ship:
-            // the declaration was already derived, but the arms played the
-            // base counter — zero the stack knobs the 2026-08-14 default
-            // flip turned on.
-            agreements.competition.defense_2c_landy_transfer = false;
-            agreements.competition.defense_2c_landy_cue_floor = false;
-            agreements.competition.defense_2c_landy_fit_answers = false;
-            agreements.competition.defense_2c_landy_competition = false;
-        }
-        if let Some(bba) = args.landy_bba {
-            agreements.competition.defense_2c_landy_bba = bba;
-        }
-        if let Some(read) = args.their_landy_read {
-            agreements.decision.reading.their_landy_reading = read;
-        }
-        if let Some(multi) = args.multi_counter {
-            agreements.decision.their.two_diamonds_multi = multi;
-        }
-        if let Some(read) = args.ns_their_multi_read {
-            agreements.decision.reading.their_multi_reading = read;
-        }
-        agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
-        agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
-        agreements.competition.multi_stopper_ask = match args.ns_multi_stopper_ask.as_str() {
-            "off" => pons::bidding::american::MultiStopperAsk::Off,
-            "search" => pons::bidding::american::MultiStopperAsk::FitSearch,
-            "place" => pons::bidding::american::MultiStopperAsk::OpenerPlaces,
-            other => {
-                anyhow::bail!("--ns-multi-stopper-ask must be off|search|place, got {other:?}")
-            }
-        };
-        if let Some(alert) = args.completion_alerts {
-            agreements.decision.reading.completion_alerts = alert;
-        }
-        match args.our_floor {
-            OurFloor::American => american(&agreements),
-            OurFloor::AmericanV6Their => american_v6_their(&agreements),
-            OurFloor::AmericanInstinct => american_instinct(&agreements),
-        }
-        .bind()
-    } else {
-        args.our_floor.partnership()
-    };
+    let build =
+        |edit: &dyn Fn(&mut pons::bidding::agreements::Agreements)| -> anyhow::Result<Partnership> {
+            let partnership = if landy {
+                let mut agreements =
+                    common::vs_bba_agreements(pons::bidding::agreements::Agreements::default());
+                if !args.landy_stack.unwrap_or(true) {
+                    // Dumps from between the base-counter ship and the stack ship:
+                    // the declaration was already derived, but the arms played the
+                    // base counter — zero the stack knobs the 2026-08-14 default
+                    // flip turned on.
+                    agreements.competition.defense_2c_landy_transfer = false;
+                    agreements.competition.defense_2c_landy_cue_floor = false;
+                    agreements.competition.defense_2c_landy_fit_answers = false;
+                    agreements.competition.defense_2c_landy_competition = false;
+                }
+                if let Some(bba) = args.landy_bba {
+                    agreements.competition.defense_2c_landy_bba = bba;
+                }
+                if let Some(read) = args.their_landy_read {
+                    agreements.decision.reading.their_landy_reading = read;
+                }
+                if let Some(multi) = args.multi_counter {
+                    agreements.decision.their.two_diamonds_multi = multi;
+                }
+                if let Some(read) = args.ns_their_multi_read {
+                    agreements.decision.reading.their_multi_reading = read;
+                }
+                agreements.decision.reading.their_multi_advance_reading =
+                    args.ns_their_multi_advance_read;
+                agreements.decision.reading.their_multi_double_reading =
+                    args.ns_their_multi_double_read;
+                agreements.competition.multi_stopper_ask = match args.ns_multi_stopper_ask.as_str()
+                {
+                    "off" => pons::bidding::american::MultiStopperAsk::Off,
+                    "search" => pons::bidding::american::MultiStopperAsk::FitSearch,
+                    "place" => pons::bidding::american::MultiStopperAsk::OpenerPlaces,
+                    other => {
+                        anyhow::bail!(
+                            "--ns-multi-stopper-ask must be off|search|place, got {other:?}"
+                        )
+                    }
+                };
+                if let Some(alert) = args.completion_alerts {
+                    agreements.decision.reading.completion_alerts = alert;
+                }
+                edit(&mut agreements);
+                args.our_floor.with(&agreements)
+            } else {
+                let mut agreements = pons::bidding::agreements::Agreements::default();
+                edit(&mut agreements);
+                args.our_floor.with(&agreements)
+            };
 
-    // `ben-gen` declares BEN's European minor scheme as the opponent book (one
-    // axis only; see its comment).  Reading their `1NT - 2♠`/`3♣` as our Puppet
-    // relay instead moves our own later calls, so the replay gate needs the
-    // same binding.
-    let european = args
-        .european_minors
-        .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BEN")));
-    let partnership = if european {
-        let mut theirs = pons::bidding::agreements::Agreements::default();
-        theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
-        partnership.with_opponents(&american(&theirs).bind())
-    } else {
-        partnership
-    };
+            // `ben-gen` declares BEN's European minor scheme as the opponent book (one
+            // axis only; see its comment).  Reading their `1NT - 2♠`/`3♣` as our Puppet
+            // relay instead moves our own later calls, so the replay gate needs the
+            // same binding.
+            let european = args
+                .european_minors
+                .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BEN")));
+            let partnership = if european {
+                let mut theirs = pons::bidding::agreements::Agreements::default();
+                theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+                partnership.with_opponents(&american(&theirs).bind())
+            } else {
+                partnership
+            };
+            Ok(partnership)
+        };
+    let partnership = build(&|_| {})?;
 
     // Exactness is an acceptance gate, not a warning. Verify every arm before
     // loading/solving DD tables so a wrong floor or revision cannot emit a
@@ -836,6 +852,12 @@ fn main() -> anyhow::Result<()> {
         }
         eprintln!("bba-decompose: {} rows written to {path}", rows.len());
     }
+    if args.demotion_census {
+        let twin = build(&|agreements| {
+            agreements.decision.instinct.competitive_pass_demotion = false;
+        })?;
+        demotion_census(&arms, &partnership, &twin, &mut cache);
+    }
     if let Some(path) = args.dd_cache.as_deref() {
         serde_json::to_writer(
             std::io::BufWriter::new(std::fs::File::create(path)?),
@@ -848,6 +870,262 @@ fn main() -> anyhow::Result<()> {
         );
     }
     Ok(())
+}
+
+/// Their live undoubled bid at the four-level or higher after `prefix` — the
+/// slice twin of `instinct::their_live_game_bid`, the accountant's trigger
+fn live_game_bid(prefix: &[Call]) -> Option<Bid> {
+    let acted = prefix.iter().rposition(|&call| call != Call::Pass)?;
+    let Call::Bid(bid) = prefix[acted] else {
+        return None;
+    };
+    (bid.level.get() >= 4 && (prefix.len() - acted) % 2 == 1).then_some(bid)
+}
+
+/// One node where switching the Pass demotion off flips our call
+struct Flip {
+    board: usize,
+    table_a: bool,
+    index: usize,
+    call: Call,
+    theirs: Bid,
+    /// Calls since their bid: 1 (RHO just bid) or 3 (our pass ends the auction)
+    distance: usize,
+    /// Natural-bid proxy: their side's first bid, or a strain it had already
+    /// named — a cue, a splinter or Blackwood fails it
+    natural: bool,
+}
+
+/// Size arm 2 of the competitive accountant offline (`--demotion-census`)
+///
+/// For every our-side node at the gate's trigger where we did not pass, replay
+/// with `on` (must reproduce the dump's call — a mismatch is counted and the
+/// node skipped) and with `off` (the Pass demotion switched off).  The first
+/// flip per table is priced under the gate's own leaf approximation: passing
+/// ends the auction, their live bid plays undoubled, the other table fixed.
+/// Later nodes on that table lie on a path the twin never reaches and are not
+/// priced.  Positive IMPs mean passing would have gained.
+fn demotion_census(
+    arms: &[Arm],
+    on: &Partnership,
+    off: &Partnership,
+    cache: &mut HashMap<String, TrickCountTable>,
+) {
+    for (arm_index, arm) in arms.iter().enumerate() {
+        let scanned: Vec<(Vec<Flip>, u64, u64)> = arm
+            .boards
+            .par_iter()
+            .enumerate()
+            .map(|(i, board)| {
+                let mut flips = Vec::new();
+                let (mut nodes, mut mismatched) = (0u64, 0u64);
+                for (auction, table_a) in [(&board.table_a, true), (&board.table_b, false)] {
+                    for (k, &call) in auction.iter().enumerate() {
+                        let seat = seat_to_act(board.dealer, k);
+                        let seat_ns = matches!(seat, Seat::North | Seat::South);
+                        if seat_ns != table_a || call == Call::Pass {
+                            continue;
+                        }
+                        let Some(theirs) = live_game_bid(&auction[..k]) else {
+                            continue;
+                        };
+                        nodes += 1;
+                        let acted = auction[..k]
+                            .iter()
+                            .rposition(|&c| c != Call::Pass)
+                            .expect("a live bid");
+                        let their_bids: Vec<Bid> = auction[..acted]
+                            .iter()
+                            .enumerate()
+                            .filter(|(j, _)| j % 2 != k % 2)
+                            .filter_map(|(_, &c)| match c {
+                                Call::Bid(b) => Some(b),
+                                _ => None,
+                            })
+                            .collect();
+                        let natural = their_bids.is_empty()
+                            || their_bids.iter().any(|b| b.strain == theirs.strain);
+                        let mut prefix = Auction::new();
+                        auction[..k].iter().for_each(|&c| prefix.push(c));
+                        let hand = board.deal[seat];
+                        if next_call(on, hand, board.dealer, arm.vul, &prefix) != call {
+                            mismatched += 1;
+                            continue;
+                        }
+                        let twin = next_call(off, hand, board.dealer, arm.vul, &prefix);
+                        if twin == call {
+                            continue;
+                        }
+                        flips.push(Flip {
+                            board: i,
+                            table_a,
+                            index: k,
+                            call,
+                            theirs,
+                            distance: k - acted,
+                            natural,
+                        });
+                        break;
+                    }
+                }
+                (flips, nodes, mismatched)
+            })
+            .collect();
+        let nodes: u64 = scanned.iter().map(|s| s.1).sum();
+        let mismatched: u64 = scanned.iter().map(|s| s.2).sum();
+        let flips: Vec<Flip> = scanned.into_iter().flat_map(|s| s.0).collect();
+
+        // A flipped board need not be contract-divergent, so solve the misses
+        // on the main thread like the main pass does.
+        let mut seen = std::collections::HashSet::new();
+        let missing: Vec<FullDeal> = flips
+            .iter()
+            .map(|f| arm.boards[f.board].deal)
+            .filter(|deal| {
+                let key = deal_key(deal);
+                !cache.contains_key(&key) && seen.insert(key)
+            })
+            .collect();
+        for chunk in missing.chunks(4096) {
+            let solved = Solver::lock(None).solve_deals(chunk, NonEmptyStrainFlags::ALL);
+            for (deal, table) in chunk.iter().zip(solved) {
+                cache.insert(deal_key(deal), table);
+            }
+        }
+
+        let mut by_key: BTreeMap<String, (usize, i64, i64)> = BTreeMap::new();
+        let mut priced: Vec<(i64, i64, String)> = Vec::new();
+        for f in &flips {
+            let board = &arm.boards[f.board];
+            let table = &cache[&deal_key(&board.deal)];
+            let auction = if f.table_a {
+                &board.table_a
+            } else {
+                &board.table_b
+            };
+            let mut counterfactual = Auction::new();
+            auction[..f.index]
+                .iter()
+                .for_each(|&c| counterfactual.push(c));
+            while !counterfactual.has_ended() {
+                counterfactual.push(Call::Pass);
+            }
+            let cf = final_contract(&counterfactual, board.dealer);
+            let actual = final_contract(auction, board.dealer);
+            let (a, b) = (
+                final_contract(&board.table_a, board.dealer),
+                final_contract(&board.table_b, board.dealer),
+            );
+            let price = |scorer: &dyn Fn(Reached) -> i64| {
+                let diff = scorer(a) - scorer(b);
+                let swapped = if f.table_a {
+                    scorer(cf) - scorer(b)
+                } else {
+                    scorer(a) - scorer(cf)
+                };
+                imps(swapped) - imps(diff)
+            };
+            let plain = price(&|r| ns_score_contract(r, table, arm.vul));
+            let pd = price(&|r| ns_score_bid(r, table, arm.vul));
+
+            let their_side = |seat: Seat| matches!(seat, Seat::North | Seat::South) != f.table_a;
+            let outcome = match actual {
+                Some((c, d)) if their_side(d) && c.bid == f.theirs => {
+                    if c.penalty == Penalty::Undoubled {
+                        "undoubled"
+                    } else {
+                        "stood-X"
+                    }
+                }
+                Some((_, d)) if their_side(d) => "they-ran",
+                Some(_) => "we-played",
+                None => "passout",
+            };
+            let level = if f.theirs.level.get() >= 5 { "5+" } else { "4" };
+            let ours = if f.call == Call::Double { "X" } else { "bid" };
+            let result = if makes(cf, table, arm.vul) {
+                "makes"
+            } else {
+                "fails"
+            };
+            let key = format!(
+                "d{} {:3} {level:3} {ours:4} {outcome:10} their-bid-{result}",
+                f.distance,
+                if f.natural { "nat" } else { "art" }
+            );
+            let entry = by_key.entry(key.clone()).or_default();
+            entry.0 += 1;
+            entry.1 += plain;
+            entry.2 += pd;
+            priced.push((
+                plain,
+                pd,
+                format!(
+                    "[{key}] board {} table {} vs {} by passing: {} -> {}",
+                    f.board,
+                    if f.table_a { 'a' } else { 'b' },
+                    contract_label(cf),
+                    auction
+                        .iter()
+                        .map(|&c| call_label(c))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    contract_label(actual),
+                ),
+            ));
+        }
+        let count = arm.boards.len();
+        let total_plain: i64 = priced.iter().map(|p| p.0).sum();
+        let total_pd: i64 = priced.iter().map(|p| p.1).sum();
+        println!(
+            "=== demotion census, arm {arm_index} ({}): {nodes} trigger nodes, {mismatched} replay mismatches, {} flips to Pass on {count} boards ===",
+            arm.vul,
+            flips.len()
+        );
+        println!(
+            "{:52} {:>5} {:>7} {:>7}",
+            "ends? natural? their-level our-call outcome", "n", "plain", "pd"
+        );
+        for (key, (n, plain, pd)) in &by_key {
+            println!("{key:52} {n:5} {plain:+7} {pd:+7}");
+        }
+        for (label, prefix) in [
+            ("d3 (our pass ends the auction)", "d3"),
+            ("d1 nat", "d1 nat"),
+            ("d1 art", "d1 art"),
+        ] {
+            let (n, plain, pd) = by_key
+                .iter()
+                .filter(|(k, _)| k.starts_with(prefix))
+                .fold((0usize, 0i64, 0i64), |acc, (_, v)| {
+                    (acc.0 + v.0, acc.1 + v.1, acc.2 + v.2)
+                });
+            println!(
+                "{label:52} {n:5} {plain:+7} {pd:+7}   ({:+.4} / {:+.4} IMPs/board)",
+                plain as f64 / count.max(1) as f64,
+                pd as f64 / count.max(1) as f64
+            );
+        }
+        println!(
+            "{:52} {:5} {:+7} {:+7}   ({:+.4} / {:+.4} IMPs/board if every flip passed)",
+            "total",
+            flips.len(),
+            total_plain,
+            total_pd,
+            total_plain as f64 / count.max(1) as f64,
+            total_pd as f64 / count.max(1) as f64,
+        );
+        priced.sort();
+        for (label, slice) in [
+            ("worst", &priced[..priced.len().min(8)]),
+            ("best", &priced[priced.len().saturating_sub(8)..]),
+        ] {
+            println!("--- {label} flips (plain IMPs gained by passing) ---");
+            for (plain, pd, text) in slice {
+                println!("{plain:+4} ({pd:+4} pd)  {text}");
+            }
+        }
+    }
 }
 
 #[cfg(test)]

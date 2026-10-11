@@ -552,6 +552,8 @@ ignore, and it is not obviously *losing* (a lead-directing double of a control
 bid is a real, if crude, action). Size it before building anything: count how
 many of the shipped arm's fired boards double an alerted call. If it is a
 material slice it belongs with arm 2, and if it is not, it is a v2 note.
+*Sized 2026-10-12: material — about 70% of the demotion's flips on both
+references; see "Session D arm 2" below.*
 
 ### The collar is calibrated to one floor's distribution *(2026-09-03)*
 
@@ -575,6 +577,133 @@ for a floor it was not tuned against.** A floor swap that changes the contract-
 height distribution needs the collar re-tuned in the same change, or the A/B
 measures the pair, not the floor. This is the first arm of M5.2's flip plan —
 retune against v7 until the doubled rate returns to ~11.8%, then re-measure.
+
+## Session D arm 2 — the meta check and the demotion census *(2026-10-12)*
+
+**Status: two knobs built, A/B owed.** `competitive_pass_demotion` (default
+**on**, the shipped gate; off = arm 2 as chartered above) and
+`competitive_push_natural_only` (default **off**; on = the fourth-leaf guard,
+the arm the census below favours). Runners
+`scripts/ab-competitive-demotion.sh` (BBA, three arms per vul) then
+`scripts/ab-ben-competitive-demotion.sh` (Tier-F guard, same `SEED_BASE`).
+The defaults are byte-identical by construction (`smoke-default --count
+20000 --seed 1` = `8cde73af…` at `main` and after the knobs).
+
+### The pool is not this gate's node
+
+[next-steps.md](../next-steps.md) item 4 assigned the *we overcall `2x` where
+BEN passes* pool — 570 Tier-S boards at `c72dd03e`, −174 plain / −995 PD — to
+the contested five-level decision, with the O4-vul caution that a
+PD-dominated vs-BEN pool needs the doubling meta check first. The check was
+run offline on both anchors (`scripts/accountant-pool-meta.py`: pure-JSON
+rescoring from the dumps and DD caches, asserted against every decompose
+row's own swings; BEN Tier-S `c72dd03e`, BBA `7838d8c2` shipped arms). Three
+findings, in order of weight:
+
+1. **The PD is the scorer, not the opponent.** Per board of the arm:
+
+   | reference | vul | pool | plain | PD |
+   | --- | --- | ---: | ---: | ---: |
+   | BEN (10k/vul) | none | 262 | +0.0003 ±0.0151 | −0.0309 ±0.0204 |
+   | BEN | both | 308 | −0.0177 ±0.0218 | −0.0686 ±0.0288 |
+   | BBA (204.8k/vul) | none | 6,808 | **+0.0200 ±0.0038** | −0.0155 ±0.0048 |
+   | BBA | both | 7,650 | +0.0047 ±0.0053 | −0.0438 ±0.0068 |
+
+   The PD − plain gap (BEN −821, BBA −17,197 IMPs) is PD's synthetic double
+   on two things: our DD-failing two- or three-level contract at the overcall
+   table (BEN 79 boards −470; BBA 1,677 boards −7,999), and **our own**
+   failing contract at the *other* table — where the reference passed in our
+   seat and we hold opener's cards, so the loss is a constructive overbid the
+   first-divergence rule books to the overcall (BEN 89 boards −290; BBA
+   2,097 boards −8,162; a further 102 / 2,422 boards rescore both tables).
+   At the table both references double our DD-failing 2–3-level contracts at
+   the same rate — **BEN 11.6%** (n = 2,517), **BBA 11.9%** (n = 55,498);
+   the pool's own are doubled 10–22% (BEN) / 8–21% (BBA) by undertricks. So
+   the pool's PD is a 100% double charged on partscores the field, BBA and
+   BEN all double about one time in eight, and the O4-vul verdict applies
+   unchanged: in the current meta the direct double of a two-level overcall
+   is takeout, and the plain scorers already price the slow route. BEN is
+   not the heavier doubler here; at the five-level and above the two rates
+   are 34.0% and 32.1%.
+2. **The pool sits at the wrong level for this gate.** By the overcall
+   table's final contract: 2–3-level — BEN 427 boards −146 / −954, BBA
+   10,953 boards +4,589 / −11,507; four-level — BEN 108 boards −61 / −73,
+   BBA 2,683 +277 / −490; five-plus — BEN 35 boards +33 / +32, BBA 822
+   +187 / −147. The gate's trigger (their live bid at the four-level or
+   higher) can reach a quarter of the pool's boards and none of its PD loss.
+3. **On the honest scorer the lane is a BBA win and a BEN wash.** The −174
+   plain vs BEN is −0.0177 ±0.0218 at `both` and flat at `none`; vs BBA it
+   is +0.0200 ±0.0038 / +0.0047 ±0.0053. There is no lever in it, and the
+   tight-vul arm that targeted it already measured a BBA plain loss (§O4-vul).
+
+Corollaries: the pool is re-filed under the two-level overcall lane
+([defensive-overcalls.md](../defensive-overcalls.md) §O4-vul, closed), and
+the decompose's first-divergence attribution carries a **constructive
+contamination** that this read exposed — a reference's pass in our seat
+turns the other table into our uncontested auction, and its overbids are
+booked to the defensive call. Not fixed; flagged for jdh8 (the reversible
+default is to leave the bucketing and read the rescoring split when a
+defensive bucket's PD outruns its plain).
+
+### The demotion census — `bba-decompose --demotion-census`
+
+What arm 2 would change, sized offline before any board was spent: every
+our-side node at the gate's trigger where the shipped floor did not pass is
+replayed with `competitive_pass_demotion` off; a node whose call flips to
+Pass is the demotion's action, and the first flip per table is priced under
+the gate's own leaf (passing ends the auction, their bid plays undoubled,
+the other table fixed). Replay reproduced 100% of our calls on both anchors
+at HEAD, so the flips are exact; the prices are not, see finding 4.
+
+| anchor | vul | trigger nodes | flips | stood | over an artificial bid | standing value, plain |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| BEN `c72dd03e`, 10k | none | 1,321 | 353 | 15 | 259 (73%) | **+0.0067** / board |
+| BEN | both | 1,126 | 461 | 42 | 317 (69%) | **+0.0123** |
+| BBA `7838d8c2`, 204.8k | none | 23,584 | 6,870 | 555 | 4,920 (72%) | **+0.0083** |
+| BBA | both | 18,800 | 8,004 | 1,100 | 5,404 (68%) | **+0.0168** |
+
+"Stood" is a pushed call that ended the auction as their contract doubled by
+us; "artificial" is by shape — a bid in a strain their side had not named,
+and not their first bid (a cue, a splinter, Blackwood, a keycard answer).
+
+1. **The standing pushed doubles earn the gate's whole measured plain win.**
+   Their table value is +0.0083 / +0.0168 vs BBA, against the shipped
+   gate's A/B of +0.0088 / +0.0140 (all three actions, same opponent). The
+   vetoes and the run-outs net to about zero between them on this reading,
+   which the capped-vs-priced wash of arm 1 already said at slam level.
+2. **Seven flips in ten double an artificial call** — the fourth leaf
+   approximation, now sized. Those doubles rarely stand, and when they do
+   they are worth a third of the natural ones (BBA: +0.0025 / +0.0041 per
+   board against +0.0059 / +0.0127). A double of Blackwood or a cue is a
+   lead-director at best; priced as a penalty double of a contract nobody
+   will play, it is noise with a redouble attached.
+3. **One flip in fifteen pushes a bid, not a double** (BEN 27 of 353; BBA
+   ~5%). The demotion lowers Pass, so whatever ranked second wins — when
+   that is a bid the veto let through, the gate has manufactured a save it
+   never priced. Residue: restrict the push to nodes where `X` is the
+   runner-up, if the A/B's forensics show these boards.
+4. **The continued auction cannot be priced offline.** Nine flips in ten
+   are followed by more bidding (they run, we bid on). Under the naive leaf
+   those read +0.40 / +0.60 IMPs per board for passing — fifty times the
+   gate's A/B, and an artifact: a passed Blackwood `4NT` does not play
+   undoubled and fail. **Refuted ceiling, never to be quoted**; the honest
+   number is the standing value above, and the tail is the A/B's to price.
+
+### The arms and the decision rule
+
+Three arms per vul on identical deals: `control` (shipped), `off`
+(`--no-ns-competitive-pass-demotion`: veto + X-mask only, arm 2 as
+chartered), `natural` (`--ns-competitive-push-natural-only`: the push
+confined to their first bid or a strain they already named). Plain DD
+arbitrates — PD erases a double both ways and is blind to this knob (the
+Verdict section above) — SD-PD reported. Predictions, registered before the
+run: `off` gives back the standing value (≈ −0.008 / −0.017 vs BBA) unless
+the run-out tail costs more than that; `natural` keeps about seventy per cent
+of the standing value and drops the artificial-call doubles, so it should
+read plain ≥ control on both vuls if those doubles leak at all. Ship
+`natural` on a plain non-loss both vuls plus BEN non-refute; ship `off` only
+on a plain win; if both lose, the demotion stands as shipped and the fourth
+leaf closes as *sized, harmless*.
 
 ## Out of scope (decided, not neglect)
 

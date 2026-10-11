@@ -424,6 +424,26 @@ pub struct InstinctProfile {
     /// `docs/ai-bidder/competitive-accountant.md`, calibrated in
     /// `docs/ai-bidder/doubling-calibration.md`.
     pub competitive_accountant: bool,
+    /// Keep the accountant's Pass demotion — the one action that *adds* a
+    /// call (a pushed double of their four- or five-level contract)
+    ///
+    /// Off, the bid veto and the double mask stay and no double is pushed:
+    /// arm 2 of `docs/ai-bidder/competitive-accountant.md`, sized offline by
+    /// `bba-decompose --demotion-census` before any A/B.  **Default on** (the
+    /// shipped gate); meaningless when
+    /// [`competitive_accountant`][Self::competitive_accountant] is off.
+    pub competitive_pass_demotion: bool,
+    /// Push a double only of a *structurally natural* bid of theirs — their
+    /// side's first bid, or a strain it had already named
+    ///
+    /// The accountant prices their live bid as a contract even when it is a
+    /// cue, a splinter or Blackwood (the fourth leaf approximation,
+    /// `docs/ai-bidder/competitive-accountant.md`); `bba-decompose
+    /// --demotion-census` measured ~70% of the demotion's flips over such
+    /// calls on both references.  On, the demotion skips them; the bid veto
+    /// and the double mask are untouched.  **Default off**; inert when
+    /// [`competitive_pass_demotion`][Self::competitive_pass_demotion] is off.
+    pub competitive_push_natural_only: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
     ///
     /// In the fit-sum game gate, take partner's shown strength from the
@@ -701,6 +721,8 @@ impl Default for InstinctProfile {
             accountant_floor: true,
             net_collar: false,
             competitive_accountant: true,
+            competitive_pass_demotion: true,
+            competitive_push_natural_only: false,
             fit_sum_support_read: false,
             nt_hcp_read: false,
             forcing_ceiling_read: true,
@@ -752,6 +774,8 @@ impl InstinctProfile {
             accountant_floor: false,
             net_collar: true,
             competitive_accountant: false,
+            competitive_pass_demotion: false,
+            competitive_push_natural_only: true,
             fit_sum_support_read: true,
             nt_hcp_read: true,
             forcing_ceiling_read: false,
@@ -3777,6 +3801,29 @@ fn their_live_game_bid(context: &Context<'_>) -> Option<Bid> {
     .then_some(bid)
 }
 
+/// Whether their live bid is structurally natural: their side's first bid, or
+/// a strain it had already named — the proxy behind
+/// [`competitive_push_natural_only`][InstinctProfile::competitive_push_natural_only]
+///
+/// `ponytail:` a shape test, not a reading — a cue in a strain they cue-bid
+/// before passes it; the alerted reading is the upgrade if the A/B asks.
+fn their_bid_looks_natural(context: &Context<'_>, theirs: Bid) -> bool {
+    let auction = context.auction();
+    let Some(acted) = auction.iter().rposition(|&call| call != Call::Pass) else {
+        return true;
+    };
+    let mut earlier = auction[..acted]
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| (auction.len() - i) % 2 == 1)
+        .filter_map(|(_, &call)| match call {
+            Call::Bid(bid) => Some(bid),
+            _ => None,
+        })
+        .peekable();
+    earlier.peek().is_none() || earlier.any(|bid| bid.strain == theirs.strain)
+}
+
 /// Reprice the contested game-level node from the accountant's economics — the
 /// [`competitive_accountant`][InstinctProfile::competitive_accountant] stage of
 /// the learned floor
@@ -3794,7 +3841,9 @@ fn their_live_game_bid(context: &Context<'_>) -> Option<Bid> {
 ///   undoubled and defending doubled (the anti-phantom-save direction);
 /// - mask a phantom penalty double;
 /// - charge Pass [`PASS_DEMOTION`] when the double is the better bet, and their
-///   contract is no higher than [`DOUBLE_PUSH_CEILING`].
+///   contract is no higher than [`DOUBLE_PUSH_CEILING`] — the one action that
+///   adds a call, switched off alone by
+///   [`competitive_pass_demotion`][InstinctProfile::competitive_pass_demotion].
 ///
 /// Candidates are the cheapest legal bid in each strain our side has already
 /// named.  Jumps and fresh strains stay the net's judgement, and three leaf
@@ -3803,7 +3852,8 @@ fn their_live_game_bid(context: &Context<'_>) -> Option<Bid> {
 /// equilibrium loop `average_ns_par` already runs over histograms — the
 /// chartered v2, after this leaf gate's A/B says the physics holds.
 pub(crate) fn competitive_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
-    if !pinned(context).competitive_accountant {
+    let profile = pinned(context);
+    if !profile.competitive_accountant {
         return;
     }
     let Some(theirs) = their_live_game_bid(context) else {
@@ -3836,7 +3886,11 @@ pub(crate) fn competitive_gate(logits: &mut Logits, hand: Hand, context: &Contex
     if double < pass - COMPETITIVE_MARGIN {
         logits.0[Call::Double] = f32::NEG_INFINITY;
         COMPETITIVE_FIRED[1].fetch_add(1, atomic::Ordering::Relaxed);
-    } else if double > pass + COMPETITIVE_MARGIN && theirs.level.get() <= DOUBLE_PUSH_CEILING {
+    } else if profile.competitive_pass_demotion
+        && double > pass + COMPETITIVE_MARGIN
+        && theirs.level.get() <= DOUBLE_PUSH_CEILING
+        && (!profile.competitive_push_natural_only || their_bid_looks_natural(context, theirs))
+    {
         // Never `-∞`: a distribution must survive every stage (invariant §0.2).
         logits.0[Call::Pass] -= PASS_DEMOTION;
         COMPETITIVE_FIRED[2].fetch_add(1, atomic::Ordering::Relaxed);

@@ -730,6 +730,17 @@ O6 is negligible at Tier S (its −875 came from the 102.4k Tier-F
 decomposition). The accountant pool is 7× O1's PD but PD-dominated, so the
 O4-vul meta caution (BEN's doubles overprice the lane) still governs it.
 
+**Meta check run 2026-10-12 — the accountant pool is re-filed.** Rescored
+from the dumps (`scripts/accountant-pool-meta.py`, both anchors): its PD is
+the scorer's synthetic double on our failing 2–3-level partscores (BEN and
+BBA both double them at the table ~12%) plus our own constructive overbids
+at the other table that first-divergence attribution books to the overcall;
+on plain DD the slice is a BBA win and a BEN wash (both −0.0177 ±0.0218),
+and the accountant's four-plus trigger never sees its loss. Verdict and
+numbers in
+[ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)
+§"Session D arm 2"; the slice belongs to §O4-vul, closed.
+
 ### M32 Tier-S reanchor: complete (2026-09-14)
 
 The frozen `daa8bf4a` run used the retained seed `1784237746`, eight shards of

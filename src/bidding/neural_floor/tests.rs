@@ -446,6 +446,66 @@ fn the_accountant_pushes_no_double_over_a_slam() {
     );
 }
 
+/// Arm 2 of the accountant: with the Pass demotion alone switched off, the
+/// five-level node lands exactly on its knob-off logit while the bid veto
+/// stays live — the cap's idiom (skip the action, never scale it), one knob
+/// further down.  Asserted on logits only, and never at the shipped default:
+/// the process-global counters are shared with every other test in the
+/// binary, and `the_accountant_pushes_no_double_over_a_slam` already pins
+/// that the default charges Pass at this node.
+#[test]
+fn the_accountant_demotion_knob_restores_pass() {
+    let hand = "AQ.K94.AT42.KQ76";
+    let five = [call(1, Strain::Spades), call(5, Strain::Hearts)];
+    let mut silent = Agreements::default();
+    silent.decision.instinct.competitive_accountant = false;
+    let mut undemoted = Agreements::default();
+    undemoted.decision.instinct.competitive_pass_demotion = false;
+
+    assert_eq!(
+        shelled_with(&undemoted, &five, hand).0[Call::Pass],
+        shelled_with(&silent, &five, hand).0[Call::Pass],
+        "Pass lands on its knob-off logit"
+    );
+    assert_eq!(
+        shelled_with(&undemoted, &five, BUST).0[call(5, Strain::Spades)],
+        f32::NEG_INFINITY,
+        "the bid veto survives the knob"
+    );
+}
+
+/// The natural-only push: over their first bid the five-level demotion still
+/// fires, over a bid in a fresh strain after their own suit (a cue by shape)
+/// Pass lands on its knob-off logit
+#[test]
+fn the_natural_only_push_skips_a_cue_shaped_bid() {
+    let hand = "AQ.K94.AT42.KQ76";
+    let mut silent = Agreements::default();
+    silent.decision.instinct.competitive_accountant = false;
+    let mut natural = Agreements::default();
+    natural.decision.instinct.competitive_push_natural_only = true;
+
+    let first = [call(1, Strain::Spades), call(5, Strain::Hearts)];
+    assert!(
+        shelled_with(&natural, &first, hand).0[Call::Pass]
+            < shelled_with(&silent, &first, hand).0[Call::Pass],
+        "their first bid is natural by shape, so the push still fires"
+    );
+
+    // `1♠ (2♥) 2♠ (4♦)`: diamonds after hearts, a cue or a splinter by shape.
+    let cue = [
+        call(1, Strain::Spades),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+        call(4, Strain::Diamonds),
+    ];
+    assert_eq!(
+        shelled_with(&natural, &cue, hand).0[Call::Pass],
+        shelled_with(&silent, &cue, hand).0[Call::Pass],
+        "no double is pushed over a cue-shaped bid"
+    );
+}
+
 /// The highest finite logit's call — the pick `select_with_legal_state` makes
 fn top_call(logits: &Logits) -> Call {
     (&logits.0)

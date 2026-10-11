@@ -510,6 +510,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_competitive_accountant: bool,
 
+    /// Turn OFF the accountant's Pass demotion alone
+    /// (`InstinctProfile::competitive_pass_demotion`, crate default on): the
+    /// bid veto and the double mask stay, no double is *pushed* — arm 2 of
+    /// `docs/ai-bidder/competitive-accountant.md`.
+    #[arg(long, default_value_t = false)]
+    no_ns_competitive_pass_demotion: bool,
+
+    /// Push the accountant's double only over a structurally natural bid of
+    /// theirs (`InstinctProfile::competitive_push_natural_only`, crate default
+    /// off): their side's first bid or a strain it already named — never a
+    /// cue, a splinter or Blackwood.  The `natural` arm of
+    /// `scripts/ab-competitive-demotion.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_competitive_push_natural_only: bool,
+
     /// Veto the floor's phantom suit bids for our side
     /// (`InstinctProfile::new_suit_veto`, crate default off, under
     /// measurement).  On, every suit bid the net ranks in a suit where we hold
@@ -2818,6 +2833,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
+    agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
+    agreements.decision.instinct.competitive_push_natural_only =
+        args.ns_competitive_push_natural_only;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;

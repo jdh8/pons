@@ -1,7 +1,7 @@
 use super::*;
 
 fn self_play_fixture(floor: OurFloor) -> Arm {
-    let partnership = floor.partnership();
+    let partnership = floor.with(&pons::bidding::agreements::Agreements::default());
     let vul = AbsoluteVulnerability::NONE;
     let boards = common::seeded_deals(0xD3C0_5EED, 8)
         .into_iter()
@@ -73,7 +73,10 @@ fn european_minors_derives_from_ben_label_and_accepts_false() {
 fn both_floor_selections_replay_their_small_fixture_exactly() {
     for floor in [OurFloor::American, OurFloor::AmericanInstinct] {
         let arm = self_play_fixture(floor);
-        let (checked, mismatched) = replay_verify(&floor.partnership(), &arm);
+        let (checked, mismatched) = replay_verify(
+            &floor.with(&pons::bidding::agreements::Agreements::default()),
+            &arm,
+        );
         assert!(checked > 0);
         assert_eq!(mismatched, 0, "{floor:?}");
     }
@@ -106,4 +109,24 @@ fn json_emits_generic_call_and_compatibility_alias() {
     );
     assert_eq!(json["their_call"], "P");
     assert_eq!(json["bba_call"], json["their_call"]);
+}
+
+/// The census trigger mirrors `instinct::their_live_game_bid`: their last
+/// action is an undoubled bid at the four-level or higher
+#[test]
+fn live_game_bid_is_their_undoubled_four_plus() {
+    let bid = |level: u8, strain: Strain| Call::Bid(Bid::new(level, strain));
+    // `1♠ (4♥)` to responder: RHO just bid it.
+    assert_eq!(
+        live_game_bid(&[bid(1, Strain::Spades), bid(4, Strain::Hearts)]),
+        Some(Bid::new(4, Strain::Hearts))
+    );
+    // `(4♥) - -` to fourth seat: LHO bid it, two passes since, our pass ends it.
+    assert!(live_game_bid(&[bid(4, Strain::Hearts), Call::Pass, Call::Pass]).is_some());
+    // Doubled, or ours, or below game: no trigger.
+    assert!(
+        live_game_bid(&[bid(1, Strain::Spades), bid(4, Strain::Hearts), Call::Double]).is_none()
+    );
+    assert!(live_game_bid(&[bid(4, Strain::Hearts), Call::Pass]).is_none());
+    assert!(live_game_bid(&[bid(1, Strain::Spades), bid(3, Strain::Hearts)]).is_none());
 }

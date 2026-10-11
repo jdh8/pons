@@ -288,18 +288,31 @@ re-litigate). Live pieces, all in
 - Standing caution from O4-vul: any slice whose PD win is doubling-driven
   needs the meta check before the paired Tier-F run.
 
-## 4. Competitive accountant, session D arm 2
+## 4. Competitive accountant, session D arm 2 — built, A/B owed
 
-The tight-2m saga's own conclusion: both refutations said the improvable
-node is the contested 5-level **declare-vs-defend decision**, not the
-overcall band — and BEN, unlike BBA, actually doubles, so the lane is
-finally priceable. Pool: the "we act where BEN passes" PD losses (−1,144 PD
-over 572 trace boards at M32, **−174 plain / −995 PD over 570 at
-`c72dd03e`**, vul both −686 PD) plus part of the −29k wall-bound remainder.
-7× O1's PD pool but PD-dominated, so the O4-vul meta caution applies.
-Design-heavy. Docs:
-[ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md),
-[ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).
+**Meta check done 2026-10-12, and it re-files the pool.** The "we overcall
+`2x` where BEN passes" slice (570 boards, −174 plain / −995 PD at
+`c72dd03e`) is PD-overpriced the O4-vul way, not BEN-driven: both references
+double our failing 2–3-level contracts at the table at the same ~12%, the
+PD gap is the scorer's 100% double on those partscores plus our *own*
+constructive overbids at the other table, and the slice sits at the 2–3
+level where the accountant's trigger never fires. On plain DD it is a BBA
+win (+0.0200 ±0.0038 none) and a BEN wash. Full read in
+[ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)
+§"Session D arm 2"; the pool belongs to
+[defensive-overcalls.md](defensive-overcalls.md) §O4-vul (closed).
+
+**What is live is arm 2 itself, sized offline.** `bba-decompose
+--demotion-census` replayed both anchors with the Pass demotion off: its
+pushed doubles that *stood* are worth +0.0083 / +0.0168 IMPs/board vs BBA
+(the shipped gate's whole measured plain win), ~70% of its flips sit over an
+artificial four-plus bid (cue, splinter, Blackwood — the fourth leaf
+approximation, now material), and the continued-auction tail is the A/B's
+to price. Two knobs built: `competitive_pass_demotion` (default on) and
+`competitive_push_natural_only` (default off, the favoured arm). Run
+`scripts/ab-competitive-demotion.sh` (three arms per vul, plain DD the
+arbiter) then `scripts/ab-ben-competitive-demotion.sh` on the same seed;
+the decision rule is pre-registered in the doc section.
 
 ## 5. The retrain batch — deferred 2026-09-26
 
