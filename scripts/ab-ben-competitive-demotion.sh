@@ -23,7 +23,7 @@ SD=target/release/examples/ab-dump-sd
 mkdir -p "$R"
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
-ports=$(pgrep -af 'gameapi.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -n)
+ports=$(pgrep -af 'gameapi.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu)
 count=$(printf '%s\n' "$ports" | grep -c . || true)
 [ "$count" = "$SERVERS" ] && [ "$(printf '%s\n' "$ports" | head -n 1)" = 8085 ] \
     && [ "$(printf '%s\n' "$ports" | tail -n 1)" = 8100 ] || {

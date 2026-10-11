@@ -29,9 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under §O4-vul.  Flags `bba-gen` / `ben-gen
   --no-ns-competitive-pass-demotion --ns-competitive-push-natural-only`;
   runners `scripts/ab-competitive-demotion.sh` and
-  `scripts/ab-ben-competitive-demotion.sh`.  Design, tables and the
-  pre-registered decision rule in `docs/ai-bidder/competitive-accountant.md`
-  §"Session D arm 2".
+  `scripts/ab-ben-competitive-demotion.sh`.  **Measured vs BBA** (`f0c39b5a`,
+  `SEED_BASE=1791739347`, 204,800 boards/arm/vul, IMPs/board none / both):
+  `off` plain −0.0025 ±0.0026 / **−0.0080 ±0.0034**, SD −0.0021 / −0.0083,
+  PD +0.0040 / +0.0044 (the double-blind artifact) — a loss, the demotion
+  stays; `natural` plain −0.0001 ±0.0021 / −0.0009 ±0.0027 (wash), PD
+  **+0.0027 ±0.0021 / +0.0036 ±0.0027**, SD-PD +0.0013 / +0.0008 —
+  shippable shape, BEN Tier-F guard pending on the same seed before the
+  default flips.  Design, tables and the pre-registered decision rule in
+  `docs/ai-bidder/competitive-accountant.md` §"Session D arm 2".
 
 - **`defense.nt_overcall_major_band`: O1's major denial confined to 15–17
   HCP (2026-10-12, opt-in, measured non-replicating wash)** — with

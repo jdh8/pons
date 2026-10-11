@@ -705,6 +705,34 @@ read plain ≥ control on both vuls if those doubles leak at all. Ship
 on a plain win; if both lose, the demotion stands as shipped and the fourth
 leaf closes as *sized, harmless*.
 
+### Measured vs BBA *(2026-10-12, `f0c39b5a`, `SEED_BASE=1791739347`)*
+
+204,800 boards/arm/vul, IMPs/board (arm − control), 95% CI:
+
+| arm | vul | fired | plain DD | DD-PD | plain SD | SD-PD |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| off | none | 0.48% | −0.0025 ±0.0026 | +0.0040 ±0.0025 | −0.0021 ±0.0029 | +0.0027 ±0.0029 |
+| off | both | 0.64% | **−0.0080 ±0.0034** | +0.0044 ±0.0032 | **−0.0083 ±0.0038** | +0.0001 ±0.0036 |
+| natural | none | 0.31% | −0.0001 ±0.0021 | **+0.0027 ±0.0021** | −0.0004 ±0.0024 | +0.0013 ±0.0024 |
+| natural | both | 0.37% | −0.0009 ±0.0027 | **+0.0036 ±0.0027** | −0.0019 ±0.0030 | +0.0008 ±0.0030 |
+
+Both predictions held. **`off` loses** on the honest scorer (plain and SD
+at `both`, a negative lean at `none`): the standing doubles were the gate's
+win, and the run-out tail does not cost more than they earn. Its PD column
+is the double-blind artifact the Verdict section predicts for a knob that
+doubles less — read it as nothing. **`natural` is a plain wash both vuls
+and a PD win both vuls**, the shippable shape of the decision table and the
+pre-registered rule. The wash is real, not underpowered: the artificial
+doubles' standing value (≈ +0.0025 / +0.0041 by the census) is given back
+by their tail, and the two cancel to within ±0.002.
+
+The worst `natural` boards are the exploit the guard exists for: our double
+of a cue bid or a keycard answer — `4NT - 5♦ X` — made BBA run from a making
+slam (`5♦ X 6NT` for `6♠`, `4♥ X 4♠` for `7♠`, `5♥ X 5NT` for `6♠`). Those
+are BBA-specific lead-director gains that no field opponent gives, so the
+plain wash vs BBA understates the arm; the BEN Tier-F guard on the same
+seed decides whether the default flips.
+
 ## Out of scope (decided, not neglect)
 
 - **Full probabilistic par over all 20 columns** — the chartered v2. The
