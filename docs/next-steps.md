@@ -5,8 +5,8 @@
 (2026-10-10, re-anchored after the `1♥ - 1♠` round-2 ships; opening #1 plain,
 round-2 #1 PD, so the ranking below stands;
 [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
-`daa8bf4a` (2026-09-14, stale;
-[ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
+`c72dd03e` (2026-10-11, +0.200 plain / +0.343 PD paired since M32; items 3/4
+re-priced on it, [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
 see [Owed / deferred](#owed--deferred).
 Method: pool size on both references × how often the vein has actually
@@ -264,9 +264,9 @@ dump/relabel deferral remains.
 
 ## 3. BEN Defensive / book / round-1 — the next slices
 
-Still #2 vs BEN on both scorers (−1.46 / −1.35 per div, 2.0–2.5× the BBA
-ratio). The 2♣ wall is **closed** (O4-vul measured 2026-09-25, not shipped —
-meta verdict: BEN's direct penalty doubles overprice the lane; do not
+Now **#1 plain / #2 PD** vs BEN at `c72dd03e` (−1.19 / −0.81 per div,
+down from −1.46 / −1.35 at M32). The 2♣ wall is **closed** (O4-vul
+measured 2026-09-25, not shipped — meta verdict: BEN's direct penalty doubles overprice the lane; do not
 re-litigate). Live pieces, all in
 [defensive-overcalls.md](defensive-overcalls.md):
 
@@ -274,8 +274,11 @@ re-litigate). Live pieces, all in
   HCP is 80% of the 1NT-overcall node's −446 plain / −1,002 PD, and BEN bids
   the major on 207/256 such hands. Formally blocked on the failed direct-1NT
   reader, but the 2026-08-13 trigger memo says a narrowed-band arm avoids
-  the dilution that sank A5. Ceiling ≈ +0.004 plain / +0.008 PD.
-- **O6 three-level jumps** (`P → 3x` slice, −875 plain). Opt-in knob, one
+  the dilution that sank A5. Ceiling ≈ +0.004 plain / +0.008 PD;
+  re-priced at `c72dd03e` the cell is unchanged (41 boards, −68 / −137 at
+  Tier S, BEN bids the major on 39), so it still leaks — the next arm.
+- **O6 three-level jumps** (`P → 3x` slice, −875 plain on the 102.4k Tier-F
+  corpus, but only 19 boards / −14 / −39 at Tier S). Opt-in knob, one
   SD-PD measurement authorized; expect DD pessimism, sd-check first.
 - Standing caution from O4-vul: any slice whose PD win is doubling-driven
   needs the meta check before the paired Tier-F run.
@@ -286,7 +289,9 @@ The tight-2m saga's own conclusion: both refutations said the improvable
 node is the contested 5-level **declare-vs-defend decision**, not the
 overcall band — and BEN, unlike BBA, actually doubles, so the lane is
 finally priceable. Pool: the "we act where BEN passes" PD losses (−1,144 PD
-over 572 trace boards) plus part of the −29k wall-bound remainder.
+over 572 trace boards at M32, **−174 plain / −995 PD over 570 at
+`c72dd03e`**, vul both −686 PD) plus part of the −29k wall-bound remainder.
+7× O1's PD pool but PD-dominated, so the O4-vul meta caution applies.
 Design-heavy. Docs:
 [ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md),
 [ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).

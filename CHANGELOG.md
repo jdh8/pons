@@ -1665,6 +1665,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured repetitions per pinned CPU; all timing CVs below 2%, cache parity
   and speed gates passed. Pons whole-deal self-play takes 154.456 / 148.002 µs.
   Protocol and limitations: `docs/bidding-performance-handoff.md`.
+- **BEN Tier-S re-anchor (2026-10-11, `c72dd03e`)**: shipping `american()`
+  scores **−0.830 plain / −0.480 perfect-defense IMPs/board** against BEN
+  v0.8.8.4 Tier S (none −0.721 / −0.350, both −0.940 / −0.610), 20,000
+  boards on the anchor seed `1784237746`, deals identical to the M32 anchor,
+  replay 100% with zero mismatches.  Paired to M32 (`daa8bf4a`), the gap
+  closed **+0.200 ±0.054 plain / +0.343 ±0.063 PD** — the whole window's
+  ships, not one.  `Defensive / book / round-1` is now #1 plain; the
+  opening bucket's PD loss is gone.  Ranking and the re-priced next-steps
+  slices: `docs/ben-gap-campaign.md`.
 - **BBA re-anchor (2026-10-10, `7838d8c2`)**: shipping `american()` scores
   **−0.2805 plain / −0.0631 perfect-defense IMPs/board** (none −0.2668 /
   −0.0430, both −0.2942 / −0.0831); `american_instinct()` −0.9163 / −0.9346.

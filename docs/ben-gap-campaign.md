@@ -1,13 +1,11 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 1 complete; M32 Tier-S reanchor complete at `daa8bf4a`
-(2026-09-14): pons is −1.031 plain / −0.755 PD IMPs/board behind BEN Tier S**
-(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level compatibility patch
-for two recovered shards). The pooled gap improved by **+0.13255
-plain / +0.27675 PD** since the 2026-08-10 anchor. This is the whole intervening
-batch, not isolated M32 attribution. Direct scoring is complete; BEN bucket
-rankings remain unavailable because the decomposer's replay gate failed
-(details below).
+**Status: Phase 1 complete; latest Tier-S reanchor at `c72dd03e`
+(2026-10-11): pons is −0.830 plain / −0.480 PD IMPs/board behind BEN Tier S**
+(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level patch). Paired on the
+same deals against the M32 anchor (`daa8bf4a`), the gap closed by **+0.200
+±0.054 plain / +0.343 ±0.063 PD** — the whole intervening batch, not one
+ship. Both arms replay at 100.00%; the bucket ranking is below.
 Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
@@ -682,11 +680,55 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). Pre-floor-swap (deterministic floor). |
 | 2026-08-10 | `0d8b755` | **−1.163** (none −0.998 [−1.088, −0.909], both −1.328 [−1.442, −1.214]) | **−1.032** (none −0.837 [−0.941, −0.733], both −1.226 [−1.358, −1.094]) | **+0.743 plain / +0.829 PD** vs the first row. Covers three floor generations (v3 distilled → v4 configured → **v5, `american()`'s default since 2026-08-08**) plus the reading-drift and competitive-book tails. Divergence 65%/64%, down from 71%/70%. BEN pinned v0.8.8.4, conf sha256 `503b026a…`. |
 | 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
+| 2026-10-11 | `c72dd03e` | **−0.830** (none −0.7210 [−0.810, −0.632], both −0.9397 [−1.056, −0.824]) | **−0.480** (none −0.3495 [−0.453, −0.246], both −0.6102 [−0.744, −0.477]) | Divergence 63.92%/63.30%. Same BEN runtime and conf sha as M32 (PASS-level patch from the start, no recovery needed). Paired to M32 on the same deals: **+0.200 ±0.054 plain / +0.343 ±0.063 PD** pooled (none +0.132 / +0.239, both +0.269 / +0.448; 4,536 boards changed). Covers the floor rails, the K = 8 ensemble, and every constructive ship 2026-09-14 → 10-10. Replay 100.00% both arms; ranking below. |
 
 > **Reading the deltas.** Rows share *deals* (`SEED_BASE`), while BEN re-bids
 > each auction and its replies can change. Each window bundles intervening
 > ships; isolated attribution requires the per-fix A/B. The per-vulnerability
 > CIs below are not combined as independent samples: both arms reuse deals.
+
+### `c72dd03e` Tier-S reanchor (2026-10-11)
+
+Runner `ab-results/reanchor-c72dd03e-ben.sh`, artifacts in
+`ab-results/ben-anchor/2026-10-11-c72dd03e/` (`report.md`, `boards.jsonl`,
+`score-{none,both}-{plain,pd}.txt`). Seeds `1784237746` + 0..7, deals and
+dealers asserted identical to M32; replay 100.00% (0 of 105,496 none, 0 of
+103,827 both). Paired window, above. **Top 8 buckets** (both arms, 12,722
+divergent boards; Δ = change in total since M32):
+
+| bucket | boards | plain total (Δ) | plain /div | PD total (Δ) | PD /div |
+| --- | --- | --- | --- | --- | --- |
+| Defensive / book / round-1 | 2169 | −2583 (+635) | −1.19 | −1762 (+1201) | −0.81 |
+| Constructive / book / opening | 2378 | −2152 (+1205) | −0.90 | −95 (+1930) | −0.04 |
+| Constructive / book / round-2 | 1546 | −1883 (+605) | −1.22 | −1985 (+764) | −1.28 |
+| Defensive / floor / round-2 | 1028 | −1643 (+158) | −1.60 | −854 (+513) | −0.83 |
+| Competitive / book / round-1 | 703 | −1581 (−130) | −2.25 | −1032 (−63) | −1.47 |
+| Defensive / floor / round-1 | 687 | −1080 (+462) | −1.57 | −307 (+602) | −0.45 |
+| Constructive / book / round-1 | 1099 | −975 (+189) | −0.89 | −742 (+250) | −0.68 |
+| Competitive / floor / round-2 | 435 | −726 (+474) | −1.67 | −279 (+705) | −0.64 |
+
+By phase: Defensive −6200 (4610 boards) now leads Constructive −5976 (5726)
+and Competitive −4431 (2386). Provenance: book −10241 (8752), floor −4702
+(3051). Every top-8 bucket improved except `Competitive / book / round-1`
+(−130 / −63, inside its ±323-IMP bucket CI). Opening's PD loss is gone
+(−0.04/div): what is left there is plain-only. `Defensive / book / round-1`
+is #1 plain, #2 PD; `Constructive / book / round-2` is #1 PD.
+
+**Next-steps items 3/4 re-priced on Tier-S rows** (slicer validated by
+reproducing the 2026-09-25 trace's 572 / −305 / −1,144 on the M32 rows):
+
+| slice (Defensive / book / round-1) | M32 n / plain / PD | `c72dd03e` n / plain / PD |
+| --- | --- | --- |
+| O1 cell: we overcall `1NT` with a 5+ major, 15–17 HCP | 40 / −72 / −150 | 41 / −68 / −137 (BEN bids the major on 39) |
+| — the whole `1NT`-overcall node | 107 / −230 / −291 | 109 / −196 / −243 |
+| O6: `P → 3x` | 20 / −17 / −36 | 19 / −14 / −39 |
+| accountant pool: `P → 2x` suit overcall | 572 / −305 / −1144 | 570 / −174 / −995 |
+| — of which vul both | 308 / −272 / −793 | 308 / −177 / −686 |
+
+The O1 cell is unchanged (ceiling ≈ +0.0034 plain / +0.0069 PD per board);
+O6 is negligible at Tier S (its −875 came from the 102.4k Tier-F
+decomposition). The accountant pool is 7× O1's PD but PD-dominated, so the
+O4-vul meta caution (BEN's doubles overprice the lane) still governs it.
 
 ### M32 Tier-S reanchor: complete (2026-09-14)
 
@@ -860,6 +902,11 @@ At M32 the plain Tier-S gap is approximately 0.494 IMPs/board larger than the
 BBA gap (−1.031 versus −0.537), compared with approximately 0.536 in August.
 The spread did not widen in this window; the differing deal streams and
 reference runtime caveat still preclude an isolated attribution.
+
+At `c72dd03e` the spread is approximately 0.549 (−0.830 versus the BBA
+shipping arm's −0.281 at `7838d8c2`): BBA closed +0.256 in the window, BEN
++0.200 ±0.054 paired. A 0.055 widening is at the edge of the BEN CI and the
+deal streams still differ — not yet a signal, but the hypothesis stays live.
 
 ## Tier-F distillation probe — how ruly is BEN's policy? (2026-07-18)
 
