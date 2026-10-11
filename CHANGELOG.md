@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Design: `basic` / `advanced` system variants (2026-10-12, docs only).**
+  [docs/system-variants.md](docs/system-variants.md) — a variant is an
+  `Agreements` value (`advanced` ≡ `default()`, `basic` a beginner card after
+  IntoBridge's basic/advanced split), the knob partition, the alert-set
+  whitelist as the simplicity test, the folded-slot floor caveat,
+  the three A/Bs it owes and the decisions it waits on.  No code moved.
+
 - **Competitive accountant, session D arm 2: knobs built and sized, A/B
   owed (2026-10-12).** `InstinctProfile::competitive_pass_demotion`
   (default **on**, the shipped gate; off keeps the bid veto and the double

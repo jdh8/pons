@@ -513,3 +513,9 @@ group waits on that decision, the second group does not.
      raise opener's second suit (four-card support with 8–9 HCP passes `2♥`).
   5. The seven-card `4M`: the floor raises it to `6M`/`7M` (`4♠ - 4NT - 5♠ -
      7♠`); a `Pass`/`ask_or_pass` row above it is one small A/B.
+- **System variants `basic` / `advanced`** — design written 2026-10-12
+  ([system-variants.md](system-variants.md)): `advanced` ≡ `default()`,
+  `basic` is one new `Agreements` constructor shaped on a beginner card
+  (IntoBridge's basic/advanced split). Blocked on jdh8's §7 decisions (where
+  the beginner line sits decides the **line call** rows);
+  then three A/Bs, the first of which prices the whole gadget layer.
