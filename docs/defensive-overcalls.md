@@ -180,6 +180,20 @@ belongs on whichever arm runs. Note also that BBA's own `1NT` overcall is
 **16–18** (`MB.TXT:3466`, subject to that file's provenance caveat), narrower
 than our `hcp(15..=18)` at both edges.
 
+**The band arm, measured 2026-10-12** (`nt_overcall_major_band` on the strict
+arm, runner mode `o1band`, historical reader; seeds 1791735897 and
+1791736497, numbers in the CHANGELOG and the ledger below).  Seed 1 read
+`plain wash | PD win` at both vulnerabilities; seed 2 did not replicate it,
+and its non-vulnerable plain SD lost outside the CI.  The worst boards share
+one mechanism: the advancer passes a one-level overcall with game values
+(`1♣ 1♠ - - -` opposite 9 HCP and five hearts; `1♦ 1♥ - 1♠ - 1NT - 2♥`
+short of `3NT`), because the overcall's reading still stops below 15.  The
+narrow band fixed the dilution, but the reader gate is the binding
+constraint after all: displacing the 15–17 major pays only once partner
+reads the overcall as possibly 15–17, and under a frozen floor that is a
+reading knob that moves calls ([reading-drift-handoff.md](reading-drift-handoff.md)).
+The knob stays opt-in.
+
 ### O2 — the `X → 1NT` forensic and independent widenings
 
 The 158 hands our X wins where BEN overcalls `1NT` all pass Strict takeout
@@ -482,6 +496,7 @@ SEED_BASE="$(<"$BASE/o3/seed")" \
 | --- | --- | --- | --- | --- |
 | direct-1NT reader trial | plain wash; PD none −0.0016 ±0.0012 (loss), both −0.0012 ±0.0015 | plain SD wash; SD-PD wash-negative; contract effect only | all four cells wash both vuls | **reverted; failed BBA gate** |
 | O1 strict / cheap | not run | not run | not run | blocked by reader gate; both OFF |
+| O1 strict + 15–17 band (`o1band`) | seed 1 plain wash, PD win both vuls; seed 2 plain and PD wash | seed 1 SD-PD wash-positive; seed 2 plain SD none −0.0012 ±0.0007, SD-PD wash-negative | not run (BBA did not replicate) | **non-replicating wash; stays OFF** |
 | O2 stopperless / semi-balanced | not run | not run | not run | stopperless blocked/OFF; semi-balanced removed |
 | O3 exact `(1♣) 2♦` | all cells wash, non-negative DD/PD | all cells wash, non-negative SD-PD | all cells wash; no refutation | **ship default-on** |
 | O4 quality gate | not run; stopped before A/B | not run | not run | no model, no atom, no active gate |

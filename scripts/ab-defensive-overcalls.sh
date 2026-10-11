@@ -6,7 +6,7 @@ set -euo pipefail
 MODE=${1:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
 BASE=${2:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
 case "$MODE" in
-o3 | bar | seam) ;;
+o3 | bar | seam | o1band) ;;
 reading|o1|o2)
     echo "$MODE stopped: the direct-1NT reader gate failed" >&2
     exit 2
@@ -16,7 +16,7 @@ o4)
     exit 2
     ;;
 *)
-    echo "unknown mode: $MODE (o3, bar, seam)" >&2
+    echo "unknown mode: $MODE (o3, bar, seam, o1band)" >&2
     exit 2
     ;;
 esac
@@ -58,6 +58,14 @@ for vul in none both; do
         arm on "$vul" --ns-defensive-seam-split
         diffpair on control "$vul"
         sdpair on control "$vul" --on-ns-defensive-seam-split
+        ;;
+    # O1's strict arm confined to 15–17 HCP (the 2026-08-13 trigger cell).
+    # Runs on the historical reader; full-band o1 stays blocked.
+    o1band)
+        arm control "$vul"
+        arm on "$vul" --ns-nt-overcall-no-major --ns-nt-overcall-major-band
+        diffpair on control "$vul"
+        sdpair on control "$vul" --on-ns-nt-overcall-no-major --on-ns-nt-overcall-major-band
         ;;
     esac
 done

@@ -144,6 +144,14 @@ struct Args {
     /// Read the OFF arm with the level-split seam.
     #[arg(long, default_value_t = false)]
     off_ns_defensive_seam_split: bool,
+    /// Read the ON arm with an unbid five-card major barred from the 1NT
+    /// overcall (`defense.nt_overcall_no_major`).
+    #[arg(long, default_value_t = false)]
+    on_ns_nt_overcall_no_major: bool,
+    /// Read the ON arm with that denial confined to 15–17 HCP
+    /// (`defense.nt_overcall_major_band`).
+    #[arg(long, default_value_t = false)]
+    on_ns_nt_overcall_major_band: bool,
     /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
     /// band `LO:HI` (`ReadingProfile::natural_overcall_points`; the band sweep's arms differ
     /// only here, so the blind leader must know which one bid)
@@ -255,6 +263,8 @@ fn main() {
     on_arm.defense.natural_overcall_advance_enabled = !args.on_no_ns_nt_overcall_advance;
     on_arm.defense.suppress_long_minor_takeout = args.on_ns_suppress_long_minor_takeout;
     on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
+    on_arm.defense.nt_overcall_no_major = args.on_ns_nt_overcall_no_major;
+    on_arm.defense.nt_overcall_major_band = args.on_ns_nt_overcall_major_band;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;

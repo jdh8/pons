@@ -2042,6 +2042,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_nt_overcall_no_major: bool,
 
+    /// Confine the 1NT overcall's major denial to 15–17 HCP: an 18-count keeps
+    /// 1NT (opt-in; see `DefenseKnobs::nt_overcall_major_band`).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_major_band: bool,
+
     /// Disable the shipped exact-six 8+ points / at-most-11-HCP `(1♣) 2♦`
     /// weak jump overcall.
     #[arg(long, default_value_t = false)]
@@ -3081,6 +3086,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.two_level_minor_overcall_vul_tight =
         args.ns_two_level_minor_overcall_vul_tight;
     agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
+    agreements.defense.nt_overcall_major_band = args.ns_nt_overcall_major_band;
     agreements.defense.direct_minor_weak_jump_overcall =
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.notrump_balancing_enabled = args.ns_balancing;

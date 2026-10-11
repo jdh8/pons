@@ -154,6 +154,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_defensive_seam_split: bool,
 
+    /// Bar an unbid five-card major from the natural 1NT overcall (opt-in; see
+    /// `DefenseKnobs::nt_overcall_no_major`).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_no_major: bool,
+
+    /// Confine that denial to 15–17 HCP (opt-in; see
+    /// `DefenseKnobs::nt_overcall_major_band`).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_major_band: bool,
+
     /// Demand 15+ for the 2-level minor overcall only when vulnerable
     /// (opt-in; see `DefenseKnobs::two_level_minor_overcall_vul_tight`).
     #[arg(long, default_value_t = false)]
@@ -487,6 +497,8 @@ fn main() -> anyhow::Result<()> {
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
     agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
+    agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
+    agreements.defense.nt_overcall_major_band = args.ns_nt_overcall_major_band;
     agreements.defense.two_level_minor_overcall_vul_tight =
         args.ns_two_level_minor_overcall_vul_tight;
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:

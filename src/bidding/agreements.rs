@@ -2404,6 +2404,19 @@ pub struct DefenseKnobs {
     /// level.  Thus a five-card heart suit is still allowed in `1NT` over
     /// `(1♠)`.  The stricter knob wins when both are set.
     pub nt_overcall_prefer_one_level_major: bool,
+    /// Confine the `1NT` overcall's major denial to 15–17 HCP
+    ///
+    /// **Off by default**, and inert unless
+    /// [`nt_overcall_no_major`][Self::nt_overcall_no_major] or
+    /// [`nt_overcall_prefer_one_level_major`][Self::nt_overcall_prefer_one_level_major]
+    /// is set.  On, an 18-count keeps `1NT` with a five-card major.  The
+    /// 2026-08-13 forensic (docs/defensive-overcalls.md, O1 trigger) found the
+    /// 15–17 cell carries 80% of the node's loss while 18 HCP is its least
+    /// lossy cell, so a full-band denial dilutes itself.  Measured a
+    /// non-replicating wash vs BBA 2026-10-12 (the advancer under-reads the
+    /// overcall; see the doc's O1 section).  `bba-gen
+    /// --ns-nt-overcall-major-band`.
+    pub nt_overcall_major_band: bool,
     /// Allow the natural `1NT` overcall without a stopper
     ///
     /// **Off by default.**  On, the balanced 15–18 HCP arm drops
@@ -3124,6 +3137,7 @@ impl Default for DefenseKnobs {
             two_level_overcall_quality: false,
             nt_overcall_no_major: false,
             nt_overcall_prefer_one_level_major: false,
+            nt_overcall_major_band: false,
             nt_overcall_without_stopper: false,
             strong_double_hcp: Some(18),
             direct_dont_one_suiter_min: 5,
@@ -3935,7 +3949,7 @@ pub struct ResponseKnobs {
     pub two_over_one_heart_light: bool,
     /// Bid `2♥` over `1♠` whenever hearts are the longest new suit
     ///
-    /// **Default off** (book byte-identical); A/B pending.
+    /// **Default off** (book byte-identical); measured wash 2026-10-05, opt-in.
     /// `bba-gen --ns-two-over-one-hearts-first`
     /// (`scripts/ab-two-over-one-hearts-first.sh`).
     ///

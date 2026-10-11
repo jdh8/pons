@@ -78,16 +78,33 @@ fn one_notrump_overcall<C: Constraint + 'static>(
     // Strict always wins.  Otherwise the lighter arm denies a major only when
     // it ranks above their opening and is therefore available at level one.
     let deny = |major: Suit| major != their_suit && (strict || (cheap && major > their_suit));
-    let one_nt = Bid::new(1, Strain::Notrump);
+    let band = agreements.defense.nt_overcall_major_band;
     match (deny(Suit::Hearts), deny(Suit::Spades)) {
-        (true, true) => Rules::new().rule(
-            one_nt,
-            150,
-            when & len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4),
+        (true, true) => capped(
+            when,
+            len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4),
+            band,
         ),
-        (true, false) => Rules::new().rule(one_nt, 150, when & len(Suit::Hearts, ..=4)),
-        (false, true) => Rules::new().rule(one_nt, 150, when & len(Suit::Spades, ..=4)),
-        (false, false) => Rules::new().rule(one_nt, 150, when),
+        (true, false) => capped(when, len(Suit::Hearts, ..=4), band),
+        (false, true) => capped(when, len(Suit::Spades, ..=4), band),
+        (false, false) => Rules::new().rule(Bid::new(1, Strain::Notrump), 150, when),
+    }
+}
+
+/// The natural `1NT` rule under a major-length `cap`
+///
+/// With `band` (`nt_overcall_major_band`) the cap lifts at 18 HCP, the top of
+/// `when`'s range.
+fn capped<C, D>(when: Cons<C>, cap: Cons<D>, band: bool) -> Rules
+where
+    C: Constraint + 'static,
+    D: Constraint + 'static,
+{
+    let one_nt = Bid::new(1, Strain::Notrump);
+    if band {
+        Rules::new().rule(one_nt, 150, when & (cap | hcp(18..)))
+    } else {
+        Rules::new().rule(one_nt, 150, when & cap)
     }
 }
 

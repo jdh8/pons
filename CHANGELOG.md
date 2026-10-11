@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`defense.nt_overcall_major_band`: O1's major denial confined to 15–17
+  HCP (2026-10-12, opt-in, measured non-replicating wash)** — with
+  `nt_overcall_no_major`, a balanced 15–17 with an unbid five-card major
+  overcalls the major instead of `1NT`, while an 18-count keeps `1NT` (the
+  2026-08-13 trigger cell: 80% of the `1NT`-overcall node's loss vs BEN, 18
+  HCP its least lossy cell).  Inert without a denial knob.  Two seeds vs BBA,
+  204,800 boards/arm/vul, IMPs/board none / both: 1791735897 plain +0.0000 /
+  +0.0003, PD +0.0011 / +0.0014 (both PD cells outside the CI), SD-PD
+  +0.0007 / +0.0005; 1791736497 plain −0.0005 / −0.0002, PD −0.0000 /
+  +0.0007, plain SD −0.0012 ±0.0007 / −0.0010, SD-PD −0.0008 / −0.0003;
+  0.10–0.13% fired.  The worst boards are the advancer passing a one-level
+  overcall with game values (`1♣ 1♠ - - -` opposite 9 HCP and five hearts,
+  off reaches `4♥`): the historical reader still caps the overcall, so the
+  reader gate O1 was blocked on binds the narrow arm too.  Flags `bba-gen` /
+  `ben-gen --ns-nt-overcall-no-major --ns-nt-overcall-major-band`, runner
+  mode `o1band` in `scripts/ab-defensive-overcalls.sh` and its BEN guard
+  (`ben-gen` gains `--ns-nt-overcall-no-major` too).
+
 - **`rebid.heart_spade_jump_shift`: opener's natural jump shift over
   `1♥ - 1♠` (2026-10-08, shipped default-on, measured win)** — `3♣` / `3♦`
   on exactly five hearts, 4+ in the minor and 18+ points, game-forcing (the

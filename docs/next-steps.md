@@ -276,7 +276,12 @@ re-litigate). Live pieces, all in
   reader, but the 2026-08-13 trigger memo says a narrowed-band arm avoids
   the dilution that sank A5. Ceiling ≈ +0.004 plain / +0.008 PD;
   re-priced at `c72dd03e` the cell is unchanged (41 boards, −68 / −137 at
-  Tier S, BEN bids the major on 39), so it still leaks — the next arm.
+  Tier S, BEN bids the major on 39), so it still leaks.  **The band arm
+  measured a non-replicating wash vs BBA 2026-10-12** (`nt_overcall_major_band`,
+  opt-in; [defensive-overcalls.md](defensive-overcalls.md) § O1): the
+  advancer passes the one-level overcall with game values, so the cell now
+  waits on the overcall's reading (a reading knob that moves calls under the
+  frozen floor — retrain-coupled), not on another bidding arm.
 - **O6 three-level jumps** (`P → 3x` slice, −875 plain on the 102.4k Tier-F
   corpus, but only 19 boards / −14 / −39 at Tier S). Opt-in knob, one
   SD-PD measurement authorized; expect DD pessimism, sd-check first.

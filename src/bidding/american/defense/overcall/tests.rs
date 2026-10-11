@@ -510,6 +510,41 @@ fn nt_overcall_major_preference_respects_the_available_level() {
 }
 
 #[test]
+fn nt_overcall_major_band_keeps_the_18_count_in_1nt() {
+    let over_1d = [call(1, Strain::Diamonds)];
+    let fifteen = "32.KQJ82.KQ4.A32"; // 15 HCP, 5 hearts, ♦ stopper
+    let eighteen = "A2.AQJ82.KQ4.Q32"; // 18 HCP, 5 hearts, ♦ stopper
+
+    let mut no_major = Agreements::default();
+    no_major.defense.nt_overcall_no_major = true;
+    let mut band = no_major;
+    band.defense.nt_overcall_major_band = true;
+    assert_ne!(
+        best_call_with(&no_major, &over_1d, eighteen).0,
+        call(1, Strain::Notrump),
+        "the full-band arm denies the major at 18",
+    );
+    assert_eq!(
+        best_call_with(&band, &over_1d, eighteen).0,
+        call(1, Strain::Notrump),
+        "the band lifts the denial at 18",
+    );
+    assert_eq!(
+        best_call_with(&band, &over_1d, fifteen).0,
+        call(1, Strain::Hearts),
+        "15–17 still overcalls the major",
+    );
+
+    let mut inert = Agreements::default();
+    inert.defense.nt_overcall_major_band = true;
+    assert_eq!(
+        best_call_with(&inert, &over_1d, fifteen).0,
+        call(1, Strain::Notrump),
+        "without a denial knob the band is inert",
+    );
+}
+
+#[test]
 fn nt_overcall_without_stopper_is_an_independent_balanced_arm() {
     let over_1s = [call(1, Strain::Spades)];
     let no_stopper = "T32.AQJ2.KQ4.K83"; // 15 HCP, 4333, no spade stopper
@@ -556,7 +591,7 @@ fn nt_overcall_opt_ins_keep_their_bidders_admitted() {
     ];
 
     type Configure = fn(&mut Agreements);
-    let cases: [(&str, Configure); 4] = [
+    let cases: [(&str, Configure); 5] = [
         ("AQ3.KJ4.KJ4.A432", |_| {}), // authored 18-HCP endpoint
         ("AQJ82.K32.KQ4.32", |agreements| {
             agreements.defense.nt_overcall_no_major = true;
@@ -566,6 +601,10 @@ fn nt_overcall_opt_ins_keep_their_bidders_admitted() {
         }),
         ("T32.AQJ2.KQ4.K83", |agreements| {
             agreements.defense.nt_overcall_without_stopper = true;
+        }),
+        ("A2.AQJ82.KQ4.Q32", |agreements| {
+            agreements.defense.nt_overcall_no_major = true;
+            agreements.defense.nt_overcall_major_band = true;
         }),
     ];
 
