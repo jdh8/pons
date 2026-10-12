@@ -150,11 +150,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_competitive_pass_demotion: bool,
 
-    /// Push the accountant's double only over a structurally natural bid of
-    /// theirs (`InstinctProfile::competitive_push_natural_only`, crate default
-    /// off) — the `natural` arm; see `bba-gen`.
+    /// Let the accountant push its double over any bid of theirs, cues
+    /// included (`InstinctProfile::competitive_push_natural_only` off, crate
+    /// default on) — the `control` arm; see `bba-gen`.
     #[arg(long, default_value_t = false)]
-    ns_competitive_push_natural_only: bool,
+    no_ns_competitive_push_natural_only: bool,
 
     /// Bar our takeout double on a hand with an unbid **six-card minor**
     /// (opt-in; see `DefenseKnobs::suppress_long_minor_takeout`).
@@ -507,7 +507,7 @@ fn main() -> anyhow::Result<()> {
     agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
     agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
     agreements.decision.instinct.competitive_push_natural_only =
-        args.ns_competitive_push_natural_only;
+        !args.no_ns_competitive_push_natural_only;
     agreements.defense.direct_minor_weak_jump_overcall =
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;

@@ -517,13 +517,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_competitive_pass_demotion: bool,
 
-    /// Push the accountant's double only over a structurally natural bid of
-    /// theirs (`InstinctProfile::competitive_push_natural_only`, crate default
-    /// off): their side's first bid or a strain it already named — never a
-    /// cue, a splinter or Blackwood.  The `natural` arm of
+    /// Let the accountant push its double over any bid of theirs — a cue, a
+    /// splinter or Blackwood included — not only their side's first bid or a
+    /// strain it already named (`InstinctProfile::competitive_push_natural_only`
+    /// off, crate default on).  The `control` arm of
     /// `scripts/ab-competitive-demotion.sh`.
     #[arg(long, default_value_t = false)]
-    ns_competitive_push_natural_only: bool,
+    no_ns_competitive_push_natural_only: bool,
 
     /// Veto the floor's phantom suit bids for our side
     /// (`InstinctProfile::new_suit_veto`, crate default off, under
@@ -2835,7 +2835,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
     agreements.decision.instinct.competitive_push_natural_only =
-        args.ns_competitive_push_natural_only;
+        !args.no_ns_competitive_push_natural_only;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;

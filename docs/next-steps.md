@@ -288,7 +288,7 @@ re-litigate). Live pieces, all in
 - Standing caution from O4-vul: any slice whose PD win is doubling-driven
   needs the meta check before the paired Tier-F run.
 
-## 4. Competitive accountant, session D arm 2 — built, A/B owed
+## 4. Competitive accountant, session D arm 2 — `natural` shipped 2026-10-12
 
 **Meta check done 2026-10-12, and it re-files the pool.** The "we overcall
 `2x` where BEN passes" slice (570 boards, −174 plain / −995 PD at
@@ -309,12 +309,11 @@ pushed doubles that *stood* are worth +0.0083 / +0.0168 IMPs/board vs BBA
 artificial four-plus bid (cue, splinter, Blackwood — the fourth leaf
 approximation, now material), and the continued-auction tail is the A/B's
 to price. Two knobs built: `competitive_pass_demotion` (default on) and
-`competitive_push_natural_only` (default off, the favoured arm). **Measured
-vs BBA 2026-10-12** (seed 1791739347): `off` loses plain (both −0.0080
-±0.0034), the demotion stays; `natural` is a plain wash / PD win both vuls,
-its worst boards a BBA-only exploit (our cue-bid double runs BBA out of a
-making slam). The BEN Tier-F guard on the same seed decides the default
-flip; decision rule and table in the doc section.
+`competitive_push_natural_only` (the favoured arm). **Measured 2026-10-12**
+(seed 1791739347): `off` loses plain vs BBA (both −0.0080 ±0.0034), the
+demotion stays; `natural` is a plain wash / PD win both vuls vs BBA and a
+plain wash vs BEN (Tier-F guard non-refute), so **`competitive_push_natural_only`
+shipped default-on**. Tables in the doc section.
 
 ## 5. The retrain batch — deferred 2026-09-26
 

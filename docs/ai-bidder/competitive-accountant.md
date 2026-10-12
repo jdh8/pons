@@ -580,10 +580,12 @@ retune against v7 until the doubled rate returns to ~11.8%, then re-measure.
 
 ## Session D arm 2 — the meta check and the demotion census *(2026-10-12)*
 
-**Status: two knobs built, A/B owed.** `competitive_pass_demotion` (default
-**on**, the shipped gate; off = arm 2 as chartered above) and
-`competitive_push_natural_only` (default **off**; on = the fourth-leaf guard,
-the arm the census below favours). Runners
+**Status: measured, `natural` shipped default-on 2026-10-12.**
+`competitive_pass_demotion` (default **on**, the shipped gate; off = arm 2 as
+chartered above) and `competitive_push_natural_only` (default **on** since
+the BEN guard below; was off when built — the fourth-leaf guard, the arm the
+census below favours; `--no-ns-competitive-push-natural-only` restores the
+old push and is now the runners' `control` flag). Runners
 `scripts/ab-competitive-demotion.sh` (BBA, three arms per vul) then
 `scripts/ab-ben-competitive-demotion.sh` (Tier-F guard, same `SEED_BASE`).
 The defaults are byte-identical by construction (`smoke-default --count
@@ -732,6 +734,24 @@ slam (`5♦ X 6NT` for `6♠`, `4♥ X 4♠` for `7♠`, `5♥ X 5NT` for `6♠`
 are BBA-specific lead-director gains that no field opponent gives, so the
 plain wash vs BBA understates the arm; the BEN Tier-F guard on the same
 seed decides whether the default flips.
+
+### BEN Tier-F guard *(2026-10-12, `f0c39b5a`, same seed)* — `natural` ships
+
+25,600 boards/arm/vul, IMPs/board (arm − control), 95% CI on the DD cells:
+
+| arm | vul | fired | plain DD | DD-PD | plain SD | SD-PD |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| off | none | 0.39% | −0.0022 ±0.0070 | +0.0051 ±0.0069 | −0.0022 | +0.0036 |
+| off | both | 0.47% | −0.0030 ±0.0085 | +0.0070 ±0.0079 | −0.0054 | +0.0024 |
+| natural | none | 0.29% | −0.0021 ±0.0061 | +0.0025 ±0.0063 | −0.0023 | +0.0020 |
+| natural | both | 0.29% | −0.0003 ±0.0070 | +0.0036 ±0.0069 | −0.0009 | +0.0017 |
+
+**`natural` is a non-refute** — plain wash both vuls, every PD column
+positive — so the rule above ships it: `competitive_push_natural_only`
+flipped default-on. `off` leans negative on plain against BEN too, so the
+demotion stands. The worst boards against BEN show the same pattern as
+against BBA: our double of a cue or a keycard answer (`5♠ X`, `4♣ X`) gets
+them to run, sometimes into a grand or a slam.
 
 ## Out of scope (decided, not neglect)
 

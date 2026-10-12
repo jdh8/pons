@@ -10,10 +10,11 @@
 # Blackwood), the fourth leaf approximation the design recorded.  What the
 # census cannot price is the continued auction after the push (they run, we
 # bid on), so the A/B decides.  Three arms per vul, identical deals:
-#   control   the shipped default (demotion on, every bid pushed)
-#   off       --no-ns-competitive-pass-demotion   (veto + X-mask only)
-#   natural   --ns-competitive-push-natural-only  (push only over their first
-#             bid or a strain they already named)
+#   control   --no-ns-competitive-push-natural-only  (demotion on, every bid
+#             pushed: the default until 2026-10-12)
+#   off       --no-ns-competitive-pass-demotion      (veto + X-mask only)
+#   natural   the default since 2026-10-12 (push only over their first bid
+#             or a strain they already named)
 #
 # Plain DD holds the veto (the knob changes how often we double; PD erases a
 # double both ways and is blind to it — competitive-accountant.md "Verdict").
@@ -32,9 +33,9 @@ SEED_BASE=$(seed_for)
 
 log "=== competitive demotion start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm control "$vul"
+    arm control "$vul" --no-ns-competitive-push-natural-only
     arm off "$vul" --no-ns-competitive-pass-demotion
-    arm natural "$vul" --ns-competitive-push-natural-only
+    arm natural "$vul"
     diffpair off control "$vul"
     diffpair natural control "$vul"
     # The gate publishes nothing (projection-invisible), so the blind leader

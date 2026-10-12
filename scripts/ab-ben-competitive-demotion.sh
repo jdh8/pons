@@ -56,9 +56,9 @@ compare() {
 
 log "=== BEN competitive demotion start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in none both; do
-    arm control "$vul"
+    arm control "$vul" --no-ns-competitive-push-natural-only
     arm off "$vul" --no-ns-competitive-pass-demotion
-    arm natural "$vul" --ns-competitive-push-natural-only
+    arm natural "$vul"
     compare off control "$vul"
     compare natural control "$vul"
 done

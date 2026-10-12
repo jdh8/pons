@@ -441,7 +441,8 @@ pub struct InstinctProfile {
     /// `docs/ai-bidder/competitive-accountant.md`); `bba-decompose
     /// --demotion-census` measured ~70% of the demotion's flips over such
     /// calls on both references.  On, the demotion skips them; the bid veto
-    /// and the double mask are untouched.  **Default off**; inert when
+    /// and the double mask are untouched.  **Default on** (2026-10-12: plain
+    /// wash, PD win vs BBA both vuls; plain wash vs BEN); inert when
     /// [`competitive_pass_demotion`][Self::competitive_pass_demotion] is off.
     pub competitive_push_natural_only: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
@@ -722,7 +723,7 @@ impl Default for InstinctProfile {
             net_collar: false,
             competitive_accountant: true,
             competitive_pass_demotion: true,
-            competitive_push_natural_only: false,
+            competitive_push_natural_only: true,
             fit_sum_support_read: false,
             nt_hcp_read: false,
             forcing_ceiling_read: true,
@@ -775,7 +776,7 @@ impl InstinctProfile {
             net_collar: true,
             competitive_accountant: false,
             competitive_pass_demotion: false,
-            competitive_push_natural_only: true,
+            competitive_push_natural_only: false,
             fit_sum_support_read: true,
             nt_hcp_read: true,
             forcing_ceiling_read: false,

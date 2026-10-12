@@ -34,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   4's pool (`scripts/accountant-pool-meta.py`) found it PD-overpriced the
   same way as O4-vul and at the 2–3 level the gate never reaches: re-filed
   under §O4-vul.  Flags `bba-gen` / `ben-gen
-  --no-ns-competitive-pass-demotion --ns-competitive-push-natural-only`;
+  --no-ns-competitive-pass-demotion --ns-competitive-push-natural-only`
+  (the latter inverted to `--no-ns-…` by the default flip, under Changed);
   runners `scripts/ab-competitive-demotion.sh` and
   `scripts/ab-ben-competitive-demotion.sh`.  **Measured vs BBA** (`f0c39b5a`,
   `SEED_BASE=1791739347`, 204,800 boards/arm/vul, IMPs/board none / both):
@@ -42,8 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PD +0.0040 / +0.0044 (the double-blind artifact) — a loss, the demotion
   stays; `natural` plain −0.0001 ±0.0021 / −0.0009 ±0.0027 (wash), PD
   **+0.0027 ±0.0021 / +0.0036 ±0.0027**, SD-PD +0.0013 / +0.0008 —
-  shippable shape, BEN Tier-F guard pending on the same seed before the
-  default flips.  Design, tables and the pre-registered decision rule in
+  shippable shape; the BEN Tier-F guard read a non-refute and the default
+  flipped (under Changed).  Design, tables and the pre-registered decision rule in
   `docs/ai-bidder/competitive-accountant.md` §"Session D arm 2".
 
 - **`defense.nt_overcall_major_band`: O1's major denial confined to 15–17
@@ -1361,6 +1362,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md).
 
 ### Changed
+
+- **`competitive_push_natural_only` default on: the competitive accountant
+  no longer doubles a cue, a splinter or Blackwood (2026-10-12, measured
+  plain wash / PD win vs BBA, plain wash vs BEN).**  The Pass demotion now
+  pushes its double only over their side's first bid or a strain it already
+  named.  Same seed `1791739347` as the BBA run, BEN Tier-F 25,600
+  boards/arm/vul, IMPs/board none / both: plain −0.0021 ±0.0061 / −0.0003
+  ±0.0070, PD +0.0025 / +0.0036, plain SD −0.0023 / −0.0009, SD-PD
+  +0.0020 / +0.0017; 0.29% fired — a non-refute, so the pre-registered rule
+  ships it.  The worst boards against BEN show the same pattern as against
+  BBA: our double of a cue or a keycard answer (`5♠ X`, `4♣ X`) gets them to
+  run, sometimes into a grand or a slam.  The CLI flag inverts:
+  `bba-gen` / `ben-gen --no-ns-competitive-push-natural-only` restores the
+  old push; the two `ab-*competitive-demotion.sh` runners pass it on
+  `control`.
 
 - **The keycard answerer respects the asker's sign-off unless it holds the
   high reading of its own answer (2026-10-07, measured win on both seeds,
