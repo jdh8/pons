@@ -1,6 +1,6 @@
 # System variants: `basic` and `advanced`
 
-**Status: built 2026-10-14, A/B in flight.** `Agreements::basic()` /
+**Status: built and measured 2026-10-14 (commit 44283685); verdict in [§5a](#5a-verdict-2026-10-14).** `Agreements::basic()` /
 `advanced()`, `american_basic()` / `american_advanced()`, the `--ns-preset`
 harness flag, `cards/American-Basic.bbsa`, the web `system_preset` row and
 the two pins (`basic_differs_from_default_only_on_the_listed_fields`,
@@ -29,6 +29,12 @@ same for `american()`:
   public teaching card is the ACBL SAYC booklet; BBO's own split is the
   precedent: BBO Basic ≈ SAYC, BBO Advanced ≈ 2/1.
 - **`advanced`** — the champion: every convention that measured a win is on.
+
+**Framing (jdh8, 2026-10-14, after the measurement): `basic` is an ace
+playing a beginner's system.** The card is simple; the judgement is the
+same precise engine as `advanced`. The two variants differ only in what a
+player must memorise, never in how well the robot judges — and the §5a
+numbers say the judgement is worth fifteen times the card.
 
 Today `american()` is `advanced` in all but name. Per the ship policy in
 [bidding-options.md](bidding-options.md) a measured win is default-on, a wash
@@ -219,7 +225,7 @@ whitelist**.
 the name ships ([measurement.md](measurement.md)). Three runs, in order, one
 `SEED_BASE`, arms sequential on the shared box — `scripts/ab-system-variants.sh`
 (arms `advanced`, `basic`, `basic-instinct`, all vs BBA 2/1 on paired deals;
-launched 2026-10-14 into `ab-results/system-variants`, verdict owed):
+run 2026-10-14 into `ab-results/system-variants`, verdict in [§5a](#5a-verdict-2026-10-14)):
 
 1. **`american-basic` vs `american`, self-play**, both scorers. Expected: a
    loss — that is the point. It is the first measurement of the whole gadget
@@ -239,10 +245,76 @@ Ship gate for the name: run 1 traced (worst divergent boards are gadget
 absences, not unauthored holes), `smoke-default` byte-identical, the card
 golden re-blessed, `cd web && cargo test`.
 
+### 5a. Verdict (2026-10-14)
+
+`scripts/ab-system-variants.sh`, SEED_BASE 1791913599, 204,800 boards per
+arm per vulnerability, all arms vs BBA 2/1 on its card with ours generated
+from the arm's agreements (`told: generated`), 33 minutes wall-clock.
+
+| Pair | Vul | Fired | Plain DD IMPs/board | PD IMPs/board | IMPs/fired (plain / PD) |
+| --- | --- | --- | --- | --- | --- |
+| basic vs advanced | none | 11.48% | −0.0179 ±0.0086 | −0.0699 ±0.0094 | −0.156 / −0.608 |
+| basic vs advanced | both | 10.64% | −0.0244 ±0.0107 | −0.0797 ±0.0119 | −0.230 / −0.749 |
+| basic-instinct vs basic | none | 26.74% | −0.2943 ±0.0133 | −0.3378 ±0.0150 | −1.101 / −1.263 |
+| basic-instinct vs basic | both | 24.73% | −0.3696 ±0.0165 | −0.4803 ±0.0187 | −1.495 / −1.942 |
+
+Read:
+
+- **The gadget layer is worth about 0.02 IMPs/board plain, 0.07–0.08 PD**
+  (run 1; every CI clear of zero). That is the first measurement of the
+  layer as a sum. The PD figure is three to four times the plain one, so a
+  good part of what the gadgets buy is *not being doubled* — the doubling
+  bracket the PD scorer prices. The number a beginner is told: "advanced is
+  worth roughly a fiftieth of an IMP per board over basic, more if your
+  opponents double well".
+- **The v6 net floor is not the problem** (run 3): under the natural book
+  it beats `instinct()` by 0.29–0.48 IMPs/board, fifteen times the gadget
+  layer. The §3 worry — that a net trained with the gadgets on would play
+  the natural book dishonestly — does not show at this resolution; the
+  basic corpus retrain stays deferred with the rest.
+- The worst run-1 boards are high-level contested doublings (`2♠ - 2NT (4NT)
+  - (5♥) X`, a 2/1 auction they sacrifice over) where **BBA's own action
+  differs** because the card it is told differs — a disclosure effect, not
+  an authored hole. The per-node attribution is below.
+
+**Attribution** (`ab-dump-bucket --by node|side`, files
+`ab-results/system-variants/bucket.*.txt`). The loss is diffuse: the top 30
+of ~15k node buckets carry 23–27% of the PD loss. By side:
+
+| Side | NV plain / PD IMPs | Vul plain / PD IMPs | Reading |
+| --- | --- | --- | --- |
+| we open, we diverge | −3643 / −10159 | −5387 / −12648 | the whole plain loss: constructive gadgets |
+| they open, we diverge | +58 / −4101 | +347 / −3584 | plain **wash**, PD loss: the defensive gadgets (Leaping Michaels, responsive and rich advance doubles) pay only in the doubling bracket |
+| they diverge (either opener) | −91 / −47 | +35 / −92 | disclosure noise, negligible |
+
+The named node clusters, both vulnerabilities, worst PD first:
+
+1. **The six one-level auctions XYZ owned that NMF does not cover** —
+   `1♣ - 1♦ - 1♥ -`, `1♦ - 1♥ - 1♠ -`, `1♣ - 1♥ - 1♠ -` and their
+   passed-hand twins, responder passing or raising (`2♥ vs -`, `2♠ vs -`,
+   `2♠ vs 2♣`): about −1,200 PD NV, −1,500 vul across the cluster, at
+   −3 to −8 PD per fired. **This is the §4a hole and the one ticket the
+   run produced**: an authored natural invitation (a raise with
+   invitational values, `2NT`) over the third one-level bid, knob-measured
+   on `american()`.
+2. Gadget absences, which are the point — Garbage Stayman (`1NT - ⟨- vs
+   2♣⟩`, ~−200/−260 PD), Reverse Drury (`- - 1♠ - ⟨1NT vs 2♣⟩`,
+   −133/−267), NMF vs XYZ over `1m - 1M - 1NT` (−115/−141 each slot),
+   Jordan 2NT (`1♠ X ⟨1NT vs -⟩`, −122/−227), the 1NT-overcall cue
+   (`1NT - 2♥ ⟨X vs -⟩`).
+3. Disclosure effects: `2♠ - 2NT (4NT)` and `1♠ - 2NT (4NT)` where BBA's
+   own action over our card differs, a handful of boards at −8 to −10 each.
+
+Ship gate for the name: run 1 traced — the worst buckets are gadget absences
+plus one recorded hole (item 1), `smoke-default` byte-identical, the card
+golden blessed, `cd web && cargo test` green. **Shipped.**
+
 ## 6. What it buys
 
-- **A table a beginner can sit at.** Fewer alerts to read, every call
-  natural unless whitelisted, and a preset instead of 220 toggles. The web
+- **A table a beginner can sit at, with an expert partner.** Fewer alerts
+  to read, every call natural unless whitelisted, a preset instead of 220
+  toggles — and the same judgement under it, so a learner's results are
+  within ~0.02 IMPs/board of the champion's. The web
   registry is already "a player-facing system chooser"
   ([bidding-options.md](bidding-options.md)); two presets and `custom` make
   it one.

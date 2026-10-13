@@ -4993,7 +4993,12 @@ impl Agreements {
         Self::default()
     }
 
-    /// The beginner card: 2/1 with the gadget layer off, every other call natural
+    /// A beginner's system played by an ace: 2/1 with the gadget layer off,
+    /// every other call natural, the same floor and judgement as `advanced`
+    ///
+    /// Measured 2026-10-14 (`docs/system-variants.md` §5a): the simple card
+    /// trails the champion by ~0.02 IMPs/board plain, while the judgement
+    /// engine under either card is worth fifteen times that.
     ///
     /// Stayman (8+), transfers, Texas, Jacoby 2NT, splinters, inverted minors,
     /// Ogust, negative and takeout doubles, cue raises, Michaels and the

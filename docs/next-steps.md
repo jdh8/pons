@@ -514,8 +514,9 @@ group waits on that decision, the second group does not.
      7♠`); a `Pass`/`ask_or_pass` row above it is one small A/B.
 - **System variants `basic` / `advanced`** — built 2026-10-14
   ([system-variants.md](system-variants.md)): `Agreements::basic()` and the
-  `--ns-preset` flag on `main`, default byte-identical.  Owed: the verdict of
-  `scripts/ab-system-variants.sh` (basic vs advanced prices the whole gadget
-  layer; basic-instinct vs basic is the floor ablation), its worst-board
-  trace (gadget absences vs the §4a holes), and jdh8's call on the
-  `major_support_double` inconsistency flagged there.
+  `--ns-preset` flag on `main`, default byte-identical.  Measured the same
+  day (§5a): the gadget layer is worth ~0.02 IMPs/board plain, ~0.07–0.08
+  PD; the net floor beats `instinct()` by 0.3–0.5 under the natural book,
+  so the basic-corpus retrain stays deferred.  Owed: jdh8's call on the
+  `major_support_double` inconsistency flagged in §4a; the §4a holes are
+  tickets ranked by the §5a attribution.

@@ -1327,7 +1327,7 @@ fn get_notrump_defense_choice(agreements: &Agreements) -> &'static str {
 static SYSTEM_PRESET_VARIANTS: &[Variant] = &[
     Variant {
         value: "basic",
-        label: "Basic (beginner card)",
+        label: "Basic (simple system, same judgement)",
     },
     Variant {
         value: "advanced",

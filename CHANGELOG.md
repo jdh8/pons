@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **System variants `basic` / `advanced` built (2026-10-14), A/B in flight.**
-  `Agreements::basic()` (the beginner card: 2/1 with the gadget layer at each
+  `Agreements::basic()` (an ace playing a beginner's system: 2/1 with the gadget layer at each
   knob's natural *authored* state — 36 knobs moved, pinned by
   `basic_differs_from_default_only_on_the_listed_fields`; its alert set is a
   36-tag whitelist pinned by `basic_alert_set_is_the_whitelist`),
@@ -23,9 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `second_suit_agreement`, `forcing_nt_jump_shifts` stay on; XYZ off takes
   NMF on) — [docs/system-variants.md §4a](docs/system-variants.md).  Default
   system byte-identical (`smoke-default --count 20000 --seed 1` vs HEAD).
-  `scripts/ab-system-variants.sh` prices the whole gadget layer (basic vs
-  advanced) and the floor under the natural book (basic-instinct vs basic);
-  verdict owed.
+  `scripts/ab-system-variants.sh` priced the whole gadget layer and the
+  floor under the natural book (SEED_BASE 1791913599, 204.8k bd/arm/vul vs
+  BBA 2/1): **basic vs advanced** plain −0.0179 ±0.0086 / −0.0244 ±0.0107
+  IMPs/board NV/vul, PD −0.0699 ±0.0094 / −0.0797 ±0.0119 — the gadget
+  layer as a sum is worth ~0.02 plain, ~0.07–0.08 PD; **basic-instinct vs
+  basic** plain −0.2943 / −0.3696, PD −0.3378 / −0.4803 — the v6 net floor
+  plays the natural book far better than `instinct()`, so the §3 retrain
+  stays deferred.  Verdict and attribution in
+  [docs/system-variants.md §5a](docs/system-variants.md).
 
 - **Design: `basic` / `advanced` system variants (2026-10-12, docs only).**
   [docs/system-variants.md](docs/system-variants.md) — a variant is an
