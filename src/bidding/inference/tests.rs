@@ -2725,7 +2725,6 @@ fn basic_alert_set_is_the_whitelist() {
         "jacoby-2nt",
         "jacoby-transfer",
         "michaels",
-        "new-minor-forcing",
         "ogust",
         "opener-jump-shift",
         "opener-reverse",
@@ -2744,6 +2743,9 @@ fn basic_alert_set_is_the_whitelist() {
         "unusual-2nt",
         "weak-jump-overcall",
         "weak-jump-shift",
+        "xyz-completion",
+        "xyz-game-force",
+        "xyz-relay",
     ];
     let agreements = crate::bidding::agreements::Agreements::basic();
     let system = american(&agreements);

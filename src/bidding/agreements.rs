@@ -5001,6 +5001,7 @@ impl Agreements {
     /// engine under either card is worth fifteen times that.
     ///
     /// Stayman (8+), transfers, Texas, Jacoby 2NT, splinters, inverted minors,
+    /// XYZ, Jordan 2NT, support doubles, limit-raise acceptance,
     /// Ogust, negative and takeout doubles, cue raises, Michaels and the
     /// unusual 2NT, RKCB, `2♣` with `2♦` waiting all stay; the alert set is
     /// pinned by `basic_alert_set_is_the_whitelist`, and
@@ -5008,12 +5009,6 @@ impl Agreements {
     #[must_use]
     pub fn basic() -> Self {
         let mut a = Self::default();
-        // Checkback: New Minor Forcing on the four `1m - 1M - 1NT` slots in
-        // place of the XYZ relays (with XYZ off and NMF off, responder's
-        // rebid there is unauthored and falls to the floor).  The six other
-        // one-level auctions XYZ owned are a recorded hole.
-        a.decision.reading.xyz = false;
-        a.rebid.new_minor_forcing = true;
         // Lebensohl stays plain: `Off` is a floor hole, not a natural table.
         a.competition.lebensohl_style = LebensohlStyle::Plain;
         a.defense.advance_sohl_style = LebensohlStyle::Plain;
@@ -5039,14 +5034,11 @@ impl Agreements {
         a.competition.multi_kokish_kraft = false;
         a.competition.multi_minor_slam_try = None;
         a.competition.landy_minor_slam_answer = false;
-        // Intermediate contested structure.  `splinter_doubled` and
-        // `second_suit_agreement` stay: each exists to stop a fall-through to
-        // the floor (a passed doubled splinter, a lost third call), not to
-        // add a gadget.
-        a.competition.jordan_truscott = false;
-        a.competition.major_support_double = false;
+        // Intermediate structure.  XYZ, Jordan 2NT, support doubles and the
+        // limit-raise acceptance ladder stay (standard modern bidding, jdh8
+        // 2026-10-14), as do `splinter_doubled` and `second_suit_agreement`:
+        // each exists to stop a fall-through to the floor, not to add a gadget.
         a.response.two_over_one_fit = false;
-        a.response.limit_raise_acceptance = false;
         a.response.major_choice_of_games = false;
         a.rebid.forcing_nt_two_suiter = false;
         // Advance structure beyond a first course.

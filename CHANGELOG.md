@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`basic` keeps XYZ, Jordan 2NT, support doubles and limit-raise
+  acceptance (2026-10-14).** jdh8: standard modern bidding, not gadgets.
+  `basic()` moves 32 knobs (was 37); NMF goes back off; the alert
+  whitelist swaps `new-minor-forcing` for `xyz-completion` / `xyz-game-force`
+  / `xyz-relay`; `cards/American-Basic.bbsa` re-blessed (five rows differ
+  from advanced, was ten).  Closes the §5a XYZ hole for `basic`.  Default
+  system untouched; the §5a basic-vs-advanced numbers predate this.
+
 ### Added
 
 - **System variants `basic` / `advanced` built (2026-10-14), A/B in flight.**

@@ -63,7 +63,7 @@ the same thing with a name. So:
 | `Agreements` | `Agreements::default()` (alias `advanced()`, documented, no second body) | `Agreements::basic()` — `default()` with the fields of [§4](#4-the-knob-partition) overwritten |
 | Factory | `american()`; `american_advanced()` is `american(&Agreements::advanced())` | `american_basic()` is `american(&Agreements::basic())` — one call each, no second body |
 | Harness (`bba-gen`, `render-book`, `probe-call-reading`) | no flag | `--ns-preset basic`, applied **after** the `--ns-*` overlay (`common::apply_preset`). Every binary assigns each knob flag unconditionally, defaults included, so a preset laid down first would be clobbered back to the shipped system; the preset therefore overrides the knob flags and keeps only `decision.their`. The seat name stays `american`, so `--our-floor american-instinct --ns-preset basic` is the floor ablation with no third seat name |
-| Card | `cards/American.bbsa` | `cards/American-Basic.bbsa`, blessed by `bba-card --system american-basic`, pinned by the same staleness test; it differs from the advanced card in ten rows (Checkback, Garbage Stayman, Jordan, Leaping Michaels, NMF, responsive double, Reverse Drury, Rubensohl after double, support double, two-way NMF) |
+| Card | `cards/American.bbsa` | `cards/American-Basic.bbsa`, blessed by `bba-card --system american-basic`, pinned by the same staleness test; it differs from the advanced card in five rows (Garbage Stayman, Leaping Michaels, responsive double, Reverse Drury, Rubensohl after double) |
 | Web | the individual toggles | the `system_preset` `Choice` row at the top of `SETTINGS` (section "System"): basic / advanced / custom. `set` rewrites every knob but `decision.their`; `get` reports `custom` when the live vector equals neither preset. A beginner starts on `basic` and turns gadgets on one at a time |
 | Floor | v6 net | v6 net (see [§3](#3-the-floor-is-the-real-cost)) |
 
@@ -193,17 +193,26 @@ before the flips were kept:
 
 | Row | Finding | Decision |
 | --- | --- | --- |
-| `xyz` off | `1x - 1y - 1z` responder rebid **unauthored** (0 nodes, the knob doc says so) | `rebid.new_minor_forcing` **on** for the four `1m - 1M - 1NT` slots (its alert `new-minor-forcing` joins the whitelist); the six other one-level auctions XYZ owned are a hole, floor-owned |
+| `xyz` off | `1x - 1y - 1z` responder rebid **unauthored** (0 nodes, the knob doc says so) | drafted as NMF on in XYZ's place; **reversed 2026-10-14** — XYZ stays on, NMF stays off (as in `advanced`) |
 | `splinter_doubled` off | opener's rebid over a doubled splinter falls to the floor and passes (the knob's own reason to exist) | **stays on** — an interfered tail of a kept convention, not a gadget |
 | `second_suit_agreement` off | `1M - 2r - 2x - 3x` opener's third call falls to the floor | **stays on** — same reason |
 | `forcing_nt_jump_shifts` off | the knob **is** the natural strong jump shift (on = `3x` natural 18+, off with Meckstroth off = no 18+ side-suit rebid at all: an 18-count bids `2♣` as a minimum) | **stays on**; the draft row had it backwards |
-| `limit_raise_acceptance` off | `1M - 3M -` opener has no table (44 nodes gone) and falls to `instinct()` | off — the constructive floor is deterministic and natural; the ladder's whole win was its keycard ask |
-| `jordan_truscott` off | systems on: their `X` is stripped to a pass | off, natural |
+| `limit_raise_acceptance` off | `1M - 3M -` opener has no table (44 nodes gone) and falls to `instinct()` | drafted off; **reversed 2026-10-14** — stays on |
+| `jordan_truscott` off | systems on: their `X` is stripped to a pass | drafted off; **reversed 2026-10-14** — stays on |
 | `lebensohl_style = Plain` | `1NT (2♥)` keeps 6 of 10 nodes | as designed (`Off` is a hole) |
 | `notrump_minors` | both schemes artificial | Puppet stays (hole: a natural `1NT - 3m`) |
 | runout family (`decision.instinct.one_nt_runout*`, `advancer_xx_runout`, `penalize_escape_*`, `uvu*`) | floor rules, not book agreements | unchanged (hole: "system on over their double" unauthored) |
-| `major_support_double` off | the minor-opening support doubles have no knob and stay on, so basic plays support doubles after `1m` but not after `1♥ - 1♠` | off as drafted; **flagged** — a one-line revert if jdh8 wants consistency |
+| `major_support_double` off | the minor-opening support doubles have no knob and stay on, so basic plays support doubles after `1m` but not after `1♥ - 1♠` | drafted off; **reversed 2026-10-14** — stays on, so support doubles are uniform |
 | Smolen, `rebid_checkback`, `fourth_suit_forcing` | alerted, no knob or a shipped win with no natural off-state | stay (`smolen` is a line call with no knob) |
+
+**Reversal (jdh8, 2026-10-14, after §5a):** every off-row of this table is
+turned back on — XYZ, Jordan 2NT, support doubles and the limit-raise
+acceptance ladder may look non-basic but are standard modern bidding.
+`basic()` now moves 32 knobs (was 37); its whitelist trades
+`new-minor-forcing` for the three `xyz-*` tags; the card differs from
+`advanced` in five rows.  §5a measured the pre-reversal `basic`, and its
+item 1 (the six one-level auctions XYZ owned) is no longer a `basic` hole.
+The node counts below are pre-reversal.
 
 Nodes that vanish, by prefix (advanced-only, largest first): `1♠ 1NT -`
 641 (the 1NT-overcall gadget layer), `1♠ - 1NT` 571 and `1♥ - 1NT` 349
