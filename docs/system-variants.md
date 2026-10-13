@@ -1,6 +1,6 @@
 # System variants: `basic` and `advanced`
 
-**Status: built and measured 2026-10-14 (commit 44283685); verdict in [§5a](#5a-verdict-2026-10-14).** `Agreements::basic()` /
+**Status: built 2026-10-14 (commit 44283685), re-measured after the §4a reversal (a73db546); verdict in [§5a](#5a-verdict-2026-10-14).** `Agreements::basic()` /
 `advanced()`, `american_basic()` / `american_advanced()`, the `--ns-preset`
 harness flag, `cards/American-Basic.bbsa`, the web `system_preset` row and
 the two pins (`basic_differs_from_default_only_on_the_listed_fields`,
@@ -34,7 +34,8 @@ same for `american()`:
 playing a beginner's system.** The card is simple; the judgement is the
 same precise engine as `advanced`. The two variants differ only in what a
 player must memorise, never in how well the robot judges — and the §5a
-numbers say the judgement is worth fifteen times the card.
+numbers say the judgement is worth six to nine times the card on PD, and
+the card costs nothing measurable on plain DD.
 
 Today `american()` is `advanced` in all but name. Per the ship policy in
 [bidding-options.md](bidding-options.md) a measured win is default-on, a wash
@@ -256,9 +257,44 @@ golden re-blessed, `cd web && cargo test`.
 
 ### 5a. Verdict (2026-10-14)
 
+**Current `basic` (after the §4a reversal, sha a73db546).**
+`scripts/ab-system-variants.sh ab-results/system-variants-r2`, fresh
+SEED_BASE 1791919096, all three arms re-run, 204,800 boards per arm per
+vulnerability, vs BBA 2/1 with each arm's card generated from its own
+agreements, 29 minutes wall-clock:
+
+| Pair | Vul | Fired | Plain DD IMPs/board | PD IMPs/board | IMPs/fired (plain / PD) |
+| --- | --- | --- | --- | --- | --- |
+| basic vs advanced | none | 10.03% | +0.0046 ±0.0084 | −0.0553 ±0.0091 | +0.046 / −0.552 |
+| basic vs advanced | both | 9.03% | +0.0064 ±0.0103 | −0.0520 ±0.0113 | +0.071 / −0.576 |
+| basic-instinct vs basic | none | 27.31% | −0.3174 ±0.0136 | −0.3225 ±0.0153 | −1.162 / −1.181 |
+| basic-instinct vs basic | both | 25.07% | −0.4030 ±0.0168 | −0.4828 ±0.0190 | −1.608 / −1.926 |
+
+- **Plain DD: no measurable difference.** Both CIs straddle zero. The
+  four rows the reversal turned back on (XYZ, Jordan 2NT, support doubles,
+  limit-raise acceptance) carried the whole plain loss of the first run.
+- **PD: advanced is worth about 0.05 IMPs/board** (both CIs clear of zero),
+  down from 0.07–0.08. What the remaining gadgets buy is almost entirely
+  *not being doubled*. By side (`ab-dump-bucket --by side`,
+  `system-variants-r2/bucket.*.txt`): we open, PD −6026 / −6898 with plain
+  +246 / −77; they open, PD −5335 / −3708 with plain +714 / +1440 (NV /
+  vul). Neither side has a plain loss.
+- **The floor is still worth far more than the card**: the v6 net beats
+  `instinct()` under the basic book by 0.32–0.48 IMPs/board, six to nine
+  times the PD gadget gap.
+- **Named clusters** (`--by node`, worst PD first, NV / vul): Reverse Drury
+  (the passed-hand `1M - ⟨1NT vs 2♣⟩` and `1♥ - ⟨1♠ vs 2♣⟩` slots, all
+  seats, ≈ −560 / −1,000), Garbage Stayman (`1NT - ⟨- vs 2♣⟩`, all seats,
+  ≈ −470 / −550), then `- 1NT - 2♣ ⟨X vs -⟩` and `- 1NT - 2♥ ⟨X vs -⟩`.
+  The loss is diffuse: the top 40 of ~14–16k node buckets carry 25–35% of
+  it. Every named cluster is a gadget's absence, with no new hole.
+
+**Pre-reversal `basic` (first run, superseded).**
 `scripts/ab-system-variants.sh`, SEED_BASE 1791913599, 204,800 boards per
 arm per vulnerability, all arms vs BBA 2/1 on its card with ours generated
-from the arm's agreements (`told: generated`), 33 minutes wall-clock.
+from the arm's agreements (`told: generated`), 33 minutes wall-clock. This
+`basic` had XYZ, Jordan 2NT, `major_support_double` and the limit-raise
+acceptance off and NMF on:
 
 | Pair | Vul | Fired | Plain DD IMPs/board | PD IMPs/board | IMPs/fired (plain / PD) |
 | --- | --- | --- | --- | --- | --- |
@@ -323,7 +359,7 @@ golden blessed, `cd web && cargo test` green. **Shipped.**
 - **A table a beginner can sit at, with an expert partner.** Fewer alerts
   to read, every call natural unless whitelisted, a preset instead of 220
   toggles — and the same judgement under it, so a learner's results are
-  within ~0.02 IMPs/board of the champion's. The web
+  level with the champion's on plain DD and ~0.05 IMPs/board behind on PD. The web
   registry is already "a player-facing system chooser"
   ([bidding-options.md](bidding-options.md)); two presets and `custom` make
   it one.

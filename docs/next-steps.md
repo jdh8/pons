@@ -514,9 +514,10 @@ group waits on that decision, the second group does not.
      7♠`); a `Pass`/`ask_or_pass` row above it is one small A/B.
 - **System variants `basic` / `advanced`** — built 2026-10-14
   ([system-variants.md](system-variants.md)): `Agreements::basic()` and the
-  `--ns-preset` flag on `main`, default byte-identical.  Measured the same
-  day (§5a): the gadget layer is worth ~0.02 IMPs/board plain, ~0.07–0.08
-  PD; the net floor beats `instinct()` by 0.3–0.5 under the natural book,
-  so the basic-corpus retrain stays deferred.  Owed: jdh8's call on the
-  `major_support_double` inconsistency flagged in §4a; the §4a holes are
-  tickets ranked by the §5a attribution.
+  `--ns-preset` flag on `main`, default byte-identical.  Re-measured after
+  the §4a reversal (§5a, SEED_BASE 1791919096): basic vs advanced is a
+  plain-DD wash and ~0.05 IMPs/board behind on PD (Reverse Drury and
+  Garbage Stayman lead); the net floor beats `instinct()` by 0.3–0.5 under
+  the natural book, so the basic-corpus retrain stays deferred.  The XYZ
+  hole and the `major_support_double` flag closed with the reversal;
+  nothing owed.

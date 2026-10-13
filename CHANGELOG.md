@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whitelist swaps `new-minor-forcing` for `xyz-completion` / `xyz-game-force`
   / `xyz-relay`; `cards/American-Basic.bbsa` re-blessed (five rows differ
   from advanced, was ten).  Closes the §5a XYZ hole for `basic`.  Default
-  system untouched; the §5a basic-vs-advanced numbers predate this.
+  system untouched.  Re-measured (SEED_BASE 1791919096, 204.8k bd/arm/vul
+  vs BBA 2/1): **basic vs advanced** plain +0.0046 ±0.0084 / +0.0064
+  ±0.0103 IMPs/board NV/vul (wash), PD −0.0553 ±0.0091 / −0.0520 ±0.0113.
+  The reversed rows carried the whole plain loss; what the remaining
+  gadgets buy is not being doubled (Reverse Drury, Garbage Stayman lead).
+  **basic-instinct vs basic** plain −0.3174 / −0.4030, PD −0.3225 /
+  −0.4828.  [docs/system-variants.md §5a](docs/system-variants.md).
 
 ### Added
 
