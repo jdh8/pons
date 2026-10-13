@@ -562,6 +562,10 @@ straddling zero.
 **kickback vs minors (the shipped default), 1,000,000 boards, seed 1785558240,
 vul none, `--sd`.** IMPs per board, 95% CI in brackets:
 
+> **[#6](https://github.com/jdh8/pons/issues/6) (2026-10-14):** deal generator v1 — this seed shares 98.8% of
+> its deals with §7.3's 1785546026 (offset ≡ 2 mod 4, so the same hands under
+> another dealer). A re-measure, not an independent replication.
+
 | scoring | Δ/board | CI | divergent |
 |---|---|---|---|
 | PD | −0.00029 | [−0.00062, +0.00004] | 246 (0.025%) |
@@ -660,6 +664,10 @@ hearts. Phase 6 makes hearts guarded on those faces (§7.1). Re-measured with th
 by exactly `set_kickback` and the verdict speaks directly to a default-on flip:
 `kickback` vs `gated` (the shipped default), 1,000,000 boards, seed 1785573096,
 vul none, `--sd`:
+
+> **[#6](https://github.com/jdh8/pons/issues/6) (2026-10-14):** deal generator v1 — this seed shares 98.5% of
+> its deals with §7.3.2's 1785558240, and the offset is ≡ 0 mod 4, so those
+> are literally the same boards. The two runs are comparable, not independent.
 
 | scoring | Δ/board | CI | §7.3.2 (un-guarded) |
 |---|---|---|---|
@@ -1217,7 +1225,8 @@ carrying this measurement in any lane, including clubs. The `no keycard ask`
 row alone holds 89% of the cell's PD gain: what §7.8 measured is the retrained
 twin, and §7.8's caution was if anything understated.
 
-**Independently corroborated.** §7.2's phase-6 cell measured `kickback` against
+**Corroborated** (*not independently — [#6](https://github.com/jdh8/pons/issues/6): this 200k window,
+seed 1785623878, lies wholly inside the phase-6 cell's 1M window*). §7.2's phase-6 cell measured `kickback` against
 `gated` — one knob, no net swap — at 1M boards and found **216 divergent
 boards**. That implies the relocation changes an auction on roughly 2 boards
 per 10,000, which is the same order as the 35-in-200,000 seen here by a

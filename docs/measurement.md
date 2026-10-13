@@ -49,6 +49,25 @@ the parts that do not churn: protocol, interpretation, and ship rules.
 5. **Seed hygiene.** `export SEED_BASE=$(date +%s)` **once per experiment**;
    every arm of the experiment reuses it (paired diffs need identical deals).
    The *next* experiment takes a fresh base. Never replay fixed seeds 0..31.
+   **Deal generator v2 (2026-10-14, [#6](https://github.com/jdh8/pons/issues/6)):**
+   board `i` is drawn from `common::board_rng(base, i)`, ChaCha keyed on the
+   pair, so two bases share no boards. v1 seeded board `i` with
+   `seed_from_u64(base + i)`: a base `k` above another replayed its boards
+   `k..` as boards `0..`, so two v1 runs `k < count` apart shared `count − k`
+   deals and a "fresh seed" an hour later was mostly the same deals (dealer
+   and vulnerability come from the index and line up only when `k ≡ 0 mod 4`).
+   Before reading two v1 runs as independent, or pooling them, check the seed
+   windows `[base, base + count)` do not intersect. v1 results reproduce only
+   at a commit before the change, and a `smoke-default` byte-identity diff
+   must build both sides on the same side of it. Not affected: `bba-gen` /
+   the anchor and `ben-gen` (one stream per seed — but `bba-gen-parallel.sh`
+   seeds shard `i` with `SEED_BASE + i`, so two bases closer than the shard
+   count share whole shards), and every harness that
+   seeds one `StdRng` from `--seed` and draws all its deals from it. Fixed
+   benchmarks keep their v1 keys on purpose (`bidding-corpus`,
+   `bidding-performance`), as do `probe-weak-two-eval` (a one-off census)
+   and `probe-keycard-reach` (its `seed + i` picks dealer and vulnerability
+   over a fixed `.pdd` slice).
    **Regenerate the control at HEAD, on that same `SEED_BASE`.** A shared seed
    buys *deal*-pairing, not *code*-pairing: diffing a fresh treatment arm
    against an older snapshot's control (e.g. `ab-results/anchor`'s
@@ -544,7 +563,9 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   contracts): the shipped λ applied to endpoints it never saw reproduces the
   Pavlicek targets within 0.6pp at every level ≤ 6 (binomial noise ≈ 1.5pp
   at n = 1000), and the λ(4) > λ(5) inversion replicates — real 5-level
-  structure, not sample noise. λ is a property of the **16-world**
+  structure, not sample noise. (*#6: the cell fit below, seed 1785794459,
+  shares ~88% of this holdout's deals; the owed aligned-cell holdout needs
+  a seed outside both windows, or generator v2.*) λ is a property of the **16-world**
   emulation (the misguess rate shrinks with worlds); re-fit before changing
   the world count.
 - **λ is bucketed by level, but level is not the whole story — and his cells
@@ -690,8 +711,10 @@ for when to reach for one and how to read it. Worked example:
 
 New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
 
-- Deal generation sequential (seeded, reproducible); **bidding** parallelized
-  with `rayon::par_iter` (classify is pure; `Partnership` is `Sync`).
+- Deal generation seeded and reproducible — `common::seeded_deals`, or
+  `common::board_rng(base, i)` for a parallel scan; never hand-roll
+  `seed_from_u64(base + i)` (checklist 5); **bidding** parallelized with
+  `rayon::par_iter` (classify is pure; `Partnership` is `Sync`).
 - The ddss `Solver` stays on the **main thread** — `Solver::lock(None).solve_deals`
   batches and parallelizes internally; never call it inside a worker.
 - **Arm the knobs, then build; one partnership per arm.** Both kinds of knob —

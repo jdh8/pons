@@ -29,8 +29,6 @@ use contract_bridge::{
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_contract};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
@@ -107,7 +105,7 @@ fn main() {
     let divergent: Vec<Diverged> = (0..args.count)
         .into_par_iter()
         .filter_map(|i| {
-            let mut rng = StdRng::seed_from_u64(base.wrapping_add(i));
+            let mut rng = common::board_rng(base, i);
             let deal = full_deal(&mut rng);
             let dealer = Seat::ALL[(i % 4) as usize];
 

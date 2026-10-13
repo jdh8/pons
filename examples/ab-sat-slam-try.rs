@@ -46,8 +46,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
@@ -198,7 +196,7 @@ fn main() {
     let sampled: Vec<(FullDeal, (Seat, Seat, Suit))> = (0..args.count)
         .into_par_iter()
         .filter_map(|index| {
-            let mut rng = StdRng::seed_from_u64(seed_base.wrapping_add(index as u64));
+            let mut rng = common::board_rng(seed_base, index as u64);
             let deal = full_deal(&mut rng);
             configuration(&deal, Seat::North, Seat::South).map(|config| (deal, config))
         })

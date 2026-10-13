@@ -175,8 +175,8 @@ struct Args {
     #[arg(long)]
     crosscheck: Option<usize>,
 
-    /// Deal-stream seed for `--selfplay`/`--crosscheck`; board `i` is seeded
-    /// `seed + i`
+    /// Deal-stream seed for `--selfplay`/`--crosscheck`; board `i` is keyed
+    /// on `(seed, i)`
     #[arg(long, default_value_t = 0)]
     seed: u64,
 

@@ -28,8 +28,6 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Sui
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_contract};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 use std::fs;
 
@@ -100,7 +98,7 @@ fn boards(seed: u64, count: usize) -> Vec<(Seat, FullDeal)> {
     (0..count)
         .into_par_iter()
         .filter_map(|index| {
-            let mut rng = StdRng::seed_from_u64(seed.wrapping_add(index as u64));
+            let mut rng = common::board_rng(seed, index as u64);
             let deal = full_deal(&mut rng);
             opener_seat(&deal).map(|opener| (opener, deal))
         })

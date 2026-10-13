@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Deal generator v2: fresh seeds no longer share deals (2026-10-14,
+  [#6](https://github.com/jdh8/pons/issues/6)).** `common::seeded_deals`
+  seeded board `i` with `base + i`, so two harness runs `k` apart shared
+  `count − k` deals — Kickback's 1M re-measures 98.8% / 98.5%, the seam
+  lookahead's "second seed" 91.2%. Board `i` is now drawn from
+  `common::board_rng(base, i)` (ChaCha keyed on the pair); the hand-rolled
+  `base + i` loops in `ab-sat`, `ab-sat-slam-try`, `ab-long-minor-force`,
+  `probe-uninvite-4333`, `probe-weak-two-major`, `probe-defensive-overcalls`
+  and `probe-sd-calibration` moved with it. Arms of one experiment stay
+  paired board by board. Same seed now deals different boards than before:
+  v1 results reproduce only at an older commit, and a `smoke-default` diff
+  needs both builds on the same side of this change.
+  [docs/measurement.md](docs/measurement.md) checklist 5.  Bidding untouched.
+
 - **`basic` keeps XYZ, Jordan 2NT, support doubles and limit-raise
   acceptance (2026-10-14).** jdh8: standard modern bidding, not gadgets.
   `basic()` moves 32 knobs (was 37); NMF goes back off; the alert
@@ -11560,7 +11574,8 @@ working log; this is the short version.
   relocated ask fires on **35 of 63,203 divergent boards — 0.055%** — moving
   −16 PD and −23 plain-DD IMPs in a cell that moved +13,522 and −850, while
   **93.7% of divergent boards saw no keycard ask from either side** and carry
-  89% of the PD gain. The phase-6 cell corroborates independently: `kickback`
+  89% of the PD gain. The phase-6 cell corroborates (*not independently —
+  #6, 2026-10-14: this 200k window lies inside its 1M window*): `kickback`
   against `gated` at 1M boards diverged on 216 boards, the same ~2-per-10,000
   trigger rate by a different route. Kickback is close to inert at random-deal
   density; §7.8's cell is the retrained twin, and a rare-trigger convention
@@ -18764,7 +18779,10 @@ working log; this is the short version.
   instinct floor (which cannot hold an invitational dialogue: it moves only
   at combined 25 counting partner's shown *minimum*). Package measured
   (`ab-major-continuations`, silenced opponents, 200k boards per cell,
-  NV/both-vul, replicated on a second seed base): **plain DD +0.058..+0.061
+  NV/both-vul, replicated on a second seed base — *#6, 2026-10-14: the two
+  bases share 99.1% of their deals, so this is one sample, not two; the
+  effect, +0.06 at 200k boards, is ~15× a rough ±0.004 CI (none was
+  recorded), so the ship stands*): **plain DD +0.058..+0.061
   (NV) / +0.089..+0.092 (vul) IMPs/board, perfect-defense +0.067/+0.100** —
   a win on both scorers at both vulnerabilities, ~4.2% divergence,
   +1.4/+2.2 IMPs per divergent board.

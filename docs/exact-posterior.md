@@ -493,7 +493,10 @@ No double-dummy, no retrain, no bidding change.
 
 **Result, 2026-10-02** — `probe-reading-sound -c 10000`, BBA 2/1 at the
 opponent seats, gate fixed at the proposed defaults before the run. Seed
-1790871004, with seed 1790871902 in brackets.
+1790871004, with seed 1790871902 in brackets. *[#6](https://github.com/jdh8/pons/issues/6) (2026-10-14):
+the two seeds share 91% of their deals (generator v1), so the bracketed
+figures are a re-run, not a replication — here and in every "replicated on
+seed 1790871902" below.*
 
 Step 0, the re-baseline: readings exclude the truth **7.82% / 1.33% / 7.87%**
 at LHO / partner / RHO [7.63 / 1.27 / 7.71]. Since July the opponent rate
@@ -849,7 +852,11 @@ IMPs per seam decision, ± 95%, plain / PD:
 
 Read by the rule fixed above: **replay PASS → lookahead pays at this seam
 beyond any threshold fix — evidence for M8**, now with its own interval and
-replicated on a second seed. Still one seam, self-play.
+replicated on a second seed. Still one seam, self-play. *[#6](https://github.com/jdh8/pons/issues/6)
+(2026-10-14): not an independent replication — the two seeds share 91.2% of
+their deals (generator v1), under shifted dealer and vulnerability, on a
+build that had moved (the `4NT` rung); "the leading swap replicates" reads
+the same way. The lane is parked, so no re-run is owed unless it reopens.*
 
 ### Parked — the whole lane (jdh8, 2026-10-02)
 

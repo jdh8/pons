@@ -37,7 +37,9 @@ R=${1:?usage: ab-declared-agreement.sh RESULTS_DIR}
 . "$(dirname "$0")/ab-lib.sh"
 
 # experiment NAME "THEIR-FLAGS" "OTHER-FLAGS" — the three arms and two diffs.
-# Its own SEED_BASE, so the second experiment draws fresh hands.
+# Its own SEED_BASE, so the second experiment draws fresh hands — only if the
+# bases are at least the shard count apart: bba-gen-parallel.sh seeds shard i
+# with SEED_BASE + i (#6; the 2026-08-07 pair, 8 apart, shared 24 of 32 shards).
 # `sh` has no locals and ab-lib's helpers assign `name`/`vul`/`on`/`off`, so
 # this function's own state lives in names none of them touch.
 experiment() {

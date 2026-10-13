@@ -26,6 +26,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::Auction;
+use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
@@ -39,7 +40,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, seat_to_act, seeded_deals};
+use common::{bid_out, seat_to_act};
 
 #[derive(Parser)]
 #[command(about = "Per-level make-rates under plain DD, sd-lead, and sd-declarer")]
@@ -47,7 +48,7 @@ struct Args {
     /// Boards to bid per batch (self-play, dealer rotates)
     #[arg(short, long, default_value_t = 20_000)]
     count: usize,
-    /// Deal seed base (board i seeded base+i); fresh per experiment
+    /// Deal seed base (board i keyed on (base, i)); fresh per experiment
     #[arg(long, default_value_t = 20_260_716)]
     seed: u64,
     /// Vulnerability the boards are bid and scored at
@@ -245,9 +246,10 @@ fn main() {
     for batch in 0..args.max_batches.max(1) {
         // Deal and bid this batch (bidding parallelizes; the solver never
         // leaves the main thread).
-        let deals = seeded_deals(args.seed + (batch * args.count) as u64, args.count);
-        let boards: Vec<(Seat, FullDeal, Auction)> = deals
+        let first = batch * args.count;
+        let boards: Vec<(Seat, FullDeal, Auction)> = (first..first + args.count)
             .into_par_iter()
+            .map(|index| full_deal(&mut common::board_rng(args.seed, index as u64)))
             .enumerate()
             .map(|(i, deal)| {
                 let dealer = Seat::ALL[i % 4];

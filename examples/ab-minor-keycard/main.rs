@@ -44,7 +44,7 @@ struct Args {
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
 
-    /// Deal seed base (board i seeded base+i; fresh per experiment)
+    /// Deal seed base (board i keyed on (base, i); fresh per experiment)
     #[arg(long, default_value = "0")]
     seed: u64,
 

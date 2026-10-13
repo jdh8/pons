@@ -134,7 +134,7 @@ The registered `1M - 2M -` seam experiment in
 Range left Pass for a try 511 times against replay's 108. Range's plain DD was
 positive (+0.0737 ± 0.0526); only PD failed. Replay (`rule_accept`) is the
 shipped default in [knobs.rs](../src/bidding/inference/knobs.rs), so the failure
-describes the non-default range path. The counted-reading lane was parked. Its subsequent second-seed confirmation is subject to #6.
+describes the non-default range path. The counted-reading lane was parked. Its second-seed confirmation shares 91.2% of its deals with the first run (#6), so it is not independent.
 Exact counting of the reading set does not correct the set's conditioning bias.
 
 Replay is also an approximation: `MARGIN = 3.0` allows calls below the best

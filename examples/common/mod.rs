@@ -12,6 +12,8 @@ pub mod mass;
 pub mod oracle;
 #[allow(dead_code)]
 pub mod rollout;
+#[cfg(test)]
+mod tests;
 
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
@@ -269,13 +271,24 @@ pub fn stayman_x_key(on: &Board, off: &Board) -> Option<String> {
     ))
 }
 
-/// `count` deals, board `i` seeded `base + i`, so every arm of an experiment
-/// replays the identical stream (the seed-hygiene invariant the A/B scripts
-/// rely on — one `SEED_BASE` shared across arms).  Bidding is pure and
-/// parallelizes downstream; only the deal generation is centralized here.
+/// The RNG for board `index` of the experiment seeded `base`: ChaCha keyed on
+/// the pair, so boards are independent of thread order and two bases share no
+/// boards.  The retired key `seed_from_u64(base + index)` slid instead —
+/// `base + k` replayed board `i + k` of `base` as its board `i` (issue #6).
+pub fn board_rng(base: u64, index: u64) -> StdRng {
+    let mut key = [0; 32];
+    key[..8].copy_from_slice(&base.to_le_bytes());
+    key[8..16].copy_from_slice(&index.to_le_bytes());
+    StdRng::from_seed(key)
+}
+
+/// `count` deals, board `i` drawn from [`board_rng`]`(base, i)`, so every arm of
+/// an experiment replays the identical stream (the seed-hygiene invariant the
+/// A/B scripts rely on — one `SEED_BASE` shared across arms).  Bidding is pure
+/// and parallelizes downstream; only the deal generation is centralized here.
 pub fn seeded_deals(base: u64, count: usize) -> Vec<FullDeal> {
-    (0..count)
-        .map(|i| full_deal(&mut StdRng::seed_from_u64(base.wrapping_add(i as u64))))
+    (0..count as u64)
+        .map(|i| full_deal(&mut board_rng(base, i)))
         .collect()
 }
 

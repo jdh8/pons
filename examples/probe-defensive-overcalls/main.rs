@@ -18,8 +18,6 @@ use pons::bidding::Partnership;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
@@ -38,7 +36,7 @@ struct Args {
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
 
-    /// Deal seed base (draw i is seeded base+i)
+    /// Deal seed base (draw i keyed on (base, i))
     #[arg(long, default_value = "0")]
     seed: u64,
 
@@ -116,7 +114,7 @@ fn main() {
     let mut accepted = Vec::with_capacity(args.count);
     let mut draws = 0u64;
     while accepted.len() < args.count && draws < args.draws {
-        let deal = full_deal(&mut StdRng::seed_from_u64(args.seed.wrapping_add(draws)));
+        let deal = full_deal(&mut common::board_rng(args.seed, draws));
         draws += 1;
         if accepts(deal[Seat::South]) {
             accepted.push(deal);

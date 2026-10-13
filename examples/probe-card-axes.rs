@@ -39,7 +39,7 @@ struct Args {
     #[arg(short, long, default_value = "20000")]
     count: usize,
 
-    /// Deal seed base (board i seeded base+i)
+    /// Deal seed base (board i keyed on (base, i))
     #[arg(long, default_value = "1")]
     seed: u64,
 }

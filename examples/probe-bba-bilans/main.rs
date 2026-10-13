@@ -40,7 +40,7 @@ struct Args {
     #[arg(short, long, default_value_t = 2000)]
     count: usize,
 
-    /// Deal-stream seed; board `i` is seeded `seed + i` (the seed-hygiene
+    /// Deal-stream seed; board `i` is keyed on `(seed, i)` (the seed-hygiene
     /// invariant — pass a fresh `$(date +%s)` per experiment)
     #[arg(long, default_value_t = 0)]
     seed: u64,

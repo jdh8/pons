@@ -36,7 +36,7 @@ struct Args {
     /// Boards to bid and classify
     #[arg(short, long, default_value_t = 20_000)]
     count: usize,
-    /// Deal seed base (board i seeded base+i); fresh per experiment
+    /// Deal seed base (board i keyed on (base, i)); fresh per experiment
     #[arg(short, long, default_value_t = 1)]
     seed: u64,
     /// Vulnerability the deals are bid at (affects nothing but routing symmetry)
