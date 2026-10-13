@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Research-method review ledger (2026-10-14, docs only).**
+  [docs/research-method-review.md](docs/research-method-review.md) records
+  remaining disclosure, sampling, population coverage, SD calibration, dataset
+  identity and reproducibility findings, with evidence and completion criteria.
+  Issues #6–#8 track the first three corrections; `measurement.md` and
+  `next-steps.md` link the ledger. Historical repairs and proposed efficiency
+  work are distinguished from confirmed open defects.
+
 - **System variants `basic` / `advanced` built (2026-10-14), A/B in flight.**
   `Agreements::basic()` (an ace playing a beginner's system: 2/1 with the gadget layer at each
   knob's natural *authored* state — 36 knobs moved, pinned by

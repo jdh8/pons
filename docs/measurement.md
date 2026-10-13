@@ -13,6 +13,13 @@ method is best?* — the matrix-game tournament). The verdict every knob ships o
 is indexed in [bidding-options.md](bidding-options.md) — one row per `set_*`
 option with its A/B number and ship/opt-in decision.
 
+Open corrections from the 2026-10-14 review are tracked in
+[research-method-review.md](research-method-review.md): issues #6–#8 cover
+deal independence, non-inferiority and the IMP comparison target; the remaining
+entries cover disclosure, population coverage, sampling, SD calibration and
+experiment identity. Read the affected entry before relying on a historical
+verdict or designing its confirmation.
+
 Mechanics that churn (exact CLI flags, shard counts) are documented where they
 live: `<example> --help`, the header of
 [`scripts/bba-gen-parallel.sh`](../scripts/bba-gen-parallel.sh), and

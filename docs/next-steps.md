@@ -16,6 +16,14 @@ A/B under [measurement.md](measurement.md).
 Shipped, refuted and closed items are archived verbatim in
 [archive/next-steps-done.md](archive/next-steps-done.md).
 
+Research-method follow-ups from 2026-10-14 are recorded in
+[research-method-review.md](research-method-review.md), with evidence, priority
+and completion checklists. Issues [#6](https://github.com/jdh8/pons/issues/6),
+[#7](https://github.com/jdh8/pons/issues/7) and
+[#8](https://github.com/jdh8/pons/issues/8) are the first three corrections;
+the remaining findings stay in that ledger until their work starts. Check the
+affected measurement assumptions before spending another confirmation run.
+
 ## 1. Floor junk-action rails — closed 2026-09-26
 
 Five rails shipped, and the R6 re-census at `7e0bc648` found the pool dry
