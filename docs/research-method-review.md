@@ -14,6 +14,10 @@ The open work concerns independence, population coverage, scoring assumptions
 and experiment identity. Historical numbers below are the campaign records;
 their evidential limits stay attached to each finding.
 
+Every entry was re-verified against the code on 2026-10-14; the corrections
+from that pass (overstatements, missed prior records, a sharper diagnosis) are
+folded in below.
+
 ## Corrections tracked in issues
 
 | Priority | Issue | Completion belongs in |
@@ -34,15 +38,27 @@ instrument or protocol changes.
 reading from 9–14 to an absurd 20–37 reproduces the same IMPs, as does dropping
 the modern-negative-double flag. The intended disclosure manipulation is inert.
 [ab-dump-sd](../examples/ab-dump-sd/main.rs), `lead_inputs` and the ON/OFF
-partnership construction, are the relevant paths. The opposing-seat reader is
-a suspected cause, not a completed diagnosis.
+partnership construction, are the relevant paths.
 
-Existing results describe routing and auctions under that reader. They do not
-establish the full effect of a treatment whose mechanism includes opponents
-using our disclosure to choose a lead. The current blanket statement that all
-dump-rescore verdicts stand needs a treatment-by-treatment qualification.
+The leader's sampler is fed by the scored arm's own system (`lead_inputs`
+calls `partnership.infer` on the ON or OFF partnership), so the manipulation
+reaches the reader. The probable cause, from reading the code and not yet
+tested: when the leader reads our side's calls,
+[projection.rs](../src/bidding/inference/projection.rs) decodes them through our
+book only under `table_alerts` or declared opponents, and with undeclared
+opponents (as in `ab-dump-sd`) only at `ReadingScope::Alerted`. Unalerted
+natural calls keep the natural walk. The overcall band only sets
+`points(lo..=hi)` on the unalerted natural overcall rules in
+`american/defense/nt_defense.rs`, so the leader never sees it. Whether the
+modern negative double follows the same path is unchecked.
 
-- [ ] Trace the leader's own system and its reading of our disclosed system.
+Existing results describe routing and auctions under that reader.
+`measurement.md` already withdraws the claim that a dump rescore prices
+disclosure or lead-direction value. What it lacks is the list of verdicts
+whose mechanism depended on that pricing (concealment, lead direction,
+disclosure cost); those need a treatment-by-treatment qualification.
+
+- [ ] Confirm the alerted-only decode as the cause with a diagnostic lead case.
 - [ ] Make an absurd-band manipulation change the sampled model and demonstrate
   an effect on a diagnostic lead case.
 - [ ] Identify affected concealment, lead-direction and disclosure-cost verdicts;
@@ -59,8 +75,9 @@ These agree only under an appropriate coverage or distribution argument.
 [bba-gen](../examples/bba-gen/main.rs), `is_1nt_opener`, admits 15–17 HCP,
 no singleton or void, and at most one doubleton. The
 [Landy shape runner](../scripts/ab-landy-notrump-shape.sh) explicitly records
-that the wide-shape 1NT slice is invisible to its arms. Reporting per-divergent
-IMPs does not recover that excluded population.
+that the wide-shape 1NT slice is invisible to its arms and that this bounds the
+claim; the runner states its limit, the general rule in `measurement.md` does
+not. Reporting per-divergent IMPs does not recover that excluded population.
 
 - [ ] Run an unfiltered bidding-only preflight and count divergences outside
   the raw-hand filter before interpreting an enriched result globally.
@@ -73,12 +90,15 @@ The point estimate in
 consistent: its mean is over boards reaching the face and its density is
 reach/draws, so their product is total swing/draws. Its scaled CI treats the
 estimated density as fixed; rate uncertainty is a smaller follow-up. Do not
-describe this as a demonstrated normalization bug.
+describe this as a demonstrated normalization bug. Its stage-1 `accepts()`
+raw-hand predicate has the same coverage limit as the bba-gen filters, and
+stopping at `--count` gives `boards/draws` a small stopping-rule bias.
 
 ## 6 Asymmetric vulnerability in competitive experiments
 
 **P1 — coverage risk with an observed sign reversal.**
-[anchor.sh](../scripts/anchor.sh) and many treatment runners use none/both.
+[anchor.sh](../scripts/anchor.sh) and 163 of the 169 `scripts/ab-*.sh` runners
+loop only none/both; `measurement.md` asks for a none/both split.
 Competitive, sacrifice and doubling decisions also depend on favourable and
 unfavourable vulnerability. The repo already has a decisive example in
 [ab-landy-nt-vs-x.sh](../scripts/ab-landy-nt-vs-x.sh):
@@ -87,13 +107,18 @@ unfavourable vulnerability. The repo already has a decisive example in
 | --- | ---: | ---: |
 | EW vulnerable | +0.0147 | +0.0042 |
 | NS vulnerable | -0.0107 | -0.0206 |
+| Neither | | -0.0108 |
+| Both | | -0.0054 |
 
-The favourable gate shipped after this four-cell comparison. This is evidence
+The favourable gate (`landy_notrump_no_major_favourable`, 2026-09-22) shipped
+after this four-cell comparison; the script is the only runner that loops all
+four cells. This is evidence
 for extending that practice, not a claim that all existing runners lack it.
 
 - [ ] Confirm competitive treatments at none, ns, ew and both vulnerability.
-- [ ] Rebid in each cell; repricing an existing auction cannot model the policy
-  changes caused by vulnerability.
+- [ ] Keep rebidding in each cell, as `bba-gen -v` already does; repricing an
+  existing auction cannot model the policy changes caused by vulnerability. The
+  gap is runner coverage, not the generator.
 - [ ] State explicitly when a verdict covers only the measured cells.
 
 ## 7 Auction conditioning and the replay approximation
@@ -106,8 +131,10 @@ produce the observed auction on those worlds.
 The registered `1M - 2M -` seam experiment in
 [exact-posterior.md](exact-posterior.md) measured range PD
 `-0.0125 +/- 0.0601` against replay `+0.1388 +/- 0.0518` IMPs per seam decision.
-Range left Pass for a try 511 times against replay's 108. The counted-reading
-lane was parked. Its subsequent second-seed confirmation is subject to #6.
+Range left Pass for a try 511 times against replay's 108. Range's plain DD was
+positive (+0.0737 ± 0.0526); only PD failed. Replay (`rule_accept`) is the
+shipped default in [knobs.rs](../src/bidding/inference/knobs.rs), so the failure
+describes the non-default range path. The counted-reading lane was parked. Its subsequent second-seed confirmation is subject to #6.
 Exact counting of the reading set does not correct the set's conditioning bias.
 
 Replay is also an approximation: `MARGIN = 3.0` allows calls below the best
@@ -135,6 +162,10 @@ soft auction readings while preserving hard play constraints.
 Reading tightness or inconsistency can therefore change both information and
 the mixture of fallback worlds. The current returned worlds do not expose the
 mixture to the scorer. No particular A/B reversal has been attributed to this.
+Starvation is measured only on the relabel path
+([logit-calibration.md](ai-bidder/logit-calibration.md): 0.3–0.8% of decisions
+under self-play, ~16.5% under the teacher walk, with short draws dropped rather
+than topped up) and by `probe-replay-yield`; no A/B reports it.
 
 - [ ] Report draws, acceptance, fallback counts and per-board fallback rates.
 - [ ] On important divergent sets compare a common fallback policy or an
@@ -149,13 +180,18 @@ and making a contract are different objectives. As an illustrative example,
 12 certain tricks make six, while 80% of 13 and 20% of 10 average 12.4 tricks
 but fail six 20% of the time. The
 [slam battery](../examples/probe-slam-battery/main.rs) already records
-mean-max detours losing DD-fair slam cases.
+mean-max detours losing DD-fair slam cases; it attributes them to a small world
+sample, so whether a making-probability objective would fix them is untested.
 
 The population-transfer section of
 [measurement.md](measurement.md#known-biases) records a 28-percentage-point
-6m alignment gap against Pavlicek. Fitting the better-aligned 6M/6NT cells
-gives lambda(6) = 0.510 rather than the shipped 0.664 in
-[common::SD_BLEND_LAMBDA](../examples/common/mod.rs). A fresh pons holdout
+6m alignment gap against Pavlicek. The same section reports that fitting the
+better-aligned 6M/6NT cells gives lambda(6) = 0.510 rather than the shipped
+0.664 in [common::SD_BLEND_LAMBDA](../examples/common/mod.rs). That figure is
+quoted, not re-derived: the per-cell rates it needs are not published (the
+unweighted mean of the two cell fits is 0.5055), it comes from a later run than
+the shipped fit, that run's level-4 lambda also drifted (0.644 against 0.539),
+and the doc already flags its holdout as owed. A fresh pons holdout
 matching the same imported target tests simulation stability; it does not
 establish matched human outcomes or the conditional treatment effect.
 
@@ -183,14 +219,22 @@ split, while [dump-teacher](../examples/dump-teacher/main.rs) emits multiple
 auction/cell rows per board. The board-disjoint guarantee is therefore too
 strong. In a contiguous, non-overlapping stem this can leak the boundary board;
 it is not evidence of widespread leakage or invalid fresh-deal A/Bs.
+[logit-calibration.md](ai-bidder/logit-calibration.md) already records the
+contiguous-tail split and treats held-out CE as diagnostic; the claims still to
+correct are the "board-disjoint" comments in `trainer/src/data.rs` and
+`trainer/src/main.rs`.
 
 [splice-labels.py](../scripts/splice-labels.py) keys by hand/context summaries,
 vulnerability, one-hot and DD. The context in
 [features.rs](../src/bidding/features.rs), `push_context`, does not encode
 the full auction. Its positional fast path checks labels/DD/tags without
-full row identity. Thus [features-v8.md](ai-bidder/features-v8.md)'s statement
-that the key proves identical auctions is not established. This does not prove
-the approximately 424k transplanted labels are wrong or explain v8's loss.
+full row identity: it compares only the one-hot+DD block and the tags, with the
+chunk windows and the total row count asserted. Thus
+[features-v8.md](ai-bidder/features-v8.md)'s "the row's auction is identical
+(that is what the key asserts)" is not established; its `--diff` evidence on one
+chunk (labels moved 0) is a partial check. The keyed path drops duplicate old
+keys. This does not prove the approximately 424k transplanted labels are wrong
+or explain v8's loss.
 
 - [ ] Preserve a stable deal ID, dealer, vulnerability, full auction prefix and
   cell; group every row of a board into one training/validation partition.
@@ -202,8 +246,11 @@ the approximately 424k transplanted labels are wrong or explain v8's loss.
 
 **P2 — confirmed validation gaps, with no identified published mixed run.**
 [ab-lib.sh](../scripts/ab-lib.sh), `arm`, considers an arm complete by shard
-count; `diffpair` skips when two report files are nonempty. Reusing a results
-directory after changing flags or HEAD can therefore reuse an older run.
+count; `diffpair` skips when two report files are nonempty. A guard pins
+JOBS and BOARDS per results directory, but reusing it after changing flags or
+HEAD can still reuse an older run. `bba-gen` writes each shard straight to its
+final path, so a crashed worker leaves a truncated shard that the count accepts,
+and `bba-gen-parallel.sh` ends with a bare `wait` that discards exit codes.
 [common::load_dump](../examples/common/mod.rs) appends later shards without
 checking their labels, vulnerability or configuration. Dumps carry seed/args
 but not a full immutable code, weights and scorer identity.
@@ -246,8 +293,9 @@ candidate, not a demonstrated speedup.
 The [1NT response ledger](one-notrump-constructive.md) and
 [7ae1ecb](https://github.com/jdh8/pons/commit/7ae1ecb) support the implemented
 `1NT - 3♦` five-five-major package against its then-current routing. The
-200k-board, opponents-silenced A/B also repaired missing continuation
-capabilities and tuned points floors on the same comparison. It does not
+200k-board, opponents-silenced A/B also authored the package's continuations
+and tuned its points floor (`8..` against `7..` and `9..`) on the same
+comparison. It does not
 establish the best possible meaning for that bid slot.
 
 - [ ] Compare complete candidate structures, including the hands displaced by
@@ -275,8 +323,8 @@ that are otherwise deferred.
 
 | Case | Status and source | Consequence for reuse |
 | --- | --- | --- |
-| Flat-eight invite | [PR #4](https://github.com/jdh8/pons/pull/4) and [1NT ledger](one-notrump-constructive.md): DD's pass edge softened under SD-PD | Preserve the scorer and population with the claim |
-| SD current-trick sequence collapse | [f6a7a7ae](https://github.com/jdh8/pons/commit/f6a7a7ae) repaired the instrument and calibration | Pre-fix playout results need their corruption warning |
+| Flat-eight invite | [PR #4](https://github.com/jdh8/pons/pull/4) and [1NT ledger](one-notrump-constructive.md): DD's pass edge softened under SD-PD and flipped toward inviting under plain SD | Preserve the scorer and population with the claim |
+| SD current-trick sequence collapse | [f6a7a7ae](https://github.com/jdh8/pons/commit/f6a7a7ae) repaired the playout; the refit is in [measurement.md](measurement.md#known-biases) | Pre-fix playout results need their corruption warning |
 | v5 factory siblings | [bde861ef](https://github.com/jdh8/pons/commit/bde861ef) synchronized the paths; [card-manifold.md](ai-bidder/card-manifold.md) records parity | Check system identity across declared and undeclared paths |
 | Multi-double corpus reading | [bank ledger](pdd-bank-ledger.md) records the 2026-08-27 generator repair | Older declared-Multi rows can still carry the stale reading |
 | Two PD definitions | [42bd3282](https://github.com/jdh8/pons/commit/42bd3282) unified the scorer on 2026-09-27 | Label pre/post-scorer series; do not attribute that break to bidding |

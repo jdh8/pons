@@ -31,7 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identity and reproducibility findings, with evidence and completion criteria.
   Issues #6–#8 track the first three corrections; `measurement.md` and
   `next-steps.md` link the ledger. Historical repairs and proposed efficiency
-  work are distinguished from confirmed open defects.
+  work are distinguished from confirmed open defects. A same-day verification
+  pass re-checked every entry against the code and folded in its corrections:
+  a probable cause for the inert disclosure manipulation (the leader never
+  decodes our natural calls through our book), the replay path being the shipped
+  default, the vulnerability gap being runner coverage rather than the
+  generator, the unreproduced λ(6) = 0.510, and prior records the first pass
+  missed. Issues #6–#8 are translated to English with dated verification notes.
 
 - **System variants `basic` / `advanced` built (2026-10-14), A/B in flight.**
   `Agreements::basic()` (an ace playing a beginner's system: 2/1 with the gadget layer at each
