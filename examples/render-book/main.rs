@@ -37,6 +37,10 @@ use pons::bidding::trie::Trie;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+
 #[derive(Parser)]
 struct Args {
     /// Only print nodes whose auction starts with this, e.g. `"1NT (2♦)"`
@@ -219,6 +223,12 @@ struct Args {
     )]
     ns_landy_responder: Option<String>,
 
+    /// Replace every `--ns-*` knob with a named system variant, `basic` or
+    /// `advanced` (`docs/system-variants.md`); applied last, so it overrides
+    /// the knob flags and keeps only their-side disclosures
+    #[arg(long)]
+    ns_preset: Option<String>,
+
     /// Disarm §N1-lia's package C (`competition.landy_texas`, default on): the
     /// jam rides South African Texas (`4♦`→♠ / `4♣`→♥, opener completing) and
     /// the freed direct `4♥`/`4♠` are the uncontested NF slam-try tier.
@@ -324,6 +334,9 @@ fn main() {
         ),
     }
     agreements.competition.landy_texas = !args.no_ns_landy_texas;
+    if let Some(preset) = &args.ns_preset {
+        common::apply_preset(&mut agreements, preset).expect("a known preset");
+    }
     let system = american_book(&agreements);
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),

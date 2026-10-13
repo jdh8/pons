@@ -2392,6 +2392,12 @@ struct Args {
     #[arg(long, default_value_t = 2)]
     ns_preempt_4m_top_honors: u8,
 
+    /// Replace every `--ns-*` knob with a named system variant, `basic` or
+    /// `advanced` (`docs/system-variants.md`); applied last, so it overrides
+    /// the knob flags and keeps only their-side disclosures
+    #[arg(long)]
+    ns_preset: Option<String>,
+
     /// Drop the trump-ace requirement on the preemptive 4M (A/B the ace gate).
     #[arg(long, default_value_t = false)]
     no_ns_preempt_4m_ace: bool,
@@ -3235,6 +3241,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.notrump.texas_game_floor = args.ns_texas_game_floor;
     agreements.notrump.sixcard_invite_floor = args.ns_sixcard_invite_floor;
     agreements.notrump.sixcard_accept_floor = args.ns_sixcard_accept_floor;
+    if let Some(preset) = &args.ns_preset {
+        common::apply_preset(&mut agreements, preset)?;
+    }
     Ok(agreements)
 }
 

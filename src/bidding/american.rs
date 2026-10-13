@@ -363,6 +363,20 @@ pub fn american_default() -> System {
     american(&Agreements::default())
 }
 
+/// [`american`] on [`Agreements::advanced`] — the shipped system under its
+/// IntoBridge name (`docs/system-variants.md`); one call, not a second factory
+#[must_use]
+pub fn american_advanced() -> System {
+    american(&Agreements::advanced())
+}
+
+/// [`american`] on [`Agreements::basic`] — the beginner card: the same books
+/// and floor with the gadget layer at each knob's natural authored state
+#[must_use]
+pub fn american_basic() -> System {
+    american(&Agreements::basic())
+}
+
 /// [`american_book`] on the shipped agreements — see [`american_default`]
 #[must_use]
 pub fn american_book_default() -> System {

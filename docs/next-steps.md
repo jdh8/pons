@@ -512,9 +512,10 @@ group waits on that decision, the second group does not.
      raise opener's second suit (four-card support with 8–9 HCP passes `2♥`).
   5. The seven-card `4M`: the floor raises it to `6M`/`7M` (`4♠ - 4NT - 5♠ -
      7♠`); a `Pass`/`ask_or_pass` row above it is one small A/B.
-- **System variants `basic` / `advanced`** — design written 2026-10-12
-  ([system-variants.md](system-variants.md)): `advanced` ≡ `default()`,
-  `basic` is one new `Agreements` constructor shaped on a beginner card
-  (IntoBridge's basic/advanced split). Blocked on jdh8's §7 decisions (where
-  the beginner line sits decides the **line call** rows);
-  then three A/Bs, the first of which prices the whole gadget layer.
+- **System variants `basic` / `advanced`** — built 2026-10-14
+  ([system-variants.md](system-variants.md)): `Agreements::basic()` and the
+  `--ns-preset` flag on `main`, default byte-identical.  Owed: the verdict of
+  `scripts/ab-system-variants.sh` (basic vs advanced prices the whole gadget
+  layer; basic-instinct vs basic is the floor ablation), its worst-board
+  trace (gadget absences vs the §4a holes), and jdh8's call on the
+  `major_support_double` inconsistency flagged there.

@@ -1,7 +1,14 @@
 # System variants: `basic` and `advanced`
 
-**Status: design only (2026-10-12). No code. A run is live; the code is
-frozen until it lands.** Decisions owed to jdh8 are in [§7](#7-decisions-owed-to-jdh8).
+**Status: built 2026-10-14, A/B in flight.** `Agreements::basic()` /
+`advanced()`, `american_basic()` / `american_advanced()`, the `--ns-preset`
+harness flag, `cards/American-Basic.bbsa`, the web `system_preset` row and
+the two pins (`basic_differs_from_default_only_on_the_listed_fields`,
+`basic_alert_set_is_the_whitelist`) are on `main`; the default system is
+byte-identical (`smoke-default --count 20000 --seed 1` vs HEAD).  jdh8's
+decisions are recorded in [§7](#7-decisions-owed-to-jdh8); the hole census
+that reshaped §4 is in [§4a](#4a-the-hole-census-2026-10-14).
+`scripts/ab-system-variants.sh` runs the three arms of [§5](#5-measurement).
 
 ## 1. The idea
 
@@ -48,10 +55,10 @@ the same thing with a name. So:
 | Surface | `advanced` | `basic` |
 | --- | --- | --- |
 | `Agreements` | `Agreements::default()` (alias `advanced()`, documented, no second body) | `Agreements::basic()` — `default()` with the fields of [§4](#4-the-knob-partition) overwritten |
-| Factory | `american()` | none needed; `american(&Agreements::basic())`. A one-line `american_basic()` only if `web/` or a harness wants it spelled |
-| Seat name (`examples/common/mod.rs` `seat_floor`) | `american` | `american-basic` (one match arm). `floor_card` already splits on `-` and generates the card from the agreements it is handed, so the card is free |
-| Card | `cards/American.bbsa` | `cards/American-Basic.bbsa`, blessed by `bba-card --system american-basic`, pinned by the same staleness test |
-| Web | the individual toggles | one `Choice` row at the top of `SETTINGS`, "System preset: basic / advanced / custom". `set` writes every field; `get` reports `custom` when the live value equals neither preset. A beginner starts on `basic` and turns gadgets on one at a time |
+| Factory | `american()`; `american_advanced()` is `american(&Agreements::advanced())` | `american_basic()` is `american(&Agreements::basic())` — one call each, no second body |
+| Harness (`bba-gen`, `render-book`, `probe-call-reading`) | no flag | `--ns-preset basic`, applied **after** the `--ns-*` overlay (`common::apply_preset`). Every binary assigns each knob flag unconditionally, defaults included, so a preset laid down first would be clobbered back to the shipped system; the preset therefore overrides the knob flags and keeps only `decision.their`. The seat name stays `american`, so `--our-floor american-instinct --ns-preset basic` is the floor ablation with no third seat name |
+| Card | `cards/American.bbsa` | `cards/American-Basic.bbsa`, blessed by `bba-card --system american-basic`, pinned by the same staleness test; it differs from the advanced card in ten rows (Checkback, Garbage Stayman, Jordan, Leaping Michaels, NMF, responsive double, Reverse Drury, Rubensohl after double, support double, two-way NMF) |
+| Web | the individual toggles | the `system_preset` `Choice` row at the top of `SETTINGS` (section "System"): basic / advanced / custom. `set` rewrites every knob but `decision.their`; `get` reports `custom` when the live vector equals neither preset. A beginner starts on `basic` and turns gadgets on one at a time |
 | Floor | v6 net | v6 net (see [§3](#3-the-floor-is-the-real-cost)) |
 
 What this deliberately does **not** build, with the lesson that forbids it:
@@ -118,7 +125,15 @@ Ranked response, cheapest first:
   ([ai-bidder/plan.md](ai-bidder/plan.md)), at a fraction of Polish Club's
   cost, because the reader and the net stay american-tuned.
 
-## 4. The knob partition — a candidate drop list, jdh8 decides
+## 4. The knob partition — decided 2026-10-14
+
+jdh8 took the defaults: §4 as drafted, keeping inverted minors, splinters
+and Ogust, dropping Jordan 2NT; Texas is a transfer without a knob (only
+its slam drive, `texas_slam_drive`, is a knob) so it stays by the
+authored-state rule.  The rows below are the draft; the field names the
+constructor actually moves, and the three rows the hole census reversed,
+are in [§4a](#4a-the-hole-census-2026-10-14).  The pin
+`basic_differs_from_default_only_on_the_listed_fields` is the live list.
 
 Criterion per row: **is it deeply convoluted?** The proxy is the size of the
 continuation tree a player must carry — count a gadget's authored nodes and
@@ -164,6 +179,33 @@ Lebensohl `Plain` (kept only because `Off` is a hole, see §2),
 | `response.forcing_nt_jump_shifts` (on), `rebid.meckstroth_adjunct` (off) | both off | opener's jump shift is natural and strong |
 | `opening.weak_two_eval` | unchanged | a gate, not an agreement |
 
+### 4a. The hole census (2026-10-14)
+
+`render-book` under both presets, every authored node diffed: advanced
+7887 nodes, basic 5445, nothing basic-only.  Checked prefix by prefix
+before the flips were kept:
+
+| Row | Finding | Decision |
+| --- | --- | --- |
+| `xyz` off | `1x - 1y - 1z` responder rebid **unauthored** (0 nodes, the knob doc says so) | `rebid.new_minor_forcing` **on** for the four `1m - 1M - 1NT` slots (its alert `new-minor-forcing` joins the whitelist); the six other one-level auctions XYZ owned are a hole, floor-owned |
+| `splinter_doubled` off | opener's rebid over a doubled splinter falls to the floor and passes (the knob's own reason to exist) | **stays on** — an interfered tail of a kept convention, not a gadget |
+| `second_suit_agreement` off | `1M - 2r - 2x - 3x` opener's third call falls to the floor | **stays on** — same reason |
+| `forcing_nt_jump_shifts` off | the knob **is** the natural strong jump shift (on = `3x` natural 18+, off with Meckstroth off = no 18+ side-suit rebid at all: an 18-count bids `2♣` as a minimum) | **stays on**; the draft row had it backwards |
+| `limit_raise_acceptance` off | `1M - 3M -` opener has no table (44 nodes gone) and falls to `instinct()` | off — the constructive floor is deterministic and natural; the ladder's whole win was its keycard ask |
+| `jordan_truscott` off | systems on: their `X` is stripped to a pass | off, natural |
+| `lebensohl_style = Plain` | `1NT (2♥)` keeps 6 of 10 nodes | as designed (`Off` is a hole) |
+| `notrump_minors` | both schemes artificial | Puppet stays (hole: a natural `1NT - 3m`) |
+| runout family (`decision.instinct.one_nt_runout*`, `advancer_xx_runout`, `penalize_escape_*`, `uvu*`) | floor rules, not book agreements | unchanged (hole: "system on over their double" unauthored) |
+| `major_support_double` off | the minor-opening support doubles have no knob and stay on, so basic plays support doubles after `1m` but not after `1♥ - 1♠` | off as drafted; **flagged** — a one-line revert if jdh8 wants consistency |
+| Smolen, `rebid_checkback`, `fourth_suit_forcing` | alerted, no knob or a shipped win with no natural off-state | stay (`smolen` is a line call with no knob) |
+
+Nodes that vanish, by prefix (advanced-only, largest first): `1♠ 1NT -`
+641 (the 1NT-overcall gadget layer), `1♠ - 1NT` 571 and `1♥ - 1NT` 349
+(the forcing-NT two-suiter tails), the passed-hand lane 326, `1NT - 2♣`
+243 and `1NT - 2♥` 184 (Stayman/transfer gadgets), the takeout-double
+advances (`1x X -`) 142.  These are the gadgets' absences, which is the
+point; run 1's trace ranks the ones that cost.
+
 Knobs **already opt-in** (the 53 wash/loss rows) stay off in both variants,
 so `advanced` ≡ `default()` with no edits. If a future win is shipped
 default-on, `advanced` moves with it; `basic` does not unless it passes the
@@ -175,7 +217,9 @@ whitelist**.
 
 `basic` is a bidding change for whoever selects it, so it owes an A/B before
 the name ships ([measurement.md](measurement.md)). Three runs, in order, one
-`SEED_BASE`, arms sequential on the shared box:
+`SEED_BASE`, arms sequential on the shared box — `scripts/ab-system-variants.sh`
+(arms `advanced`, `basic`, `basic-instinct`, all vs BBA 2/1 on paired deals;
+launched 2026-10-14 into `ab-results/system-variants`, verdict owed):
 
 1. **`american-basic` vs `american`, self-play**, both scorers. Expected: a
    loss — that is the point. It is the first measurement of the whole gadget
@@ -214,7 +258,11 @@ golden re-blessed, `cd web && cargo test`.
   all winning conventions" is the policy restated, so it costs nothing and
   cannot drift.
 
-## 7. Decisions owed to jdh8
+## 7. Decisions owed to jdh8 — taken 2026-10-14
+
+jdh8: "Go" on the recommended defaults below, plus an `american_basic()`
+factory and `american_advanced()` as the alias of `american` (the shipped
+default under its IntoBridge name).  Kept here as the record.
 
 1. **Which conventions to drop.** §4 is the candidate list ranked by
    tree size; the **line call** rows (inverted minors, splinters, Ogust vs

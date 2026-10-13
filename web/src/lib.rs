@@ -1253,6 +1253,7 @@ const fn gated(
 }
 
 // Section names; the tab shows them in first-appearance order.
+const SYSTEM: &str = "System";
 const OPENINGS: &str = "Openings";
 const NOTRUMP: &str = "Notrump";
 const COMPETITION: &str = "Competition";
@@ -1323,6 +1324,47 @@ fn get_notrump_defense_choice(agreements: &Agreements) -> &'static str {
 /// The 1NT opening shape family — variants map onto `american::NotrumpShape`.
 /// Each widens the one before it: balanced only, then also a 5422 with a
 /// five-card minor, then also a 6322 with a six-card minor (the shipped default).
+static SYSTEM_PRESET_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "basic",
+        label: "Basic (beginner card)",
+    },
+    Variant {
+        value: "advanced",
+        label: "Advanced (every measured win)",
+    },
+    Variant {
+        value: "custom",
+        label: "Custom",
+    },
+];
+
+/// The system preset (`docs/system-variants.md`): `basic` or `advanced`
+/// rewrites every knob at once, keeping only the opponents' disclosures;
+/// `custom` is the read-back for any other knob vector and sets nothing.
+fn set_system_preset(agreements: &mut Agreements, value: &str) {
+    let their = agreements.decision.their;
+    match value {
+        "basic" => *agreements = Agreements::basic(),
+        "advanced" => *agreements = Agreements::advanced(),
+        _ => return,
+    }
+    agreements.decision.their = their;
+}
+
+/// Which preset the live knob vector equals, their-side disclosures aside.
+fn get_system_preset(agreements: &Agreements) -> &'static str {
+    let mut ours = *agreements;
+    ours.decision.their = TheirDisclosures::default();
+    if ours == Agreements::basic() {
+        "basic"
+    } else if ours == Agreements::advanced() {
+        "advanced"
+    } else {
+        "custom"
+    }
+}
+
 static NOTRUMP_SHAPE_VARIANTS: &[Variant] = &[
     Variant {
         value: "balanced",
@@ -1542,6 +1584,8 @@ fn puppet_stayman(agreements: &Agreements) -> bool {
 /// reads far better one-setting-per-line.  Keep new rows one line each.
 #[rustfmt::skip]
 static SETTINGS: &[Setting] = &[
+    // System
+    Setting::Choice { key: "system_preset", section: SYSTEM, label: "System preset", variants: SYSTEM_PRESET_VARIANTS, default: "advanced", requires: None, set: set_system_preset, get: get_system_preset },
     // Openings
     toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, set_open_one_notrump, open_one_notrump),
     Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice, get: get_notrump_shape_choice },

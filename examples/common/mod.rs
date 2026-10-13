@@ -31,6 +31,25 @@ use pons::scoring::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+/// `--ns-preset NAME`: replace every knob with a named system variant
+/// (`docs/system-variants.md`), keeping only the opponents' disclosures.
+///
+/// Applied **after** the `--ns-*` overlay, because every binary assigns each
+/// flag unconditionally, defaults included, so a preset laid down first would
+/// be clobbered back to the shipped system by the flags' own defaults.  A
+/// preset therefore overrides the knob flags; "basic plus one gadget" is a
+/// constructor edit, not a flag combination.
+pub fn apply_preset(agreements: &mut Agreements, preset: &str) -> anyhow::Result<()> {
+    let their = agreements.decision.their;
+    *agreements = match preset {
+        "basic" => Agreements::basic(),
+        "advanced" => Agreements::advanced(),
+        other => anyhow::bail!("--ns-preset must be basic or advanced, got {other:?}"),
+    };
+    agreements.decision.their = their;
+    Ok(())
+}
+
 /// The vs-BBA disclosure corrections: our agreements as armed against the
 /// EPBot 2/1 reference with no explicit `--their-conv` declaration.
 ///

@@ -2696,3 +2696,76 @@ fn forcing_nt_jump_shift_readings() {
     assert_eq!(long.length(Suit::Spades).min, 6);
     assert_eq!(long.strength.points.min, 18);
 }
+
+/// `Agreements::basic()`'s alert set is a fixed whitelist (`docs/system-variants.md` §1)
+///
+/// "Simple" has an objective proxy: the alerted calls a beginner must read at
+/// the table.  Equality, not inclusion, so a tag retired from the card and a
+/// gadget that joined it unnoticed both fail here.  Puppet, plain Lebensohl
+/// and Smolen stay because their natural off-states are unauthored holes.
+#[test]
+fn basic_alert_set_is_the_whitelist() {
+    use crate::bidding::american::american;
+
+    const WHITELIST: &[&str] = &[
+        "1ntd:unusual-2nt",
+        "both-majors",
+        "comp:cue-raise",
+        "comp:lebensohl-completion",
+        "comp:lebensohl-cue",
+        "comp:lebensohl-relay",
+        "comp:negative-double",
+        "completion",
+        "forcing-nt-3nt-long-major",
+        "forcing-nt-five-five-invite",
+        "forcing-nt-jump-shift-4c-fit",
+        "fourth-suit-forcing",
+        "game-force",
+        "inverted-minor",
+        "jacoby-2nt",
+        "jacoby-transfer",
+        "michaels",
+        "new-minor-forcing",
+        "ogust",
+        "opener-jump-shift",
+        "opener-reverse",
+        "puppet",
+        "rebid-checkback",
+        "rkcb",
+        "shortness",
+        "slam-try",
+        "smolen",
+        "splinter",
+        "stayman",
+        "strong-2c",
+        "strong-2c:waiting",
+        "takeout-double",
+        "texas",
+        "unusual-2nt",
+        "weak-jump-overcall",
+        "weak-jump-shift",
+    ];
+    let agreements = crate::bidding::agreements::Agreements::basic();
+    let system = american(&agreements);
+    let mut alerts = std::collections::BTreeSet::new();
+    for trie in [
+        &system.constructive.0,
+        &system.competitive.0,
+        &system.defensive.0,
+    ] {
+        for_each_authored_rule(
+            trie,
+            agreements.decision,
+            &mut |_: &[Call], _: &Context<'_>, rule: &crate::bidding::rules::Rule| {
+                if let Some(alert) = rule.alert() {
+                    alerts.insert(alert.0);
+                }
+            },
+        );
+    }
+    let alerts: Vec<&str> = alerts.into_iter().collect();
+    assert_eq!(
+        alerts, WHITELIST,
+        "basic's alert set drifted from the whitelist"
+    );
+}

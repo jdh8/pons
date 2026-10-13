@@ -4978,5 +4978,87 @@ impl Default for Agreements {
     }
 }
 
+/// The two named profiles of the system (`docs/system-variants.md`)
+///
+/// A variant is an `Agreements` value, not a second factory: `advanced` is
+/// the shipped default under its IntoBridge name, `basic` the same system
+/// with the gadget layer switched to each knob's natural *authored* state.
+/// An unauthored off-state falls to the floor, which is not "natural", so a
+/// hole (Puppet vs a natural `1NT - 3m`, the 1NT runout family) stays as
+/// shipped and is recorded in the document, not flipped here.
+impl Agreements {
+    /// The champion: every convention that measured a win, i.e. [`Default`]
+    #[must_use]
+    pub fn advanced() -> Self {
+        Self::default()
+    }
+
+    /// The beginner card: 2/1 with the gadget layer off, every other call natural
+    ///
+    /// Stayman (8+), transfers, Texas, Jacoby 2NT, splinters, inverted minors,
+    /// Ogust, negative and takeout doubles, cue raises, Michaels and the
+    /// unusual 2NT, RKCB, `2♣` with `2♦` waiting all stay; the alert set is
+    /// pinned by `basic_alert_set_is_the_whitelist`, and
+    /// `basic_differs_from_default_only_on_the_listed_fields` pins the flips.
+    #[must_use]
+    pub fn basic() -> Self {
+        let mut a = Self::default();
+        // Checkback: New Minor Forcing on the four `1m - 1M - 1NT` slots in
+        // place of the XYZ relays (with XYZ off and NMF off, responder's
+        // rebid there is unauthored and falls to the floor).  The six other
+        // one-level auctions XYZ owned are a recorded hole.
+        a.decision.reading.xyz = false;
+        a.rebid.new_minor_forcing = true;
+        // Lebensohl stays plain: `Off` is a floor hole, not a natural table.
+        a.competition.lebensohl_style = LebensohlStyle::Plain;
+        a.defense.advance_sohl_style = LebensohlStyle::Plain;
+        // The 1NT gadget layer: Stayman promises a major, transfers complete,
+        // no slam tries, splinters or two-suited relays over it.
+        a.decision.reading.garbage_stayman = false;
+        a.decision.reading.crawling_stayman = false;
+        a.decision.transfer_gf_majors = false;
+        a.decision.transfer_gf_hearts = false;
+        a.notrump.stayman_both_majors = false;
+        a.notrump.stayman_cue_continuation = false;
+        a.notrump.stayman_minor_slam_try = false;
+        a.notrump.transfer_longer_major = false;
+        a.notrump.invitational_5card_majors = false;
+        a.notrump.diamond_splinter = false;
+        a.notrump.minor_transfer_slam_try = None;
+        a.notrump.transfer_slam_try = false;
+        a.notrump.texas_slam_drive = false;
+        a.competition.competition_over_stayman = false;
+        a.competition.competition_over_minor_transfer = false;
+        a.competition.competition_over_diamond_transfer = false;
+        // Their Multi and Landy: the natural legs, no slam machinery.
+        a.competition.multi_kokish_kraft = false;
+        a.competition.multi_minor_slam_try = None;
+        a.competition.landy_minor_slam_answer = false;
+        // Intermediate contested structure.  `splinter_doubled` and
+        // `second_suit_agreement` stay: each exists to stop a fall-through to
+        // the floor (a passed doubled splinter, a lost third call), not to
+        // add a gadget.
+        a.competition.jordan_truscott = false;
+        a.competition.major_support_double = false;
+        a.response.two_over_one_fit = false;
+        a.response.limit_raise_acceptance = false;
+        a.response.major_choice_of_games = false;
+        a.rebid.forcing_nt_two_suiter = false;
+        // Advance structure beyond a first course.
+        a.defense.leaping_michaels_enabled = false;
+        a.defense.responsive_takeout_enabled = false;
+        a.defense.rich_advance_double_enabled = false;
+        a.defense.longest_first_advance_enabled = false;
+        a.defense.advance_minor_jump_enabled = false;
+        a.defense.advance_2nt_continuation_enabled = false;
+        // Passed-hand gadgets.  Opener's jump shift over the forcing 1NT
+        // stays natural and strong (`forcing_nt_jump_shifts` on, Meckstroth
+        // off is already the default).
+        a.response.drury = false;
+        a.response.drury_splinters = false;
+        a
+    }
+}
+
 #[cfg(test)]
 mod tests;

@@ -14,6 +14,11 @@ fn the_checked_in_cards_match_the_generator() {
         include_str!("../../../cards/American.bbsa"),
         "cards/American.bbsa is stale — re-bless it (see this test's doc)",
     );
+    assert_eq!(
+        american_card(&Agreements::basic()).to_string(),
+        include_str!("../../../cards/American-Basic.bbsa"),
+        "cards/American-Basic.bbsa is stale — re-bless it with `bba-card --system american-basic`",
+    );
 }
 
 /// The card discloses the Multi `2♦` — and both sides of its radio group

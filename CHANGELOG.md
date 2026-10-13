@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **System variants `basic` / `advanced` built (2026-10-14), A/B in flight.**
+  `Agreements::basic()` (the beginner card: 2/1 with the gadget layer at each
+  knob's natural *authored* state — 36 knobs moved, pinned by
+  `basic_differs_from_default_only_on_the_listed_fields`; its alert set is a
+  36-tag whitelist pinned by `basic_alert_set_is_the_whitelist`),
+  `Agreements::advanced()` ≡ `default()`, `american_basic()` /
+  `american_advanced()`, the `--ns-preset basic|advanced` flag on `bba-gen`,
+  `render-book` and `probe-call-reading` (applied after the `--ns-*` overlay,
+  which would otherwise clobber it), `cards/American-Basic.bbsa` (ten rows
+  differ from the advanced card) and the web `system_preset` choice row.
+  The hole census reversed three draft rows (`splinter_doubled`,
+  `second_suit_agreement`, `forcing_nt_jump_shifts` stay on; XYZ off takes
+  NMF on) — [docs/system-variants.md §4a](docs/system-variants.md).  Default
+  system byte-identical (`smoke-default --count 20000 --seed 1` vs HEAD).
+  `scripts/ab-system-variants.sh` prices the whole gadget layer (basic vs
+  advanced) and the floor under the natural book (basic-instinct vs basic);
+  verdict owed.
+
 - **Design: `basic` / `advanced` system variants (2026-10-12, docs only).**
   [docs/system-variants.md](docs/system-variants.md) — a variant is an
   `Agreements` value (`advanced` ≡ `default()`, `basic` a beginner card after

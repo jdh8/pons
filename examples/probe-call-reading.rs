@@ -275,6 +275,12 @@ struct Args {
     #[arg(long, default_value = "14", value_name = "off|HCP")]
     ns_passed_hand_major_pass: String,
 
+    /// Replace every `--ns-*` knob with a named system variant, `basic` or
+    /// `advanced` (`docs/system-variants.md`); applied last, so it overrides
+    /// the knob flags and keeps only their-side disclosures
+    #[arg(long)]
+    ns_preset: Option<String>,
+
     /// Withhold Reverse Drury — a passed hand's `2♣!` limit raise of a
     /// third/fourth-seat `1M`, opener's answers and the contested tails
     /// (`response.drury`, **shipped default-on 2026-10-01**)
@@ -379,6 +385,9 @@ fn main() {
     agreements.competition.landy_minor_slam_answer = !args.no_ns_landy_minor_slam_answer;
     if let Some(n) = args.ns_multi_weak_escape {
         agreements.competition.multi_weak_escape = (n > 0).then_some(n);
+    }
+    if let Some(preset) = &args.ns_preset {
+        common::apply_preset(&mut agreements, preset).expect("a known preset");
     }
     let vul = AbsoluteVulnerability::NONE;
     let partnership = american(&agreements).bind();
