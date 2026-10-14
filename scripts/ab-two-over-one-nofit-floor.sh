@@ -22,7 +22,7 @@ mkdir -p "$R"
 
 seed_for() {
     f="$R/seed"
-    [ -s "$f" ] || echo "$(date +%s)" >"$f"
+    [ -s "$f" ] || echo "$(($(date +%s) * 1000))" >"$f"
     cat "$f"
 }
 

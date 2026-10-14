@@ -30,7 +30,7 @@ WORLDS=${WORLDS:-16}
 mkdir -p "$R"
 
 f="$R/seed"
-[ -s "$f" ] || date +%s >"$f"
+[ -s "$f" ] || echo $(($(date +%s) * 1000)) >"$f"
 SEED=$(cat "$f")
 
 i=0

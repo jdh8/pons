@@ -25,7 +25,7 @@ mkdir -p "$R"
 PER_SHARD=${PER_SHARD:-6400}
 SHARDS=${JOBS:-$(nproc)}
 CARD=vendor/bba/WJ.bbsa
-SEED_BASE=$(cat "$R/seed" 2>/dev/null || date +%s)
+SEED_BASE=$(cat "$R/seed" 2>/dev/null || echo $(($(date +%s) * 1000)))
 echo "$SEED_BASE" >"$R/seed"
 
 cargo build --release --features serde --example bba-gen --example bba-score

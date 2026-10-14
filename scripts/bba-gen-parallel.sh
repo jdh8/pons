@@ -19,9 +19,11 @@
 # stale, non-representative slice).  For a MULTI-ARM A/B the arms must share deals
 # so a paired ab-dump-diff is valid, so set it ONCE and reuse it across the arms:
 #
-#   export SEED_BASE=$(date +%s)           # one base for the whole experiment
+#   export SEED_BASE=$(($(date +%s) * 1000))   # one base for the whole experiment
 #   for arm in base +feat …; do scripts/bba-gen-parallel.sh out/$arm 6400 $flags; done
-#   # NEXT experiment: a NEW base (a fresh `date +%s`) → fresh hands.
+#   # NEXT experiment: a NEW base → fresh hands.  The ×1000 keeps two bases
+#   # minted within a second-ish at least 1000 apart, so shards never overlap
+#   # (#6: two bases closer than the shard count share whole shards).
 #
 # The chosen SEED_BASE is echoed; record it (with the git SHA) to reproduce a run.
 # See docs/shared-machine-data-gen.md ("Seed hygiene").
@@ -33,7 +35,7 @@ count=$2
 shift 2
 
 n=${JOBS:-$(nproc)}   # cap worker processes on a shared box; defaults to all cores
-seed_base=${SEED_BASE:-$(date +%s)}
+seed_base=${SEED_BASE:-$(($(date +%s) * 1000))}
 # BBA_GEN overrides the binary — an A/B whose off arm is a different build (a
 # pre-fix worktree) rather than a flag; see scripts/ab-rkcb-asker.sh.
 bin="${BBA_GEN:-$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen}"

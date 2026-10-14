@@ -41,7 +41,7 @@ esac
 EXP=ab-results/reading-knobs/2026-08-03
 mkdir -p "$EXP/scores"
 SHA=$(git rev-parse --short HEAD)
-if [ ! -s "$EXP/seed" ]; then date +%s >"$EXP/seed"; fi
+if [ ! -s "$EXP/seed" ]; then echo $(($(date +%s) * 1000)) >"$EXP/seed"; fi
 SEED_BASE=$(cat "$EXP/seed")
 export SEED_BASE
 PER=${PER:-6400}

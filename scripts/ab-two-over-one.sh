@@ -30,7 +30,7 @@ mkdir -p "$R"
 # are minted in the same second.
 seed_for() {
     f="$R/seed-$1"
-    [ -s "$f" ] || echo $(($(date +%s) + $2)) >"$f"
+    [ -s "$f" ] || echo $(($(date +%s) * 1000 + $2)) >"$f"
     cat "$f"
 }
 

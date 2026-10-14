@@ -23,7 +23,7 @@ read it now if this session hasn't. This skill is the run procedure.
    you need the reference opponent — mandatory for tuning our own conventions'
    strength/ranges (self-play can't punish them; pass the matching
    `--advertise-*` so BBA reads the bids).
-3. **Seeds.** `export SEED_BASE=$(date +%s)` once; all arms of this experiment
+3. **Seeds.** `export SEED_BASE=$(($(date +%s) * 1000))` once; all arms of this experiment
    share it (paired diffs need identical deals). Next experiment → new base.
    Record the base + git SHA in the results note.
 4. **Run.** Build first, then hands off the binaries until the run finishes —

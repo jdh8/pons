@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needs both builds on the same side of this change.
   [docs/measurement.md](docs/measurement.md) checklist 5.  Bidding untouched.
 
+- **Fresh `SEED_BASE`s are `date +%s` × 1000 (2026-10-14,
+  [#6](https://github.com/jdh8/pons/issues/6)).** `bba-gen-parallel.sh`,
+  `ben-gen-parallel.sh` and the self-sharding runners seed shard `i` with
+  `SEED_BASE + i`, so two bases closer than the shard count share whole
+  shards (the 2026-08-07 `ab-declared-agreement` pair, 8 apart, shared 24 of
+  32). Every script that mints a base (`ab-lib.sh`'s `seed_for`, the
+  wrappers' defaults, 15 runners) now scales the timestamp, so bases minted
+  seconds apart sit ≥ 1000 apart. Shard keying is unchanged: recorded seeds,
+  the anchor's persistent one included, deal the same boards and keep the
+  DD cache warm.  Bidding untouched.
+
 - **`basic` keeps XYZ, Jordan 2NT, support doubles and limit-raise
   acceptance (2026-10-14).** jdh8: standard modern bidding, not gadgets.
   `basic()` moves 32 knobs (was 37); NMF goes back off; the alert

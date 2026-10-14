@@ -26,7 +26,7 @@ SHA=$(git rev-parse --short HEAD)
 
 # One shared SEED_BASE (two seeds S1,S2) — fresh on first use, persistent on resume.
 SEEDF="$R/seed"
-[ -s "$SEEDF" ] || date +%s >"$SEEDF"
+[ -s "$SEEDF" ] || echo $(($(date +%s) * 1000)) >"$SEEDF"
 S1=$(cat "$SEEDF"); S2=$((S1 + 1))
 
 LEB=target/release/examples/ab-lebensohl

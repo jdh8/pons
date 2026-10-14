@@ -33,7 +33,7 @@ mkdir -p "$R"
 # Fresh sd world-sampling seed, persisted so a restart stays reproducible.
 sd_seed() {
     f="$R/sd-seed"
-    [ -s "$f" ] || date +%s >"$f"
+    [ -s "$f" ] || echo $(($(date +%s) * 1000)) >"$f"
     cat "$f"
 }
 SDSEED=$(sd_seed)
