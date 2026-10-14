@@ -48,8 +48,8 @@ const XYZ_COMPLETION: Alert = Alert("xyz-completion");
 /// | 2♥ (y = ♠, z = NT) | 1.05 | Weak second suit, to play |
 /// | Pass | 0.0 | Weak, nothing to say |
 ///
-/// Under [`RebidKnobs::xyz_second_major_first`] the 5♠4♥ / 5-5 `2♥` (spades
-/// capped at five) outranks the `2♠` rebid at 1.12.
+/// Under [`RebidKnobs::xyz_second_major_first`] (default on) the 5♠4♥ / 5-5
+/// `2♥` (spades capped at five) outranks the `2♠` rebid at 1.12.
 fn xyz_responder(response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
     let mut rules = Rules::new()
         .rule(

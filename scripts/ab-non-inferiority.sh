@@ -15,7 +15,11 @@
 # diffs are `repair vs shipped` (positive = the repair gains):
 #
 #   reverse-heart-game      4♥ on a doubleton over 1♥ - 1NT - 2♠   --ns-forcing-nt-reverse-heart-game
-#   xyz-second-major-first  5♠4♥ shows 2♥ before 2♠ after 1m - 1♠ - 1NT   --ns-xyz-second-major-first
+#   xyz-second-major-first  5♠4♥ shows 2♥ before 2♠ after 1m - 1♠ - 1NT   --no-ns-xyz-second-major-first
+#
+# xyz-second-major-first shipped default-on on its run (2026-10-14), so its arm is
+# now the off-switch and the diff reads `shipped vs off`; the recorded run, made
+# before the flip, is `repair vs shipped` with the same sign.
 #
 # Every diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
@@ -87,9 +91,9 @@ for vul in none both; do
         sddiff repair shipped "$vul"
         ;;
     xyz-second-major-first)
-        arm repair "$vul" --ns-xyz-second-major-first
-        diffpair repair shipped "$vul"
-        sddiff repair shipped "$vul"
+        arm off "$vul" --no-ns-xyz-second-major-first
+        diffpair shipped off "$vul"
+        sddiff shipped off "$vul"
         ;;
     *) echo "ab-non-inferiority: unknown experiment $E" >&2; exit 2 ;;
     esac

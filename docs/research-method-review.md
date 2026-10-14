@@ -196,7 +196,21 @@ reached a heart contract (173 boards, −870 plain).
 **Repair A/Bs (launched 2026-10-14 17:14Z, `ab-results/issue7-repairs/`).**
 `reverse-heart-game` (`rebid.forcing_nt_reverse_heart_game`) and
 `xyz-second-major-first`, each repair − shipped vs BBA, 1,228,800 boards per
-arm and cell, declared before the run. Verdicts owed.
+arm and cell, declared before the run.
+
+| Repair | Plain DD none / both | PD none / both | SD plain / SD-PD both | Fired | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `xyz_second_major_first` | +0.0010 ±0.0002 / +0.0014 ±0.0002 | +0.0014 ±0.0002 / +0.0018 ±0.0003 | +0.0011 ±0.0002 / +0.0015 ±0.0003 | 0.06% / 0.07% | **win \| win** on every cell and scorer, +1.6 to +2.6 IMPs per fired board: **shipped default-on** |
+| `forcing_nt_reverse_heart_game` | −0.0001 ±0.0001 / −0.0001 ±0.0002 | −0.0001 ±0.0002 / −0.0002 ±0.0002 | **−0.0002 ±0.0002 / −0.0003 ±0.0003** | 0.02% / 0.03% | **loss** (SD both-vul); stays opt-in |
+
+The XYZ gain is natural: the invitational `2♥` reaches `4♥` where `2♠`
+reached `3NT` (405 both-vul boards, +739 plain), and the weak `2♥` partscore
+beats `2♠` (262, +668); its worst boards are opener passing the weak `2♥`
+with a maximum. The heart-game repair failed because the trace priced the
+`4♠` bucket against the auctions without the reverse, not against `4♥`; the
+two-suiter loss stays open, its next levers the 6+ heart reverse (−451) and
+the 13–14 HCP hands (−539). `longer_major_response` should be re-measured on
+top of the XYZ repair before its trade-off is recorded.
 
 **Recorded trade-offs.** Each default is kept without a proof; the loss it
 accepts is its worst plain-DD lower bound per board.

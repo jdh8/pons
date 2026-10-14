@@ -9,18 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Opt-in repairs for the #7 two-suiter and XYZ leaks (2026-10-14).**
-  `rebid.forcing_nt_reverse_heart_game` lets responder's `4♥` over
-  `1♥ - 1NT - 2♠` take a doubleton heart, where the shipped table bids the
-  4-3 spade game (−733 plain IMPs in the #7 trace).
-  `rebid.xyz_second_major_first` has a 5♠4♥ or 5-5 responder show `2♥`
-  before `2♠` after `1m - 1♠ - 1NT`, in both the weak and the invitational
-  XYZ rounds, and authors opener's answer to the weak `2♥`; without it the
-  heart fit the longer-major response defers is never found (−5,016 plain
-  on the boards that lost it). Both default off, with `bba-gen` flags
-  `--ns-forcing-nt-reverse-heart-game` / `--ns-xyz-second-major-first`;
-  their A/Bs vs BBA (`scripts/ab-non-inferiority.sh`, 1,228,800 boards per
-  arm and cell) are in flight. Default system untouched.
+- **XYZ shows 5♠4♥ hearts first, default-on (2026-10-14).**
+  `rebid.xyz_second_major_first`: after `1m - 1♠ - 1NT`, a hand with four
+  hearts and at most five spades bids `2♥` above `2♠` in the weak and the
+  invitational XYZ rounds, and opener answers the weak `2♥` (`2♠` with three
+  spades and a doubleton heart, else pass). Won every cell vs BBA (repair −
+  shipped, 1,228,800 boards per cell): plain DD +0.0010 ±0.0002 /
+  +0.0014 ±0.0002, PD +0.0014 ±0.0002 / +0.0018 ±0.0003, SD-PD +0.0011 /
+  +0.0015 none/both; 0.06–0.07% fired, +1.6 to +2.6 IMPs per fired board.
+  Off-switch `--no-ns-xyz-second-major-first` in `bba-gen`. The sibling
+  `rebid.forcing_nt_reverse_heart_game` (responder's `4♥` on a doubleton over
+  `1♥ - 1NT - 2♠`) **lost** (SD both-vul −0.0003 ±0.0003 SD-PD, −0.35 to
+  −0.99 IMPs per fired board) and stays opt-in behind
+  `--ns-forcing-nt-reverse-heart-game`.
 
 - **#7 inventory and fresh re-measures (2026-10-14,
   [#7](https://github.com/jdh8/pons/issues/7)).** `research-method-review.md`

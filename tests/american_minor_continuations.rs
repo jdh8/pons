@@ -502,12 +502,12 @@ fn opener_passes_or_bids_notrump_over_the_preemptive_minor_raise() {
     );
 }
 
-// --- XYZ: 5♠4♥ shows hearts first (`RebidKnobs::xyz_second_major_first`) ------
+// --- XYZ: 5♠4♥ shows hearts first (`RebidKnobs::xyz_second_major_first`, shipped) -
 
-/// The shipped system with the second-major-first repair switched on
-fn second_major_first() -> Partnership {
+/// The off arm: the historic XYZ ordering, `2♠` above the 5♠4♥ `2♥`
+fn spades_first() -> Partnership {
     let mut agreements = Agreements::default();
-    agreements.rebid.xyz_second_major_first = true;
+    agreements.rebid.xyz_second_major_first = false;
     american(&agreements).bind()
 }
 
@@ -516,16 +516,16 @@ fn xyz_weak_five_four_shows_hearts_before_spades() {
     let weak = "KJxxx.Qxxx.xx.xx";
     let auction = xyz_auction(Strain::Spades, &[]);
     assert_eq!(
-        best_call(&partnership(), &auction, weak),
+        best_call(&spades_first(), &auction, weak),
         call(2, Strain::Spades),
     );
     assert_eq!(
-        best_call(&second_major_first(), &auction, weak),
+        best_call(&partnership(), &auction, weak),
         call(2, Strain::Hearts),
     );
     // Six spades still rebid them.
     assert_eq!(
-        best_call(&second_major_first(), &auction, "KJxxxx.Qxxx.xx.x"),
+        best_call(&partnership(), &auction, "KJxxxx.Qxxx.xx.x"),
         call(2, Strain::Spades),
     );
 }
@@ -538,11 +538,11 @@ fn xyz_invitational_five_four_shows_hearts_before_spades() {
         &[call(2, Strain::Clubs), call(2, Strain::Diamonds)],
     );
     assert_eq!(
-        best_call(&partnership(), &auction, invite),
+        best_call(&spades_first(), &auction, invite),
         call(2, Strain::Spades),
     );
     assert_eq!(
-        best_call(&second_major_first(), &auction, invite),
+        best_call(&partnership(), &auction, invite),
         call(2, Strain::Hearts),
     );
 }
@@ -551,11 +551,8 @@ fn xyz_invitational_five_four_shows_hearts_before_spades() {
 fn opener_corrects_the_weak_two_hearts_only_with_spade_preference() {
     let auction = xyz_auction(Strain::Spades, &[call(2, Strain::Hearts)]);
     assert_eq!(
-        best_call(&second_major_first(), &auction, "Kxx.xx.AQx.KJxxx"),
+        best_call(&partnership(), &auction, "Kxx.xx.AQx.KJxxx"),
         call(2, Strain::Spades),
     );
-    assert_eq!(
-        best_call(&second_major_first(), &auction, "Kx.Kxxx.AQx.Jxxx"),
-        P,
-    );
+    assert_eq!(best_call(&partnership(), &auction, "Kx.Kxxx.AQx.Jxxx"), P,);
 }

@@ -4358,6 +4358,13 @@ pub struct RebidKnobs {
     /// IMPs there, more than its −641 total (`research-method-review.md`).
     /// On, `4♥` takes 2+ hearts and keeps its weight above `4♠`.  Opt-in
     /// `--ns-forcing-nt-reverse-heart-game` in `bba-gen`.
+    ///
+    /// **Measured a loss** (2026-10-14, repair − shipped vs BBA, 1,228,800
+    /// boards per cell): DD non-inferior but negative in every cell (plain
+    /// −0.0001 ±0.0002 both-vul), plain SD and SD-PD both-vul CI-clear
+    /// negative (−0.0003 ±0.0003 SD-PD); −0.35 to −0.99 IMPs per fired
+    /// board.  The trace's `4♠` bucket was priced against the auctions
+    /// without the reverse, not against `4♥`.  Stays opt-in.
     pub forcing_nt_reverse_heart_game: bool,
     // --- rebids/jump_shifts.rs
     /// Natural strong jump shifts over the forcing `1NT` instead of Meckstroth
@@ -4394,14 +4401,18 @@ pub struct RebidKnobs {
     pub xyz_invite_judgment: bool,
     /// After `1m - 1♠ - 1NT`, show four hearts before rebidding five spades
     ///
-    /// **Default off** (measuring).  Off, XYZ's weak `2♠` (1.1) and
+    /// **Default on** since 2026-10-14: won every cell on all four scorers
+    /// (repair − shipped vs BBA, 1,228,800 boards per cell; plain DD
+    /// +0.0010 ±0.0002 / +0.0014 ±0.0002, PD +0.0014 ±0.0002 / +0.0018
+    /// ±0.0003, SD-PD +0.0011 / +0.0015 none/both; +1.6 to +2.6 IMPs per
+    /// fired board).  Off-switch `--no-ns-xyz-second-major-first` in
+    /// `bba-gen`.  Off, XYZ's weak `2♠` (1.1) and
     /// invitational `2♠` after the relay (1.2) outrank the 5♠4♥ `2♥` (1.05 /
     /// 1.1), so a 5-4 or 5-5 responder never shows hearts and the 4-4 or 5-4
     /// heart fit is lost — the #7 trace of the longer-major response
     /// (`research-method-review.md`).  On, a hand with 4+ hearts and at most
     /// five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
-    /// `2♠` with three spades and a doubleton heart, else pass.  Opt-in
-    /// `--ns-xyz-second-major-first` in `bba-gen`.
+    /// `2♠` with three spades and a doubleton heart, else pass.
     pub xyz_second_major_first: bool,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
@@ -4747,7 +4758,7 @@ impl Default for RebidKnobs {
             forcing_nt_reverse_heart_game: false,
             forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
-            xyz_second_major_first: false,
+            xyz_second_major_first: true,
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,
