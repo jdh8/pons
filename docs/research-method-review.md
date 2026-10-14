@@ -23,13 +23,171 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured (two losses inside δ await jdh8); five rows still unknown, two near-bound rows await jdh8 |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
 starting one, link it here, and close its checklist with the measured result or
 an explicit decision. Keep previously published outputs identifiable when an
 instrument or protocol changes.
+
+## Issue #7: non-inferiority inventory
+
+Defaults that shipped on a plain-DD wash before the margin, re-read on
+2026-10-14 against δ = 0.002 IMPs/board
+([measurement.md](measurement.md#the-decision-table)). The worst
+vulnerability cell decides. Two exact shortcuts: an enriched row whose lower
+bound clears −δ per filtered board clears it at any density (the margin only
+widens, `δ / density`); and a change that moves fewer than δ / 24 of boards
+(0.0083%) cannot lose δ even if every moved board loses the 24-IMP maximum.
+Figures are the ledgers' own; this pass re-measured nothing and reverted
+nothing.
+
+**Inconclusive: a plain-DD loss beyond δ is not ruled out.** Each needs
+jdh8's decision: re-measure on fresh deals with a pre-declared board count,
+or record the trade-off below. The proposed default in the last column keeps
+the default as is.
+
+| Change | Plain DD none / both (lower bound) | PD | Fired | Source | Proposed |
+| --- | --- | --- | --- | --- | --- |
+| `direct_weak_jump_overcall` (majors) | +0.0002 ±0.0028 (**−0.0026**) / +0.0031 ±0.0035 (−0.0004) | +0.0026 ±0.0032 / +0.0051 ±0.0040 — straddles too, so row "wash \| PD win" never applied | 1.16% / 1.11% | [ben-gap-campaign.md](ben-gap-campaign.md) | Trade-off: a preempt's obstruction is DD-invisible, so DD understates it |
+| Direct-seat table as exact per-overcall rows (knobless) | +0.0005 ±0.0029 (−0.0024) / −0.0009 ±0.0037 (**−0.0046**) | +0.0035 ±0.0035 / +0.0008 ±0.0043 | not quoted | CHANGELOG 2026-08-06 | Trade-off: KR2 structural conversion |
+| Phase 3 substitute-don't-intersect (knobless) | seed 1 −0.0008 ±0.0023 / −0.0013 ±0.0027 (**−0.0040**); seed 2 +0.0013 ±0.0022 / −0.0002 ±0.0027 (−0.0029) | both seeds straddle | 0.57–0.68% | [authored-reading-handoff.md](authored-reading-handoff.md) | Trade-off: KR2 reading architecture; the measured code no longer exists to re-run |
+| Reading-drift batch, round 3 (seven repairs + rail) | +0.0007 ±0.0050 (**−0.0043**) / +0.0049 ±0.0058 (−0.0009) | −0.0010 ±0.0058 / +0.0067 ±0.0067 | 2.91% / 2.58% | [reading-drift-handoff.md](reading-drift-handoff.md) | Trade-off: correctness repairs |
+| Raise readers off the point-count axis (fix) | +0.0034 ±0.0088 (**−0.0054**), 6,400 boards | +0.0033 ±0.0088 | 27 / 12,800 tables | CHANGELOG 2026-07-30 | Trade-off: correctness; the sample was too small to say anything |
+
+**Non-inferior under δ** (no action): `DOUBLE_PUSH_CEILING`, O3
+`direct_minor_weak_jump_overcall`, `response.major_raise_slam_try`, the
+`limit_raise_acceptance` and `fourth_suit_forcing` fresh re-runs, `reading.completion_alerts`, the
+fresh-sweep reading repairs (lower bounds −0.0016 / −0.0019, the closest),
+Part A of the cramped doubled answer, the 5-2 trump repair, the keycard
+trump-proof rail, the cue-blocked face + notrump dichotomy, the `lane_suits`
+polish, `reading.bid_exclusion`, `strength_ceilings` (legacy arm; that
+code state no longer exists), `modern_double_both_majors`,
+`doubled_notrump_max_length`, `strong_two_loose_positive` (alone, −0.0001),
+`nt_structure_side_gate`, `respect_keycard_signoff`,
+`minor_jump_notrump_slam_try`, and the one-level opening HCP floor. From
+per-seed `diff.*.txt` files in `pons-ab-results` (the CHANGELOG gives no
+per-cell ±): `unbalanced_1nt_rebid`, `two_over_one_reverse_extras`,
+`two_over_one_side_suit_first` and `two_over_one_minor_before_spades`.
+Shipped as wins with a plain lower bound of exactly 0, so non-inferior, not
+wins; each still ships on its PD win: `drury_splinters`,
+`strong_two_positive_notrump`. Enriched, cleared per filtered board: the Landy
+counter and `their_landy_reading`, the N1j ladder and weak-2♦ cap, N1q `strx`,
+the N4 v7 Multi counter, `their_multi_reading`, `multi_weak_escape`,
+Kokish–Kraft's none cell, N3's `at_least_as_long`, `transfer_longer_major`,
+and `weak_two_longest_first` (0.029% density gives a margin of 6.9 per
+accepted deal, against a lower bound of −0.011). The `(1NT) 2♦` mirror M1+M2
+clears too: its seed-1 none-vul lower bound is −0.0023 per filtered board, and
+`--filter-1nt` accepts about 19% of deals (Monte Carlo, 200k deals, on
+`is_1nt_opener`), so it is −0.0004 per board, inside the margin below which
+an 87% acceptance rate would have been needed. Below the δ / 24 bound: `upgrade_closure`, the cue / table-alert /
+pass readings, DOPI/ROPI/DEPO, `set_advance_2nt_continuation`,
+`set_floor_rkcb`, `weak_new_suit_rebid`, `keycard_answer_gates` (0
+divergent), the walk's shape floor, the Michaels complements, the
+`may_have_made` reading fix, and `defense_2c_landy_competition` (17 / 11 boards
+per 230.4k filtered).
+
+**Status unknown: no plain-DD CI was recorded.** Searched on 2026-10-14
+for surviving diffs and dumps in `pons-ab-results`, whose oldest entry is
+2026-07-06. Six rows were answered by diff files already on disk, pooled the
+way the ledgers pool them; all six are non-inferior and move out of this list:
+
+| Change | Plain DD none / both (lower bound) | PD | Results dir |
+| --- | --- | --- | --- |
+| `set_length_soundness` | +0.0010 ±0.0010 (0.0000) / +0.0006 ±0.0014 (−0.0008) | +0.0022 ±0.0011 / +0.0023 ±0.0016 | `reading-knobs/2026-07-17/scores` (BEN guard: −0.0001 ±0.0026 in the both cell straddles −δ) |
+| `set_major_support_double` | −0.0004 ±0.0007 (−0.0011) / +0.0004 ±0.0009 (−0.0005) | +0.0009 ±0.0009 / +0.0016 ±0.0011 | `competitive-book/p3c-support-x-*` |
+| `nt_overcall_systems_on` (major split) | per split board +0.0013 ±0.0038 (−0.0025) / +0.0044 ±0.0052 (−0.0008); at 30% density −0.0008 per board | −0.0003 ±0.0047 / +0.0018 ±0.0062 | `nt-overcall-systems-on` |
+| `passed_hand_overcall` | +0.0008 ±0.0009 / +0.0011 ±0.0015 (−0.0004), 76,800 boards | +0.0011 ±0.0017 (both) | `a5/passed-hand-overcall-*` |
+| `forcing_ceiling_read` | +0.0001 ±0.0001 both cells, three seeds pooled (614k boards) | +0.0003 ±0.0001 / ±0.0002 | `p0b-forcing-ceiling{,-s2,-s3}` |
+| Unauthored-`2NT` advance blanket | −0.0002 ±0.0003 (−0.0005) / −0.0002 ±0.0004 (−0.0006), three seeds | −0.0002 ±0.0003 / −0.0003 ±0.0004 | `defenders-nt-blanket-{2,3,4}`; listed here by mistake, its handoff doc already had the CIs |
+
+`penalize_escape_stack` is below the δ / 24 bound: 498 divergent of 5M
+filtered boards, at the ~19% `--filter-1nt` density about 0.0019% of drawn
+boards.
+
+Still unknown; no dumps survive, so only a fresh A/B can settle these:
+`PointScale::PointCount` (self-play, "plain wash" with no numbers), the
+linearised `upgrade` (a retrain A/B; no plain number at all),
+`set_competitive_4333` (no plain CI, and the both-vul cell was never
+measured), `penalty_no_pull` (none cell; no PD either) and
+`set_takeout_support` (none cell). Two are close but not proven. The RKCB
+queen ask was measured on 10M boards per cell in self-play; its PD intervals
+were about ±0.0002, so a plain lower bound near −δ is implausible.
+`set_competition_over_diamond_transfer` fired on about 400 of 1M filtered
+boards, about 0.0076% of drawn boards against the 0.0083% bound, but the
+count is rounded and the density is estimated.
+
+Three more sat outside their own row and were re-measured (below).
+`longer_major_response` shipped on the naturalness tiebreak with a PD *loss*
+(−0.12 / −0.22 per divergent), and that row asks for a push on both
+scorers. `forcing_nt_two_suiter`'s SD-PD none cell is CI-clear negative
+(−0.0011 ±0.0005). `forcing_nt_jump_shifts` was called "win | win" on
+totals, while its SD-PD washes.
+
+**Decided 2026-10-14 (jdh8).** Re-measure K=8, `competitive_push_natural_only`
+and the three flagged status-unknown rows (`longer_major_response`,
+`forcing_nt_two_suiter`, `forcing_nt_jump_shifts`) on fresh deals vs BBA, at
+sizes declared before the run in `scripts/ab-non-inferiority.sh` (K=8
+1,638,400 boards/arm/vul, the rest 1,228,800); the results land in
+`ab-results/non-inferiority/<experiment>/`. Re-score whatever dumps survive for
+the other status-unknown rows (done 2026-10-14, above); a row with no dump
+stays unknown. Record the
+five rows below as trade-offs.
+
+**Fresh re-measures (run 2026-10-14, sha `0a69df03`-dirty with
+`tree.patch` saved per experiment).** Each diff is shipped − alternative, so
+positive favours the shipped default. Cells are none / both; ± is the 95%
+half-width; the single-dummy columns (16 worlds) give the worse cell.
+
+| Change | Plain DD | PD | SD plain / SD-PD (worst) | Fired | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| K=8 floor vs K=4 | +0.0020 ±0.0019 / +0.0046 ±0.0023 | +0.0058 ±0.0021 / +0.0076 ±0.0025 | not run | 4.3% / 3.7% | **win \| win**: proven, moves out of Inconclusive |
+| `competitive_push_natural_only` vs off | −0.0003 ±0.0009 / −0.0003 ±0.0011 (−0.0014) | +0.0014 ±0.0009 / +0.0027 ±0.0011 | −0.0006 ±0.0010 / +0.0003 ±0.0010 | 0.31% / 0.37% | **non-inferior \| win**: shippable default-on, now proven |
+| `forcing_nt_jump_shifts` vs Meckstroth | −0.0001 ±0.0004 / −0.0003 ±0.0005 (−0.0008) | +0.0000 ±0.0005 / −0.0001 ±0.0006 | −0.0004 ±0.0005 / −0.0003 ±0.0005 | 0.10% / 0.11% | **non-inferior \| non-inferior**: the earlier "win" does not replicate; it stays on the naturalness tiebreak (natural jump shifts over a convention) |
+| `longer_major_response` vs off | +0.0000 ±0.0006 / −0.0005 ±0.0008 (−0.0013) | −0.0003 ±0.0007 / **−0.0010 ±0.0009** | −0.0005 ±0.0008 / **−0.0011 ±0.0009** (both) | 0.41% | **non-inferior \| loss**: no table row; both-vul PD and SD-PD are CI-clear negative, inside δ |
+| `forcing_nt_two_suiter` vs off | **−0.0002 ±0.0002 / −0.0003 ±0.0003** | **−0.0007 ±0.0002 / −0.0009 ±0.0003** | +0.0000 ±0.0002 / **−0.0003 ±0.0002** (none) | 0.04% / 0.05% | **loss \| loss**: every DD cell, −0.5 to −1.9 IMPs per fired board; plain SD alone is non-inferior |
+
+**`forcing_nt_two_suiter` trace (2026-10-15).** All 1,117 divergent boards
+of both cells, bucketed by opener's shape and responder's answer to
+`1♥ - 1NT - 2♠` (plain / PD IMPs; total −641 / −1,889):
+
+| Bucket | Boards | Plain | PD |
+| --- | --- | --- | --- |
+| Responder `4♠` with three spades and a doubleton heart | 359 | −733 | −1,142 |
+| Responder `3♥` preference with a doubleton (off stops in `2♥`) | 161 | −331 | −494 |
+| Opener with 6+ hearts (any answer) | 150 | −451 | −669 |
+| Responder `4♥` with three hearts | 58 | +285 | +251 |
+| Responder `3NT` | 314 | +274 | −74 |
+| Opener 16–17 HCP | 406 | +127 | −164 |
+| Opener 13–14 HCP (15–17 *points* by length) | 330 | −539 | −985 |
+
+The leak is the answer table, not the invitation. `4♠` (weight 1.3, exactly
+three spades) outranks the 5-2 heart fit, which `4♥` (3+ hearts) never takes,
+and off reaches `4♥` through `2♥ - 3♥ - 4♥` or stops in `2♥`. Opener's
+6+ heart hands reverse too and land in the 4-3 or in `3NT` (−140 plain on the
+`3NT` with a doubleton). The reverse also forces a minimum responder to
+`3♥`. The 16–17 HCP hands and the three-heart `4♥` already gain. Repairs to
+measure, each reversible: let `4♥` take 2+ hearts above `4♠`; cap the
+reverse at five hearts; raise the floor to 15 HCP. The default stays on
+until one is measured: jdh8's call.
+
+**`longer_major_response`** has no row in the decision table: plain is
+non-inferior, PD and SD-PD lose in the both cell (lower bounds −0.0019 and
+−0.0020). It shipped on naturalness with this same PD sign. Proposed
+reversible default: keep it on as a recorded trade-off on naturalness, PD
+loss −0.0010 accepted, with a worst-board trace owed before any revert.
+
+**Recorded trade-offs.** Each default is kept without a proof; the loss it
+accepts is its worst plain-DD lower bound per board.
+
+| Change | Basis | Loss accepted |
+| --- | --- | --- |
+| `direct_weak_jump_overcall` (majors) | Obstruction: a preempt's cost to the opponents is invisible to DD, so DD understates it | −0.0026 (none) |
+| Direct-seat table as exact per-overcall rows | KR2: the structural conversion to rows | −0.0046 (both) |
+| Phase 3 substitute-don't-intersect | KR2: the reading architecture; the measured code no longer exists to re-run | −0.0040 (seed 1, both) |
+| Reading-drift batch, round 3 | Correctness: seven reading repairs plus a rail | −0.0043 (none) |
+| Raise readers off the point-count axis | Correctness; 6,400 boards could not resolve anything | −0.0054 |
 
 ## 4 Disclosure in SD dump rescoring
 

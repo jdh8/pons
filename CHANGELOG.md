@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **#7 inventory and fresh re-measures (2026-10-14,
+  [#7](https://github.com/jdh8/pons/issues/7)).** `research-method-review.md`
+  re-reads the wash-shipped defaults against δ. Seven were inconclusive; five
+  are kept as recorded trade-offs (`direct_weak_jump_overcall`, lower bound
+  −0.0026, and four knobless repairs), and six status-unknown rows were
+  answered non-inferior from surviving dumps. The fresh re-measures
+  (1.2–1.6M boards per arm and cell vs BBA) prove the K=8 floor ensemble
+  (win | win) and `competitive_push_natural_only` (plain lower bound −0.0014,
+  PD win); `forcing_nt_jump_shifts` is non-inferior on both scorers, not the
+  "win" first claimed. Two lose inside δ: `longer_major_response` on
+  both-vul PD (−0.0010 ±0.0009) and `forcing_nt_two_suiter` on every DD cell
+  (plain −0.0003 ±0.0003, PD −0.0009 ±0.0003, up to −1.9 IMPs per fired
+  board). The two-suiter trace puts the leak in responder's `4♠` with three
+  spades over a 5-2 heart fit. Both defaults stay on pending jdh8's
+  decision. Bidding untouched.
+
 - **Control arms for the #7 re-measures (2026-10-14).** `bba-gen` gains
   `--no-ns-forcing-nt-two-suiter` and `--ns-meckstroth-adjunct`, the control
   arms the self-play-only knobs lacked, and `scripts/ab-non-inferiority.sh`

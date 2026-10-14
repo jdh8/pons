@@ -4338,6 +4338,9 @@ pub struct RebidKnobs {
     /// vuls): plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished),
     /// sd-lead **+0.0012/+0.0028** NV/vul — all four sd cells CI-clean
     /// positive.  The A/B builds a baseline arm with it off.
+    /// The fresh vs-BBA re-measure (2026-10-14, #7) **loses** on every DD
+    /// cell (plain −0.0003 ±0.0003, PD −0.0009 ±0.0003 both-vul); the trace
+    /// blames responder's `4♠` over a 5-2 heart fit (`research-method-review.md`).
     ///
     /// Over the forcing 1NT, opener with 15–17 and a second major suit has no
     /// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural
@@ -4351,7 +4354,9 @@ pub struct RebidKnobs {
     ///
     /// **Default on** since 2026-09-27 — beat the Meckstroth `2NT` on every
     /// bracket (`ab-meckstroth-2nt --jump-shifts`, 400k/vul × 2 seeds: SD-PD
-    /// +0.0016/+0.0012 NV, +0.0011/+0.0009 vul).  Ignored
+    /// +0.0016/+0.0012 NV, +0.0011/+0.0009 vul).  The fresh vs-BBA
+    /// re-measure (2026-10-14, #7) reads non-inferior on both scorers, not a
+    /// win; it stays on the naturalness tiebreak.  Ignored
     /// while [`meckstroth_adjunct`][Self::meckstroth_adjunct] is on — the two
     /// are rival designs for the same 18+ seam.  With Meckstroth off and this
     /// on, opener's 18+ rebids after `1M - 1NT` become: `2NT` = 18+ balanced
