@@ -70,12 +70,20 @@ pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit, knobs: &Rebi
 /// | 3NT  | 1.2 | No eight-card fit, values — to play |
 /// | 3♥   | 1.0 | Heart preference, minimum |
 /// | 2NT  | 0.0 | Guaranteed-legal minimum catch-all |
-fn responder_over_forcing_nt_reverse() -> Rules {
+///
+/// Under [`RebidKnobs::forcing_nt_reverse_heart_game`] `4♥` takes a doubleton
+/// too: the 5-2 heart fit outplays the 4-3 spade fit.
+fn responder_over_forcing_nt_reverse(knobs: &RebidKnobs) -> Rules {
+    let hearts = if knobs.forcing_nt_reverse_heart_game {
+        2
+    } else {
+        3
+    };
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
             150,
-            len(Suit::Hearts, 3..) & points(8..),
+            len(Suit::Hearts, hearts..) & points(8..),
         )
         .rule(
             Bid::new(4, Strain::Spades),
@@ -125,7 +133,7 @@ pub(crate) fn forcing_nt_two_suiter_continuations() -> Package {
         entries: |agreements| {
             let mut entries = rows_of(
                 Pattern::node("P* 1♥ - 1NT - 2♠ -"),
-                responder_over_forcing_nt_reverse(),
+                responder_over_forcing_nt_reverse(&agreements.rebid),
             );
             if !forcing_nt_jump_shifts_on(&agreements.rebid) {
                 entries.extend(rows_of(

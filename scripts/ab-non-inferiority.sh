@@ -11,6 +11,12 @@
 #   forcing-nt-two-suiter   15–17 two-suiter rebids  --no-ns-forcing-nt-two-suiter
 #   forcing-nt-jump-shifts  natural jump shifts      --ns-meckstroth-adjunct (what they replaced)
 #
+# Two repairs the traces of those re-measures proposed, run only when named; their
+# diffs are `repair vs shipped` (positive = the repair gains):
+#
+#   reverse-heart-game      4♥ on a doubleton over 1♥ - 1NT - 2♠   --ns-forcing-nt-reverse-heart-game
+#   xyz-second-major-first  5♠4♥ shows 2♥ before 2♠ after 1m - 1♠ - 1NT   --ns-xyz-second-major-first
+#
 # Every diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
 # and PD; SD-PD is reported for the four knobs (the k8 floor diverges on too
@@ -74,6 +80,16 @@ for vul in none both; do
         arm meckstroth "$vul" --ns-meckstroth-adjunct
         diffpair shipped meckstroth "$vul"
         sddiff shipped meckstroth "$vul"
+        ;;
+    reverse-heart-game)
+        arm repair "$vul" --ns-forcing-nt-reverse-heart-game
+        diffpair repair shipped "$vul"
+        sddiff repair shipped "$vul"
+        ;;
+    xyz-second-major-first)
+        arm repair "$vul" --ns-xyz-second-major-first
+        diffpair repair shipped "$vul"
+        sddiff repair shipped "$vul"
         ;;
     *) echo "ab-non-inferiority: unknown experiment $E" >&2; exit 2 ;;
     esac

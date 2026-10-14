@@ -455,6 +455,29 @@ fn responder_raises_the_reverse_to_the_heart_game() {
 }
 
 #[test]
+fn responder_prefers_the_five_two_heart_game_under_the_repair() {
+    // K43.Q2.QJ432.K42 — 11 HCP, three spades and two hearts: the shipped
+    // table bids the 4-3 spade game; `forcing_nt_reverse_heart_game` plays
+    // the 5-2 heart fit.
+    let auction = {
+        let mut a = after_1h_1nt();
+        a.extend([call(2, Strain::Spades), Call::Pass]);
+        a
+    };
+    let hand = "K43.Q2.QJ432.K42";
+    assert_eq!(
+        best_call(&partnership(), &auction, hand),
+        call(4, Strain::Spades),
+    );
+    let mut agreements = Agreements::default();
+    agreements.rebid.forcing_nt_reverse_heart_game = true;
+    assert_eq!(
+        best_call(&american(&agreements).bind(), &auction, hand),
+        call(4, Strain::Hearts),
+    );
+}
+
+#[test]
 fn responder_accepts_the_five_five_jump_in_spades() {
     // K43.J32.KJ432.42 — 8 HCP, three spades: accept to 4♠ (spade fit).  (A
     // flat 4333 8-count reads 7 on the rule-of-N+8 scale and declines.)

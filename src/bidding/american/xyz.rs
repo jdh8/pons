@@ -47,7 +47,10 @@ const XYZ_COMPLETION: Alert = Alert("xyz-completion");
 /// | 2y (y a major) | 1.1 | Weak rebid, 5+ suit, to play |
 /// | 2♥ (y = ♠, z = NT) | 1.05 | Weak second suit, to play |
 /// | Pass | 0.0 | Weak, nothing to say |
-fn xyz_responder(response: Suit, rebid: Strain) -> Rules {
+///
+/// Under [`RebidKnobs::xyz_second_major_first`] the 5♠4♥ / 5-5 `2♥` (spades
+/// capped at five) outranks the `2♠` rebid at 1.12.
+fn xyz_responder(response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(2, Strain::Clubs),
@@ -71,11 +74,19 @@ fn xyz_responder(response: Suit, rebid: Strain) -> Rules {
     }
     // The weak 5♠4♥ hand shows its second suit, to play.
     if response == Suit::Spades && rebid == Strain::Notrump {
-        rules = rules.rule(
-            Bid::new(2, Strain::Hearts),
-            105,
-            len(Suit::Hearts, 4..) & points(..=9),
-        );
+        rules = if knobs.xyz_second_major_first {
+            rules.rule(
+                Bid::new(2, Strain::Hearts),
+                112,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, ..=5) & points(..=9),
+            )
+        } else {
+            rules.rule(
+                Bid::new(2, Strain::Hearts),
+                105,
+                len(Suit::Hearts, 4..) & points(..=9),
+            )
+        };
     }
     rules.rule(Call::Pass, 0, points(..=9))
 }
@@ -90,8 +101,9 @@ fn xyz_completion() -> Rules {
 /// Responder's continuation after `2♣ - 2♦`: pass out the sign-off, or invite
 ///
 /// Every bid here is invitational (10–12); pass is the weak-diamond sign-off
-/// the relay promised.
-fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
+/// the relay promised.  Under [`RebidKnobs::xyz_second_major_first`] the
+/// 5♠4♥ / 5-5 `2♥` (spades capped at five) outranks the `2♠` invite at 1.22.
+fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
     let mut rules = Rules::new();
     // Invitational raise of opener's second-suit major — fit first.
     if let Some(second) = rebid.suit() {
@@ -107,11 +119,19 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
     }
     // The invitational 5♠4♥ hand shows its second suit.
     if response == Suit::Spades && rebid == Strain::Notrump {
-        rules = rules.rule(
-            Bid::new(2, Strain::Hearts),
-            110,
-            len(Suit::Hearts, 4..) & points(10..=12),
-        );
+        rules = if knobs.xyz_second_major_first {
+            rules.rule(
+                Bid::new(2, Strain::Hearts),
+                122,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, ..=5) & points(10..=12),
+            )
+        } else {
+            rules.rule(
+                Bid::new(2, Strain::Hearts),
+                110,
+                len(Suit::Hearts, 4..) & points(10..=12),
+            )
+        };
     }
     // Minor-suit invites: support for opener's minor, or a long suit of our own.
     for minor in [Suit::Clubs, Suit::Diamonds] {
@@ -193,7 +213,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
     // Responder's XYZ round, the forced completion, and the game force.
     entries.extend(rows_of(
         Pattern::node(&prefix),
-        xyz_responder(response, rebid),
+        xyz_responder(response, rebid, knobs),
     ));
     entries.extend(rows_of(
         Pattern::node(&format!("{prefix} 2♣ -")),
@@ -222,11 +242,26 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
         ));
     }
 
+    // Opener's answer to the weak 5♠4♥ `2♥`: prefer spades with three and a
+    // doubleton heart, else pass (the 1NT rebid may hold four hearts).
+    if knobs.xyz_second_major_first && response == Suit::Spades && rebid == Strain::Notrump {
+        entries.extend(rows_of(
+            Pattern::node(&format!("{prefix} 2♥ -")),
+            Rules::new()
+                .rule(
+                    Bid::new(2, Strain::Spades),
+                    100,
+                    len(Suit::Spades, 3..) & len(Suit::Hearts, ..=2),
+                )
+                .rule(Call::Pass, 0, points(0..)),
+        ));
+    }
+
     // The invitational round after the relay, and opener's acceptances.
     let relay = format!("{prefix} 2♣ - 2♦ -");
     entries.extend(rows_of(
         Pattern::node(&relay),
-        xyz_after_relay(opening, response, rebid),
+        xyz_after_relay(opening, response, rebid, knobs),
     ));
 
     let mut accept = |invite: Call, table: Rules| {

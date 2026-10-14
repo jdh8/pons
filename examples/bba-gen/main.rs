@@ -1509,6 +1509,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_meckstroth_adjunct: bool,
 
+    /// Let responder's `4♥` over `1♥ - 1NT - 2♠` take a doubleton
+    /// (`rebid.forcing_nt_reverse_heart_game`, default off; the #7 repair)
+    #[arg(long, default_value_t = false)]
+    ns_forcing_nt_reverse_heart_game: bool,
+
+    /// After `1m - 1♠ - 1NT`, show 5♠4♥ / 5-5 with `2♥` before `2♠`
+    /// (`rebid.xyz_second_major_first`, default off; the #7 repair)
+    #[arg(long, default_value_t = false)]
+    ns_xyz_second_major_first: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3232,6 +3242,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_spade_jump_shift = !args.no_ns_heart_spade_jump_shift;
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
+    agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
+    agreements.rebid.xyz_second_major_first = args.ns_xyz_second_major_first;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

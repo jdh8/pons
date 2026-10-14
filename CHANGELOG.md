@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Opt-in repairs for the #7 two-suiter and XYZ leaks (2026-10-14).**
+  `rebid.forcing_nt_reverse_heart_game` lets responder's `4♥` over
+  `1♥ - 1NT - 2♠` take a doubleton heart, where the shipped table bids the
+  4-3 spade game (−733 plain IMPs in the #7 trace).
+  `rebid.xyz_second_major_first` has a 5♠4♥ or 5-5 responder show `2♥`
+  before `2♠` after `1m - 1♠ - 1NT`, in both the weak and the invitational
+  XYZ rounds, and authors opener's answer to the weak `2♥`; without it the
+  heart fit the longer-major response defers is never found (−5,016 plain
+  on the boards that lost it). Both default off, with `bba-gen` flags
+  `--ns-forcing-nt-reverse-heart-game` / `--ns-xyz-second-major-first`;
+  their A/Bs vs BBA (`scripts/ab-non-inferiority.sh`, 1,228,800 boards per
+  arm and cell) are in flight. Default system untouched.
+
 - **#7 inventory and fresh re-measures (2026-10-14,
   [#7](https://github.com/jdh8/pons/issues/7)).** `research-method-review.md`
   re-reads the wash-shipped defaults against δ. Seven were inconclusive; five

@@ -4349,6 +4349,16 @@ pub struct RebidKnobs {
     /// continuations — the seam between the minimum natural rebids and the 18+
     /// game force ([`meckstroth_adjunct`][Self::meckstroth_adjunct]).
     pub forcing_nt_two_suiter: bool,
+    /// Let responder's `4♥` over the `1♥ - 1NT - 2♠` reverse take a doubleton
+    ///
+    /// **Default off** (measuring).  Off, `4♥` needs three hearts, so a hand
+    /// with three spades and two hearts bids `4♠` into a 4-3 fit when the
+    /// 5-2 heart fit is on offer; the #7 trace of
+    /// [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter] finds −733 plain
+    /// IMPs there, more than its −641 total (`research-method-review.md`).
+    /// On, `4♥` takes 2+ hearts and keeps its weight above `4♠`.  Opt-in
+    /// `--ns-forcing-nt-reverse-heart-game` in `bba-gen`.
+    pub forcing_nt_reverse_heart_game: bool,
     // --- rebids/jump_shifts.rs
     /// Natural strong jump shifts over the forcing `1NT` instead of Meckstroth
     ///
@@ -4382,6 +4392,17 @@ pub struct RebidKnobs {
     /// gated; the shaped acceptances (three-card support, the 5♠4♥ hand) always
     /// author.
     pub xyz_invite_judgment: bool,
+    /// After `1m - 1♠ - 1NT`, show four hearts before rebidding five spades
+    ///
+    /// **Default off** (measuring).  Off, XYZ's weak `2♠` (1.1) and
+    /// invitational `2♠` after the relay (1.2) outrank the 5♠4♥ `2♥` (1.05 /
+    /// 1.1), so a 5-4 or 5-5 responder never shows hearts and the 4-4 or 5-4
+    /// heart fit is lost — the #7 trace of the longer-major response
+    /// (`research-method-review.md`).  On, a hand with 4+ hearts and at most
+    /// five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
+    /// `2♠` with three spades and a doubleton heart, else pass.  Opt-in
+    /// `--ns-xyz-second-major-first` in `bba-gen`.
+    pub xyz_second_major_first: bool,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
     ///
@@ -4723,8 +4744,10 @@ impl Default for RebidKnobs {
             meckstroth_adjunct: false,
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
+            forcing_nt_reverse_heart_game: false,
             forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
+            xyz_second_major_first: false,
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,

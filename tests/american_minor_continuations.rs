@@ -501,3 +501,61 @@ fn opener_passes_or_bids_notrump_over_the_preemptive_minor_raise() {
         best_call(&floor, &raised, unbalanced)
     );
 }
+
+// --- XYZ: 5♠4♥ shows hearts first (`RebidKnobs::xyz_second_major_first`) ------
+
+/// The shipped system with the second-major-first repair switched on
+fn second_major_first() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.xyz_second_major_first = true;
+    american(&agreements).bind()
+}
+
+#[test]
+fn xyz_weak_five_four_shows_hearts_before_spades() {
+    let weak = "KJxxx.Qxxx.xx.xx";
+    let auction = xyz_auction(Strain::Spades, &[]);
+    assert_eq!(
+        best_call(&partnership(), &auction, weak),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&second_major_first(), &auction, weak),
+        call(2, Strain::Hearts),
+    );
+    // Six spades still rebid them.
+    assert_eq!(
+        best_call(&second_major_first(), &auction, "KJxxxx.Qxxx.xx.x"),
+        call(2, Strain::Spades),
+    );
+}
+
+#[test]
+fn xyz_invitational_five_four_shows_hearts_before_spades() {
+    let invite = "AQxxx.KJxx.xx.xx";
+    let auction = xyz_auction(
+        Strain::Spades,
+        &[call(2, Strain::Clubs), call(2, Strain::Diamonds)],
+    );
+    assert_eq!(
+        best_call(&partnership(), &auction, invite),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&second_major_first(), &auction, invite),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn opener_corrects_the_weak_two_hearts_only_with_spade_preference() {
+    let auction = xyz_auction(Strain::Spades, &[call(2, Strain::Hearts)]);
+    assert_eq!(
+        best_call(&second_major_first(), &auction, "Kxx.xx.AQx.KJxxx"),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&second_major_first(), &auction, "Kx.Kxxx.AQx.Jxxx"),
+        P,
+    );
+}
