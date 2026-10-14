@@ -46,7 +46,7 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    - Measuring **our own convention** needs an opponent that *reads* it
      (`--advertise-*` flags): self-play with the convention off on the other
      side cannot punish or exploit the disclosure, and over-rates it.
-5. **Seed hygiene.** `export SEED_BASE=$(($(date +%s) * 1000))` **once per experiment**;
+5. **Seed hygiene.** `export SEED_BASE=$(date +%s%N)` **once per experiment**;
    every arm of the experiment reuses it (paired diffs need identical deals).
    The *next* experiment takes a fresh base. Never replay fixed seeds 0..31.
    **Deal generator v2 (2026-10-14, [#6](https://github.com/jdh8/pons/issues/6)):**
@@ -60,17 +60,20 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    `deal-overlap` on both (a `bba-gen` dump or shard dir, or
    `seeded:BASE:COUNT`; it counts shared four-hand deals and exits 1 on any)
    and quote its line in the ledger; shared boards are one sample, not two.
+   Empty sources are rejected: a missing sample cannot confirm independence.
    For v1 runs that the tool cannot regenerate, check the seed windows
    `[base, base + count)` do not intersect. v1 results reproduce only
    at a commit before the change, and a `smoke-default` byte-identity diff
-   must build both sides on the same side of it. Not affected: `bba-gen` /
-   the anchor and `ben-gen` (one stream per seed — but `bba-gen-parallel.sh`,
+   must build both sides on the same side of it. The v1 defect did not affect
+   `bba-gen` / the anchor, `ben-gen`, or any harness that seeds one `StdRng`
+   from `--seed` and draws all its deals from it. However, `bba-gen-parallel.sh`,
    `ben-gen-parallel.sh` and the self-sharding runners (`ab-reading-drift`,
    `ab-diamond-floor`, `ab-walk-shape`, `ab-face-corroborate`) seed shard `i`
    with `SEED_BASE + i`, so two bases closer than the shard count share whole
-   shards — hence every fresh base the scripts mint is `date +%s` × 1000, and
-   recorded seeds, the anchor's included, keep their shards), and every harness that
-   seeds one `StdRng` from `--seed` and draws all its deals from it. Fixed
+   shards — fresh bases now use `date +%s%N` (GNU date, nanosecond timestamps).
+   The earlier `date +%s` × 1000 spacing still collided within one second;
+   check the actual deal intersection rather than assuming clock uniqueness.
+   Recorded seeds, the anchor's included, keep their shards. Fixed
    benchmarks keep their v1 keys on purpose (`bidding-corpus`,
    `bidding-performance`), as do `probe-weak-two-eval` (a one-off census)
    and `probe-keycard-reach` (its `seed + i` picks dealer and vulnerability

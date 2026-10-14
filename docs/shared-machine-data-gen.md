@@ -175,7 +175,8 @@ that slice. **Poll new hands for each experiment.**
 
 The rule:
 
-- **Each experiment uses a fresh `SEED_BASE`** (default: `date +%s`). Shard *i*
+- **Each experiment uses a fresh `SEED_BASE`** (default: `date +%s%N`, GNU date's
+  nanosecond timestamp). Shard *i*
   draws `--seed (SEED_BASE + i)`. `bba-gen-parallel.sh` does this automatically
   and echoes the base it chose.
 - **One base per experiment, shared across its arms.** A paired `ab-dump-diff`
@@ -183,20 +184,22 @@ The rule:
   set the base once and reuse it for every arm of the same experiment:
 
   ```sh
-  export SEED_BASE=$(date +%s)            # one base for the whole experiment
+  export SEED_BASE=$(date +%s%N)          # one base for the whole experiment
   for arm in base +feat; do
       scripts/idle-run.sh scripts/bba-gen-parallel.sh out/$arm 6400 $arm_flags
   done
   ab-dump-diff out/+feat/merged.json out/base/merged.json --score pd
   ```
 
-  Do **not** let each arm pick its own `date +%s` (calling the script per-arm
+  Do **not** let each arm pick its own `date +%s%N` (calling the script per-arm
   without exporting `SEED_BASE` does exactly that) — the arms would then bid
   *different* deals and the pairing is meaningless.
-- **The next experiment gets a new base** — a fresh `date +%s` → fresh hands.
-  Bases must differ by ≥ `nproc` to keep their shard ranges disjoint; since a real
-  experiment takes minutes, a per-experiment `date +%s` guarantees this. For
-  genuinely back-to-back runs, bump the base by hand (`SEED_BASE=$(( $(date +%s) + 1000 ))`).
+- **The next experiment gets a new base.** Nanosecond resolution avoids the
+  same-second collision of the old timestamp recipes. Bases must differ by
+  ≥ the shard count to keep their shard ranges disjoint. Run `deal-overlap`
+  before citing independent replication or pooling runs
+  ([measurement.md checklist 5](measurement.md#the-checklist)). Persisted seeds
+  keep their original deal streams.
 - **Record the echoed `SEED_BASE` + the git SHA** to reproduce a run; that pair
   (plus count and flags) regenerates the exact dataset.
 

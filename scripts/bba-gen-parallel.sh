@@ -14,16 +14,17 @@
 # oversubscribed). On a shared machine wrap the WHOLE script in scripts/idle-run.sh.
 #
 # SEED HYGIENE.  Shard i uses seed (SEED_BASE + i).  SEED_BASE defaults to the
-# current UNIX time, so every invocation polls FRESH hands instead of replaying
-# the old fixed 0..nproc deals (those got oversampled across experiments — a
+# current UNIX time in nanoseconds, so invocations within one second can poll
+# fresh hands instead of replaying the old fixed 0..nproc deals (those got
+# oversampled across experiments — a
 # stale, non-representative slice).  For a MULTI-ARM A/B the arms must share deals
 # so a paired ab-dump-diff is valid, so set it ONCE and reuse it across the arms:
 #
-#   export SEED_BASE=$(($(date +%s) * 1000))   # one base for the whole experiment
+#   export SEED_BASE=$(date +%s%N)   # one base for the whole experiment
 #   for arm in base +feat …; do scripts/bba-gen-parallel.sh out/$arm 6400 $flags; done
-#   # NEXT experiment: a NEW base → fresh hands.  The ×1000 keeps two bases
-#   # minted within a second-ish at least 1000 apart, so shards never overlap
-#   # (#6: two bases closer than the shard count share whole shards).
+#   # NEXT experiment: a NEW base. Nanosecond resolution avoids the old
+#   # same-second collision. Bases must differ by at least the shard count;
+#   # run deal-overlap before citing independent replication (#6).
 #
 # The chosen SEED_BASE is echoed; record it (with the git SHA) to reproduce a run.
 # See docs/shared-machine-data-gen.md ("Seed hygiene").
@@ -35,7 +36,7 @@ count=$2
 shift 2
 
 n=${JOBS:-$(nproc)}   # cap worker processes on a shared box; defaults to all cores
-seed_base=${SEED_BASE:-$(($(date +%s) * 1000))}
+seed_base=${SEED_BASE:-$(date +%s%N)}
 # BBA_GEN overrides the binary — an A/B whose off arm is a different build (a
 # pre-fix worktree) rather than a flag; see scripts/ab-rkcb-asker.sh.
 bin="${BBA_GEN:-$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen}"

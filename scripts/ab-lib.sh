@@ -148,6 +148,6 @@ sddiff() {
 # No NAME: one $R/seed for the whole run; NAME: one $R/NAME.seed per experiment.
 seed_for() {
     f="$R/${1:+$1.}seed"
-    if [ ! -s "$f" ]; then echo $(($(date +%s) * 1000)) >"$f"; sleep 1; fi
+    if [ ! -s "$f" ]; then date +%s%N >"$f"; fi
     cat "$f"
 }

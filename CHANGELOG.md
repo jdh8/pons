@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **#6 review fixes (2026-10-14).** Automatic experiment seeds now use GNU
+  `date +%s%N`: scaling whole seconds by 1000 still replayed every shard for
+  runs started within one second. Recorded seeds keep their deal streams.
+  `deal-overlap` rejects empty generated windows and empty dumps instead of
+  reporting a successful zero intersection with `NaN` percentages. Bidding
+  behavior is unchanged; these fixes protect replication evidence.
+  `smoke-default --count 20000 --seed 1` is byte-identical to `fcb276bf`.
+
 - **#6 ledger corrections and the vulnerability-cell rule (2026-10-14,
   [#6](https://github.com/jdh8/pons/issues/6)).** An audit of 593 recorded
   seeds found only seven overlapping citations, all now marked. The

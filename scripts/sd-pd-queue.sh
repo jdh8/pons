@@ -16,7 +16,7 @@ BINDIR=${BINDIR:?set BINDIR to the release examples directory}
 mkdir -p "$R"
 
 f="$R/seed"
-[ -s "$f" ] || echo $(($(date +%s) * 1000)) >"$f"
+[ -s "$f" ] || echo $(date +%s%N) >"$f"
 SEED=$(cat "$f")
 
 # run NAME CMD... — write $R/NAME unless already non-empty.

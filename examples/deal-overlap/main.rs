@@ -5,7 +5,7 @@
 //! `seeded:BASE:COUNT` for a harness on `common::seeded_deals`.  A deal is its
 //! four hands, so the same hands under a different dealer or vulnerability
 //! still count as shared.  Prints every pair's intersection and exits 1 when
-//! any pair shares a deal.
+//! any pair shares a deal. Sources containing no deals are rejected.
 //!
 //! ```text
 //! cargo run --release --features serde --example deal-overlap -- \
@@ -20,7 +20,7 @@ use std::collections::HashSet;
 mod common;
 
 fn deals(source: &str) -> HashSet<FullDeal> {
-    if let Some(spec) = source.strip_prefix("seeded:") {
+    let deals: HashSet<FullDeal> = if let Some(spec) = source.strip_prefix("seeded:") {
         let (base, count) = spec
             .split_once(':')
             .unwrap_or_else(|| panic!("expected seeded:BASE:COUNT, got {source}"));
@@ -37,7 +37,9 @@ fn deals(source: &str) -> HashSet<FullDeal> {
             .into_iter()
             .map(|b| b.deal)
             .collect()
-    }
+    };
+    assert!(!deals.is_empty(), "no deals in {source}");
+    deals
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -66,3 +68,6 @@ fn main() {
     }
     std::process::exit(i32::from(overlap));
 }
+
+#[cfg(test)]
+mod tests;

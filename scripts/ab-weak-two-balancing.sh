@@ -40,7 +40,7 @@ export SKIP_BUILD=1   # this build is the whole run's; see ab-lib.sh
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 # a persistent SEED_BASE, fresh on first use
-if [ ! -s "$R/seed" ]; then echo $(($(date +%s) * 1000)) >"$R/seed"; fi
+if [ ! -s "$R/seed" ]; then echo $(date +%s%N) >"$R/seed"; fi
 SEED_BASE=$(cat "$R/seed")
 
 # arm NAME VUL [flags...] — generate one arm unless already present

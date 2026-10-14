@@ -164,6 +164,7 @@ required-features = ["serde"]
 name = "deal-overlap"
 path = "examples/deal-overlap/main.rs"
 required-features = ["serde"]
+test = true
 
 [[example]]
 name = "probe-doubling"

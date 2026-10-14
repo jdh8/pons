@@ -25,12 +25,11 @@ COUNT=${COUNT:-1000000}
 BIN=target/release/examples/ab-major-continuations
 mkdir -p "$R"
 
-# One seed per experiment, persisted so a restart stays seed-aligned; the
-# offset keeps the two experiments' deal sets distinct even when both seeds
-# are minted in the same second.
+# One seed per experiment, persisted so a restart stays seed-aligned; new
+# seeds use nanosecond timestamps.
 seed_for() {
     f="$R/seed-$1"
-    [ -s "$f" ] || echo $(($(date +%s) * 1000 + $2)) >"$f"
+    [ -s "$f" ] || echo $(($(date +%s%N) + $2)) >"$f"
     cat "$f"
 }
 

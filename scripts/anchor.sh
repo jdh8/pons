@@ -35,7 +35,7 @@ cargo build --release --features serde \
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 # A persistent SEED_BASE, fresh on first use, shared by every re-anchor.
-if [ ! -s "$R/seed" ]; then echo $(($(date +%s) * 1000)) >"$R/seed"; fi
+if [ ! -s "$R/seed" ]; then echo $(date +%s%N) >"$R/seed"; fi
 SEED_BASE=$(cat "$R/seed")
 export SEED_BASE
 

@@ -58,7 +58,7 @@ for bin in bba-gen-fix bba-gen-base ab-dump-diff; do
 done
 
 seed_f="$R/seed"
-[ -s "$seed_f" ] || echo $(($(date +%s) * 1000)) >"$seed_f"
+[ -s "$seed_f" ] || echo $(date +%s%N) >"$seed_f"
 SEED_BASE=$(cat "$seed_f")
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }

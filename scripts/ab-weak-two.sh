@@ -39,7 +39,7 @@ fi
 # Fresh sd world-sampling seed, persisted so a restart stays reproducible.
 sd_seed() {
     f="$R/sd-seed"
-    [ -s "$f" ] || echo $(($(date +%s) * 1000)) >"$f"
+    [ -s "$f" ] || echo $(date +%s%N) >"$f"
     cat "$f"
 }
 SDSEED=$(sd_seed)

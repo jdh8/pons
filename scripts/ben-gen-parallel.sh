@@ -16,7 +16,7 @@ set -euo pipefail
 outdir="${1:?usage: ben-gen-parallel.sh OUTDIR PER_SHARD [ben-gen args...]}"
 per="${2:?usage: ben-gen-parallel.sh OUTDIR PER_SHARD [ben-gen args...]}"
 shift 2
-SEED_BASE="${SEED_BASE:-$(($(date +%s) * 1000))}"
+SEED_BASE="${SEED_BASE:-$(date +%s%N)}"
 echo "ben-gen-parallel: SEED_BASE=$SEED_BASE outdir=$outdir per-shard=$per args: $*"
 
 cd "$(dirname "$(readlink -f "$0")")/.."
