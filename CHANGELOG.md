@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Control arms for the #7 re-measures (2026-10-14).** `bba-gen` gains
+  `--no-ns-forcing-nt-two-suiter` and `--ns-meckstroth-adjunct`, the control
+  arms the self-play-only knobs lacked, and `scripts/ab-non-inferiority.sh`
+  runs the five re-measures vs BBA at board counts declared before the run.
+  Default system untouched.
+
 - **A non-inferiority margin replaces "wash = no loss" (2026-10-14,
   [#7](https://github.com/jdh8/pons/issues/7)).** A plain-DD CI straddling 0
   no longer counts as proof that a change does not lose. `measurement.md`

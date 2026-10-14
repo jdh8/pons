@@ -1496,6 +1496,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_heart_spade_jump_shift: bool,
 
+    /// Withhold opener's invitational 15–17 two-suiter rebids over the forcing
+    /// `1NT` (`rebid.forcing_nt_two_suiter`, shipped default-on; the control
+    /// arm of the issue #7 re-measure in `scripts/ab-non-inferiority.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_nt_two_suiter: bool,
+
+    /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
+    /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
+    /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
+    /// control arm in `scripts/ab-non-inferiority.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_meckstroth_adjunct: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3217,6 +3230,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.diamond_rebid_fourth_suit = !args.no_ns_diamond_rebid_fourth_suit;
     agreements.rebid.fourth_suit_keycard = args.ns_fourth_suit_keycard;
     agreements.rebid.heart_spade_jump_shift = !args.no_ns_heart_spade_jump_shift;
+    agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
+    agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;
