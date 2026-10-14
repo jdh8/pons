@@ -20,7 +20,7 @@
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::Accumulator;
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
@@ -110,7 +110,7 @@ fn main() {
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let mut swings_pd = vec![0i64; args.count];
     let mut swings_dd = vec![0i64; args.count];

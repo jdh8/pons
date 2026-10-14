@@ -140,7 +140,7 @@ fn two_way_guess_deal() -> FullDeal {
 fn playout_guesses_where_double_dummy_peeks() {
     let deal = two_way_guess_deal();
     // Fixture validity: DD says North makes 7♠ on the actual layout.
-    let table = Solver::lock(None).solve_deal(deal);
+    let table = crate::dd::solver().solve_deal(deal);
     assert_eq!(u8::from(table[Strain::Spades].get(Seat::North)), 13);
 
     let inferences = no_inferences();

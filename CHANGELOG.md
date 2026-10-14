@@ -145,6 +145,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`DDSS_THREADS` caps the double-dummy thread pool (2026-10-15).** New
+  `pons::dd::solver()` locks the ddss solver with the pool capped by the
+  `DDSS_THREADS` environment variable (unset, empty or `0` = every online
+  CPU, the old behaviour; anything else non-numeric panics). Every former
+  `Solver::lock(None)` in `src/` and `examples/` goes through it, so an A/B's
+  scoring step, `bba-decompose`, `ab-dump-sd` and the probes respect a shared
+  box's budget; ddss otherwise sizes the pool to
+  `sysconf(_SC_NPROCESSORS_ONLN)`, ignoring `JOBS`, `RAYON_NUM_THREADS` and
+  CPU affinity. `gib generate --threads` still wins over the variable.
+  Bidding unchanged: seeded `smoke-default` byte-identical.
+
 - **Research-method review ledger (2026-10-14, docs only).**
   [docs/research-method-review.md](docs/research-method-review.md) records
   remaining disclosure, sampling, population coverage, SD calibration, dataset

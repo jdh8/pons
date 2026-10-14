@@ -35,7 +35,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::{hcp as holding_hcp, nltc};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::american;
 use pons::bidding::agreements::CompetitionKnobs;
 use pons::bidding::american::{DoubleStyle, LebensohlStyle};
@@ -649,7 +649,7 @@ fn main() {
         })
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut points = 0i64;
     let mut total_imps = 0i64;

@@ -50,7 +50,7 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::{Agreements, CompetitionKnobs, DefenseKnobs};
 use pons::bidding::american::{DoubleStyle, NotrumpDefense};
@@ -514,7 +514,7 @@ fn main() {
         })
         .collect();
     let deals: Vec<FullDeal> = need_solve.iter().map(|&b| boards[b].deal).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Per-cell per-board IMP swings vs the datum, on both scorers.
     let mut plain: Vec<Vec<Vec<i64>>> = vec![vec![vec![0; n]; COLS]; ROWS];

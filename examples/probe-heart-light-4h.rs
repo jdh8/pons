@@ -21,7 +21,7 @@
 
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
@@ -140,7 +140,7 @@ fn main() {
     );
 
     let solve_deals: Vec<FullDeal> = qualifying.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     // Split by opener's heart length: 3+ = the 5-3 fit, ≤2 = no fit.
     let mut fit = Split::default();

@@ -21,7 +21,7 @@
 
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::TwoOverOneGate;
@@ -145,7 +145,7 @@ fn main() {
     );
 
     let solve_deals: Vec<FullDeal> = qualifying.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut landed_3nt = 0usize;
     let mut made_3nt = 0usize;

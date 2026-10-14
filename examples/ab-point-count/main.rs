@@ -35,7 +35,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
@@ -590,7 +590,7 @@ fn main() {
         Some(all) => divergent.iter().map(|&i| all[i]).collect(),
         None => {
             let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-            Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL)
+            pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL)
         }
     };
 

@@ -85,7 +85,7 @@ fn main() {
         .collect();
 
     let solve: Vec<_> = lane.iter().map(|&(index, _)| deals[index]).collect();
-    let tables = ddss::Solver::lock(None).solve_deals(&solve, ddss::NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, ddss::NonEmptyStrainFlags::ALL);
     for ((index, auction), table) in lane.iter().zip(&tables) {
         let tricks = |seat: Seat| {
             Strain::ASC

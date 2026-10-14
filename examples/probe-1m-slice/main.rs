@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use clap::Parser;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{FullDeal, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::bidding::constraint::support_point_count;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -71,7 +71,7 @@ fn main() {
     let mut samples: Vec<(FullDeal, (HeartLength, u8))> = Vec::with_capacity(args.count);
 
     // ponytail: kept single-threaded. The HCP and length filters cost microseconds
-    // a deal; the one `Solver::lock(None)` batch below costs milliseconds each and
+    // a deal; the one `pons::dd::solver()` batch below costs milliseconds each and
     // is already parallel inside the process-global lock, which never meets rayon
     // (CLAUDE.md:102).
     while samples.len() < args.count {
@@ -96,7 +96,7 @@ fn main() {
     }
 
     let deals: Vec<FullDeal> = samples.iter().map(|&(deal, _)| deal).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut sliced: BTreeMap<(HeartLength, u8), Results> = BTreeMap::new();
     let mut marginal: BTreeMap<u8, Results> = BTreeMap::new();

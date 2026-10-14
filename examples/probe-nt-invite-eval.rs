@@ -75,7 +75,7 @@ use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Rank, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::american;
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::DecisionProfile;
@@ -459,7 +459,7 @@ fn main() {
         "dealt: Stayman {n_stay}, No-4-major {n_no4} ({attempts} attempts); solving {} boards…",
         deals.len()
     );
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),

@@ -15,6 +15,9 @@
 
 /// Bidding in contract bridge
 pub mod bidding;
+/// Double-dummy solver access with a configurable thread pool
+#[cfg(feature = "dd")]
+pub mod dd;
 /// GIB hand-record format (deal + cached double-dummy table)
 #[cfg(feature = "dd")]
 pub mod gib;

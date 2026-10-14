@@ -8,7 +8,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::Bidder;
 use pons::bidding::constraint::support_point_count;
@@ -146,7 +146,7 @@ fn main() {
     }
 
     let deals: Vec<FullDeal> = samples.iter().map(|sample| sample.deal).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     println!(
         "Light simple-raise probe: {} accepted deals from {attempts} attempts, seed {}",

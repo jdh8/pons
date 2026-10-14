@@ -38,7 +38,7 @@ use contract_bridge::eval::{self};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::scoring::{imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -123,7 +123,7 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut attempts = 0usize;
     // ponytail: no rayon on this loop. Dealing and rejecting a board costs
-    // microseconds; the single `Solver::lock(None)` batch below costs milliseconds
+    // microseconds; the single `pons::dd::solver()` batch below costs milliseconds
     // a survivor and already spreads over the whole core pool from behind the
     // process-global lock, which stays on the main thread (CLAUDE.md:102).
     while deals.len() < count && attempts < attempt_cap {
@@ -146,7 +146,7 @@ fn main() {
         "dealt {} invite boards ({attempts} attempts); solving…",
         deals.len()
     );
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),

@@ -26,7 +26,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -129,7 +129,7 @@ fn main() {
 
     // Solve the divergent deals once; score each arm's real contract.
     let deals: Vec<FullDeal> = divergent.iter().map(|(d, ..)| *d).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let swings: Vec<i64> = divergent
         .iter()
         .zip(&tables)

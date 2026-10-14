@@ -42,7 +42,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Rank, Seat, Strain, Suit, eval,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract};
@@ -205,7 +205,7 @@ fn main() {
     let (deals, configs): (Vec<FullDeal>, Vec<(Seat, Seat, Suit)>) = sampled.into_iter().unzip();
     eprintln!("sampled {} deals, {} configs", args.count, configs.len());
 
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Baseline: the real bidder, opener on lead-out (dealer = opener).  Bidding
     // is pure, so fan it across Rayon; the diagnostics fold below stays serial

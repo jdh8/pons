@@ -34,7 +34,7 @@
 
 use clap::Parser;
 use contract_bridge::{Builder, Rank, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -199,12 +199,12 @@ fn main() {
     }
     let mut swaps: Vec<Swap> = Vec::new();
 
-    // ponytail: both passes stay single-threaded on purpose. `Solver::lock(None)`
+    // ponytail: both passes stay single-threaded on purpose. `pons::dd::solver()`
     // takes the process-global DDS lock and spreads each `--batch` chunk over
     // every core itself, so a rayon wrapper only oversubscribes (CLAUDE.md:102).
     // Bucketing and building the swap are microseconds against a deal's millisecond.
     for chunk in deals.chunks(args.batch) {
-        let tables = Solver::lock(None).solve_deals(chunk, NonEmptyStrainFlags::ALL);
+        let tables = pons::dd::solver().solve_deals(chunk, NonEmptyStrainFlags::ALL);
         for (deal, table) in chunk.iter().zip(tables.iter()) {
             for trump in Suit::ASC {
                 let strain = Strain::from(trump);
@@ -294,7 +294,7 @@ fn main() {
     // makes in only one world did, and wins it about half the time at a table.
     for chunk in swaps.chunks(args.batch) {
         let batch: Vec<contract_bridge::FullDeal> = chunk.iter().map(|s| s.deal).collect();
-        let tables = Solver::lock(None).solve_deals(&batch, NonEmptyStrainFlags::ALL);
+        let tables = pons::dd::solver().solve_deals(&batch, NonEmptyStrainFlags::ALL);
         for (swap, table) in chunk.iter().zip(tables.iter()) {
             let tricks = u8::from(table[swap.strain].get(swap.one))
                 .max(u8::from(table[swap.strain].get(swap.two)));

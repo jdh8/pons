@@ -219,7 +219,7 @@ fn main() {
     let (deals_off, contracts): (Vec<_>, Vec<_>) =
         divergent_hits.iter().map(|h| (deals[h.4], h.5)).unzip();
     let divergent: Vec<usize> = (0..contracts.len()).collect();
-    let tables = ddss::Solver::lock(None).solve_deals(&deals_off, ddss::NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals_off, ddss::NonEmptyStrainFlags::ALL);
     println!(
         "\n--- DD value of the pass (on = pass), {} divergent ---",
         divergent.len()
@@ -271,7 +271,7 @@ fn main() {
         .map(|h| (deals[h.4], h.7.expect("filtered")))
         .unzip();
     let fired = hits.iter().filter(|h| h.7.is_some()).count();
-    let tables = ddss::Solver::lock(None).solve_deals(&deals_fix, ddss::NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals_fix, ddss::NonEmptyStrainFlags::ALL);
     println!(
         "\n--- DD value of the asker fix (on = six): {fired} fired, {} divergent ---",
         fixes.len()

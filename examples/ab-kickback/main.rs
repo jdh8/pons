@@ -90,7 +90,7 @@
 use clap::{Parser, ValueEnum};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::Accumulator;
 use pons::bidding::Partnership;
 use pons::bidding::american::american_with_compact;
@@ -460,7 +460,7 @@ fn rescore(args: &Args, path: &str) {
         })
         .collect();
     let solve: Vec<FullDeal> = dump.boards.iter().map(|board| board.deal).collect();
-    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     // Bucket labels first: under --sd-ask-only they decide which boards the
     // sd pass prices.  `table_ask` arms each arm's own knobs itself.
@@ -746,7 +746,7 @@ fn main() {
     }
 
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let mut swings_pd = vec![0i64; args.count];
     let mut swings_dd = vec![0i64; args.count];

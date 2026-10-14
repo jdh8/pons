@@ -19,7 +19,7 @@
 
 use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::constraint::point_count;
 use pons::scoring::final_contract;
@@ -129,7 +129,7 @@ fn main() {
 
     // Solve the actual deals of the 4M stops (one table each) on the main thread.
     let solve: Vec<FullDeal> = stops.iter().map(|&(idx, ..)| deals[idx]).collect();
-    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let boards: Vec<Board> = stops
         .iter()

@@ -28,7 +28,7 @@ use clap::{Parser, ValueEnum};
 use common::{Dump, Reached, mean_with_ci, next_call, seat_to_act};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Penalty, Seat, Strain};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::bidding::american::{american, american_instinct, american_v6_their};
 use pons::bidding::context::relative;
 use pons::bidding::{Partnership, Phase};
@@ -585,7 +585,7 @@ fn main() -> anyhow::Result<()> {
             .collect();
         for chunk in missing.chunks(4096) {
             let deals: Vec<FullDeal> = chunk.iter().map(|&i| arm.boards[i].deal).collect();
-            let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+            let solved = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
             for (&i, table) in chunk.iter().zip(solved) {
                 cache.insert(deal_key(&arm.boards[i].deal), table);
             }
@@ -987,7 +987,7 @@ fn demotion_census(
             })
             .collect();
         for chunk in missing.chunks(4096) {
-            let solved = Solver::lock(None).solve_deals(chunk, NonEmptyStrainFlags::ALL);
+            let solved = pons::dd::solver().solve_deals(chunk, NonEmptyStrainFlags::ALL);
             for (deal, table) in chunk.iter().zip(solved) {
                 cache.insert(deal_key(deal), table);
             }

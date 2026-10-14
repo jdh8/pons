@@ -27,7 +27,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
 
@@ -200,7 +200,7 @@ fn main() {
         .collect();
     eprintln!("{} hits, {} to solve", boards.len(), missing.len());
     for chunk in missing.chunks(4096) {
-        let solved = Solver::lock(None).solve_deals(chunk, NonEmptyStrainFlags::ALL);
+        let solved = pons::dd::solver().solve_deals(chunk, NonEmptyStrainFlags::ALL);
         for (deal, table) in chunk.iter().zip(solved) {
             cache.insert(deal_key(deal), table);
         }

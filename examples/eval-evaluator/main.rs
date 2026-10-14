@@ -37,7 +37,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Seat, Strain};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::evaluator::trick_estimates;
@@ -203,7 +203,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 // One batched solve per node, on the main thread: the solver is
                 // a process-global lock and must never meet rayon.
-                let tables = Solver::lock(None).solve_deals(&sampled, NonEmptyStrainFlags::ALL);
+                let tables = pons::dd::solver().solve_deals(&sampled, NonEmptyStrainFlags::ALL);
                 let predicted = trick_estimates(hand, &inferences);
                 let contested = Phase::of(&auction) != Phase::Constructive;
 

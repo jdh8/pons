@@ -37,7 +37,7 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Partnership;
@@ -187,7 +187,7 @@ fn main() {
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Per-board IMP swing to the net team (0 on non-divergent boards), scored
     // both ways from the same DD table per the measurement doctrine.

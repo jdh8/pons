@@ -31,7 +31,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Rank, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -170,7 +170,7 @@ fn main() {
 
     // Batch-solve every qualifying deal once, then price the three contracts.
     let deals: Vec<FullDeal> = boards.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let rows: Vec<Row> = boards
         .iter()
         .zip(&tables)

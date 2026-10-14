@@ -31,7 +31,7 @@
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Penalty, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::scoring::{final_contract, imps};
 
 #[path = "../common/mod.rs"]
@@ -171,7 +171,7 @@ fn fold(path: &str, args: &Args, tally: &mut Tally) {
         dump.boards.len(),
         deals.len()
     );
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
     tally.boards += kept.len();
 
     for (&index, table) in kept.iter().zip(&tables) {

@@ -50,7 +50,7 @@
 use anyhow::{Context as _, bail, ensure};
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountRow, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountRow, TrickCountTable};
 use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
 use pons::pdd;
@@ -273,7 +273,7 @@ pub fn price<'p>(
     let solved = if misses.is_empty() {
         Vec::new()
     } else {
-        Solver::lock(None).solve_deals(&misses, NonEmptyStrainFlags::ALL)
+        pons::dd::solver().solve_deals(&misses, NonEmptyStrainFlags::ALL)
     };
     let mut solved = solved.into_iter();
     for ((d, layouts), f) in decisions.iter().zip(&fresh).zip(&mut found) {
@@ -440,7 +440,7 @@ pub fn fill(paths: &[PathBuf]) -> anyhow::Result<()> {
             continue;
         }
         let started = std::time::Instant::now();
-        let solved = Solver::lock(None).solve_deals(&pending, NonEmptyStrainFlags::ALL);
+        let solved = pons::dd::solver().solve_deals(&pending, NonEmptyStrainFlags::ALL);
         let mut solved = solved.into_iter();
         for slot in tables.values_mut().flatten().filter(|(_, t)| t.is_none()) {
             slot.1 = Some(solved.next().expect("one table per pending row"));

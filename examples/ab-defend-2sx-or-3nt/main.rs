@@ -47,7 +47,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::constraint::{Constraint, hcp, len, stopper_in, top_honors};
 use pons::bidding::{Context, Partnership, Table};
@@ -363,7 +363,7 @@ fn score_deals(
     deals: &[FullDeal],
     vulnerability: AbsoluteVulnerability,
 ) -> (Vec<Outcome>, BranchTelemetry) {
-    let tricks = Solver::lock(None).solve_deals(deals, NonEmptyStrainFlags::ALL);
+    let tricks = pons::dd::solver().solve_deals(deals, NonEmptyStrainFlags::ALL);
     let two_sx = Some((
         Contract::new(2, Strain::Spades, Penalty::Doubled),
         Seat::West,

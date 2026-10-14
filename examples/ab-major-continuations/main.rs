@@ -32,7 +32,7 @@
 
 use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::TwoOverOneGate;
@@ -240,7 +240,7 @@ fn main() {
         .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut treatments: Vec<String> = [
         ("game-tries", args.game_tries),

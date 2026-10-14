@@ -22,7 +22,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, StrainFlags, TrickCountTable};
 use pons::bidding::{System, Table};
 use pons::scoring::{final_contract, ns_score_contract};
 use pons::{american, american_instinct};
@@ -224,7 +224,7 @@ fn print_verdict(
 
         let sim_deals: Vec<FullDeal> = fill_deals(rng, partial).take(args.simulations).collect();
         let flags = strain_flags(contract.bid.strain);
-        let sim_tables = Solver::lock(None).solve_deals(&sim_deals, flags);
+        let sim_tables = pons::dd::solver().solve_deals(&sim_deals, flags);
 
         let mut makes: usize = 0;
         let mut score_sum: i64 = 0;

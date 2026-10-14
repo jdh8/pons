@@ -21,7 +21,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::context::relative;
@@ -728,7 +728,7 @@ pub fn solve_divergent(
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| deals[index]).collect();
-    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
     (divergent, tables)
 }
 

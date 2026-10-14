@@ -28,7 +28,7 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::context::relative;
 use pons::scoring::final_contract;
@@ -274,7 +274,7 @@ fn main() {
             })
             .collect();
         let solve: Vec<FullDeal> = reached.iter().map(|&(_, deal, ..)| deal).collect();
-        let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+        let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
         // All blind leads in one pooled solve (straggler-bound otherwise),
         // then the expensive playouts only on the per-level subsample.

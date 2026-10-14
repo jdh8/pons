@@ -50,7 +50,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
@@ -218,7 +218,7 @@ fn trace(
         .filter(|d| d.own.to_string() == own)
         .collect();
     let truths: Vec<FullDeal> = rows.iter().map(|d| d.truth).collect();
-    let tables = Solver::lock(None).solve_deals(&truths, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&truths, NonEmptyStrainFlags::ALL);
     // (seam, rung) -> final contract -> [count, made, plain IMPs, PD IMPs]
     let mut tally: BTreeMap<(String, String), BTreeMap<String, [i64; 4]>> = BTreeMap::new();
     for (n, (d, tricks)) in rows.iter().zip(&tables).enumerate() {
@@ -430,7 +430,7 @@ fn main() {
                 .chain(std::iter::once(decisions[i].truth))
         })
         .collect();
-    let tables = Solver::lock(None).solve_deals(&worlds, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&worlds, NonEmptyStrainFlags::ALL);
     let solved = started.elapsed();
 
     let priced: Vec<Priced> = kept

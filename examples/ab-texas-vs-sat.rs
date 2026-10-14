@@ -39,7 +39,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit, eval,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::scoring::imps;
 
 /// Texas vs South African Texas: the positional declarer A/B
@@ -141,7 +141,7 @@ fn main() {
     }
     eprintln!("\rsampled {}/{}        ", args.count, args.count);
 
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // (sum IMPs, board count) for all configs and the short / not-short split.
     let mut all = (0i64, 0usize);

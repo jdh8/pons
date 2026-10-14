@@ -266,6 +266,8 @@ fn generate(
     // Apply the pool cap up front and report the effective size — the
     // observable that E-core confinement is verified against.  The chunk
     // loop re-locks with the same value, which ddss treats as a free re-lock.
+    // `--threads` wins over `DDSS_THREADS`.
+    let threads = threads.or_else(pons::dd::threads);
     drop(Solver::lock(threads));
     eprintln!(
         "gib generate: {} DDS threads",
@@ -320,7 +322,7 @@ fn generate(
 fn verify(file: &str) -> std::io::Result<()> {
     let parsed = pdd::load(file)?;
     let deals: Vec<FullDeal> = parsed.iter().map(|&(deal, _)| deal).collect();
-    let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let solved = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut mismatches = 0usize;
     for (i, ((_, stored), fresh)) in parsed.iter().zip(&solved).enumerate() {

@@ -37,7 +37,7 @@ use super::table::Table;
 use crate::scoring::{final_contract, ns_score_bid};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use rand::Rng;
 
 /// Cardplay-grounded value of each candidate `call`, in the actor's favour
@@ -111,7 +111,7 @@ pub fn ev_all(
     }
 
     // One solve per layout, shared across every candidate call (the cost note).
-    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = crate::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let dealer = dealer_of(seat, context.auction().len());
     let table = Table::new(policy, policy, dealer, vul);
     let actor_is_ns = matches!(seat, Seat::North | Seat::South);

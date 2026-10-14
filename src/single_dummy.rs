@@ -85,7 +85,7 @@ pub fn single_dummy(
     // no rejection, no starvation.  One solve per layout; the fold into a
     // `HistogramTable` is `FromIterator<TrickCountTable>` (free aggregation).
     let deals: Vec<_> = fill_deals(rng, partial).take(n).collect();
-    Solver::lock(None)
+    crate::dd::solver()
         .solve_deals(&deals, NonEmptyStrainFlags::ALL)
         .into_iter()
         .collect()
@@ -204,7 +204,7 @@ pub fn single_dummy_leads(
             }
         }));
     }
-    let found = Solver::lock(None).solve_boards(&objectives);
+    let found = crate::dd::solver().solve_boards(&objectives);
 
     questions
         .iter()
@@ -532,7 +532,7 @@ pub fn single_dummy_playout(
         may[seat] = Hand::ALL;
     }
     let mut playout = Playout {
-        solver: Solver::lock(None),
+        solver: crate::dd::solver(),
         strain,
         trump: Suit::try_from(strain).ok(),
         declarer,

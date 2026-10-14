@@ -129,7 +129,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
@@ -688,7 +688,7 @@ fn main() {
     // Phase 3 — one solve for every layout, **on the main thread**: `Solver::lock`
     // takes a global lock and fans out over the core pool itself.
     let all_layouts: Vec<FullDeal> = sampled.iter().flatten().copied().collect();
-    let tables = Solver::lock(None).solve_deals(&all_layouts, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&all_layouts, NonEmptyStrainFlags::ALL);
     let solved = started.elapsed() - walked - drawn;
 
     // Phase 4 — bid out and price.  BBA's FFI is not thread-safe, so its arm

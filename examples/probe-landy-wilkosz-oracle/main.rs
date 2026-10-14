@@ -26,7 +26,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use std::collections::{BTreeMap, HashMap};
@@ -153,7 +153,7 @@ fn solve_missing(cache: &mut HashMap<String, TrickCountTable>, boards: &[Board])
     );
     for (done, chunk) in missing.chunks(4096).enumerate() {
         let deals: Vec<FullDeal> = chunk.iter().map(|&i| boards[i].deal).collect();
-        let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+        let solved = pons::dd::solver().solve_deals(&deals, NonEmptyStrainFlags::ALL);
         for (&i, table) in chunk.iter().zip(solved) {
             cache.insert(deal_key(&boards[i].deal), table);
         }

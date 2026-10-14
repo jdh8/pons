@@ -32,7 +32,7 @@ use clap::{Parser, ValueEnum};
 use contract_bridge::deck::fill_deals;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Builder, Hand, Holding, Rank, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
+use ddss::{NonEmptyStrainFlags, StrainFlags, TrickCountTable};
 use nalgebra::{DMatrix, DVector};
 use pons::bidding::evaluator::Gaussian;
 use rand::SeedableRng as _;
@@ -907,7 +907,7 @@ fn fit_physical_variance(
                 .expect("a bank deal's N-S hands are disjoint and thirteen cards each");
             layouts.extend(fill_deals(&mut rng, partial).take(shuffles));
         }
-        let solved = Solver::lock(None).solve_deals(&layouts, flags);
+        let solved = pons::dd::solver().solve_deals(&layouts, flags);
 
         // `solve_deals` preserves input order, so each pair owns one contiguous run.
         for ((deal, _), tables) in chunk.iter().zip(solved.chunks(shuffles)) {
@@ -981,7 +981,7 @@ fn benchmark(table: &Table, args: &Args) -> std::io::Result<()> {
         // process-global lock and must never meet rayon (iron rule).
         let layouts: Vec<_> = fill_deals(&mut rng, partial).take(args.shuffles).collect();
         let mut truth = Moment::default();
-        for solved in Solver::lock(None).solve_deals(&layouts, flags) {
+        for solved in pons::dd::solver().solve_deals(&layouts, flags) {
             truth.push(f64::from(args.label.tricks(&solved)));
         }
 

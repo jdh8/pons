@@ -41,7 +41,7 @@ use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::bidding::{Context, Inferences, Range, Relative, american, sample_layouts};
 use pons::scoring::{final_contract, ns_score_contract};
 use pons::{System, Table};
@@ -229,7 +229,7 @@ fn main() {
     let mut skipped = 0u32;
 
     // ponytail: one hand at a time, deliberately. Both solves sit *inside* this
-    // loop, and `Solver::lock(None)` is a process-global lock that already fans
+    // loop, and `pons::dd::solver()` is a process-global lock that already fans
     // each layout batch over every core — rayon here would queue on that lock
     // (CLAUDE.md:102); sampling is microseconds against milliseconds to solve.
     for _ in 0..hands {
@@ -241,8 +241,8 @@ fn main() {
             skipped += 1;
             continue;
         }
-        let tables_lo = Solver::lock(None).solve_deals(&deals_lo, NonEmptyStrainFlags::ALL);
-        let tables_hi = Solver::lock(None).solve_deals(&deals_hi, NonEmptyStrainFlags::ALL);
+        let tables_lo = pons::dd::solver().solve_deals(&deals_lo, NonEmptyStrainFlags::ALL);
+        let tables_hi = pons::dd::solver().solve_deals(&deals_hi, NonEmptyStrainFlags::ALL);
 
         let hcp = raw_hcp(responder);
         let shapely = longest(responder) >= 5;

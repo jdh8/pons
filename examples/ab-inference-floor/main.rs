@@ -20,7 +20,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::{Bidder, Partnership};
@@ -136,7 +136,7 @@ fn main() {
         .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = pons::dd::solver().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     println!(
         "=== Inference-aware floor A/B match: {} boards, vulnerability {}, seed {} ===",

@@ -57,7 +57,6 @@
 
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Strain};
-use ddss::Solver;
 use pons::bidding::{Context, Inferences};
 use pons::single_dummy::{single_dummy_lead_tricks, single_dummy_playout};
 use rand::SeedableRng;
@@ -106,7 +105,7 @@ struct Row {
 /// (one RNG per seed, lead first, playout second — the composition
 /// `single_dummy_declarer_tricks` uses, kept apart so both readings print)
 fn run_row(deal: &FullDeal, strain: Strain, inferences: &Inferences) -> Row {
-    let dd = u8::from(Solver::lock(None).solve_deal(*deal)[strain].get(Seat::North));
+    let dd = u8::from(pons::dd::solver().solve_deal(*deal)[strain].get(Seat::North));
     let mut row = Row {
         dd,
         leads: Vec::new(),
