@@ -228,7 +228,7 @@ every IMP is ours:
 `wrong` is the arm the two-arm 2a design could not spend: without it, a `truth`
 result cannot separate "reading them **correctly** helps" from "reading them as
 **anything other than ourselves** helps". 204 800 bd/arm/vul, both vuls, fresh
-seed per experiment (1786103953 / 1786103961 — 8 apart, so 24 of 32 shards shared, #6), `scripts/ab-declared-agreement.sh`,
+seed per experiment (1786103953 / 1786104446 — `deal-overlap` on the two `symmetric` arms: 0 of 204 800 shared, #6), `scripts/ab-declared-agreement.sh`,
 dual scoring, ~4.4% of boards divergent — the channel is live, not inert.
 
 | experiment | arm | vul | plain DD | perfect defense |

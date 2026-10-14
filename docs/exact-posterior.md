@@ -411,6 +411,9 @@ a search consumer exists.
   Phase 1 probe, not a phase of its own.  **Closed 2026-10-02: the two
   predicates disagree on 0 of 125,961 readings** (and 0 of 125,871 on a
   second seed) — at the default knob state there is nothing to read.
+  *[#6](https://github.com/jdh8/pons/issues/6) (2026-10-14): the two seeds,
+  1790871004 / 1790871902, share 91% of their deals (generator v1), so the
+  second count is a re-run, not a replication.*
 - **Reading forensics by exact frequency** — sampling the real bidder already
   answers it at µs per hand; exactness only matters at nodes too rare to
   sample, which is use C again.
@@ -856,7 +859,10 @@ replicated on a second seed. Still one seam, self-play. *[#6](https://github.com
 (2026-10-14): not an independent replication — the two seeds share 91.2% of
 their deals (generator v1), under shifted dealer and vulnerability, on a
 build that had moved (the `4NT` rung); "the leading swap replicates" reads
-the same way. The lane is parked, so no re-run is owed unless it reopens.*
+the same way. The lane is parked, so no re-run is owed unless it reopens —
+and if M8 reopens, a fresh-seed (v2) re-run of this replay arm comes first:
+it is the only M8 evidence whose confirmation rested on the shared seed, at
+~2.2σ.*
 
 ### Parked — the whole lane (jdh8, 2026-10-02)
 

@@ -1310,7 +1310,9 @@ labels. Both are re-run here.
 **200k boards, seed 1785623878, vul none, `kickback` vs `plain`.** Divergence
 63,411 of 200,000 (31.7%); PD **+0.0705/board** [+0.0511, +0.0899], plain DD
 **−0.0014/board** [−0.0169, +0.0140] — parity. Consistent with §7.8's 10M cell
-(+0.0723 PD NV) at this sample size.
+(+0.0723 PD NV) at this sample size (*not independently —
+[#6](https://github.com/jdh8/pons/issues/6): these 200k boards are the first
+200k of that 10M cell, same seed*).
 
 | bucket | boards | share | PD/bd | DD/bd |
 | --- | ---: | ---: | ---: | ---: |

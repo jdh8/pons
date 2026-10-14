@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **#6 ledger corrections and the vulnerability-cell rule (2026-10-14,
+  [#6](https://github.com/jdh8/pons/issues/6)).** An audit of 593 recorded
+  seeds found only seven overlapping citations, all now marked. The
+  declared-agreement pair is 1786103953 / 1786104446 (493 apart, 0 of 204 800
+  shared), not "8 apart, 24 of 32 shards": a seed typo, now fixed. New notes
+  went in at `exact-posterior.md` (the Phase 1 second seed shares 91%; a re-run
+  of the seam replay comes first if M8 reopens) and in `bba-kickback.md` §7.12
+  (its 200k boards are the first 200k of §7.8's 10M cell).
+  `measurement.md` checklist 5 now counts vulnerability cells on one seed as
+  one deal set: `bba-gen`/`ben-gen` deal the same boards at every
+  vulnerability. Bidding untouched.
+  **The re-run #6 owed:** the two major-continuation marginals that shipped
+  on about +0.002 with no CI and a 99%-shared second seed, each turned off
+  against the shipped default, vs BBA (`scripts/ab-major-marginals.sh`,
+  204 800 bd/arm/vul, SEED_BASE 1791959939000, 28ad8712).
+  `fourth_suit_forcing`: both-vul plain **+0.0012 ±0.0009**, PD +0.0010
+  ±0.0009 (161 fired); not-vul plain +0.0006 ±0.0007, PD +0.0006 ±0.0007
+  (153 fired). `limit_raise_acceptance`: plain +0.0000 / +0.0001, PD −0.0000
+  / +0.0002, every CI ±0.0006–0.0008 (60 / 58 fired). Both stay default-on:
+  FSF is a win at vul and never negative; limit-raise acceptance is a wash,
+  kept by the naturalness tie-break (jdh8 keeps it in `basic` as standard
+  modern bidding). Its per-divergent gain, +4.4/+5.2 against the stripped
+  `ab-major-continuations` baseline, does not show up at real routing:
+  +0.08/+0.22 per fired. FSF's isolation gate reads 2 and 3 foreign boards.
+  Each is their own fourth suit, `1♥ - 1♠ - 2♣ - 2♦`, where our next call
+  changes with the knob (we read their call through our own book), so the
+  gate is report-only in this runner. Limit-raise acceptance's gate reads
+  0 foreign.
+
 - **Deal generator v2: fresh seeds no longer share deals (2026-10-14,
   [#6](https://github.com/jdh8/pons/issues/6)).** `common::seeded_deals`
   seeded board `i` with `base + i`, so two harness runs `k` apart shared
@@ -34,8 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#6](https://github.com/jdh8/pons/issues/6)).** `bba-gen-parallel.sh`,
   `ben-gen-parallel.sh` and the self-sharding runners seed shard `i` with
   `SEED_BASE + i`, so two bases closer than the shard count share whole
-  shards (the 2026-08-07 `ab-declared-agreement` pair, 8 apart, shared 24 of
-  32). Every script that mints a base (`ab-lib.sh`'s `seed_for`, the
+  shards (no recorded pair did: the 2026-08-07 `ab-declared-agreement`
+  example first given here was a seed typo, its real pair is 493 apart and
+  shares 0 deals). Every script that mints a base (`ab-lib.sh`'s `seed_for`, the
   wrappers' defaults, 15 runners) now scales the timestamp, so bases minted
   seconds apart sit ≥ 1000 apart. Shard keying is unchanged: recorded seeds,
   the anchor's persistent one included, deal the same boards and keep the
@@ -8814,7 +8844,7 @@ working log; this is the short version.
   `--no-ns-major-game-tries`), which moves exactly one card row.  Three arms with
   the opponents' book byte-identical across all of them: `symmetric` (today's
   default), `wrong` (declared differing on the *other* row), `truth`.  204 800
-  bd/arm/vul, both vuls, seeds 1786103953 / 1786103961, ~4.4% divergent,
+  bd/arm/vul, both vuls, seeds 1786103953 / 1786104446, ~4.4% divergent,
   `scripts/ab-declared-agreement.sh`.  Fourteen of sixteen cells negative, twelve
   CI-clear; every `truth` cell ≤ 0 plain and CI-clear negative under PD
   (garbage-stayman plain −0.0003/−0.0062, PD −0.0252/−0.0328; game-tries plain
@@ -18822,6 +18852,9 @@ working log; this is the short version.
     game). At floor-parity 13 the node's whole added value is the keycard
     ask: **+4.4/+5.2 IMPs/divergent** (78 boards/200k, CI excludes 0, both
     scorers). Traced with the new `probe-limit-raise` example.
+    *#6 re-run (2026-10-14): off vs the shipped default, vs BBA, fresh seed:
+    a wash at both vulnerabilities on both scorers, about +0.0000 to +0.0002
+    ±0.0008. It stays on by the naturalness tie-break.*
   - `set_major_rebid_tails` (off: `--no-ns-major-rebid-tails`): both-sides
     continuations under `1♥ - 1♠` for opener's `2♠`/`3♠` raises (invite,
     sign-off, keycards; RKCB installed below both), the `2♥` rebid
@@ -18838,6 +18871,9 @@ working log; this is the short version.
     stopper, a real second club suit), and responder places the game. The
     `1♥ - 1♠ - 2♦` fourth suit (`3♣`, a level higher) is out of scope. Marginal
     on top of the tails: **+0.002** on both scorers at both vulnerabilities.
+    *#6 re-run (2026-10-14): off vs the shipped default, vs BBA, fresh seed:
+    a win when both vulnerable on both scorers (plain +0.0012 ±0.0009,
+    PD +0.0010 ±0.0009) and a wash when not vulnerable. It stays on.*
   Out of scope this round, documented in the module docs: weak-jump-shift
   continuations (obstruction-wall class), a 12-point limit-raise accept
   (out-bidding the floor), alerted 3-card help-suit tries, counter-tries,
