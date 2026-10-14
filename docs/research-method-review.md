@@ -176,7 +176,27 @@ until one is measured: jdh8's call.
 non-inferior, PD and SD-PD lose in the both cell (lower bounds −0.0019 and
 −0.0020). It shipped on naturalness with this same PD sign. Proposed
 reversible default: keep it on as a recorded trade-off on naturalness, PD
-loss −0.0010 accepted, with a worst-board trace owed before any revert.
+loss −0.0010 accepted, until the repair below is measured.
+
+Its trace (2026-10-15, all 10,155 divergent boards, −541 plain / −1,637 PD)
+puts the loss in the continuation, not the response. On 3,039 boards the
+hearts-first arm plays a heart fit that the `1♠` response never finds
+(−5,016 plain / −4,842 PD); the other 7,116 gain (+4,475 / +3,205). The
+leading sequences are `1♦ - 1♠ - 1NT - 2♣` (437 boards, −1,153) and
+`1♦ - 1♠ - 1NT - 2♠` (336, −943). In XYZ the weak `2♠` (1.1) outranks the
+5♠4♥ `2♥` (1.05), and the invitational `2♠` (1.2) outranks the invitational
+`2♥` (1.1), so a 5-4 or 5-5 responder never shows hearts. Opener's answer to
+the weak `2♥` was not authored either. The repair is
+`rebid.xyz_second_major_first` (default off): `2♥` with four hearts and at
+most five spades outranks `2♠` in both rounds, and opener corrects the weak
+`2♥` to `2♠` only with three spades and a doubleton heart. A smaller leak
+stays with the floor: responder passes `1m - 1♠ - 2m` where hearts-first
+reached a heart contract (173 boards, −870 plain).
+
+**Repair A/Bs (launched 2026-10-14 17:14Z, `ab-results/issue7-repairs/`).**
+`reverse-heart-game` (`rebid.forcing_nt_reverse_heart_game`) and
+`xyz-second-major-first`, each repair − shipped vs BBA, 1,228,800 boards per
+arm and cell, declared before the run. Verdicts owed.
 
 **Recorded trade-offs.** Each default is kept without a proof; the loss it
 accepts is its worst plain-DD lower bound per board.
