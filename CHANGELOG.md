@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needs both builds on the same side of this change.
   [docs/measurement.md](docs/measurement.md) checklist 5.  Bidding untouched.
 
+- **`deal-overlap` example: the replication check (2026-10-14,
+  [#6](https://github.com/jdh8/pons/issues/6)).** Counts the deals any two
+  runs share — `bba-gen` dumps, shard dirs, or `seeded:BASE:COUNT` windows —
+  by their four hands, so a re-dealt board under another dealer still counts.
+  Exits 1 on any overlap. Checklist 5 now asks for its line before a second
+  seed is cited as a replication or two runs are pooled.
+
 - **Fresh `SEED_BASE`s are `date +%s` × 1000 (2026-10-14,
   [#6](https://github.com/jdh8/pons/issues/6)).** `bba-gen-parallel.sh`,
   `ben-gen-parallel.sh` and the self-sharding runners seed shard `i` with

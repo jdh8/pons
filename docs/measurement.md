@@ -56,8 +56,12 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    `k..` as boards `0..`, so two v1 runs `k < count` apart shared `count − k`
    deals and a "fresh seed" an hour later was mostly the same deals (dealer
    and vulnerability come from the index and line up only when `k ≡ 0 mod 4`).
-   Before reading two v1 runs as independent, or pooling them, check the seed
-   windows `[base, base + count)` do not intersect. v1 results reproduce only
+   Before reading two runs as independent, or pooling them, run
+   `deal-overlap` on both (a `bba-gen` dump or shard dir, or
+   `seeded:BASE:COUNT`; it counts shared four-hand deals and exits 1 on any)
+   and quote its line in the ledger; shared boards are one sample, not two.
+   For v1 runs that the tool cannot regenerate, check the seed windows
+   `[base, base + count)` do not intersect. v1 results reproduce only
    at a commit before the change, and a `smoke-default` byte-identity diff
    must build both sides on the same side of it. Not affected: `bba-gen` /
    the anchor and `ben-gen` (one stream per seed — but `bba-gen-parallel.sh`,

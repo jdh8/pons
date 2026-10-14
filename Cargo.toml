@@ -161,6 +161,11 @@ path = "examples/ab-dump-diff/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "deal-overlap"
+path = "examples/deal-overlap/main.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "probe-doubling"
 path = "examples/probe-doubling/main.rs"
 required-features = ["serde"]
