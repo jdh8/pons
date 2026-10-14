@@ -327,6 +327,7 @@ fn main() {
             &on_score,
             &off_score,
             divergent.len(),
+            1.0,
         );
         if args.worst > 0 {
             // The SD-PD view of the same boards: DD and SD disagree on this

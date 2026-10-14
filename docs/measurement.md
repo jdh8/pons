@@ -133,7 +133,8 @@ the parts that do not churn: protocol, interpretation, and ship rules.
     cull's `announced()` overlay was inert only because an unrelated global
     split happened to be off ([bba-kickback.md](ai-bidder/bba-kickback.md)
     ledger). The same bar covers a **performance** change: if it moves any
-    call it needs the A/B non-loss on both scorers, not a speed number
+    call it needs the A/B non-inferior on both scorers (worst cell's lower
+    bound above −δ, [decision table](#the-decision-table)), not a speed number
     (CLAUDE.md § Objective — KR2/KR3 wins prove KR1 non-inferiority).
 
 `ab-dump-diff --show N` is a **selected worst tail**, not a sample. Use it to
@@ -335,19 +336,69 @@ would produce a number that changes nothing.
 
 ## The decision table
 
+**Each scorer's verdict comes first** (2026-10-14,
+[#7](https://github.com/jdh8/pons/issues/7)). A "wash" — a CI straddling
+0 — says the data have not ruled out zero; it may still hold a loss worth
+caring about, so it is no proof of non-inferiority. Every A/B reporter now
+prints a `Verdict` line per scorer (`common::verdict`):
+
+- **Primary metric**: plain-DD IMPs per board, ON − OFF on paired deals,
+  over the population of **random deals**, per vulnerability cell.
+- **Margin δ = 0.002 IMPs/board** (`common::NI_MARGIN`): the largest loss
+  we accept as no loss. About an eighth of the ships summed over three days
+  (anchor `494f0c4b` → `46d0dc14`, paired at +0.016 plain) and 0.05 IMPs per
+  24-board match. It was fixed before any result was read against it; **never move
+  it after seeing a candidate's numbers**.
+- **Test**: the reporters' two-sided 95% CI (`1.96 · SE`); its lower bound
+  is the one-sided 97.5% bound.
+  - `win`: lower bound > 0.
+  - `non-inferior`: lower bound in (−δ, 0], upper bound ≥ 0.
+  - `inconclusive`: lower bound ≤ −δ, upper bound ≥ 0; a loss larger than
+    δ has not been ruled out.
+  - `loss`: upper bound < 0, even inside δ.
+- **Enriched runs** measure a conditional population, so the margin per
+  measured board is `δ / density`, density = accepted ÷ drawn. A filtered
+  dump does not record its density: `ab-dump-diff` / `ab-dump-sd` withhold
+  the verdict on a `--filter-*` dump until `--density` is passed.
+- **Vulnerability cells**: the experiment's verdict on a scorer is its
+  **worst cell** (loss < inconclusive < non-inferior < win). Requiring
+  every cell to clear the bound is an intersection–union test, so no
+  multiplicity correction is owed. A pooled figure is a headline, never a
+  rescue for a cell that fails. The cells of one seed deal the same boards
+  (checklist 5), so a pooled CI that counts board-cells as independent is
+  too narrow; pool per deal (the mean of a deal's cell swings) instead.
+- **Confirmation data are fresh**: a run used to choose a threshold or
+  pick a candidate cannot confirm it. A re-run on a new seed is independent
+  only if `deal-overlap` says so (checklist 5). Fix any extension's board
+  count *before* reading the first run; topping up until the bound clears
+  inflates the error rate.
+- **PD's verdict is PD's.** A PD `non-inferior` is no proof for plain DD;
+  each column of the table below reads its own scorer.
+
 | Plain DD | PD | Verdict |
 | --- | --- | --- |
 | win | win | Real. Ship default-on. |
-| wash (CI straddles 0) | win | **Shippable default-on** — a one-sided bet: never loses on the honest scorer, gains when opponents punish. |
-| win | wash/loss (PD *erases* a plain win) | Doubling artifact — the "win" is reaching contracts a competent doubler would slaughter. Suspect; don't ship on this evidence. |
+| non-inferior | win | **Shippable default-on**: plain DD has ruled out a loss beyond δ, and PD gains when opponents punish. |
+| inconclusive | win | **Insufficient data**: a plain-DD loss beyond δ is still possible. Run the pre-declared extension on fresh deals; shipping without one is a [recorded trade-off](#recorded-trade-offs), not a proof. |
+| win | non-inferior/inconclusive/loss (PD *erases* a plain win) | Doubling artifact — the "win" is reaching contracts a competent doubler would slaughter. Suspect; don't ship on this evidence. |
 | loss | win | Artifact of PD's synthetic X (it credits phantom doubles of contracts we no longer bid). Not a win. |
 | loss | loss | Loss — but trace worst boards before declaring dead (step 9). |
-| wash | wash, treatment is *additive* (repurposes a useless call, sacrifices nothing) | May ship default-on if its value is DD-invisible (obstruction, lead-direction) — precedent: Unusual 2NT over their 1NT. |
-| wash | wash, two methods that *push each other* | Break the tie by **naturalness** (ship rules): a move *toward* established natural theory ships default-on; a *convention* trialled against natural stays opt-in. |
+| non-inferior | non-inferior, treatment is *additive* (repurposes a useless call, sacrifices nothing) | May ship default-on if its value is DD-invisible (obstruction, lead-direction) — precedent: Unusual 2NT over their 1NT. |
+| non-inferior | non-inferior, two methods that *push each other* | Break the tie by **naturalness** (ship rules): a move *toward* established natural theory ships default-on; a *convention* trialled against natural stays opt-in. |
+| inconclusive | anything but loss | **Insufficient data** for every row above that asks for non-inferior. Extend, or record the trade-off. |
+
+#### Recorded trade-offs
+
+A default can be adopted without a non-inferiority proof — on
+naturalness, bridge theory, or engineering cost — but the ledger must say so:
+the basis, the plain-DD interval, and the loss the decision accepts (its
+lower bound). Never write such a decision up as "proven no loss" or "a
+non-loss". The defaults shipped on a wash before 2026-10-14 are inventoried
+in [research-method-review.md](research-method-review.md#issue-7-non-inferiority-inventory).
 
 **Domain addendum — name the knob's direction before you read a row**
 (2026-08-12, paid for by the competitive accountant). Every row above assumes
-a knob that changes **what we bid**. The `win | wash/loss` row in particular
+a knob that changes **what we bid**. The `win | non-inferior/inconclusive/loss` row in particular
 is written for a knob that *bids more*: its rationale is that plain DD lets
 **our** overbids off the hook while PD prices them.
 
@@ -374,8 +425,8 @@ arm here, so a plain-DD win is a floor. Worked case:
 [docs/ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md).
 
 **The addendum's cleanest exemplar** (2026-08-20): the `1NT (3x) X` leave-in's
-honor half measured `plain wash | PD win` — the row above that ships
-default-on — while concealing a **−2.4 to −3.0 IMPs per fired** single-dummy
+honor half measured `plain wash | PD win` — the row that shipped
+default-on before the 2026-10-14 margin — while concealing a **−2.4 to −3.0 IMPs per fired** single-dummy
 loss at both vulnerabilities. Its mechanism is adding doubles, so plain DD
 arbitrates, the sd-lead bracket tie-breaks, and PD is a double-blind column
 that neither rescues nor kills. Its *length* sibling, priced the same way, was
@@ -478,7 +529,7 @@ comment. And a conditional CI is tight enough to over-read — a significant
 conditional effect on a 10⁻⁴ trigger is still worth ~10⁻⁴ of it per board.
 
 Leave the single-dummy row out of the first pass. If the verdict lands on the
-plain-wash/PD-gain row, or anywhere ambiguous, re-run SD over a couple of
+non-inferior/PD-win row, or anywhere ambiguous, re-run SD over a couple of
 thousand accepted deals — enrichment is what makes that affordable at all.
 
 ## Known biases
@@ -675,8 +726,11 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   **opt-in knobs, default off, default system byte-identical** — especially
   obstruction-wall rejects, which are single-dummy re-measure candidates, and
   get an off-switch spelled `--no-ns-*` when shipped default-on.
-- **Default-on** requires: plain-DD win, or plain wash + PD win, or additive +
-  DD-invisible value (table above). **Plain-DD loss never ships default-on.**
+- **Default-on** requires: plain-DD win, or plain non-inferior + PD win, or
+  additive + DD-invisible value on a plain non-inferior (table above) — every
+  vulnerability cell's lower bound above −δ. **Plain-DD loss never ships
+  default-on.** A plain `inconclusive` ships only as a
+  [recorded trade-off](#recorded-trade-offs).
 - **Park branch** (`park/<slug>`, CLAUDE.md § Workflow): a non-win whose flip
   needs more *work* — a retrain, unauthored siblings, a redesign — parks the
   whole idea on a branch instead of shipping scaffolding on `main`. Finished
@@ -684,12 +738,15 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   Rebase onto `main` before re-measuring; control = `main` HEAD on the same
   `SEED_BASE`; merge on a win. Wins already on `main` stand regardless.
 - **The wash tiebreak — naturalness.** When two methods push each other (both
-  scorers wash), *direction relative to natural bidding* picks the default. The
+  scorers non-inferior), *direction relative to natural bidding* picks the
+  default. The
   default is the least-surprising agreement an unknown American / online partner
   already assumes, so a change that moves us **toward established natural theory
-  ships default-on on a wash** — a push is enough. A change **trialling a
+  ships default-on on a push** — non-inferior is enough; on an
+  `inconclusive` push it may still ship, as a
+  [recorded trade-off](#recorded-trade-offs) naming naturalness as its basis. A change **trialling a
   convention** against natural (artificial call, e.g. Cachalot) needs a real
-  plain-DD or DD-invisible win; a wash only earns an **opt-in knob**. Naturalness
+  plain-DD or DD-invisible win; a push only earns an **opt-in knob**. Naturalness
   is a prior DD can't score (shared understanding, an unknown partner's default),
   and it is the same standing directive that keeps artificial 1NT defenses opt-in
   even when they match the default (convention-tuning.md). *Worked example:*

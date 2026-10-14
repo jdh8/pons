@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A non-inferiority margin replaces "wash = no loss" (2026-10-14,
+  [#7](https://github.com/jdh8/pons/issues/7)).** A plain-DD CI straddling 0
+  no longer counts as proof that a change does not lose. `measurement.md`
+  fixes δ = 0.002 IMPs per random-deal board and requires every
+  vulnerability cell's 95% lower bound above −δ, scaled to `δ / density` on
+  enriched runs. The decision table, the ship rules, `CLAUDE.md` /
+  `AGENTS.md` and the `measure-ab` / `author-convention` skills now read
+  `win` / `non-inferior` / `inconclusive` / `loss`; a plain `inconclusive`
+  ships only as a recorded trade-off. `ab-dump-diff`, `ab-dump-sd` and the
+  shared bracket reporters print a `Verdict` line per scorer
+  (`common::verdict`). A `--filter-*` dump withholds the verdict until
+  `--density` is given. The `Delta` lines `ab-aggregate.sh` sums are
+  unchanged. Bidding untouched.
+
 - **#6 review fixes (2026-10-14).** Automatic experiment seeds now use GNU
   `date +%s%N`: scaling whole seconds by 1000 still replayed every shard for
   runs started within one second. Recorded seeds keep their deal streams.

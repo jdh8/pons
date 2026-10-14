@@ -630,6 +630,54 @@ pub fn mean_with_ci_f64(values: &[f64]) -> (f64, f64) {
     (mean, 1.96 * (variance / n as f64).sqrt())
 }
 
+/// The non-inferiority margin δ, in IMPs per **unconditional** board
+///
+/// Fixed in advance (2026-10-14, [#7](https://github.com/jdh8/pons/issues/7));
+/// never tune it after seeing a result.  See `docs/measurement.md` § The
+/// decision table.
+pub const NI_MARGIN: f64 = 0.002;
+
+/// Read one scorer's paired swing against [`NI_MARGIN`]
+///
+/// `mean ± half_width` is the 95% CI ([`mean_with_ci`]) of ON − OFF IMPs per
+/// board over the measured population; `density` is that population's share of
+/// random deals (1 unconditional, accepted/drawn for an enriched run), so the
+/// margin per measured board is `δ / density`.  The lower bound is the
+/// one-sided 97.5% bound.  A CI-clear negative reads `loss` even inside δ.
+pub fn verdict(mean: f64, half_width: f64, density: f64) -> &'static str {
+    let lower = mean - half_width;
+    if mean + half_width < 0.0 {
+        "loss"
+    } else if lower > 0.0 {
+        "win"
+    } else if lower > -NI_MARGIN / density {
+        "non-inferior"
+    } else {
+        "inconclusive"
+    }
+}
+
+/// The `density` [`verdict`] needs for `dump`: `explicit` if given, else 1 for
+/// an unfiltered dump and `None` (withhold the verdict) for a `--filter-*` one,
+/// whose acceptance rate the dump does not record
+pub fn dump_density(dump: &Dump, explicit: Option<f64>) -> Option<f64> {
+    explicit.or_else(|| (!dump.gen_args.iter().any(|a| a.starts_with("--filter"))).then_some(1.0))
+}
+
+/// The verdict line every A/B reporter prints under its delta
+///
+/// Names the scorer, because a verdict holds for that scorer only: a PD
+/// `non-inferior` is no proof for plain DD.
+pub fn verdict_line(scorer: &str, mean: f64, half_width: f64, density: Option<f64>) -> String {
+    match density {
+        Some(density) => format!(
+            "Verdict ({scorer}, δ {NI_MARGIN} IMPs/board, density {density}): {}",
+            verdict(mean, half_width, density),
+        ),
+        None => format!("Verdict ({scorer}): withheld — enriched dump, pass --density"),
+    }
+}
+
 /// The outcome of scoring a board set against itself.
 pub struct Scored {
     /// Indices (into the input) of boards whose two tables reached different
@@ -726,6 +774,8 @@ pub fn score_solved(
 ///
 /// Unlike [`score_boards`], this scores twice from one solve — the harness
 /// solves the divergent set once and reads both brackets off the same tables.
+/// Each line is followed by its [`verdict_line`] at density 1: every caller
+/// deals unconditionally.
 pub fn report_brackets(
     count: usize,
     divergent: &[usize],
@@ -751,6 +801,10 @@ pub fn report_brackets(
              {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent",
             fired.iter().sum::<i64>(),
         );
+        println!(
+            "{}",
+            verdict_line(label, per_board_mean, per_board_ci, Some(1.0))
+        );
     }
 }
 
@@ -762,7 +816,8 @@ pub fn report_brackets(
 /// `on[i]` and `off[i]` are that board's `[plain, perfect-defense]` pair, as
 /// produced beside every `single_dummy_leads` answer; the swing is `on − off`
 /// within each bracket.  `divergent` is the divergent-board count, the
-/// denominator of the per-divergent figure.
+/// denominator of the per-divergent figure; `density` is the boards' share of
+/// random deals, for each bracket's [`verdict_line`].
 ///
 /// **Read the perfect-defense line as the arbiter, not the plain one.** Plain
 /// SD relaxes the defenders' opening lead *and* never punishes the failures —
@@ -775,6 +830,7 @@ pub fn report_sd_brackets(
     on: &[[i64; 2]],
     off: &[[i64; 2]],
     divergent: usize,
+    density: f64,
 ) {
     for (k, bracket) in ["plain          ", "perfect-defense"].iter().enumerate() {
         let board_imps: Vec<i64> = on.iter().zip(off).map(|(a, b)| imps(a[k] - b[k])).collect();
@@ -785,6 +841,8 @@ pub fn report_sd_brackets(
              {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent",
             total as f64 / divergent.max(1) as f64,
         );
+        let scorer = format!("{label} {}", bracket.trim_end());
+        println!("{}", verdict_line(&scorer, mean, ci, Some(density)));
     }
 }
 

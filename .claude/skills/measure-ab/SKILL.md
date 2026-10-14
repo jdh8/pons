@@ -43,7 +43,12 @@ read it now if this session hasn't. This skill is the run procedure.
    both vulnerabilities (none/both). Report IMPs/board, IMPs/fired (or
    IMPs/divergent on filtered harnesses — never IMPs/board there), fired rate,
    and a CI (two seeds minimum, or bootstrap).
-6. **Verdict** from the decision table in docs/measurement.md. Remember the
+6. **Verdict** from the decision table in docs/measurement.md, read off each
+   scorer's `Verdict` line (`win` / `non-inferior` / `inconclusive` / `loss`
+   against δ = 0.002 IMPs/board, worst vulnerability cell). A CI straddling 0
+   is `non-inferior` only if its lower bound is above −δ; otherwise it is
+   insufficient data, never "no loss". On a `--filter-*` dump pass
+   `--density` (accepted ÷ drawn) or the verdict is withheld. Remember the
    two big artifacts: PD-only win = doubling artifact; DD loss on an
    obstructive/concealment idea = harness blindness, park it opt-in for a
    single-dummy re-measure (`single_dummy_leads` prices the blind-lead seam).

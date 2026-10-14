@@ -33,7 +33,9 @@ use std::io::Write;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Dump, Scored, mean_with_ci, score_solved, solve_divergent};
+use common::{
+    Dump, Scored, dump_density, mean_with_ci, score_solved, solve_divergent, verdict_line,
+};
 
 #[derive(Parser)]
 struct Args {
@@ -70,14 +72,20 @@ struct Args {
     /// Where `--score both` writes the perfect-defense report
     #[arg(long, required_if_eq("score", "both"))]
     out_pd: Option<String>,
+    /// Share of random deals the dumps' `--filter-*` accepted, for the
+    /// verdict's δ / density margin; an enriched dump without it withholds
+    /// the verdict
+    #[arg(long)]
+    density: Option<f64>,
 }
 
-/// One scorer's report — byte-for-byte what the single-scorer run has always
-/// printed
+/// One scorer's report
 ///
 /// The text is an interface, not a display detail: `scripts/ab-aggregate.sh`
 /// parses it with awk, matching ` fired (` and `^Delta` and counting fields
-/// around the `boards,`, `fired` and `IMPs,` tokens.
+/// around the `boards,`, `fired` and `IMPs,` tokens.  The `Verdict` line
+/// (2026-10-14) matches neither, so per-shard sums are unchanged; a shard's
+/// verdict is not the pooled one.
 fn report(
     out: &mut impl Write,
     on: &Dump,
@@ -85,6 +93,7 @@ fn report(
     vul: AbsoluteVulnerability,
     scored: &Scored,
     show: usize,
+    verdict: (&str, Option<f64>),
 ) -> std::io::Result<()> {
     let (mean, ci) = mean_with_ci(&scored.board_imps);
     let n = on.boards.len();
@@ -106,6 +115,7 @@ fn report(
         ci,
         scored.total_imps as f64 / d.max(1) as f64,
     )?;
+    writeln!(out, "{}", verdict_line(verdict.0, mean, ci, verdict.1))?;
 
     let mut swings = scored.swings.clone();
     swings.sort_by_key(|&(_, _, imp)| imp);
@@ -132,9 +142,10 @@ fn write_report(
     vul: AbsoluteVulnerability,
     scored: &Scored,
     show: usize,
+    verdict: (&str, Option<f64>),
 ) -> anyhow::Result<()> {
     let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
-    report(&mut file, on, off, vul, scored, show)?;
+    report(&mut file, on, off, vul, scored, show, verdict)?;
     file.flush()?;
     Ok(())
 }
@@ -145,6 +156,7 @@ fn main() -> anyhow::Result<()> {
     let off = common::load_dump(&args.off);
     assert_eq!(on.boards.len(), off.boards.len(), "dumps must be aligned");
     let vul = args.vulnerability.unwrap_or(on.vulnerability);
+    let density = dump_density(&on, args.density);
 
     // Pair our (table_a) contract with the feature on vs off; the deals must match.
     let mut deals = Vec::with_capacity(on.boards.len());
@@ -177,6 +189,7 @@ fn main() -> anyhow::Result<()> {
                 vul,
                 &scored,
                 args.show,
+                ("plain DD", density),
             )?;
         }
         "pd" => {
@@ -188,6 +201,7 @@ fn main() -> anyhow::Result<()> {
                 vul,
                 &scored,
                 args.show,
+                ("PD", density),
             )?;
         }
         "both" => {
@@ -203,9 +217,17 @@ fn main() -> anyhow::Result<()> {
                 vul,
                 ns_score_contract,
             );
-            write_report(plain_path, &on, &off, vul, &plain, args.show)?;
+            write_report(
+                plain_path,
+                &on,
+                &off,
+                vul,
+                &plain,
+                args.show,
+                ("plain DD", density),
+            )?;
             let pd = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
-            write_report(pd_path, &on, &off, vul, &pd, args.show)?;
+            write_report(pd_path, &on, &off, vul, &pd, args.show, ("PD", density))?;
         }
         other => anyhow::bail!("--score must be plain|pd|both, got {other:?}"),
     }

@@ -47,7 +47,7 @@ use rand::rngs::StdRng;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{mean_with_ci, seat_to_act};
+use common::{dump_density, mean_with_ci, seat_to_act, verdict_line};
 
 #[derive(Parser)]
 struct Args {
@@ -63,6 +63,11 @@ struct Args {
     /// Worlds sampled per blind lead (the validated GTO setting is 16)
     #[arg(long, default_value_t = 16)]
     sd_worlds: usize,
+    /// Share of random deals the dumps' `--filter-*` accepted, for the
+    /// verdict's δ / density margin; an enriched dump without it withholds
+    /// the verdict
+    #[arg(long)]
+    density: Option<f64>,
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
@@ -396,9 +401,10 @@ fn main() {
         // defenders' lead *and* never punishes the failures, so it flatters
         // aggression.  (Under `--sd-declarer` the defense already peeks, so
         // that line is a pessimism stress-test rather than a bracket.)
-        for (tag, swings) in [
-            ("Delta plain           (run − sit)", &board_imps),
-            ("Delta perfect-defense (run − sit)", &pd_imps),
+        let density = dump_density(&on, args.density);
+        for (tag, scorer, swings) in [
+            ("Delta plain           (run − sit)", "plain SD", &board_imps),
+            ("Delta perfect-defense (run − sit)", "SD-PD", &pd_imps),
         ] {
             let (mean, ci) = mean_with_ci(swings);
             let total: i64 = swings.iter().sum();
@@ -406,6 +412,7 @@ fn main() {
                 "{tag}: {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/fired",
                 total as f64 / fired.max(1) as f64,
             );
+            println!("{}", verdict_line(scorer, mean, ci, density));
         }
     }
 

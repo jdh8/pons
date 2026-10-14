@@ -22,8 +22,10 @@ Make `pons` the best open-source bridge engine. Key results, in order:
 
 KR1 is the objective's direct proxy and outranks the rest: a KR2 or KR3 win
 ships only with a KR1 **non-inferiority proof** — a seeded `smoke-default`
-byte-identity of the default system, or an A/B that is a non-loss on both
-scorers (measurement.md, checklist item 12).
+byte-identity of the default system, or an A/B that is **non-inferior** on
+both scorers — every vulnerability cell's 95% lower bound above −δ, δ = 0.002
+IMPs/board (measurement.md, the decision table and checklist item 12). A CI
+that merely straddles 0 is not a proof.
 
 ## Read before working
 
@@ -99,8 +101,10 @@ two docs above hold the full story; the rules survive summarizing:
 
 - Never ship a bidding change on analysis alone — run the A/B, score with
   **both** plain DD and perfect-defense, and read the verdict from the decision
-  table. A PD-only win is a doubling artifact; a plain-DD wash + PD win is
-  shippable default-on.
+  table. A PD-only win is a doubling artifact; a plain-DD **non-inferior**
+  (lower bound above −δ) + PD win is shippable default-on. A wash whose lower
+  bound reaches −δ is *inconclusive* — insufficient data, never "no loss"; a
+  default kept on one is a recorded trade-off with its basis in the ledger.
 - DD is blind to obstruction, concealment, and right-siding. Preemptive ideas
   measuring negative is the harness, not the idea; right-siding-only ideas
   measuring zero is real.

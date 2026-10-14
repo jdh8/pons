@@ -95,7 +95,8 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
 9. **Measure** with the `measure-ab` skill. Do not ship on analysis alone.
 10. **Ship decision** per the decision table in
     [docs/measurement.md](../../../docs/measurement.md): default-on for a
-    plain-DD win or plain-wash+PD-win; rejected treatments stay opt-in with the
+    plain-DD win or plain non-inferior (lower bound above −δ) + PD win; a
+    plain `inconclusive` is insufficient data, not a pass; rejected treatments stay opt-in with the
     default byte-identical; a non-win whose flip needs more work parks on a
     `park/<slug>` branch. Flipping a default updates the integration tests
     that encoded the old one.

@@ -393,8 +393,10 @@ fn main() {
     // doubled-1NT fire density (--count then means *kept* boards).
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut deals: Vec<(Seat, FullDeal)> = Vec::with_capacity(args.count);
+    let mut drawn = 0usize;
     while deals.len() < args.count {
         let deal = full_deal(&mut rng);
+        drawn += 1;
         if !args.filter_1nt || Seat::ALL.iter().any(|&seat| is_1nt_opener(deal[seat])) {
             deals.push((Seat::ALL[deals.len() % 4], deal));
         }
@@ -543,6 +545,7 @@ fn main() {
             &a_score,
             &b_score,
             divergent.len(),
+            args.count as f64 / drawn as f64,
         );
     }
 }
