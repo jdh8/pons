@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(feature = "serde")]
+mod dumps;
+
 #[test]
 fn neighbouring_bases_share_no_boards() {
     // The retired `base + i` key slid: base + 3 replayed base's board i + 3.

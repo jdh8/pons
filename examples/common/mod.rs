@@ -400,6 +400,8 @@ pub struct Dump {
 /// whole board set lets it solve the entire divergent set in a single DDS
 /// fan-out, instead of launching one solver process per shard — each of which
 /// spins a full-core DDS pool and oversubscribes the box.
+/// Every shard must name the same bidders and bidding vulnerability; seed and
+/// generation arguments may vary across shards.
 #[cfg(feature = "serde")]
 pub fn load_dump(path: &str) -> Dump {
     fn read(path: &std::path::Path) -> Dump {
@@ -426,7 +428,26 @@ pub fn load_dump(path: &str) -> Dump {
     shards.sort();
     let mut dump = read(&shards[0]);
     for shard in &shards[1..] {
-        dump.boards.extend(read(shard).boards);
+        let next = read(shard);
+        assert_eq!(
+            dump.vulnerability,
+            next.vulnerability,
+            "dump shard {} has a different bidding vulnerability",
+            shard.display(),
+        );
+        assert_eq!(
+            dump.our_label,
+            next.our_label,
+            "dump shard {} has a different bidder for our pair",
+            shard.display(),
+        );
+        assert_eq!(
+            dump.their_label,
+            next.their_label,
+            "dump shard {} has a different reference bidder",
+            shard.display(),
+        );
+        dump.boards.extend(next.boards);
     }
     dump
 }

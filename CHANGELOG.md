@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dump directory loading now rejects any shard with a different bidding
+  vulnerability or bidder label, naming the offending shard. This closes the
+  directory-input bypass of `ab-dump-diff`'s pairing checks for
+  [#8](https://github.com/jdh8/pons/issues/8), preventing mixed experiments from
+  being scored under the first shard's metadata.
+
 ### Added
 
 - **`ab-dump-diff --metric reference`: the reference-relative IMP gain
