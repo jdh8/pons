@@ -18,19 +18,20 @@ Every entry was re-verified against the code on 2026-10-14; the corrections
 from that pass (overstatements, missed prior records, a sharper diagnosis) are
 folded in below.
 
-## Corrections tracked in issues
+## Closed issues
 
-| Priority | Issue | Completion belongs in |
+| Priority | Issue | Completion landed in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
 | P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15 (the two modeled SAT diagnostics labelled exempt, and the resume guard fingerprinting the binary an arm runs, 2026-10-16); the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ, its repair `diamond_transfer_responder_captain` shipped default-on 2026-10-15 on a three-arm A/B); `PointCount` proven win \| win 2026-10-15; the RKCB queen ask superseded (no off arm) |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 | P2 | [#9 Vulnerability cells on one seed are one deal set](https://github.com/jdh8/pons/issues/9) | `measurement.md` checklist 5 (2026-10-14) and the [cell-count audit](#issue-9-cell-counts-cited-as-replication) (2026-10-16) |
 
-The entries below preserve the remaining review findings. Open an issue when
-starting one, link it here, and close its checklist with the measured result or
-an explicit decision. Keep previously published outputs identifiable when an
-instrument or protocol changes.
+All four are closed. The entries below preserve the remaining review
+findings. Delete an item once it is done, recording the measured result or the
+explicit decision in the doc that owns the conclusion; git keeps the history.
+Keep previously published outputs identifiable when an instrument or protocol
+changes.
 
 ## Issue #7: non-inferiority inventory
 
@@ -457,10 +458,10 @@ disclosure or lead-direction value. What it lacks is the list of verdicts
 whose mechanism depended on that pricing (concealment, lead direction,
 disclosure cost); those need a treatment-by-treatment qualification.
 
-- [ ] Confirm the alerted-only decode as the cause with a diagnostic lead case.
-- [ ] Make an absurd-band manipulation change the sampled model and demonstrate
+- Confirm the alerted-only decode as the cause with a diagnostic lead case.
+- Make an absurd-band manipulation change the sampled model and demonstrate
   an effect on a diagnostic lead case.
-- [ ] Identify affected concealment, lead-direction and disclosure-cost verdicts;
+- Identify affected concealment, lead-direction and disclosure-cost verdicts;
   remeasure those needed for a decision and update their evidence status.
 
 ## 5 Filter coverage and conditional comparisons
@@ -478,11 +479,11 @@ that the wide-shape 1NT slice is invisible to its arms and that this bounds the
 claim; the runner states its limit, the general rule in `measurement.md` does
 not. Reporting per-divergent IMPs does not recover that excluded population.
 
-- [ ] Run an unfiltered bidding-only preflight and count divergences outside
+- Run an unfiltered bidding-only preflight and count divergences outside
   the raw-hand filter before interpreting an enriched result globally.
-- [ ] Use the union of candidate triggers or separate balanced/wide-shape
+- Use the union of candidate triggers or separate balanced/wide-shape
   strata, and report the population weights and conditional effects together.
-- [ ] Narrow the denominator claim in `measurement.md`.
+- Narrow the denominator claim in `measurement.md`.
 
 The point estimate in
 [probe-weak-two-major](../examples/probe-weak-two-major/main.rs) is internally
@@ -514,11 +515,11 @@ after this four-cell comparison; the script is the only runner that loops all
 four cells. This is evidence
 for extending that practice, not a claim that all existing runners lack it.
 
-- [ ] Confirm competitive treatments at none, ns, ew and both vulnerability.
-- [ ] Keep rebidding in each cell, as `bba-gen -v` already does; repricing an
+- Confirm competitive treatments at none, ns, ew and both vulnerability.
+- Keep rebidding in each cell, as `bba-gen -v` already does; repricing an
   existing auction cannot model the policy changes caused by vulnerability. The
   gap is runner coverage, not the generator.
-- [ ] State explicitly when a verdict covers only the measured cells.
+- State explicitly when a verdict covers only the measured cells.
 
 ## 7 Auction conditioning and the replay approximation
 
@@ -542,11 +543,11 @@ Scaling finite authored priorities can leave production argmax unchanged but
 change the replay acceptance set. Those priorities are not calibrated call
 likelihoods; see [logit-calibration.md](ai-bidder/logit-calibration.md).
 
-- [ ] Describe the existing method as relaxed authored-rule conditioning;
+- Describe the existing method as relaxed authored-rule conditioning;
   qualify the self-play posterior and ceiling claims.
-- [ ] At representative seams compare strict, full-policy and relaxed replay
+- At representative seams compare strict, full-policy and relaxed replay
   for acceptance, calibration and paired true-deal gain.
-- [ ] Use calibrated likelihoods if adding probabilistic opponent conditioning;
+- Use calibrated likelihoods if adding probabilistic opponent conditioning;
   retain the actual-deal judge and static-remap controls.
 
 ## 8 Sampling fallbacks and changes to the model
@@ -566,8 +567,8 @@ Starvation is measured only on the relabel path
 under self-play, ~16.5% under the teacher walk, with short draws dropped rather
 than topped up) and by `probe-replay-yield`; no A/B reports it.
 
-- [ ] Report draws, acceptance, fallback counts and per-board fallback rates.
-- [ ] On important divergent sets compare a common fallback policy or an
+- Report draws, acceptance, fallback counts and per-board fallback rates.
+- On important divergent sets compare a common fallback policy or an
   insufficient-sample/no-signal policy, and record sensitivity.
 
 ## 9 SD objectives calibration and scenario bounds
@@ -601,11 +602,11 @@ so both reported deltas are zero. An imperfect doubler who doubles only ON
 produces a -50-point, -2-IMP delta, outside those endpoints. Bounds for
 individual arms do not imply bounds from subtracting like endpoints.
 
-- [ ] Add same-layout, same-strain cases with different contract objectives to
+- Add same-layout, same-strain cases with different contract objectives to
   distinguish safety play from mean-trick maximization.
-- [ ] Report sensitivity to the objective, lambda and analytic shave on the
+- Report sensitivity to the objective, lambda and analytic shave on the
   actual divergent population; validate the aligned-cell fit before using it.
-- [ ] Qualify point-estimate and truth-bracket language. A larger sample
+- Qualify point-estimate and truth-bracket language. A larger sample
   reduces sampling error, not these modelling assumptions.
 
 ## 10 Dataset identity and label transplantation
@@ -635,10 +636,10 @@ chunk (labels moved 0) is a partial check. The keyed path drops duplicate old
 keys. This does not prove the approximately 424k transplanted labels are wrong
 or explain v8's loss.
 
-- [ ] Preserve a stable deal ID, dealer, vulnerability, full auction prefix and
+- Preserve a stable deal ID, dealer, vulnerability, full auction prefix and
   cell; group every row of a board into one training/validation partition.
-- [ ] Validate both positional and keyed splices against that identity.
-- [ ] Audit existing splices and report unmatched, ambiguous or changed rows
+- Validate both positional and keyed splices against that identity.
+- Audit existing splices and report unmatched, ambiguous or changed rows
   before deciding which labels need recomputation.
 
 ## 11 Experiment identity and resumable runs
@@ -654,10 +655,10 @@ and `bba-gen-parallel.sh` ends with a bare `wait` that discards exit codes.
 checking their labels, vulnerability or configuration. Dumps carry seed/args
 but not a full immutable code, weights and scorer identity.
 
-- [ ] Save a manifest with source SHA, dirty diff identity, weights hash,
+- Save a manifest with source SHA, dirty diff identity, weights hash,
   generator/scorer/solver versions, configuration and expected shard IDs/counts.
-- [ ] Resume only on matching manifests; validate every shard and report.
-- [ ] Collect each worker's exit status and verify expected board counts, not
+- Resume only on matching manifests; validate every shard and report.
+- Collect each worker's exit status and verify expected board counts, not
   just matching lengths between two incomplete arms.
 
 ## 12 Development banks and solver efficiency
@@ -680,10 +681,10 @@ and [anchor.sh](../scripts/anchor.sh). General
 and requests all strains. A cache or selected-position solve is a benchmark
 candidate, not a demonstrated speedup.
 
-- [ ] Define development reuse, data separation and final confirmation policy;
+- Define development reuse, data separation and final confirmation policy;
   record deal identities so overlap can be handled correctly.
-- [ ] Benchmark cache reuse and reached-position solves against full tables.
-- [ ] Count contract/declarer divergence for DD and auction/reading divergence
+- Benchmark cache reuse and reached-position solves against full tables.
+- Count contract/declarer divergence for DD and auction/reading divergence
   for information-sensitive SD work; zero contract divergence does not mean
   zero potential disclosure effect.
 
@@ -697,11 +698,11 @@ and tuned its points floor (`8..` against `7..` and `9..`) on the same
 comparison. It does not
 establish the best possible meaning for that bid slot.
 
-- [ ] Compare complete candidate structures, including the hands displaced by
+- Compare complete candidate structures, including the hands displaced by
   each meaning, using a common raw-hand filter covering their trigger union.
-- [ ] Rank by population-weighted total gain; a higher per-divergent mean at
+- Rank by population-weighted total gain; a higher per-divergent mean at
   equal total gain does not establish a better global threshold.
-- [ ] Freeze structure and thresholds before independent confirmation, and
+- Freeze structure and thresholds before independent confirmation, and
   include reading opponents and doubled/overcalled continuations.
 
 For retraining, distinguish the deployable convention-plus-matched-net package
