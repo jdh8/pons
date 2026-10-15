@@ -92,6 +92,83 @@ const REPLAY_DRY_LIMIT: usize = 1 << 20;
 /// sampler yield; see the plan.
 const MARGIN: f32 = 3.0;
 
+/// How a batch of sampled worlds was made: the constrained sample against its
+/// fallback tier
+///
+/// Every sampler here rejection-samples against the auction reading and, when
+/// the reading starves it, either returns short or **tops up** from a looser
+/// tier — unconstrained deals ([`single_dummy_leads`][crate::single_dummy_leads]),
+/// range-only deals after rule replay ([`ev_all`][crate::bidding::ev_all]), or
+/// hard-only splits mid-play ([`sample_defender_remnants`]).  The worlds alone
+/// do not say which tier dealt them; this does, so a scorer can report how
+/// much of a verdict rests on the fallback rather than on the reading.
+///
+/// Counts add ([`AddAssign`][std::ops::AddAssign], [`Sum`][std::iter::Sum]),
+/// so a caller folds per-call stats into per-board or per-arm totals.
+/// Collecting them costs one counter per draw and never touches the RNG: a
+/// `*_with_stats` variant deals exactly the worlds its plain sibling deals for
+/// the same seed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SampleStats {
+    /// Worlds asked for
+    pub requested: usize,
+    /// Random draws the constrained sampler tried
+    pub draws: usize,
+    /// Worlds the constrained sampler accepted
+    pub accepted: usize,
+    /// Random draws the fallback tier tried — equal to [`fallback`][Self::fallback]
+    /// for an unconditional fill (unconstrained or hard-only), more for
+    /// `ev_all`'s rejection-sampled range-only top-up
+    pub fallback_draws: usize,
+    /// Worlds the fallback tier filled
+    pub fallback: usize,
+}
+
+impl SampleStats {
+    /// Worlds returned: the constrained sample plus the fallback fill
+    #[must_use]
+    pub const fn returned(&self) -> usize {
+        self.accepted + self.fallback
+    }
+
+    /// Requested worlds neither tier filled (only `ev_all` can return short)
+    #[must_use]
+    pub const fn shortfall(&self) -> usize {
+        self.requested.saturating_sub(self.returned())
+    }
+
+    /// Whether any world came from the fallback tier, or any went unfilled
+    #[must_use]
+    pub const fn degraded(&self) -> bool {
+        self.fallback > 0 || self.shortfall() > 0
+    }
+}
+
+impl std::ops::AddAssign for SampleStats {
+    fn add_assign(&mut self, rhs: Self) {
+        self.requested += rhs.requested;
+        self.draws += rhs.draws;
+        self.accepted += rhs.accepted;
+        self.fallback_draws += rhs.fallback_draws;
+        self.fallback += rhs.fallback;
+    }
+}
+
+impl std::ops::Add for SampleStats {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl std::iter::Sum for SampleStats {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::default(), |acc, stats| acc + stats)
+    }
+}
+
 /// Deal up to `n` full layouts consistent with what an auction has shown
 ///
 /// `hand` is the actor's own thirteen cards and `seat` their absolute seat;
@@ -112,6 +189,20 @@ pub fn sample_layouts(
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<FullDeal> {
+    sample_layouts_with_stats(hand, seat, inferences, rng, n).0
+}
+
+/// [`sample_layouts`] with its [`SampleStats`]: the same layouts for the same
+/// `rng`, plus how many draws they took (no fallback tier — a short result
+/// shows as [`shortfall`][SampleStats::shortfall])
+#[must_use]
+pub fn sample_layouts_with_stats(
+    hand: Hand,
+    seat: Seat,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<FullDeal>, SampleStats) {
     let budget = n.saturating_mul(MAX_ATTEMPTS_PER_LAYOUT);
     sample_with(hand, seat, rng, n, budget, usize::MAX, |deal| {
         within_ranges(deal, seat, inferences)
@@ -147,6 +238,24 @@ pub fn sample_layouts_replay(
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<FullDeal> {
+    sample_layouts_replay_with_stats(hand, seat, policy, vul, auction, inferences, rng, n).0
+}
+
+/// [`sample_layouts_replay`] with its [`SampleStats`]: the same layouts for
+/// the same `rng`, plus how many draws they took
+#[must_use]
+// Each argument is a distinct fact of the decision, as in [`ev_all`].
+#[allow(clippy::too_many_arguments)]
+pub fn sample_layouts_replay_with_stats(
+    hand: Hand,
+    seat: Seat,
+    policy: &dyn Bidder,
+    vul: RelativeVulnerability,
+    auction: &[Call],
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<FullDeal>, SampleStats) {
     sample_with(
         hand,
         seat,
@@ -162,7 +271,8 @@ pub fn sample_layouts_replay(
 
 /// Rejection-sample up to `n` layouts whose other three hands pass `accept`,
 /// drawing at most `budget` random deals and giving up early after `dry_limit`
-/// consecutive rejects (pass `usize::MAX` to disable the early-out).
+/// consecutive rejects (pass `usize::MAX` to disable the early-out).  The
+/// stats count the draws; there is no fallback tier here.
 ///
 /// The actor's thirteen cards are pinned, so each draw deals only the other
 /// thirty-nine.
@@ -176,10 +286,14 @@ fn sample_with(
     budget: usize,
     dry_limit: usize,
     accept: impl Fn(&FullDeal) -> bool,
-) -> Vec<FullDeal> {
+) -> (Vec<FullDeal>, SampleStats) {
     let mut out = Vec::with_capacity(n);
+    let mut stats = SampleStats {
+        requested: n,
+        ..SampleStats::default()
+    };
     if n == 0 {
-        return out;
+        return (out, stats);
     }
 
     let mut builder = Builder::new();
@@ -190,6 +304,7 @@ fn sample_with(
 
     let mut dry = 0usize;
     for deal in fill_deals(rng, partial).take(budget) {
+        stats.draws += 1;
         if accept(&deal) {
             out.push(deal);
             if out.len() == n {
@@ -203,7 +318,8 @@ fn sample_with(
             }
         }
     }
-    out
+    stats.accepted = out.len();
+    (out, stats)
 }
 
 /// Whether LHO, partner, and RHO in `deal` each fall within their shown ranges
@@ -340,6 +456,32 @@ pub fn sample_defender_remnants(
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<(Hand, Hand)> {
+    sample_defender_remnants_with_stats(
+        pool, lho_played, rho_played, lho_may, rho_may, inferences, rng, n,
+    )
+    .0
+}
+
+/// [`sample_defender_remnants`] with its [`SampleStats`]: the same worlds for
+/// the same `rng`, plus how many satisfied the soft auction reading and how
+/// many were topped up hard-only ([`fallback`][SampleStats::fallback])
+///
+/// # Panics
+///
+/// As [`sample_defender_remnants`].
+#[must_use]
+// Each argument is a distinct fact of the position, as in `sample_layouts_replay`.
+#[allow(clippy::too_many_arguments)]
+pub fn sample_defender_remnants_with_stats(
+    pool: Hand,
+    lho_played: Hand,
+    rho_played: Hand,
+    lho_may: Hand,
+    rho_may: Hand,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<(Hand, Hand)>, SampleStats) {
     assert!(
         pool & (lho_played | rho_played) == Hand::EMPTY
             && pool.len() + lho_played.len() + rho_played.len() == 26,
@@ -364,10 +506,15 @@ pub fn sample_defender_remnants(
     };
 
     let mut out = Vec::with_capacity(n);
+    let mut stats = SampleStats {
+        requested: n,
+        ..SampleStats::default()
+    };
     for _ in 0..n.saturating_mul(DEFENDER_ATTEMPTS_PER_WORLD) {
         if out.len() == n {
             break;
         }
+        stats.draws += 1;
         let (lho, rho) = split(rng);
         if inferences.admits(Relative::Lho, lho | lho_played)
             && inferences.admits(Relative::Rho, rho | rho_played)
@@ -375,11 +522,14 @@ pub fn sample_defender_remnants(
             out.push((lho, rho));
         }
     }
+    stats.accepted = out.len();
     // Tight or jointly-infeasible reading: top up hard-only.
     while out.len() < n {
         out.push(split(rng));
     }
-    out
+    stats.fallback = n - stats.accepted;
+    stats.fallback_draws = stats.fallback;
+    (out, stats)
 }
 
 /// Vulnerability seen from the opposing side: swap the WE and THEY bits.

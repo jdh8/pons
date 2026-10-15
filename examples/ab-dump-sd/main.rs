@@ -26,6 +26,13 @@
 //! optimistic for the arm bidding more slams.  Sequential per board (no
 //! cross-board pooling), so reserve it for slam-sized divergent sets.
 //!
+//! Each arm also reports a `Sampling` line per scorer endpoint: worlds asked
+//! for, how many the fallback tier filled because the auction reading starved
+//! the constrained sample (unconstrained deals for the blind lead, hard-only
+//! splits mid-play), the share of priced boards with any fallback world, and
+//! the constrained sampler's draws and acceptance.  The `Delta`/`Verdict`
+//! lines are unchanged; this only shows how much of them rests on fallback.
+//!
 //! `--by holding` splits the same delta into the `1NT (3x) X -` leave-in slice
 //! (`common::holding_key`), so the sd bracket — the one that settled the v1
 //! refutation — can be read per holding instead of as one number.
@@ -39,10 +46,10 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
-use pons::bidding::Inferences;
 use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape};
+use pons::bidding::{Inferences, SampleStats};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
-use pons::single_dummy::{LeadQuestion, single_dummy_leads};
+use pons::single_dummy::{LeadQuestion, single_dummy_leads_with_stats};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -207,6 +214,46 @@ struct Args {
     legacy_leader_reading: bool,
 }
 
+/// One arm's sampling tally at one scorer endpoint: how the priced worlds
+/// were dealt, summed over its boards
+#[derive(Default)]
+struct Sampling {
+    /// Boards priced (a pass-out samples nothing and is not counted)
+    boards: usize,
+    /// Boards with any fallback world (or any unfilled one)
+    degraded: usize,
+    /// Every board's stats, summed
+    stats: SampleStats,
+}
+
+impl Sampling {
+    fn add(&mut self, stats: SampleStats) {
+        self.boards += 1;
+        self.degraded += usize::from(stats.degraded());
+        self.stats += stats;
+    }
+
+    /// `Sampling <arm> <endpoint>: …` — one line, never starting with
+    /// `Delta`/`Verdict`, so the scripts that grep those are unaffected
+    #[allow(clippy::cast_precision_loss)]
+    fn line(&self, arm: &str, endpoint: &str) -> String {
+        let pct = |part: usize, whole: usize| 100.0 * part as f64 / whole.max(1) as f64;
+        let s = &self.stats;
+        format!(
+            "Sampling {arm} {endpoint}: {} boards, {} worlds, {} fallback ({:.2}%), \
+             {} boards with fallback ({:.2}%), {} draws (acceptance {:.3}%)",
+            self.boards,
+            s.requested,
+            s.fallback,
+            pct(s.fallback, s.requested),
+            self.degraded,
+            pct(self.degraded, self.boards),
+            s.draws,
+            pct(s.accepted, s.draws),
+        )
+    }
+}
+
 /// The (contract, declarer, leader-view inferences) of one auction, read
 /// through `reader`; `None` for a pass-out (sd score 0).  Mirrors
 /// `ab-nt-defense-matrix::lead_inputs` with a single partnership, except that
@@ -319,6 +366,9 @@ fn main() {
     let mut on_score = vec![[0i64; 2]; n];
     let mut off_score = vec![[0i64; 2]; n];
     let mut fired = 0usize;
+    // `[ON, OFF]` arm × `[lead, playout]` endpoint; the lead scorer fills
+    // only the lead column.
+    let mut sampling: [[Sampling; 2]; 2] = Default::default();
     if args.sd_declarer {
         // sd-declarer playout: inherently sequential per board (each card's
         // choice depends on the last), so no cross-board pooling here — run
@@ -329,11 +379,12 @@ fn main() {
                 continue; // identical auction ⇒ identical playout ⇒ swing 0
             }
             fired += 1;
-            for (score, board, reader) in [
-                (&mut on_score[i], a, &reader_on),
-                (&mut off_score[i], b, &reader_off),
+            let [on_tally, off_tally] = &mut sampling;
+            for (score, tally, board, reader) in [
+                (&mut on_score[i], on_tally, a, &reader_on),
+                (&mut off_score[i], off_tally, b, &reader_off),
             ] {
-                *score = common::sd_declarer_ns_score_read(
+                let sd = common::sd_declarer_ns_score_read(
                     &board.table_a,
                     board.dealer,
                     &board.deal,
@@ -342,8 +393,12 @@ fn main() {
                     &mut rng,
                     args.sd_worlds,
                     args.declarer_worlds,
-                )
-                .playout;
+                );
+                *score = sd.playout;
+                if sd.level > 0 {
+                    tally[0].add(sd.sampling[0]);
+                    tally[1].add(sd.sampling[1]);
+                }
             }
         }
     } else {
@@ -374,8 +429,11 @@ fn main() {
 
         const CHUNK: usize = 4096;
         for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
-            let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
-            for (&(i, arm_on, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
+            let (answers, stats) = single_dummy_leads_with_stats(chunk, &mut rng, args.sd_worlds);
+            for ((&(i, arm_on, contract, declarer), &(_, tricks)), &stats) in
+                asked.iter().zip(&answers).zip(&stats)
+            {
+                sampling[usize::from(!arm_on)][0].add(stats);
                 let t = u8::from(tricks);
                 let score = [
                     ns_score_tricks(contract, declarer, t, vul),
@@ -433,6 +491,12 @@ fn main() {
                 total as f64 / fired.max(1) as f64,
             );
             println!("{}", verdict_line(scorer, mean, ci, density));
+        }
+        for (arm, tally) in ["ON ", "OFF"].into_iter().zip(&sampling) {
+            println!("{}", tally[0].line(arm, "sd-lead"));
+            if args.sd_declarer {
+                println!("{}", tally[1].line(arm, "sd-playout"));
+            }
         }
     }
 

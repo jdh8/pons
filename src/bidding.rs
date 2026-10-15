@@ -65,7 +65,7 @@ pub use book::{
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 #[cfg(feature = "dd")]
-pub use ev::ev_all;
+pub use ev::{ev_all, ev_all_with_stats};
 pub use features::{
     CALLS_EVAL_V3, Config, FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_V3,
     FEATURES_LEN_V4, FEATURES_VERSION_EVAL, FEATURES_VERSION_V3, FEATURES_VERSION_V4,
@@ -78,7 +78,10 @@ pub use inference::{
 pub use instinct::instinct;
 pub use map::Map;
 pub use rules::{Alert, Rules};
-pub use sampler::{sample_defender_remnants, sample_layouts};
+pub use sampler::{
+    SampleStats, sample_defender_remnants, sample_defender_remnants_with_stats, sample_layouts,
+    sample_layouts_with_stats,
+};
 pub use table::Table;
 pub use trie::{Trie, classifier};
 pub use verify::{Report, accepts, compare};

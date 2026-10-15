@@ -233,3 +233,101 @@ fn lead_choice_is_deterministic() {
     );
     assert_eq!(a, b);
 }
+
+/// The lead scorer's stats are a pure tally: the same answers and RNG
+/// position as the plain call, with every world from the reading when
+/// nothing was shown.
+#[test]
+fn lead_stats_leave_the_answer_alone() {
+    let question = LeadQuestion {
+        deal: unbeatable_deal(),
+        strain: Strain::Spades,
+        declarer: Seat::North,
+        inferences: no_inferences(),
+    };
+    let mut rng_a = StdRng::seed_from_u64(11);
+    let mut rng_b = StdRng::seed_from_u64(11);
+    let plain = single_dummy_leads(std::slice::from_ref(&question), &mut rng_a, 6);
+    let (answers, stats) = single_dummy_leads_with_stats(&[question], &mut rng_b, 6);
+    assert_eq!(plain, answers);
+    assert_eq!(rng_a.next_u64(), rng_b.next_u64());
+    assert_eq!(stats.len(), 1);
+    assert_eq!(
+        (stats[0].requested, stats[0].accepted, stats[0].fallback),
+        (6, 6, 0)
+    );
+}
+
+/// A reading the leader's own hand contradicts — they hold nine hearts, and
+/// declarer (the leader's RHO) opened `1♥` — is topped up unconstrained, and
+/// the stats say so.
+#[test]
+fn lead_stats_count_the_unconstrained_fill() {
+    use crate::bidding::Context;
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    let east: Hand = "32.AKQJT9876.2.2".parse().expect("valid test hand");
+    let mut builder = Builder::new();
+    builder[Seat::East] = east;
+    let partial = builder
+        .build_partial()
+        .expect("one hand is a valid partial deal");
+    let deal = fill_deals(&mut StdRng::seed_from_u64(0), partial)
+        .next()
+        .expect("fill_deals is infinite");
+    let one_heart = [Call::Bid(Bid {
+        level: Level::new(1),
+        strain: Strain::Hearts,
+    })];
+    let question = LeadQuestion {
+        deal,
+        strain: Strain::Hearts,
+        declarer: Seat::North,
+        inferences: Inferences::read(&Context::new(RelativeVulnerability::NONE, &one_heart)),
+    };
+    let mut rng = StdRng::seed_from_u64(1);
+    let (_, stats) = single_dummy_leads_with_stats(&[question], &mut rng, 4);
+    assert_eq!(stats[0].accepted, 0);
+    assert_eq!((stats[0].fallback, stats[0].fallback_draws), (4, 4));
+    assert_eq!(stats[0].returned(), 4);
+    assert!(stats[0].degraded());
+}
+
+/// The playout's stats sum its declarer decisions: `k` worlds each, all from
+/// the reading when nothing was shown — and the composed call returns the
+/// same lead and tricks as the plain one.
+#[test]
+fn playout_stats_sum_the_decisions() {
+    let deal = two_way_guess_deal();
+    let inferences = no_inferences();
+    let mut rng_a = StdRng::seed_from_u64(17);
+    let mut rng_b = StdRng::seed_from_u64(17);
+    let plain = single_dummy_declarer_tricks(
+        &deal,
+        Strain::Spades,
+        Seat::North,
+        &inferences,
+        &inferences,
+        &mut rng_a,
+        6,
+        4,
+    );
+    let (lead, lead_tricks, tricks, [lead_stats, playout_stats]) =
+        single_dummy_declarer_tricks_with_stats(
+            &deal,
+            Strain::Spades,
+            Seat::North,
+            &inferences,
+            &inferences,
+            &mut rng_b,
+            6,
+            4,
+        );
+    assert_eq!(plain, (lead, lead_tricks, tricks));
+    assert_eq!(rng_a.next_u64(), rng_b.next_u64());
+
+    assert_eq!((lead_stats.requested, lead_stats.fallback), (6, 0));
+    assert!(playout_stats.requested > 0, "the guess is a real decision");
+    assert_eq!(playout_stats.requested % 4, 0, "k worlds per decision");
+    assert_eq!(playout_stats.accepted, playout_stats.requested);
+    assert_eq!(playout_stats.fallback, 0);
+}

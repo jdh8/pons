@@ -38,7 +38,7 @@
 
 use super::Bidder;
 use super::context::Context;
-use super::sampler::{sample_layouts, sample_layouts_replay};
+use super::sampler::{SampleStats, sample_layouts_replay_with_stats, sample_layouts_with_stats};
 use super::table::Table;
 use crate::scoring::{final_contract, ns_score_bid};
 use contract_bridge::auction::{Auction, Call};
@@ -53,7 +53,7 @@ use rand::Rng;
 /// solves, so their EVs are directly comparable and the solve cost is paid once.
 ///
 /// - `hand`/`seat` are the actor's own thirteen cards and absolute seat (as in
-///   [`sample_layouts`] — [`Context`] carries neither).
+///   [`sample_layouts`][super::sampler::sample_layouts] — [`Context`] carries neither).
 /// - `vul` is the absolute table vulnerability, used to score and to drive the
 ///   continuation policy (which converts it per seat itself).
 /// - `context` carries the prior auction; its
@@ -70,7 +70,6 @@ use rand::Rng;
 /// Panics if `context`'s prior auction is not a legal sequence of calls (it
 /// always is when the context comes from a real table).
 #[must_use]
-#[allow(clippy::cast_precision_loss)] // averaging i64 points into an f32 EV
 #[allow(clippy::too_many_arguments)] // each argument is a distinct decision fact
 pub fn ev_all(
     hand: Hand,
@@ -82,15 +81,44 @@ pub fn ev_all(
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<f32> {
+    ev_all_with_stats(hand, seat, vul, context, calls, policy, rng, n).0
+}
+
+/// [`ev_all`] with the [`SampleStats`] of its layouts: the same EVs for the
+/// same `rng`, plus how the layouts were dealt
+///
+/// Under rule replay ([`rule_accept`][field@super::inference::ReadingProfile::rule_accept])
+/// the constrained tier is the replay sampler and the fallback is its
+/// range-only top-up (itself rejection-sampled, so it can still return
+/// short — see [`SampleStats::shortfall`]); without replay the range reader
+/// is the constrained tier and there is no fallback.  An empty `calls` samples
+/// nothing and reports default stats.
+///
+/// # Panics
+///
+/// As [`ev_all`].
+#[must_use]
+#[allow(clippy::cast_precision_loss)] // averaging i64 points into an f32 EV
+#[allow(clippy::too_many_arguments)] // each argument is a distinct decision fact
+pub fn ev_all_with_stats(
+    hand: Hand,
+    seat: Seat,
+    vul: AbsoluteVulnerability,
+    context: &Context<'_>,
+    calls: &[Call],
+    policy: &impl Bidder,
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<f32>, SampleStats) {
     if calls.is_empty() {
-        return Vec::new();
+        return (Vec::new(), SampleStats::default());
     }
 
     let inferences = context.inferences();
-    let deals = if context.reading_profile().rule_accept {
+    let (deals, stats) = if context.reading_profile().rule_accept {
         // Read each authored prior bid by replaying the rule that authored it
         // (frozen at its node); unauthored nodes fall back to the range reading.
-        let mut deals = sample_layouts_replay(
+        let (mut deals, mut stats) = sample_layouts_replay_with_stats(
             hand,
             seat,
             policy,
@@ -105,15 +133,18 @@ pub fn ev_all(
             // the range reader alone so the rollout keeps a usable layout count.
             // ponytail: pays the full replay budget first; add a probe-budget
             // early-abort if the wasted draws on starved auctions bite.
-            let more = sample_layouts(hand, seat, &inferences, rng, n - deals.len());
+            let (more, top_up) =
+                sample_layouts_with_stats(hand, seat, &inferences, rng, n - deals.len());
+            stats.fallback_draws = top_up.draws;
+            stats.fallback = top_up.accepted;
             deals.extend(more);
         }
-        deals
+        (deals, stats)
     } else {
-        sample_layouts(hand, seat, &inferences, rng, n)
+        sample_layouts_with_stats(hand, seat, &inferences, rng, n)
     };
     if deals.is_empty() {
-        return vec![f32::NAN; calls.len()];
+        return (vec![f32::NAN; calls.len()], stats);
     }
 
     // One solve per layout, shared across every candidate call (the cost note).
@@ -122,7 +153,7 @@ pub fn ev_all(
     let table = Table::new(policy, policy, dealer, vul);
     let actor_is_ns = matches!(seat, Seat::North | Seat::South);
 
-    calls
+    let evs = calls
         .iter()
         .map(|&call| {
             // Seed the prior auction, then the candidate; an illegal candidate
@@ -147,7 +178,8 @@ pub fn ev_all(
                 .sum();
             total as f32 / deals.len() as f32
         })
-        .collect()
+        .collect();
+    (evs, stats)
 }
 
 /// The dealer such that the seat acting after the prior auction is `seat`

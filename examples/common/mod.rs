@@ -495,6 +495,10 @@ pub struct SdScores {
     pub lead: [i64; 2],
     /// `[plain, perfect-defense]` NS scores of the playout tricks
     pub playout: [i64; 2],
+    /// How the worlds behind `[lead endpoint, playout endpoint]` were dealt:
+    /// the auction-constrained sample against its fallback tier
+    /// ([`pons::bidding::SampleStats`]; default for a pass-out)
+    pub sampling: [pons::bidding::SampleStats; 2],
 }
 
 /// NS scores of an auction's reached contract under **both sd endpoints**:
@@ -639,7 +643,7 @@ pub fn sd_declarer_ns_score_read(
             .expect("one of four consecutive lengths reaches every seat");
         read(seat, &auction[..cut])
     };
-    let (_, lead_tricks, line_tricks) = pons::single_dummy_declarer_tricks(
+    let (_, lead_tricks, line_tricks, sampling) = pons::single_dummy_declarer_tricks_with_stats(
         deal,
         contract.bid.strain,
         declarer,
@@ -660,6 +664,7 @@ pub fn sd_declarer_ns_score_read(
         tricks: [u8::from(lead_tricks), u8::from(line_tricks)],
         lead: price(u8::from(lead_tricks)),
         playout: price(u8::from(line_tricks)),
+        sampling,
     }
 }
 

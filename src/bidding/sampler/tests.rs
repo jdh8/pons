@@ -394,3 +394,130 @@ fn replay_abstains_on_a_tombstoned_call() {
         "the tombstone makes the call zero-information — accept wholesale"
     );
 }
+
+/// The stats are a pure tally: [`sample_layouts_with_stats`] deals exactly the
+/// plain sampler's layouts and leaves the RNG where the plain sampler does.
+#[test]
+fn layout_stats_leave_the_draws_alone() {
+    let actor = Seat::North;
+    let inf = inferences(&[bid(1, Strain::Hearts)]);
+    let mut rng_a = StdRng::seed_from_u64(3);
+    let mut rng_b = StdRng::seed_from_u64(3);
+    let plain = sample_layouts(short_heart_actor(), actor, &inf, &mut rng_a, 16);
+    let (layouts, stats) =
+        sample_layouts_with_stats(short_heart_actor(), actor, &inf, &mut rng_b, 16);
+    assert_eq!(plain, layouts);
+    assert_eq!(
+        rand::Rng::next_u64(&mut rng_a),
+        rand::Rng::next_u64(&mut rng_b)
+    );
+
+    assert_eq!(
+        (stats.requested, stats.accepted, stats.fallback),
+        (16, 16, 0)
+    );
+    assert!(stats.draws >= 16, "every kept layout is a draw");
+    assert!(!stats.degraded());
+}
+
+/// An infeasible reading spends the whole budget and reports the shortfall
+/// (this sampler has no fallback tier).
+#[test]
+fn layout_stats_report_a_starved_reading() {
+    let actor = Seat::North;
+    let inf = inferences(&[bid(1, Strain::Hearts)]);
+    let hoard: Hand = "32.AKQJT9876.2.2".parse().expect("valid test hand");
+    let mut rng = StdRng::seed_from_u64(5);
+    let (layouts, stats) = sample_layouts_with_stats(hoard, actor, &inf, &mut rng, 5);
+    assert!(layouts.is_empty());
+    assert_eq!(stats.draws, 5 * MAX_ATTEMPTS_PER_LAYOUT);
+    assert_eq!(
+        (stats.accepted, stats.fallback, stats.shortfall()),
+        (0, 0, 5)
+    );
+    assert!(stats.degraded());
+}
+
+/// Declarer (North) and dummy (South) for a mid-play remnant sample at trick
+/// one: North's ten hearts leave the defenders three, so a `1♥` opening by
+/// declarer's RHO (five-plus hearts) is a soft reading no split can satisfy.
+fn heart_hoard_declarer() -> (Hand, Hand) {
+    let north: Hand = "2.AKQJT98765.2.2".parse().expect("valid test hand");
+    let south: Hand = "AKQJT987.4.AK.AK".parse().expect("valid test hand");
+    (north, south)
+}
+
+/// Mid-play: a satisfiable reading fills from the soft sample alone, an
+/// unsatisfiable one is topped up hard-only — and either way the worlds and
+/// the RNG match the plain sampler's.
+#[test]
+fn remnant_stats_split_soft_from_hard_only() {
+    let (north, south) = heart_hoard_declarer();
+    let pool = Hand::ALL - north - south;
+    for (auction, accepted) in [(&[][..], 4), (&[bid(1, Strain::Hearts)][..], 0)] {
+        let inf = inferences(auction);
+        let mut rng_a = StdRng::seed_from_u64(9);
+        let mut rng_b = StdRng::seed_from_u64(9);
+        let plain = sample_defender_remnants(
+            pool,
+            Hand::EMPTY,
+            Hand::EMPTY,
+            Hand::ALL,
+            Hand::ALL,
+            &inf,
+            &mut rng_a,
+            4,
+        );
+        let (worlds, stats) = sample_defender_remnants_with_stats(
+            pool,
+            Hand::EMPTY,
+            Hand::EMPTY,
+            Hand::ALL,
+            Hand::ALL,
+            &inf,
+            &mut rng_b,
+            4,
+        );
+        assert_eq!(plain, worlds);
+        assert_eq!(
+            rand::Rng::next_u64(&mut rng_a),
+            rand::Rng::next_u64(&mut rng_b)
+        );
+
+        assert_eq!(stats.requested, 4);
+        assert_eq!(stats.accepted, accepted);
+        assert_eq!(stats.fallback, 4 - accepted);
+        assert_eq!(stats.fallback_draws, stats.fallback);
+        assert_eq!(stats.returned(), 4);
+        let draws = if accepted == 4 {
+            4
+        } else {
+            4 * DEFENDER_ATTEMPTS_PER_WORLD
+        };
+        assert_eq!(stats.draws, draws);
+    }
+}
+
+/// Stats fold: `+`, `+=` and `Sum` add field by field.
+#[test]
+fn stats_add_field_by_field() {
+    let one = SampleStats {
+        requested: 4,
+        draws: 10,
+        accepted: 3,
+        fallback_draws: 1,
+        fallback: 1,
+    };
+    let total: SampleStats = [one, one].into_iter().sum();
+    assert_eq!(total, one + one);
+    assert_eq!(
+        total,
+        SampleStats {
+            requested: 8,
+            draws: 20,
+            accepted: 6,
+            fallback_draws: 2,
+            fallback: 2,
+        }
+    );
+}

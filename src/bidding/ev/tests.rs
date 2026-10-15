@@ -172,3 +172,62 @@ fn rule_replay_is_the_default() {
         "the search EV samples its rollout worlds by rule-replay by default"
     );
 }
+
+/// The EV's stats are a pure tally: the same EVs and RNG position as
+/// [`ev_all`], with every layout accounted for.
+#[test]
+fn ev_stats_leave_the_values_alone() {
+    let policy = deterministic();
+    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let calls = [bid(3, Strain::Notrump), Call::Pass];
+    let mut rng_a = StdRng::seed_from_u64(7);
+    let mut rng_b = StdRng::seed_from_u64(7);
+    let plain = ev_all(
+        balanced_twenty(),
+        Seat::North,
+        AbsoluteVulnerability::NONE,
+        &context,
+        &calls,
+        &policy,
+        &mut rng_a,
+        12,
+    );
+    let (evs, stats) = ev_all_with_stats(
+        balanced_twenty(),
+        Seat::North,
+        AbsoluteVulnerability::NONE,
+        &context,
+        &calls,
+        &policy,
+        &mut rng_b,
+        12,
+    );
+    assert_eq!(plain, evs);
+    assert_eq!(rng_a.next_u64(), rng_b.next_u64());
+    assert_eq!((stats.requested, stats.returned()), (12, 12));
+}
+
+/// An infeasible auction fills from neither tier: every layout is short.
+#[test]
+fn ev_stats_report_the_shortfall() {
+    let policy = deterministic();
+    let auction = [bid(1, Strain::Hearts)];
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    let hoard: Hand = "32.AKQJT9876.2.2".parse().expect("valid test hand");
+    let mut rng = StdRng::seed_from_u64(5);
+    let (_, stats) = ev_all_with_stats(
+        hoard,
+        Seat::North,
+        AbsoluteVulnerability::NONE,
+        &context,
+        &[Call::Pass],
+        &policy,
+        &mut rng,
+        4,
+    );
+    assert_eq!(
+        (stats.accepted, stats.fallback, stats.shortfall()),
+        (0, 0, 4)
+    );
+    assert!(stats.degraded());
+}

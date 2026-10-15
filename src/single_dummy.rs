@@ -39,7 +39,9 @@
 //! [`make_probability`][crate::stats::HistogramTable::make_probability] read out
 //! the answer.
 
-use crate::bidding::{Inferences, sample_defender_remnants, sample_layouts};
+use crate::bidding::{
+    Inferences, SampleStats, sample_defender_remnants_with_stats, sample_layouts_with_stats,
+};
 use crate::stats::HistogramTable;
 use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::fill_deals;
@@ -173,6 +175,23 @@ pub fn single_dummy_leads(
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<(Card, TrickCount)> {
+    single_dummy_leads_with_stats(questions, rng, n).0
+}
+
+/// [`single_dummy_leads`] with each question's [`SampleStats`]: the same
+/// answers for the same `rng`, plus — aligned by index with `questions` — how
+/// many of the leader's `n` worlds the auction reading accepted and how many
+/// were topped up unconstrained ([`fallback`][SampleStats::fallback])
+///
+/// # Panics
+///
+/// As [`single_dummy_leads`].
+#[must_use]
+pub fn single_dummy_leads_with_stats(
+    questions: &[LeadQuestion],
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<(Card, TrickCount)>, Vec<SampleStats>) {
     assert!(n > 0, "a lead needs at least one sampled world");
     // Per question: `n` sampled worlds then the actual deal, all as trick-one
     // [`Target::Legal`] solves.  A legal-solve score is the tricks the
@@ -181,10 +200,12 @@ pub fn single_dummy_leads(
     // and the actual deal's entry converts the chosen lead into declarer
     // tricks as `13 − defensive tricks`.
     let mut objectives = Vec::with_capacity(questions.len() * (n + 1));
+    let mut sampling = Vec::with_capacity(questions.len());
     for question in questions {
         let leader = question.declarer.lho();
         let hand = question.deal[leader];
-        let mut worlds = sample_layouts(hand, leader, &question.inferences, rng, n);
+        let (mut worlds, mut stats) =
+            sample_layouts_with_stats(hand, leader, &question.inferences, rng, n);
         if worlds.len() < n {
             // Tight or jointly-infeasible reading: top up unconstrained so
             // the lead is still chosen over `n` worlds.
@@ -193,8 +214,11 @@ pub fn single_dummy_leads(
             let partial = builder
                 .build_partial()
                 .expect("one thirteen-card hand is a valid partial deal");
-            worlds.extend(fill_deals(rng, partial).take(n - worlds.len()));
+            stats.fallback = n - worlds.len();
+            stats.fallback_draws = stats.fallback;
+            worlds.extend(fill_deals(rng, partial).take(stats.fallback));
         }
+        sampling.push(stats);
         worlds.push(question.deal);
         objectives.extend(worlds.into_iter().map(|world| {
             Objective {
@@ -206,7 +230,7 @@ pub fn single_dummy_leads(
     }
     let found = crate::dd::solver().solve_boards(&objectives);
 
-    questions
+    let answers = questions
         .iter()
         .zip(found.chunks_exact(n + 1))
         .map(|(question, chunk)| {
@@ -235,7 +259,8 @@ pub fn single_dummy_leads(
                 .expect("13 minus a trick count is a trick count");
             (lead, tricks)
         })
-        .collect()
+        .collect();
+    (answers, sampling)
 }
 
 /// Solved score of `card` among `plays`, matching its sequence equals
@@ -341,8 +366,9 @@ impl Playout<'_> {
     }
 
     /// Choose the mover's card: forced plays free, declarer's side over `k`
-    /// sampled worlds, defenders double-dummy on the actual position
-    fn choose(&self, rng: &mut impl Rng, k: usize) -> Card {
+    /// sampled worlds (their sampling folded into `stats`), defenders
+    /// double-dummy on the actual position
+    fn choose(&self, rng: &mut impl Rng, k: usize, stats: &mut SampleStats) -> Card {
         let mover = self.mover();
         let led = self.trick.first().map(|card| card.suit);
         // Cards in the current trick are committed but still contest THIS
@@ -360,7 +386,7 @@ impl Playout<'_> {
             // the sentinel score −2, which ddss rejects as invalid.
             [only] => only,
             _ if mover == self.declarer || mover == self.declarer.partner() => {
-                self.declarer_choice(&candidates, rng, k)
+                self.declarer_choice(&candidates, rng, k, stats)
             }
             _ => self.defender_choice(),
         }
@@ -368,10 +394,16 @@ impl Playout<'_> {
 
     /// Declarer's single-dummy pick: best mean outcome over `k` worlds
     /// consistent with declarer's view
-    fn declarer_choice(&self, candidates: &[Card], rng: &mut impl Rng, k: usize) -> Card {
+    fn declarer_choice(
+        &self,
+        candidates: &[Card],
+        rng: &mut impl Rng,
+        k: usize,
+        stats: &mut SampleStats,
+    ) -> Card {
         let (lho, rho) = (self.declarer.lho(), self.declarer.rho());
         let pool = self.remaining[lho] | self.remaining[rho];
-        let worlds = sample_defender_remnants(
+        let (worlds, sampled) = sample_defender_remnants_with_stats(
             pool,
             self.played[lho],
             self.played[rho],
@@ -381,6 +413,7 @@ impl Playout<'_> {
             rng,
             k,
         );
+        *stats += sampled;
         let trick = self.current_trick();
         let objectives: Vec<Objective> = worlds
             .into_iter()
@@ -486,9 +519,9 @@ impl Playout<'_> {
 ///   with declarer's view — the defenders' unseen cards split at their
 ///   remaining sizes, hard-constrained by remembered show-outs and
 ///   soft-constrained by the auction reading
-///   ([`sample_defender_remnants`]) — are solved double-dummy, and the
-///   candidate with the best mean declarer outcome is played on the
-///   **actual** deal.
+///   ([`sample_defender_remnants`][crate::bidding::sample_defender_remnants])
+///   — are solved double-dummy, and the candidate with the best mean
+///   declarer outcome is played on the **actual** deal.
 /// - **Defender turns** play the double-dummy best card of the actual
 ///   position (perfect defense — the conservative side kept from plain DD).
 /// - **Forced turns** (one legal sequence) are played without solving.
@@ -522,6 +555,28 @@ pub fn single_dummy_playout(
     rng: &mut impl Rng,
     k: usize,
 ) -> TrickCount {
+    single_dummy_playout_with_stats(deal, strain, declarer, lead, inferences, rng, k).0
+}
+
+/// [`single_dummy_playout`] with its [`SampleStats`]: the same tricks for the
+/// same `rng`, plus the sampling of every non-forced declarer decision summed
+/// ([`requested`][SampleStats::requested] is `k` per decision;
+/// [`fallback`][SampleStats::fallback] counts the worlds topped up hard-only
+/// because the soft auction reading starved)
+///
+/// # Panics
+///
+/// As [`single_dummy_playout`].
+#[must_use]
+pub fn single_dummy_playout_with_stats(
+    deal: &FullDeal,
+    strain: Strain,
+    declarer: Seat,
+    lead: Card,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    k: usize,
+) -> (TrickCount, SampleStats) {
     assert!(k > 0, "a declarer line needs at least one sampled world");
     assert!(
         deal[declarer.lho()].contains(lead),
@@ -546,11 +601,15 @@ pub fn single_dummy_playout(
         declarer_tricks: 0,
     };
     playout.apply(lead);
+    let mut stats = SampleStats::default();
     for _ in 1..52 {
-        let card = playout.choose(rng, k);
+        let card = playout.choose(rng, k, &mut stats);
         playout.apply(card);
     }
-    TrickCount::try_new(playout.declarer_tricks).expect("at most thirteen tricks")
+    (
+        TrickCount::try_new(playout.declarer_tricks).expect("at most thirteen tricks"),
+        stats,
+    )
 }
 
 /// Blind lead, then single-dummy declarer play: the table-proxy bracket
@@ -591,10 +650,52 @@ pub fn single_dummy_declarer_tricks(
     n: usize,
     k: usize,
 ) -> (Card, TrickCount, TrickCount) {
-    let (lead, lead_tricks) =
-        single_dummy_lead_tricks(deal, strain, declarer, leader_inferences, rng, n);
-    let tricks = single_dummy_playout(deal, strain, declarer, lead, declarer_inferences, rng, k);
+    let (lead, lead_tricks, tricks, _) = single_dummy_declarer_tricks_with_stats(
+        deal,
+        strain,
+        declarer,
+        leader_inferences,
+        declarer_inferences,
+        rng,
+        n,
+        k,
+    );
     (lead, lead_tricks, tricks)
+}
+
+/// [`single_dummy_declarer_tricks`] with the [`SampleStats`] of both
+/// endpoints, `[lead, playout]`: the same lead and tricks for the same `rng`,
+/// plus the leader's `n` worlds ([`single_dummy_leads_with_stats`]) and the
+/// playout's summed per-decision worlds ([`single_dummy_playout_with_stats`])
+///
+/// # Panics
+///
+/// As [`single_dummy_declarer_tricks`].
+#[must_use]
+// Each argument is a distinct fact of the position, as in `sample_layouts_replay`.
+#[allow(clippy::too_many_arguments)]
+pub fn single_dummy_declarer_tricks_with_stats(
+    deal: &FullDeal,
+    strain: Strain,
+    declarer: Seat,
+    leader_inferences: &Inferences,
+    declarer_inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+    k: usize,
+) -> (Card, TrickCount, TrickCount, [SampleStats; 2]) {
+    let question = LeadQuestion {
+        deal: *deal,
+        strain,
+        declarer,
+        inferences: leader_inferences.clone(),
+    };
+    let (mut answers, mut sampling) = single_dummy_leads_with_stats(&[question], rng, n);
+    let (lead, lead_tricks) = answers.pop().expect("one question yields one answer");
+    let lead_stats = sampling.pop().expect("one question yields one answer");
+    let (tricks, playout_stats) =
+        single_dummy_playout_with_stats(deal, strain, declarer, lead, declarer_inferences, rng, k);
+    (lead, lead_tricks, tricks, [lead_stats, playout_stats])
 }
 
 #[cfg(test)]
