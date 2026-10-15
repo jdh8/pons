@@ -22,7 +22,10 @@ read it now if this session hasn't. This skill is the run procedure.
    `examples/bba-gen` via `scripts/bba-gen-parallel.sh` + `ab-dump-diff` when
    you need the reference opponent — mandatory for tuning our own conventions'
    strength/ranges (self-play can't punish them; pass the matching
-   `--advertise-*` so BBA reads the bids).
+   `--advertise-*` so BBA reads the bids). Its default `--metric direct` is
+   the ship metric; `--metric reference` (the anchor-gap gain) is a different
+   quantity, never a verdict and never summed with it (measurement.md, "Direct
+   A/B vs reference-relative gain").
 3. **Seeds.** `export SEED_BASE=$(date +%s%N)` once; all arms of this experiment
    share it (paired diffs need identical deals). Next experiment → new base.
    Record the base + git SHA in the results note.

@@ -5,6 +5,15 @@
 # 95% CI measurement.md prescribes: per-shard IMPs/board treated as N samples.
 #
 #   awk -v name=<label> -f scripts/ab-score.awk <file>
+#
+# Direct A/B reports only: a `--metric reference` report (a `Gain` line) is a
+# different quantity, refused rather than pooled (docs/measurement.md).
+
+/^Gain/ {
+    printf "%s: reference-relative gain, not a direct A/B; refusing to pool\n", name > "/dev/stderr"
+    refused = 1
+    exit 2
+}
 
 / fired \(/ {
     for (i = 1; i <= NF; i++) {
@@ -15,7 +24,7 @@
 
 /^Delta/ {
     # Bracket tag: ab-dump-sd emits "Delta plain" and "Delta perfect-defense";
-    # ab-dump-diff emits a bare "Delta (run - sit)".
+    # ab-dump-diff emits "Delta (direct A/B, ...)" (before 2026-10-16 "Delta (run - sit)").
     if ($2 == "plain")           tag = "SD"
     else if ($2 == "perfect-defense") tag = "SD-PD"
     else                          tag = "-"
@@ -33,6 +42,7 @@
 }
 
 END {
+    if (refused) exit 2
     for (t in n) {
         k = n[t]
         mean = s[t] / k

@@ -90,7 +90,10 @@ target/release/examples/bba-decompose "$SNAP/american-none" "$SNAP/american-both
     2>&1 | tee -a "$R/log"
 
 # And the floor's own worth, paired: the tight instrument (rule #2), instead of
-# subtracting two absolute vs-BBA gaps.
+# subtracting two absolute vs-BBA gaps.  This is the direct A/B at table A;
+# the headline difference of the two decomposes is the other metric, a
+# reference-relative gain over both tables (docs/measurement.md, "Direct A/B
+# vs reference-relative gain") — about twice it, and never summed with it.
 for vul in none both; do
     log "diff american vs american-instinct ($vul, plain+pd)"
     target/release/examples/ab-dump-diff "$SNAP/american-$vul" "$SNAP/$vul" \

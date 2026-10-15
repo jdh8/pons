@@ -2,30 +2,46 @@
 //!
 //! When an A/B feature fires on only a sliver of boards (e.g. the doubler's runout
 //! from `(1NT) X (XX) - -`), scoring each whole dump against BBA and subtracting
-//! wastes ~99% of the double-dummy budget on boards the feature never touches. But
-//! if the two dumps were generated with the **same seed** (so they share every deal
-//! and the BBA reference table), the only boards that differ are the ones the
-//! feature fired on, and the shared BBA table cancels in the subtraction. So the
-//! per-board delta is just our own score with the feature minus without it:
-//! `ns_score(our `on` contract) − ns_score(our `off` contract)`.
+//! wastes ~99% of the double-dummy budget on boards the feature never touches. If
+//! the two dumps were generated with the **same seed** (so they share every deal),
+//! only the boards where a contract differs can swing, and only those are solved.
 //!
-//! This reads the two dumps, pairs each board's `table_a` (our pair, North/South)
-//! contracts as `(on, off)`, and hands them to [`score_boards`] — which solves only
-//! the boards where the two contracts differ. Positive IMPs ⇒ the `on` feature beat
-//! the `off` baseline on the boards it touched.
+//! Two metrics, chosen by `--metric`, answer different questions:
+//!
+//! - **`direct`** (the default) — the **direct A/B** `IMP(S_on − S_off)`, from
+//!   our `table_a` (North/South) contract with the feature on vs off: the two
+//!   arms IMPed head to head, one table.  The **deployment** metric, and the only
+//!   one that prints a `Verdict`.
+//! - **`reference`** — the **reference-relative IMP gain**
+//!   `IMP(S_on − R_on) − IMP(S_off − R_off)`: each arm's `table_a` IMPed against
+//!   its reference, the same board's `table_b` contract (the reference pair NS,
+//!   our pair EW), *then* differenced.  That is each arm's per-board anchor score
+//!   (`bba-decompose`), so its mean is the anchor-window move: the **closing the
+//!   gap** metric, and a tracking figure, never a ship verdict.
+//!
+//! A reference shared by both arms cancels in the raw points `S_on − S_off`, but
+//! **not across the IMP table**, which is nonlinear: `S_on = 420`, `S_off = 400`,
+//! `R = 0` is +1 IMP direct and 0 gained against the reference.  Neither metric is
+//! the other's estimate.  The reference also moves whenever the feature changes our
+//! East/West bidding at table B — `reference` reports how often — so its gain
+//! covers both tables of the board where `direct` covers one, and runs about twice
+//! the direct figure for a change that acts at both tables.
 //!
 //! Both brackets come off **one** solve: the divergent set is solved once and
 //! each scorer only re-prices the resulting tables, so `--score both` costs one
 //! DDS fan-out and one parse of the dump where two single-scorer runs paid for
-//! each twice.
+//! each twice.  Under `reference` both scorers price all four contracts of a
+//! board on that one table.
 //!
 //! ```text
 //! cargo run --release --features serde --example ab-dump-diff -- on.json off.json
 //! cargo run --release --features serde --example ab-dump-diff -- on/ off/ \
 //!   --score both --out-plain diff.plain.txt --out-pd diff.pd.txt
+//! cargo run --release --features serde --example ab-dump-diff -- on/ off/ \
+//!   --metric reference --score both --out-plain gain.plain.txt --out-pd gain.pd.txt
 //! ```
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use contract_bridge::AbsoluteVulnerability;
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use std::io::Write;
@@ -34,8 +50,19 @@ use std::io::Write;
 #[allow(dead_code)]
 mod common;
 use common::{
-    Dump, Scored, dump_density, mean_with_ci, score_solved, solve_divergent, verdict_line,
+    ArmVsReference, Dump, Reached, Scored, dump_density, mean_with_ci, score_reference_solved,
+    score_solved, solve_divergent, verdict_line,
 };
+
+/// Which paired quantity a report carries — see the module doc
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Metric {
+    /// Direct A/B: `IMP(S_on − S_off)` at table A
+    Direct,
+    /// Reference-relative IMP gain: `IMP(S_on − R_on) − IMP(S_off − R_off)`,
+    /// each arm against its own table B
+    Reference,
+}
 
 #[derive(Parser)]
 struct Args {
@@ -45,6 +72,11 @@ struct Args {
     /// Dump bid with the feature OFF, same seed/deals (the baseline contract).
     /// A directory folds its `shard-*.json` into one solve.
     off: String,
+    /// `direct` = the direct A/B, the deployment metric (was the only mode);
+    /// `reference` = the reference-relative IMP gain, the anchor-gap metric.
+    /// The two are never interchangeable: see the module doc.
+    #[arg(long, value_enum, default_value = "direct")]
+    metric: Metric,
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
@@ -79,43 +111,144 @@ struct Args {
     density: Option<f64>,
 }
 
+/// Each board's contracts, in the shape its metric scores
+enum Paired {
+    /// `(on, off)` at table A
+    Direct(Vec<(Reached, Reached)>),
+    /// `((on, on's table B), (off, off's table B))`
+    Reference(Vec<(ArmVsReference, ArmVsReference)>),
+}
+
+impl Paired {
+    /// Solve the divergent set once and price it under each `scorer`, in order
+    fn score(
+        &self,
+        deals: &[contract_bridge::FullDeal],
+        vul: AbsoluteVulnerability,
+        scorers: &[fn(Reached, &ddss::TrickCountTable, AbsoluteVulnerability) -> i64],
+    ) -> Vec<Scored> {
+        match self {
+            Self::Direct(contracts) => {
+                let (divergent, tables) = solve_divergent(contracts, deals);
+                scorers
+                    .iter()
+                    .map(|&scorer| {
+                        score_solved(contracts, divergent.clone(), tables.clone(), vul, scorer)
+                    })
+                    .collect()
+            }
+            Self::Reference(contracts) => {
+                let (divergent, tables) = solve_divergent(contracts, deals);
+                scorers
+                    .iter()
+                    .map(|&scorer| {
+                        score_reference_solved(
+                            contracts,
+                            divergent.clone(),
+                            tables.clone(),
+                            vul,
+                            scorer,
+                        )
+                    })
+                    .collect()
+            }
+        }
+    }
+
+    /// Boards whose reference contract differs between the arms, under `reference`
+    fn moved_references(&self) -> usize {
+        match self {
+            Self::Direct(_) => 0,
+            Self::Reference(contracts) => {
+                contracts.iter().filter(|(on, off)| on.1 != off.1).count()
+            }
+        }
+    }
+}
+
+/// What every report of one run shares: the arms, the pricing and the display
+struct Experiment<'a> {
+    on: &'a Dump,
+    off: &'a Dump,
+    vul: AbsoluteVulnerability,
+    metric: Metric,
+    /// [`Paired::moved_references`]
+    moved: usize,
+    show: usize,
+    density: Option<f64>,
+}
+
 /// One scorer's report
 ///
 /// The text is an interface, not a display detail: `scripts/ab-aggregate.sh`
-/// parses it with awk, matching ` fired (` and `^Delta` and counting fields
-/// around the `boards,`, `fired` and `IMPs,` tokens.  The `Verdict` line
-/// (2026-10-14) matches neither, so per-shard sums are unchanged; a shard's
-/// verdict is not the pooled one.
+/// and `scripts/ab-score.awk` parse a direct report with awk, matching
+/// ` fired (` and `^Delta` and counting fields around the `boards,`, `fired`
+/// and `IMPs,` tokens.  The `Verdict` line (2026-10-14) matches neither, so
+/// per-shard sums are unchanged; a shard's verdict is not the pooled one.
+///
+/// A reference report matches neither on purpose — its lines read `changed (`
+/// and `^Gain` — and both aggregators refuse a file with a `Gain` line, so a
+/// gain is never summed into a direct A/B.  It prints no `Verdict`: ship
+/// decisions read the direct A/B.
 fn report(
     out: &mut impl Write,
-    on: &Dump,
-    off: &Dump,
-    vul: AbsoluteVulnerability,
+    experiment: &Experiment,
     scored: &Scored,
-    show: usize,
-    verdict: (&str, Option<f64>),
+    scorer: &str,
 ) -> std::io::Result<()> {
+    let &Experiment {
+        on,
+        off,
+        vul,
+        metric,
+        moved,
+        show,
+        density,
+    } = experiment;
     let (mean, ci) = mean_with_ci(&scored.board_imps);
     let n = on.boards.len();
     let d = scored.divergent.len();
-    writeln!(
-        out,
-        "ON {} vs OFF {} ({} boards, vul {vul}): {} fired ({:.2}%)",
-        on.our_label,
-        off.our_label,
-        n,
-        d,
-        100.0 * d as f64 / n.max(1) as f64,
-    )?;
-    writeln!(
-        out,
-        "Delta (run − sit): {:+} IMPs, {:+.4} IMPs/board [95% CI ±{:.4}], {:+.3} IMPs/fired",
-        scored.total_imps,
-        mean,
-        ci,
-        scored.total_imps as f64 / d.max(1) as f64,
-    )?;
-    writeln!(out, "{}", verdict_line(verdict.0, mean, ci, verdict.1))?;
+    let share = |k: usize| 100.0 * k as f64 / n.max(1) as f64;
+    match metric {
+        Metric::Direct => {
+            writeln!(
+                out,
+                "ON {} vs OFF {} ({n} boards, vul {vul}): {d} fired ({:.2}%)",
+                on.our_label,
+                off.our_label,
+                share(d),
+            )?;
+            writeln!(
+                out,
+                "Delta (direct A/B, IMP(on − off)): {:+} IMPs, {mean:+.4} IMPs/board \
+                 [95% CI ±{ci:.4}], {:+.3} IMPs/fired",
+                scored.total_imps,
+                scored.total_imps as f64 / d.max(1) as f64,
+            )?;
+            writeln!(out, "{}", verdict_line(scorer, mean, ci, density))?;
+        }
+        Metric::Reference => {
+            writeln!(
+                out,
+                "Reference-relative ON {} vs OFF {}, reference {} at table B \
+                 ({n} boards, vul {vul}): {d} changed ({:.2}%), {moved} with a moved \
+                 reference ({:.2}%)",
+                on.our_label,
+                off.our_label,
+                on.their_label,
+                share(d),
+                share(moved),
+            )?;
+            writeln!(
+                out,
+                "Gain ({}, IMP(on − ref) − IMP(off − ref)): {:+} IMPs, {mean:+.4} IMPs/board \
+                 [95% CI ±{ci:.4}], {:+.3} IMPs/changed",
+                scorer,
+                scored.total_imps,
+                scored.total_imps as f64 / d.max(1) as f64,
+            )?;
+        }
+    }
 
     let mut swings = scored.swings.clone();
     swings.sort_by_key(|&(_, _, imp)| imp);
@@ -123,30 +256,21 @@ fn report(
     if show > 0 {
         writeln!(out, "--- {show} worst (for the feature) ---")?;
         for &(i, _, imp) in swings.iter().take(show) {
-            let b = &on.boards[i];
-            writeln!(
-                out,
-                "[{imp:+} IMP] {}\n  on:  {}\n  off: {}",
-                b.deal, b.table_a, off.boards[i].table_a
-            )?;
+            let (a, b) = (&on.boards[i], &off.boards[i]);
+            match metric {
+                Metric::Direct => writeln!(
+                    out,
+                    "[{imp:+} IMP] {}\n  on:  {}\n  off: {}",
+                    a.deal, a.table_a, b.table_a
+                )?,
+                Metric::Reference => writeln!(
+                    out,
+                    "[{imp:+} IMP] {}\n  on:  {}\n  ref: {}\n  off: {}\n  ref: {}",
+                    a.deal, a.table_a, a.table_b, b.table_a, b.table_b
+                )?,
+            }
         }
     }
-    Ok(())
-}
-
-/// [`report`] into its own file, for `--score both`
-fn write_report(
-    path: &str,
-    on: &Dump,
-    off: &Dump,
-    vul: AbsoluteVulnerability,
-    scored: &Scored,
-    show: usize,
-    verdict: (&str, Option<f64>),
-) -> anyhow::Result<()> {
-    let mut file = std::io::BufWriter::new(std::fs::File::create(path)?);
-    report(&mut file, on, off, vul, scored, show, verdict)?;
-    file.flush()?;
     Ok(())
 }
 
@@ -154,82 +278,100 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let on = common::load_dump(&args.on);
     let off = common::load_dump(&args.off);
-    assert_eq!(on.boards.len(), off.boards.len(), "dumps must be aligned");
+    anyhow::ensure!(on.boards.len() == off.boards.len(), "dumps must be aligned");
+    // Both arms were bid at one vulnerability; `-v` only re-prices them
+    anyhow::ensure!(
+        on.vulnerability == off.vulnerability,
+        "dumps bid at different vulnerabilities: {} vs {}",
+        on.vulnerability,
+        off.vulnerability,
+    );
+    // A reference gain is against one reference bidder
+    anyhow::ensure!(
+        args.metric == Metric::Direct || on.their_label == off.their_label,
+        "references differ: {:?} vs {:?}",
+        on.their_label,
+        off.their_label,
+    );
     let vul = args.vulnerability.unwrap_or(on.vulnerability);
     let density = dump_density(&on, args.density);
 
-    // Pair our (table_a) contract with the feature on vs off; the deals must match.
-    let mut deals = Vec::with_capacity(on.boards.len());
-    let contracts: Vec<_> = on
-        .boards
-        .iter()
-        .zip(&off.boards)
-        .map(|(a, b)| {
-            assert_eq!(a.deal, b.deal, "dumps not seed-aligned");
-            deals.push(a.deal);
-            (
-                final_contract(&a.table_a, a.dealer),
-                final_contract(&b.table_a, b.dealer),
-            )
-        })
-        .collect();
+    // Same board, same dealer: the deals must match one to one
+    for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
+        anyhow::ensure!(a.deal == b.deal, "dumps not seed-aligned at board {i}");
+        anyhow::ensure!(a.dealer == b.dealer, "dealers differ at board {i}");
+    }
+    let deals: Vec<_> = on.boards.iter().map(|board| board.deal).collect();
+    let pairs = on.boards.iter().zip(&off.boards);
+    let paired = match args.metric {
+        Metric::Direct => Paired::Direct(
+            pairs
+                .map(|(a, b)| {
+                    (
+                        final_contract(&a.table_a, a.dealer),
+                        final_contract(&b.table_a, b.dealer),
+                    )
+                })
+                .collect(),
+        ),
+        Metric::Reference => Paired::Reference(
+            pairs
+                .map(|(a, b)| {
+                    (
+                        (
+                            final_contract(&a.table_a, a.dealer),
+                            final_contract(&a.table_b, a.dealer),
+                        ),
+                        (
+                            final_contract(&b.table_a, b.dealer),
+                            final_contract(&b.table_b, b.dealer),
+                        ),
+                    )
+                })
+                .collect(),
+        ),
+    };
+    let moved = paired.moved_references();
 
     // One solve serves every scorer — a scorer only re-prices the solved tables,
     // so `--score both` costs one DDS fan-out and one parse of the dump, where
     // two single-scorer runs paid for each twice.
-    let (divergent, tables) = solve_divergent(&contracts, &deals);
-
-    match args.score.as_str() {
-        "plain" => {
-            let scored = score_solved(&contracts, divergent, tables, vul, ns_score_contract);
-            report(
-                &mut std::io::stdout().lock(),
-                &on,
-                &off,
-                vul,
-                &scored,
-                args.show,
-                ("plain DD", density),
-            )?;
-        }
-        "pd" => {
-            let scored = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
-            report(
-                &mut std::io::stdout().lock(),
-                &on,
-                &off,
-                vul,
-                &scored,
-                args.show,
-                ("PD", density),
-            )?;
-        }
-        "both" => {
-            let (plain_path, pd_path) = args
-                .out_plain
-                .as_deref()
-                .zip(args.out_pd.as_deref())
-                .expect("clap requires --out-plain and --out-pd when --score is both");
-            let plain = score_solved(
-                &contracts,
-                divergent.clone(),
-                tables.clone(),
-                vul,
-                ns_score_contract,
-            );
-            write_report(
-                plain_path,
-                &on,
-                &off,
-                vul,
-                &plain,
-                args.show,
-                ("plain DD", density),
-            )?;
-            let pd = score_solved(&contracts, divergent, tables, vul, ns_score_bid);
-            write_report(pd_path, &on, &off, vul, &pd, args.show, ("PD", density))?;
-        }
+    type Scorer = fn(Reached, &ddss::TrickCountTable, AbsoluteVulnerability) -> i64;
+    let (scorers, labels): (Vec<Scorer>, Vec<&str>) = match args.score.as_str() {
+        "plain" => (vec![ns_score_contract], vec!["plain DD"]),
+        "pd" => (vec![ns_score_bid], vec!["PD"]),
+        "both" => (
+            vec![ns_score_contract, ns_score_bid],
+            vec!["plain DD", "PD"],
+        ),
         other => anyhow::bail!("--score must be plain|pd|both, got {other:?}"),
+    };
+    let scored = paired.score(&deals, vul, &scorers);
+    let experiment = Experiment {
+        on: &on,
+        off: &off,
+        vul,
+        metric: args.metric,
+        moved,
+        show: args.show,
+        density,
+    };
+    let write = |out: &mut dyn Write, scored: &Scored, scorer| {
+        let mut out = std::io::BufWriter::new(out);
+        report(&mut out, &experiment, scored, scorer)?;
+        out.flush()
+    };
+    if args.score == "both" {
+        let (plain_path, pd_path) = args
+            .out_plain
+            .as_deref()
+            .zip(args.out_pd.as_deref())
+            .expect("clap requires --out-plain and --out-pd when --score is both");
+        for ((path, scored), label) in [plain_path, pd_path].into_iter().zip(&scored).zip(labels) {
+            write(&mut std::fs::File::create(path)?, scored, label)?;
+        }
+    } else {
+        write(&mut std::io::stdout().lock(), &scored[0], labels[0])?;
     }
     Ok(())
 }

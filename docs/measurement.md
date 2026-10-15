@@ -377,6 +377,63 @@ artifact above, but its default now rests on the `277059f` scale flip
 (plain-DD wash, PD +0.023/+0.037), not on that plain-SD row. Re-measuring it
 would produce a number that changes nothing.
 
+## Direct A/B vs reference-relative gain
+
+Two paired quantities come off the same pair of dumps, and they answer
+different questions (2026-10-16, [#8](https://github.com/jdh8/pons/issues/8)):
+
+| name | per board | answers | where |
+| --- | --- | --- | --- |
+| **direct A/B** | `IMP(S_on − S_off)` | does the change beat the old system head to head? — **deployment**, every ship verdict | every `ab-*` harness; `ab-dump-diff` (default `--metric direct`, line `Delta (direct A/B, …)`) |
+| **reference-relative IMP gain** | `IMP(S_on − R_on) − IMP(S_off − R_off)` | how much of the gap to the reference does it close? — **anchor gap**, tracking only | `ab-dump-diff --metric reference` (line `Gain (…)`); the move between two same-seed anchor headlines |
+
+**A shared reference does not cancel.** `R` cancels in the raw points
+`S_on − S_off`, but the IMP table is nonlinear: `S_on = 420`, `S_off = 400`,
+`R = 0` is +1 IMP direct and 0 IMPs gained against the reference
+(`common::tests::a_shared_reference_cancels_in_points_but_not_in_imps`). The
+metrics agree when the baseline *is* the reference (`R = S_off`) and on
+unchanged boards; otherwise neither estimates the other, and same-board pairing
+does not make them equivalent.
+
+**They also cover different tables.** In a `bba-gen` dump `table_a` is our pair
+NS and `table_b` the reference pair NS against our pair EW. The direct A/B
+reads `table_a` only: one table. The anchor's per-board value
+(`bba-decompose`) is `IMP(table_a − table_b)`, so the gain's reference `R` is
+`table_b`'s contract, and it **moves** whenever the change acts on our EW
+bidding; `--metric reference` reports on how many boards it moved. The gain is
+the two tables' move together, so a change that acts at both tables gains
+about **twice** its direct A/B. On the `7838d8c2` anchor (re-run 2026-10-16),
+`--metric reference` on the shipping vs instinct arms reproduces the two
+reports' headline difference to the IMP — +116,750 / +143,682 plain IMPs,
++0.5701 / +0.7016 plain and +0.7251 / +1.0179 PD per board (none / both), with
+the reference moved on 26.6% / 25.0% of boards — against the floor's direct
+worth of +0.2959 / +0.3592 plain: ratios 1.93 / 1.95.
+
+Rules:
+
+- **Ship on the direct A/B.** A reference-relative report prints no `Verdict`
+  line; it tracks.
+- **Never mix the two in one sum.** `scripts/ab-aggregate.sh` and
+  `scripts/ab-score.awk` refuse a file with a `Gain` line.
+- **Compare like with like.** Before reading one figure against another (a
+  window's paired diff, its headline move, its summed ship A/Bs), name the
+  metric and the table count of each. Even under one metric, direct increments
+  taken against different baselines need not add up, and combined changes
+  interact, so a surplus is not by itself evidence of synergy.
+- **One reference definition per comparison.** Plain and PD price all four
+  contracts of a board on one DD table, one scorer each, off one solve. If the
+  arms faced different reference *bidders* (`their_label`), or were bid at
+  different vulnerabilities or dealers, `ab-dump-diff` refuses.
+
+**Historical columns.** Before 2026-10-16 `ab-dump-diff` printed only the
+direct A/B, as `Delta (run − sit)`. In [bba-gap-campaign.md](bba-gap-campaign.md)
+the *instinct* / *shipping* headline columns and any move read off them are
+per-board anchor scores (both tables), so a same-seed move between two of them
+is a reference-relative gain. Every "paired to …", "floor's paired worth" and
+"summed ship A/Bs" figure is a direct A/B at table A. Raw outputs stay as they
+are; recompute a reference-relative gain from the snapshot dumps with
+`--metric reference` where one is needed.
+
 ## The decision table
 
 **Each scorer's verdict comes first** (2026-10-14,

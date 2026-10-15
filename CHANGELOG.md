@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ab-dump-diff --metric reference`: the reference-relative IMP gain
+  (2026-10-16, [#8](https://github.com/jdh8/pons/issues/8)).** The module doc
+  claimed the shared BBA table "cancels in the subtraction"; it cancels in raw
+  points only, not across the nonlinear IMP table (`S_on = 420`, `S_off = 400`,
+  `R = 0`: +1 IMP direct, 0 gained). The two quantities now have names:
+  the **direct A/B** `IMP(S_on − S_off)` at table A (the default, the ship
+  metric, line renamed `Delta (direct A/B, IMP(on − off))`) and the
+  **reference-relative IMP gain** `IMP(S_on − R_on) − IMP(S_off − R_off)`, each
+  arm against its own `table_b`: the anchor's per-board score, so its mean is
+  the anchor-window move. It reports how many boards the reference moved on,
+  prints no `Verdict`, and writes `Gain` lines that `ab-aggregate.sh` and
+  `ab-score.awk` refuse to sum. Both metrics read one solve, and both scorers
+  price every contract of a board on the same table. `ab-dump-diff` now also
+  refuses arms bid at different vulnerabilities or dealers, and (reference
+  mode) against different reference bidders. On the `issue7-unknown-r2`
+  diamond-captain arms (captain vs off, NV, 1,228,800 boards) the direct A/B
+  reads +102 / −45 IMPs plain / PD and the gain +137 / −154, over 114 changed
+  boards, 47 of them with a moved reference. On the `7838d8c2` anchor's
+  shipping vs instinct arms it reproduces the two reports' headline difference
+  to the IMP (+116,750 / +143,682 plain, none / both). The gain covers both
+  tables, so it runs about twice the direct figure for a change that acts at
+  both (+0.5701 vs +0.2959 NV, +0.7016 vs +0.3592 vul, plain):
+  [docs/measurement.md](docs/measurement.md) gives the definitions and which
+  historical column is which, and [bba-gap-campaign.md](docs/bba-gap-campaign.md)
+  flags Rule #2's "≈1.9× overstated" as mostly the table count. Direct reports
+  are byte-identical except the renamed `Delta` line. Bidding untouched.
+
 - **`rebid.xyz_weak_spade_preference` — opener corrects XYZ's weak 5♠4♥
   `2♥` to `2♠` with 3-3 too, and responder passes it (2026-10-16,
   [#10](https://github.com/jdh8/pons/issues/10)); shipped default-on, win |

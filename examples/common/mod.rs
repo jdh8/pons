@@ -758,16 +758,25 @@ pub fn score_boards(
 ///
 /// Split out of [`score_boards`] so a caller that wants the same boards under
 /// more than one scorer pays for one solve instead of one per scorer.
-pub fn solve_divergent(
-    contracts: &[(Reached, Reached)],
+///
+/// Generic over what a side carries: a [`Reached`] for a direct A/B, an
+/// [`ArmVsReference`] for a [`score_reference_solved`] gain — a board then
+/// diverges when either its measured contract or its reference moved.
+pub fn solve_divergent<T: PartialEq>(
+    contracts: &[(T, T)],
     deals: &[FullDeal],
 ) -> (Vec<usize>, Vec<TrickCountTable>) {
-    let divergent: Vec<usize> = (0..contracts.len())
-        .filter(|&index| contracts[index].0 != contracts[index].1)
-        .collect();
+    let divergent = divergent_boards(contracts);
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| deals[index]).collect();
     let tables = pons::dd::solver().solve_deals(&solve, NonEmptyStrainFlags::ALL);
     (divergent, tables)
+}
+
+/// The boards whose two sides differ — the only ones [`solve_divergent`] solves
+pub fn divergent_boards<T: PartialEq>(contracts: &[(T, T)]) -> Vec<usize> {
+    (0..contracts.len())
+        .filter(|&index| contracts[index].0 != contracts[index].1)
+        .collect()
 }
 
 /// Price an already-solved divergent set with one `scorer`
@@ -782,15 +791,82 @@ pub fn score_solved(
     vul: AbsoluteVulnerability,
     scorer: impl Fn(Reached, &TrickCountTable, AbsoluteVulnerability) -> i64,
 ) -> Scored {
+    tally(contracts.len(), divergent, tables, |index, table| {
+        let (a, b) = contracts[index];
+        let (a, b) = (scorer(a, table, vul), scorer(b, table, vul));
+        (a - b, direct_imps(a, b))
+    })
+}
+
+/// **Direct A/B**, one board: `IMP(S_on − S_off)`
+///
+/// The two arms' scores IMPed against each other — the head-to-head that
+/// every ship verdict reads.  It is *not* a gain against a reference: a
+/// reference shared by both arms cancels in the raw points `S_on − S_off`,
+/// but not across the nonlinear IMP table, so this differs from
+/// [`reference_gain_imps`] even when the reference is fixed.
+pub fn direct_imps(on: i64, off: i64) -> i64 {
+    imps(on - off)
+}
+
+/// **Reference-relative IMP gain**, one board: `IMP(S_on − R_on) − IMP(S_off − R_off)`
+///
+/// Each arm is IMPed against its own reference *first*, then the two IMP
+/// results are differenced — the move of a duplicate score against the
+/// reference, which is what an anchor window measures.  With a fixed
+/// reference (`R_on = R_off`) it is the gain against that reference; it is
+/// never [`direct_imps`] in general (`S_on = 420`, `S_off = 400`, `R = 0`:
+/// direct +1, gain 0).
+pub fn reference_gain_imps(on: i64, on_reference: i64, off: i64, off_reference: i64) -> i64 {
+    imps(on - on_reference) - imps(off - off_reference)
+}
+
+/// One arm's side of a board in a reference-relative comparison: the measured
+/// contract, then the reference contract it is IMPed against
+pub type ArmVsReference = (Reached, Reached);
+
+/// Price an already-solved divergent set as a [`reference_gain_imps`] gain
+///
+/// `contracts[i]` is `(on, off)`, each an [`ArmVsReference`]; `divergent`
+/// and `tables` come from [`solve_divergent`] on the same pairs, so a board
+/// whose two sides agree — measured contract and reference both — scores an
+/// exact 0 unsolved.  Every contract of a board is priced by the one `scorer`
+/// on the one table, so the plain and PD gains share a solve and a reference
+/// definition.  The `Scored` swing points are `(S_on − R_on) − (S_off − R_off)`.
+pub fn score_reference_solved(
+    contracts: &[(ArmVsReference, ArmVsReference)],
+    divergent: Vec<usize>,
+    tables: Vec<TrickCountTable>,
+    vul: AbsoluteVulnerability,
+    scorer: impl Fn(Reached, &TrickCountTable, AbsoluteVulnerability) -> i64,
+) -> Scored {
+    tally(contracts.len(), divergent, tables, |index, table| {
+        let ((on, on_reference), (off, off_reference)) = contracts[index];
+        let [on, on_reference, off, off_reference] =
+            [on, on_reference, off, off_reference].map(|reached| scorer(reached, table, vul));
+        (
+            (on - on_reference) - (off - off_reference),
+            reference_gain_imps(on, on_reference, off, off_reference),
+        )
+    })
+}
+
+/// Fold per-board `(points, IMPs)` swings over a solved divergent set; every
+/// other board of the `count` scores 0
+fn tally(
+    count: usize,
+    divergent: Vec<usize>,
+    tables: Vec<TrickCountTable>,
+    swing: impl Fn(usize, &TrickCountTable) -> (i64, i64),
+) -> Scored {
     let mut total_points = 0i64;
-    let mut board_imps = vec![0i64; contracts.len()];
+    let mut board_imps = vec![0i64; count];
     let mut swings: Vec<(usize, i64, i64)> = Vec::with_capacity(divergent.len());
     for (&index, table) in divergent.iter().zip(tables.iter()) {
-        let (contract_a, contract_b) = contracts[index];
-        let swing = scorer(contract_a, table, vul) - scorer(contract_b, table, vul);
-        total_points += swing;
-        board_imps[index] = imps(swing);
-        swings.push((index, swing, imps(swing)));
+        let (points, imp) = swing(index, table);
+        total_points += points;
+        board_imps[index] = imp;
+        swings.push((index, points, imp));
     }
     let total_imps = board_imps.iter().sum();
     Scored {

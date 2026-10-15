@@ -92,6 +92,16 @@ Each was paid for; the story behind each is in the archive.
    in the same snapshot at the same sha is the instrument; `anchor.sh` does this
    structurally, and a dirty tree stamps the snapshot `<sha>-dirty` rather than
    claiming to be `HEAD`.
+   **Discrepancy, flagged 2026-10-16 ([#8](https://github.com/jdh8/pons/issues/8)), not
+   resolved:** the two figures are different metrics. The difference of gaps is
+   a reference-relative gain over both tables; the paired figure is a direct
+   A/B at table A. At one sha with no stale control (`7838d8c2`, re-run
+   paired with `--metric reference` 2026-10-16) the same two instruments still
+   read +0.636 / +0.872 vs +0.328 / +0.443 pooled plain / PD, ratios
+   1.94 / 1.97, so most of the "≈1.9×" is the table count, not the stale
+   control. The rule stands (control at HEAD); the size of what it caught is
+   unmeasured until the `ea2cde9` arms are re-read with
+   `ab-dump-diff --metric reference`.
 3. **Disclosure series break at `3c94802` (2026-07-28).** From there BBA is told
    what we play (`bba-gen --disclose generated`); every earlier anchor faced a
    BBA that took us for a BBA. Disclosure's isolated cost was −0.009/board with
@@ -221,8 +231,8 @@ provenance `book` −90,727, `floor` −18,029. Round-2 moved most again
 PD; constructive round-1 −13,038 → −12,362 (the keycard sign-off fix's 2/1
 lanes). Auction divergence vs BBA: 88 / 88% (instinct), 85 / 84% (shipping).
 
-**The window, paired** (`ab-dump-diff` new snapshot − `25aea82c`'s, same
-deals; `diff.window.*.txt` in the snapshot): shipping +0.0042 / +0.0062 plain
+**The window, paired** (`ab-dump-diff` direct A/B at table A, new snapshot −
+`25aea82c`'s, same deals; `diff.window.*.txt` in the snapshot): shipping +0.0042 / +0.0062 plain
 and +0.0040 / +0.0060 PD IMPs/board (none / both; 356 / 378 boards fired, CI
 ±0.0014–0.0018), instinct +0.0042 / +0.0061 plain and +0.0041 / +0.0059 PD.
 The window's five default-on ship A/Bs sum to +0.0039 / +0.0055 plain and
@@ -266,8 +276,10 @@ explain none of it — and `95179807` never could have: it is byte-identical on
 the default system by construction. "No rail fires on a board we open" was
 true per table, not per board.
 
-**The net floor's paired worth** (`ab-dump-diff`, `american` −
-`american-instinct`, same snapshot, same sha; pooled plain / PD):
+**The net floor's paired worth** (`ab-dump-diff` direct A/B at table A,
+`american` − `american-instinct`, same snapshot, same sha; pooled plain / PD;
+the v3 row's difference of gaps is the other metric, a reference-relative gain
+over both tables, and does not compare with the rest):
 
 | floor | snapshot | instrument | plain | PD |
 | --- | --- | --- | --- | --- |
@@ -322,6 +334,19 @@ Pre-series: **−2.59** (S.1, 2,000 bd vul none, 2026-06-15) → **−1.997** (4
 bd, after M6.1). Seeded series, `SEED_BASE=1783375064`, pooled IMPs/board
 plain / PD; 204.8k boards per vulnerability per arm from `5f16e68` on (102.4k
 at `62cf5c5`); replay 100% unless noted.
+
+**Which metric each figure is** ([measurement.md § Direct A/B vs
+reference-relative gain](measurement.md#direct-ab-vs-reference-relative-gain)).
+The *instinct* and *shipping* columns are per-board anchor scores,
+`IMP(table_a − table_b)` over both tables, so a move between two rows ("headline
++0.032 / +0.047") is a **reference-relative gain**. Every "paired to …", "floor
+paired worth" and "summed ship A/Bs" figure is an `ab-dump-diff` **direct A/B**
+at table A ("per table"). The two differ by the IMP mapping *and* by the table
+count, so a row's paired figure and its headline move are not expected to agree,
+and a paired figure exceeding the summed ship A/Bs ("and a little more", "about
+15% more", "8–20% more") compares one metric against different baselines: the
+surplus records no mechanism. From 2026-10-16 `ab-dump-diff --metric reference`
+recomputes a window's reference-relative gain paired, board by board.
 
 | date | sha | instinct | shipping | landed in the window |
 | --- | --- | --- | --- | --- |
