@@ -28,8 +28,9 @@
 #   none:  plain +0.31  PD -0.71  sd-lead +0.96  SD-PD +0.12
 #   both:  plain +1.60  PD +0.04  sd-lead +2.69  SD-PD +1.41
 # The weak sign-off is 6-7 HCP on 97% of fired boards, so the raise bids a
-# 23-24 point game; the losses sit on three trumps and on 15-16 HCP openers
-# that reach the bar by upgraded points.  Followed up by
+# 23-24 point game; the losses sit on three trumps (17 HCP) and on 16 HCP
+# with four trumps.  Every raising opener here is balanced (the filter took
+# no other), so none reached the bar by an upgrade.  Followed up by
 # scripts/ab-lebensohl-signoff-target.sh: the target is now `24:23`.
 # (This runner's arms leave the target at the bba-gen default, so a rerun
 # measures the shipped `24:23` against off, not `23`.)

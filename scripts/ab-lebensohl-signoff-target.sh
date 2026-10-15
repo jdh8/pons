@@ -39,6 +39,40 @@
 # so `24` ships.  Red: t24 vs t23 loss | win, PD's artifact row, so red keeps
 # `23`.  Default `Some((24, 23))`.
 #
+# Rescored 2026-10-16 with --density 0.004717 (accepted ÷ scanned, 96
+# shards), adding the direct t23 vs off pair; IMPs/accepted board ±95% CI:
+#   t24 vs t23 white: plain +0.0005 ±0.0008 non-inferior, PD +0.0033 ±0.0009 win
+#   t24 vs t23 red:   plain -0.0018 ±0.0011 loss, PD +0.0017 ±0.0013 win,
+#                     sd-lead -0.0039 ±0.0012, SD-PD -0.0010 ±0.0013
+#   t23 vs off red:   plain +0.0040 ±0.0013 win, PD -0.0006 ±0.0015
+#                     non-inferior, sd-lead +0.0068 ±0.0014, SD-PD +0.0030
+#                     ±0.0016 win
+# Scope: --filter-lebensohl-raise then took only a strict balanced opener
+# (4333/4432/5332), where points = HCP, so `24` meant no three-trump raise
+# *there*.  The default also opens 1NT on 5m422/6m322, which upgrades a point:
+# a 17-HCP one still raises on three trumps at `24`.  That slice was not
+# measured.
+#
+# Wide confirmation (pre-registered 2026-10-16, before any number is read).
+# The filter now takes any 15-17 HCP candidate with no suit under two, a
+# superset of the default opener.  Fresh seed, BOARDS=384000, results in
+# ab-results/lebensohl-signoff-target-wide.  Per vulnerability cell:
+#   - White `24` stands if t24 vs t23 is plain non-inferior or better with PD
+#     not a loss, and t24 vs off is not a loss on either scorer.
+#   - Red `23` stays the recorded trade-off unless t23 vs off reads a plain
+#     loss.
+#   - Any other reading is flagged for a decision, not applied.
+# WIDE VERDICT (2026-10-16, SEED_BASE 1792101907466221783, density 0.005522,
+# gate 0 foreign), IMPs/accepted board, white / red:
+#   t24 vs t23: plain +0.0007 ±0.0008 / -0.0015 ±0.0010,
+#               PD +0.0031 ±0.0009 / +0.0017 ±0.0012
+#   t24 vs off: plain +0.0010 ±0.0005 / +0.0020 ±0.0007,
+#               PD +0.0003 ±0.0006 / +0.0009 ±0.0008
+#   t23 vs off: plain +0.0003 ±0.0009 / +0.0034 ±0.0013,
+#               PD -0.0028 ±0.0010 / -0.0008 ±0.0015
+# Every condition met: white `24` and red `23` stand.  13% of white `23`'s
+# raises were 5m422/6m322 openers; `24` still raises ten on three trumps.
+#
 # Resumable; SEED_BASE persists in $R/lebensohl-signoff-target.seed.  Iron
 # rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-lebensohl-signoff-target.sh RESULTS_DIR}
@@ -52,10 +86,11 @@ for v in none both; do
     arm t23 "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise 23
     arm t24 "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise 24
     arm off "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise off
-    for base in t23 off; do
-        gatepair t24 "$base" "$v"
-        diffpair t24 "$base" "$v"
-        sddiff   t24 "$base" "$v"
+    for pair in "t24 t23" "t24 off" "t23 off"; do
+        set -- $pair
+        gatepair "$1" "$2" "$v"
+        diffpair "$1" "$2" "$v"
+        sddiff   "$1" "$2" "$v"
     done
 done
 

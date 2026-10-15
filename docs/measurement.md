@@ -106,8 +106,9 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    Python — no solver — and count boards whose final contract moved. Below
    roughly 30–50 divergent boards per vulnerability there is no verdict to read
    and the DD arms are wasted; the house remedy for a genuinely rare lane is
-   **enrichment** (`--filter-1nt`, `--filter-landy`, `--filter-preempt`), not a
-   bigger random draw. This costs minutes and can save a night: the PDI pass
+   **enrichment** (`--filter-1nt`, `--filter-landy`, `--filter-preempt`, with
+   `--wide-1nt` so the scan covers the default 1NT opener), not a bigger
+   random draw. This costs minutes and can save a night: the PDI pass
    reading pre-counted at **10 divergent boards in 409,600** and never went to
    DD ([pdi.md](pdi.md), "Why the reading is inert"). Pair it with a
    **reach-maximal negative control** — the same mechanism at deliberately
@@ -477,7 +478,10 @@ Each `Verdict` line reads its scorer against:
   - Under two boards there is no sample variance: `mean_with_ci` returns an
     infinite half-width, and the verdict is `inconclusive`, as is a `NaN`.
 - **Enriched runs** measure a conditional population, so the margin per
-  measured board is `δ / density`, density = accepted ÷ drawn. A filtered
+  measured board is `δ / density`, density = accepted ÷ drawn. The
+  conversion holds for the filtered population only; a slice the filter
+  misses is outside the verdict (coverage: see the IMPs/divergent
+  paragraph below the decision table). A filtered
   dump does not record its density: `ab-dump-diff` / `ab-dump-sd` withhold
   the verdict on a `--filter-*` dump until `--density` is passed. A density
   outside `(0, 1]` is refused (`common::parse_density`; `verdict` panics on
@@ -597,8 +601,15 @@ reported as the [blend, shave] bracket.
 Sub-0.1 IMPs/board is noise unless the sample is large (hundreds of thousands
 of boards); a *fired-rate*-weighted per-fired figure with a CI excluding 0 is
 the stronger claim. On contested/filtered harnesses compare **IMPs/divergent**,
-not IMPs/board — `--filter` biases the per-board denominator, not the
-divergent set.
+not IMPs/board — `--filter` changes the per-board denominator. It also
+changes the divergent set whenever it rejects a deal on which the arms
+would diverge: an enriched run measures `E[Δ | divergence, filter]`, which
+equals `E[Δ | divergence]` only if the filter **covers** the trigger, every
+hand the changed rule can fire on passing the raw-hand predicate. Check
+coverage against the rule's actual population (the 1NT candidate, for
+example, against the shipped `NotrumpShape`), not against its usual case,
+and state an uncovered slice with the verdict: it is unmeasured, not
+non-inferior. Per-fired figures do not recover it.
 
 ## Enriched probing — when the trigger is too rare for random deals
 

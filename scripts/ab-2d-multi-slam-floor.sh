@@ -35,6 +35,18 @@
 # (the second seed is ab-results/2d-multi-slam-floor-r2, BOARDS=384000).
 # Default flipped to `Some(13)`.
 #
+# Scope: both seeds ran --filter-multi-slam with a strict balanced 1NT
+# candidate (4333/4432/5332), missing the default's 5m422/6m322 openers.
+# Wide confirmation (pre-registered 2026-10-16, before any number is read):
+# the filter now takes any 15-17 HCP candidate with no suit under two; fresh
+# seed, BOARDS=384000, results in ab-results/2d-multi-slam-floor-wide.  `13`
+# stands if 13 over 15 is not a loss on either scorer in either cell;
+# anything else is flagged for a decision, not applied.
+# WIDE VERDICT (2026-10-16, SEED_BASE 1792102740877734887, density 0.001824,
+# gate 0 foreign): 13 over 15 win | win in both cells, per accepted board
+# none/both plain +0.0018 ±0.0012 / +0.0017 ±0.0011, PD +0.0023 ±0.0013 /
+# +0.0020 ±0.0012; per fired plain +0.72/+1.29, PD +0.90/+1.53.  `13` stands.
+#
 # Resumable; SEED_BASE persists in $R/2d-multi-slam-floor.seed.  Iron rule: do
 # NOT rebuild binaries while this runs.
 R=${1:?usage: ab-2d-multi-slam-floor.sh RESULTS_DIR}

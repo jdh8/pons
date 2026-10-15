@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`bba-gen`'s 1NT scans now cover the default opener (2026-10-16).**
+  `--filter-1nt`, `--filter-landy` and `--filter-preempt` took only a
+  balanced candidate with at most one doubleton, so every enriched verdict
+  since `NotrumpShape::Wide6322` shipped (2026-07-12) left out the 5m422 and
+  6m322 hands the default opens 1NT. `--filter-lebensohl-raise` and
+  `--filter-multi-slam` now take any 15–17 HCP hand with no suit shorter than
+  two, and the new `--wide-1nt` does the same for the other three (about 25%
+  of deals accepted instead of 20% under `--filter-1nt`). It is opt-in so
+  that older runs' persisted seeds still reproduce; new runs pass it. Both
+  #9 follow-ups were re-confirmed on the wide population (below).
+  `docs/measurement.md` now says that a filter changes the divergent set, not
+  only the denominator, unless it covers the changed rule's population.
+
 - Dump directory loading now rejects any shard with a different bidding
   vulnerability or bidder label, naming the offending shard. This closes the
   directory-input bypass of `ab-dump-diff`'s pairing checks for
@@ -122,20 +135,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **A maximum 1NT opener no longer stretches a weak Lebensohl sign-off to game
-  on three trumps when non-vulnerable (2026-10-16,
+- **A balanced maximum 1NT opener no longer stretches a weak Lebensohl
+  sign-off to game on three trumps when non-vulnerable (2026-10-16,
   [#9](https://github.com/jdh8/pons/issues/9)).** After `1NT (2♠) 2NT - 3♣ -
   3♥ -`, `competition.lebensohl_signoff_raise` is now a combined target per
-  colour, `Some((24, 23))`. White, opener raises with 17 and four trumps or
-  16 and five. Red is unchanged. `scripts/ab-lebensohl-signoff-target.sh`,
-  `SEED_BASE` 1792098317406025283, 384k `--filter-lebensohl-raise` boards per
-  arm per vul, gate 0 foreign. `24` over `23`, IMPs per fired board, white
+  colour, `Some((24, 23))`. White, opener needs 18 points with three trumps,
+  17 with four, 16 with five. A balanced opener's points are its HCP, so it
+  raises only with 17 and four trumps or 16 and five; a 17-HCP 5m422 or
+  6m322 opener upgrades to 18 and still raises on three. Red is unchanged.
+  `scripts/ab-lebensohl-signoff-target.sh`, `SEED_BASE` 1792098317406025283,
+  384k `--filter-lebensohl-raise` boards per arm per vul, gate 0 foreign. `24` over `23`, IMPs per fired board, white
   (954 fired): plain DD +0.18 (non-inferior), PD +1.33 (win), SD-PD +0.37.
   `24` against off, white: plain +1.25 (win), PD +0.52 (non-inferior), SD-PD
   +1.36. Red, `24` over `23` reads plain −0.85 (loss) | PD +0.80 (win), PD's
   artifact row, so red keeps `23`: against off it is plain +1.33 (win) | PD
   −0.21 (non-inferior), SD-PD +1.01 (win). That is the doubling-artifact row,
-  kept as a recorded trade-off on the second seed's agreement with the first.
+  kept as a recorded trade-off: plain DD +0.0040 ±0.0013 IMPs per accepted
+  board against off, PD's lower bound −0.0021 (−1.0×10⁻⁵ per deal) the
+  accepted loss, the basis the vulnerable game odds and the single-dummy
+  scorer (`docs/research-method-review.md` § Issue #9). Those seeds drew only
+  balanced openers; a third (1792101907466221783) with the filter widened to
+  every 15–17 HCP hand with no suit shorter than two, 5m422/6m322 included,
+  confirms both colours: white `24` over `23` plain +0.30 (non-inferior) | PD
+  +1.35 (win) IMPs per fired, red `23` against off plain +1.21 (win) | PD
+  −0.27 (non-inferior).
 
 - **`competition.multi_minor_slam_try` re-floored from `15` to `13`
   (2026-10-16).** The `4m` slam try above a completed Kokish–Kraft minor
@@ -150,7 +173,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cold `6m`. About +4×10⁻⁶ IMPs per unfiltered board: right, but invisible to
   KR1. All three minor-transfer slam lanes (K–K, Puppet, Landy) now share the
   `13` floor. Runner `scripts/ab-2d-multi-slam-floor.sh`; write-up in
-  `docs/minor-transfer-slam.md` § Round 3.
+  `docs/minor-transfer-slam.md` § Round 3. A third seed with the filter
+  widened to the semi-balanced 1NT openers the first two missed reads
+  `13` over `15` win | win again (plain +0.72/+1.29, PD +0.90/+1.53).
 
 - **Cell-count verdicts audited (2026-10-16,
   [#9](https://github.com/jdh8/pons/issues/9)).** About 470 citations of

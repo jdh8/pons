@@ -415,8 +415,70 @@ floor, whose K = 4 step beat M32 by 4–7σ; and the Wide-vs-Classic
 | --- | --- | --- | --- |
 | Phase 5 v6 flip, American ([authored-reading-handoff.md](authored-reading-handoff.md)) | one, fresh deals | "won all four cells", no ± printed | **win \| win**, recovered from dl02 `ab-results/v6-honest-american`: plain +0.0297 ±0.0103 / +0.0374 ±0.0125, PD +0.0164 ±0.0120 / +0.0171 ±0.0143; now in the handoff |
 | `set_nt_splinter` with `nt_splinter_answer` | 1785227147, self-play, 5M bd/vul | "win in all four cells", no CI | **Non-inferior** by the δ / 24 bound: 176 of 5M boards diverge (0.0035%). A win is not shown; relabelled in [bba-1nt-splinter.md](ai-bidder/bba-1nt-splinter.md) and [one-notrump-constructive.md](one-notrump-constructive.md) |
-| A maximum 1NT opener stretches a weak Lebensohl sign-off to game (0.10.0, knobless, [lebensohl.rs](../src/bidding/american/competition/lebensohl.rs)) | one, 500k, `lebensohl-ab` | "positive in every cell", +0.0010 to +0.0012, no CI; the cells are two Lebensohl styles × two vulnerabilities on one deal set | **Re-measured 2026-10-16: plain DD win \| PD loss**, the doubling-artifact row. Knob `competition.lebensohl_signoff_raise`, `scripts/ab-lebensohl-signoff-raise.sh`, `SEED_BASE` 1792096531615205258, 384k `--filter-lebensohl-raise` boards/arm/vul (density 0.004719), gate 0 foreign. On − off, IMPs/fired, none/both (1159/1049 fired): plain +0.31/+1.60, PD −0.71/+0.04, sd-lead +0.96/+2.69, SD-PD +0.12/+1.41. Losses sit on three trumps and on 15–16 HCP openers that reach the bar by upgraded points. **Tightened the same day**: a fresh seed (1792098317406025283, `scripts/ab-lebensohl-signoff-target.sh`) read `24` over `23` white plain +0.18 non-inferior \| PD +1.33 win per fired, so white ships `24` (no three-trump raise); red `24` over `23` is plain −0.85 loss \| PD +0.80 win, so red keeps `23`, win \| non-inferior against off on both seeds with SD-PD a win: a recorded trade-off. Default `Some((24, 23))` |
+| A maximum 1NT opener stretches a weak Lebensohl sign-off to game (0.10.0, knobless, [lebensohl.rs](../src/bidding/american/competition/lebensohl.rs)) | one, 500k, `lebensohl-ab` | "positive in every cell", +0.0010 to +0.0012, no CI; the cells are two Lebensohl styles × two vulnerabilities on one deal set | **Re-measured 2026-10-16: plain DD win \| PD loss**, the doubling-artifact row. Knob `competition.lebensohl_signoff_raise`, `scripts/ab-lebensohl-signoff-raise.sh`, `SEED_BASE` 1792096531615205258, 384k `--filter-lebensohl-raise` boards/arm/vul (density 0.004719), gate 0 foreign. On − off, IMPs/fired, none/both (1159/1049 fired): plain +0.31/+1.60, PD −0.71/+0.04, sd-lead +0.96/+2.69, SD-PD +0.12/+1.41. Losses sit on three trumps (17 HCP) and on 16 HCP with four trumps; every raising opener in the slice was balanced, so none reached the bar by an upgrade. **Tightened the same day**: a fresh seed (1792098317406025283, `scripts/ab-lebensohl-signoff-target.sh`) read `24` over `23` white plain +0.18 non-inferior \| PD +1.33 win per fired, so white ships `24`: no three-trump raise on a balanced opener, where points are HCP. Red keeps `23`, the [recorded trade-off](#red-lebensohl-target-a-recorded-trade-off) below. Both seeds measured only balanced openers: see [the filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan). Default `Some((24, 23))` |
 | `multi_minor_slam_try` at `15` rather than `13` ([minor-transfer-slam.md](minor-transfer-slam.md)) | 1787642695 (round 1 fired 19 boards) | `15` over `13` rests on a "cleaner win on all four of its cells"; head-to-head t +0.70 / +0.43, round 1 the other sign | **Measured 2026-10-16 and reversed:** an enriched head-to-head on two fresh seeds reads `13` over `15` win \| win in all eight cells (Round 3 in the linked doc); the default is now `13` |
+
+#### Red Lebensohl target, a recorded trade-off
+
+Red keeps `23` without a proof of either kind. Rescored 2026-10-16 with
+`--density` 0.004717 on seed 1792098317406025283 (0.004719 on
+1792096531615205258), red cell, IMPs per accepted board ±95% CI:
+
+| `23` against | plain DD | PD | sd-lead | SD-PD |
+| --- | --- | --- | --- | --- |
+| `24` | +0.0018 ±0.0011, win | −0.0017 ±0.0013, loss | +0.0039 ±0.0012 | +0.0010 ±0.0013 |
+| off | +0.0040 ±0.0013, win | −0.0006 ±0.0015, non-inferior | +0.0068 ±0.0014 | +0.0030 ±0.0016 |
+| off, first seed | +0.0044 ±0.0013, win | +0.0001 ±0.0014, non-inferior | | |
+| `24`, wide seed | +0.0015 ±0.0010, win | −0.0017 ±0.0012, loss | +0.0036 ±0.0011 | +0.0010 ±0.0012 |
+| off, wide seed | +0.0034 ±0.0013, win | −0.0008 ±0.0015, non-inferior | +0.0062 ±0.0013 | +0.0026 ±0.0015 |
+
+The wide seed is the confirmation in the next section (density 0.005522).
+Every row is the decision table's doubling-artifact row, and `24` over `23`
+is the converse loss \| win, PD's synthetic-X row, so neither target has a
+shippable case over the other. The basis for keeping the incumbent: a
+vulnerable game breaks even at about 37.5% at IMPs against 45% white, so
+red stretches a point lighter on bridge grounds, and the single-dummy
+scorer prefers `23` (sd-lead a win over `24`, SD-PD a win over off). The
+accepted loss is PD's lower bound: −0.0030 per accepted board against `24`
+and −0.0021 against off, that is −1.4×10⁻⁵ and −1.0×10⁻⁵ IMPs per random
+deal, both far inside δ. Those per-deal figures hold only for the balanced
+openers the scan admitted; see the next section. Different seeds share no
+deals: `deal-overlap` read `0 shared (0.00% of 384000, 0.00% of 384000):
+ab-results/lebensohl-signoff-raise/raise-none ∩
+ab-results/lebensohl-signoff-target/t23-none`.
+
+#### Filter scope: the default 1NT is wider than the scan
+
+Both new filters, `--filter-lebensohl-raise` and `--filter-multi-slam`,
+took `is_1nt_opener`'s candidate: 15–17 HCP, balanced, at most one
+doubleton. The default `NotrumpShape::Wide6322` also opens 5m422 and 6m322,
+and those shapes upgrade a point, so they are exactly where a 17-HCP opener
+still raises three trumps at `24`. The four seeds above never saw one: in
+the strict slice every raising opener was balanced. Both filters now take
+`is_wide_1nt_opener` (15–17 HCP, no suit shorter than two, a superset of
+the default), and each runner was re-run on a fresh seed with its pass
+conditions written into the header first.
+
+| Run | Seed, density | Diff | Plain DD /accepted | PD /accepted | Fired | Pre-registered condition |
+| --- | --- | --- | --- | --- | --- | --- |
+| Lebensohl, white | 1792101907466221783, 0.005522 | `24` − `23` | +0.0007 ±0.0008, non-inferior | +0.0031 ±0.0009, win | 881 | met: `24` stands |
+| | | `24` − off | +0.0010 ±0.0005, win | +0.0003 ±0.0006, non-inferior | 356 | met |
+| Lebensohl, red | | `23` − off | +0.0034 ±0.0013, win | −0.0008 ±0.0015, non-inferior | 1088 | met: the trade-off stands |
+| Multi slam, none | 1792102740877734887, 0.001824 | `13` − `15` | +0.0018 ±0.0012, win | +0.0023 ±0.0013, win | 968 | met: `13` stands |
+| Multi slam, both | | `13` − `15` | +0.0017 ±0.0011, win | +0.0020 ±0.0012, win | 494 | met |
+
+Gate 0 foreign in all eight pairs. On the wide Lebensohl seed, 163 of the
+white `23` arm's 1,236 raises came from 5m422/6m322 openers (13%), and
+`24` still raises ten of them on three trumps (17 HCP, 18 points). Different
+seeds share no deals: `deal-overlap` read 0 shared for the wide `t23-none`
+against both earlier Lebensohl seeds, for the wide `s13-none` against both
+earlier Multi seeds, and for the first two Multi seeds against each other.
+
+The older scans, `--filter-1nt`, `--filter-landy` and `--filter-preempt`
+(about 45 runners), keep the strict candidate, so their persisted seeds still
+reproduce, and every verdict they produced since Wide6322 shipped on
+2026-07-12 omits the semi-balanced 1NT openers. New runs pass `--wide-1nt`
+(jdh8, 2026-10-16), which switches all three to the wide candidate.
 
 **Rejections resting on the count**, where a default left off needs no
 proof: `advance_pass_yield_major` (seed 1785321152, per-fired figures only),
@@ -476,14 +538,19 @@ These agree only under an appropriate coverage or distribution argument.
 no singleton or void, and at most one doubleton. The
 [Landy shape runner](../scripts/ab-landy-notrump-shape.sh) explicitly records
 that the wide-shape 1NT slice is invisible to its arms and that this bounds the
-claim; the runner states its limit, the general rule in `measurement.md` does
-not. Reporting per-divergent IMPs does not recover that excluded population.
+claim. Reporting per-divergent IMPs does not recover that excluded population.
+
+Done 2026-10-16: `measurement.md` now states the coverage condition, and
+`bba-gen --wide-1nt` (always on for the two #9 filters) draws the candidate
+from every 15–17 HCP hand with no suit shorter than two, a superset of the
+default opener; see [the filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan).
+The verdicts drawn on the strict candidate since 2026-07-12 are not re-run.
 
 - Run an unfiltered bidding-only preflight and count divergences outside
   the raw-hand filter before interpreting an enriched result globally.
-- Use the union of candidate triggers or separate balanced/wide-shape
-  strata, and report the population weights and conditional effects together.
-- Narrow the denominator claim in `measurement.md`.
+- For a trigger that is not a 1NT opening, use the union of candidate
+  triggers or separate strata, and report the population weights and
+  conditional effects together.
 
 The point estimate in
 [probe-weak-two-major](../examples/probe-weak-two-major/main.rs) is internally

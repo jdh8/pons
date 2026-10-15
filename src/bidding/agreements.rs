@@ -352,6 +352,8 @@ pub struct CompetitionKnobs {
     /// non-inferior with SD-PD a win.  Red is PD's loss | win artifact row, so
     /// red keeps `23`: win | non-inferior against off on both seeds, SD-PD a
     /// win, a recorded trade-off (docs/research-method-review.md § Issue #9).
+    /// Both seeds drew balanced openers only; a third, widened to the
+    /// 5m422/6m322 1NT openers, confirmed both colours.
     pub lebensohl_signoff_raise: Option<(u8, u8)>,
     /// Add the game-forcing minor cues to the Landy counter (N1b)
     ///

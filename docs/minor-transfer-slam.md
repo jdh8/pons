@@ -434,6 +434,14 @@ with side shortness, opposite a maximum, where `15` signs off in `3NT` and
 Round 2's "the 13–14 slice is a wash" was 55 boards of noise in the other
 direction, like round 1's.
 
+**Wide confirmation (2026-10-16).** Both seeds above drew a strict
+balanced 1NT candidate, missing the default's 5m422/6m322 openers. A third
+seed (`1792102740877734887`, 384k, density 0.001824) with the filter widened
+to every 15–17 HCP hand with no suit shorter than two reads `13` over `15`
+**win | win** again: plain +0.72/+1.29, PD +0.90/+1.53 IMPs per fired
+none/both (968 / 494 fired), sd-lead agreeing, gate 0 foreign. The three
+seeds share no deals (`deal-overlap`).
+
 **Scale.** Unfiltered this is about +4×10⁻⁶ IMPs per board (593 IMPs over 150M
 deals): a correct per-fired tuning, invisible to KR1. It also puts all three
 lanes — K–K, constructive Puppet and Landy — on the same `13` floor.

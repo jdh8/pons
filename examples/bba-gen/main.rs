@@ -256,6 +256,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
+    /// Draw `--filter-1nt`, `--filter-landy` and `--filter-preempt`'s 1NT
+    /// candidate wide: 15–17 HCP with no suit shorter than two, a superset of
+    /// the default `NotrumpShape::Wide6322` opener (`--filter-multi-slam` and
+    /// `--filter-lebensohl-raise` always do).
+    ///
+    /// Off, the candidate is balanced with at most one doubleton, so the
+    /// 5m422/6m322 hands the default opens 1NT are never scanned and a verdict
+    /// says nothing about them.  Off stays the default only so the persisted
+    /// seeds of runs from before 2026-10-16 reproduce their accepted sets; new
+    /// runs pass it (docs/measurement.md, coverage).
+    #[arg(long, default_value_t = false)]
+    wide_1nt: bool,
+
     /// `--filter-1nt`, and additionally require that candidate's **LHO** to
     /// hold a Landy-shaped hand (5-4+ majors, 8+ HCP) — the seat that would
     /// overcall `2♣` over our 1NT.
@@ -312,8 +325,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_preempt: bool,
 
-    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
-    /// hold a six-card major and its **partner** a six-card minor with 9+ HCP
+    /// A wide 1NT candidate (15–17 HCP, no suit shorter than two: the default
+    /// Wide6322 opener and a little more), whose **LHO** holds a six-card
+    /// major and whose **partner** a six-card minor with 9+ HCP
     /// — the `1NT (2♦)` Multi lane with a responder who could make the `4m`
     /// slam try above a completed Kokish–Kraft minor transfer
     /// (`competition.multi_minor_slam_try`, docs/minor-transfer-slam.md).
@@ -326,19 +340,26 @@ struct Args {
     /// this gates a *scan*, not a call (see `--filter-landy`).
     ///
     /// Enrichment, not isolation: the headline stays IMPs per *accepted*
-    /// deal, and arms under this flag pair **only with each other**.
+    /// deal, and arms under this flag pair **only with each other**.  Until
+    /// 2026-10-16 the candidate was `--filter-1nt`'s strict balanced hand,
+    /// which missed the 5m422/6m322 openers; runs from before then pair only
+    /// with each other.
     #[arg(long, default_value_t = false)]
     filter_multi_slam: bool,
 
-    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
-    /// hold five-plus spades and its **partner** five-plus hearts with at most
-    /// 11 HCP, the candidate itself three-plus hearts: the
-    /// `1NT (2♠) 2NT - 3♣ - 3♥ -` lane where a maximum opener may stretch the
-    /// weak sign-off to game (`competition.lebensohl_signoff_raise`).  Loose
-    /// on purpose: it gates a *scan*, not a call (see `--filter-landy`).
+    /// A wide 1NT candidate (15–17 HCP, no suit shorter than two: the default
+    /// Wide6322 opener and a little more) with three-plus hearts, whose **LHO**
+    /// holds five-plus spades and whose **partner** five-plus hearts with at
+    /// most 11 HCP: the `1NT (2♠) 2NT - 3♣ - 3♥ -` lane where a maximum
+    /// opener may stretch the weak sign-off to game
+    /// (`competition.lebensohl_signoff_raise`).  Loose on purpose: it gates a
+    /// *scan*, not a call (see `--filter-landy`).
     ///
     /// Enrichment, not isolation: the headline stays IMPs per *accepted*
-    /// deal, and arms under this flag pair **only with each other**.
+    /// deal, and arms under this flag pair **only with each other**.  Until
+    /// 2026-10-16 the candidate was `--filter-1nt`'s strict balanced hand,
+    /// which missed the 5m422/6m322 openers; runs from before then pair only
+    /// with each other.
     #[arg(long, default_value_t = false)]
     filter_lebensohl_raise: bool,
 
@@ -2638,6 +2659,20 @@ fn is_1nt_opener(hand: Hand) -> bool {
     balanced && (15..=17).contains(&hand_hcp(hand))
 }
 
+/// 15–17 HCP with no suit shorter than two: a superset of the default
+/// `NotrumpShape::Wide6322` opener, for `--filter-multi-slam` and
+/// `--filter-lebensohl-raise`.
+///
+/// [`is_1nt_opener`] stops at one doubleton, so it drops the 5m422 and 6m322
+/// hands the default opens 1NT, and those are the shapes that upgrade a point.
+/// This also admits the long-major 5422/6322 and the 7222 that open a suit:
+/// loose is the safe direction for a *scan* (see `--filter-landy`).
+/// [`is_1nt_opener`] stays strict because the older filters' persisted seeds
+/// must keep reproducing their accepted sets.
+fn is_wide_1nt_opener(hand: Hand) -> bool {
+    Suit::ASC.iter().all(|&s| hand[s].len() >= 2) && (15..=17).contains(&hand_hcp(hand))
+}
+
 /// Landy-shaped: 4+ in both majors with the longer 5+, and overcall values —
 /// the raw-hand twin of `landy_2c`'s `five_four(♥, ♠) & points(..)`
 /// (`src/bidding/american/defense/nt_landy.rs`), for `--filter-landy`.
@@ -3801,6 +3836,11 @@ fn main() -> anyhow::Result<()> {
     // until `count` deals carry a 1NT-opener candidate.
     let mut boards: Vec<Board> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
+    let candidate: fn(Hand) -> bool = if args.wide_1nt {
+        is_wide_1nt_opener
+    } else {
+        is_1nt_opener
+    };
     while boards.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
@@ -3812,7 +3852,7 @@ fn main() -> anyhow::Result<()> {
         if args.filter_landy
             && !Seat::ALL
                 .iter()
-                .any(|&seat| is_1nt_opener(deal[seat]) && is_landy_shaped(deal[seat.lho()]))
+                .any(|&seat| candidate(deal[seat]) && is_landy_shaped(deal[seat.lho()]))
         {
             continue;
         }
@@ -3821,7 +3861,7 @@ fn main() -> anyhow::Result<()> {
         if args.filter_preempt
             && !Seat::ALL
                 .iter()
-                .any(|&seat| is_1nt_opener(deal[seat]) && is_preempt_shaped(deal[seat.lho()]))
+                .any(|&seat| candidate(deal[seat]) && is_preempt_shaped(deal[seat.lho()]))
         {
             continue;
         }
@@ -3829,7 +3869,7 @@ fn main() -> anyhow::Result<()> {
         // LHO and its partner, the responder.
         if args.filter_multi_slam
             && !Seat::ALL.iter().any(|&seat| {
-                is_1nt_opener(deal[seat])
+                is_wide_1nt_opener(deal[seat])
                     && is_multi_shaped(deal[seat.lho()])
                     && is_minor_slam_shaped(deal[seat.partner()])
             })
@@ -3840,7 +3880,7 @@ fn main() -> anyhow::Result<()> {
         // its spade-overcalling LHO and its partner, the weak responder.
         if args.filter_lebensohl_raise
             && !Seat::ALL.iter().any(|&seat| {
-                is_1nt_opener(deal[seat])
+                is_wide_1nt_opener(deal[seat])
                     && deal[seat][Suit::Hearts].len() >= 3
                     && deal[seat.lho()][Suit::Spades].len() >= 5
                     && is_weak_heart_signoff(deal[seat.partner()])
@@ -3848,7 +3888,7 @@ fn main() -> anyhow::Result<()> {
         {
             continue;
         }
-        if args.filter_1nt && !Seat::ALL.iter().any(|&seat| is_1nt_opener(deal[seat])) {
+        if args.filter_1nt && !Seat::ALL.iter().any(|&seat| candidate(deal[seat])) {
             continue;
         }
         let dealer = Seat::ALL[boards.len() % 4];
