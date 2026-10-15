@@ -81,8 +81,9 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    **Vulnerability cells on one seed are one deal set.** `bba-gen` and
    `ben-gen` deal the same boards at every vulnerability (declared-agreement's
    none and both arms: 204 800 of 204 800 shared), which sharpens the
-   none-vs-both comparison but makes "4/4 cells positive" two independent
-   samples, not four. Count seeds, not cells, when citing replication. A BEN
+   none-vs-both comparison but makes "4/4 cells positive" one deal set read
+   four ways (two vulnerabilities × two scorers, all on the same boards), not
+   four samples. Count seeds, not cells, when citing replication. A BEN
    guard run on the BBA run's seed is a check against another opponent, not
    corroboration.
    **Regenerate the control at HEAD, on that same `SEED_BASE`.** A shared seed

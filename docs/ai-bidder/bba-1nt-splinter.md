@@ -202,7 +202,10 @@ this is constructive value only.
 | none | 1995 (0.040%) | 176 | **+0.56** IMPs/fired (+0.0002/bd) | **+0.67** IMPs/fired (+0.0003/bd) |
 | both | 1995 (0.040%) | 176 | **+0.69** IMPs/fired (+0.0003/bd) | **+0.81** IMPs/fired (+0.0003/bd) |
 
-Win in all four cells, so it ships **default-on**. Read the effect off the 176
+Positive in all four cells, so it ships **default-on**. That is one seed with no
+CI, so the ship is **non-inferior** by the δ / 24 bound (176 of 5M boards
+diverge, 0.0035%), not a proven win ([#9](https://github.com/jdh8/pons/issues/9)).
+Read the effect off the 176
 divergent boards, not the 1995 fired: 9 firings in 10 reach the same contract
 either way (`3NT` is usually right), and on the tenth the convention is worth
 **+6.4 IMPs plain / +7.6 PD** at none and **+7.8 / +9.2** at both. IMPs/board is

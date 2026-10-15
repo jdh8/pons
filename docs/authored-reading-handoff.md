@@ -634,7 +634,10 @@ artifact beat the shipped evaluator on both registered gates: NLL −1.55642 vs
 
 The twin then ran on fresh deals, 204,800 boards per arm per vulnerability,
 under plain DD and perfect defense. American won all four cells (plain
-+0.0297/+0.0374, PD +0.0164/+0.0171 IMP/bd at none/both). Dutch won plain DD
++0.0297 ±0.0103 / +0.0374 ±0.0125, PD +0.0164 ±0.0120 / +0.0171 ±0.0143
+IMP/bd at none/both, every CI clear: *win | win* on one seed; the ± are from
+`ab-results/v6-honest-american` on dl02, recovered for
+[#9](https://github.com/jdh8/pons/issues/9)). Dutch won plain DD
 (+0.0551/+0.0429); PD was a wash (+0.0122 ±0.0128 / −0.0080 ±0.0152), matching
 the accepted v5 precedent. Both defaults now use the matched v6 policy and
 honest evaluator. `DecisionProfile::legacy_view`, its second inference cache,

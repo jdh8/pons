@@ -714,9 +714,11 @@ pub struct ReadingProfile {
 
     /// Author responder's `1NT - 3M` splinter
     ///
-    /// **Default on** since 2026-07-28: 5M boards per vulnerability, a win in
-    /// all four cells — +0.56/+0.67 IMPs per fired board at none, +0.69/+0.81
-    /// at both (plain/PD), measured by `examples/ab-nt-splinter`.
+    /// **Default on** since 2026-07-28: 5M boards per vulnerability, positive
+    /// in all four cells — +0.56/+0.67 IMPs per fired board at none, +0.69/+0.81
+    /// at both (plain/PD), measured by `examples/ab-nt-splinter`.  One seed and
+    /// no CI: non-inferior by the δ / 24 bound (176 boards diverge), not a
+    /// proven win.
     ///
     /// Shortness in the *bid* major, 2–3 in the other, exactly four diamonds
     /// and five or six clubs — the Bridge World Standard / Polish Club

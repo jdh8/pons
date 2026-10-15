@@ -104,6 +104,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Cell-count verdicts audited (2026-10-16,
+  [#9](https://github.com/jdh8/pons/issues/9)).** About 470 citations of
+  "4/4 cells", "all four cells" and the like, across the CHANGELOG, docs,
+  script headers and knob comments, re-read for single-seed verdicts whose
+  evidence was the count rather than per-cell CIs. About 20 verdicts were.
+  #7 had already re-read most of them, and three are superseded. The
+  residue: the Phase 5 v6 flip's American cells are now quoted with their
+  CIs (win | win, recovered from the run's diff files); `nt_splinter_answer`
+  is relabelled non-inferior (176 of 5M boards diverge, under the δ / 24
+  bound), not a proven win; the knobless Lebensohl max-opener stretch is
+  status unknown (no CI, no surviving dump); `multi_minor_slam_try`'s `15`
+  over `13` is recorded as a choice. Ledger:
+  `research-method-review.md` § Issue #9. `measurement.md` checklist 5 now
+  reads one seed's four cells as one deal set read four ways, not "two
+  independent samples". Bidding untouched.
+
 - **`PointCount` proven against `rule-of-n-floored` (2026-10-15,
   [#7](https://github.com/jdh8/pons/issues/7)).** The default point scale
   and its linearised suit upgrade had only a numberless self-play "plain

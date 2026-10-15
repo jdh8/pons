@@ -264,8 +264,10 @@ defaults to **9**. Opener's answer must be authored: the floor ignored even the
 exact alert-decoded shape, producing only 9 divergences from 217 firings in the
 first 600k-board probe.
 
-With `nt_splinter_answer`, 5M boards/vulnerability won every cell: +0.56/+0.67
-plain/PD per fired NV and +0.69/+0.81 vulnerable; 0.040% fire, 176 divergent.
+With `nt_splinter_answer`, 5M boards/vulnerability read positive in every cell:
++0.56/+0.67 plain/PD per fired NV and +0.69/+0.81 vulnerable; 0.040% fire, 176
+divergent. One seed and no CI, so it ships as **non-inferior** by the δ / 24
+bound (0.0035% of boards diverge), not as a proven win.
 The eight-count extension lost −52/−773 IMPs NV and +229/−519 vulnerable
 plain/PD across 711 extra firings, so nine stands. BBA/BEN's GIB form instead
 has exactly four cards in the other major; see

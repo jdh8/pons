@@ -137,7 +137,11 @@ verdict. Design lives in the docs above and the code.
 
   Same sign in all four cells, both pooled 95% intervals exclude zero, and the
   estimate is conservative — the two arms of each pair share deals, so they are
-  positively correlated and the true interval is narrower. **The defect is real
+  positively correlated and the true interval is narrower. *(#9, 2026-10-16:
+  the two vulnerabilities are one deal set too, which pulls the other way —
+  pooling them as independent narrows the interval — so the net direction is
+  unknown. The verdict rests on the −0.18 cost, not on this interval.)*
+  **The defect is real
   and now priced: invariance to a lossless re-hull is worth ≈0.02 IMPs/bd, the
   size of the calls-tail win.**
 

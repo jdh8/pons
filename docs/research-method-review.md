@@ -25,6 +25,7 @@ folded in below.
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
 | P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15 (the two modeled SAT diagnostics labelled exempt, and the resume guard fingerprinting the binary an arm runs, 2026-10-16); the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ, its repair `diamond_transfer_responder_captain` shipped default-on 2026-10-15 on a three-arm A/B); `PointCount` proven win \| win 2026-10-15; the RKCB queen ask superseded (no off arm) |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
+| P2 | [#9 Vulnerability cells on one seed are one deal set](https://github.com/jdh8/pons/issues/9) | `measurement.md` checklist 5 (2026-10-14) and the [cell-count audit](#issue-9-cell-counts-cited-as-replication) (2026-10-16) |
 
 The entries below preserve the remaining review findings. Open an issue when
 starting one, link it here, and close its checklist with the measured result or
@@ -370,6 +371,64 @@ accepts is its worst plain-DD lower bound per board.
 | Phase 3 substitute-don't-intersect | KR2: the reading architecture; the measured code no longer exists to re-run | −0.0040 (seed 1, both) |
 | Reading-drift batch, round 3 | Correctness: seven reading repairs plus a rail | −0.0043 (none) |
 | Raise readers off the point-count axis | Correctness; 6,400 boards could not resolve anything | −0.0054 |
+
+## Issue #9: cell counts cited as replication
+
+Audited 2026-10-16: every verdict that cites a cell count or a sign pattern
+across cells ("4/4 cells", "all four cells", "every cell", "eight of eight")
+in the CHANGELOG, `docs/` (archive included), the `scripts/ab-*.sh` headers
+and the knob doc comments in `src/`, which repeat CHANGELOG verdicts. About
+470 mentions. The cells of one seed are one deal set
+([measurement.md](measurement.md) checklist 5), so the question is whether
+the per-cell CIs carry the decision, whatever the count says. This pass
+re-measured nothing and reverted nothing.
+
+- **Two or more seeds** (about 100 verdicts): out of scope. `bba-gen` seeds
+  each shard from its own stream, and every recorded pair of bases is
+  hundreds of seconds apart against 32 shards, so its seeds are separate
+  deal sets. The `seeded_deals` window overlap is #6's.
+- **One seed, the CIs carry the decision** (about 70): wording only. Where
+  the CHANGELOG omits the ±, the owning doc or script header has it (the
+  Landy doubler ladder, `quantitative_six_notrump`, Landy Texas, the two
+  Multi doubler notrump rungs). Four Landy A/Bs share seed 1789977169
+  (`splinter-rebids`, `splinter-tails`, `wilkosz`, `nt-vs-x`); each clears
+  its own CIs and none is cited as corroborating another.
+- **One seed, the count is the evidence** (about 20 verdicts), below.
+
+**Already re-read by #7**, no further action: `passed_hand_overcall`,
+`strength_ceilings`'s legacy arm, `set_advance_2nt_continuation`, N1q
+`strx`, Kokish–Kraft's none cell, N3's `at_least_as_long`, the cue-blocked
+face + notrump dichotomy, the 5-2 trump repair, Part A of the cramped
+doubled answer, DOPI/ROPI/DEPO and `nt_overcall_systems_on`; the reading-drift
+round 3 batch and `direct_weak_jump_overcall` are #7's recorded trade-offs.
+
+**Superseded**, the measured code no longer ships: the v5 floor swap ("3 of 4
+cells", seed 1786137947) and the M32 v6 promotion (American plain DD vs BBA
+−0.0108 ±0.0116 / −0.0041 ±0.0140, inconclusive), both under the K = 8
+floor, whose K = 4 step beat M32 by 4–7σ; and the Wide-vs-Classic
+`NotrumpShape` step, under the two-seed Wide6322 default.
+
+**Live, not covered by #7:**
+
+| Verdict | Seed | What the count stood in for | Status |
+| --- | --- | --- | --- |
+| Phase 5 v6 flip, American ([authored-reading-handoff.md](authored-reading-handoff.md)) | one, fresh deals | "won all four cells", no ± printed | **win \| win**, recovered from dl02 `ab-results/v6-honest-american`: plain +0.0297 ±0.0103 / +0.0374 ±0.0125, PD +0.0164 ±0.0120 / +0.0171 ±0.0143; now in the handoff |
+| `set_nt_splinter` with `nt_splinter_answer` | 1785227147, self-play, 5M bd/vul | "win in all four cells", no CI | **Non-inferior** by the δ / 24 bound: 176 of 5M boards diverge (0.0035%). A win is not shown; relabelled in [bba-1nt-splinter.md](ai-bidder/bba-1nt-splinter.md) and [one-notrump-constructive.md](one-notrump-constructive.md) |
+| A maximum 1NT opener stretches a weak Lebensohl sign-off to game (0.10.0, knobless, [lebensohl.rs](../src/bidding/american/competition/lebensohl.rs)) | one, 500k, `lebensohl-ab` | "positive in every cell", +0.0010 to +0.0012, no CI; the cells are two Lebensohl styles × two vulnerabilities on one deal set | **Status unknown**; no results directory survives. Proposed: keep, and measure only if the lane reopens |
+| `multi_minor_slam_try` at `15` rather than `13` ([minor-transfer-slam.md](minor-transfer-slam.md)) | 1787642695 (round 1 fired 19 boards) | `15` over `13` rests on a "cleaner win on all four of its cells"; head-to-head t +0.70 / +0.43, round 1 the other sign | `15` vs off is a plain win (t 2.25 / 2.61), PD non-inferior, so the ship stands; **`15` over `13` is a choice, not a measured preference**. Proposed: keep `15` |
+
+**Rejections resting on the count**, where a default left off needs no
+proof: `advance_pass_yield_major` (seed 1785321152, per-fired figures only),
+Phase 4 follow-up 2 Variant A (1786978290, raw IMPs, later seeds not run),
+the splinter floor at 8 (totals only) and the Rubens revert (plain
+straddles, PD carries it).
+
+**Pooled across the two vulnerabilities of one seed:** C1's encoding
+difference in [dnf-migration.md](dnf-migration.md) and A/B-1 in
+`scripts/ab-eval-shape.sh` ("both pooled intervals exclude zero") count each
+deal twice, so those intervals are too narrow. The closure verdict rests on
+its −0.18 cost and `set_eval_shape` stays off, so nothing changes; the doc
+now says so.
 
 ## 4 Disclosure in SD dump rescoring
 
