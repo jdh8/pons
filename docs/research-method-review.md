@@ -610,10 +610,20 @@ Scaling finite authored priorities can leave production argmax unchanged but
 change the replay acceptance set. Those priorities are not calibrated call
 likelihoods; see [logit-calibration.md](ai-bidder/logit-calibration.md).
 
-- Describe the existing method as relaxed authored-rule conditioning;
-  qualify the self-play posterior and ceiling claims.
-- At representative seams compare strict, full-policy and relaxed replay
-  for acceptance, calibration and paired true-deal gain.
+Documentation done 2026-10-16: every current doc and doc comment that called
+replay "the self-play posterior", "worlds the bidder reproduces" or
+"auction-consistent worlds" now reads relaxed authored-rule conditioning
+(within `MARGIN` of the best legal logit, abstaining off-book), or range-only
+conditioning for the range path. exact-posterior.md states the `1M - 2M -`
+range failure as the non-default path's and flags the counted-reading
+re-run's 91.2% deal overlap. A stale "default off" for `set_rule_accept` in
+sampled-projection.md was corrected (default on since `74d783d`).
+
+- **Owed:** the strict / full-policy / relaxed comparison, pre-registered in
+  [logit-calibration.md](ai-bidder/logit-calibration.md) §4e (three seams,
+  acceptance, PIT calibration, paired true-deal gain, decision at δ). It
+  needs `probe-seam-lookahead` arms and a fix to `probe-replay-yield`'s bare
+  `Context` first.
 - Use calibrated likelihoods if adding probabilistic opponent conditioning;
   retain the actual-deal judge and static-remap controls.
 
