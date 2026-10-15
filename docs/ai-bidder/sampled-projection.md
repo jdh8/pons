@@ -856,8 +856,9 @@ anchors keep that honest:
 3. **Every ledger A/B baseline was measured blind** on game-force auctions. After
    Stage B, prior results involving a 2/1 are not strictly comparable to new ones.
 4. **`set_rule_accept` is the adjacent knob**, not this. It replays *authoring rules*
-   in the sampler (default off, runs ~0.09 tricks tight). This is the same slot with a
-   better acceptance test.
+   in the sampler, within `MARGIN` at authored nodes (default on since `74d783d`;
+   runs ~0.09 tricks tight, [evaluator-net.md](evaluator-net.md)). This is the same
+   slot with a better acceptance test.
 
 ## Related
 

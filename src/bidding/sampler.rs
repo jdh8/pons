@@ -8,9 +8,14 @@
 //! Because every range starts at [`Envelope::unknown`] and only ever narrows
 //! soundly (`Range::intersect`'s soundness-over-tightness), a hand that truly
 //! made these calls always lands inside its range.  The sampled layouts are
-//! therefore a sound population of "full deals this auction could have come
+//! therefore a sound *superset* of "full deals this auction could have come
 //! from" — the substrate a double-dummy search scores each candidate call over
-//! (AI-bidder M2.1, the prerequisite for M2.2's call-EV evaluator).
+//! (AI-bidder M2.1, the prerequisite for M2.2's call-EV evaluator).  Sound is
+//! not conditioned: [`sample_layouts`] accepts uniformly within the readings,
+//! including worlds on which the bidder would not make these calls, and
+//! [`sample_layouts_replay`][crate::bidding::sampler::sample_layouts_replay]
+//! narrows that only by relaxed replay of the authored rules (within a 3-nat
+//! margin, abstaining off-book).  Neither is the posterior given the auction.
 //!
 //! # Method
 //!
@@ -215,8 +220,9 @@ fn within_ranges(deal: &FullDeal, seat: Seat, inferences: &Inferences) -> bool {
     .all(|(other, who)| inferences.admits(who, deal[other]))
 }
 
-/// Whether LHO, partner, and RHO in `deal` could each have made their actual
-/// calls under `policy` (the rule-replay accept test; see
+/// Whether LHO, partner, and RHO in `deal` each rank their actual calls within
+/// [`MARGIN`] of their best legal call under `policy`, at authored nodes only
+/// (the relaxed rule-replay accept test; see [`made_plausibly`] and
 /// [`sample_layouts_replay`]).
 fn rules_accept(
     deal: &FullDeal,

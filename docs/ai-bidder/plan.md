@@ -833,10 +833,15 @@ rungs out over 64 replay-sampled worlds and judging on the **true** deal
 beat the book by +0.1105 ±0.0465 plain / +0.1388 ±0.0518 PD IMPs per
 decision (+0.0017 / +0.0022 per board), at 0.4 s of solving per decision.
 About half was one mistuned rung, since shipped as
-`response.major_raise_slam_try`. **Re-run on the shipped book (fresh seed
+`response.major_raise_slam_try`. **Re-run on the shipped book (seed
 1790927570), the hand-specific residual passes the same gate on its own:
 +0.0932 ±0.0431 / +0.1082 ±0.0485 per decision (+0.0013 / +0.0015 per
-board), no static remap earning more than 19% of it.** Worlds drawn from the readings instead of replayed **failed** the
+board), no static remap earning more than 19% of it.** The re-run shares
+91.2% of its deals with the first ([#6](https://github.com/jdh8/pons/issues/6)):
+a re-run, not a replication. Replay here is relaxed authored-rule
+conditioning (`MARGIN`, abstaining off-book), not the self-play posterior
+([logit-calibration.md](logit-calibration.md) §4e). Worlds drawn from the
+readings instead (the non-default range path) **failed** the
 same gate (they over-invite from a pass), which is M8.1's point measured:
 the sampler must replay, not range-sample. One seam, self-play; it says
 nothing about which other seams pay.

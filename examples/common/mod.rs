@@ -501,7 +501,7 @@ pub struct SdScores {
 /// blind opening lead, then the deal priced once with double-dummy play after
 /// the lead (the optimist at slam level — Pavlicek's after-lead table has DD
 /// play +7pp of make-rate on slams) and once with a declarer who chooses
-/// every card over worlds consistent with the auction instead of peeking
+/// every card over range-consistent worlds instead of peeking
 /// (the pessimist — its misguess haircut measures ≈1.5× the real one).
 /// `partnership` reads the auction for both modelled views (the leader's and
 /// declarer's); a pass-out scores 0.

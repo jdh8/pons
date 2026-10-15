@@ -317,15 +317,20 @@ seat-carrying `project` or the sampled projection.
 
 ## Samplers (`sampler.rs`)
 
-"The inverse of `Inferences`": deal layouts consistent with an auction.
+"The inverse of `Inferences`": deal layouts inside an auction's readings.
+Neither sampler is the posterior given the auction: range sampling conditions
+on the readings only, replay on the authored rules relaxed by `MARGIN`
+([logit-calibration.md](ai-bidder/logit-calibration.md) §4e).
 
 - `sample_layouts` — rejection-sample within the `Inferences` ranges.
 - `sample_layouts_replay` — additionally re-runs the policy at every authored
   node, accepting hands whose made call ranks within `MARGIN` nats of best
   (knob `set_rule_accept`, default on since M8.1b `74d783d`). Passes replay like
   any call — the
-  sample-level negative inference (rejects a candidate that would have
-  opened/preempted), the disjunctive half the interval envelope can't hold.
+  sample-level negative inference (rejects a candidate whose best authored
+  alternative beats the pass by more than `MARGIN`, e.g. one that would have
+  opened), the disjunctive half the interval envelope can't hold. A call at
+  an unauthored or tombstoned node abstains.
 - Budget philosophy: a deal costs ~0.3 µs, a DD solve dwarfs it — when the
   sampler starves, **draw more deals** (cap `REPLAY_DRAW_CAP` ≈ 50M), never
   loosen the reading. A consecutive-reject dry-limit distinguishes

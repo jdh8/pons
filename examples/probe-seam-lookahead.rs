@@ -14,11 +14,14 @@
 //!    every call the node made on at least `--min-share` of its decisions.
 //! 3. **Two forecasts**, `--layouts` worlds each, both bid out to pass-out by the
 //!    real bidder at all four seats and scored double dummy:
-//!    - `replay` — worlds on which our own bidder reproduces the auction
-//!      (`sample_layouts_replay`): the self-play posterior, hence the ceiling
-//!      of *any* lookahead;
-//!    - `range` — worlds inside the readings (`sample_layouts`): the ceiling of
-//!      a forecast *counted* from the readings.
+//!    - `replay` — worlds on which each authored call ranks within the
+//!      sampler's 3-nat margin of the best legal logit, unauthored and
+//!      tombstoned calls abstaining (`sample_layouts_replay`, the shipped
+//!      `rule_accept` default): relaxed authored-rule conditioning, an
+//!      approximation of the self-play posterior, not the posterior itself;
+//!    - `range` — worlds inside the readings (`sample_layouts`, the
+//!      non-default range path): the ceiling of a forecast *counted* from the
+//!      readings.
 //! 4. **The selector** deviates from the book's call when a candidate's mean
 //!    swing clears `--margin` IMPs — under plain DD, perfect defense, or both
 //!    (the same candidate best on each; the pre-registered rule).

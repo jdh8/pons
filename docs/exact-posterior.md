@@ -6,9 +6,11 @@ pins; Phase 1's kill gate run and read — use A as designed FAILS, and a
 hand-free by-product passes (§5, §7). Phase 2's re-scoped gate reaches 0.5%
 of boards and is not built. Phase 3a fails by the route that needs no new
 API — a reading is not a reply forecast. Phase 3b with a *sampled* forecast
-was then run at the `1M - 2M` seam: a rollout over worlds our own bidder
-reproduces **beats the book on the true deals on both scorers**, and the same
-rollout over worlds drawn from the *readings* **fails** the gate — so
+was then run at the `1M - 2M` seam: a rollout over worlds our own book
+replays (relaxed: each authored call within `MARGIN` of the best legal logit,
+unauthored and tombstoned calls abstaining) **beats the book on the true
+deals on both scorers**, and the same rollout over worlds drawn from the
+*readings* — the non-default range path — **fails** the gate — so
 lookahead pays, but not through the thing a counter counts. The lookahead
 finding went to the search milestone, and the one book defect it exposed
 shipped as `response.major_raise_slam_try`.** This document records (1) what the web
@@ -702,10 +704,14 @@ seam, the book's own rungs as candidates, and the true deal as the judge.
   its decisions.
 - **Two forecasts**, `M = 64` worlds each (the saturation rung of
   logit-calibration §4d), every candidate bid out to pass-out by the real
-  bidder and scored double dummy: **replay** (`sample_layouts_replay`, worlds
-  on which our own bidder reproduces the auction — the self-play posterior and
-  so the ceiling of *any* lookahead) and **range** (`sample_layouts`, worlds
-  inside the readings — the ceiling of a forecast *counted* from them).
+  bidder and scored double dummy: **replay** (`sample_layouts_replay`, the
+  shipped `rule_accept` default: worlds inside the readings on which each
+  authored call ranks within `MARGIN = 3.0` nats of the best legal logit,
+  unauthored and tombstoned calls abstaining — relaxed authored-rule
+  conditioning, not the self-play posterior, see
+  [logit-calibration.md](ai-bidder/logit-calibration.md) §4e) and **range**
+  (`sample_layouts`, the non-default range path: worlds inside the readings,
+  uniformly — the ceiling of a forecast *counted* from them).
 - **Selector:** the standing both-scorer rule at a 0.25 IMP margin — deviate
   iff one candidate has the best mean on plain DD and on PD and clears the
   margin on both.
@@ -728,7 +734,10 @@ seam, the book's own rungs as candidates, and the true deal as the judge.
 **Result, 2026-10-02 — replay PASSES, range FAILS.** 600,000 deals, seed
 1790874659, 9,311 seam decisions (1.55% of deals), no short draws in either
 arm; 1,201,119 worlds solved in 7,120 s (5.9 ms each). True-deal IMPs per
-seam decision against the book's call, ± 95%, plain / PD:
+seam decision against the book's call, ± 95%, plain / PD. The failure is the
+range path's (`sample_layouts`, uniform within the readings), which nothing
+ships: the search samples by replay (`rule_accept`, default on). Range's
+plain DD is positive; only its PD fails:
 
 | forecast | fired | pooled | vul none | vul both | gate |
 | --- | --- | --- | --- | --- | --- |
@@ -785,8 +794,8 @@ What it leaves — proposed that day, **decided by jdh8 2026-10-02**:
 
 - **The counter's bidding uses are parked** (A, B as counted, C until a
   search consumer exists). Every gate that tested the *readings* as a
-  posterior has now failed; the one that passed used the bidder itself as the
-  likelihood. Triggers below.
+  posterior has now failed; the one that passed used the book's own authored
+  rules, relaxed by `MARGIN`, as a 0/1 likelihood. Triggers below.
 - **The `4NT` rung is a book finding, not a search finding** — §6. Shipped
   the same day as `response.major_raise_slam_try`.
 - **The lookahead finding belongs to M8**
@@ -842,11 +851,11 @@ IMPs per seam decision, ± 95%, plain / PD:
   half +0.1026 ± 0.0590 / +0.1160 ± 0.0675. Range picks 2 IMPs: +0.0288 ±
   0.0336 / +0.0088 ± 0.0383, still not clear.
 - **Range still invites from a pass:** 419 `P → try` swaps against
-  replay's 118 (Phase 3b: 511 / 108), losing as before (`1♠ - 2♠ -` `P →
-  3♦` ×73: −2.70 ± 1.24 / −4.36 ± 1.52). The `1♠ - 2♠` misreading was the
-  *opponents'* reading; opener's reading of partner's raise is unchanged,
-  and that is the one the range arm samples from. Park trigger 2 does not
-  fire.
+  replay's 118 (Phase 3b: 511 / 108, on mostly the same deals, #6 below),
+  losing as before (`1♠ - 2♠ -` `P → 3♦` ×73: −2.70 ± 1.24 / −4.36 ±
+  1.52). The `1♠ - 2♠` misreading was the *opponents'* reading; opener's
+  reading of partner's raise is unchanged, and that is the one the range arm
+  samples from. Park trigger 2 does not fire.
 - **Side observation, not traced:** the `1♠` seam's reach fell from 5,891
   to 4,827 decisions (−18%) while `1♥` held (3,420 → 3,379). The opening
   gate is the only change upstream of the seam, so the fourth seat now
@@ -859,10 +868,11 @@ replicated on a second seed. Still one seam, self-play. *[#6](https://github.com
 (2026-10-14): not an independent replication — the two seeds share 91.2% of
 their deals (generator v1), under shifted dealer and vulnerability, on a
 build that had moved (the `4NT` rung); "the leading swap replicates" reads
-the same way. The lane is parked, so no re-run is owed unless it reopens —
-and if M8 reopens, a fresh-seed (v2) re-run of this replay arm comes first:
-it is the only M8 evidence whose confirmation rested on the shared seed, at
-~2.2σ.*
+the same way, and so does the range arm's second FAIL, the second-seed
+confirmation the counted-reading lane was parked on. The lane is parked, so
+no re-run is owed unless it reopens — and if M8 reopens, a fresh-seed (v2)
+re-run of this replay arm comes first: it is the only M8 evidence whose
+confirmation rested on the shared seed, at ~2.2σ.*
 
 ### Parked — the whole lane (jdh8, 2026-10-02)
 
@@ -879,6 +889,11 @@ only on one of these, each a measurement rather than an argument:
 | a different opponent (BEN) or a reading-fidelity change | Phase 2's narrowness gate | `probe-reading-sound`'s reach count is no longer ≈ 0.5% of boards |
 
 Not a trigger: more precision, a faster counter, or a new net input (§2).
+
+The replay arm is itself an approximation of the self-play posterior. The
+comparison that would price it — strict, full-policy and relaxed replay at
+representative seams — is designed and **owed** in
+[logit-calibration.md](ai-bidder/logit-calibration.md) §4e.
 
 ## 6. Flags
 
@@ -901,9 +916,9 @@ Not a trigger: more precision, a faster counter, or a new net input (§2).
   whole gain is the declined try.
 - **The range sampler over-invites after a single raise** (2026-10-02, Phase
   3b). Worlds drawn from the readings make a try look right on 511 hands the
-  book passes, at −2 to −4 PD each where it fires most; worlds our bidder
-  reproduces do so on 108. Nothing on the default path samples from the
-  readings, so no call depends on it. Proposed default: leave it; it is the
+  book passes, at −2 to −4 PD each where it fires most; worlds the book
+  replays (within `MARGIN`) do so on 108. Nothing on the default path
+  samples from the readings, so no call depends on it. Proposed default: leave it; it is the
   first thing to check if a search consumer ever uses `sample_layouts`
   without replay.
 - **Phase 3b's hand-specific remainder has no interval.** The probe prints
@@ -981,8 +996,8 @@ Not a trigger: more precision, a faster counter, or a new net input (§2).
 | 2026-10-02 | §4 D disagreement flag | closed — strict and announced readings disagree on 0 of 125,961 readings |
 | 2026-10-02 | Phase 2 reach | **not built**: 231 [243] of 10,000 boards carry a flagged reading and our side still acts on 53 [47], half of it doubles of artificial slam-zone calls. Logs: `phase2-reach*.log` |
 | 2026-10-02 | Phase 3a, reading route | **FAILS**: log-loss 1.627 against 1.401 for the node's own frequencies; 38 of 461 nodes with a choice countable, the hand helping at 6; accept and decline read the same at every invitation seam. Ladder route unbuilt. Logs: `phase3a-census*.log` |
-| 2026-10-02 | Phase 3b, sampled forecast | `1M - 2M` seam, 9,311 decisions of 600,000 deals, judged on the true deals. **Replay PASSES**: +0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD per decision (+0.0017 / +0.0022 per board). **Range FAILS**: +0.0737 ± 0.0526 / −0.0125 ± 0.0601. Half of replay's gain is the `4NT` rung, which a static remap also earns. Log: `phase3b-sampled-1790874659.log` |
-| 2026-10-02 | Phase 3b re-run, today's default | 8,206 decisions, seed 1790927570, `4NT` rung shipped. **Replay PASSES** on the residual: +0.0932 ± 0.0431 / +0.1082 ± 0.0485 per decision (+0.0013 / +0.0015 per board); best static remap ≤ 19% of it. **Range FAILS**: +0.0279 ± 0.0498 / −0.0557 ± 0.0581. Log: `phase3b-rerun-1790927570.log` |
+| 2026-10-02 | Phase 3b, sampled forecast | `1M - 2M` seam, 9,311 decisions of 600,000 deals, judged on the true deals. **Replay PASSES**: +0.1105 ± 0.0465 plain / +0.1388 ± 0.0518 PD per decision (+0.0017 / +0.0022 per board). **Range FAILS** (the non-default range path): +0.0737 ± 0.0526 / −0.0125 ± 0.0601. Half of replay's gain is the `4NT` rung, which a static remap also earns. Log: `phase3b-sampled-1790874659.log` |
+| 2026-10-02 | Phase 3b re-run, today's default | 8,206 decisions, seed 1790927570, `4NT` rung shipped. **Replay PASSES** on the residual: +0.0932 ± 0.0431 / +0.1082 ± 0.0485 per decision (+0.0013 / +0.0015 per board); best static remap ≤ 19% of it. **Range FAILS**: +0.0279 ± 0.0498 / −0.0557 ± 0.0581. Shares 91.2% of its deals with the 3b run ([#6](https://github.com/jdh8/pons/issues/6)): a re-run, not a replication, for both arms. Log: `phase3b-rerun-1790927570.log` |
 | 2026-10-02 | the `4NT` rung | traced (`probe-seam-lookahead --trace 4NT`) and shipped default-on as `response.major_raise_slam_try`: vs BBA, 614,400 boards/vul, plain +0.00038 ±0.00040 / +0.00044 ±0.00049, PD +0.00044 ±0.00041 / +0.00052 ±0.00050 |
 | 2026-10-02 | park | **the lane is parked** (jdh8); triggers in §5 "Parked" |
 

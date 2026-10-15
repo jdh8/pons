@@ -532,9 +532,12 @@ pub struct ReadingProfile {
 
     /// Accept a sampled layout by *replaying the rule* that authored each bid
     ///
-    /// **Default on.**  The meaning is frozen at the node, so it survives
-    /// later competition, instead of being re-derived by the per-convention
-    /// range readers; the search EV ([`ev_all`][crate::bidding::ev_all])
+    /// **Default on.**  Relaxed: a made call passes within the sampler's
+    /// margin of the best legal logit, and a call at an unauthored or
+    /// tombstoned node abstains, so the accepted worlds approximate, not
+    /// equal, the posterior given the auction.  The meaning is frozen at the
+    /// node, so it survives later competition, instead of being re-derived by
+    /// the per-convention range readers; the search EV ([`ev_all`][crate::bidding::ev_all])
     /// samples its rollout worlds this way — pons's analog of BEN's soft
     /// NN-replay gate.  Off restores range-only sampling; the
     /// `ab-search-floor` example A/Bs the two via `--no-rule-accept`.  See

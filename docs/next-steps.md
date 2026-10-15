@@ -422,9 +422,10 @@ A fifth joined them on 2026-10-02 and a sixth on 2026-10-03.
   is built and pinned against the web one, but each consumer that used the
   *readings* as a posterior failed: the evidence gate (AUROC 0.554), the
   narrowness gate (0.5% of boards), the reply forecast (a reading is not
-  one), and a rollout over worlds drawn from the readings (plain +0.074
-  ±0.053, PD −0.013 ±0.060 per decision at `1M - 2M`). The same rollout over
-  worlds our own bidder reproduces **passed** (+0.0017 ±0.0007 plain /
+  one), and a rollout over worlds drawn from the readings (the non-default
+  range path: plain +0.074 ±0.053, PD −0.013 ±0.060 per decision at
+  `1M - 2M`). The same rollout over worlds our own book replays (within
+  `MARGIN`, abstaining off-book) **passed** (+0.0017 ±0.0007 plain /
   +0.0022 ±0.0008 PD IMPs/board at that one seam, about half of it since
   shipped as `response.major_raise_slam_try`), which is evidence for M8, not
   for the counter. **Re-open when:** one of the four measured triggers in

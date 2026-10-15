@@ -17,7 +17,7 @@
 //!
 //! `--sd-declarer` swaps in the **sd-declarer playout** bracket
 //! (`single_dummy_playout`): after the blind lead, declarer plays every card
-//! single-dummy over auction-consistent worlds while the defense stays
+//! single-dummy over range-consistent worlds while the defense stays
 //! double-dummy.  This prices the seam the lead bracket can't — declarer's
 //! misguesses, which dominate at the slam level where every DD-play scorer is
 //! optimistic for the arm bidding more slams.  Sequential per board (no
@@ -73,7 +73,7 @@ struct Args {
     sd_seed: u64,
     /// Score with the **sd-declarer playout** instead of the sd lead: after
     /// the blind lead, declarer plays every card single-dummy over
-    /// `--declarer-worlds` auction-consistent worlds while the defense stays
+    /// `--declarer-worlds` range-consistent worlds while the defense stays
     /// double-dummy.  The pessimist bracket for slam aggression (plain DD is
     /// the optimist); far slower per board — use on slam-sized divergent sets
     #[arg(long, default_value_t = false)]

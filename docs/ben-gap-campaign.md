@@ -255,8 +255,8 @@ passed hand at ~6.3 mean HCP.
   the strong tier's byte-identical complement), 1NT signoff ≤ 13 with no
   six-card major; trap-pass advances (trivial gates) and floor passes
   correctly read nothing. Replay sampling un-short-circuits Pass too
-  (`set_rule_accept`): the sample-level exact complement rejects
-  would-have-opened/preempted candidates — the disjunctive half the
+  (`set_rule_accept`): the sample-level authored complement (within
+  `MARGIN`) rejects would-have-opened/preempted candidates — the disjunctive half the
   envelope can't hold. Same-seed probe (BEN annotations grafted from
   `probe-nv-ben.jsonl`, 9,130/9,160 rows; the on-arm auction stream is
   row-identical to `probe-nv-table.jsonl`): truth violations **97 → 97

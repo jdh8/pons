@@ -13,7 +13,7 @@
 //!
 //! This harness re-runs the original invite-vs-pass experiment for the whole class
 //! (`hcp(8) & balanced()` no four-card major) under **SD-PD**: the opening lead is
-//! chosen single-dummy over auction-consistent worlds (so 1NT/2NT stop being scored
+//! chosen single-dummy over range-consistent worlds (so 1NT/2NT stop being scored
 //! as if the defenders saw all 26 cards), and the resulting trick count is scored
 //! through the perfect-defense doubling rule (`ns_score_pd_tricks`) so an overreached
 //! invite that fails still pays the doubled penalty a real opponent would exact.  For

@@ -8,7 +8,7 @@
 //! bidding (`sample_layouts` is reached only by `ev_all` and this sd-lead
 //! scorer). So their value surfaces only where a sampler runs. The sd-lead
 //! scorer is the shipped one: the leader (declarer's LHO) picks a card
-//! single-dummy over `sd_worlds` auction-consistent layouts, then play is
+//! single-dummy over `sd_worlds` range-consistent layouts, then play is
 //! double-dummy on the real deal (`single_dummy_leads`). `dnf` keeps a
 //! disjunctive reading's separate boxes (a two-suiter overcall pins to a true
 //! shape instead of the bounding box); `gauge` makes the sampled hands respect

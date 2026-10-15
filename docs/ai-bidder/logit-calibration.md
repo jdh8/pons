@@ -294,7 +294,10 @@ keeps the survivors equal-weighted; importance weights keep every layout but a
 heavy-tailed `w` collapses the effective sample size (`(Σw)² / Σw²`) toward a
 handful of layouts. `examples/probe-replay-yield.rs` is the tuning tool for
 both, and until a search consumer is live the hard 3-nat `MARGIN` stays,
-documented as a yield heuristic rather than a calibrated quantity.
+documented as a yield heuristic rather than a calibrated quantity. What
+today's sampler conditions on is therefore **relaxed authored-rule
+conditioning**, not the posterior given the auction; §4e pre-registers the
+comparison that would price the gap.
 
 **The rollout harness.** The KR1 gate for everything above. At a decision
 node take the proposal's **top-k (k = 3)** calls, deterministic (no sampling);
@@ -1174,6 +1177,107 @@ the money. Neither is `M = 8`.
   settle it is the per-decision agreement between the `M = 8` and `M = 128`
   selections, which these seven runs contain but do not print. **Flagged**; a
   `--dump-decisions` flag is the cheap way to look.
+
+## 4e. Strict, full-policy and relaxed replay — design, **owed**
+
+Pre-registered 2026-10-16 for
+[research-method-review.md](../research-method-review.md) §7. Not built, not
+run.
+
+**The question.** The shipped sampler (`sample_layouts_replay`, knob
+`rule_accept`, default on) keeps a world when every non-actor's authored call
+ranks within `MARGIN = 3.0` nats of that seat's best legal logit. A call at an
+unauthored or tombstoned node abstains (`made_plausibly`). Rungs are
+precedence (§1): rescaling them leaves the production argmax alone but moves
+this acceptance set. So "the worlds the bidder would bid this way" is a claim
+nothing has measured. The bidder is deterministic, so exact rejection on full
+reproduction *is* the self-play posterior; the comparison prices how far the
+relaxation sits from it.
+
+**Arms**, one shared `SEED_BASE`, the same decisions and the same draw
+budgets (`REPLAY_DRAW_CAP`, `REPLAY_DRY_LIMIT`):
+
+| arm | accept a world iff | isolates |
+| --- | --- | --- |
+| `relaxed` | the shipped `sample_layouts_replay`, unchanged | — (the control) |
+| `strict` | as `relaxed`, with margin 0: each authored call is a legal argmax (ties accepted); same abstentions | `MARGIN`; invariant to rung rescaling |
+| `full` | every non-actor call, authored or not, equals `select_legal_call` of the full bidder (book + floors) on that seat's hand; no abstention, no range conjunction | `MARGIN` and the abstentions; exact self-play conditioning |
+| `range` | `sample_layouts` | the known-failing control (exact-posterior.md Phase 3b) |
+
+**Seams** (pass `--seam` as `auction_key` prints it):
+
+- **S1, primary:** opener after `1♠ - 2♠ -` and `1♥ - 2♥ -`. The registered
+  Phase 3b seam, so the `relaxed` and `range` arms have two prior readings
+  (the same deals in the main, #6). Mostly authored: `strict` vs `relaxed`
+  isolates the margin.
+- **S2:** responder after `1NT (X)`. The one starved auction in
+  `probe-replay-yield` (replay fill 40%). Prices acceptance under stress.
+- **S3:** opener after `1♥ (2♣) 2♥ (3♣)`. Contested; the advancer's raise is
+  expected floor-made, so `relaxed` abstains where `full` does not. If the
+  build's abstention counter shows that node authored, swap in another
+  competitive-raise seam before the run, not after.
+
+**Measures**, per arm per seam:
+
+1. **Acceptance:** draws per kept world, µs per world, abstentions per world,
+   and the short-fill rate (decisions with fewer than `M` worlds).
+2. **Calibration:** the randomised PIT of the true deal among the `M` worlds,
+   for partner's HCP and for the actor's side's double-dummy tricks in the
+   strain of the book call's final contract. A calibrated sampler gives a
+   uniform PIT; report KS distance and a 10-bin histogram. `full` is uniform
+   by construction, which makes it the harness check. Also report how often a
+   `full` world fails `within_ranges` — the reading's unsoundness at the seam.
+3. **Paired true-deal gain:** Phase 3b's selector (both-scorer rule, 0.25 IMP
+   margin, the book's rungs as candidates) judged on the true deal, plain and
+   PD, per decision and per board, per vulnerability cell. Plus the paired
+   arm differences `relaxed − full` and `strict − relaxed` on the decisions
+   every compared arm fills.
+
+**Sizes.** `M = 64`. Census first (`-m 0`, 20,000 deals). Then each seam at
+the deal count that yields ≥ 5,000 decisions, capped at 2,400,000 deals; S1
+is 600,000 deals (~8,200 decisions). Generator v2, one fresh `SEED_BASE` for
+every arm and seam. Cost at S1: ~257 solves per decision at ~6 ms is ~1.5 s,
+~3.5 h of main-thread solving, plus `full`'s draw time, which is unknown
+(replay ran to 11 ms per world at `1NT (X)`). Under `scripts/idle-run.sh`.
+
+**Decision rule**, fixed before any run. δ = 0.002 IMPs/board (house value;
+at S1's ~1.4% reach that is ~0.14 IMPs per decision).
+
+1. **Harness.** `full`'s PIT must be uniform (KS p ≥ 0.01, both quantities)
+   at every seam where it fills ≥ 90% of decisions. Else the probe is wrong:
+   stop and trace.
+2. **The doc claim.** At a seam `full` fills, `relaxed` reads as "a validated
+   approximation of the self-play posterior" iff `relaxed − full` per board
+   has a 95% lower bound above −δ on both scorers **and** its PIT KS distance
+   is at most twice `full`'s. Otherwise the docs keep "relaxed authored-rule
+   conditioning" and record the measured gap.
+3. **The margin.** `strict` replaces `MARGIN = 3.0` for a future search
+   consumer iff it fills ≥ 90% of decisions at every seam, `strict − relaxed`
+   has a lower bound above −δ on both scorers, and its PIT is no worse.
+   Otherwise the margin stays a yield heuristic.
+4. **The sampler.** `full` is the recommended M8 sampler iff it fills ≥ 90%
+   at every seam at ≤ 10× `relaxed`'s µs per world and is non-inferior (same
+   δ rule) to both other arms. A seam `full` cannot fill gives no reference:
+   read `strict` vs `relaxed` there and claim nothing about the posterior.
+5. `range` decides nothing; it is the control the record already fails.
+
+Nothing ships from this. The sampler is off the default bidding path (§2),
+so the outcomes change doc claims and M8's sampler choice, not a call.
+
+**Build, owed.** No `src/` change: `Bidder::authored_at`,
+`Bidder::tombstoned_at`, `classify` and `table::select_legal_call` are public.
+
+- `examples/probe-seam-lookahead`: an `--arms` list with probe-local accept
+  closures for `strict` and `full` over `fill_deals`, at the library's draw
+  budgets; the `relaxed` arm stays the library call, so it is the shipped
+  code. Add the acceptance counters, the PIT columns and the paired
+  arm-difference rows.
+- `examples/probe-replay-yield`: fix its bare `Context` first (§7: its range
+  fill is vacuous), then add `strict` and `full` fill columns as the no-DD
+  acceptance pre-check over its fifteen auctions.
+- `examples/probe-rollout-label` already keeps independent selection and
+  validation pools from the replay sampler; it is the place to repeat
+  measure 2 at authored nodes beyond the three seams if S1–S3 disagree.
 
 ## 5. Doc drift corrected
 

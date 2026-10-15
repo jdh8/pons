@@ -4,9 +4,15 @@
 //! *worth*.  This module answers that with a Monte-Carlo rollout grounded in
 //! cardplay:
 //!
-//! 1. **Deal the unknowns.**  [`sample_layouts`] deals the other three hands
-//!    consistent with everything the auction has shown (the actor's own hand is
-//!    pinned, so every layout is a full deal this auction could have come from).
+//! 1. **Deal the unknowns.**  Deal the other three hands within everything the
+//!    auction has shown, the actor's own hand pinned.  Under
+//!    [`rule_accept`][field@crate::bidding::inference::ReadingProfile::rule_accept]
+//!    (default on) that is
+//!    [`sample_layouts_replay`][crate::bidding::sampler::sample_layouts_replay],
+//!    topped up by [`sample_layouts`] when it starves; off, [`sample_layouts`]
+//!    alone.  Both are sound supersets of the deals that could produce the
+//!    auction, not its posterior: replay is relaxed authored-rule conditioning,
+//!    range sampling is range-only.
 //! 2. **Finish the auction.**  Seed the candidate call onto the prior auction
 //!    and let a *continuation policy* bid it out — all four seats bid the same
 //!    policy (a self-play assumption: "what happens if everyone plays like us").

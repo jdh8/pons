@@ -69,7 +69,7 @@ double-dummy on the actual deal.  One batched trick-one `Target::Legal` solve
 per world prices all thirteen candidate leads; the actual deal rides in the
 same batch and converts the chosen lead into declarer tricks.  Under this
 scorer, *disclosure finally has a price*: an overcall directs partner's lead,
-a penalty double sharpens the sampling posterior, and a silent pass leaves the
+a penalty double narrows the leader's sampled worlds, and a silent pass leaves the
 lead blind.  Cells are therefore compared at **auction** granularity (the same
 contract reached through a different auction can get a different lead), so
 sd-lead swings exist where plain/pd swings are structurally zero.

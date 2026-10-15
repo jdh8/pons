@@ -1,7 +1,7 @@
 //! Price the learned trick evaluator against the truth it amortizes.
 //!
 //! The net claims to replace the expensive half of a accountant-style floor: sample
-//! auction-consistent layouts, solve each double-dummy, read off the trick
+//! range-consistent layouts, solve each double-dummy, read off the trick
 //! distribution. This harness runs *both* at the same held-out decision nodes
 //! and reports how far apart they land.
 //!

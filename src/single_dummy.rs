@@ -10,15 +10,15 @@
 //!   answers contract-choice questions.
 //! - [`single_dummy_leads`] / [`single_dummy_lead_tricks`] — **the opening
 //!   leader's view**: pick the blind lead that maximizes expected defensive
-//!   tricks over auction-consistent worlds, then play the actual deal
-//!   double-dummy from that card.  This scores a *reached contract* under the
+//!   tricks over worlds inside the auction's readings, then play the actual
+//!   deal double-dummy from that card.  This scores a *reached contract* under the
 //!   one information asymmetry that dominates real-vs-DD results at partscore
 //!   level (Pavlicek: 1NT makes 67.7% at the table vs 60.5% double-dummy).
 //! - [`single_dummy_playout`] / [`single_dummy_declarer_tricks`] —
 //!   **declarer's view during play**: after the lead, declarer chooses every
-//!   card by the same Monte-Carlo double-dummy averaging over worlds
-//!   consistent with the auction and the cards seen, while the defenders
-//!   play on double-dummy.  This prices the *other* seam — declarer's
+//!   card by the same Monte-Carlo double-dummy averaging over worlds inside
+//!   the auction's readings and consistent with the cards seen, while the
+//!   defenders play on double-dummy.  This prices the *other* seam — declarer's
 //!   misguesses, which dominate at the slam level where the lead gap tapers
 //!   to zero and plain DD is systematically optimistic for the side bidding
 //!   more slams.
@@ -556,7 +556,8 @@ pub fn single_dummy_playout(
 /// Blind lead, then single-dummy declarer play: the table-proxy bracket
 ///
 /// Composes the two modelled information seams: the opening leader chooses
-/// blind over `n` auction-consistent worlds ([`single_dummy_lead_tricks`]),
+/// blind over `n` worlds inside the auction's readings
+/// ([`single_dummy_lead_tricks`]),
 /// then declarer plays the deal out single-dummy over `k` worlds per decision
 /// ([`single_dummy_playout`]).  `leader_inferences` reads the auction from
 /// the leader's seat and `declarer_inferences` from declarer's — the two

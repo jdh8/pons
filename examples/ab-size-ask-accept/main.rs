@@ -11,7 +11,7 @@
 //! accepted game with doubled failures a realistic blind lead would dodge — the
 //! same two effects that flipped the invite-vs-pass verdict.  This harness
 //! re-prices accept-16 under **SD-PD**: the opening lead is chosen single-dummy
-//! over auction-consistent worlds, and the trick count scored through the
+//! over range-consistent worlds, and the trick count scored through the
 //! perfect-defense doubling rule (`ns_score_pd_tricks`).  For the gradient the
 //! swing is also reported plain-DD, DD-PD, and plain-SD.
 //!
