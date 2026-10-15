@@ -500,7 +500,38 @@ now says so.
 
 ## 4 Disclosure in SD dump rescoring
 
-**P1 — recorded harness defect, unresolved.**
+**Cause confirmed and the dump harness fixed 2026-10-16 (`7c60e309`).**
+`ab-dump-sd` read every seat through the plain partnership, which decodes the
+opponents' calls only when alerted. Our pair sits North–South, so when we
+declared, the East–West leader saw only our alerted calls: West read the
+unalerted `(1NT) 2♥` as `points 8..37` under both 9–14 and 20–37. A
+North–South leader was unaffected after 2026-08-16. The alerted negative
+double reaches both leaders today; its July inertness probably came from the
+unpinned decode contexts fixed 2026-08-09 (inferred, not verified).
+`common::DumpReader` reads East–West with our partnership declared as its
+opponent, so every North–South call decodes off its authoring rule. The band
+now moves 195 of 300 diagnostic leads and 48 trick counts (legacy: 0 and 0);
+the default system is byte-identical (`smoke-default`, 20,000 auctions).
+Reports print `leader reading: disclosed|legacy`, and
+`--legacy-leader-reading` reproduces old outputs; regression tests in
+`examples/ab-dump-sd/tests.rs`.
+
+**Open.** (1) The self-play SD harnesses read the leader the same way:
+`ab-nt-defense-matrix`, `ab-point-count`, `ab-dnf-sd-lead`,
+`ab-meckstroth-2nt`, `ab-notrump-minors`, `ab-forcing-nt-two-suiter`,
+`ab-fuzzy-strength`, `ab-size-ask-*`, `ab-nt-splinter`, `ab-one-nt-runout`.
+(2) Four verdicts rest on SD pricing the disclosure of an unalerted call of
+ours, and need a re-measure: the natural overcall HCP floor of 8 with its
+advance (`defensive-overcalls.md`, CHANGELOG 2026-08-23), the 8:14 overcall
+band (`archive/point-count-threshold-campaign.md`, `convention-tuning.md`),
+Modern negative doubles' sd overrule of the vul-PD −0.026
+(`competitive-book.md`), and the weak-two HCP knobs (self-play
+`ab-point-count`). Thirteen more cite the sd row but stand on DD or on an
+alerted call (`nt_overcall_systems_on`'s major cells the strongest).
+
+The original finding, for the record:
+
+**P1 — recorded harness defect.**
 [measurement.md](measurement.md#scorers-srcscoringrs) records that changing the ON overcall
 reading from 9–14 to an absurd 20–37 reproduces the same IMPs, as does dropping
 the modern-negative-double flag. The intended disclosure manipulation is inert.
@@ -640,7 +671,19 @@ sampled-projection.md was corrected (default on since `74d783d`).
 
 ## 8 Sampling fallbacks and changes to the model
 
-**P2 — implemented behaviour with unmeasured effect on published verdicts.**
+**Instrumented 2026-10-16 (`fe2fdc41`).** `SampleStats` (requested, draws,
+accepted, fallback draws, fallback) comes back from `*_with_stats` siblings
+of `sample_layouts`, `sample_defender_remnants`, `ev_all`,
+`single_dummy_leads`, `single_dummy_playout` and
+`single_dummy_declarer_tricks`; the plain functions are wrappers with the
+same worlds and RNG stream. `ab-dump-sd` prints a `Sampling` line per arm. On
+the wide Lebensohl seed (t24 vs t23, none, 16 worlds) 0.92–0.99% of leader
+worlds were unconstrained fallback, on 1.93% of the 881 fired boards, at
+0.19% acceptance (about 530 draws per kept world). **Open:** the other SD
+harnesses, the sd-playout line on real data, and the sensitivity comparison
+(a `--fallback-policy as-is|common|drop` over the degraded boards).
+
+The original finding:
 [single_dummy.rs](../src/single_dummy.rs), `single_dummy_leads`, fills a short
 range sample with unconstrained worlds. [ev.rs](../src/bidding/ev.rs),
 `ev_all`, tops up replay with range-only worlds. Mid-play
@@ -661,7 +704,22 @@ than topped up) and by `probe-replay-yield`; no A/B reports it.
 
 ## 9 SD objectives calibration and scenario bounds
 
-**P2 — confirmed model limitations, not an erroneous DDS result.**
+**Partly resolved 2026-10-16 (`36d01481`).** `single_dummy_playout_with` and
+`DeclarerObjective::Make(need)` add an opt-in safety-play declarer (most
+sampled worlds that make, ties by mean tricks); the default stays
+mean-tricks, pinned by a golden test. A same-layout, same-strain unit test (a
+four-card notrump ending, ♠AQ finesse against the ace, worlds solved by DDS)
+shows mean-tricks and 7NT finessing where 6NT takes the safety play. On
+`probe-slam-battery --make` the objective does not fix the recorded detours:
+one-way onside 80→70% and double-hook 60→85% at 16 worlds, 85→85% and
+85→80% at 64. The detours track world count, not the objective; the residual
+64-world leak is unexplained (strategy fusion is a guess). measurement.md now
+calls plain/PD and the SD pair per-arm scenario checks, not bounds on a paired
+delta, with the imperfect-doubler counterexample. **Open:** sensitivity to
+objective, λ and shave on an actual divergent population; the aligned-cell λ
+fit; the opening lead still maximizes mean tricks.
+
+The original finding:
 [single_dummy.rs](../src/single_dummy.rs), `declarer_choice`, maximizes mean
 tricks; the playout interface has strain but no contract level. Mean tricks
 and making a contract are different objectives. As an illustrative example,
@@ -699,7 +757,23 @@ individual arms do not imply bounds from subtracting like endpoints.
 
 ## 10 Dataset identity and label transplantation
 
-**P2 — confirmed guarantees are incomplete; actual contamination is unquantified.**
+**Partly resolved 2026-10-16 (`82d4a60d`).** The trainer's validation cut now
+moves forward to the next provable board start (an opening row, features
+20/41, with a dealer hand unlike the previous opener's so `--replay` tables
+stay together). The new tail is a subset of the old one; `--row-split`
+reproduces old manifests, and weights sidecars record `val_split`.
+`splice-labels.py` and `features-v8.md` now say that neither the positional
+path (one-hot/DD/tags) nor the key (summary context, no cell) proves the
+auction prefix. `splice-labels.py --validate` counts unmatched, ambiguous,
+shared and identity-mismatched transplants, identity rebuilt from each chunk.
+**New finding:** the key omits the cell, and the uniform shards' rotation went
+from six cells to three, yet 84–85% of rows key-matched, so probably a third
+or more of the uniform rows took a label from another cell (it matters only
+where the M32 cut relabelled the row). **Open:** run `--validate` on the 20
+M32 shards (the data is not on this box); a stored per-row identity sibling
+for future dumps.
+
+The original finding:
 
 [trainer/src/data.rs](../trainer/src/data.rs), `load_mixture`, divides each
 stem at `rows - round(rows * val_frac)`. It stores no board boundary for the

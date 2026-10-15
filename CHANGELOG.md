@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ab-dump-sd`'s blind leader now reads our unalerted calls (2026-10-16).**
+  East–West read North–South's calls through the plain partnership, which
+  decodes the opponents' calls only when alerted, so an unalerted natural call
+  (the `(1NT) 2♥` overcall band, a free bid's range) never reached the leader:
+  `--on-ns-overcall 20:37` reproduced the 9:14 numbers to the last IMP. East–West
+  now reads with our partnership declared as its opponent (`common::DumpReader`).
+  On 300 diagnostic `(1NT) 2♥` deals the band now moves 195 leads (before: 0).
+  sd-lead and SD-PD numbers from before this change are not comparable; reports
+  print `leader reading:`, and `--legacy-leader-reading` reproduces old ones.
+  Four verdicts that rested on SD pricing that disclosure need a re-measure
+  (`docs/research-method-review.md` §4). Default system byte-identical.
+
+- **The trainer's validation split no longer cuts a board in two
+  (2026-10-16).** The cut moves to the next board start; `--row-split` keeps the
+  old behaviour. `scripts/splice-labels.py --validate` audits a splice for
+  unmatched, ambiguous and identity-mismatched transplants (review §10).
+
 - **A/B runs verify their shards and pin their deal set (2026-10-16).**
   `bba-gen` writes each shard to a temp file and renames it after an fsync, so
   a killed worker leaves a hole rather than a truncated shard, and
