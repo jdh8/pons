@@ -4742,7 +4742,11 @@ pub(super) fn lebensohl_package() -> Package {
                     }
                     entries.extend(rows_of(
                         Pattern::after(NT, &format!("{relay} 3{} -", Strain::from(signoff))),
-                        lebensohl_signoff_raise(signoff, 6),
+                        if agreements.competition.lebensohl_signoff_raise {
+                            lebensohl_signoff_raise(signoff, 6)
+                        } else {
+                            multi_signoff_pass()
+                        },
                     ));
                 }
 

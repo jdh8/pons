@@ -17,6 +17,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`competition.lebensohl_signoff_raise` and its re-measure (2026-10-16,
+  [#9](https://github.com/jdh8/pons/issues/9)).** The 0.10.0 stretch, where a
+  maximum 1NT opener raises `1NT (2♠) 2NT - 3♣ - 3♥ -` to `4♥`, shipped
+  knobless on one seed's "positive in every cell" with no CI. It now has a
+  knob (default on, so the default system is byte-identical), a matching
+  `bba-gen --no-ns-lebensohl-signoff-raise`, and `bba-gen
+  --filter-lebensohl-raise` (a 1NT candidate with three-plus hearts, its LHO
+  five-plus spades, its partner five-plus hearts and at most 11 HCP: 1
+  accepted deal per 212 scanned, 0.3% of them diverging).
+  `scripts/ab-lebensohl-signoff-raise.sh`, 384k accepted boards per arm per
+  vulnerability, `SEED_BASE` 1792096531615205258, gate 0 foreign. On − off,
+  IMPs per fired board, none/both: plain DD +0.31/+1.60, PD −0.71/+0.04,
+  sd-lead +0.96/+2.69, SD-PD +0.12/+1.41. **Plain win | PD loss**: the
+  doubling-artifact row, so the stretch is not proven. The weak sign-off is
+  6–7 HCP on 98% of fired boards, so the raise bids a 23–24 point game. The
+  losses sit on three trumps and on 15–16 HCP openers that reach the bar by
+  upgraded points. The default stays on pending a decision. Bidding
+  untouched.
+
 - **`ab-dump-diff --metric reference`: the reference-relative IMP gain
   (2026-10-16, [#8](https://github.com/jdh8/pons/issues/8)).** The module doc
   claimed the shared BBA table "cancels in the subtraction"; it cancels in raw

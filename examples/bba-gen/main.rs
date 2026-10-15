@@ -330,6 +330,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_multi_slam: bool,
 
+    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
+    /// hold five-plus spades and its **partner** five-plus hearts with at most
+    /// 11 HCP, the candidate itself three-plus hearts: the
+    /// `1NT (2♠) 2NT - 3♣ - 3♥ -` lane where a maximum opener may stretch the
+    /// weak sign-off to game (`competition.lebensohl_signoff_raise`).  Loose
+    /// on purpose: it gates a *scan*, not a call (see `--filter-landy`).
+    ///
+    /// Enrichment, not isolation: the headline stays IMPs per *accepted*
+    /// deal, and arms under this flag pair **only with each other**.
+    #[arg(long, default_value_t = false)]
+    filter_lebensohl_raise: bool,
+
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
     /// default (it ships): the responder structure + the encircling chase.
@@ -968,6 +980,13 @@ struct Args {
     /// `scripts/ab-2d-multi-doubler.sh`.
     #[arg(long, default_value_t = false)]
     no_ns_multi_doubler_major: bool,
+
+    /// Withhold the maximum 1NT opener's stretch of the weak relay sign-off
+    /// to game (`competition.lebensohl_signoff_raise`, on by default): over
+    /// `1NT (2♠) 2NT - 3♣ - 3♥ -` opener then passes every hand.  The control
+    /// arm of `scripts/ab-lebensohl-signoff-raise.sh`.
+    #[arg(long, default_value_t = false)]
+    no_ns_lebensohl_signoff_raise: bool,
     /// Split responder's `P`/`X` over their `(2♦)` Multi by **information**:
     /// `X` = game values, or an invitation with a four-card major
     ///
@@ -2652,6 +2671,12 @@ fn is_minor_slam_shaped(hand: Hand) -> bool {
     (hand[Suit::Clubs].len() >= 6 || hand[Suit::Diamonds].len() >= 6) && hand_hcp(hand) >= 9
 }
 
+/// The weak heart sign-off hand, for `--filter-lebensohl-raise`: looser than
+/// the relay's `hcp(6..)` floor and its weak ceiling.
+fn is_weak_heart_signoff(hand: Hand) -> bool {
+    hand[Suit::Hearts].len() >= 5 && hand_hcp(hand) <= 11
+}
+
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
 /// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
@@ -3046,6 +3071,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         ),
     };
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
+    agreements.competition.lebensohl_signoff_raise = !args.no_ns_lebensohl_signoff_raise;
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
@@ -3792,6 +3818,18 @@ fn main() -> anyhow::Result<()> {
                 is_1nt_opener(deal[seat])
                     && is_multi_shaped(deal[seat.lho()])
                     && is_minor_slam_shaped(deal[seat.partner()])
+            })
+        {
+            continue;
+        }
+        // Same paired scan, three seats: the 1NT candidate with a heart fit,
+        // its spade-overcalling LHO and its partner, the weak responder.
+        if args.filter_lebensohl_raise
+            && !Seat::ALL.iter().any(|&seat| {
+                is_1nt_opener(deal[seat])
+                    && deal[seat][Suit::Hearts].len() >= 3
+                    && deal[seat.lho()][Suit::Spades].len() >= 5
+                    && is_weak_heart_signoff(deal[seat.partner()])
             })
         {
             continue;

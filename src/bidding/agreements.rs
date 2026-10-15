@@ -332,6 +332,21 @@ pub struct CompetitionKnobs {
     ///
     /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
+    /// Let a maximum 1NT opener stretch responder's weak relay sign-off in a
+    /// major to game (`1NT (2♠) 2NT - 3♣ - 3♥ -` → `4♥`)
+    ///
+    /// Opener raises on 23 combined points against the relay's 6-HCP floor,
+    /// one point less per trump beyond three.  Off, opener passes every
+    /// sign-off.  **On by default** since 0.10.0, whose evidence was one seed
+    /// read "positive in every cell" without a CI.
+    ///
+    /// **Re-measured 2026-10-16: plain DD win | PD loss**, the decision
+    /// table's doubling-artifact row (`scripts/ab-lebensohl-signoff-raise.sh`,
+    /// 384k `--filter-lebensohl-raise` boards per arm per vulnerability).  On
+    /// against off, IMPs per fired board, none/both: plain +0.31/+1.60, PD
+    /// −0.71/+0.04, SD-PD +0.12/+1.41.  The default stays on, unproven, pending
+    /// a decision (docs/research-method-review.md § Issue #9).
+    pub lebensohl_signoff_raise: bool,
     /// Add the game-forcing minor cues to the Landy counter (N1b)
     ///
     /// `2♥` = GF 5+ clubs, `2♠` = GF 5+ diamonds — cues of their shown majors
@@ -2100,6 +2115,7 @@ impl Default for CompetitionKnobs {
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
+            lebensohl_signoff_raise: true,
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,
             defense_2c_landy_cue_floor: true,
