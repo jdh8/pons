@@ -37,6 +37,21 @@
 # `both`), `old` is the unrepaired one (= the recorded `shipped`).  Same arms, same
 # diffs, renamed.
 #
+# The status-unknown rows (2026-10-15): shipped defaults whose plain-DD CI was
+# never recorded and whose dumps are gone, each against the alternative its own
+# A/B shipped over, at the same declared 1,228,800 boards/arm/vul —
+#
+#   competitive-4333   flat 4-3-3-3 never cue-Staymans   --ns-competitive-4333 allow
+#   takeout-support    12+ X needs every unbid suit      --ns-takeout-support off
+#   diamond-transfer   our contested 2NT ♦ transfer      --no-ns-comp-over-diamond-transfer
+#   point-scale        PointCount (linearised upgrade)   --ns-point-scale rule-of-n-floored
+#
+# point-scale covers two rows: PointCount and the linearised upgrade that won it
+# back from rule of N+8 are one comparison (the cliff upgrade is gone).  The RKCB
+# queen ask has no off arm to run (its knob was deleted: BBA always relays).
+# penalty-no-pull ran too (2026-10-15) and moved 0 of 2,457,600 boards; its knob
+# and `--ns-allow-pull` were removed, so the case is gone.
+#
 # Every diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
 # and PD; SD-PD is reported for the four knobs (the k8 floor diverges on too
@@ -125,6 +140,26 @@ for vul in none both; do
             sddiff "$lever" off "$vul"
         done
         diffpair shipped floor "$vul"
+        ;;
+    competitive-4333)
+        arm allow "$vul" --ns-competitive-4333 allow
+        diffpair shipped allow "$vul"
+        sddiff shipped allow "$vul"
+        ;;
+    takeout-support)
+        arm off "$vul" --ns-takeout-support off
+        diffpair shipped off "$vul"
+        sddiff shipped off "$vul"
+        ;;
+    diamond-transfer)
+        arm off "$vul" --no-ns-comp-over-diamond-transfer
+        diffpair shipped off "$vul"
+        sddiff shipped off "$vul"
+        ;;
+    point-scale)
+        arm ruleofn "$vul" --ns-point-scale rule-of-n-floored
+        diffpair shipped ruleofn "$vul"
+        sddiff shipped ruleofn "$vul"
         ;;
     *) echo "ab-non-inferiority: unknown experiment $E" >&2; exit 2 ;;
     esac

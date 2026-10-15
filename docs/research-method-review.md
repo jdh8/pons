@@ -23,7 +23,7 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; five rows still unknown, two near-bound rows await jdh8 |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ awaiting a repair); `PointCount` (sizing) and the RKCB queen ask (no off arm) await jdh8 |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
@@ -117,6 +117,30 @@ were about ±0.0002, so a plain lower bound near −δ is implausible.
 `set_competition_over_diamond_transfer` fired on about 400 of 1M filtered
 boards, about 0.0076% of drawn boards against the 0.0083% bound, but the
 count is rounded and the density is estimated.
+
+**Status-unknown re-measures (run 2026-10-15, sha `d3ef9787`-dirty with
+`tree.patch`, 96 × 12,800 = 1,228,800 boards per arm and cell vs BBA,
+`ab-results/issue7-unknown/<experiment>/`, each with its own `seed`).** Each
+diff is shipped − the alternative the row's own A/B shipped over; cells are
+none / both. Deals disjoint from every earlier #7 run (above).
+
+| Change vs alternative | Plain DD | PD | SD plain / SD-PD | Fired | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `competitive_4333` `suppress` vs `allow` | +9 / −1 IMPs in all | +29 / +21 IMPs | −33 / −6, −7 / +10 IMPs | 9 / 7 boards | **non-inferior**: below the δ / 24 bound |
+| `penalty_no_pull` vs `--ns-allow-pull` | 0 | 0 | 0 | **0 boards** | **inert**: the latch's pull rules live in `instinct()` and never moved a call under the shipped floor. Knob removed 2026-10-15 (jdh8), the no-pull gate hard-wired; `smoke-default` byte-identical (20,000 auctions, seed 1) |
+| `takeout_support` strict vs off | +0.0003 ±0.0011 / +0.0004 ±0.0014 | **+0.0035 ±0.0013 / +0.0061 ±0.0017** | −0.0006 ±0.0012 / **−0.0020 ±0.0015** (both); SD-PD +0.0011 ±0.0013 / **+0.0018 ±0.0016** | 1.3% | **non-inferior \| win**: proven. Plain SD loses both-vul beyond δ while SD-PD wins: the gate trades undoubled partscores for fewer doubled minuses |
+| `competition_over_diamond_transfer` vs off | **−0.0001 ±0.0001 / −0.0002 ±0.0001** | **−0.0005 ±0.0002 / −0.0005 ±0.0002** | −0.0001 / **−0.0002 ±0.0001**; SD-PD **−0.0004 / −0.0005** | 94 / 63 boards | **loss \| loss** inside δ, −1.3 to −9.3 IMPs per fired board |
+
+The diamond-transfer loss is opener's reply to an overcall above `3♣`
+(`diamond_overcalled_high`), not the doubled branch. Every one of the
+five worst PD boards per cell is `1NT - 2NT (3♥/3♠)` and then either opener's `3NT` (17+ HCP
+and a stopper, "to play" opposite a transfer that may hold nothing) or
+opener's penalty `X` followed by responder's `3NT`. That answer is
+unauthored, so the floor pulls a weak diamond hand to notrump. Off, we pass
+and they play `3M` undoubled. Repairs to measure, each reversible: drop the
+`3NT` rung; author responder's answer to the `X` (pass, `4♦` with six);
+or switch only the high-overcall rows off. The default stays on until one
+is measured: jdh8's call.
 
 Three more sat outside their own row and were re-measured (below).
 `longer_major_response` shipped on the naturalness tiebreak with a PD *loss*
@@ -257,6 +281,17 @@ default-on. With them the reverse is **non-inferior \| non-inferior** vs no
 reverse (worst lower bounds −0.0004 PD none, −0.0002 plain none) and wins
 SD-PD both-vul, so `forcing_nt_two_suiter` stays on, now proven. The five-heart
 cap alone still loses PD to no reverse; the HCP floor carries the repair.
+
+**Deal independence (#6 gate, checked 2026-10-15).** `deal-overlap` over the
+`shipped-none` arm of every #7 run — the five first-round re-measures
+(`ab-results/non-inferiority/`, run on dl02 and copied here), the two repairs
+(`issue7-repairs/`), `longer-major-response` and `reverse-levers`
+(`issue7-remeasure/`) and the first status-unknown run
+(`issue7-unknown/competitive-4333`): **0 shared deals in all 45 pairs**.
+Positive control: two arms of one experiment share all 1,228,800. So the
+reverse-levers `old − off` replication of the first-round two-suiter loss and the
+`longer_major_response` re-measure stand on deals disjoint from the runs they
+confirm or supersede.
 
 **Recorded trade-offs.** Each default is kept without a proof; the loss it
 accepts is its worst plain-DD lower bound per board.

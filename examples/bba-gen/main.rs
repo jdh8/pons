@@ -703,6 +703,14 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_upgrade_closure: Option<bool>,
 
+    /// The scale our side's strength gauges count on
+    /// (`ReadingProfile::point_scale`): `point-count` (raw HCP + the capped
+    /// shape upgrade), `rule-of-n-floored` (rule of N+8, flat 4-3-3-3 at raw
+    /// HCP), `rule-of-n` or `hcp`.  Unset = the engine default (`point-count`).
+    /// The #7 re-measure's off arm is `rule-of-n-floored`, the scale it deposed.
+    #[arg(long, value_name = "point-count|rule-of-n-floored|rule-of-n|hcp")]
+    ns_point_scale: Option<String>,
+
     /// Our side reads every made call for its strength **ceilings**, not just its
     /// floors (`ReadingProfile::strength_ceilings`, crate default on): `points`,
     /// `hcp` and `support_points` each project their two-sided band instead of
@@ -2827,6 +2835,18 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
     if let Some(v) = args.ns_upgrade_closure {
         agreements.decision.reading.upgrade_closure = v;
+    }
+    if let Some(scale) = &args.ns_point_scale {
+        use pons::bidding::constraint::PointScale;
+        agreements.decision.reading.point_scale = match scale.as_str() {
+            "point-count" => PointScale::PointCount,
+            "rule-of-n-floored" => PointScale::RuleOfNFloored,
+            "rule-of-n" => PointScale::RuleOfN,
+            "hcp" => PointScale::Hcp,
+            other => anyhow::bail!(
+                "--ns-point-scale must be point-count|rule-of-n-floored|rule-of-n|hcp, got {other:?}"
+            ),
+        };
     }
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;

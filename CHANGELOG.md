@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   latch alone, the shipped behaviour. `smoke-default` byte-identical (20,000
   auctions, seed 1). **Breaking** for `web/` and any caller of the field.
 
+- **The #7 status-unknown rows re-measured (2026-10-15,
+  [#7](https://github.com/jdh8/pons/issues/7)).** Four shipped defaults
+  with no recorded plain-DD CI, each against the alternative it shipped over,
+  vs BBA at 1,228,800 boards per arm and cell (none / both, shipped − alt).
+  `competitive_4333` `suppress` vs `allow` fires on 9 / 7 boards, below the
+  δ / 24 bound: non-inferior. `takeout_support` strict vs off: plain DD
+  +0.0003 ±0.0011 / +0.0004 ±0.0014, PD **+0.0035 ±0.0013 / +0.0061
+  ±0.0017**, **non-inferior | win**, now proven (plain SD loses both-vul,
+  −0.0020 ±0.0015, while SD-PD wins +0.0018). `competition_over_diamond_transfer`
+  vs off **loses** inside δ on every DD cell (plain −0.0001 / −0.0002 ±0.0001,
+  PD −0.0005 ±0.0002, −1.3 to −9.3 IMPs per fired board): opener's `3NT`
+  and penalty `X` over `1NT - 2NT (3♥/3♠)` land a weak diamond responder
+  in `3NT`. It stays on pending a repair. No #7 run shares a deal with
+  another (`deal-overlap`, 45 pairs). `bba-gen --ns-point-scale` adds the
+  `PointCount` off arm. Bidding untouched.
+
 - **Every whole-experiment A/B reporter prints a non-inferiority verdict
   (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).** The eight
   standalone `parity` / ahead / behind classifiers (`ab-accountant-floor`,
