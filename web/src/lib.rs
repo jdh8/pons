@@ -1105,7 +1105,6 @@ knob!(set_settle_floor, settle_floor, decision.instinct.settle_floor: bool);
 knob!(set_penalize_escape_stack, penalize_escape_stack, decision.instinct.penalize_escape_stack: bool);
 knob!(set_penalize_escape_values, penalize_escape_values, decision.instinct.penalize_escape_values: bool);
 knob!(set_uvu_encircle, uvu_encircle, decision.instinct.uvu_encircle: bool);
-knob!(set_penalty_no_pull, penalty_no_pull, decision.instinct.penalty_no_pull: bool);
 knob!(set_advancer_xx_runout, advancer_xx_runout, decision.instinct.advancer_xx_runout: bool);
 knob!(set_forcing_ceiling_read, forcing_ceiling_read, decision.instinct.forcing_ceiling_read: bool);
 knob!(set_doubler_xx_runout, doubler_xx_runout, instinct.doubler_xx_runout: bool);
@@ -1140,7 +1139,7 @@ knob!(set_advance_sohl_style, advance_sohl_style, defense.advance_sohl_style: am
 /// Prefixing either with `"opponent:"` resolves it against the other pair.
 /// The engine has plenty of knobs that read nothing while another is off —
 /// `set_advance_rubens` under `set_rich_advance_double`,
-/// `set_penalty_no_pull` under the latch, `set_uvu_encircle` under `set_uvu` —
+/// `set_penalize_escape_stack` under the runout, `set_uvu_encircle` under `set_uvu` —
 /// and rendering those as equal, independently clickable peers (often in a
 /// different section from their master) is a lie the UI tells about what the
 /// bidder will do.  A gated row renders disabled until its master is armed.
@@ -1702,7 +1701,6 @@ static SETTINGS: &[Setting] = &[
     gated("penalize_escape_values", FLOOR, "", true, set_penalize_escape_values, penalize_escape_values, "one_nt_runout"),
     gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),
     gated("penalty_latch", FLOOR, "", true, set_penalty_latch, penalty_latch, "notrump_defense=natural"),
-    gated("penalty_no_pull", FLOOR, "", true, set_penalty_no_pull, penalty_no_pull, "penalty_latch"),
     toggle("advancer_xx_runout", FLOOR, "", true, set_advancer_xx_runout, advancer_xx_runout),
     toggle("forcing_ceiling_read", FLOOR, "", true, set_forcing_ceiling_read, forcing_ceiling_read),
     toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),

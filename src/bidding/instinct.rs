@@ -208,22 +208,6 @@ pub struct InstinctProfile {
     /// machinery.  The defensive mirror of
     /// [`DoubleStyle`][super::american::DoubleStyle].
     pub latch_style: LatchStyle,
-    /// Suppress the doubler's constructive pulls of its own penalty double
-    ///
-    /// **Default on.**  While the penalty latch holds, the natural suit and
-    /// notrump overcall rules still fire for the doubler (a double is not a
-    /// bid), so a 15+ balanced doubler "competes" to `2NT`/`3NT`/a major
-    /// opposite a likely-broke partner — the dominant defense leak.  On, those
-    /// pulls step aside and the doubler defends by passing or latch-doubles
-    /// their escape.  It is independent of the latch's double-handling (this
-    /// stops only the *bids*) and a no-op unless the latch itself is on.
-    ///
-    /// DD-measured against BBA's 2/1 on the isolated 1NT-defense match (8000
-    /// we-defend boards per seed): the penalty-`X` bucket goes **−2.312 →
-    /// −1.013 IMPs per X-board vulnerable** (paired +0.058 IMPs/board overall,
-    /// 95% CI [+0.030, +0.085]) and is neutral non-vulnerable (+0.007, CI
-    /// straddles 0); the swing is isolated to the `X` bucket.
-    pub penalty_no_pull: bool,
     /// A weak advancer runs from their redoubled penalty double
     ///
     /// **Default on.**  After our natural penalty double of their `1NT`, their
@@ -705,7 +689,6 @@ impl Default for InstinctProfile {
             uvu_encircle: true,
             settle_floor: true,
             latch_style: LatchStyle::Penalty,
-            penalty_no_pull: true,
             advancer_xx_runout: true,
             nt_responder_game_floor: 9,
             suppress_nt_gf_over_double: true,
@@ -758,7 +741,6 @@ impl InstinctProfile {
             uvu_encircle: false,
             settle_floor: false,
             latch_style: LatchStyle::Optional,
-            penalty_no_pull: false,
             advancer_xx_runout: false,
             nt_responder_game_floor: 10,
             suppress_nt_gf_over_double: false,
@@ -4523,13 +4505,20 @@ fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| penalty_latched(context))
 }
 
-/// The doubler may make a constructive overcall: either the no-pull knob is off,
-/// or we are not in the penalty stance ([`penalty_latched`]).  Gates the
-/// overcall-shaped rules that fire off [`we_have_not_bid`] (a double is not a bid).
+/// The doubler may make a constructive overcall: we are not in the penalty
+/// stance ([`penalty_latched`])
+///
+/// Gates the overcall-shaped rules that fire off [`we_have_not_bid`]: a double
+/// is not a bid, so without this a 15+ balanced doubler of their `1NT`
+/// "competes" to `2NT`/`3NT`/a major opposite a likely-broke partner.  It stops
+/// only the *bids*; the latch's double-handling is separate.  Measured against
+/// BBA on the isolated 1NT-defense match (8000 we-defend boards per seed): the
+/// penalty-`X` bucket went −2.312 → −1.013 IMPs per X-board vulnerable (paired
+/// +0.058 IMPs/board, 95% CI [+0.030, +0.085]).  The `penalty_no_pull` knob
+/// that once switched it off is gone: under the shipped net floor it moved 0 of
+/// 2,457,600 boards vs BBA (issue #7, 2026-10-15).
 fn may_pull_penalty() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| {
-        !(pinned(context).penalty_no_pull && penalty_latched(context))
-    })
+    pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
 }
 
 /// The penalty latch is *not* in force (the takeout-double default applies)

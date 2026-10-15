@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `penalty_no_pull` knob is gone; its no-pull gate is hard-wired
+  (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).** Re-measured
+  against `--ns-allow-pull` vs BBA at 1,228,800 boards per arm and cell, it
+  moved **0 of 2,457,600 boards**: the doubler's pull rules live in
+  `instinct()`, and under the shipped floor they never decided a call. The
+  instinct field, `bba-gen --ns-allow-pull` and the web toggle
+  (`set_penalty_no_pull`) are removed, and `may_pull_penalty` now reads the
+  latch alone, the shipped behaviour. `smoke-default` byte-identical (20,000
+  auctions, seed 1). **Breaking** for `web/` and any caller of the field.
+
 - **Every whole-experiment A/B reporter prints a non-inferiority verdict
   (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).** The eight
   standalone `parity` / ahead / behind classifiers (`ab-accountant-floor`,

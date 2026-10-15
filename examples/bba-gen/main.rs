@@ -2224,12 +2224,6 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_union_hull: bool,
 
-    /// Restore the doubler's constructive pulls of its own penalty X of BBA's 1NT
-    /// (default off = pulls suppressed): with this set, a latched doubler may again
-    /// "compete" to 2NT/3NT/a major over the opponents' escape instead of defending.
-    #[arg(long, default_value_t = false)]
-    ns_allow_pull: bool,
-
     /// Disable the advancer's runout from BBA's redoubled penalty X (default on):
     /// after `(1NT) X (XX)`, a weak advancer sits for `1NTxx` instead of escaping to
     /// its long suit.
@@ -2861,7 +2855,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.preempt_4m_top_honors = args.ns_preempt_4m_top_honors;
     agreements.decision.instinct.preempt_4m_require_ace = !args.no_ns_preempt_4m_ace;
     agreements.decision.instinct.correct_3nt_to_major = !args.no_ns_correct_3nt_to_major;
-    agreements.decision.instinct.penalty_no_pull = !args.ns_allow_pull;
     agreements.decision.instinct.advancer_xx_runout = !args.no_ns_xx_runout;
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
