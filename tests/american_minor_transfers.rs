@@ -426,14 +426,14 @@ fn weak_diamond_hands_are_untouched_by_the_splinter_lane() {
 
 // --- They overcall the transfer: responder captain -------------------------
 //
-// `competition.diamond_transfer_responder_captain` (default off, A/B owed)
-// drops opener's 3NT rung over `1NT - 2NT (3♥)` and authors responder's
-// answer to opener's penalty double.  The whole sequence through the bound
-// partnership, both knob states.
+// `competition.diamond_transfer_responder_captain` (default on since
+// 2026-10-15) drops opener's 3NT rung over `1NT - 2NT (3♥)` and authors
+// responder's answer to opener's penalty double.  The whole sequence through
+// the bound partnership, both knob states.
 
-fn partnership_responder_captain() -> Partnership {
+fn partnership_opener_captain() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.competition.diamond_transfer_responder_captain = true;
+    agreements.competition.diamond_transfer_responder_captain = false;
     american(&agreements).bind()
 }
 
@@ -448,8 +448,8 @@ fn transfer_overcalled_hearts() -> Vec<Call> {
 }
 
 #[test]
-fn opener_3nt_over_their_overcall_is_the_shipped_default() {
-    let system = partnership();
+fn opener_3nt_over_their_overcall_without_responder_captain() {
+    let system = partnership_opener_captain();
     assert_eq!(
         best_call(&system, &transfer_overcalled_hearts(), "AQx.KJx.Axx.KJxx"),
         call(3, Strain::Notrump),
@@ -458,7 +458,7 @@ fn opener_3nt_over_their_overcall_is_the_shipped_default() {
 
 #[test]
 fn captain_opener_passes_and_responder_answers_the_double() {
-    let system = partnership_responder_captain();
+    let system = partnership();
     // Opener's 17 with a stopper passes; with four hearts it doubles.
     assert_eq!(
         best_call(&system, &transfer_overcalled_hearts(), "AQx.KJx.Axx.KJxx"),

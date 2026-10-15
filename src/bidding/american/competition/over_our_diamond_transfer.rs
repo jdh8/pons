@@ -2,10 +2,11 @@
 //!
 //! Opener's replies after the opponents double or overcall our 2NT diamond transfer
 //! are authored under `agreements.competition.competition_over_diamond_transfer`.
-//! Its sub-knob `diamond_transfer_responder_captain` (default off, A/B owed)
+//! Its sub-knob `diamond_transfer_responder_captain` (default on since 2026-10-15)
 //! removes opener's `3NT` rung over a high overcall and authors responder's
-//! answer to opener's penalty double there — see [`diamond_overcalled_captain`]
-//! and [`diamond_pulls_penalty`].
+//! answer to opener's penalty double there and opener's pass of the `4♦` pull —
+//! see [`diamond_overcalled_captain`], [`diamond_pulls_penalty`] and
+//! [`diamond_pull_accepted`].
 
 use super::*;
 
@@ -109,6 +110,17 @@ fn diamond_pulls_penalty(over: Suit) -> Rules {
     rules.rule(Call::Pass, 20, hcp(0..))
 }
 
+/// Opener's answer to responder's `4♦` pull of the penalty double
+/// (`1NT - 2NT (3♥) X - 4♦ -`), under `diamond_transfer_responder_captain`
+///
+/// The pull is a signoff by the captain: six diamonds and at most one card in
+/// their suit, which opener's four there cannot improve.  Pass.  Unauthored,
+/// this seat belonged to the floor, which bid `4♠` on all 44 such auctions of
+/// the 2026-10-15 three-arm A/B; responder then passed it or ran to `5♦`.
+fn diamond_pull_accepted() -> Rules {
+    Rules::new().rule(Call::Pass, 20, hcp(0..))
+}
+
 /// Competition over our own `2NT` diamond transfer as a row package
 /// (`agreements.competition.competition_over_diamond_transfer`, default on)
 ///
@@ -140,8 +152,8 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
 
             // Our 2NT overcalled.  `3♣` leaves the `3♦` completion legal; a
             // higher overcall (`3♦` cue / `3♥` / `3♠`) keeps `3NT`/`X`/Pass
-            // natural — or, with responder captain, `X`/Pass and responder's
-            // answer to the `X`.
+            // natural — or, with responder captain, `X`/Pass, responder's
+            // answer to the `X` and opener's pass of the `4♦` pull.
             entries.extend(rows_of(
                 Pattern::after(TWO_NT, "(3♣)"),
                 diamond_overcalled_low(),
@@ -160,6 +172,12 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
                         Pattern::after(TWO_NT, &format!("{over} X -")),
                         diamond_pulls_penalty(suit),
                     ));
+                    if suit != Suit::Diamonds {
+                        entries.extend(rows_of(
+                            Pattern::after(TWO_NT, &format!("{over} X - 4♦ -")),
+                            diamond_pull_accepted(),
+                        ));
+                    }
                 } else {
                     entries.extend(rows_of(
                         Pattern::after(TWO_NT, over),

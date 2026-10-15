@@ -2037,10 +2037,10 @@ struct Args {
 
     /// Responder captain after they overcall our 2NT diamond transfer above
     /// 3♣: no opener 3NT rung, responder answers opener's penalty X (pass, or
-    /// 4♦ with six diamonds and a short suit). Sub-knob of the above (default
-    /// off; the #7 repair's on arm).
+    /// 4♦ with six diamonds and a short suit, which opener passes). Sub-knob
+    /// of the above (**shipped default-on 2026-10-15**; this is the off arm).
     #[arg(long, default_value_t = false)]
-    ns_diamond_transfer_captain: bool,
+    no_ns_diamond_transfer_captain: bool,
 
     /// Author our defense to the opponents' 2NT diamond transfer
     /// (`(1NT) - (2NT)`): X = lead-directing diamonds, 3♦ cue = both majors,
@@ -3101,7 +3101,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.competition_over_minor_transfer = !args.no_ns_comp_over_minor_transfer;
     agreements.competition.competition_over_diamond_transfer =
         !args.no_ns_comp_over_diamond_transfer;
-    agreements.competition.diamond_transfer_responder_captain = args.ns_diamond_transfer_captain;
+    agreements.competition.diamond_transfer_responder_captain =
+        !args.no_ns_diamond_transfer_captain;
     // The defensive book — what we play when they open.  Every field is
     // assigned, never merely set, for the same "arm, build, re-arm" reason the
     // cells were; the per-family payloads at the end now stay at the shipped

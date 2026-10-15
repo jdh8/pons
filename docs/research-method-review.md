@@ -23,7 +23,7 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ, its repair built 2026-10-15 behind `diamond_transfer_responder_captain`, three-arm A/B owed); `PointCount` running at 5,120,000 boards/arm/vul (launched 2026-10-15); the RKCB queen ask superseded (no off arm) |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ, its repair `diamond_transfer_responder_captain` shipped default-on 2026-10-15 on a three-arm A/B); `PointCount` proven win \| win 2026-10-15; the RKCB queen ask superseded (no off arm) |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
@@ -144,9 +144,10 @@ is measured: jdh8's call.
 
 **Decided 2026-10-15 (jdh8, grill rounds 1–2).** Three dispositions:
 
-- *Diamond transfer*: repair, not a trade-off. Built behind the default-off
-  sub-knob `competition.diamond_transfer_responder_captain` (`bba-gen
-  --ns-diamond-transfer-captain`): opener's `3NT` rung is gone over
+- *Diamond transfer*: repair, not a trade-off. Built behind the sub-knob
+  `competition.diamond_transfer_responder_captain` (`bba-gen
+  --ns-diamond-transfer-captain` then, `--no-ns-diamond-transfer-captain`
+  now): opener's `3NT` rung is gone over
   `1NT - 2NT (3♦/3♥/3♠)` (opener doubles with four of their suit or passes,
   responder captain) and responder's answer to the penalty `X` is authored
   (pass; `4♦` with six diamonds and at most one card in their suit).
@@ -156,6 +157,31 @@ is measured: jdh8's call.
   captain, package off, diffs captain − shipped and captain − off, plain DD +
   PD + SD; the knob flips on if captain is non-inferior | win over shipped
   and not behind off, and the package turns off if off beats both.
+
+  *First run* (`ab-results/issue7-unknown/diamond-captain/`, `df306e32`-dirty,
+  SEED_BASE 1792065277114931076): captain − shipped **win \| win** in both
+  cells (plain +0.0001 / +0.0002, PD +0.0003 / +0.0002, ±0.0001), but
+  captain − off plain non-inferior, PD **loss** inside δ (−146 / −166 IMPs,
+  −0.0001 ±0.0001). Traced: after the authored pull `1NT - 2NT (3♥/3♠) X -
+  4♦ -`, opener's call was the floor's, and it was `4♠` on **all 44** such
+  auctions over both cells; responder passed it or ran to `5♦`. Repaired:
+  opener passes the pull (`diamond_pull_accepted`); `smoke-default`
+  byte-identical (20,000 auctions, seed 1).
+
+  *Re-run* (`ab-results/issue7-unknown-r2/diamond-captain/`, fresh SEED_BASE
+  1792067229587040987, same size; deals disjoint from the first run):
+
+  | Diff (none / both) | Plain DD | PD | SD plain / SD-PD | Fired | Verdict |
+  | --- | --- | --- | --- | --- | --- |
+  | captain − shipped | +0.0001 / +0.0001 | **+0.0003 / +0.0003** | +23 / +32 IMPs, non-inferior; SD-PD **+0.0002 / +0.0002** | 65 / 43 boards | **win \| win** (+166 / +168 plain, +404 / +326 PD IMPs) |
+  | captain − off | +0.0001 / +0.0000 | −0.0000 / −0.0001 | +87 / −23 IMPs; SD-PD −30 / −87 IMPs, non-inferior | 67 / 44 boards | **non-inferior \| non-inferior** (+102 / +51 plain, −45 / −72 PD IMPs) |
+
+  All intervals ±0.0001. Opener now passes the pull on every board (26 / 21
+  auctions). Captain's worst boards against off are the `(3♣)` lane, which
+  the knob does not touch. **Shipped default-on 2026-10-15**; the package
+  stays on, since off beats neither. The worst cell's lower bound per board is
+  above −δ on both scorers for both diffs, so this is a proof, not a
+  trade-off.
 - *`PointCount` and the linearised `upgrade`*: one fresh A/B vs
   `rule-of-n-floored`, declared 5,120,000 boards/arm/vul (a 2,000-board
   pilot moved our auction on ~14.5% of boards at σ ≈ 2.3 IMPs/board), plain
@@ -171,8 +197,8 @@ is measured: jdh8's call.
 
   **Win \| win** in both cells, +0.31 to +0.34 IMPs per fired board: the
   `PointCount` default and its linearised `upgrade` are proven, and no
-  trade-off is recorded. Deals drawn from a fresh SEED_BASE (deal-overlap
-  check owed with the diamond-captain run).
+  trade-off is recorded. Deals drawn from a fresh SEED_BASE, disjoint from
+  every other #7 run (below).
 - *RKCB queen ask*: **superseded**. The ask is structural now (the knob is
   deleted and BBA always relays), so no off arm exists to measure; the
   surviving evidence is 10M self-play boards per cell with PD intervals of
@@ -328,7 +354,11 @@ cap alone still loses PD to no reverse; the HCP floor carries the repair.
 Positive control: two arms of one experiment share all 1,228,800. So the
 reverse-levers `old − off` replication of the first-round two-suiter loss and the
 `longer_major_response` re-measure stand on deals disjoint from the runs they
-confirm or supersede.
+confirm or supersede. Re-checked after the status-unknown rows: adding
+`takeout-support`, `diamond-transfer`, `point-scale` and both diamond-captain
+runs gives 15 `shipped-none` arms, **0 shared deals in all 105 pairs**; the
+positive control (the r2 run's `shipped` and `captain` arms) shares all
+1,228,800.
 
 **Recorded trade-offs.** Each default is kept without a proof; the loss it
 accepts is its worst plain-DD lower bound per board.

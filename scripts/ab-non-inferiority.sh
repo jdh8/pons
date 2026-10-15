@@ -57,7 +57,15 @@
 # answer to the penalty X authored; --ns-diamond-transfer-captain), shipped, and
 # the package off.  Diffs are `captain vs shipped` and `captain vs off` (positive =
 # captain gains).  The knob flips on if captain is non-inferior | win over shipped
-# and not behind off; the package turns off if off beats both.
+# and not behind off; the package turns off if off beats both.  The first run
+# (results root ab-results/issue7-unknown) lost to off on PD through a hole:
+# opener's answer to responder's 4♦ pull was the floor's 4♠ on all 44 boards.
+# The re-run (root ab-results/issue7-unknown-r2, fresh SEED_BASE) has opener pass.
+#
+# The captain shipped default-on on the re-run (2026-10-15), so the arms below are
+# now spelled with the off-switch: `shipped` is the captain (= the recorded
+# `captain`), `old` is the 3NT-rung table (= the recorded `shipped`).  Same arms,
+# same diffs, renamed.
 #
 # Every other diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
@@ -168,12 +176,12 @@ for vul in none both; do
         sddiff shipped off "$vul"
         ;;
     diamond-captain)
-        arm captain "$vul" --ns-diamond-transfer-captain
+        arm old "$vul" --no-ns-diamond-transfer-captain
         arm off "$vul" --no-ns-comp-over-diamond-transfer
-        diffpair captain shipped "$vul"
-        diffpair captain off "$vul"
-        sddiff captain shipped "$vul"
-        sddiff captain off "$vul"
+        diffpair shipped old "$vul"
+        diffpair shipped off "$vul"
+        sddiff shipped old "$vul"
+        sddiff shipped off "$vul"
         ;;
     point-scale)
         arm ruleofn "$vul" --ns-point-scale rule-of-n-floored

@@ -80,14 +80,10 @@ fn diamond_overcalled_low_still_completes() {
 
 #[test]
 fn diamond_overcalled_high_three_notrump_with_stopper() {
-    // 1NT - 2NT (3♥): no 3♦ left; maximum (18) + heart stopper → 3NT.
-    let auction = [
-        call(1, Strain::Notrump),
-        Call::Pass,
-        call(2, Strain::Notrump),
-        call(3, Strain::Hearts),
-    ];
-    let (c, floored) = bid_diamond(&auction, "AQx.KJx.Qx.AKxxx");
+    // 1NT - 2NT (3♥) without responder captain: no 3♦ left; maximum (18) +
+    // heart stopper → 3NT.
+    let (arm, auction) = overcalled_hearts(false);
+    let (c, floored) = best_call_with(&arm, &auction, "AQx.KJx.Qx.AKxxx");
     assert_eq!(c, call(3, Strain::Notrump));
     assert!(!floored, "the 3NT must come from the book");
 }
@@ -216,9 +212,22 @@ fn captain_responder_defends_their_doubled_diamond_cue() {
 }
 
 #[test]
-fn shipped_responder_answer_to_the_penalty_double_is_floor_owned() {
-    // Off: the seat is unauthored — the hole the knob fills.
+fn captain_opener_passes_the_4d_pull() {
+    // `1NT - 2NT (3♥) X - 4♦ -`: four hearts and a maximum, still a signoff.
+    let (arm, mut auction) = doubled_hearts(true);
+    auction.extend([call(4, Strain::Diamonds), Call::Pass]);
+    let (c, floored) = best_call_with(&arm, &auction, "AQx.KJ9x.Ax.KJxx");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the pass comes from the book");
+}
+
+#[test]
+fn uncaptained_responder_answer_to_the_penalty_double_is_floor_owned() {
+    // Captain off: the seat is unauthored — the hole the knob fills.
     let (arm, auction) = doubled_hearts(false);
     let (_, floored) = best_call_with(&arm, &auction, "xxx.x.KJxxxx.xxx");
-    assert!(floored, "shipped, responder's answer falls to the floor");
+    assert!(
+        floored,
+        "captain off, responder's answer falls to the floor"
+    );
 }

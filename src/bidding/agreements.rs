@@ -598,11 +598,12 @@ pub struct CompetitionKnobs {
     /// −1.3 to −9.3 IMPs per fired board).  On: the `3NT` rung is gone, opener
     /// only doubles (4+ in their suit, penalty) or passes, and over the `X`
     /// responder passes (the default: opener holds their suit) or pulls to
-    /// `4♦` with six diamonds and at most one card in their suit.  Responder
-    /// after opener's pass stays with the floor, as today.
+    /// `4♦` with six diamonds and at most one card in their suit, which opener
+    /// passes.  Responder after opener's pass stays with the floor, as today.
     ///
-    /// **Off by default** (`--ns-diamond-transfer-captain` in `bba-gen` for the
-    /// on arm); A/B owed (three arms: shipped, captain, package off).
+    /// **On by default** (shipped 2026-10-15 on a three-arm A/B: win | win
+    /// over the old table, non-inferior | non-inferior over the package off;
+    /// `--no-ns-diamond-transfer-captain` in `bba-gen` is the off arm).
     pub diamond_transfer_responder_captain: bool,
     /// Author continuations when they contest our Jacoby transfer
     ///
@@ -2111,7 +2112,7 @@ impl Default for CompetitionKnobs {
             weak_two_competition: false,
             strong_two_competition: true,
             competition_over_diamond_transfer: true,
-            diamond_transfer_responder_captain: false,
+            diamond_transfer_responder_captain: true,
             competition_over_transfer: false,
             competition_over_minor_transfer: true,
             competition_over_stayman: true,

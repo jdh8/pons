@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`competition.diamond_transfer_responder_captain` — the #7 repair of the
   contested `2NT` diamond transfer (2026-10-15,
-  [#7](https://github.com/jdh8/pons/issues/7)); default off, A/B owed.**
+  [#7](https://github.com/jdh8/pons/issues/7)); shipped default-on, win |
+  win.**
   The shipped package's re-measure read loss | loss inside δ (PD −0.0005
   ±0.0002 both cells, −1.3 to −9.3 IMPs per fired board), and every worst
   board was `1NT - 2NT (3♥/3♠)` followed by opener's `3NT` (17+ with a
@@ -21,13 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   four of their suit or passes; responder is captain) and responder answers
   the `X`: pass, or `4♦` with six diamonds and at most one card in their
   suit (over their `3♥`/`3♠`; over the `3♦` cue that shape cannot exist, so
-  the lane is pass-only). `bba-gen --ns-diamond-transfer-captain`, web
-  `set_diamond_transfer_responder_captain` (gated on the package). Default
-  byte-identical (`smoke-default`, 20,000 auctions, seed 1). Three-arm A/B
-  (shipped / captain / package off) at 1,228,800 boards/arm/vul owed; the
+  the lane is pass-only), and opener passes the `4♦` pull. Three-arm A/B at
+  1,228,800 boards/arm/vul on fresh deals: vs the old table **win | win**
+  (plain +0.0001 ±0.0001, PD +0.0003 ±0.0001 in both cells; +166 / +168
+  plain and +404 / +326 PD IMPs over 65 / 43 fired boards); vs the package
+  off non-inferior | non-inferior, so the package stays on. A first run
+  without opener's pass lost to off on PD inside δ: the floor answered the
+  pull with `4♠` on all 44 boards. `bba-gen --no-ns-diamond-transfer-captain`
+  is the off arm, web `set_diamond_transfer_responder_captain` (gated on the
+  package, now default on). The
   disposition of the RKCB queen ask (superseded: no off arm, 10M self-play
-  boards at PD ±0.0002) and the `PointCount` run (5,120,000 boards/arm/vul,
-  in flight) are recorded in `docs/research-method-review.md`.
+  boards at PD ±0.0002) and the `PointCount` run (below) are recorded in
+  `docs/research-method-review.md`.
 
 ### Changed
 
