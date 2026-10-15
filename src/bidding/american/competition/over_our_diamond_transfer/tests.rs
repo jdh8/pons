@@ -205,6 +205,17 @@ fn captain_responder_pulls_to_4d_with_six_and_a_stiff() {
 }
 
 #[test]
+fn captain_responder_defends_their_doubled_diamond_cue() {
+    // `1NT - 2NT (3♦) X -`: no pull shape exists over their diamonds, so even
+    // a long-diamond hand leaves the double in — from the book.
+    let (arm, mut auction) = doubled_hearts(true);
+    auction[3] = call(3, Strain::Diamonds);
+    let (c, floored) = best_call_with(&arm, &auction, "xxx.xx.KJxxxx.xx");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the leave-in comes from the book");
+}
+
+#[test]
 fn shipped_responder_answer_to_the_penalty_double_is_floor_owned() {
     // Off: the seat is unauthored — the hole the knob fills.
     let (arm, auction) = doubled_hearts(false);

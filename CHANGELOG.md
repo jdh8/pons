@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weak diamond hand to `3NT`. On, the `3NT` rung is gone (opener doubles with
   four of their suit or passes; responder is captain) and responder answers
   the `X`: pass, or `4♦` with six diamonds and at most one card in their
-  suit. `bba-gen --ns-diamond-transfer-captain`, web
+  suit (over their `3♥`/`3♠`; over the `3♦` cue that shape cannot exist, so
+  the lane is pass-only). `bba-gen --ns-diamond-transfer-captain`, web
   `set_diamond_transfer_responder_captain` (gated on the package). Default
   byte-identical (`smoke-default`, 20,000 auctions, seed 1). Three-arm A/B
   (shipped / captain / package off) at 1,228,800 boards/arm/vul owed; the

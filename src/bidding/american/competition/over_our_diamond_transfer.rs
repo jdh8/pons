@@ -92,17 +92,21 @@ fn diamond_overcalled_captain(over: Suit) -> Rules {
 ///
 /// Opener showed four of their suit opposite responder's known diamonds, so
 /// defending is the default; the one pull is the shape that cannot defend —
-/// six diamonds and at most one card in their suit — which plays `4♦`.
+/// six diamonds and at most one card in their suit — which plays `4♦`.  Over
+/// their `3♦` cue that shape cannot exist, so the lane is pass-only.
 /// Unauthored, this seat belongs to the floor, which pulled weak diamond hands
 /// to `3NT` on every worst board of the 2026-10-15 re-measure.
 fn diamond_pulls_penalty(over: Suit) -> Rules {
-    Rules::new()
-        .rule(
+    let rules = if over == Suit::Diamonds {
+        Rules::new()
+    } else {
+        Rules::new().rule(
             Bid::new(4, Strain::Diamonds),
             80,
             len(Suit::Diamonds, 6..) & len(over, ..2),
         )
-        .rule(Call::Pass, 20, hcp(0..))
+    };
+    rules.rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Competition over our own `2NT` diamond transfer as a row package
