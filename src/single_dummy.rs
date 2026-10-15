@@ -47,7 +47,10 @@ use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::fill_deals;
 use contract_bridge::hand::{Holding, Rank};
 use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{Board, CurrentTrick, NonEmptyStrainFlags, Objective, Play, Solver, Target, TrickCount};
+use ddss::{
+    Board, CurrentTrick, FoundPlays, NonEmptyStrainFlags, Objective, Play, Solver, Target,
+    TrickCount,
+};
 use rand::Rng;
 
 /// Monte-Carlo single-dummy trick distribution for a declaring side
@@ -331,12 +334,82 @@ fn trick_winner(leader: Seat, trick: &[Card], trump: Option<Suit>) -> Seat {
     winner
 }
 
+/// What the single-dummy declarer optimizes at each decision
+///
+/// Mean tricks and making a contract are different objectives: twelve sure
+/// tricks make six, while a line worth thirteen in 80% of layouts and ten in
+/// the rest averages 12.4 tricks yet fails six one time in five.  The default
+/// [`MeanTricks`][Self::MeanTricks] has no contract level and so cannot play
+/// safe for one; [`Make`][Self::Make] can.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum DeclarerObjective {
+    /// Maximize declarer's mean tricks over the sampled worlds (the shipped
+    /// default — overtrick-greedy, contract-blind)
+    #[default]
+    MeanTricks,
+    /// Maximize the share of sampled worlds in which declarer's side takes at
+    /// least this many tricks in all (`6 + level`), ties broken by mean
+    /// tricks — a safety-play declarer.  A target above thirteen never makes,
+    /// so it degenerates to [`MeanTricks`][Self::MeanTricks].
+    Make(u8),
+}
+
+/// Pick declarer's card from per-world `Target::Legal` solves
+///
+/// `won` is the tricks declarer's side has already taken in completed tricks;
+/// each solved score counts the rest, the current trick included.  Ties keep
+/// a deterministic order: the last maximum in `candidates`' fixed order, as in
+/// the lead scorer.
+fn pick_declarer_card(
+    candidates: &[Card],
+    worlds: &[FoundPlays],
+    objective: DeclarerObjective,
+    won: u8,
+) -> Card {
+    match objective {
+        DeclarerObjective::MeanTricks => {
+            // Total declarer-side tricks per candidate across the worlds.
+            let mut totals: Vec<(Card, u64)> = candidates.iter().map(|&card| (card, 0)).collect();
+            for world in worlds {
+                for (card, total) in &mut totals {
+                    *total += score_of(&world.plays, *card);
+                }
+            }
+            totals
+                .into_iter()
+                .max_by_key(|&(_, total)| total)
+                .expect("a non-forced turn has candidates")
+                .0
+        }
+        DeclarerObjective::Make(need) => {
+            // (worlds made, total tricks) per candidate, compared
+            // lexicographically: making first, mean tricks as the tie-break.
+            let mut tallies: Vec<(Card, (u64, u64))> =
+                candidates.iter().map(|&card| (card, (0, 0))).collect();
+            for world in worlds {
+                for (card, (makes, total)) in &mut tallies {
+                    let tricks = score_of(&world.plays, *card);
+                    *makes += u64::from(u64::from(won) + tricks >= u64::from(need));
+                    *total += tricks;
+                }
+            }
+            tallies
+                .into_iter()
+                .max_by_key(|&(_, tally)| tally)
+                .expect("a non-forced turn has candidates")
+                .0
+        }
+    }
+}
+
 /// Card-by-card playout state for [`single_dummy_playout`]
 struct Playout<'a> {
     solver: Solver,
     strain: Strain,
     trump: Option<Suit>,
     declarer: Seat,
+    /// What declarer's single-dummy choices optimize
+    objective: DeclarerObjective,
     /// The auction read from **declarer's** perspective
     inferences: &'a Inferences,
     /// Unplayed cards per seat
@@ -392,8 +465,8 @@ impl Playout<'_> {
         }
     }
 
-    /// Declarer's single-dummy pick: best mean outcome over `k` worlds
-    /// consistent with declarer's view
+    /// Declarer's single-dummy pick: best outcome under `self.objective`
+    /// over `k` worlds consistent with declarer's view
     fn declarer_choice(
         &self,
         candidates: &[Card],
@@ -436,20 +509,12 @@ impl Playout<'_> {
             })
             .collect();
 
-        // Total declarer-side tricks per candidate across the worlds;
-        // `max_by_key` keeps a deterministic tie-break (the last maximum in
-        // the candidates' fixed order), as in the lead scorer.
-        let mut totals: Vec<(Card, u64)> = candidates.iter().map(|&card| (card, 0)).collect();
-        for world in self.solver.solve_boards(&objectives) {
-            for (card, total) in &mut totals {
-                *total += score_of(&world.plays, *card);
-            }
-        }
-        totals
-            .into_iter()
-            .max_by_key(|&(_, total)| total)
-            .expect("a non-forced turn has candidates")
-            .0
+        pick_declarer_card(
+            candidates,
+            &self.solver.solve_boards(&objectives),
+            self.objective,
+            self.declarer_tricks,
+        )
     }
 
     /// A defender's double-dummy best card on the actual position
@@ -521,7 +586,10 @@ impl Playout<'_> {
 ///   soft-constrained by the auction reading
 ///   ([`sample_defender_remnants`][crate::bidding::sample_defender_remnants])
 ///   — are solved double-dummy, and the candidate with the best mean
-///   declarer outcome is played on the **actual** deal.
+///   declarer outcome is played on the **actual** deal.  This objective is
+///   contract-blind: it will risk the contract for an overtrick whenever the
+///   risky line's mean is higher — [`single_dummy_playout_with`] takes a
+///   [`DeclarerObjective::Make`] target instead.
 /// - **Defender turns** play the double-dummy best card of the actual
 ///   position (perfect defense — the conservative side kept from plain DD).
 /// - **Forced turns** (one legal sequence) are played without solving.
@@ -555,12 +623,50 @@ pub fn single_dummy_playout(
     rng: &mut impl Rng,
     k: usize,
 ) -> TrickCount {
-    single_dummy_playout_with_stats(deal, strain, declarer, lead, inferences, rng, k).0
+    single_dummy_playout_with(
+        deal,
+        strain,
+        declarer,
+        lead,
+        inferences,
+        rng,
+        k,
+        DeclarerObjective::MeanTricks,
+    )
 }
 
-/// [`single_dummy_playout`] with its [`SampleStats`]: the same tricks for the
-/// same `rng`, plus the sampling of every non-forced declarer decision summed
-/// ([`requested`][SampleStats::requested] is `k` per decision;
+/// [`single_dummy_playout`] with an explicit declarer objective
+///
+/// [`DeclarerObjective::MeanTricks`] is exactly [`single_dummy_playout`] —
+/// same worlds, same cards, same result for the same `rng`.
+/// [`DeclarerObjective::Make`] instead plays each declarer-side decision for
+/// the share of sampled worlds that reach the target (a safety-play
+/// declarer), breaking ties by mean tricks.  The defenders are unchanged:
+/// double-dummy trick maximization on the actual position, which on a known
+/// layout also defeats any contract that can be defeated.
+///
+/// # Panics
+///
+/// As [`single_dummy_playout`].
+#[must_use]
+// Each argument is a distinct fact of the position, as in `single_dummy_declarer_tricks`.
+#[allow(clippy::too_many_arguments)]
+pub fn single_dummy_playout_with(
+    deal: &FullDeal,
+    strain: Strain,
+    declarer: Seat,
+    lead: Card,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    k: usize,
+    objective: DeclarerObjective,
+) -> TrickCount {
+    single_dummy_playout_with_stats(deal, strain, declarer, lead, inferences, rng, k, objective).0
+}
+
+/// [`single_dummy_playout_with`] with its [`SampleStats`]: the same tricks for
+/// the same `rng`, plus the sampling of every non-forced declarer decision
+/// summed ([`requested`][SampleStats::requested] is `k` per decision;
 /// [`fallback`][SampleStats::fallback] counts the worlds topped up hard-only
 /// because the soft auction reading starved)
 ///
@@ -568,6 +674,8 @@ pub fn single_dummy_playout(
 ///
 /// As [`single_dummy_playout`].
 #[must_use]
+// Each argument is a distinct fact of the position, as in `single_dummy_declarer_tricks`.
+#[allow(clippy::too_many_arguments)]
 pub fn single_dummy_playout_with_stats(
     deal: &FullDeal,
     strain: Strain,
@@ -576,6 +684,7 @@ pub fn single_dummy_playout_with_stats(
     inferences: &Inferences,
     rng: &mut impl Rng,
     k: usize,
+    objective: DeclarerObjective,
 ) -> (TrickCount, SampleStats) {
     assert!(k > 0, "a declarer line needs at least one sampled world");
     assert!(
@@ -591,6 +700,7 @@ pub fn single_dummy_playout_with_stats(
         strain,
         trump: Suit::try_from(strain).ok(),
         declarer,
+        objective,
         inferences,
         remaining: Builder::from(PartialDeal::from(*deal)),
         played: Builder::default(),
@@ -628,7 +738,9 @@ pub fn single_dummy_playout_with_stats(
 /// lead — the optimist at slam level, where Pavlicek's after-lead table says
 /// DD play overrates declarer by ≈7pp of make-rate) and the playout endpoint
 /// (the fallible declarer — the pessimist, its misguess haircut measured
-/// ≈1.5× the real one).  The table result is bracketed by the pair; a
+/// ≈1.5× the real one).  Per level and in aggregate, the table make-rate
+/// sits between the pair — a calibration statement per arm, not a bound per
+/// board nor on an A/B delta; a
 /// per-level λ-mixture of the two is the calibrated point estimate
 /// (`sd_blend` in the measurement harnesses).  Both come from the *same*
 /// composed run — the playout starts from the very lead the first endpoint
@@ -693,8 +805,16 @@ pub fn single_dummy_declarer_tricks_with_stats(
     let (mut answers, mut sampling) = single_dummy_leads_with_stats(&[question], rng, n);
     let (lead, lead_tricks) = answers.pop().expect("one question yields one answer");
     let lead_stats = sampling.pop().expect("one question yields one answer");
-    let (tricks, playout_stats) =
-        single_dummy_playout_with_stats(deal, strain, declarer, lead, declarer_inferences, rng, k);
+    let (tricks, playout_stats) = single_dummy_playout_with_stats(
+        deal,
+        strain,
+        declarer,
+        lead,
+        declarer_inferences,
+        rng,
+        k,
+        DeclarerObjective::MeanTricks,
+    );
     (lead, lead_tricks, tricks, [lead_stats, playout_stats])
 }
 

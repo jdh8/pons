@@ -266,14 +266,19 @@ log: `idle-run: <script> exited <n>` is conclusive.
 | `ns_score_tricks` | **Plain SD**: an explicit single-dummy trick count priced at the contract's *actual* penalty. | The pricing tail of the SD scorers. **Never a verdict on its own** — see below. |
 | `ns_score_pd_tricks` | **SD-PD**: the same trick count under the double-dummy-bidding rule — a contract that *fails on those tricks* is scored **doubled**, a making one undoubled (table double erased, as in `ns_score_bid`). | The SD arbiter. Report it beside plain SD everywhere the SD bracket is quoted. |
 | `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it — under **both** SD scorers. ⚠ **At slam level this is an UPPER bound** — it removes the lead pessimism and keeps all of DD's play optimism (Pavlicek after-lead: +7pp on slams). Never read it as slam insurance. |
-| `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over worlds inside the auction's readings (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. Its haircut is ≈1.5× the real one (see Known biases) — the LOWER bound. |
+| `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over worlds inside the auction's readings (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. Its haircut is ≈1.5× the real one (see Known biases) — the LOWER bound (per arm). Its declarer maximizes **mean tricks**, contract-blind: it will risk a making line for an overtrick; `single_dummy_playout_with` + `DeclarerObjective::Make` is the opt-in safety-play declarer (unmeasured on any harness). |
 | `sd_blend_imps` (`examples/common/mod.rs`) | The **sd-blend**: one composed run (`single_dummy_declarer_tricks`) returns both endpoints' trick counts, and the blend takes the playout outcome with probability λ(level), the lead-endpoint outcome otherwise, mixed at the IMP level (four `imps` terms — the IMP table is nonlinear). λ per level in `common::SD_BLEND_LAMBDA`, fitted by `probe-sd-calibration`'s λ block so the blend applies exactly Pavlicek's **after-lead** declarer-fallibility shift to the lead endpoint. | The calibrated **point estimate between the two sd endpoints** — built for slam stop-vs-bid buckets, where the decision band is 45–55% make at the 6-level. Grands: quote blend *and* analytic shave as a bracket, never a point (thin data, bigger bias). Validation: `probe-slam-battery` (DD-fair archetypes must not move; third-eye ones must grade). |
 
 **The principle** (jdh8, 2026-06-24): *the threat of a double is a legitimate
 deterrent, but a double that never appeared on the table must never enter the
-final score.* Hence the bracket: truth sits between plain DD (under-punishes
-overbids) and PD (over-punishes — a perfect doubler never doubles a making
-contract). Reality is closer to plain DD.
+final score.* Hence the bracket: each arm's score sits between plain DD
+(under-punishes overbids) and PD (over-punishes — a perfect doubler never
+doubles a making contract). Reality is closer to plain DD. The bracket is per
+arm, a pair of scenario checks — **not a bound on the paired A/B delta**:
+subtracting like endpoints does not bound the difference. On one NV board with
+ON in 4♥ down one and OFF in 3NT down one, the plain delta and the PD delta are
+both zero, yet an imperfect doubler who doubles only ON makes the delta −50
+(−2 IMPs), outside both.
 
 **Plain SD is not an arbiter — it is half a bracket** (2026-07-25). The DD
 scorers come in pairs for a reason, and so must the SD ones. Plain SD relaxes
@@ -286,7 +291,8 @@ on that reading.
 
 The fix is the pair **[SD-PD, plain SD]**, exactly mirroring **[PD, plain DD]**:
 `ns_score_pd_tricks` keeps the realistic lead but restores the doubled downside,
-so the two SD numbers bracket the truth the same way the two DD numbers do.
+so the two SD numbers bracket each arm the same way the two DD numbers do (and,
+like them, do not bound the paired delta).
 **Quote both or quote neither**, and read the verdict from SD-PD. A plain-SD win
 with an SD-PD loss is the same doubling artifact the decision table already names
 on the DD side — not a rehabilitation.
@@ -625,7 +631,8 @@ the knob's slam-win contribution by a factor (1 − 2q): **2–6% at the 6-level
 sets can die of it. Note DD is nearly *calibrated* at the 6-level net of
 defender errors; the slam-optimism wall bites grands hardest. The sd-declarer
 row (`ab-dump-sd --sd-declarer` / `ab-slam-entry --sd`) stays as the free
-robustness bound: a win that survives even the playout is extra-safe; a
+robustness check (a pessimist scenario, not a bound on the delta): a win that
+survives even the playout is extra-safe; a
 playout flip triggers the Pavlicek shave + a divergent-board trace, never an
 automatic demotion. See the slam-optimism wall under Known biases.
 
@@ -738,7 +745,8 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   harness, a plain-DD *win* for a slam-aggression knob is suspect until the
   **sd-declarer playout** (`single_dummy_playout`) confirms it doesn't flip
   sign: plain DD is the optimist bracket, sd-declarer the pessimist, and a
-  table result lies between. Calibration probe: `probe-sd-calibration`
+  table make-rate lies between per arm (per level, in aggregate — not per
+  board, and not as a bound on a paired delta). Calibration probe: `probe-sd-calibration`
   (per-level make-rates vs Pavlicek's actual-vs-DD table).
 
   Calibration (2026-07-16, seed 1784184395, 39,776 self-play contracts, vul

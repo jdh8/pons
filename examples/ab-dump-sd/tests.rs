@@ -10,6 +10,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{FullDeal, Hand, Suit};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::{Envelope, Relative};
+use pons::single_dummy::single_dummy_leads;
 
 fn auction(text: &str) -> Auction {
     let mut auction = Auction::new();

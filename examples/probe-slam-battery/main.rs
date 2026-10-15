@@ -51,14 +51,24 @@
 //! release; the solver stays on the main thread and everything runs
 //! sequentially.
 //!
+//! `--make` switches the playout declarer from mean-trick maximization to
+//! [`DeclarerObjective::Make`] at the contract's twelve tricks (a
+//! safety-play declarer), to test whether the mean-max detours recorded
+//! below are the objective rather than the world sample.  Its playout bands
+//! are reported, not asserted.  Measured 2026-10-16 (make%, mean → make):
+//! at 16 worlds one-way onside 80 → 70, double-hook 60 → 85, the rest
+//! within a seed or two; at 64 worlds one-way onside 85 → 85, double-hook
+//! 85 → 80.  The objective does not remove the detours — world count does
+//! more — so they are not a mean-vs-make artifact.
+//!
 //! ```text
-//! cargo run --release --example probe-slam-battery
+//! cargo run --release --example probe-slam-battery [-- --make]
 //! ```
 
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Strain};
 use pons::bidding::{Context, Inferences};
-use pons::single_dummy::{single_dummy_lead_tricks, single_dummy_playout};
+use pons::single_dummy::{DeclarerObjective, single_dummy_lead_tricks, single_dummy_playout_with};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::time::Instant;
@@ -71,6 +81,18 @@ const SEEDS: u32 = 20;
 
 /// Every contract in the battery is a small slam
 const NEED: u8 = 12;
+
+/// A playout band calibrated on the mean-tricks declarer: asserted under the
+/// default objective, only reported under `--make` (whose bands are what the
+/// run is measuring)
+macro_rules! band {
+    ($strict:expr, $cond:expr, $($msg:tt)+) => {
+        if !$cond {
+            assert!(!$strict, $($msg)+);
+            println!("BAND MISS: {}", format!($($msg)+));
+        }
+    };
+}
 
 /// Parse an authored hand (suit order `S.H.D.C`, as in the crate's tests)
 fn hand(cards: &str) -> Hand {
@@ -104,7 +126,12 @@ struct Row {
 /// Score one archetype: premise DD solve, then per seed the two endpoints
 /// (one RNG per seed, lead first, playout second — the composition
 /// `single_dummy_declarer_tricks` uses, kept apart so both readings print)
-fn run_row(deal: &FullDeal, strain: Strain, inferences: &Inferences) -> Row {
+fn run_row(
+    deal: &FullDeal,
+    strain: Strain,
+    inferences: &Inferences,
+    objective: DeclarerObjective,
+) -> Row {
     let dd = u8::from(pons::dd::solver().solve_deal(*deal)[strain].get(Seat::North));
     let mut row = Row {
         dd,
@@ -116,7 +143,7 @@ fn run_row(deal: &FullDeal, strain: Strain, inferences: &Inferences) -> Row {
         let mut rng = StdRng::seed_from_u64(u64::from(seed));
         let (lead, tricks) =
             single_dummy_lead_tricks(deal, strain, Seat::North, inferences, &mut rng, WORLDS);
-        let line = single_dummy_playout(
+        let line = single_dummy_playout_with(
             deal,
             strain,
             Seat::North,
@@ -124,6 +151,7 @@ fn run_row(deal: &FullDeal, strain: Strain, inferences: &Inferences) -> Row {
             inferences,
             &mut rng,
             WORLDS,
+            objective,
         );
         row.leads.push(lead);
         row.lead_tricks.push(u8::from(tricks));
@@ -173,8 +201,14 @@ fn main() {
     let start = Instant::now();
     // A silent auction: nothing shown by anyone, both seats' views identical.
     let inferences = Inferences::read(&Context::new(RelativeVulnerability::NONE, &[]));
+    let strict = !std::env::args().any(|arg| arg == "--make");
+    let objective = if !strict {
+        DeclarerObjective::Make(NEED)
+    } else {
+        DeclarerObjective::MeanTricks
+    };
 
-    println!("=== slam battery: {SEEDS} seeds, {WORLDS} worlds per decision ===");
+    println!("=== slam battery: {SEEDS} seeds, {WORLDS} worlds per decision, {objective:?} ===");
     println!(
         "{:<22} {:>4} | {:>2} | {:>5} | {:>3} {:>5} {:>3} {:>6} | modal lead",
         "archetype", "ctr", "DD", "lead", "min", "mean", "max", "make%",
@@ -191,6 +225,7 @@ fn main() {
         ),
         Strain::Notrump,
         &inferences,
+        objective,
     );
     print_row("cold-6NT", "6NT", &cold);
     assert_eq!(
@@ -226,12 +261,14 @@ fn main() {
         &deal(north, south, "3.QJT6.QJT98.652", "2.987.765.KJT987"),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("one-way-6S K-onside", "6S", &onside);
     let offside = run_row(
         &deal(north, south, "3.QJT6.QJT98.K65", "2.987.765.JT9872"),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("one-way-6S K-offside", "6S", &offside);
     assert_eq!(
@@ -246,7 +283,8 @@ fn main() {
             row.lead_tricks,
         );
     }
-    assert!(
+    band!(
+        strict,
         offside.playout.iter().all(|&t| t == offside.dd),
         "one-way offside: eleven tricks are on top and perfect defense caps \
          the twelfth — the playout must pin DD exactly: {:?}",
@@ -259,13 +297,15 @@ fn main() {
     // small world sample and loses a trick on the actual deal.  Measured
     // 4/20 seeds at 16 worlds (3/20 at 64): real, and far below the two-way
     // guess's coin flip — that ordering is what the instrument needs.
-    assert!(
+    band!(
+        strict,
         onside.playout.iter().all(|&t| (11..=12).contains(&t)),
         "one-way onside: only a line detour may cost, and only one trick: {:?}",
         onside.playout,
     );
     let onside_makes = onside.playout.iter().filter(|&&t| t >= NEED).count();
-    assert!(
+    band!(
+        strict,
         onside_makes >= 14,
         "one-way onside: mean-max risk must stay well below the two-way \
          guess's coin flip: {onside_makes}/{SEEDS} makes in {:?}",
@@ -295,6 +335,7 @@ fn main() {
         ),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("two-way-Q-vacancy+", "6S", &friendly);
     let hostile = run_row(
@@ -306,6 +347,7 @@ fn main() {
         ),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("two-way-Q-vacancy-", "6S", &hostile);
     for (name, row) in [("vacancy+", &friendly), ("vacancy-", &hostile)] {
@@ -318,18 +360,21 @@ fn main() {
             "no lead can break the two-way deal ({name}): {:?}",
             row.lead_tricks,
         );
-        assert!(
+        band!(
+            strict,
             row.playout.iter().all(|&t| (10..=12).contains(&t)),
             "only the guess (and rare mean-max risk) may cost tricks \
              ({name}): {:?}",
             row.playout,
         );
-        assert!(
+        band!(
+            strict,
             row.playout.iter().any(|&t| t < row.dd),
             "a blind declarer must sometimes misguess ({name}): {:?}",
             row.playout,
         );
-        assert!(
+        band!(
+            strict,
             row.playout.contains(&row.dd),
             "a blind declarer must sometimes guess right ({name}): {:?}",
             row.playout,
@@ -351,6 +396,7 @@ fn main() {
         ),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("drop-vs-hook-6S", "6S", &hook);
     assert_eq!(hook.dd, 12, "premise: DD hooks the marked queen and makes");
@@ -364,7 +410,8 @@ fn main() {
         "the playout may never beat DD from the same lead: {:?}",
         hook.playout,
     );
-    assert!(
+    band!(
+        strict,
         hook.playout.iter().all(|&t| (10..=12).contains(&t)),
         "only the trump decision (and rare mean-max risk) may cost: {:?}",
         hook.playout,
@@ -377,7 +424,8 @@ fn main() {
     // hook-vs-drop means differ by ~2pp, inside 16-world sampling noise, so
     // the choice is close to a coin per seed).  Assert roughly half of that
     // observed rate as margin against future sampler tweaks.
-    assert!(
+    band!(
+        strict,
         misplays >= 5,
         "a blind declarer must go down on a decent fraction of seeds: \
          {misplays}/{SEEDS} misplays in {:?}",
@@ -399,6 +447,7 @@ fn main() {
         ),
         Strain::Spades,
         &inferences,
+        objective,
     );
     print_row("double-hook-6S", "6S", &double);
     assert_eq!(
@@ -415,14 +464,16 @@ fn main() {
     // mean-max risk, and two decision suits double the detour surface.
     // Measured 12/20 makes at 16 worlds; assert a margined floor and the
     // band, not equality.
-    assert!(
+    band!(
+        strict,
         double.playout.iter().all(|&t| (10..=12).contains(&t)),
         "two one-way finesses: only line detours may cost, at most two \
          tricks: {:?}",
         double.playout,
     );
     let double_makes = double.playout.iter().filter(|&&t| t >= NEED).count();
-    assert!(
+    band!(
+        strict,
         double_makes >= 9,
         "two one-way finesses: mean-max risk must not swamp the DD-fair \
          grade: {double_makes}/{SEEDS} makes in {:?}",
@@ -438,15 +489,23 @@ fn main() {
         .flat_map(|row| &row.playout)
         .filter(|&&t| t >= NEED)
         .count();
-    assert!(
+    band!(
+        strict,
         two_way_makes < 2 * onside_makes,
         "the two-way pair must grade below the one-way onside case: \
          {two_way_makes}/40 two-way vs {onside_makes}/{SEEDS} one-way",
     );
 
-    println!(
-        "PASS: DD-fair archetypes agree across all views; third-eye archetypes \
-         lose tricks only at their guesses ({:.1}s)",
-        start.elapsed().as_secs_f64(),
-    );
+    if strict {
+        println!(
+            "PASS: DD-fair archetypes agree across all views; third-eye archetypes \
+             lose tricks only at their guesses ({:.1}s)",
+            start.elapsed().as_secs_f64(),
+        );
+    } else {
+        println!(
+            "DONE: premises asserted, playout bands reported ({:.1}s)",
+            start.elapsed().as_secs_f64(),
+        );
+    }
 }

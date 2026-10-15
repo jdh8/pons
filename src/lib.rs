@@ -41,9 +41,10 @@ pub use bidding::{
 };
 #[cfg(feature = "dd")]
 pub use single_dummy::{
-    LeadQuestion, single_dummy, single_dummy_declarer_tricks,
+    DeclarerObjective, LeadQuestion, single_dummy, single_dummy_declarer_tricks,
     single_dummy_declarer_tricks_with_stats, single_dummy_lead_tricks, single_dummy_leads,
-    single_dummy_leads_with_stats, single_dummy_playout, single_dummy_playout_with_stats,
+    single_dummy_leads_with_stats, single_dummy_playout, single_dummy_playout_with,
+    single_dummy_playout_with_stats,
 };
 #[cfg(feature = "dd")]
 pub use stats::{Accumulator, Statistics};

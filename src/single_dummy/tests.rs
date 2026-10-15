@@ -331,3 +331,149 @@ fn playout_stats_sum_the_decisions() {
     assert_eq!(playout_stats.accepted, playout_stats.requested);
     assert_eq!(playout_stats.fallback, 0);
 }
+
+/// Golden pin for the default (mean-tricks) objective: the composed playout
+/// on the two-way guess deal, seeds 0..8 at six worlds, recorded before the
+/// contract-aware objective existed.  Any drift here means the default path
+/// stopped being byte-identical.
+#[test]
+fn mean_tricks_playout_is_pinned() {
+    let deal = two_way_guess_deal();
+    let inferences = no_inferences();
+    let got: Vec<(Card, u8, u8)> = (0..8)
+        .map(|seed| {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let (lead, lead_tricks, tricks) = single_dummy_declarer_tricks(
+                &deal,
+                Strain::Spades,
+                Seat::North,
+                &inferences,
+                &inferences,
+                &mut rng,
+                6,
+                6,
+            );
+            (lead, u8::from(lead_tricks), u8::from(tricks))
+        })
+        .collect();
+    let c2 = Card {
+        suit: Suit::Clubs,
+        rank: Rank::new(2),
+    };
+    let d3 = Card {
+        suit: Suit::Diamonds,
+        rank: Rank::new(3),
+    };
+    let want = vec![
+        (c2, 13, 13),
+        (d3, 13, 13),
+        (c2, 13, 12),
+        (c2, 13, 13),
+        (c2, 13, 13),
+        (d3, 13, 12),
+        (d3, 13, 13),
+        (d3, 13, 13),
+    ];
+    assert_eq!(got, want);
+}
+
+const fn card(suit: Suit, rank: u8) -> Card {
+    Card {
+        suit,
+        rank: Rank::new(rank),
+    }
+}
+
+/// A four-card notrump ending, North to play third to the trick: South led
+/// ♠3 towards dummy's ♠AQ and West followed ♠4.  Declarer's side has nine
+/// tricks in and ♠A + ♥AK on top for twelve.  Rising with the ace is twelve
+/// in every layout; the queen finesse is thirteen when West holds the ♠K,
+/// but when East wins it he cashes ♦KQ and declarer takes one more trick in
+/// all — ten.  Four worlds put the king onside and one offside, so the
+/// finesse averages 12.4 tricks against the ace's 12.0 — the illustrative
+/// "sure twelve vs. 80% of thirteen" case, played out double-dummy.
+///
+/// Returns North's candidates and the five worlds' `Target::Legal` solves.
+fn safety_play_ending() -> (Vec<Card>, Vec<FoundPlays>) {
+    let north: Hand = "AQ.AK..".parse().expect("valid test hand");
+    let south: Hand = "2.2..2".parse().expect("valid test hand");
+    // (West's three remaining cards, East's four)
+    let worlds = [
+        ("K.QJ..", "J..KQ.A"),
+        ("KJ...A", ".QJ.KQ."),
+        ("K..KQ.", "J.QJ..A"),
+        ("K..Q.A", "J.QJ.K."),
+        (".QJ..A", "KJ..KQ."),
+    ];
+    let trick = [card(Suit::Spades, 3), card(Suit::Spades, 4)];
+    let objectives: Vec<Objective> = worlds
+        .iter()
+        .map(|(west, east)| {
+            let mut builder = Builder::default();
+            builder[Seat::North] = north;
+            builder[Seat::South] = south;
+            builder[Seat::West] = west.parse().expect("valid test hand");
+            builder[Seat::East] = east.parse().expect("valid test hand");
+            Objective {
+                board: Board::try_new(
+                    builder.build_partial().expect("disjoint ending"),
+                    CurrentTrick::from_slice(Strain::Notrump, Seat::South, &trick)
+                        .expect("a two-card trick"),
+                )
+                .expect("a valid ending"),
+                target: Target::Legal,
+            }
+        })
+        .collect();
+    // The ♠K is unseen, so it still separates the ace from the queen.
+    let candidates = distinct_plays(north, Some(Suit::Spades), Hand::EMPTY);
+    (candidates, crate::dd::solver().solve_boards(&objectives))
+}
+
+/// Same layout, same strain, three objectives: the mean-tricks declarer
+/// finesses, the 6NT declarer (twelve needed) takes the safety play, and the
+/// 7NT declarer (thirteen needed) finesses because only the finesse can make.
+#[test]
+fn make_objective_takes_the_safety_play() {
+    let (candidates, solved) = safety_play_ending();
+    let ace = card(Suit::Spades, 14);
+    let queen = card(Suit::Spades, 12);
+    let mut sorted = candidates.clone();
+    sorted.sort_by_key(|card| card.rank);
+    assert_eq!(sorted, [queen, ace], "North's two distinct plays");
+
+    // Premises, re-proved double-dummy: the ace is three of the last four
+    // tricks everywhere; the queen is four onside and one offside.
+    let tricks = |card| -> Vec<u64> { solved.iter().map(|w| score_of(&w.plays, card)).collect() };
+    assert_eq!(tricks(ace), [3, 3, 3, 3, 3]);
+    assert_eq!(tricks(queen), [4, 4, 4, 4, 1]);
+
+    let won = 9;
+    for order in [
+        candidates.clone(),
+        candidates.iter().rev().copied().collect(),
+    ] {
+        let pick = |objective| pick_declarer_card(&order, &solved, objective, won);
+        assert_eq!(pick(DeclarerObjective::MeanTricks), queen, "12.4 > 12.0");
+        assert_eq!(pick(DeclarerObjective::Make(12)), ace, "5/5 > 4/5 make");
+        assert_eq!(pick(DeclarerObjective::Make(13)), queen, "4/5 > 0/5 make");
+    }
+}
+
+/// When every candidate makes in every world, the make objective falls back
+/// to mean tricks: the 3NT declarer (nine needed, nine already won) still
+/// takes the overtrick line.
+#[test]
+fn make_objective_breaks_ties_by_mean_tricks() {
+    let (candidates, solved) = safety_play_ending();
+    let queen = card(Suit::Spades, 12);
+    for order in [
+        candidates.clone(),
+        candidates.iter().rev().copied().collect(),
+    ] {
+        assert_eq!(
+            pick_declarer_card(&order, &solved, DeclarerObjective::Make(9), 9),
+            queen,
+        );
+    }
+}
