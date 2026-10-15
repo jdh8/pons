@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`PointCount` proven against `rule-of-n-floored` (2026-10-15,
+  [#7](https://github.com/jdh8/pons/issues/7)).** The default point scale
+  and its linearised suit upgrade had only a numberless self-play "plain
+  wash". Re-measured vs BBA at 5,120,000 boards per arm and cell (declared
+  before the run from a 2,000-board pilot): plain DD +0.0509 ±0.0020 /
+  +0.0474 ±0.0025, PD +0.0495 ±0.0022 / +0.0441 ±0.0027 none/both, moving
+  our auction on 14–15% of boards. Win | win; the default stays, now
+  proven. Bidding untouched.
+
 - **`ab-sat` is retired (2026-10-15,
   [#7](https://github.com/jdh8/pons/issues/7)).** The two-binary Revised
   South African Texas A/B summed plain-DD IMPs with no CI, PD or verdict, the

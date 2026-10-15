@@ -106,7 +106,7 @@ way the ledgers pool them; all six are non-inferior and move out of this list:
 filtered boards, at the ~19% `--filter-1nt` density about 0.0019% of drawn
 boards.
 
-Still unknown; no dumps survive, so only a fresh A/B can settle these:
+Still unknown; no dumps survive, so only a fresh A/B can settle these (all five resolved 2026-10-15, below):
 `PointScale::PointCount` (self-play, "plain wash" with no numbers), the
 linearised `upgrade` (a retrain A/B; no plain number at all),
 `set_competitive_4333` (no plain CI, and the both-vul cell was never
@@ -159,8 +159,20 @@ is measured: jdh8's call.
 - *`PointCount` and the linearised `upgrade`*: one fresh A/B vs
   `rule-of-n-floored`, declared 5,120,000 boards/arm/vul (a 2,000-board
   pilot moved our auction on ~14.5% of boards at σ ≈ 2.3 IMPs/board), plain
-  DD + PD, no SD. Launched 2026-10-15, `ab-results/issue7-unknown/point-scale/`,
-  SEED_BASE 1792050558052897282; the row lands when it finishes.
+  DD + PD, no SD. Run 2026-10-15 at `b9fd92dd`-dirty (the runner's size
+  line only, `tree.patch`), `ab-results/issue7-unknown/point-scale/`,
+  SEED_BASE 1792050558052897282, 96 × 53,336 boards per arm and cell.
+  Shipped − `rule-of-n-floored`:
+
+  | Cell | Plain DD | PD | Fired |
+  | --- | --- | --- | --- |
+  | none | +0.0509 ±0.0020 | +0.0495 ±0.0022 | 15.1% |
+  | both | +0.0474 ±0.0025 | +0.0441 ±0.0027 | 14.3% |
+
+  **Win \| win** in both cells, +0.31 to +0.34 IMPs per fired board: the
+  `PointCount` default and its linearised `upgrade` are proven, and no
+  trade-off is recorded. Deals drawn from a fresh SEED_BASE (deal-overlap
+  check owed with the diamond-captain run).
 - *RKCB queen ask*: **superseded**. The ask is structural now (the knob is
   deleted and BBA always relays), so no off arm exists to measure; the
   surviving evidence is 10M self-play boards per cell with PD intervals of
