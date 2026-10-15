@@ -94,11 +94,34 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 # resumes past an arm that was never generated; skipping on shard-0 alone wedges
 # a short arm forever, and if both arms lost the SAME index (one deterministic
 # crash, same deal stream) every downstream assert still passes.
+#
+# An arm is named by role (`shipped`, `off`), not by what it measured, and a
+# default flip between two sessions changes what `shipped` means.  So every arm
+# records a fingerprint in $dir/arm.meta — the measured code (the git trees of
+# src/, examples/ and Cargo.lock, plus any uncommitted diff to them), the
+# floor-weights override and the flags — and a resume refuses an arm, complete
+# or partial, whose fingerprint differs or was never recorded (an arm from
+# before this guard).  Doc-only commits leave it unchanged.  FORCE_REUSE=1
+# reuses such an arm anyway, for a rescore you have checked by hand.
+arm_fingerprint() {
+    git rev-parse HEAD:src HEAD:examples HEAD:Cargo.lock
+    git diff HEAD -- src examples Cargo.lock | cksum
+    echo "PONS_FLOOR_WEIGHTS=${PONS_FLOOR_WEIGHTS:-}"
+    echo "flags: $*"
+}
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"
+    want=$(arm_fingerprint "$@")
+    if ls "$dir"/shard-*.json >/dev/null 2>&1 && [ "${FORCE_REUSE:-0}" != 1 ] \
+        && [ "$(cat "$dir/arm.meta" 2>/dev/null)" != "$want" ]; then
+        log "refuse $dir: its arm.meta does not match this code and these flags (missing = generated before the guard); use a fresh results dir, or FORCE_REUSE=1 after checking"
+        exit 1
+    fi
     [ "$(ls "$dir"/shard-*.json 2>/dev/null | wc -l | tr -d " ")" = "$SHARDS" ] \
         && { log "skip $dir (complete)"; return 0; }
+    mkdir -p "$dir"
+    [ -s "$dir/arm.meta" ] || echo "$want" >"$dir/arm.meta"
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
     SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1

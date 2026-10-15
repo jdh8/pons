@@ -52,7 +52,14 @@
 # penalty-no-pull ran too (2026-10-15) and moved 0 of 2,457,600 boards; its knob
 # and `--ns-allow-pull` were removed, so the case is gone.
 #
-# Every diff is `shipped vs <arm>`: positive = the shipped default gains.  The
+# diamond-captain (2026-10-15): the diamond-transfer repair, three arms on one
+# SEED_BASE — captain (opener's 3NT rung gone over 1NT - 2NT (3♦/3♥/3♠), responder's
+# answer to the penalty X authored; --ns-diamond-transfer-captain), shipped, and
+# the package off.  Diffs are `captain vs shipped` and `captain vs off` (positive =
+# captain gains).  The knob flips on if captain is non-inferior | win over shipped
+# and not behind off; the package turns off if off beats both.
+#
+# Every other diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
 # and PD; SD-PD is reported for the four knobs (the k8 floor diverges on too
 # many boards to solve single-dummy at this size).
@@ -159,6 +166,14 @@ for vul in none both; do
         arm off "$vul" --no-ns-comp-over-diamond-transfer
         diffpair shipped off "$vul"
         sddiff shipped off "$vul"
+        ;;
+    diamond-captain)
+        arm captain "$vul" --ns-diamond-transfer-captain
+        arm off "$vul" --no-ns-comp-over-diamond-transfer
+        diffpair captain shipped "$vul"
+        diffpair captain off "$vul"
+        sddiff captain shipped "$vul"
+        sddiff captain off "$vul"
         ;;
     point-scale)
         arm ruleofn "$vul" --ns-point-scale rule-of-n-floored
