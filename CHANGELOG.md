@@ -2712,6 +2712,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An A/B arm's fingerprint is the generator it runs, not the checkout
+  (2026-10-16, residual of [#7](https://github.com/jdh8/pons/issues/7)).**
+  `arm.meta` recorded the git trees of `src/`, `examples/` and `Cargo.lock`,
+  which vouch for nothing a run executes: under `SKIP_BUILD=1` an arm
+  measured a binary older than that source, and a `BBA_GEN` override (a
+  pre-fix build, or this box's glibc-2.36 loader wrapper) was not in the
+  fingerprint at all. So an arm from a stale binary could be resumed after
+  a rebuild, its missing arms then coming from new code. `bba-gen
+  --provenance` now names the files a run reads (the image its code was
+  mapped from, seen through a loader wrapper; the EPBot library; the
+  `PONS_FLOOR_WEIGHTS` blobs) and the fingerprint cksums them, plus the
+  flags and any flag value naming a file (a `.bbsa` card). Doc-only
+  commits and unrebuilt source edits no longer refuse; a rebuild that
+  changes the bytes does. A generator from before `--provenance` falls
+  back to its own bytes, plus the default build's if it is a wrapper
+  script. `scripts/test-arm-fingerprint.sh` covers 27 cases against stub
+  generators, 12 of which the old guard failed. Arms
+  recorded by the old guard now read as mismatched, so resuming one needs
+  `FORCE_REUSE=1`.
+
+  Also: `ab-rkcb-asker`, `ab-reading-fallthrough` and `ab-cue-raise-sign-off`
+  generated the off arm with `BBA_GEN=$OFF_BIN arm off`. Where `/bin/sh` is
+  bash (this RHEL box), a prefix assignment on a function call persists and
+  stays exported, so the on arm that follows ran the **off** binary and the
+  A/B would read zero. The call now runs in a subshell. Every recorded run
+  of the three diverged (the fall-through pilot on 2 boards, the other two
+  on dozens), so each ran under a shell that scopes the assignment; none was
+  affected.
+
+- **The two modeled SAT diagnostics say they are not A/B verdicts
+  (2026-10-16, residual of [#7](https://github.com/jdh8/pons/issues/7)).**
+  Retiring `ab-sat` did not leave every whole-experiment reporter with a
+  verdict: `ab-sat-slam-try` and `ab-texas-vs-sat` still print a bare mean.
+  Neither bids a treatment (one scores a hand-coded gadget, the other one
+  `4M` from either declarer), and each averages over a conditional hand
+  class, so they stay exploratory: their output now says so, reads
+  `IMPs/config` instead of `IMPs/board`, and `docs/measurement.md` lists them
+  with the other exemptions. That paragraph's dangling colon, left when the
+  exemptions were inserted, now leads into the verdict rule again.
+
 - **Two A/B tooling holes Codex found in the #7 review (2026-10-15,
   [#7](https://github.com/jdh8/pons/issues/7)).** `scripts/ab-lib.sh` built
   the release harnesses unconditionally, so the documented

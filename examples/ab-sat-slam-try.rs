@@ -22,6 +22,12 @@
 //! gadget.  Slam-reach / make-rate breakdowns are printed so the IMP number is
 //! interpretable (is the gadget reaching *making* slams, or overbidding?).
 //!
+//! **An exploratory diagnostic, not an A/B verdict** (docs/measurement.md, the
+//! decision table).  The gadget is a hand-coded rule, not a bidder, and the
+//! mean is per qualifying configuration — conditional on the slam-invitational
+//! class, not over random deals — so it prints no CI and no verdict.  A change
+//! it motivates ships on its own A/B.
+//!
 //! ```text
 //! cargo run --release --example ab-sat-slam-try -- --count 2000000 --vulnerability none
 //! ```
@@ -273,6 +279,9 @@ fn main() {
 
     println!("=== Revised SAT: 4M non-forcing-slam-try gadget vs current bidder ===");
     println!(
+        "(exploratory diagnostic: a modeled gadget on a conditional class; no CI, no verdict)"
+    );
+    println!(
         "Sampled {} deals → {} slam-invitational 6M-opposite-1NT configs ({:.3}%), vul {}",
         args.count,
         n,
@@ -280,7 +289,7 @@ fn main() {
         args.vulnerability,
     );
     println!(
-        "Gadget − baseline:  {:+.3} IMPs/board   ({:+} IMPs, {:+} pts, n={})",
+        "Gadget − baseline:  {:+.3} IMPs/config  ({:+} IMPs, {:+} pts, n={})",
         total_imps as f64 / n.max(1) as f64,
         total_imps,
         total_points,

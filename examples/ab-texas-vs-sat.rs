@@ -24,6 +24,11 @@
 //! (singleton/void) — a candidate "declaring is not bad" trigger — to see if any
 //! hand feature predicts when responder-declares gains.
 //!
+//! **An exploratory diagnostic, not an A/B verdict** (docs/measurement.md, the
+//! decision table).  No bidder runs: both arms are the same `4M`, scored from
+//! each declarer, and the mean is per qualifying configuration — conditional on
+//! the hand class, not over random deals — so it prints no CI and no verdict.
+//!
 //! ```text
 //! cargo run --release --example ab-texas-vs-sat -- --count 200000 --vulnerability none
 //! ```
@@ -183,6 +188,7 @@ fn main() {
     println!(
         "(DD/perfect-defense scorer is concealment-blind: this is the opening-lead swing only)"
     );
+    println!("(exploratory diagnostic: a modeled swap on a conditional class; no CI, no verdict)");
     println!(
         "Sampled {} deals → {} qualifying 6M-game-no-slam-opposite-1NT configs ({:.2}%), vul {}",
         args.count,
@@ -192,19 +198,19 @@ fn main() {
     );
     println!("SAT − Texas  (responder declares 4M  −  opener declares 4M):");
     println!(
-        "  all configs:               {:+.3} IMPs/board   ({:+} IMPs, {:+} pts, n={})",
+        "  all configs:               {:+.3} IMPs/config  ({:+} IMPs, {:+} pts, n={})",
         mean(all),
         all.0,
         points,
         all.1,
     );
     println!(
-        "  responder short (1/0):     {:+.3} IMPs/board   (n={})",
+        "  responder short (1/0):     {:+.3} IMPs/config  (n={})",
         mean(short),
         short.1,
     );
     println!(
-        "  responder no shortness:    {:+.3} IMPs/board   (n={})",
+        "  responder no shortness:    {:+.3} IMPs/config  (n={})",
         mean(steady),
         steady.1,
     );

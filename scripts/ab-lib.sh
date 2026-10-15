@@ -97,18 +97,43 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 #
 # An arm is named by role (`shipped`, `off`), not by what it measured, and a
 # default flip between two sessions changes what `shipped` means.  So every arm
-# records a fingerprint in $dir/arm.meta — the measured code (the git trees of
-# src/, examples/ and Cargo.lock, plus any uncommitted diff to them), the
-# floor-weights override and the flags — and a resume refuses an arm, complete
-# or partial, whose fingerprint differs or was never recorded (an arm from
-# before this guard).  Doc-only commits leave it unchanged.  FORCE_REUSE=1
-# reuses such an arm anyway, for a rescore you have checked by hand.
-arm_fingerprint() {
-    git rev-parse HEAD:src HEAD:examples HEAD:Cargo.lock
-    git diff HEAD -- src examples Cargo.lock | cksum
-    echo "PONS_FLOOR_WEIGHTS=${PONS_FLOOR_WEIGHTS:-}"
+# records a fingerprint in $dir/arm.meta and a resume refuses an arm, complete
+# or partial, whose fingerprint differs or was never recorded (an arm from an
+# older guard).  FORCE_REUSE=1 reuses such an arm anyway, for a rescore you
+# have checked by hand.
+#
+# The fingerprint is what the arm RUNS, not the checkout: the source tree is no
+# witness for a SKIP_BUILD=1 binary that predates it, nor for a BBA_GEN
+# override.  It cksums the files `bba-gen --provenance` names -- the image its
+# code was mapped from (seen through a BBA_GEN loader wrapper, so rebuilding
+# the wrapped binary counts), the EPBot library, the PONS_FLOOR_WEIGHTS blobs
+# -- plus the flags and every flag value naming a file (a `.bbsa` card).  A
+# generator too old to answer `--provenance` falls back to its own bytes and
+# the weights' paths, plus the default build's bytes if it is a script.  Doc-only commits and unrebuilt source edits leave the
+# fingerprint unchanged; a relink that changes the bytes refuses.
+#
+# A subshell body, so its names cannot clobber a runner's (`for a; do arm …`).
+arm_fingerprint() (
+    # Resolved as bba-gen-parallel.sh resolves it; keep the two in step.
+    bin=${BBA_GEN:-$PWD/target/release/examples/bba-gen}
+    if report=$("$bin" --provenance 2>/dev/null); then
+        echo "$report" | while read -r role path; do
+            echo "$role $(cksum <"$path" 2>/dev/null || echo missing)"
+        done
+    else
+        echo "unreported exe $(cksum <"$bin" 2>/dev/null || echo missing)"
+        echo "PONS_FLOOR_WEIGHTS=${PONS_FLOOR_WEIGHTS:-}"
+        # A script cannot say what it wraps; assume the default build.
+        if [ "$(head -c 2 "$bin" 2>/dev/null)" = '#!' ]; then
+            echo "wrapped $(cksum <target/release/examples/bba-gen 2>/dev/null || echo missing)"
+        fi
+    fi
     echo "flags: $*"
-}
+    for a in "$@"; do
+        f=${a#*=}
+        if [ -f "$f" ]; then echo "file $f $(cksum <"$f")"; fi
+    done
+)
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"

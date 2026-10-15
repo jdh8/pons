@@ -65,6 +65,13 @@ struct Args {
     #[arg(short, long)]
     output: Option<String>,
 
+    /// Print the files whose bytes decide a run, one `role path` per line,
+    /// and exit without bidding: `exe` (the image this code was mapped from),
+    /// `lib` (the EPBot library) and one `weights` per `PONS_FLOOR_WEIGHTS`
+    /// blob.  `scripts/ab-lib.sh` fingerprints each A/B arm by them.
+    #[arg(long)]
+    provenance: bool,
+
     /// Vulnerability the boards are bid at: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
@@ -3325,10 +3332,51 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     Ok(agreements)
 }
 
+/// The file this code was mapped from
+///
+/// [`std::env::current_exe`] names the kernel's executable, which is the
+/// dynamic loader when a wrapper runs us as `ld-linux.so bba-gen` (`BBA_GEN` on
+/// an old-glibc box), so read the mapping that holds this very function.
+fn exe_image() -> std::io::Result<std::path::PathBuf> {
+    let here = exe_image as *const () as usize;
+    let maps = std::fs::read_to_string("/proc/self/maps").unwrap_or_default();
+    for line in maps.lines() {
+        let (Some((lo, hi)), Some(slash)) = (
+            line.split_whitespace()
+                .next()
+                .and_then(|r| r.split_once('-')),
+            line.find('/'),
+        ) else {
+            continue;
+        };
+        if let (Ok(lo), Ok(hi)) = (usize::from_str_radix(lo, 16), usize::from_str_radix(hi, 16))
+            && (lo..hi).contains(&here)
+        {
+            return Ok(line[slash..].into());
+        }
+    }
+    std::env::current_exe()
+}
+
+/// `--provenance`: the files whose bytes decide a run
+fn print_provenance(lib: &str) -> anyhow::Result<()> {
+    println!("exe {}", exe_image()?.display());
+    println!("lib {lib}");
+    if let Ok(paths) = std::env::var("PONS_FLOOR_WEIGHTS") {
+        for path in paths.split(',') {
+            println!("weights {path}");
+        }
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+    if args.provenance {
+        return print_provenance(&path);
+    }
     // A full `.bbsa` card expands to convention overrides applied before the
     // explicit `--*-conv` singles, so singles override the card.
     let their_conv = match &args.their_card {

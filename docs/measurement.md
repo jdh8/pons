@@ -349,7 +349,15 @@ oracle-regret `ab-defend-2sx-or-3nt` and the sum-only
 `scripts/ab-aggregate.sh` are not a treatment's verdict and print none.
 `ab-dnf-sd-lead` prints none either: it arms the leader's reading on both
 sides but signs the swing from NS's chair, so an EW leader's gain counts
-against it and the mean cancels in expectation:
+against it and the mean cancels in expectation. Nor do the two modeled
+diagnostics, which say so in their output: `ab-sat-slam-try` (a hand-coded
+`4M` slam-try gadget against the bidder) and `ab-texas-vs-sat` (one `4M`
+scored from either declarer). Neither bids a treatment through the system,
+and each averages over the configurations of a conditional hand class, not
+over random deals, so its mean is no population evidence; a change it
+motivates ships on its own A/B.
+
+Each `Verdict` line reads its scorer against:
 
 - **Primary metric**: plain-DD IMPs per board, ON − OFF on paired deals,
   over the population of **random deals**, per vulnerability cell.
