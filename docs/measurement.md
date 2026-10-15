@@ -190,6 +190,28 @@ manual checking; if provenance fails, the log warns that identity is unverified.
 The launcher checksum also makes metadata from before this guard incompatible;
 use a fresh results directory or check the old arms before overriding.
 
+`arm.meta` is the arm's **manifest**: the fingerprint above plus the deal set
+(`shards:`, `per-shard:`, `seed-base:`), all compared on resume, and `# `
+provenance lines that are recorded but never compared (source SHA, a cksum of
+the dirty diff, `JOBS`, `BOARDS`, the date). The SHA stays out of the identity
+on purpose: the binary's bytes are the code identity, and a doc-only commit
+during a long run must not wedge its resume. A manifest mismatch refuses with a
+pointer to a fresh results directory. An `arm.meta` written before the manifest
+(fingerprint lines only) still resumes on a matching fingerprint, with a
+warning, because the shard check below pins the deal set on its own.
+
+Every resume also **verifies the shards** (`bba-gen-parallel.sh --verify`):
+exactly `shard-0..SHARDS-1`, each parsing as `PER_SHARD` boards dealt from
+`SEED_BASE + i`. An arm that fails is regenerated whole; `FORCE_REUSE=1`
+overrides the manifest, never this check. `bba-gen-parallel.sh` exits non-zero
+on any failed worker or unverified shard, which stops the runner.
+
+A gate, diff or SD report is reused only while its `.inputs` stamp matches: both
+arms' `arm.meta`, the scorer binary's cksum and the scorer flags. A regenerated
+arm, a rebuilt scorer or a changed flag rescores the cell; a report with no
+stamp (an older results directory) is rescored once. Scoring tools never read
+`arm.meta`, so old arms without one stay scoreable directly.
+
 ## Watching a run
 
 A long run is watched by **polling the runner process**, never by grepping the

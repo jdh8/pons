@@ -35,7 +35,21 @@ while [ "$#" -gt 0 ]; do
 done
 printf '%s\n' "$seed" >"$out"
 SH
-chmod +x "$tmp/bin/date" "$tmp/bin/pgrep" "$tmp/fake-gen"
+# bba-gen-parallel verifies each shard with the checkout's bba-gen; this one
+# accepts a fake shard that holds the seed it was dealt from.
+cat >"$tmp/target/release/examples/bba-gen" <<'SH'
+#!/bin/sh
+set -eu
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --verify) file=$2; shift ;;
+        --seed) seed=$2; shift ;;
+    esac
+    shift
+done
+[ "$(cat "$file")" = "$seed" ]
+SH
+chmod +x "$tmp/bin/date" "$tmp/bin/pgrep" "$tmp/fake-gen" "$tmp/target/release/examples/bba-gen"
 cp "$tmp/fake-gen" "$tmp/target/release/examples/ben-gen"
 export PATH="$tmp/bin:$PATH" SKIP_BUILD=1 JOBS=2 BBA_GEN="$tmp/fake-gen"
 export SEED_CLOCK_STATE="$tmp/clock"

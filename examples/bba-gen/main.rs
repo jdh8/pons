@@ -72,6 +72,13 @@ struct Args {
     #[arg(long)]
     provenance: bool,
 
+    /// Check that FILE is a complete shard and exit without bidding: it must
+    /// parse, hold exactly `--count` boards and, if `--seed` is given, have
+    /// been dealt from that seed.  Exits non-zero otherwise.  The shard check
+    /// `scripts/bba-gen-parallel.sh --verify` runs on every shard of an arm.
+    #[arg(long, value_name = "FILE")]
+    verify: Option<String>,
+
     /// Vulnerability the boards are bid at: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
@@ -3475,12 +3482,66 @@ fn print_provenance(lib: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `--verify`: `path` parses as a [`Dump`] of exactly `count` boards dealt
+/// from `seed` (when given).  A truncated shard fails to parse.
+fn verify_shard(path: &str, count: usize, seed: Option<u64>) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    let file = std::fs::File::open(path).with_context(|| format!("open shard {path}"))?;
+    let dump: Dump = serde_json::from_reader(std::io::BufReader::new(file))
+        .with_context(|| format!("parse shard {path}"))?;
+    anyhow::ensure!(
+        dump.boards.len() == count,
+        "shard {path} holds {} boards, expected {count}",
+        dump.boards.len(),
+    );
+    if let Some(seed) = seed {
+        anyhow::ensure!(
+            dump.seed == Some(seed),
+            "shard {path} was dealt from seed {:?}, expected {seed}",
+            dump.seed,
+        );
+    }
+    Ok(())
+}
+
+/// Write `dump` to a hidden temp file beside `path` and rename it into place,
+/// so a worker that dies mid-write leaves no `shard-*.json` behind for a
+/// resume to count — only a `.shard-*.tmp` that no shard glob matches.
+fn write_atomically(path: &str, dump: &Dump) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    let path = std::path::Path::new(path);
+    let name = path
+        .file_name()
+        .with_context(|| format!("--output {} names no file", path.display()))?;
+    let tmp = path.with_file_name(format!(
+        ".{}.{}.tmp",
+        name.to_string_lossy(),
+        std::process::id()
+    ));
+    let write = || -> anyhow::Result<()> {
+        let mut out = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+        serde_json::to_writer(&mut out, dump)?;
+        // `into_inner` flushes and reports the error a dropped BufWriter swallows.
+        out.into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?
+            .sync_all()?;
+        std::fs::rename(&tmp, path)?;
+        Ok(())
+    };
+    write().inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
+}
+
 #[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
     if args.provenance {
         return print_provenance(&path);
+    }
+    if let Some(file) = &args.verify {
+        return verify_shard(file, args.count, args.seed);
     }
     // A full `.bbsa` card expands to convention overrides applied before the
     // explicit `--*-conv` singles, so singles override the card.
@@ -3937,9 +3998,7 @@ fn main() -> anyhow::Result<()> {
         boards,
     };
     match args.output.as_deref() {
-        Some(path) => {
-            serde_json::to_writer(std::io::BufWriter::new(std::fs::File::create(path)?), &dump)?
-        }
+        Some(path) => write_atomically(path, &dump)?,
         None => serde_json::to_writer(std::io::stdout().lock(), &dump)?,
     }
     eprintln!(
@@ -3972,40 +4031,4 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{Args, arm_knobs};
-    use clap::Parser;
-    use pons::bidding::agreements::Agreements;
-
-    /// Default CLI arms the shipped system **plus the vs-BBA disclosure
-    /// corrections** — `bba-decompose`'s replay contract.
-    ///
-    /// The decompose replays a dump through the same
-    /// [`vs_bba_agreements`][super::common::vs_bba_agreements]-corrected
-    /// defaults and demands 100% bit-reproduction, so every board it
-    /// attributes to a bucket assumes this equality. When it broke
-    /// (2026-08-10 anchor, 69 and 66 mismatched calls of ~2.1M) nothing
-    /// failed loudly: the replay-verified fraction just slipped below 100%
-    /// in a report line.  The only sanctioned divergence from
-    /// `Agreements::default()` is the disclosure channel (`their`), derived
-    /// from the opponent this harness hardwires — keep the shared transform
-    /// and `their_2c_landy`'s no-declaration arm in lockstep.
-    #[test]
-    fn default_args_arm_the_shipped_system() {
-        let armed = arm_knobs(&Args::parse_from(["bba-gen"])).unwrap();
-        let shipped = super::common::vs_bba_agreements(Agreements::default());
-        if armed != shipped {
-            let (a, s) = (format!("{armed:#?}"), format!("{shipped:#?}"));
-            let diff: Vec<_> = a
-                .lines()
-                .zip(s.lines())
-                .filter(|(x, y)| x != y)
-                .map(|(x, y)| format!("armed{x}\n  shipped{y}"))
-                .collect();
-            panic!(
-                "--ns-* defaults drifted from the shipped system:\n{}",
-                diff.join("\n")
-            );
-        }
-    }
-}
+mod tests;

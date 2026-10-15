@@ -117,7 +117,9 @@ a comparison across two systems.
 `SKIP_BUILD=1` immediately after its own single `cargo build`, so every
 `scripts/ab-*.sh` that sources it is immune by construction: one build per
 experiment, and `bba-gen-parallel.sh` hard-fails on a missing binary instead of
-quietly making a new one. `wj-calibration.sh` and `ab-weak-two-balancing.sh`
+quietly making a new one.  (Under `SKIP_BUILD=1` it also needs this checkout's
+`target/release/examples/bba-gen` when `BBA_GEN` names another generator: that
+binary's `--verify` checks every shard.) `wj-calibration.sh` and `ab-weak-two-balancing.sh`
 build for themselves and got the same one-line export. The accepted cost is
 the staler hazard: a run started on a dirty or stale tree measures *that*
 build for all its arms — which is the point, but check `git status` before a
@@ -194,6 +196,14 @@ The rule:
   Do **not** let each arm pick its own `date +%s%N` (calling the script per-arm
   without exporting `SEED_BASE` does exactly that) — the arms would then bid
   *different* deals and the pairing is meaningless.
+- **A run is complete only if it says so.** `bba-gen-parallel.sh` waits on
+  every worker by pid and exits non-zero if any failed, then verifies the
+  directory: exactly `shard-0..N-1`, each parsing as `PER_SHARD` boards dealt
+  from `SEED_BASE + i`.  bba-gen renames each shard into place only after a
+  complete write, so a killed worker leaves a hole, not a truncated shard; a
+  run first deletes the directory's old `shard-*.json`.  To check an existing
+  directory without bidding: `SEED_BASE=… JOBS=N scripts/bba-gen-parallel.sh
+  --verify OUTDIR PER_SHARD` (what `ab-lib.sh` and `anchor.sh` resume on).
 - **The next experiment gets a new base.** Nanosecond resolution avoids the
   same-second collision of the old timestamp recipes. Bases must differ by
   ≥ the shard count to keep their shard ranges disjoint. Run `deal-overlap`

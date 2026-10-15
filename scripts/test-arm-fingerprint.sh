@@ -12,7 +12,9 @@ cp "$repo/scripts/ab-lib.sh" "$repo/scripts/bba-gen-parallel.sh" "$tmp/scripts/"
 cd "$tmp"
 
 # gen PATH BUILD [old] — a stub bba-gen; BUILD stands for the compiled bytes,
-# `old` for a generator from before `--provenance`.
+# `old` for a generator from before `--provenance`.  A stub shard holds
+# "SEED COUNT"; `--verify` checks it (the default build is the checker), and
+# FAIL_SEED makes the worker for that seed die without writing.
 gen() {
     cat >"$1" <<SH
 #!/bin/sh
@@ -24,14 +26,24 @@ if [ "\$1" = --provenance ]; then
     [ -z "\${PONS_FLOOR_WEIGHTS:-}" ] || echo "\$PONS_FLOOR_WEIGHTS" | tr , '\n' | sed 's/^/weights /'
     exit 0
 fi
+verify=
 while [ "\$#" -gt 0 ]; do
-    case "\$1" in --output) out=\$2; shift ;; esac
+    case "\$1" in
+        --output) out=\$2; shift ;;
+        --verify) verify=\$2; shift ;;
+        --seed) seed=\$2; shift ;;
+        --count) count=\$2; shift ;;
+    esac
     shift
 done
-echo '{}' >"\$out"
+[ -z "\$verify" ] || { [ "\$(cat "\$verify")" = "\$seed \$count" ]; exit; }
+[ "\$seed" != "\${FAIL_SEED:-}" ] || exit 3
+echo "\$seed \$count" >"\$out"
 SH
     chmod +x "$1"
 }
+# shard SEED — a valid stub shard of the default PER_SHARD
+shard() { echo "$1 6400"; }
 default=target/release/examples/bba-gen
 gen "$default" 1
 cp "$default" target/release/examples/ab-dump-diff
@@ -50,7 +62,7 @@ cat >scripts/run-arm.sh <<'SH'
 #!/bin/sh
 R=$1; shift
 . "$(dirname "$0")/ab-lib.sh"
-SEED_BASE=1
+SEED_BASE=${ARM_SEED:-1}
 arm "$@"
 SH
 chmod +x scripts/run-arm.sh
@@ -69,10 +81,11 @@ expect() {
     # shellcheck disable=SC2086
     if env $with scripts/run-arm.sh "$dir" "$@" >"$tmp/out" 2>&1; then
         got=generate
-        grep -q 'skip .*(complete)' "$tmp/out" && got=skip
+        grep -q 'skip .*(complete' "$tmp/out" && got=skip
     else
         got=refuse
-        grep -q 'refuse' "$tmp/out" || got="error: $(cat "$tmp/out")"
+        if grep -q 'FAILED' "$tmp/out"; then got=fail
+        elif ! grep -q 'refuse' "$tmp/out"; then got="error: $(cat "$tmp/out")"; fi
     fi
     if [ "$got" = "$want" ]; then
         echo "ok   $name"
@@ -148,8 +161,8 @@ for state in complete partial; do
         echo "wrapped $(cksum <"$default")"
         echo 'flags: '
     } >"$arm_dir/arm.meta"
-    echo '{}' >"$arm_dir/shard-0.json"
-    [ "$state" != complete ] || echo '{}' >"$arm_dir/shard-1.json"
+    shard 1 >"$arm_dir/shard-0.json"
+    [ "$state" != complete ] || shard 2 >"$arm_dir/shard-1.json"
     with BBA_GEN=$tmp/off/old; expect refuse "unreported $state arm, unchanged legacy metadata" r "legacy-$state" none
     if [ "$state" = complete ]; then want=skip; else want=generate; fi
     with BBA_GEN=$tmp/off/old FORCE_REUSE=1; expect "$want" "FORCE_REUSE unreported $state arm" r "legacy-$state" none
@@ -241,6 +254,65 @@ chmod 600 unreadable.f32
 
 mkdir -p r/pre-none && echo '{}' >r/pre-none/shard-0.json
 expect refuse   'arm without arm.meta' r pre none
+
+# The manifest pins the deal set, and every resume verifies the shards.
+expect generate 'manifest arm' r m none
+grep -q '^seed-base: 1$' r/m-none/arm.meta && grep -q '^# source: ' r/m-none/arm.meta \
+    || { echo "FAIL manifest: arm.meta lacks seed-base or provenance lines" >&2; fails=$((fails + 1)); }
+with ARM_SEED=5; expect refuse 'SEED_BASE changed' r m none
+echo '1 64' >r/m-none/shard-0.json
+expect generate 'corrupt shard regenerated' r m none
+[ "$(cat r/m-none/shard-0.json)" = "$(shard 1)" ] \
+    || { echo "FAIL corrupt shard: not regenerated" >&2; fails=$((fails + 1)); }
+shard 3 >r/m-none/shard-2.json
+expect generate 'stray shard past JOBS regenerated' r m none
+[ ! -e r/m-none/shard-2.json ] \
+    || { echo "FAIL stray shard: survived regeneration" >&2; fails=$((fails + 1)); }
+sed '/^# /d' r/m-none/arm.meta >r/m-none/arm.meta.new && mv r/m-none/arm.meta.new r/m-none/arm.meta
+expect skip     'provenance lines are not compared' r m none
+grep -v -e '^shards:' -e '^per-shard:' -e '^seed-base:' r/m-none/arm.meta >r/m-none/arm.meta.new
+mv r/m-none/arm.meta.new r/m-none/arm.meta
+expect skip     'pre-manifest arm.meta, matching fingerprint' r m none
+grep -q 'WARNING .*predates the manifest' "$tmp/out" \
+    || { echo "FAIL pre-manifest arm.meta: no warning" >&2; fails=$((fails + 1)); }
+with ARM_SEED=5; expect generate 'pre-manifest arm.meta, other seed: shard check regenerates' r m none
+
+# A worker that dies fails the arm loudly and leaves a hole, never a shard.
+with FAIL_SEED=2; expect fail 'failed worker' r f none
+[ -e r/f-none/shard-0.json ] && [ ! -e r/f-none/shard-1.json ] \
+    || { echo "FAIL failed worker: expected shard-0 only" >&2; fails=$((fails + 1)); }
+expect generate 'failed arm regenerated on resume' r f none
+
+# A report is reused only while its arms, scorer and flags are unchanged.
+cat >target/release/examples/ab-dump-diff <<'SH'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+    case "$1" in --out-plain|--out-pd) echo diff >"$2"; shift ;; esac
+    shift
+done
+SH
+chmod +x target/release/examples/ab-dump-diff
+cat >scripts/run-diff.sh <<'SH'
+#!/bin/sh
+R=$1
+. "$(dirname "$0")/ab-lib.sh"
+diffpair m f none
+SH
+chmod +x scripts/run-diff.sh
+diff_expect() {
+    cases=$((cases + 1))
+    scripts/run-diff.sh r >"$tmp/out" 2>&1 || { echo "FAIL $2: $(cat "$tmp/out")" >&2; fails=$((fails + 1)); return; }
+    got=rescore; grep -q 'skip .*inputs unchanged' "$tmp/out" && got=skip
+    if [ "$got" = "$1" ]; then echo "ok   $2"; else echo "FAIL $2: want $1, got $got" >&2; fails=$((fails + 1)); fi
+}
+diff_expect rescore 'fresh report'
+diff_expect skip    'report reused'
+echo '# touched' >>r/f-none/arm.meta && sed -i 's/^# touched$/x: 1/' r/f-none/arm.meta
+diff_expect rescore 'arm manifest changed'
+echo '# rebuilt' >>target/release/examples/ab-dump-diff
+diff_expect rescore 'scorer rebuilt'
+rm r/diff.m.vs.f.none.inputs
+diff_expect rescore 'unstamped report'
 
 [ "$fails" = 0 ] || { echo "arm fingerprint: $fails case(s) failed" >&2; exit 1; }
 echo "arm fingerprint passed ($cases cases)"

@@ -33,6 +33,13 @@ cargo build --release --features serde \
     --example bba-gen --example bba-decompose --example ab-dump-diff
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
+# verified DIR — every shard present, parsing, of the expected seed and size
+# (bba-gen-parallel.sh --verify).  Not -d the dir, nor -s shard-0: an arm that
+# died on startup leaves an empty dir, one that lost a worker a short arm, and
+# either would be resumed past (the lesson ab-lib.sh's arm() records).
+verified() {
+    [ -d "$1" ] && scripts/bba-gen-parallel.sh --verify "$1" "$PER_SHARD" >>"$R/log" 2>&1
+}
 
 # A persistent SEED_BASE, fresh on first use, shared by every re-anchor.
 if [ ! -s "$R/seed" ]; then echo $(date +%s%N) >"$R/seed"; fi
@@ -42,7 +49,7 @@ export SEED_BASE
 log "=== anchor start, sha=$SHA, SEED_BASE=$SEED_BASE, $(nproc)x$PER_SHARD bd/arm/vul -> $SNAP"
 for vul in none both; do
     dir="$SNAP/$vul"
-    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; continue; }
+    verified "$dir" && { log "skip $dir (complete, verified)"; continue; }
     log "generate $dir"
     # --our-floor american-instinct: bba-decompose replays through the
     # deterministic books; american() now ships the non-decomposable net floor.
@@ -72,10 +79,7 @@ target/release/examples/bba-decompose "$SNAP/none" "$SNAP/both" \
 # fixes (docs/bba-gap-campaign.md, rule #2).
 for vul in none both; do
     dir="$SNAP/american-$vul"
-    # -s a shard, not -d the dir: bba-gen-parallel mkdirs before it launches a
-    # worker, so an arm that died on startup leaves an empty dir that a -d test
-    # would silently resume past (the lesson ab-lib.sh's arm() records).
-    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; continue; }
+    verified "$dir" && { log "skip $dir (complete, verified)"; continue; }
     log "generate $dir"
     scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" \
         --our-floor american >>"$R/log" 2>&1
