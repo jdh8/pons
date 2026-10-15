@@ -531,6 +531,101 @@ pub fn sd_declarer_ns_score(
     lead_worlds: usize,
     line_worlds: usize,
 ) -> SdScores {
+    sd_declarer_ns_score_read(
+        auction,
+        dealer,
+        deal,
+        |seat, prefix| partnership.infer(relative(vul, seat), prefix),
+        vul,
+        rng,
+        lead_worlds,
+        line_worlds,
+    )
+}
+
+/// How the blind single-dummy players of a **`bba-gen` dump** read `table_a`,
+/// whose North–South pair is ours and whose East–West pair is the foreign engine
+///
+/// A North–South reader is ours and reads with our partnership as it always
+/// has. An East–West reader is the opponent, and what it may know of our calls is
+/// what our agreements *disclose*: every call we made, alerted or not, decoded
+/// off the rule that authored it. Reading through the plain partnership gave
+/// it only our alerted calls — the opponents' calls decode at
+/// `ReadingScope::Alerted` unless an opponent is declared — so an unalerted
+/// natural call (the `(1NT) 2♥` overcall band, a free bid's range) fell to the
+/// natural walk, and a disclosure manipulation such as `ab-dump-sd
+/// --on-ns-overcall 20:37` could not reach the leader. The East–West reader
+/// therefore declares our own partnership as its opponent
+/// ([`Partnership::with_opponents`]), which decodes the opponents' calls at
+/// the full reading scope through that partnership's books. East–West's own
+/// calls still read through our books, as before: the foreign engine's system
+/// is not ours to disclose.
+pub struct DumpReader {
+    ours: Partnership,
+    theirs: Partnership,
+    legacy: bool,
+}
+
+impl DumpReader {
+    /// Read `table_a` with our partnership disclosed to East–West
+    pub fn new(ours: Partnership) -> Self {
+        let theirs = ours.clone().with_opponents(&ours);
+        Self {
+            ours,
+            theirs,
+            legacy: false,
+        }
+    }
+
+    /// The pre-2026-10-16 reader: both pairs read through the plain
+    /// partnership, so East–West sees only our alerted calls. Kept so old
+    /// `ab-dump-sd` outputs can be reproduced.
+    pub fn legacy(ours: Partnership) -> Self {
+        Self {
+            theirs: ours.clone(),
+            ours,
+            legacy: true,
+        }
+    }
+
+    /// One line naming the leader-reading mode, for report headers
+    pub const fn mode(&self) -> &'static str {
+        if self.legacy {
+            "legacy (EW readers see only our alerted calls; pre-2026-10-16 outputs)"
+        } else {
+            "disclosed (EW readers decode every NS call off its authoring rule)"
+        }
+    }
+
+    /// What `seat` reads from `prefix` (the player to act after it)
+    pub fn infer(
+        &self,
+        seat: Seat,
+        vul: AbsoluteVulnerability,
+        prefix: &[Call],
+    ) -> pons::bidding::Inferences {
+        let reader = match seat {
+            Seat::North | Seat::South => &self.ours,
+            Seat::East | Seat::West => &self.theirs,
+        };
+        reader.infer(relative(vul, seat), prefix)
+    }
+}
+
+/// [`sd_declarer_ns_score`] with each view read by `read(seat, prefix)` —
+/// the seat to act after `prefix` — instead of one partnership
+// Each argument is a distinct fact of the board, as in `score_boards`.
+#[allow(clippy::too_many_arguments)]
+pub fn sd_declarer_ns_score_read(
+    auction: &Auction,
+    dealer: Seat,
+    deal: &FullDeal,
+    read: impl Fn(Seat, &[Call]) -> pons::bidding::Inferences,
+    vul: AbsoluteVulnerability,
+    rng: &mut StdRng,
+    lead_worlds: usize,
+    line_worlds: usize,
+) -> SdScores {
     let Some((contract, declarer)) = final_contract(auction, dealer) else {
         return SdScores::default();
     };
@@ -542,7 +637,7 @@ pub fn sd_declarer_ns_score(
         let cut = (auction.len().saturating_sub(3)..=auction.len())
             .find(|&len| seat_to_act(dealer, len) == seat)
             .expect("one of four consecutive lengths reaches every seat");
-        partnership.infer(relative(vul, seat), &auction[..cut])
+        read(seat, &auction[..cut])
     };
     let (_, lead_tricks, line_tricks) = pons::single_dummy_declarer_tricks(
         deal,

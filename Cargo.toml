@@ -175,6 +175,9 @@ required-features = ["serde"]
 name = "ab-dump-sd"
 path = "examples/ab-dump-sd/main.rs"
 required-features = ["serde"]
+# Runs the leader-reading regression test (the disclosure manipulation must
+# reach the blind leader's sampler).
+test = true
 
 [[example]]
 name = "ab-dump-bucket"

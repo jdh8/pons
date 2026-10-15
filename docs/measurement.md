@@ -302,27 +302,43 @@ board's swing keeps its sign and SD-PD adds no independent signal. A verdict
 resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
 row.
 
-**Known limitation — `ab-dump-sd` does not price disclosure** (measured
-2026-07-26, unfixed). The dump-rescore harness reads each arm's auctions for the
-blind leader via `partnership.infer(relative(vul, leader), …)`, and its `--on-ns-*`
-flags are meant to make the leader read the ON arm under the ON arm's system.
-**They are inert.** Rescoring `nt-defense-band-9-14` with `--on-ns-overcall
-20:37` — claiming the overcaller holds 20–37 HCP rather than 9–14 — reproduces
-the flagged run to the last IMP, and so does dropping
-`--on-ns-negative-double-shape modern` from `modern-negx`. It is therefore not a
-natural-vs-alerted split: no setting on *our* book reaches the leader's model.
-The leader is an opponent, so the prime suspect is that inference from the
-opposing seat never consults our book (cf. the wrong-seat trap in
-`dnf-migration.md`).
+**Fixed limitation — `ab-dump-sd` did not price the disclosure of our
+unalerted calls** (measured 2026-07-26, diagnosed and fixed 2026-10-16). The
+dump-rescore harness reads each arm's auctions for the blind leader, and its
+`--on-ns-*` flags make the leader read the ON arm under the ON arm's system.
+On 2026-07-26 rescoring `nt-defense-band-9-14` with `--on-ns-overcall 20:37` —
+claiming the overcaller holds 20–37 HCP rather than 9–14 — reproduced the
+flagged run to the last IMP, and so did dropping
+`--on-ns-negative-double-shape modern` from `modern-negx`.
 
-Consequences, in order: verdicts from dump rescores **stand** (both arms are read
-identically, and the arms still differ in the auctions and contracts the dumps
-recorded, so the treatment effect is real); the claim that a dump rescore prices
-disclosure or lead-direction value **does not**; and any future harness that
-needs disclosure priced must verify it moves the numbers before trusting it — the
-one-line check is to re-run with a deliberately absurd band and confirm the
-output changes. Fixing it would move every sd number the script has produced, so
-it is flagged rather than patched.
+The cause, confirmed by `examples/ab-dump-sd/tests.rs`: the harness read every
+seat through the plain partnership, which decodes the *opponents'* calls only
+when alerted (`table_alerts`, at `ReadingScope::Alerted`; the full scope needs a
+declared opponent). Our pair sits North–South in a `bba-gen` dump, so whenever
+we declare, the East–West leader saw our alerted calls and nothing else of our
+book: the unalerted natural `(1NT) 2♥` overcall fell to the natural walk
+(`points 8..37`, `♥5+`) under either band. A North–South leader reading its
+partner was never affected after 2026-08-16 (`ReadingScope::All`), and the
+alerted negative double reaches both leaders on today's reader; its July
+inertness is not reproduced and probably came from the pre-2026-08-09 decode
+contexts, which read thread-live knobs instead of the arm's pinned ones.
+
+The fix is in the harness only (`common::DumpReader`): an East–West reader
+declares our own partnership as its opponent (`Partnership::with_opponents`),
+so every North–South call decodes off its authoring rule, alerted or not;
+North–South readers are unchanged, and the default system's bidding is
+byte-identical. The report prints a `leader reading:` line naming the mode, and
+`--legacy-leader-reading` reproduces the old numbers. **An `sd.*.txt` without a
+`leader reading:` line is legacy.**
+
+Consequences: legacy verdicts from dump rescores **stand as treatment effects**
+(both arms were read identically, and the arms still differ in the auctions and
+contracts the dumps recorded); a legacy sd row does **not** price the disclosure
+cost or concealment value of our unalerted calls when we declare, and verdicts
+whose mechanism rested on that need a re-measure under the disclosed reader
+before they are cited as such. Any future harness that needs disclosure priced
+must verify it moves the numbers before trusting it — the one-line check is to
+re-run with a deliberately absurd band and confirm the output changes.
 
 **The four brackets are a 2×2, not a ladder** (2026-07-26). It is tempting to
 rank them by how harshly they treat the bidding side — sd < plain < PD — and

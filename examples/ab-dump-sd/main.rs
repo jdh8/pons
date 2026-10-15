@@ -4,8 +4,11 @@
 //! with double-dummy play (plain) or a perfect-defense doubler (pd).  This
 //! third scorer prices the one information seam DD gets most wrong: the opening
 //! lead.  The leader (declarer's LHO) chooses a card *single-dummy* — best over
-//! `sd_worlds` layouts consistent with the auction as their own book reads it —
-//! and play thereafter is double-dummy on the actual deal (`single_dummy_leads`;
+//! `sd_worlds` layouts consistent with the auction as the scored arm's
+//! agreements disclose it (an East–West leader decodes every one of our calls
+//! off its authoring rule, [`common::DumpReader`]; `--legacy-leader-reading`
+//! restores the pre-2026-10-16 reader, which showed it our alerted calls only)
+//! — and play thereafter is double-dummy on the actual deal (`single_dummy_leads`;
 //! Pavlicek: a blind lead pays declarer ≈+0.3 tricks at the 1NT level).  Truth
 //! sits between plain DD (under-punishes overbids) and pd (over-punishes); the
 //! blind lead is the realistic middle, so a plain-win / pd-loss "doubling
@@ -36,9 +39,8 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
+use pons::bidding::Inferences;
 use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape};
-use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -47,7 +49,7 @@ use rand::rngs::StdRng;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{dump_density, mean_with_ci, seat_to_act, verdict_line};
+use common::{DumpReader, dump_density, mean_with_ci, seat_to_act, verdict_line};
 
 #[derive(Parser)]
 struct Args {
@@ -196,14 +198,23 @@ struct Args {
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
+    /// Reproduce the pre-2026-10-16 reader, under which East–West (the
+    /// foreign pair, and the leader whenever we declare) saw only our
+    /// *alerted* calls, so a manipulation of an unalerted call's disclosure
+    /// (`--on-ns-overcall`) never reached it.  Default: every NS call decodes
+    /// off its authoring rule for an East–West reader (`common::DumpReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read
-/// through `partnership`; `None` for a pass-out (sd score 0).  Mirrors
-/// `ab-nt-defense-matrix::lead_inputs` with a single partnership.
+/// through `reader`; `None` for a pass-out (sd score 0).  Mirrors
+/// `ab-nt-defense-matrix::lead_inputs` with a single partnership, except that
+/// an East–West leader reads our calls as our agreements disclose them
+/// ([`common::DumpReader`]).
 fn lead_inputs(
     auction: &Auction,
-    partnership: &Partnership,
+    reader: &DumpReader,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -218,7 +229,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
+        reader.infer(leader, vul, &auction[..cut]),
     ))
 }
 
@@ -273,7 +284,15 @@ fn main() {
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;
-    let partnership_on = american(&on_arm).bind();
+    let read_arm = |arm: &pons::bidding::agreements::Agreements| {
+        let partnership = american(arm).bind();
+        if args.legacy_leader_reading {
+            DumpReader::legacy(partnership)
+        } else {
+            DumpReader::new(partnership)
+        }
+    };
+    let reader_on = read_arm(&on_arm);
     let (lo, hi) = band(&args.off_ns_overcall);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
     let mut off_arm = pons::bidding::agreements::Agreements::default();
@@ -292,7 +311,7 @@ fn main() {
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
-    let partnership_off = american(&off_arm).bind();
+    let reader_off = read_arm(&off_arm);
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one
@@ -310,15 +329,15 @@ fn main() {
                 continue; // identical auction ⇒ identical playout ⇒ swing 0
             }
             fired += 1;
-            for (score, board, partnership) in [
-                (&mut on_score[i], a, &partnership_on),
-                (&mut off_score[i], b, &partnership_off),
+            for (score, board, reader) in [
+                (&mut on_score[i], a, &reader_on),
+                (&mut off_score[i], b, &reader_off),
             ] {
-                *score = common::sd_declarer_ns_score(
+                *score = common::sd_declarer_ns_score_read(
                     &board.table_a,
                     board.dealer,
                     &board.deal,
-                    partnership,
+                    |seat, prefix| reader.infer(seat, vul, prefix),
                     vul,
                     &mut rng,
                     args.sd_worlds,
@@ -338,11 +357,9 @@ fn main() {
                 continue; // identical auction ⇒ identical blind lead ⇒ swing 0
             }
             fired += 1;
-            for (arm_on, board, partnership) in
-                [(true, a, &partnership_on), (false, b, &partnership_off)]
-            {
+            for (arm_on, board, reader) in [(true, a, &reader_on), (false, b, &reader_off)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&board.table_a, partnership, board.dealer, vul)
+                    lead_inputs(&board.table_a, reader, board.dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {
@@ -397,6 +414,9 @@ fn main() {
             off.our_label,
             100.0 * fired as f64 / n.max(1) as f64,
         );
+        // Name the reader: outputs written before this line existed are
+        // the legacy reader's, and their sd numbers do not price disclosure.
+        println!("leader reading: {}", reader_on.mode());
         // Read the perfect-defense line as the arbiter: plain SD relaxes the
         // defenders' lead *and* never punishes the failures, so it flatters
         // aggression.  (Under `--sd-declarer` the defense already peeks, so
@@ -472,3 +492,6 @@ fn main() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
