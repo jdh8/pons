@@ -742,7 +742,8 @@ struct Args {
     data: String,
     /// Held-out corpus stem (deal-disjoint by construction — a different
     /// database slice). Without it, a contiguous `--val-frac` tail is used;
-    /// the dump is deal-major, so that tail is still deal-disjoint.
+    /// the dump is deal-major, so that tail shares at most its first deal —
+    /// the one the row cut can bisect — with training.
     #[arg(long)]
     test: Option<String>,
     /// Output stem: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`.
@@ -1350,8 +1351,10 @@ impl Dataset {
     }
 
     /// Split the trailing `rows - at` rows off into a second dataset. The dump
-    /// is deal-major, so a contiguous tail never shares a board — and hence
-    /// never shares a DD label — with what stays behind.
+    /// is deal-major, so a contiguous tail shares at most one board — the one
+    /// `at` falls inside, if it is not a deal boundary — and hence at most that
+    /// board's DD label with what stays behind.  The dump stores no deal id to
+    /// align on; `--test` is the deal-disjoint path.
     fn split_off(&mut self, at: usize) -> Self {
         let tail = Self {
             features: self.features.split_off(at * self.features_len),

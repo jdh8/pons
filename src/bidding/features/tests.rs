@@ -1519,3 +1519,49 @@ fn features_v8_flags_artificial_strains_and_last_bids() {
     ];
     assert_eq!(block(&overcall), vec![0.0; LEN_ARTIFICIAL]);
 }
+
+/// The trainer's board scan (`trainer/src/data.rs`, `board_start_from`) reads
+/// three offsets off the head every v3+ vector shares, `push_hand` then
+/// `push_context`: the hand block `0..10`, the contract-to-beat flag at 20 and
+/// the dealer slot of the seat one-hot at 41.  An auction-opening row is
+/// exactly `[20] == 0 && [41] == 1`.  The trainer cannot depend on pons, so
+/// the offsets are pinned here.
+#[test]
+fn trainer_board_scan_offsets_hold() {
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let mut hand_block = Vec::new();
+    push_hand(&mut hand_block, cards);
+    assert_eq!(hand_block.len(), 10);
+
+    let head = |auction: &[Call], v6: bool| {
+        let mut out = Vec::new();
+        push_hand(&mut out, cards);
+        let context = Context::new(RelativeVulnerability::NONE, auction);
+        push_context(&mut out, &context, v6);
+        out
+    };
+    let opens = |row: &[f32]| row[20] == 0.0 && row[41] == 1.0;
+    let one_club = bid(1, Strain::Clubs);
+    let later: [&[Call]; 7] = [
+        &[Call::Pass],
+        &[Call::Pass; 2],
+        &[Call::Pass; 3],
+        &[one_club],
+        &[one_club, Call::Pass],
+        &[one_club, Call::Pass, Call::Pass],
+        &[one_club, Call::Pass, Call::Pass, Call::Double],
+    ];
+    for v6 in [false, true] {
+        let opening = head(&[], v6);
+        assert!(opens(&opening));
+        assert_eq!(opening[..10], hand_block[..]);
+        for auction in later {
+            assert!(
+                !opens(&head(auction, v6)),
+                "{auction:?} reads as an opening"
+            );
+        }
+    }
+    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    assert_eq!(features_v3(cards, &context)[..46], head(&[], false)[..46]);
+}

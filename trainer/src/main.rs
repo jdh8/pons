@@ -56,7 +56,7 @@ enum Arch {
 struct Args {
     /// Teacher-dump path stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`.
     /// Repeatable: several dumps train as one mixture corpus, each contributing
-    /// its own board-disjoint validation tail (see [`data::load_mixture`]).
+    /// its own validation tail, cut at a board start (see [`data::load_mixture`]).
     #[arg(long, default_values_t = ["../target/teacher-data".to_string()])]
     data: Vec<String>,
     /// Output stem for the artifact: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`
@@ -84,9 +84,18 @@ struct Args {
     /// Minibatch size
     #[arg(long, default_value_t = 4096)]
     batch: usize,
-    /// Validation fraction, taken contiguously from the end (board-disjoint)
+    /// Validation fraction, taken contiguously from the end of each dump and
+    /// moved forward to the next board start, so no board straddles the split
+    /// within a dump (v3+ features; older layouts warn and cut mid-board).
+    /// Nothing checks that different dumps hold different deals.
     #[arg(long, default_value_t = 0.10)]
     val_frac: f64,
+    /// Cut validation at the nominal row instead of the next board start: the
+    /// historical split, which can put one board on both sides.  Only to
+    /// reproduce a manifest written before the alignment (`val_split` absent
+    /// from its weights sidecar).
+    #[arg(long)]
+    row_split: bool,
     /// Number of (features, logits) rows to dump as the M1.2 parity fixture
     #[arg(long, default_value_t = 8)]
     fixture: usize,
@@ -115,7 +124,8 @@ struct Args {
     /// artifact has no temperature until something loads it back. This is that
     /// mode — `--weights-in ../src/bidding/weights/american_bba_v6` over the
     /// same dumps and the same `--val-frac` reads `T` off the same held-out
-    /// tail v6 was gated on. Point `--weights-out` at a scratch stem: the
+    /// tail v6 was gated on (with `--row-split`; without it, off that tail
+    /// minus the rows before the first board start). Point `--weights-out` at a scratch stem: the
     /// export is a full artifact write, and the fitted `T` belongs in the
     /// shipped sidecar only by a deliberate edit.
     ///
@@ -272,6 +282,7 @@ fn main() -> Result<()> {
         args.val_frac,
         args.batch,
         args.arch == Arch::Lstm,
+        args.row_split,
     )?;
     let features_len = ds.features_len;
     let nval = ds.rows - ntrain;
@@ -706,6 +717,12 @@ fn export(
         "val_ece_raw": cal.ece_before,
         "val_ece_calibrated": cal.ece_after,
     });
+    // Which validation split produced `val_*`: absent on every artifact
+    // trained before the board-aligned split, which all cut at the nominal row.
+    if let Some(obj) = sidecar.as_object_mut() {
+        let split = if args.row_split { "row" } else { "board" };
+        obj.insert("val_split".into(), serde_json::json!(split));
+    }
     // Both blocks add keys only on the path that needs them, so an ordinary
     // `--arch mlp` training run's sidecar keeps the exact key set it had.
     if let (Some(stem), Some(obj)) = (&args.weights_in, sidecar.as_object_mut()) {

@@ -179,8 +179,8 @@ struct Args {
     /// Alternating **inside one dump** rather than concatenating two is what
     /// keeps the trainer's validation split honest: it takes the tail
     /// contiguously, so stitched corpora would validate entirely on whichever
-    /// regime landed last, while interleaving by board leaves the tail
-    /// board-disjoint *and* mixed.
+    /// regime landed last, while interleaving by board leaves the tail mixed
+    /// (the trainer moves its cut to a board start, so it is also board-disjoint).
     ///
     /// Conflicts with `--kickback`: mixing supplies *both* regimes, so a fixed
     /// one would be ignored — and the sidecar's `our_kickback` would then

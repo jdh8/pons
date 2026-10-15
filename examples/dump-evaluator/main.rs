@@ -32,8 +32,9 @@
 //! Output is a flat little-endian `f32` file of `features_len + 20` floats per
 //! row, a JSON sidecar pinning the layout, and a sibling `.tags` byte per row
 //! (bit 0 = contested phase, bit 1 = system index). The loop is **deal-major**
-//! so a contiguous validation split stays deal-disjoint — the ~10 rows a board
-//! contributes all share one DD label, and a shuffled split would leak it.
+//! so a contiguous validation split leaks at most the one deal it cuts through
+//! — the ~10 rows a board contributes all share one DD label, and a shuffled
+//! split would leak every board.
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
@@ -320,7 +321,8 @@ fn main() -> anyhow::Result<()> {
     let (mut rows, mut contested, mut forced_pass) = (0u64, 0u64, 0u64);
 
     // Deal-major: every row a board contributes stays contiguous, so the
-    // trainer's contiguous validation tail is deal-disjoint.  Parallel over
+    // trainer's contiguous validation tail shares at most one deal with
+    // training (the one its row cut lands in).  Parallel over
     // deals — the DD tables are pre-solved, so per-deal work is pure bidding.
     // (dealer, vul) derive from a per-deal RNG keyed on (seed, index), making
     // the output independent of thread schedule; the stream differs from the

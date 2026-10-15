@@ -158,7 +158,9 @@ EPBot run** — the generator is bidding-bound, ~1700 deals/s single-threaded.
 The label is `gib::relativized_tricks`: strain-major in GIB order (NT ♠ ♥ ♦ ♣) ×
 declarer `[me, lho, partner, rho]`, actor-relative like the input.
 
-The walk is **deal-major** so a contiguous validation tail stays deal-disjoint —
+The walk is **deal-major** so a contiguous validation tail shares at most one
+deal with training (the one the row cut lands in; the dump stores no deal id to
+align on, so `--test` is the strictly deal-disjoint path) —
 the ~10 rows a board contributes all share one DD label, and a shuffled split
 would leak it. Ranges come from `Partnership::infer`, never a bare `Context`: the
 trie-prefixed reading is what decodes conventional calls off their authoring

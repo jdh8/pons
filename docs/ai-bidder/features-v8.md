@@ -65,11 +65,29 @@ was checked rather than assumed:
    their per-board cell sampling drew from six cells at `39318c7f` including
    the since-retired `dutch-*` ones, and today's walk has three, so the rows
    on retired cells cannot be reproduced and stay on the teacher's label.
+   What each path proves is narrower than "same row". The positional path
+   compares only the one-hot, DD and tag blocks (plus the row count): labels,
+   tables and phases line up, not each row's decision. The key's context
+   block is a summary (strains bid, last bid, partner's last bid, penalty,
+   seat), not the auction, and it leaves out the cell, so equal keys do not
+   prove an equal auction prefix or table configuration. Under a cell
+   rotation that changed (six cells → three), a key can match the same deal
+   and seat played under another cell (the DD block pins deal and seat, not
+   cell). If the six cells were distinct, at most half the boards kept their
+   cell across the walks, yet 84–85% of rows matched, so roughly a third or
+   more of the uniform rows probably matched across cells — **unmeasured**,
+   and harmful only where the cut had relabelled the row. The keyed
+   path also drops every old key that occurs twice (those rows keep the
+   teacher's one-hot) and gives one old label to every new row sharing its
+   key. `splice-labels.py --validate NEW_CHUNKS OLD_CHUNKS CUT_STEM` counts
+   all of this, comparing each transplant's (table, cell, auction prefix)
+   rebuilt from the chunks; it has not been run on this corpus.
 3. **The stale-label caveat, stated.** A transplanted label is an M32 rollout
    verdict under the book of 2026-09-13; the corpus features are the reading
-   of today's book. The row's *auction* is identical (that is what the key
-   asserts), only its reading moved on 0.12% of rows. Labels transplanted:
-   ≈424k of M32's 460,341 (the uniform shortfall).
+   of today's book. The positional chunks' one-hot labels are identical and
+   their reading moved on 0.12% of rows (`--diff` on one chunk); that the
+   row's *auction* is identical is **not** established by the key (see 2).
+   Labels transplanted: ≈424k of M32's 460,341 (the uniform shortfall).
 
 ## 3. Training and export
 
@@ -100,6 +118,8 @@ for k in $(seq 0 19); do OUT=$CHUNKS STRIDE=20 OFFSETS=$k LAYOUTS=0 \
   setsid nohup scripts/idle-run.sh scripts/relabel-worker.sh >$CHUNKS/worker-$k.log 2>&1 </dev/null & done
 # 2. splice, per shard
 python3 scripts/splice-labels.py $CHUNKS/$s $FLEET/$s target/corpus-relabel-m32/$s $OUT/$s
+#    and audit it (writes nothing; exits 1 if a transplant's identity differs)
+python3 scripts/splice-labels.py --validate $CHUNKS/$s $FLEET/$s target/corpus-relabel-m32/$s
 # 3. train (manifest command), 4. fold, 5. copy to src/bidding/weights/, 6. A/B
 ```
 

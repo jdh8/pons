@@ -102,7 +102,8 @@ pub struct Meta {
     pub seq: Option<SeqMeta>,
 }
 
-/// A loaded teacher dataset, rows still in dump order (board-by-board).
+/// A loaded teacher dataset, rows still in dump order: board by board, each
+/// table's decisions in auction order, with no board id stored.
 pub struct Dataset {
     /// `rows * features_len` floats, row-major.
     pub features: Vec<f32>,
@@ -235,8 +236,13 @@ impl Dataset {
 ///   one tail off the concatenation would make the held-out set *entirely*
 ///   enriched, which measures the wrong distribution; taking it at random would
 ///   put rows from one board on both sides of the split, which measures nothing
-///   (the trainer's split is board-disjoint precisely because rows from a board
-///   are near-duplicates).
+///   (rows from a board are near-duplicates). The tail starts at the first
+///   provable board start at or after `rows - round(rows * val_frac)` (see
+///   [`Dataset::board_start_from`]), so within one dump no board straddles the
+///   split. Nothing checks that two *different* dumps hold different deals.
+///   `row_split` restores the historical cut at the nominal row, which can
+///   bisect the boundary board; it exists to reproduce manifests written
+///   before the alignment.
 /// - **Training heads are round-robined in `block`-row chunks**, proportionally,
 ///   because the epoch loop walks contiguous minibatches and never shuffles.
 ///   Concatenated, every epoch would run the bulk to exhaustion and then finish
@@ -249,14 +255,26 @@ pub fn load_mixture(
     val_frac: f64,
     block: usize,
     want_seq: bool,
+    row_split: bool,
 ) -> Result<(Dataset, usize)> {
-    let [first, rest @ ..] = stems else {
-        bail!("no --data given");
-    };
-    let dumps = std::iter::once(first)
-        .chain(rest)
+    let dumps = stems
+        .iter()
         .map(|stem| Dataset::load(stem, want_seq))
         .collect::<Result<Vec<_>>>()?;
+    mix(stems, dumps, val_frac, block, row_split)
+}
+
+/// [`load_mixture`] once the files are read: check, split, interleave.
+pub fn mix(
+    stems: &[String],
+    dumps: Vec<Dataset>,
+    val_frac: f64,
+    block: usize,
+    row_split: bool,
+) -> Result<(Dataset, usize)> {
+    if dumps.is_empty() {
+        bail!("no --data given");
+    }
 
     // A mixture is only a mixture if the rows are commensurable (same layout and meaning).
     let head = &dumps[0];
@@ -305,13 +323,29 @@ pub fn load_mixture(
         }
     }
 
-    // Each dump's own board-disjoint tail is its validation share.
-    let ntrain_each: Vec<usize> = dumps
+    // Each dump's own tail is its validation share, moved forward to the next
+    // board start so the boundary board lands wholly in training.  Forward
+    // only: the aligned tail is a subset of the historical one, so a net
+    // trained on the old split is still scored on rows it never saw.
+    let ntrain_each: Vec<usize> = stems
         .iter()
-        .map(|d| {
+        .zip(&dumps)
+        .map(|(stem, d)| {
             let nval =
                 ((d.rows as f64 * val_frac).round() as usize).clamp(1, d.rows.saturating_sub(1));
-            d.rows - nval
+            let nominal = d.rows - nval;
+            if row_split {
+                return nominal;
+            }
+            d.board_start_from(nominal).unwrap_or_else(|| {
+                eprintln!(
+                    "warning: {stem}: no provable board start in rows {nominal}..{} \
+                     (feature v{}); validation starts mid-board at row {nominal}, so one \
+                     board may straddle the split",
+                    d.rows, d.meta.feature_version
+                );
+                nominal
+            })
         })
         .collect();
 
@@ -361,7 +395,57 @@ pub fn load_mixture(
     Ok((out, ntrain))
 }
 
+/// First feature version whose rows open with `push_hand` (10 values) then
+/// `push_context` (36 values), the layout [`Dataset::board_start_from`] reads.
+/// v1/v2 are the retired 160-float vector.  The offsets are pinned on the pons
+/// side by `features::tests::trainer_board_scan_offsets_hold`.
+const BOARD_SCAN_VERSION: u32 = 3;
+/// `push_hand`: the acting hand's summary, the first 10 features.
+const HAND: std::ops::Range<usize> = 0..10;
+/// `push_context`'s contract-to-beat "present" flag.
+const BID_PRESENT: usize = 20;
+/// `push_context`'s seat one-hot, slot 0 = dealer (`auction.len() % 4 == 0`).
+const SEAT_DEALER: usize = 41;
+
 impl Dataset {
+    fn row(&self, r: usize) -> &[f32] {
+        &self.features[r * self.features_len..(r + 1) * self.features_len]
+    }
+
+    /// The row is its dealer's first decision: no bid yet and seat 0, which on
+    /// a live auction means `auction.len() == 0` (four passes end it).
+    fn opens_auction(&self, r: usize) -> bool {
+        let row = self.row(r);
+        row[BID_PRESENT] == 0.0 && row[SEAT_DEALER] == 1.0
+    }
+
+    /// The first row at or after `at` (and after row 0) that **provably**
+    /// starts a board, or `None` when there is none or the layout predates v3.
+    ///
+    /// The dump stores no board id, but `dump-teacher` writes boards
+    /// contiguously and each table's rows in auction order, so a board's first
+    /// row is its dealer's opening decision.  Under `--replay` every table of a
+    /// board opens that way, with the *same* dealer hand; so a row starts a
+    /// board when it opens an auction and its hand block differs from that of
+    /// the previous auction-opening row.  Every miss is conservative — two
+    /// consecutive boards whose dealers hold the same hand summary, or a board
+    /// whose dealer had no teacher logits (a forced pass writes no row) — and
+    /// only moves the split further forward.  The one unsound case needs
+    /// `--replay` *and* a forced dealer pass at one table of a board but not at
+    /// a later one.
+    pub fn board_start_from(&self, at: usize) -> Option<usize> {
+        if self.meta.feature_version < BOARD_SCAN_VERSION || self.features_len < SEAT_DEALER + 4 {
+            return None;
+        }
+        (at.max(1)..self.rows).find(|&r| {
+            self.opens_auction(r)
+                && (0..r)
+                    .rev()
+                    .find(|&p| self.opens_auction(p))
+                    .is_some_and(|p| self.row(p)[HAND] != self.row(r)[HAND])
+        })
+    }
+
     /// Append rows `[from, from + n)` of `src` — every parallel array at once, so
     /// features, targets, DD, tags and the token sequence cannot drift out of
     /// correspondence.
@@ -445,3 +529,6 @@ fn load_tags(path: &str, rows: usize) -> Result<Vec<u8>> {
     }
     Ok(tags)
 }
+
+#[cfg(test)]
+mod tests;

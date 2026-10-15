@@ -24,6 +24,7 @@ Usage:
 
 import argparse
 import json
+import math
 import sys
 
 import numpy as np
@@ -58,6 +59,28 @@ def forward(weights, x):
     return h @ params["l3.weight"].T + params["l3.bias"]
 
 
+def held_out_from(feats, val_frac, row_split):
+    """First held-out row, mirroring the trainer (`trainer/src/data.rs`).
+
+    The nominal cut is `rows - round(rows * val_frac)`, moved forward (unless
+    `row_split`) to the next row that opens an auction (no bid yet at offset
+    20, dealer seat at 41) with a hand block (`0..10`) unlike the previous
+    opener's — the trainer's `board_start_from`.  With no such row the trainer
+    keeps the nominal cut, and so does this.
+    """
+    n = feats.shape[0]
+    nval = min(max(math.floor(n * val_frac + 0.5), 1), n - 1)
+    nominal = n - nval
+    if row_split:
+        return nominal
+    prev = None
+    for r in np.flatnonzero((feats[:, 20] == 0) & (feats[:, 41] == 1)):
+        if r >= max(nominal, 1) and prev is not None and not np.array_equal(feats[prev, :10], feats[r, :10]):
+            return int(r)
+        prev = r
+    return nominal
+
+
 def matched_pairs(feats, targets, lo, indices):
     """Pairs among rows `>= lo`, keyed on everything but the probed slots."""
     keyed = np.delete(feats[lo:], indices, axis=1)
@@ -86,6 +109,11 @@ def main():
         help="held-out tail the trainer kept back; 1 to scan the whole dump",
     )
     ap.add_argument(
+        "--row-split",
+        action="store_true",
+        help="the net was trained with the trainer's --row-split (no val_split in its sidecar)",
+    )
+    ap.add_argument(
         "--slot",
         default=None,
         help="in-block slot(s) under test, comma-separated for one-hot axes "
@@ -108,8 +136,7 @@ def main():
     if weights["features_len"] != feats.shape[1]:
         sys.exit(f"net wants {weights['features_len']} features, dump has {feats.shape[1]}")
 
-    # The trainer's split is the contiguous tail of each dump; mirror it exactly.
-    lo = feats.shape[0] - round(feats.shape[0] * args.val_frac)
+    lo = 0 if args.val_frac >= 1 else held_out_from(feats, args.val_frac, args.row_split)
     moving = matched_pairs(feats, targets, lo, indices)
     print(f"{meta['rows']} rows, held-out tail from {lo}: {len(moving)} moving pairs")
     if not moving:
