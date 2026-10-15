@@ -626,9 +626,29 @@ verdict to name its cells. First use: the colour-split
 `lebensohl_signoff_raise` holds at `ns` and `ew` too
 ([its rows](#filter-scope-the-default-1nt-is-wider-than-the-scan)).
 
-- **Owed:** re-confirming the competitive defaults shipped on none/both
-  only. No list is drawn up yet; the runners whose own loops differ (about
-  130, including those that never source ab-lib) need hand edits first.
+- **Owed:** four-cell confirmations of the defaults shipped on none/both
+  only. Inventory 2026-10-16: ten shipped knobs read vulnerability in their
+  rules; three are covered (`landy_notrump_no_major_favourable`,
+  `lebensohl_signoff_raise`, `landy_doubler_game` at `ew`). Ranked queue,
+  vulnerability readers first, cells that cannot differ by construction
+  omitted:
+
+  | Knob | Cells owed | Runner | Note |
+  | --- | --- | --- | --- |
+  | `competitive_accountant` with `competitive_pass_demotion`, `competitive_push_natural_only` | ns, ew | `ab-competitive-accountant.sh`, `ab-competitive-demotion.sh` | prices our vulnerability against theirs; unfiltered, hand-edit the loops |
+  | `landy_wilkosz` | ns | `ab-landy-wilkosz.sh` | dead at favourable by construction |
+  | `defense_2c_landy_strength_nv_invite` | ns | `ab-landy-strength-residue.sh` | `ew` cannot differ; loop is `both none` |
+  | `landy_opener_rungs` + `landy_opener_px` | ns, ew | `ab-landy-opener.sh` | `!vulnerable()` rung |
+  | `landy_doubler_px` | ns, ew | `ab-landy-doubler-flip.sh` | pure doubling |
+  | `landy_splinter_tails` | ns, ew | `ab-landy-splinter-tails.sh` | doubles their save |
+  | `nt_high_overcall_x_leave_in` | ns, ew | `ab-nt-high-overcall.sh` | penalty conversion; its v1 flipped sign by vulnerability |
+  | `multi_doubler_major` | ns, ew | `ab-2d-multi-doubler.sh` | carries a known both-vul PD loss |
+
+  Then the doubling vetoes (`their_2nt_double_veto`, `their_3nt_pull_veto`).
+  About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
+  four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,
+  the runouts and `accountant_floor` live in single-vulnerability example
+  harnesses.
 
 ## 7 Auction conditioning and the replay approximation
 
