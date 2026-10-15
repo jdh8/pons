@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.xyz_invite_spade_preference` — opener prefers spades over XYZ's
+  invitational 5♠4♥ `2♥` (2026-10-15, split off
+  [#7](https://github.com/jdh8/pons/issues/7)); shipped default-on, win |
+  win.**
+  After `1m - 1♠ - 1NT - 2♣ - 2♦ - 2♥` opener's table had only game rungs
+  and `Pass`, so since `xyz_second_major_first` a minimum with three spades
+  passed `2♥` in a 4-2 or 4-3 heart fit. Opener now bids `2♠` with 3+
+  spades, at most three hearts and at most 13 points (two spades or four
+  hearts still pass), and responder passes it (the floor re-invited `3♠`).
+  Repair − shipped vs BBA, 1,228,800 boards per cell, SEED_BASE
+  1792072429578302804: plain DD +0.0002 ±0.0000 / +0.0002 ±0.0001, PD
+  +0.0002 ±0.0001 / +0.0003 ±0.0001, SD-PD +0.0002 / +0.0003 none/both;
+  113 / 120 fired (0.01%), +1.8 to +2.9 IMPs per fired board. Off-switch
+  `--no-ns-xyz-invite-spade-preference` in `bba-gen`; runner case
+  `xyz-invite-spade-preference` in `scripts/ab-non-inferiority.sh`.
+
 - **`competition.diamond_transfer_responder_captain` — the #7 repair of the
   contested `2NT` diamond transfer (2026-10-15,
   [#7](https://github.com/jdh8/pons/issues/7)); shipped default-on, win |

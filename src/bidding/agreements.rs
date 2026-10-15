@@ -4468,6 +4468,21 @@ pub struct RebidKnobs {
     /// five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
     /// `2♠` with three spades and a doubleton heart, else pass.
     pub xyz_second_major_first: bool,
+    /// Prefer spades over the invitational 5♠4♥ `2♥` with a minimum
+    ///
+    /// **Default on** since 2026-10-15 (split off
+    /// [#7](https://github.com/jdh8/pons/issues/7)): won every cell on all
+    /// four scorers (repair − shipped vs BBA, 1,228,800 boards per cell;
+    /// plain DD +0.0002 ±0.0000 / +0.0002 ±0.0001, PD +0.0002 ±0.0001 /
+    /// +0.0003 ±0.0001, SD-PD +0.0002 / +0.0003 none/both; 0.01% fired,
+    /// +1.8 to +2.9 IMPs per fired board).  Off-switch
+    /// `--no-ns-xyz-invite-spade-preference` in `bba-gen`.  Off, after
+    /// `1m - 1♠ - 1NT - 2♣ - 2♦ - 2♥` opener's answer table has only game
+    /// rungs and `Pass`, so a minimum with three spades passes `2♥` in a 4-2
+    /// or 4-3 heart fit when the 5-3 spade fit is there.  On, opener bids
+    /// `2♠` with 3+ spades, at most three hearts and at most 13 points (a
+    /// minimum with two spades still passes), and responder passes it.
+    pub xyz_invite_spade_preference: bool,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
     ///
@@ -4815,6 +4830,7 @@ impl Default for RebidKnobs {
             forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
             xyz_second_major_first: true,
+            xyz_invite_spade_preference: true,
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,

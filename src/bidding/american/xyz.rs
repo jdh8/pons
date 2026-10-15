@@ -287,21 +287,29 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
     }
     if response == Suit::Spades && rebid == Strain::Notrump {
         // The 5♠4♥ invite: raise either major with a fit, else 3NT.
+        let mut table = Rules::new()
+            .rule(
+                Bid::new(4, Strain::Spades),
+                130,
+                len(Suit::Spades, 3..) & points(14..),
+            )
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                120,
+                len(Suit::Hearts, 4..) & points(14..),
+            )
+            .rule(Bid::new(3, Strain::Notrump), 100, points(14..));
+        // A minimum without four hearts prefers the 5-3 spade fit.
+        if knobs.xyz_invite_spade_preference {
+            table = table.rule(
+                Bid::new(2, Strain::Spades),
+                50,
+                len(Suit::Spades, 3..) & len(Suit::Hearts, ..=3) & points(..=13),
+            );
+        }
         accept(
             call(2, Strain::Hearts),
-            Rules::new()
-                .rule(
-                    Bid::new(4, Strain::Spades),
-                    130,
-                    len(Suit::Spades, 3..) & points(14..),
-                )
-                .rule(
-                    Bid::new(4, Strain::Hearts),
-                    120,
-                    len(Suit::Hearts, 4..) & points(14..),
-                )
-                .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
-                .rule(Call::Pass, 0, points(0..)),
+            table.rule(Call::Pass, 0, points(0..)),
         );
     }
     for minor in [Suit::Clubs, Suit::Diamonds] {
@@ -314,6 +322,15 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
         call(2, Strain::Notrump),
         accept_or_decline(Bid::new(3, Strain::Notrump), knobs),
     );
+
+    // Responder's invitation is spent: pass opener's spade preference (the
+    // floor would re-invite with `3♠`).
+    if knobs.xyz_invite_spade_preference && response == Suit::Spades && rebid == Strain::Notrump {
+        entries.extend(rows_of(
+            Pattern::node(&format!("{relay} 2♥ - 2♠ -")),
+            Rules::new().rule(Call::Pass, 0, points(0..)),
+        ));
+    }
 
     entries
 }

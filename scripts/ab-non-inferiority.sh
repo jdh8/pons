@@ -17,9 +17,14 @@
 #   reverse-heart-game      4♥ on a doubleton over 1♥ - 1NT - 2♠   --ns-forcing-nt-reverse-heart-game
 #   xyz-second-major-first  5♠4♥ shows 2♥ before 2♠ after 1m - 1♠ - 1NT   --no-ns-xyz-second-major-first
 #
+#   xyz-invite-spade-preference  opener's 2♠ preference over the invitational
+#                           1m - 1♠ - 1NT - 2♣ - 2♦ - 2♥     --no-ns-xyz-invite-spade-preference
+#
 # xyz-second-major-first shipped default-on on its run (2026-10-14), so its arm is
 # now the off-switch and the diff reads `shipped vs off`; the recorded run, made
-# before the flip, is `repair vs shipped` with the same sign.
+# before the flip, is `repair vs shipped` with the same sign.  Likewise
+# xyz-invite-spade-preference (shipped 2026-10-15, results root
+# ab-results/xyz-preference).
 #
 # reverse-levers (2026-10-15): the two-suiter trace's two remaining buckets, on
 # opener's 1♥ - 1NT - 2♠ reverse, in one five-arm run on one SEED_BASE —
@@ -142,6 +147,11 @@ for vul in none both; do
         ;;
     xyz-second-major-first)
         arm off "$vul" --no-ns-xyz-second-major-first
+        diffpair shipped off "$vul"
+        sddiff shipped off "$vul"
+        ;;
+    xyz-invite-spade-preference)
+        arm off "$vul" --no-ns-xyz-invite-spade-preference
         diffpair shipped off "$vul"
         sddiff shipped off "$vul"
         ;;

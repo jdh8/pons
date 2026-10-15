@@ -1540,6 +1540,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xyz_second_major_first: bool,
 
+    /// Withhold opener's minimum `2♠` preference over the invitational 5♠4♥
+    /// `2♥` after `1m - 1♠ - 1NT - 2♣ - 2♦` (`rebid.xyz_invite_spade_preference`,
+    /// **shipped default-on 2026-10-15**; this is the off arm)
+    #[arg(long, default_value_t = false)]
+    no_ns_xyz_invite_spade_preference: bool,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3281,6 +3287,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;
     agreements.rebid.forcing_nt_reverse_hcp_floor = !args.no_ns_forcing_nt_reverse_hcp_floor;
     agreements.rebid.xyz_second_major_first = !args.no_ns_xyz_second_major_first;
+    agreements.rebid.xyz_invite_spade_preference = !args.no_ns_xyz_invite_spade_preference;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

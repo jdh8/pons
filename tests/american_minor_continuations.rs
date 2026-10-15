@@ -556,3 +556,60 @@ fn opener_corrects_the_weak_two_hearts_only_with_spade_preference() {
     );
     assert_eq!(best_call(&partnership(), &auction, "Kx.Kxxx.AQx.Jxxx"), P,);
 }
+
+// --- XYZ: opener prefers spades over the invitational 5♠4♥ `2♥` -------------
+// (`RebidKnobs::xyz_invite_spade_preference`, shipped)
+
+/// The off arm: game rungs and `Pass` only
+fn no_spade_preference() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.xyz_invite_spade_preference = false;
+    american(&agreements).bind()
+}
+
+#[test]
+fn opener_prefers_spades_over_the_invitational_two_hearts_with_a_minimum() {
+    let auction = xyz_auction(
+        Strain::Spades,
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+        ],
+    );
+    let three_spades = "Kxx.xx.AQxx.Kxxx";
+    assert_eq!(best_call(&no_spade_preference(), &auction, three_spades), P);
+    assert_eq!(
+        best_call(&partnership(), &auction, three_spades),
+        call(2, Strain::Spades),
+    );
+    // Three-three still prefers spades.
+    assert_eq!(
+        best_call(&partnership(), &auction, "Kxx.Kxx.AQx.Jxxx"),
+        call(2, Strain::Spades),
+    );
+    // Four hearts pass the 4-4 fit; two spades pass too.
+    assert_eq!(best_call(&partnership(), &auction, "Kxx.Kxxx.AQx.Jxx"), P,);
+    assert_eq!(best_call(&partnership(), &auction, "Kx.Kxx.AQxx.Jxxx"), P,);
+    // A maximum still accepts in spades.
+    assert_eq!(
+        best_call(&partnership(), &auction, "Kxx.xx.AQxx.AKxx"),
+        call(4, Strain::Spades),
+    );
+}
+
+#[test]
+fn responder_passes_the_spade_preference() {
+    let auction = xyz_auction(
+        Strain::Spades,
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            call(2, Strain::Spades),
+        ],
+    );
+    for invite in ["AQxxx.KJxx.xx.xx", "AQxxx.KJxxx.x.xx"] {
+        assert_eq!(best_call(&partnership(), &auction, invite), P, "{invite}");
+    }
+}
