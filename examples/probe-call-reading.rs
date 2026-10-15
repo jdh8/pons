@@ -202,15 +202,15 @@ struct Args {
     no_ns_multi_kokish_kraft: bool,
 
     /// The `points` floor of the `4m` slam try above a completed Kokish–Kraft
-    /// minor transfer: a `points` floor (default `15`), or `off` — `13` is
-    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm
+    /// minor transfer: a `points` floor (default `13`), or `off` — `13` is
+    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm it replaced
     ///
     /// Also authors opener's answer (`4NT` RKCB on a maximum, else `5m`) and,
     /// on the same switch, the shortness `4m` when they compete over the
     /// completion (§N4-KK residues 3 and 6, `docs/minor-transfer-slam.md`).
     /// Needs the Kokish–Kraft counter and their declared `(2♦)` Multi to do
     /// anything.
-    #[arg(long, default_value = "15", value_name = "off|13|15")]
+    #[arg(long, default_value = "13", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
 
     /// Withhold the Kokish–Kraft doubler's **natural bid of the other major**

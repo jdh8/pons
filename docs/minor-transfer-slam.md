@@ -7,7 +7,8 @@ Landy counter — and that call had no authored answer, so the seat it created
 belonged to the floor.
 
 **Shipped 2026-08-25.** All three in-scope played lanes are now answered and
-default-on: K–K at `competition.multi_minor_slam_try = Some(15)`, constructive
+default-on: K–K at `competition.multi_minor_slam_try = Some(13)` (shipped at
+`15`, re-floored 2026-10-16 by [Round 3](#round-3--measured-2026-10-16-enriched-scan--13-replaces-15)), constructive
 Puppet at `notrump.minor_transfer_slam_try = Some(13)`, and Landy at
 `competition.landy_minor_slam_answer = true`. All three answer packages include
 their complete RKCB continuations after both a clean pass and `(X)`. Their A/Bs
@@ -190,10 +191,10 @@ the same treatment, which ship together.
 
 ## Queue
 
-1. **N4-KK — SHIPPED default-on 2026-08-25 at `Some(15)`.** ✅ Two rounds
-   below; queue item closed.
+1. **N4-KK — SHIPPED default-on 2026-08-25 at `Some(15)`, re-floored to
+   `Some(13)` 2026-10-16.** ✅ Three rounds below; queue item closed.
    `competition.multi_minor_slam_try`, a `points` floor rather than a bool
-   (`None` = off), default `Some(15)`. It authors residues 3 and 6 together, because the second is
+   (`None` = off), default `Some(13)`. It authors residues 3 and 6 together, because the second is
    the first's interfered tail:
    - [`kokish_kraft_transfer_rebid`](../src/bidding/american/competition/rubensohl.rs)
      gains `4m` on `points(N..) & len(minor, 6..)` at w151, between the lowest
@@ -397,6 +398,45 @@ rung is skimmed by stopper cues at w150/149 that K–K does not have — so the
 number does not transplant back by symmetry. Queue item 2 priced the missing
 answer only; Landy's responder floor remains `13`, and any floor sweep is a
 separate future question.
+
+## Round 3 — measured 2026-10-16, enriched scan — `13` replaces `15`
+
+`scripts/ab-2d-multi-slam-floor.sh`, code `2bdc97a2` plus the new filter, two
+arms (`s13` / `s15`), `--their-2d-multi`, both vulnerabilities. Round 2's
+head-to-head was 55 fired boards; buying 10× that unfiltered costs ~20M
+boards per arm per vul. `bba-gen --filter-multi-slam` buys it on the scan
+instead: a 1NT candidate, its LHO with a six-card major, its partner with a
+six-card minor and 9+ HCP — HCP and looser than the rung's `points(13..)`,
+because it gates a scan, not a call. Density 1 accepted per ~781 scanned; the
+per-scanned-deal fire rate matches round 2's, so the filter keeps essentially
+the whole slice.
+
+**Gate first:** 0 foreign in all four cells.
+
+| seed | boards/arm/vul | vul | fired | plain DD /fired | PD /fired | SD /fired (plain, PD) | verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `1792092549718922360` | 192k | none | 573 | **+1.04** | **+1.23** | +1.44, +1.62 | win \| win |
+| | | both | 316 | **+1.54** | **+1.78** | +2.30, +2.54 | win \| win |
+| `1792092824585311714` | 384k | none | 1203 | **+0.72** | **+0.92** | +1.15, +1.33 | win \| win |
+| | | both | 670 | **+0.74** | **+1.04** | +1.23, +1.54 | win \| win |
+
+`13` minus `15`, IMPs per fired board; verdicts are the decision table's at
+density 0.00128 (`ab-dump-diff --density`), plain \| PD. Per accepted board the
+95% CIs clear zero in every cell (`t` ≈ 2.1–3.8; the weakest is round B both-vul
+plain, +0.0013 ±0.0012). The two seeds are independent deal sets; the two vuls
+within a seed are not.
+
+**Mechanism:** all twenty worst boards for `15` (five per cell) are the
+same shape — a 10–13 HCP responder with a six- or seven-card minor, usually
+with side shortness, opposite a maximum, where `15` signs off in `3NT` and
+`13`'s `4m` try reaches
+`4NT` RKCB and a cold `6m` (`1NT (2♦) 3♣ - 3♦ - 4♦ - 4NT - 5♠ - 6♦`).
+Round 2's "the 13–14 slice is a wash" was 55 boards of noise in the other
+direction, like round 1's.
+
+**Scale.** Unfiltered this is about +4×10⁻⁶ IMPs per board (593 IMPs over 150M
+deals): a correct per-fired tuning, invisible to KR1. It also puts all three
+lanes — K–K, constructive Puppet and Landy — on the same `13` floor.
 
 ## Constructive round 1 — measured 2026-08-25, seed `1787661918`
 

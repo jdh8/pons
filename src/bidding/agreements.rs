@@ -1047,17 +1047,19 @@ pub struct CompetitionKnobs {
     /// on a maximum and declines to `5m` otherwise.  The **contested** `4m` of
     /// the second rung is a placement, not a try, and opener sits on it.
     ///
-    /// **`Some(15)` by default, shipped 2026-08-25.**  Two rounds of the
-    /// three-arm A/B (`scripts/ab-2d-multi-slam.sh`; round 2 is 2.3M bd per
-    /// arm per vulnerability, `SEED_BASE` 1787642695, isolation gate 0 foreign
-    /// in all four cells): both floors beat off on all eight cells, `15` at
-    /// `t` +2.25/+2.61 plain and +1.92/+1.83 PD, `13` at +1.61/+1.85 and
-    /// +1.45/+1.33.  The two floors are **not** separated — the head-to-head
-    /// is exactly the 13–14 slice and reads `t` +0.70 plain / +0.43 PD over
-    /// 55 fired, having read the *other* sign in round 1.  `15` is the choice
-    /// on the narrower trigger and the cleaner per-cell win, not on that
-    /// comparison.  Inert while their `2♦` is undeclared or natural and inert
-    /// without [`Self::multi_kokish_kraft`].
+    /// **`Some(13)` by default since 2026-10-16** (shipped 2026-08-25 at
+    /// `Some(15)`).  Two rounds of the three-arm A/B
+    /// (`scripts/ab-2d-multi-slam.sh`, round 2 at 2.3M bd per arm per
+    /// vulnerability) showed both floors beating off but could not separate
+    /// them: the head-to-head is exactly the 13–14 slice, 55 fired boards.
+    /// `scripts/ab-2d-multi-slam-floor.sh` enriched the deal scan
+    /// (`bba-gen --filter-multi-slam`) to buy that slice on two fresh seeds,
+    /// 573/316 and 1203/670 fired: `13` over `15` is `win | win` on plain DD
+    /// and PD in all eight cells, +0.72 to +1.54 IMPs/fired plain and +0.92
+    /// to +1.78 PD, sd-lead agreeing (docs/minor-transfer-slam.md Round 3).
+    /// The 13–14 hand that bypasses `3NT` finds cold slams.  Inert while
+    /// their `2♦` is undeclared or natural and inert without
+    /// [`Self::multi_kokish_kraft`].
     pub multi_minor_slam_try: Option<u8>,
     /// Give the Kokish–Kraft doubler a **natural bid of the other major**
     /// once their pass-or-correct has resolved theirs
@@ -2135,7 +2137,7 @@ impl Default for CompetitionKnobs {
             multi_weak_escape: Some(6),
             multi_balance: false,
             multi_kokish_kraft: true,
-            multi_minor_slam_try: Some(15),
+            multi_minor_slam_try: Some(13),
             multi_doubler_major: true,
             multi_px_split: false,
             multi_doubler_notrump: true,

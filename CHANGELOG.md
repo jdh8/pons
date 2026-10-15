@@ -104,6 +104,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`competition.multi_minor_slam_try` re-floored from `15` to `13`
+  (2026-10-16).** The `4m` slam try above a completed Kokish–Kraft minor
+  transfer over their `(2♦)` Multi now fires from 13 points. Round 2 had left
+  `15` against `13` unresolved (55 fired boards, `t` +0.70); the head-to-head,
+  bought on an enriched scan (`bba-gen --filter-multi-slam`, new) on two fresh
+  seeds (`1792092549718922360`, 192k accepted boards/arm/vul;
+  `1792092824585311714`, 384k), reads `13` over `15` **win | win** in all
+  eight cells: plain DD +1.04/+1.54 and +0.72/+0.74 IMPs/fired none/both, PD
+  +1.23/+1.78 and +0.92/+1.04, sd-lead agreeing, gate 0 foreign. The 10–13 HCP
+  responder with a long minor that `15` parked in `3NT` reaches RKCB and a
+  cold `6m`. About +4×10⁻⁶ IMPs per unfiltered board: right, but invisible to
+  KR1. All three minor-transfer slam lanes (K–K, Puppet, Landy) now share the
+  `13` floor. Runner `scripts/ab-2d-multi-slam-floor.sh`; write-up in
+  `docs/minor-transfer-slam.md` § Round 3.
+
 - **Cell-count verdicts audited (2026-10-16,
   [#9](https://github.com/jdh8/pons/issues/9)).** About 470 citations of
   "4/4 cells", "all four cells" and the like, across the CHANGELOG, docs,

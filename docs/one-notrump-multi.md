@@ -366,7 +366,8 @@ on a divergence surface ~40× thinner than designed for (0.02%). Numbers and
 the design are in
 [§N4-KK](archive/one-notrump-competitive-closed.md#the-px-information-split--competitionmulti_px_split-measured-loss-2026-08-27-stays-default-off).
 
-A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`**:
+A second knob rides on top, **shipped default-on 2026-08-25 at `Some(15)`,
+re-floored to `Some(13)` 2026-10-16**:
 `competition.multi_minor_slam_try` adds the `4m` slam try above a completed
 minor transfer, opener's `4NT`/`5m` answer with its RKCB ladder, and the
 shortness `4m` when they compete over the completion. The tree map below shows

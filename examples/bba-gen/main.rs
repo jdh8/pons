@@ -312,6 +312,24 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_preempt: bool,
 
+    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
+    /// hold a six-card major and its **partner** a six-card minor with 9+ HCP
+    /// — the `1NT (2♦)` Multi lane with a responder who could make the `4m`
+    /// slam try above a completed Kokish–Kraft minor transfer
+    /// (`competition.multi_minor_slam_try`, docs/minor-transfer-slam.md).
+    ///
+    /// That rung fires on 0.004% of `--filter-1nt` boards, so separating its
+    /// `13` and `15` floors unfiltered needs some 20M boards per arm per vul.
+    /// Their Multi shows an unknown six-card major at any strength we do not
+    /// control, so the LHO gate is uncapped; the responder gate is HCP, not
+    /// the rung's upgraded `points`, and deliberately below either floor —
+    /// this gates a *scan*, not a call (see `--filter-landy`).
+    ///
+    /// Enrichment, not isolation: the headline stays IMPs per *accepted*
+    /// deal, and arms under this flag pair **only with each other**.
+    #[arg(long, default_value_t = false)]
+    filter_multi_slam: bool,
+
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
     /// default (it ships): the responder structure + the encircling chase.
@@ -925,15 +943,15 @@ struct Args {
     no_ns_multi_kokish_kraft: bool,
 
     /// The `points` floor of the `4m` slam try above a completed Kokish–Kraft
-    /// minor transfer: a `points` floor (default `15`), or `off` — `13` is
-    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm
+    /// minor transfer: a `points` floor (default `13`), or `off` — `13` is
+    /// `landy_bba_transfer_rebid`'s own rung, `15` the narrow arm it replaced
     ///
     /// Also authors opener's answer (`4NT` RKCB on a maximum, else `5m`) and,
     /// on the same switch, the shortness `4m` when they compete over the
     /// completion (§N4-KK residues 3 and 6, `docs/minor-transfer-slam.md`).
     /// Needs the Kokish–Kraft counter and their declared `(2♦)` Multi to do
     /// anything.
-    #[arg(long, default_value = "15", value_name = "off|13|15")]
+    #[arg(long, default_value = "13", value_name = "off|13|15")]
     ns_multi_minor_slam_try: String,
 
     /// Withhold the Kokish–Kraft doubler's **natural bid of the other major**
@@ -2622,6 +2640,18 @@ fn is_preempt_shaped(hand: Hand) -> bool {
     Suit::ASC.iter().any(|&suit| hand[suit].len() >= 7) && hand_hcp(hand) <= 12
 }
 
+/// Multi-shaped: a six-card major, for `--filter-multi-slam`.  No HCP gate —
+/// see that flag for why.
+fn is_multi_shaped(hand: Hand) -> bool {
+    hand[Suit::Hearts].len() >= 6 || hand[Suit::Spades].len() >= 6
+}
+
+/// A six-card minor with 9+ HCP, for `--filter-multi-slam`: looser than the
+/// `points(13..) & len(minor, 6..)` slam try it stands in for.
+fn is_minor_slam_shaped(hand: Hand) -> bool {
+    (hand[Suit::Clubs].len() >= 6 || hand[Suit::Diamonds].len() >= 6) && hand_hcp(hand) >= 9
+}
+
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
 /// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
@@ -3752,6 +3782,17 @@ fn main() -> anyhow::Result<()> {
             && !Seat::ALL
                 .iter()
                 .any(|&seat| is_1nt_opener(deal[seat]) && is_preempt_shaped(deal[seat.lho()]))
+        {
+            continue;
+        }
+        // Same paired scan, three seats: the 1NT candidate, its Multi-shaped
+        // LHO and its partner, the responder.
+        if args.filter_multi_slam
+            && !Seat::ALL.iter().any(|&seat| {
+                is_1nt_opener(deal[seat])
+                    && is_multi_shaped(deal[seat.lho()])
+                    && is_minor_slam_shaped(deal[seat.partner()])
+            })
         {
             continue;
         }
