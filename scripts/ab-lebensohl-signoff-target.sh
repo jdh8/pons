@@ -73,6 +73,23 @@
 # Every condition met: white `24` and red `23` stand.  13% of white `23`'s
 # raises were 5m422/6m322 openers; `24` still raises ten on three trumps.
 #
+# Asymmetric cells (pre-registered 2026-10-16, before any number is read;
+# docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# BOARDS=384000, wide filter, ab-results/lebensohl-signoff-target-nsew.  We
+# sit N/S, so `ns` is red against white (the red target, `23`, applies) and
+# `ew` white against red (`24` applies):
+#   - ew: `24` stands under the white conditions above.
+#   - ns: `23` stays the recorded trade-off unless t23 vs off reads a plain
+#     loss.
+#   - Any other reading is flagged for a decision, not applied.
+# NS/EW VERDICT (2026-10-16, SEED_BASE 1792104633669095399, density
+# 0.005478, gate 0 foreign), IMPs/accepted board:
+#   ew t24 vs t23: plain -0.0001 ±0.0008 non-inferior, PD +0.0022 ±0.0009 win
+#   ew t24 vs off: plain +0.0009 ±0.0005 win, PD +0.0003 ±0.0006 non-inferior
+#   ns t23 vs off: plain +0.0035 ±0.0013 win, PD -0.0011 ±0.0015 non-inferior
+#   ns t24 vs t23: plain -0.0016 ±0.0011 loss, PD +0.0019 ±0.0012 win
+# Every condition met: the colour split holds in all four cells.
+#
 # Resumable; SEED_BASE persists in $R/lebensohl-signoff-target.seed.  Iron
 # rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-lebensohl-signoff-target.sh RESULTS_DIR}
@@ -82,7 +99,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for lebensohl-signoff-target)
 log "=== lebensohl-signoff-target SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm t23 "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise 23
     arm t24 "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise 24
     arm off "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise off

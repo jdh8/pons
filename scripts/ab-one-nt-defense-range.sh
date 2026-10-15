@@ -30,7 +30,7 @@ contains_range() {
 
 SEED_BASE=$(seed_for natural)
 log "=== natural 1NT-defense range sweep SEED_BASE=$SEED_BASE sha=$SHA"
-for v in none both; do
+for v in $VULS; do
     base=natural-8-14
     arm "$base" "$v" --ns-overcall 8:14 $COMMON
     for range in $NATURAL_RANGES; do

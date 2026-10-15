@@ -68,7 +68,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-lia-doubler)
 log "=== landy-lia-doubler SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     # Flags rewritten 2026-08-30 after the full ladder shipped default-on:
     # `cells` is now the bare default and the historical arms are rebuilt by
     # restoring the catch-all / dropping the cells.

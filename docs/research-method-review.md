@@ -464,14 +464,19 @@ conditions written into the header first.
 | Lebensohl, white | 1792101907466221783, 0.005522 | `24` − `23` | +0.0007 ±0.0008, non-inferior | +0.0031 ±0.0009, win | 881 | met: `24` stands |
 | | | `24` − off | +0.0010 ±0.0005, win | +0.0003 ±0.0006, non-inferior | 356 | met |
 | Lebensohl, red | | `23` − off | +0.0034 ±0.0013, win | −0.0008 ±0.0015, non-inferior | 1088 | met: the trade-off stands |
+| Lebensohl, ew (we white) | 1792104633669095399, 0.005478 | `24` − `23` | −0.0001 ±0.0008, non-inferior | +0.0022 ±0.0009, win | 893 | met: `24` stands |
+| | | `24` − off | +0.0009 ±0.0005, win | +0.0003 ±0.0006, non-inferior | 344 | met |
+| Lebensohl, ns (we red) | | `23` − off | +0.0035 ±0.0013, win | −0.0011 ±0.0015, non-inferior | 1102 | met: the trade-off stands |
 | Multi slam, none | 1792102740877734887, 0.001824 | `13` − `15` | +0.0018 ±0.0012, win | +0.0023 ±0.0013, win | 968 | met: `13` stands |
 | Multi slam, both | | `13` − `15` | +0.0017 ±0.0011, win | +0.0020 ±0.0012, win | 494 | met |
 
-Gate 0 foreign in all eight pairs. On the wide Lebensohl seed, 163 of the
+The ns/ew rows are §6's four-cell check on a third Lebensohl seed (`ns`: we
+red against white; `ew`: we white against red). Gate 0 foreign in all
+fourteen pairs. On the wide Lebensohl seed, 163 of the
 white `23` arm's 1,236 raises came from 5m422/6m322 openers (13%), and
 `24` still raises ten of them on three trumps (17 HCP, 18 points). Different
 seeds share no deals: `deal-overlap` read 0 shared for the wide `t23-none`
-against both earlier Lebensohl seeds, for the wide `s13-none` against both
+and the ns/ew `t23-ns` against every other Lebensohl seed, for the wide `s13-none` against both
 earlier Multi seeds, and for the first two Multi seeds against each other.
 
 The older scans, `--filter-1nt`, `--filter-landy` and `--filter-preempt`
@@ -582,11 +587,17 @@ after this four-cell comparison; the script is the only runner that loops all
 four cells. This is evidence
 for extending that practice, not a claim that all existing runners lack it.
 
-- Confirm competitive treatments at none, ns, ew and both vulnerability.
-- Keep rebidding in each cell, as `bba-gen -v` already does; repricing an
-  existing auction cannot model the policy changes caused by vulnerability. The
-  gap is runner coverage, not the generator.
-- State explicitly when a verdict covers only the measured cells.
+Done 2026-10-16: `ab-lib.sh` takes `VULS` (default `none both`) and the 40
+runners with a plain `for v in none both` loop read it; measurement.md
+checklist 8 now asks for all four cells on competitive, sacrifice and
+doubling treatments and on any knob that reads `vulnerable()`, and for a
+verdict to name its cells. First use: the colour-split
+`lebensohl_signoff_raise` holds at `ns` and `ew` too
+([its rows](#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+
+- **Owed:** re-confirming the competitive defaults shipped on none/both
+  only. No list is drawn up yet; the runners whose own loops differ (about
+  130, including those that never source ab-lib) need hand edits first.
 
 ## 7 Auction conditioning and the replay approximation
 
@@ -721,7 +732,24 @@ or explain v8's loss.
 
 ## 11 Experiment identity and resumable runs
 
-**P2 — confirmed validation gaps, with no identified published mixed run.**
+**Resolved 2026-10-16 for `bba-gen` and `ab-lib.sh`.** Shards are written to
+a temp file and renamed after an fsync; `bba-gen --verify` checks a shard's
+board count and seed; `bba-gen-parallel.sh` waits on every worker by pid,
+exits non-zero on any failure and verifies exactly `shard-0..N-1`; `ab-lib.sh`
+and `anchor.sh` resume on that check. `arm.meta` is a manifest: the runtime
+fingerprint plus shards, per-shard and `SEED_BASE`, compared, with source
+SHA, dirty-diff hash, JOBS and BOARDS recorded but not compared (the binary's
+bytes are the code identity, so a doc-only commit does not wedge a resume;
+comparing the SHA is a one-line change if wanted). Gate, diff and SD reports
+carry an `.inputs` stamp and are rescored when it changes. **Open:**
+`ben-gen-parallel.sh` (bare `wait`) and `ben-gen` (non-atomic writes); the
+runners that shadow `arm`/`diffpair`/`sddiff` or keep their own resume
+(`ab-ben-*`, `ab-diamond-floor`, `ab-face-corroborate`, `ab-reading-drift`,
+`ab-walk-shape`, `ab-weak-two-balancing`, `ab-reading-knobs`,
+`ab-nt-overcall-gladiator`, `ab-nt-overcall-systems-on`); `common::load_dump`
+does not compare `gen_args` across shards.
+
+The original finding, for the record:
 [ab-lib.sh](../scripts/ab-lib.sh), `arm`, considers an arm complete by shard
 count; `diffpair` skips when two report files are nonempty. A guard pins
 JOBS and BOARDS per results directory, but reusing it after changing flags or

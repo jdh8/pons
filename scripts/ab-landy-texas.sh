@@ -79,7 +79,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-texas)
 log "=== landy-texas SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     # Flags rewritten 2026-08-31 after the package shipped default-on:
     # `texas` is now the bare default and `base` restores the direct jam.
     arm base  "$v" --filter-landy --no-ns-landy-texas

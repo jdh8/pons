@@ -49,7 +49,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for landy-bba)
 log "=== landy-bba SEED_BASE=$SEED_BASE sha=$SHA"
 
-for v in none both; do
+for v in $VULS; do
     arm bba-off "$v" --their-2c-landy true --defense-2c-landy-bba false --filter-1nt
     arm bba-on "$v" --their-2c-landy true --defense-2c-landy-bba true \
         --defense-2c-landy-weak-2d-cap false --filter-1nt

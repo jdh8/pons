@@ -33,7 +33,7 @@ log "=== completion-alerts SEED_BASE=$SEED_BASE sha=$SHA"
 
 # Shipped default-on 2026-08-14 (pooled 3 seeds; vul plain/PD CI-clear): the
 # off arm now needs the explicit `false`.
-for v in none both; do
+for v in $VULS; do
     arm alerts-off "$v" --ns-completion-alerts false
     arm alerts-on "$v" --ns-completion-alerts true
     diffpair alerts-on alerts-off "$v"

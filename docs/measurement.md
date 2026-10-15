@@ -121,7 +121,11 @@ the parts that do not churn: protocol, interpretation, and ship rules.
 8. **Score with both scorers** — plain DD (`ns_score_contract`) *and* perfect
    defense (`ns_score_bid`) — and report: IMPs/board, IMPs/fired (or /divergent),
    the fired rate, and vulnerability split (none/both). Two seeds or a
-   bootstrap CI before trusting a small edge.
+   bootstrap CI before trusting a small edge. A **competitive, sacrifice or
+   doubling** treatment, or a knob that reads `vulnerable()`, is confirmed at
+   all four cells: `VULS="none ns ew both"` (ab-lib; we sit N/S, so `ns` is
+   unfavourable, `ew` favourable). Each cell rebids its own auctions; a
+   verdict names the cells it covers.
 9. **Read the verdict from the [decision table](#the-decision-table).**
 10. **Before declaring a loss dead, trace the worst divergent boards.** The
    cause is often an unauthored continuation, an over-broad trigger firing

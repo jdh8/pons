@@ -39,14 +39,14 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-wilkosz)
 log "=== landy-wilkosz SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base    "$v" --filter-landy --no-ns-landy-wilkosz
     arm wilkosz "$v" --filter-landy
     gatepair wilkosz base "$v"
     diffpair wilkosz base "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff wilkosz base "$v"
 done
 

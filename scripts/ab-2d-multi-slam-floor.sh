@@ -56,7 +56,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for 2d-multi-slam-floor)
 log "=== 2d-multi-slam-floor SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm s13 "$v" --their-2d-multi --ns-multi-minor-slam-try 13 --filter-multi-slam
     arm s15 "$v" --their-2d-multi --ns-multi-minor-slam-try 15 --filter-multi-slam
     gatepair s15 s13 "$v"

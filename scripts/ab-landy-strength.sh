@@ -240,7 +240,7 @@ log "=== landy-strength SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHAR
 
 # Plain-DD first, sd second — the §N1-lia two-pass order: the primary cells
 # land first and the lead-model column follows only if the headline earns it.
-for v in none both; do
+for v in $VULS; do
     # The knob ships on since 2026-09-20, so the control arm is the one that
     # names it (`--no-ns-landy-strength`); runs 1-3 spelled `str` with the
     # retired `--ns-landy-strength`.
@@ -256,7 +256,7 @@ for v in none both; do
     diffpair strx str  "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff str  base "$v"
     sddiff strx str  "$v"
 done

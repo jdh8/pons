@@ -47,14 +47,14 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-splinter-tails)
 log "=== landy-splinter-tails SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base  "$v" --filter-landy --no-ns-landy-splinter-tails
     arm tails "$v" --filter-landy
     gatepair tails base "$v"
     diffpair tails base "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff tails base "$v"
 done
 

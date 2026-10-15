@@ -17,7 +17,7 @@ BUILD_EXTRA='--example probe-divergence'
 
 SEED_BASE=$(seed_for)
 log "=== major-marginals start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for v in none both; do
+for v in $VULS; do
     arm main "$v"
     arm fsf-off "$v" --no-ns-fourth-suit-forcing
     arm lra-off "$v" --no-ns-limit-raise-acceptance
@@ -26,7 +26,7 @@ done
 # that changes our book also changes how we read their identical call (the
 # mirror), so a foreign board here is the shipped routing, not a leak into
 # their side.  Quote the gate files' foreign boards beside the headline.
-for v in none both; do
+for v in $VULS; do
     for off in fsf-off lra-off; do
         gatepair main "$off" "$v" || log "gate main vs $off ($v) FAILED, report-only; see gate file"
         diffpair main "$off" "$v"

@@ -258,7 +258,7 @@ log "=== landy-lia2 SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd
 # cells, which the header pre-registers as primary, land in ~3 h instead of
 # ~10 h.  Identical work in a different order; every guard in ab-lib.sh is a
 # file-existence (or gate-PASSED) check, so this is resume-safe.
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --filter-landy
     arm lia  "$v" --filter-landy --ns-landy-lia
 
@@ -266,7 +266,7 @@ for v in none both; do
     diffpair lia base "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff lia base "$v"
 done
 

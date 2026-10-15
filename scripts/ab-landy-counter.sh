@@ -30,7 +30,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for landy)
 log "=== landy-counter SEED_BASE=$SEED_BASE sha=$SHA"
 
-for v in none both; do
+for v in $VULS; do
     # `--their-2c-landy` is a declaration override: bba-gen now DERIVES the
     # Landy read from the opponents' declaration and defaults it ON vs the
     # 2/1 reference, so an off arm must force the natural read explicitly.

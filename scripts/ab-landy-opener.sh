@@ -91,7 +91,7 @@ log "=== landy-opener SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD 
 # honest-lead scorers (+1.82 / +1.92 IMPs per fired sd-plain over `px`).
 # Falsifier 4 held in the other direction than expected: plain DD liked `px`
 # alone at both colours, and the sd bracket is what refused it.
-for v in none both; do
+for v in $VULS; do
     arm base  "$v" --filter-landy --no-ns-landy-opener-px --no-ns-landy-opener-rungs
     arm px    "$v" --filter-landy --no-ns-landy-opener-rungs
     arm rungs "$v" --filter-landy

@@ -60,7 +60,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-doubler-rebids)
 log "=== landy-doubler-rebids SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --filter-landy
     arm reb  "$v" --filter-landy --ns-landy-doubler-rebids
 

@@ -63,7 +63,7 @@ sp_run() {
 # --- 1. slam-entry re-arbitration (self-play, plain + pd + sd rows) -----------
 seed=$(seed_for slam-entry)
 log "=== slam-entry 29-vs-33 seed=$seed sha=$SHA (self-play, --sd row)"
-for v in none both; do
+for v in $VULS; do
     sp_run slam-entry "$v" target/release/examples/ab-slam-entry \
         --count "$COUNT" --threshold 29 --vulnerability "$v" --seed "$seed" \
         --sd --sd-seed "$seed"
@@ -72,7 +72,7 @@ done
 # --- 4. minor-keycard re-measure (self-play, rare divergence → KC_COUNT) ------
 seed=$(seed_for minor-keycard)
 log "=== minor-keycard seed=$seed sha=$SHA (self-play, --sd row, $KC_COUNT boards)"
-for v in none both; do
+for v in $VULS; do
     sp_run minor-keycard "$v" target/release/examples/ab-minor-keycard \
         --count "$KC_COUNT" --vulnerability "$v" --seed "$seed" \
         --sd --sd-seed "$seed"

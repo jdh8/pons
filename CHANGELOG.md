@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A/B runs verify their shards and pin their deal set (2026-10-16).**
+  `bba-gen` writes each shard to a temp file and renames it after an fsync, so
+  a killed worker leaves a hole rather than a truncated shard, and
+  `bba-gen --verify` checks a shard's board count and seed.
+  `bba-gen-parallel.sh` now exits non-zero on any failed worker (it used to
+  print "wrote N shards" regardless) and verifies `shard-0..N-1`. `ab-lib.sh`
+  resumes on that check instead of counting shards, refuses an arm whose
+  manifest (runtime fingerprint, shard count, per-shard size, `SEED_BASE`)
+  differs, and rescores a report whose `.inputs` stamp (both arms' manifests,
+  scorer checksum, flags) changed. Research-method review §11.
+
 - **`bba-gen`'s 1NT scans now cover the default opener (2026-10-16).**
   `--filter-1nt`, `--filter-landy` and `--filter-preempt` took only a
   balanced candidate with at most one doubleton, so every enriched verdict
@@ -21,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   #9 follow-ups were re-confirmed on the wide population (below).
   `docs/measurement.md` now says that a filter changes the divergent set, not
   only the denominator, unless it covers the changed rule's population.
+
+- **Runners take `VULS` (2026-10-16).** `ab-lib.sh` defaults it to
+  `none both`, and the 40 runners with a plain `for v in none both` loop read
+  it, so `VULS="none ns ew both"` measures the asymmetric cells.
+  `docs/measurement.md` checklist 8 now asks for all four on competitive,
+  sacrifice and doubling treatments and on knobs that read `vulnerable()`.
+  `lebensohl_signoff_raise` holds at `ns` (we red, `23` against off plain
+  +0.0035 ±0.0013 win) and `ew` (we white, `24` over `23` plain non-inferior
+  | PD +0.0022 ±0.0009 win). Research-method review §6.
+
+- **Replay is described as what it is (2026-10-16).** Docs and doc comments
+  that called the sampler's worlds "the self-play posterior" or
+  "auction-consistent" now say relaxed authored-rule conditioning (replay
+  within `MARGIN` of the best legal logit, abstaining off-book) or range-only
+  conditioning. Research-method review §7; the strict / full-policy /
+  relaxed comparison is pre-registered in `logit-calibration.md` §4e.
 
 - Dump directory loading now rejects any shard with a different bidding
   vulnerability or bidder label, naming the offending shard. This closes the

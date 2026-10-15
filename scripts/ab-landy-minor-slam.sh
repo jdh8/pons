@@ -78,7 +78,7 @@ PROBE=target/release/examples/probe-divergence
 SEED_BASE=$(seed_for landy-minor-slam)
 log "=== landy-minor-slam SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --no-ns-landy-minor-slam-answer --filter-1nt
     arm ans  "$v" --filter-1nt
 

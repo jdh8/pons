@@ -10,6 +10,10 @@
 #   PER_SHARD    boards per shard per arm per vul     (default 6400)
 #   SHOW         worst boards ab-dump-diff prints      (default 5)
 #   BUILD_EXTRA  extra `cargo build` --example flags   (e.g. --example ab-dump-sd)
+#   VULS         vulnerability cells a runner loops    (default "none both";
+#                "none ns ew both" for a competitive treatment, see
+#                docs/measurement.md checklist 8 — we sit N/S, so `ns` is
+#                unfavourable and `ew` favourable)
 #
 # Sourcing exports SKIP_BUILD=1, so the build it does here is the only one the
 # whole experiment gets; see the comment at that line.
@@ -27,6 +31,7 @@ DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
 PROBE=target/release/examples/probe-divergence
 SHOW=${SHOW:-5}
+VULS=${VULS:-none both}
 SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners log it
 # BOARDS = total boards per arm per vul, the knob that actually sets statistical
 # power; when given, PER_SHARD is derived so JOBS is pure parallelism (rounded up

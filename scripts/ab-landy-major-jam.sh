@@ -71,7 +71,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-major-jam)
 log "=== landy-major-jam SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --filter-landy --no-ns-landy-major-jam
     arm jam  "$v" --filter-landy
 

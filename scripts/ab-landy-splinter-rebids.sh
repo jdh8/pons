@@ -48,14 +48,14 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-splinter-rebids)
 log "=== landy-splinter-rebids SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base   "$v" --filter-landy
     arm rebids "$v" --filter-landy --ns-landy-splinter-rebids
     gatepair rebids base "$v"
     diffpair rebids base "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff rebids base "$v"
 done
 

@@ -38,7 +38,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for landy-low)
 log "=== landy-rungs SEED_BASE=$SEED_BASE sha=$SHA"
 
-for v in none both; do
+for v in $VULS; do
     arm low-off "$v" --their-2c-landy true --filter-1nt
     arm low-on "$v" --their-2c-landy true --defense-2c-landy-low-minors --filter-1nt
     arm hcp-on "$v" --their-2c-landy true --defense-2c-landy-hcp-rungs --filter-1nt

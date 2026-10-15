@@ -85,7 +85,7 @@ PROBE=target/release/examples/probe-divergence
 SEED_BASE=$(seed_for 2d-multi-doubler-min-nt)
 log "=== 2d-multi-doubler-min-nt SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base  "$v" --their-2d-multi --filter-1nt --no-ns-multi-doubler-minimum-notrump
     arm minnt "$v" --their-2d-multi --filter-1nt
 

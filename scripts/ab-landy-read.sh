@@ -43,7 +43,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for landy-read)
 log "=== landy-read SEED_BASE=$SEED_BASE sha=$SHA"
 
-for v in none both; do
+for v in $VULS; do
     arm read-off "$v" --their-2c-landy true --ns-their-landy-read false --filter-1nt
     arm read-on "$v" --their-2c-landy true --filter-1nt
     arm landy-on "$v" --their-2c-landy true --defense-2c-landy-transfer false \

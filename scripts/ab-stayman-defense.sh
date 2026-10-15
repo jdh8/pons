@@ -15,7 +15,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for)
 common="--isolate-defense --filter-1nt"
 log "=== stayman-defense SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS per-shard=$PER_SHARD"
-for v in none both; do
+for v in $VULS; do
     # shellcheck disable=SC2086  # deliberate word-split of the flag list
     arm on  "$v" --ns-defense-to-their-stayman $common
     # shellcheck disable=SC2086

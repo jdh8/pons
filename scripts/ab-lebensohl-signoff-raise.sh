@@ -44,7 +44,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for lebensohl-signoff-raise)
 log "=== lebensohl-signoff-raise SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm raise "$v" --filter-lebensohl-raise
     arm pass  "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise off
     gatepair raise pass "$v"

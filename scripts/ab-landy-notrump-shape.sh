@@ -75,7 +75,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for landy-notrump-shape)
 log "=== landy-notrump-shape SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --filter-landy --no-ns-landy-major-jam
     arm nt   "$v" --filter-landy --ns-landy-notrump-no-major --no-ns-landy-major-jam
     arm jam  "$v" --filter-landy --ns-landy-notrump-no-major

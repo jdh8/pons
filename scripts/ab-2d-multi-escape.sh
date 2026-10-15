@@ -52,7 +52,7 @@ PROBE=target/release/examples/probe-divergence
 SEED_BASE=$(seed_for 2d-multi-escape)
 log "=== 2d-multi-escape SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --their-2d-multi --ns-multi-weak-escape off --filter-1nt
     arm six  "$v" --their-2d-multi --ns-multi-weak-escape 6   --filter-1nt
     arm five "$v" --their-2d-multi --ns-multi-weak-escape 5   --filter-1nt

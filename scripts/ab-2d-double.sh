@@ -49,7 +49,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for 2d-double)
 log "=== 2d-double SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base  "$v" --filter-1nt
     arm len4  "$v" --ns-2d-double 4:0:9  --filter-1nt
     arm len5  "$v" --ns-2d-double 5:0:9  --filter-1nt

@@ -52,7 +52,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for 2d-multi)
 log "=== 2d-multi SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-for v in none both; do
+for v in $VULS; do
     arm base  "$v" --their-2d-multi false --filter-1nt
     arm multi "$v" --their-2d-multi --filter-1nt
     diffpair multi base "$v"

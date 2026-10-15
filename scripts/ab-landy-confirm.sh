@@ -15,7 +15,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for landy-confirm)
 log "=== landy-confirm SEED_BASE=$SEED_BASE sha=$SHA"
 
-for v in none both; do
+for v in $VULS; do
     # Post-flip spellings (2026-08-14 stack ship): landy-f IS the engine
     # default; landy-on switches the stack off to recover the base counter.
     arm landy-f "$v" --their-2c-landy true --filter-1nt

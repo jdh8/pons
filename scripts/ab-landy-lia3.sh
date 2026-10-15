@@ -309,7 +309,7 @@ log "=== landy-lia3 SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd
 
 # Plain-DD first, sd second — lia2's two-pass order: primary cells land in
 # ~3 h, the lead-model column follows only if the headline earns it.
-for v in none both; do
+for v in $VULS; do
     arm base "$v" --filter-landy
     arm lia  "$v" --filter-landy --ns-landy-lia
 
@@ -317,7 +317,7 @@ for v in none both; do
     diffpair lia base "$v"
 done
 
-for v in none both; do
+for v in $VULS; do
     sddiff lia base "$v"
 done
 
