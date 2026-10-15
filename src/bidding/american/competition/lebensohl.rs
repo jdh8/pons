@@ -3641,17 +3641,35 @@ pub(crate) fn lebensohl_relay_rebid(over: Suit, agreements: &Agreements) -> Rule
 /// sign-off.  Only majors — a minor sign-off's game is the 5 level, out of
 /// reach for a weak hand.
 pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
+    lebensohl_signoff_raise_at(signoff, resp_floor, (23, 23))
+}
+
+/// [`lebensohl_signoff_raise`] at a combined `target` per vulnerability,
+/// `(white, red)`
+///
+/// The relay sign-off's knob,
+/// [`CompetitionKnobs::lebensohl_signoff_raise`][crate::bidding::agreements::CompetitionKnobs::lebensohl_signoff_raise],
+/// moves the target; an equal pair builds the single-target tree.
+pub(super) fn lebensohl_signoff_raise_at(signoff: Suit, resp_floor: u8, target: (u8, u8)) -> Rules {
     let game = Bid::new(4, Strain::from(signoff));
-    let base = 23u8.saturating_sub(resp_floor); // opener points with bare 3-card support
-    Rules::new()
-        .rule(
+    // Opener points with bare 3-card support, one fewer per extra trump.
+    let fit = move |target: u8| {
+        let base = target.saturating_sub(resp_floor);
+        (len(signoff, 3..=3) & points(base..))
+            | (len(signoff, 4..=4) & points(base.saturating_sub(1)..))
+            | (len(signoff, 5..) & points(base.saturating_sub(2)..))
+    };
+    let (white, red) = target;
+    let rules = if white == red {
+        Rules::new().rule(game, 100, fit(white))
+    } else {
+        Rules::new().rule(
             game,
             100,
-            (len(signoff, 3..=3) & points(base..))
-                | (len(signoff, 4..=4) & points(base.saturating_sub(1)..))
-                | (len(signoff, 5..) & points(base.saturating_sub(2)..)),
+            (fit(white) & !vulnerable()) | (fit(red) & vulnerable()),
         )
-        .rule(Call::Pass, 0, hcp(0..))
+    };
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer when they compete over responder's weak two-level escape
@@ -4742,10 +4760,9 @@ pub(super) fn lebensohl_package() -> Package {
                     }
                     entries.extend(rows_of(
                         Pattern::after(NT, &format!("{relay} 3{} -", Strain::from(signoff))),
-                        if agreements.competition.lebensohl_signoff_raise {
-                            lebensohl_signoff_raise(signoff, 6)
-                        } else {
-                            multi_signoff_pass()
+                        match agreements.competition.lebensohl_signoff_raise {
+                            Some(target) => lebensohl_signoff_raise_at(signoff, 6, target),
+                            None => multi_signoff_pass(),
                         },
                     ));
                 }

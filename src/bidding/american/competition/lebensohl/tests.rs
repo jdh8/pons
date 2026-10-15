@@ -88,8 +88,11 @@ fn lebensohl_five_card_suit_relays_then_signs_off_at_the_three_level() {
 
 #[test]
 fn lebensohl_maximum_raises_weak_signoff_to_game() {
-    // 1NT (2♠) 2NT - 3♣ - 3♥ -: responder's weak heart sign-off. A maximum
-    // (17) opener with three-card support stretches to 4♥; a minimum passes.
+    // 1NT (2♠) 2NT - 3♣ - 3♥ -: responder's weak heart sign-off.  The combined
+    // target is 24 white and 23 red (`competition.lebensohl_signoff_raise`), so
+    // a 17-count stretches to 4♥ on four trumps at either colour and on three
+    // only when vulnerable; a minimum passes.
+    use contract_bridge::auction::RelativeVulnerability;
     let after_signoff = [
         call(1, Strain::Notrump),
         call(2, Strain::Spades),
@@ -100,11 +103,24 @@ fn lebensohl_maximum_raises_weak_signoff_to_game() {
         call(3, Strain::Hearts),
         Call::Pass,
     ];
-    // 4-3-4-2, 17: a flat 4-3-3-3 17-count would read 16 on the shipped
-    // rule-of-N+8 scale and rightly decline the stretch.
-    let (c, floored) = bid(&after_signoff, "AK32.K43.A432.K3");
+    let mut arm = Agreements::default();
+    arm.competition.lebensohl_style = super::LebensohlStyle::Plain;
+    let both = RelativeVulnerability::ALL;
+    let none = RelativeVulnerability::NONE;
+
+    // 3-4-4-2, 17: four trumps.
+    let (c, floored) = bid(&after_signoff, "AK3.K432.A432.K3");
     assert_eq!(c, call(4, Strain::Hearts));
     assert!(!floored, "the game raise must come from the book");
+
+    // 4-3-4-2, 17: three trumps.  A flat 4-3-3-3 17-count would read 16 on
+    // the shipped rule-of-N+8 scale and decline at either colour.
+    let three = "AK32.K43.A432.K3";
+    assert_eq!(
+        best_call_vul(&arm, both, &after_signoff, three),
+        call(4, Strain::Hearts)
+    );
+    assert_eq!(best_call_vul(&arm, none, &after_signoff, three), Call::Pass);
 
     let (c, _) = bid(&after_signoff, "AK32.K43.KQ3.432");
     assert_eq!(c, Call::Pass, "a minimum passes the weak sign-off");

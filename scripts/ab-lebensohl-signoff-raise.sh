@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-lebensohl-signoff-raise.sh — `competition.lebensohl_signoff_raise` on
-# (the shipped default since 0.10.0) against off, head to head
+# against off, head to head
 # (docs/research-method-review.md § Issue #9).
 #
 #   JOBS=96 BOARDS=192000 BBA_GEN=$HOME/.local/opt/glibc-2.36/bba-gen \
@@ -29,8 +29,10 @@
 #   both:  plain +1.60  PD +0.04  sd-lead +2.69  SD-PD +1.41
 # The weak sign-off is 6-7 HCP on 97% of fired boards, so the raise bids a
 # 23-24 point game; the losses sit on three trumps and on 15-16 HCP openers
-# that reach the bar by upgraded points.  Default left on, the incumbent,
-# pending a decision (docs/research-method-review.md § Issue #9).
+# that reach the bar by upgraded points.  Followed up by
+# scripts/ab-lebensohl-signoff-target.sh: the target is now `24:23`.
+# (This runner's arms leave the target at the bba-gen default, so a rerun
+# measures the shipped `24:23` against off, not `23`.)
 #
 # Resumable; SEED_BASE persists in $R/lebensohl-signoff-raise.seed.  Iron rule:
 # do NOT rebuild binaries while this runs.
@@ -43,7 +45,7 @@ log "=== lebensohl-signoff-raise SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x 
 
 for v in none both; do
     arm raise "$v" --filter-lebensohl-raise
-    arm pass  "$v" --filter-lebensohl-raise --no-ns-lebensohl-signoff-raise
+    arm pass  "$v" --filter-lebensohl-raise --ns-lebensohl-signoff-raise off
     gatepair raise pass "$v"
     diffpair raise pass "$v"
     sddiff   raise pass "$v"

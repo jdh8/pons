@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   maximum 1NT opener raises `1NT (2♠) 2NT - 3♣ - 3♥ -` to `4♥`, shipped
   knobless on one seed's "positive in every cell" with no CI. It now has a
   knob (default on, so the default system is byte-identical), a matching
-  `bba-gen --no-ns-lebensohl-signoff-raise`, and `bba-gen
+  `bba-gen --ns-lebensohl-signoff-raise off|N|WHITE:RED`, and `bba-gen
   --filter-lebensohl-raise` (a 1NT candidate with three-plus hearts, its LHO
   five-plus spades, its partner five-plus hearts and at most 11 HCP: 1
   accepted deal per 212 scanned, 0.3% of them diverging).
@@ -33,8 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubling-artifact row, so the stretch is not proven. The weak sign-off is
   6–7 HCP on 98% of fired boards, so the raise bids a 23–24 point game. The
   losses sit on three trumps and on 15–16 HCP openers that reach the bar by
-  upgraded points. The default stays on pending a decision. Bidding
-  untouched.
+  upgraded points. The follow-up under Changed tightens it.
 
 - **`ab-dump-diff --metric reference`: the reference-relative IMP gain
   (2026-10-16, [#8](https://github.com/jdh8/pons/issues/8)).** The module doc
@@ -122,6 +121,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/research-method-review.md`.
 
 ### Changed
+
+- **A maximum 1NT opener no longer stretches a weak Lebensohl sign-off to game
+  on three trumps when non-vulnerable (2026-10-16,
+  [#9](https://github.com/jdh8/pons/issues/9)).** After `1NT (2♠) 2NT - 3♣ -
+  3♥ -`, `competition.lebensohl_signoff_raise` is now a combined target per
+  colour, `Some((24, 23))`. White, opener raises with 17 and four trumps or
+  16 and five. Red is unchanged. `scripts/ab-lebensohl-signoff-target.sh`,
+  `SEED_BASE` 1792098317406025283, 384k `--filter-lebensohl-raise` boards per
+  arm per vul, gate 0 foreign. `24` over `23`, IMPs per fired board, white
+  (954 fired): plain DD +0.18 (non-inferior), PD +1.33 (win), SD-PD +0.37.
+  `24` against off, white: plain +1.25 (win), PD +0.52 (non-inferior), SD-PD
+  +1.36. Red, `24` over `23` reads plain −0.85 (loss) | PD +0.80 (win), PD's
+  artifact row, so red keeps `23`: against off it is plain +1.33 (win) | PD
+  −0.21 (non-inferior), SD-PD +1.01 (win). That is the doubling-artifact row,
+  kept as a recorded trade-off on the second seed's agreement with the first.
 
 - **`competition.multi_minor_slam_try` re-floored from `15` to `13`
   (2026-10-16).** The `4m` slam try above a completed Kokish–Kraft minor

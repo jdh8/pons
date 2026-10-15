@@ -333,20 +333,26 @@ pub struct CompetitionKnobs {
     /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
     /// Let a maximum 1NT opener stretch responder's weak relay sign-off in a
-    /// major to game (`1NT (2♠) 2NT - 3♣ - 3♥ -` → `4♥`)
+    /// major to game (`1NT (2♠) 2NT - 3♣ - 3♥ -` → `4♥`), at a combined
+    /// target `(white, red)`
     ///
-    /// Opener raises on 23 combined points against the relay's 6-HCP floor,
-    /// one point less per trump beyond three.  Off, opener passes every
-    /// sign-off.  **On by default** since 0.10.0, whose evidence was one seed
-    /// read "positive in every cell" without a CI.
+    /// Opener raises when its points plus the relay's 6-HCP floor reach the
+    /// target with three trumps, one point less per trump beyond three.
+    /// `None`: opener passes every sign-off.
     ///
-    /// **Re-measured 2026-10-16: plain DD win | PD loss**, the decision
-    /// table's doubling-artifact row (`scripts/ab-lebensohl-signoff-raise.sh`,
-    /// 384k `--filter-lebensohl-raise` boards per arm per vulnerability).  On
-    /// against off, IMPs per fired board, none/both: plain +0.31/+1.60, PD
-    /// −0.71/+0.04, SD-PD +0.12/+1.41.  The default stays on, unproven, pending
-    /// a decision (docs/research-method-review.md § Issue #9).
-    pub lebensohl_signoff_raise: bool,
+    /// **`Some((24, 23))` by default since 2026-10-16** (0.10.0 shipped
+    /// `23` at both colours on one seed's "positive in every cell", no CI).
+    /// Re-measured, `23` against off read plain DD win | PD loss on two seeds
+    /// (`scripts/ab-lebensohl-signoff-raise.sh`): white, PD −0.71 and −0.82
+    /// IMPs per fired board.  `scripts/ab-lebensohl-signoff-target.sh`
+    /// (fresh seed, 384k `--filter-lebensohl-raise` boards per arm per
+    /// vulnerability), `24` against `23`, IMPs per fired, white/red: plain
+    /// +0.18/**−0.85**, PD +1.33/+0.80, SD-PD +0.37/−0.48.  White is
+    /// non-inferior | win, so `24` ships there, and against off it is win |
+    /// non-inferior with SD-PD a win.  Red is PD's loss | win artifact row, so
+    /// red keeps `23`: win | non-inferior against off on both seeds, SD-PD a
+    /// win, a recorded trade-off (docs/research-method-review.md § Issue #9).
+    pub lebensohl_signoff_raise: Option<(u8, u8)>,
     /// Add the game-forcing minor cues to the Landy counter (N1b)
     ///
     /// `2♥` = GF 5+ clubs, `2♠` = GF 5+ diamonds — cues of their shown majors
@@ -2115,7 +2121,7 @@ impl Default for CompetitionKnobs {
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
-            lebensohl_signoff_raise: true,
+            lebensohl_signoff_raise: Some((24, 23)),
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,
             defense_2c_landy_cue_floor: true,

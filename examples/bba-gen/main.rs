@@ -981,12 +981,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_multi_doubler_major: bool,
 
-    /// Withhold the maximum 1NT opener's stretch of the weak relay sign-off
-    /// to game (`competition.lebensohl_signoff_raise`, on by default): over
-    /// `1NT (2♠) 2NT - 3♣ - 3♥ -` opener then passes every hand.  The control
-    /// arm of `scripts/ab-lebensohl-signoff-raise.sh`.
-    #[arg(long, default_value_t = false)]
-    no_ns_lebensohl_signoff_raise: bool,
+    /// The maximum 1NT opener's stretch of the weak relay sign-off to game
+    /// (`competition.lebensohl_signoff_raise`): the combined target `N`, or
+    /// `WHITE:RED` per vulnerability, or `off` (opener passes every hand over
+    /// `1NT (2♠) 2NT - 3♣ - 3♥ -`).  The arms of
+    /// `scripts/ab-lebensohl-signoff-raise*.sh`.
+    #[arg(long, default_value = "24:23", value_name = "off|N|WHITE:RED")]
+    ns_lebensohl_signoff_raise: String,
     /// Split responder's `P`/`X` over their `(2♦)` Multi by **information**:
     /// `X` = game values, or an invitation with a four-card major
     ///
@@ -3071,7 +3072,20 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         ),
     };
     agreements.competition.multi_doubler_major = !args.no_ns_multi_doubler_major;
-    agreements.competition.lebensohl_signoff_raise = !args.no_ns_lebensohl_signoff_raise;
+    agreements.competition.lebensohl_signoff_raise = match args.ns_lebensohl_signoff_raise.as_str()
+    {
+        "off" => None,
+        spec => {
+            let parse = |n: &str| {
+                n.parse()
+                    .expect("--ns-lebensohl-signoff-raise must be off, N or WHITE:RED")
+            };
+            Some(match spec.split_once(':') {
+                Some((white, red)) => (parse(white), parse(red)),
+                None => (parse(spec), parse(spec)),
+            })
+        }
+    };
     agreements.competition.multi_px_split = args.ns_multi_px_split;
     agreements.notrump.quantitative_six_notrump = !args.no_ns_quantitative_six_notrump;
     agreements.notrump.rebid_checkback = !args.no_ns_rebid_checkback;
