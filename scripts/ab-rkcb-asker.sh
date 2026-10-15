@@ -6,6 +6,9 @@
 # mirror alike.  No knob: `slam::rkcb_rows` has twenty callers and no knob
 # path, so the OFF arm is a pre-fix build — `BASE` (default: HEAD) checked out
 # in a worktree under $R and passed to bba-gen-parallel.sh as BBA_GEN.
+# A legacy OFF build needs an explicit provenance-reporting wrapper selected
+# with OFF_BIN=/path/to/reporting-wrapper; this skips the worktree build.
+# See docs/measurement.md, “Runtime provenance and resuming arms”.
 #
 #   SKIP_BUILD=1 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-rkcb-asker.sh ab-results/rkcb-asker \
@@ -37,11 +40,15 @@ SEED_BASE=$(seed_for rkcb-asker)
 # The off binary: build $BASE once, before any arm, in its own worktree.
 base_sha=$(git rev-parse --short "$BASE")
 wt="$R/base-$base_sha"
-OFF_BIN="$wt/target/release/examples/bba-gen"
-if [ ! -x "$OFF_BIN" ]; then
-    [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
-    log "build off arm from $base_sha in $wt"
-    (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+if [ -n "${OFF_BIN:-}" ]; then
+    [ -x "$OFF_BIN" ] || { log "OFF_BIN is not executable: $OFF_BIN"; exit 1; }
+else
+    OFF_BIN="$wt/target/release/examples/bba-gen"
+    if [ ! -x "$OFF_BIN" ]; then
+        [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
+        log "build off arm from $base_sha in $wt"
+        (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+    fi
 fi
 
 log "=== rkcb-asker A/B start, sha=$SHA vs base=$base_sha, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"

@@ -2,6 +2,8 @@
 # Regression for ab-lib.sh's arm resume guard: an arm's fingerprint is the files
 # its generator runs, not the checkout.  Stub generators only; no builds.
 set -eu
+# Keep a caller's measurement settings from changing this isolated fixture.
+unset BBA_GEN PONS_FLOOR_WEIGHTS FORCE_REUSE BOARDS PER_SHARD BUILD_EXTRA FEATURES
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
@@ -54,15 +56,16 @@ SH
 chmod +x scripts/run-arm.sh
 git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init
 export SKIP_BUILD=1 JOBS=2
-unset BBA_GEN PONS_FLOOR_WEIGHTS FORCE_REUSE
 
 fails=0
+cases=0
 # [with VAR=VALUE] expect WANT NAME DIR [arm args...] — WANT is skip, generate
 # or refuse.  The environment goes through `env`: bash-as-sh keeps a prefix
 # assignment on a function call (`X=1 expect …`) past the call.
 with=
 expect() {
     want=$1; name=$2; dir=$3; shift 3
+    cases=$((cases + 1))
     # shellcheck disable=SC2086
     if env $with scripts/run-arm.sh "$dir" "$@" >"$tmp/out" 2>&1; then
         got=generate
@@ -111,6 +114,9 @@ gen "$default" 2
 with BBA_GEN=$tmp/wrapper; expect refuse 'wrapped binary rebuilt, wrapper unchanged' r w none
 gen "$default" 1
 
+printf '\n# changed launcher\n' >>wrapper
+with BBA_GEN=$tmp/wrapper; expect refuse 'launcher edited, reported binary unchanged' r w none
+
 gen off/bba-gen 0
 with BBA_GEN=$tmp/off/bba-gen; expect generate 'override arm' r off none
 expect refuse   'override arm resumed on the default build' r off none
@@ -129,21 +135,112 @@ echo w2 >w.f32
 with PONS_FLOOR_WEIGHTS=w.f32; expect refuse 'weights blob edited' r wt none
 
 gen off/old 0 old
-with BBA_GEN=$tmp/off/old; expect generate 'pre-provenance generator' r old none
-with BBA_GEN=$tmp/off/old; expect skip 'pre-provenance generator reused' r old none
-gen off/old 1 old
-with BBA_GEN=$tmp/off/old; expect refuse 'pre-provenance generator rebuilt' r old none
+with BBA_GEN=$tmp/off/old; expect refuse 'unreported fresh generator' r old none
 
-# A wrapper around a pre-provenance default build: the wrapper's text alone
-# would miss the rebuild.
-gen "$default" 1 old
-with BBA_GEN=$tmp/wrapper; expect generate 'wrapper, pre-provenance build' r wold none
-gen "$default" 2 old
-with BBA_GEN=$tmp/wrapper; expect refuse 'wrapper, pre-provenance build rebuilt' r wold none
-gen "$default" 1
+# Historical metadata can match its old fingerprint exactly and still cannot
+# prove which runtime files a legacy generator used. Cover both resume paths.
+for state in complete partial; do
+    arm_dir="r/legacy-$state-none"
+    mkdir -p "$arm_dir"
+    {
+        echo "unreported exe $(cksum <off/old)"
+        echo 'PONS_FLOOR_WEIGHTS='
+        echo "wrapped $(cksum <"$default")"
+        echo 'flags: '
+    } >"$arm_dir/arm.meta"
+    echo '{}' >"$arm_dir/shard-0.json"
+    [ "$state" != complete ] || echo '{}' >"$arm_dir/shard-1.json"
+    with BBA_GEN=$tmp/off/old; expect refuse "unreported $state arm, unchanged legacy metadata" r "legacy-$state" none
+    if [ "$state" = complete ]; then want=skip; else want=generate; fi
+    with BBA_GEN=$tmp/off/old FORCE_REUSE=1; expect "$want" "FORCE_REUSE unreported $state arm" r "legacy-$state" none
+    if ! grep -q 'WARNING .*FORCE_REUSE=1.*unverified' "$tmp/out"; then
+        echo "FAIL unreported $state arm: FORCE_REUSE omitted its unverified-identity warning" >&2
+        fails=$((fails + 1))
+    fi
+done
+
+# Explicit adapter for an alternate executable without --provenance. It names
+# the actual executable, EPBot and every runtime weight blob before forwarding.
+cat >reporting-wrapper <<'SH'
+#!/bin/sh
+if [ "$1" = --provenance ]; then
+    echo 'exe off/old'
+    echo 'lib epbot.so'
+    [ -z "${PONS_FLOOR_WEIGHTS:-}" ] || echo "$PONS_FLOOR_WEIGHTS" | tr , '\n' | sed 's/^/weights /'
+    exit 0
+fi
+exec "$(dirname "$0")/off/old" "$@"
+SH
+chmod +x reporting-wrapper
+echo w1 >w.f32
+echo other1 >other.f32
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect generate 'reported legacy wrapper' r reported none
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect skip 'reported legacy wrapper unchanged' r reported none
+gen off/old 1 old
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'alternate wrapped executable rebuilt' r reported none
+gen off/old 0 old
+echo w2 >w.f32
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'legacy wrapper same-path weights edited' r reported none
+echo w1 >w.f32
+echo other2 >other.f32
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'legacy wrapper second weights blob edited' r reported none
+echo other1 >other.f32
+echo v2 >epbot.so
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'legacy wrapper EPBot swapped' r reported none
+echo v1 >epbot.so
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect skip 'reported legacy runtime restored' r reported none
+rm r/reported-none/shard-1.json
+gen off/old 1 old
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'partial legacy arm, alternate executable rebuilt' r reported none
+gen off/old 0 old
+echo w2 >w.f32
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'partial legacy arm, same-path weights edited' r reported none
+echo w1 >w.f32
+echo v2 >epbot.so
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect refuse 'partial legacy arm, EPBot swapped' r reported none
+echo v1 >epbot.so
+with BBA_GEN=$tmp/reporting-wrapper PONS_FLOOR_WEIGHTS=w.f32,other.f32; expect generate 'partial legacy arm, runtime restored' r reported none
+
+# Each invalid report gets a fresh arm and a second attempt. Assert the first
+# refusal left no arm metadata or shards, so the repeated refusal cannot be a
+# stale-metadata mismatch masquerading as provenance validation.
+cat >bad-report <<'SH'
+#!/bin/sh
+if [ "$1" = --provenance ]; then
+    cat report.txt
+    exit 0
+fi
+exec "$(dirname "$0")/off/old" "$@"
+SH
+chmod +x bad-report
+echo secret >unreadable.f32
+chmod 000 unreadable.f32
+bad_report() {
+    label=$1; report=$2
+    printf '%s\n' "$report" >report.txt
+    with BBA_GEN=$tmp/bad-report; expect refuse "$label report, fresh arm" r "bad-$label" none
+    if [ -e "r/bad-$label-none/arm.meta" ] || ls "r/bad-$label-none"/shard-*.json >/dev/null 2>&1; then
+        echo "FAIL $label: invalid provenance left metadata or shards" >&2
+        fails=$((fails + 1))
+    fi
+    with BBA_GEN=$tmp/bad-report; expect refuse "$label report, repeated attempt" r "bad-$label" none
+}
+bad_report blank ''
+bad_report malformed 'unknown off/old'
+bad_report missing-path 'exe'
+bad_report missing-lib 'exe off/old'
+bad_report missing-exe 'lib epbot.so'
+bad_report missing-file 'exe off/missing
+lib epbot.so'
+bad_report unreadable-file 'exe off/old
+lib epbot.so
+weights unreadable.f32'
+bad_report nonregular-file 'exe off/old
+lib off'
+chmod 600 unreadable.f32
 
 mkdir -p r/pre-none && echo '{}' >r/pre-none/shard-0.json
 expect refuse   'arm without arm.meta' r pre none
 
 [ "$fails" = 0 ] || { echo "arm fingerprint: $fails case(s) failed" >&2; exit 1; }
-echo 'arm fingerprint passed'
+echo "arm fingerprint passed ($cases cases)"

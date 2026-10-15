@@ -145,6 +145,49 @@ SAT's `4♣` was actually the most-doubled call (9.25% vs 8.75%), with doubling
 tracking level rather than variant. If a full count is unavailable, label the
 tail observation unverified.
 
+## Runtime provenance and resuming arms
+
+`scripts/ab-lib.sh` fingerprints the launcher and the runtime files returned by
+`bba-gen --provenance`, plus the arm's flags and file-valued flags. The report
+must include `exe PATH` and `lib PATH` rows and a `weights PATH` row for each
+external floor-weight blob, in loading order. Every named file must be readable.
+A complete or partial arm is refused if its recorded fingerprint differs or is
+missing. Source edits and doc-only commits do not substitute for a binary change.
+
+A legacy generator that lacks `--provenance` needs an explicit reporting wrapper
+selected through `BBA_GEN`. For example (replace both paths with the actual
+runtime files):
+
+```sh
+#!/bin/sh
+set -eu
+exe=/path/to/legacy/bba-gen
+lib=${BBA_LIB:-/path/to/libEPBot.so}
+if [ "${1:-}" = --provenance ]; then
+    printf 'exe %s\nlib %s\n' "$exe" "$lib"
+    if [ -n "${PONS_FLOOR_WEIGHTS:-}" ]; then
+        printf '%s\n' "$PONS_FLOOR_WEIGHTS" | tr ',' '\n' |
+            while IFS= read -r path; do printf 'weights %s\n' "$path"; done
+    fi
+    exit 0
+fi
+export BBA_LIB="$lib"
+exec "$exe" "$@"
+```
+
+The historical `ab-rkcb-asker.sh`, `ab-reading-fallthrough.sh` and
+`ab-cue-raise-sign-off.sh` runners select their off build internally. Pass
+`OFF_BIN=/path/to/reporting-wrapper` to override that selection and skip its
+worktree build; `BBA_GEN` still selects their on arm.
+
+The wrapper must name what it actually runs; a loader wrapper must name the
+wrapped executable too. There is no fallback that guesses the default build or
+hashes only weight paths. Unsupported, empty or incomplete reports and unreadable
+files refuse even a fresh arm. `FORCE_REUSE=1` remains a deliberate override after
+manual checking; if provenance fails, the log warns that identity is unverified.
+The launcher checksum also makes metadata from before this guard incompatible;
+use a fresh results directory or check the old arms before overriding.
+
 ## Watching a run
 
 A long run is watched by **polling the runner process**, never by grepping the

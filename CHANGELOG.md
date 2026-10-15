@@ -2712,6 +2712,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Legacy A/B generators require explicit runtime provenance (2026-10-16,
+  follow-up to [#7](https://github.com/jdh8/pons/issues/7)).** The initial
+  fallback for a generator without `--provenance` hashed weight paths rather
+  than their contents, and assumed a wrapper ran the default build. Editing a
+  weight blob or rebuilding an alternate wrapped executable could therefore
+  silently reuse an incompatible arm. A legacy generator now needs a wrapper
+  that reports its actual executable, EPBot library and external weights;
+  unsupported, empty or incomplete reports and unreadable runtime files refuse
+  generation and reuse. The launcher is hashed too. `FORCE_REUSE=1` still
+  overrides deliberately, with an explicit warning when identity is unverified.
+  Existing metadata predating this guard needs manual checking before override.
+  The three historical off-build runners accept an `OFF_BIN` wrapper override.
+  `docs/measurement.md` documents the wrapper protocol; 55 stub regression
+  cases cover complete/partial resumes and invalid provenance. Bidding is
+  untouched.
+
 - **An A/B arm's fingerprint is the generator it runs, not the checkout
   (2026-10-16, residual of [#7](https://github.com/jdh8/pons/issues/7)).**
   `arm.meta` recorded the git trees of `src/`, `examples/` and `Cargo.lock`,
@@ -2725,9 +2741,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PONS_FLOOR_WEIGHTS` blobs) and the fingerprint cksums them, plus the
   flags and any flag value naming a file (a `.bbsa` card). Doc-only
   commits and unrebuilt source edits no longer refuse; a rebuild that
-  changes the bytes does. A generator from before `--provenance` falls
-  back to its own bytes, plus the default build's if it is a wrapper
-  script. `scripts/test-arm-fingerprint.sh` covers 27 cases against stub
+  changes the bytes does. The initial legacy fallback hashed its own bytes,
+  plus the default build's for a wrapper script; the follow-up above replaces
+  that incomplete fallback. The initial `scripts/test-arm-fingerprint.sh`
+  covered 27 cases against stub
   generators, 12 of which the old guard failed. Arms
   recorded by the old guard now read as mismatched, so resuming one needs
   `FORCE_REUSE=1`.

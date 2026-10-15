@@ -17,6 +17,12 @@
 #   on   the working tree (the fix)
 #   off  the build of $BASE
 #
+#   OFF_BIN=/path/to/reporting-wrapper selects a custom off-arm launcher. Use
+#   this for legacy generators under strict runtime provenance: the wrapper
+#   reports the runtime files with `--provenance` (see
+#   docs/measurement.md, “Runtime provenance and resuming arms”). Without this
+#   override, the runner builds the historical $BASE executable as before.
+#
 # Hypothesis (pre-run): about +0.002 per board on both scorers at full capture
 # (58 rows per 409,600 boards, −12 each); at that size it resolves on one
 # seed.  Read the per-fired line: every fired board should be a `3♠` cue over
@@ -41,11 +47,15 @@ SEED_BASE=$(seed_for cue-raise-sign-off)
 # The off binary: build $BASE once, before any arm, in its own worktree.
 base_sha=$(git rev-parse --short "$BASE")
 wt="$R/base-$base_sha"
-OFF_BIN="$wt/target/release/examples/bba-gen"
-if [ ! -x "$OFF_BIN" ]; then
-    [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
-    log "build off arm from $base_sha in $wt"
-    (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+if [ -n "${OFF_BIN:-}" ]; then
+    [ -x "$OFF_BIN" ] || { log "OFF_BIN is not executable: $OFF_BIN"; exit 1; }
+else
+    OFF_BIN="$wt/target/release/examples/bba-gen"
+    if [ ! -x "$OFF_BIN" ]; then
+        [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
+        log "build off arm from $base_sha in $wt"
+        (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+    fi
 fi
 
 log "=== cue-raise-sign-off A/B start, sha=$SHA vs base=$base_sha, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"

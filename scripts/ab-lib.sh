@@ -107,40 +107,69 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 # override.  It cksums the files `bba-gen --provenance` names -- the image its
 # code was mapped from (seen through a BBA_GEN loader wrapper, so rebuilding
 # the wrapped binary counts), the EPBot library, the PONS_FLOOR_WEIGHTS blobs
-# -- plus the flags and every flag value naming a file (a `.bbsa` card).  A
-# generator too old to answer `--provenance` falls back to its own bytes and
-# the weights' paths, plus the default build's bytes if it is a script.  Doc-only commits and unrebuilt source edits leave the
-# fingerprint unchanged; a relink that changes the bytes refuses.
+# -- plus the launcher, flags and every flag value naming a file (a `.bbsa`
+# card). A legacy generator needs a wrapper that answers `--provenance` with
+# its actual executable, library and weights; guessing what a script wraps
+# cannot establish identity. Empty/incomplete reports and unreadable files
+# fail closed, including on fresh arms. FORCE_REUSE=1 explicitly overrides a
+# failed provenance check as well as a mismatched arm.meta. Doc-only commits
+# and unrebuilt source edits leave the fingerprint unchanged; a relink that
+# changes the bytes refuses.
 #
 # A subshell body, so its names cannot clobber a runner's (`for a; do arm …`).
 arm_fingerprint() (
     # Resolved as bba-gen-parallel.sh resolves it; keep the two in step.
     bin=${BBA_GEN:-$PWD/target/release/examples/bba-gen}
-    if report=$("$bin" --provenance 2>/dev/null); then
-        echo "$report" | while read -r role path; do
-            echo "$role $(cksum <"$path" 2>/dev/null || echo missing)"
-        done
-    else
-        echo "unreported exe $(cksum <"$bin" 2>/dev/null || echo missing)"
-        echo "PONS_FLOOR_WEIGHTS=${PONS_FLOOR_WEIGHTS:-}"
-        # A script cannot say what it wraps; assume the default build.
-        if [ "$(head -c 2 "$bin" 2>/dev/null)" = '#!' ]; then
-            echo "wrapped $(cksum <target/release/examples/bba-gen 2>/dev/null || echo missing)"
-        fi
-    fi
+    report=$("$bin" --provenance 2>/dev/null) || {
+        echo "ab-lib: $bin does not report runtime provenance; use a wrapper that answers --provenance with its executable, library and weights" >&2
+        return 1
+    }
+    fingerprint_file() {
+        [ -f "$2" ] && [ -r "$2" ] && sum=$(cksum <"$2") || {
+            echo "ab-lib: cannot fingerprint $1 file: $2" >&2
+            return 1
+        }
+        echo "$1 $sum"
+    }
+    launcher=$(command -v "$bin") || return 1
+    fingerprint_file launcher "$launcher" || return 1
+    seen_exe=0; seen_lib=0
+    while read -r role path; do
+        case "$role" in
+            exe) seen_exe=1 ;;
+            lib) seen_lib=1 ;;
+            weights) ;;
+            *) echo "ab-lib: invalid --provenance role: $role" >&2; return 1 ;;
+        esac
+        fingerprint_file "$role" "$path" || return 1
+    done <<EOF
+$report
+EOF
+    [ "$seen_exe:$seen_lib" = 1:1 ] || {
+        echo "ab-lib: --provenance must name both exe and lib files" >&2
+        return 1
+    }
     echo "flags: $*"
     for a in "$@"; do
         f=${a#*=}
-        if [ -f "$f" ]; then echo "file $f $(cksum <"$f")"; fi
+        if [ -f "$f" ]; then fingerprint_file "file $f" "$f" || return 1; fi
     done
 )
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"
-    want=$(arm_fingerprint "$@")
+    if want=$(arm_fingerprint "$@"); then
+        :
+    elif [ "${FORCE_REUSE:-0}" = 1 ]; then
+        log "WARNING $dir: FORCE_REUSE=1 overrides failed runtime provenance; identity is unverified"
+        want='unverified runtime provenance (FORCE_REUSE=1)'
+    else
+        log "refuse $dir: cannot establish runtime provenance; use a reporting generator/wrapper, or FORCE_REUSE=1 after checking"
+        exit 1
+    fi
     if ls "$dir"/shard-*.json >/dev/null 2>&1 && [ "${FORCE_REUSE:-0}" != 1 ] \
         && [ "$(cat "$dir/arm.meta" 2>/dev/null)" != "$want" ]; then
-        log "refuse $dir: its arm.meta does not match this code and these flags (missing = generated before the guard); use a fresh results dir, or FORCE_REUSE=1 after checking"
+        log "refuse $dir: its arm.meta does not match these runtime files and flags (missing = generated before the guard); use a fresh results dir, or FORCE_REUSE=1 after checking"
         exit 1
     fi
     [ "$(ls "$dir"/shard-*.json 2>/dev/null | wc -l | tr -d " ")" = "$SHARDS" ] \

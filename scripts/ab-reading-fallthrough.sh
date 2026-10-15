@@ -2,8 +2,11 @@
 # ab-reading-fallthrough.sh — the reading twin of the rejection fall-through:
 # a rule table with no row for the call made did not make it, so the reader
 # skips it to the next candidate, as the bidder did (`trie::may_have_made`).
-# No knob: the off arm is the build of `BASE` (default a3a68aed, the commit
-# before the fix), passed to bba-gen-parallel.sh as BBA_GEN.
+# The off arm is the build of `BASE` (default a3a68aed, the commit before the
+# fix), passed to bba-gen-parallel.sh as BBA_GEN. Set OFF_BIN=/path/to/wrapper
+# to use an executable reporting wrapper instead; legacy generators need this
+# under the runtime provenance guard. See docs/measurement.md, “Runtime
+# provenance and resuming arms”.
 #
 #   BOARDS=819200 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-reading-fallthrough.sh ab-results/reading-fallthrough \
@@ -33,11 +36,15 @@ SEED_BASE=$(seed_for reading-fallthrough)
 
 base_sha=$(git rev-parse --short "$BASE")
 wt="$R/base-$base_sha"
-OFF_BIN="$wt/target/release/examples/bba-gen"
-if [ ! -x "$OFF_BIN" ]; then
-    [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
-    log "build off arm from $base_sha in $wt"
-    (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+if [ -n "${OFF_BIN:-}" ]; then
+    [ -x "$OFF_BIN" ] || { log "OFF_BIN is not executable: $OFF_BIN"; exit 1; }
+else
+    OFF_BIN="$wt/target/release/examples/bba-gen"
+    if [ ! -x "$OFF_BIN" ]; then
+        [ -d "$wt" ] || git worktree add --detach "$wt" "$BASE"
+        log "build off arm from $base_sha in $wt"
+        (cd "$wt" && cargo build --release --features serde --example bba-gen) >>"$R/log" 2>&1
+    fi
 fi
 
 log "=== reading-fallthrough A/B start, sha=$SHA vs base=$base_sha, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
