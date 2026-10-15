@@ -56,9 +56,24 @@ for k in shards:$SHARDS per-shard:$PER_SHARD; do
     fi
 done
 
-# BUILD_EXTRA is a deliberately word-split flag list, not one argument.
-# shellcheck disable=SC2086
-cargo build --release --features serde --example bba-gen --example ab-dump-diff ${BUILD_EXTRA:-}
+# SKIP_BUILD=1 from the caller skips even this build: the documented way to
+# launch a second experiment while another is in flight, whose binaries a
+# rebuild would swap under it.  The run then measures whatever is already in
+# target/release, so every harness it needs must exist.
+if [ "${SKIP_BUILD:-0}" = 1 ]; then
+    # shellcheck disable=SC2086
+    for ex in bba-gen ab-dump-diff $(echo ${BUILD_EXTRA:-} | sed 's/--example//g'); do
+        [ -x "target/release/examples/$ex" ] || {
+            echo "ab-lib: SKIP_BUILD=1 but target/release/examples/$ex is missing" >&2
+            exit 1
+        }
+    done
+    echo "ab-lib: SKIP_BUILD=1, measuring the binaries already in target/release" >&2
+else
+    # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
+    # shellcheck disable=SC2086
+    cargo build --release --features serde --example bba-gen --example ab-dump-diff ${BUILD_EXTRA:-}
+fi
 
 # One build per experiment, here.  bba-gen-parallel.sh otherwise rebuilds at the
 # head of *every arm*, so a `src/` edit mid-run makes late arms measure different

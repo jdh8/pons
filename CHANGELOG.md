@@ -2657,6 +2657,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Two A/B tooling holes Codex found in the #7 review (2026-10-15,
+  [#7](https://github.com/jdh8/pons/issues/7)).** `scripts/ab-lib.sh` built
+  the release harnesses unconditionally, so the documented
+  `SKIP_BUILD=1 … scripts/ab-non-inferiority.sh` launch still ran
+  `cargo build --release` and could swap the binaries under an A/B already
+  in flight; it now honours `SKIP_BUILD=1` (measuring what is in
+  `target/release`, failing if a needed harness is missing). And
+  `ab-kickback --rescore` on a directory of several shards padded the pooled
+  divergent boards to one shard's `--count`, which inflated the new verdict
+  (two shards of one +1 IMP divergence in two boards read **win** instead of
+  inconclusive); it now withholds the verdict unless the directory holds one
+  shard, the only layout `--dump` writes. No measured verdict used either
+  path.
+
 - **A rejecting guarded table now falls through to the floor (2026-10-03).**
   The fall-through after a book table rejects a hand (all-−∞) skipped only an
   exact node.  A guarded fallback — every `P*` row table — was resolved again

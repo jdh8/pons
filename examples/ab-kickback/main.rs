@@ -433,12 +433,26 @@ fn rescore(args: &Args, path: &str) {
     let feature = parse(&dump.our_label);
     let baseline = parse(&dump.their_label);
     let vul = dump.vulnerability;
+    // `load_dump` folds every shard's boards but keeps only the first shard's
+    // `gen_args`, so its `--count` is the board count of one run.  Several
+    // shards would pad the pooled divergences to one run's count and inflate
+    // the verdict; leave the count unknown, which withholds it.
+    let shards = std::fs::read_dir(path).map_or(1, |dir| {
+        dir.filter_map(Result::ok)
+            .filter(|e| {
+                e.file_name()
+                    .to_str()
+                    .is_some_and(|n| n.starts_with("shard-") && n.ends_with(".json"))
+            })
+            .count()
+    });
     let count = dump
         .gen_args
         .iter()
         .position(|a| a == "--count" || a == "-c")
         .and_then(|i| dump.gen_args.get(i + 1))
-        .and_then(|v| v.parse::<usize>().ok());
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|_| shards == 1);
     println!(
         "=== rescore: {} vs {}, {} divergent boards of {} bid, vulnerability {}, gen seed {:?} ===",
         dump.our_label,
