@@ -613,3 +613,42 @@ fn responder_passes_the_spade_preference() {
         assert_eq!(best_call(&partnership(), &auction, invite), P, "{invite}");
     }
 }
+
+// --- XYZ: 3-3 corrects the weak 5♠4♥ `2♥` to `2♠` ---------------------------
+// (`RebidKnobs::xyz_weak_spade_preference`, shipped)
+
+/// The off arm: the doubleton-heart correction only, responder to the floor
+fn no_weak_spade_preference() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.xyz_weak_spade_preference = false;
+    american(&agreements).bind()
+}
+
+#[test]
+fn opener_corrects_the_weak_two_hearts_with_three_three() {
+    let auction = xyz_auction(Strain::Spades, &[call(2, Strain::Hearts)]);
+    let three_three = "Kxx.Kxx.AQx.Jxxx";
+    assert_eq!(
+        best_call(&no_weak_spade_preference(), &auction, three_three),
+        P
+    );
+    assert_eq!(
+        best_call(&partnership(), &auction, three_three),
+        call(2, Strain::Spades),
+    );
+    // Four hearts still pass the 4-4 fit; two spades pass too.
+    assert_eq!(best_call(&partnership(), &auction, "Kxx.Kxxx.AQx.Jxx"), P,);
+    assert_eq!(best_call(&partnership(), &auction, "Kx.Kxx.AQxx.Jxxx"), P,);
+}
+
+#[test]
+fn responder_passes_the_weak_spade_correction() {
+    let auction = xyz_auction(
+        Strain::Spades,
+        &[call(2, Strain::Hearts), call(2, Strain::Spades)],
+    );
+    // An ace and a shortness: the floor jumped to 4♠ on this 4-count.
+    for weak in ["KJxxx.Qxxx.xx.xx", "KJxxx.QJxxx.x.xx", "97652.A854.J54.T"] {
+        assert_eq!(best_call(&partnership(), &auction, weak), P, "{weak}");
+    }
+}

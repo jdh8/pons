@@ -19,12 +19,16 @@
 #
 #   xyz-invite-spade-preference  opener's 2♠ preference over the invitational
 #                           1m - 1♠ - 1NT - 2♣ - 2♦ - 2♥     --no-ns-xyz-invite-spade-preference
+#   xyz-weak-spade-preference  3-3 corrects the weak 1m - 1♠ - 1NT - 2♥
+#                           to 2♠, responder passes (#10)     --no-ns-xyz-weak-spade-preference
 #
 # xyz-second-major-first shipped default-on on its run (2026-10-14), so its arm is
 # now the off-switch and the diff reads `shipped vs off`; the recorded run, made
 # before the flip, is `repair vs shipped` with the same sign.  Likewise
 # xyz-invite-spade-preference (shipped 2026-10-15, results root
-# ab-results/xyz-preference).
+# ab-results/xyz-preference) and xyz-weak-spade-preference (shipped 2026-10-16,
+# results root ab-results/xyz-preference-r2; the first run, without responder's
+# pass, is superseded).
 #
 # reverse-levers (2026-10-15): the two-suiter trace's two remaining buckets, on
 # opener's 1♥ - 1NT - 2♠ reverse, in one five-arm run on one SEED_BASE —
@@ -147,6 +151,11 @@ for vul in none both; do
         ;;
     xyz-second-major-first)
         arm off "$vul" --no-ns-xyz-second-major-first
+        diffpair shipped off "$vul"
+        sddiff shipped off "$vul"
+        ;;
+    xyz-weak-spade-preference)
+        arm off "$vul" --no-ns-xyz-weak-spade-preference
         diffpair shipped off "$vul"
         sddiff shipped off "$vul"
         ;;

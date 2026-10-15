@@ -243,18 +243,31 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
     }
 
     // Opener's answer to the weak 5♠4♥ `2♥`: prefer spades with three and a
-    // doubleton heart, else pass (the 1NT rebid may hold four hearts).
+    // shorter heart suit, else pass (the 1NT rebid may hold four hearts).
     if knobs.xyz_second_major_first && response == Suit::Spades && rebid == Strain::Notrump {
+        let hearts = if knobs.xyz_weak_spade_preference {
+            3
+        } else {
+            2
+        };
         entries.extend(rows_of(
             Pattern::node(&format!("{prefix} 2♥ -")),
             Rules::new()
                 .rule(
                     Bid::new(2, Strain::Spades),
                     100,
-                    len(Suit::Spades, 3..) & len(Suit::Hearts, ..=2),
+                    len(Suit::Spades, 3..) & len(Suit::Hearts, ..=hearts),
                 )
                 .rule(Call::Pass, 0, points(0..)),
         ));
+        // The weak hand has spoken: pass the correction (the floor jumped to
+        // `4♠` on an ace and a shortness).
+        if knobs.xyz_weak_spade_preference {
+            entries.extend(rows_of(
+                Pattern::node(&format!("{prefix} 2♥ - 2♠ -")),
+                Rules::new().rule(Call::Pass, 0, points(0..)),
+            ));
+        }
     }
 
     // The invitational round after the relay, and opener's acceptances.

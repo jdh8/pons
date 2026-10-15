@@ -4466,7 +4466,8 @@ pub struct RebidKnobs {
     /// heart fit is lost — the #7 trace of the longer-major response
     /// (`research-method-review.md`).  On, a hand with 4+ hearts and at most
     /// five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
-    /// `2♠` with three spades and a doubleton heart, else pass.
+    /// `2♠` with three spades and a doubleton heart (three hearts too under
+    /// [`Self::xyz_weak_spade_preference`]), else pass.
     pub xyz_second_major_first: bool,
     /// Prefer spades over the invitational 5♠4♥ `2♥` with a minimum
     ///
@@ -4483,6 +4484,23 @@ pub struct RebidKnobs {
     /// `2♠` with 3+ spades, at most three hearts and at most 13 points (a
     /// minimum with two spades still passes), and responder passes it.
     pub xyz_invite_spade_preference: bool,
+    /// Prefer spades over XYZ's weak 5♠4♥ `2♥` with three cards in each major
+    ///
+    /// **Default on** since 2026-10-16
+    /// ([#10](https://github.com/jdh8/pons/issues/10)): won every cell on all
+    /// four scorers (repair − shipped vs BBA, 1,228,800 boards per cell;
+    /// plain DD +0.0001 ±0.0000 both cells, PD +0.0001 / +0.0002 ±0.0001,
+    /// SD-PD +0.0001 / +0.0002 none/both; 0.01% fired, +1.6 to +3.6 IMPs per
+    /// fired board).  Off-switch `--no-ns-xyz-weak-spade-preference` in
+    /// `bba-gen`.  Off, after
+    /// `1m - 1♠ - 1NT - 2♥`, opener corrects to `2♠` with three spades and a
+    /// doubleton heart, so 3-3 in the majors passes `2♥` in a 4-3 heart fit
+    /// when the 5-3 spade fit is there (a `1♠` response with four hearts is
+    /// almost always 5♠4♥).  On, the correction takes three hearts too,
+    /// matching [`Self::xyz_invite_spade_preference`]'s invitational rung, and
+    /// responder passes it — off, the floor jumps to `4♠` on a weak hand with
+    /// an ace and a shortness (`97652.A854.J54.T`), after either correction.
+    pub xyz_weak_spade_preference: bool,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
     ///
@@ -4831,6 +4849,7 @@ impl Default for RebidKnobs {
             xyz_invite_judgment: true,
             xyz_second_major_first: true,
             xyz_invite_spade_preference: true,
+            xyz_weak_spade_preference: true,
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,

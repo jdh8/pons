@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.xyz_weak_spade_preference` — opener corrects XYZ's weak 5♠4♥
+  `2♥` to `2♠` with 3-3 too, and responder passes it (2026-10-16,
+  [#10](https://github.com/jdh8/pons/issues/10)); shipped default-on, win |
+  win.**
+  After `1m - 1♠ - 1NT - 2♥` opener corrected to `2♠` only with a doubleton
+  heart, so 3-3 in the majors passed into a 4-3 heart fit beside a 5-3
+  spade fit. The correction now takes three hearts. A first run (correction
+  only) traced its worst board to responder: the floor jumped to `4♠` over
+  the correction on a weak hand with an ace and a shortness
+  (`97652.A854.J54.T`), after either correction, so responder now passes.
+  Repair − shipped vs BBA, 1,228,800 boards per cell, SEED_BASE
+  1792080520460238783: plain DD +0.0001 ±0.0000 both cells, PD +0.0001
+  ±0.0001 / +0.0002 ±0.0001, SD-PD +0.0001 / +0.0002 none/both; 63 / 72
+  fired (0.01%), +1.6 to +3.6 IMPs per fired board. Off-switch
+  `--no-ns-xyz-weak-spade-preference` in `bba-gen`.
+
 - **`rebid.xyz_invite_spade_preference` — opener prefers spades over XYZ's
   invitational 5♠4♥ `2♥` (2026-10-15, split off
   [#7](https://github.com/jdh8/pons/issues/7)); shipped default-on, win |
