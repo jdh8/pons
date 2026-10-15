@@ -39,7 +39,7 @@ use std::collections::BTreeMap;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, next_call, seat_to_act};
+use common::{Board, mean_with_ci, next_call, seat_to_act, verdict_line};
 
 /// Measure the UvU structure over `1NT (2NT)`, with 2NT showing both minors
 #[derive(Parser)]
@@ -242,6 +242,7 @@ fn main() {
 
     let mut total_points = 0i64;
     let mut total_imps = 0i64;
+    let mut board_imps = vec![0i64; boards.len()];
     let mut by_call: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
@@ -250,6 +251,7 @@ fn main() {
             - ns_score_contract(contract_b, table, args.vulnerability);
         total_points += swing;
         total_imps += imps(swing);
+        board_imps[index] = imps(swing);
 
         // Attribute the swing to the feature side's UvU response, read from the
         // table where the feature side opened (A when NS opened, else B).
@@ -295,11 +297,17 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&board_imps);
+    let density = if args.no_filter {
+        Some(1.0)
+    } else {
+        (scanned > 0).then(|| boards.len() as f64 / scanned as f64)
+    };
     println!(
-        "UvU team: {total_points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
-        total_imps as f64 / args.count.max(1) as f64,
+        "UvU team: {total_points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/board, {:+.3} IMPs/divergent)",
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line("plain DD", mean, ci, density));
 
     println!("\nBy UvU response (IMPs each counter-measure gains vs the floor):");
     for (call, &(boards_n, imps_won)) in &by_call {

@@ -339,8 +339,17 @@ would produce a number that changes nothing.
 **Each scorer's verdict comes first** (2026-10-14,
 [#7](https://github.com/jdh8/pons/issues/7)). A "wash" — a CI straddling
 0 — says the data have not ruled out zero; it may still hold a loss worth
-caring about, so it is no proof of non-inferiority. Every A/B reporter now
-prints a `Verdict` line per scorer (`common::verdict`):
+caring about, so it is no proof of non-inferiority. Every whole-experiment
+A/B reporter prints a `Verdict` line per scorer it computes
+(`common::verdict`, via `verdict_line` / `report_swings` /
+`report_brackets` / `report_sd_brackets`). Forensic subgroup tables
+(`ab-dump-bucket`, `ab-dump-cachalot`, `ab-dump-gladiator-bucket`, per-call
+and per-bucket breakdowns), the `ab-nt-defense-matrix` game matrix, the
+oracle-regret `ab-defend-2sx-or-3nt` and the sum-only
+`scripts/ab-aggregate.sh` are not a treatment's verdict and print none.
+`ab-dnf-sd-lead` prints none either: it arms the leader's reading on both
+sides but signs the swing from NS's chair, so an EW leader's gain counts
+against it and the mean cancels in expectation:
 
 - **Primary metric**: plain-DD IMPs per board, ON − OFF on paired deals,
   over the population of **random deals**, per vulnerability cell.
@@ -356,10 +365,14 @@ prints a `Verdict` line per scorer (`common::verdict`):
   - `inconclusive`: lower bound ≤ −δ, upper bound ≥ 0; a loss larger than
     δ has not been ruled out.
   - `loss`: upper bound < 0, even inside δ.
+  - Under two boards there is no sample variance: `mean_with_ci` returns an
+    infinite half-width, and the verdict is `inconclusive`, as is a `NaN`.
 - **Enriched runs** measure a conditional population, so the margin per
   measured board is `δ / density`, density = accepted ÷ drawn. A filtered
   dump does not record its density: `ab-dump-diff` / `ab-dump-sd` withhold
-  the verdict on a `--filter-*` dump until `--density` is passed.
+  the verdict on a `--filter-*` dump until `--density` is passed. A density
+  outside `(0, 1]` is refused (`common::parse_density`; `verdict` panics on
+  one): at 0 the margin is infinite and would prove anything non-inferior.
 - **Vulnerability cells**: the experiment's verdict on a scorer is its
   **worst cell** (loss < inconclusive < non-inferior < win). Requiring
   every cell to clear the bound is an intersection–union test, so no

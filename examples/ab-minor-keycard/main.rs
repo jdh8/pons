@@ -21,7 +21,6 @@ use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::NonEmptyStrainFlags;
-use pons::Accumulator;
 use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
@@ -31,7 +30,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, bid_out, seeded_deals};
+use common::{Board, bid_out, mean_with_ci, seeded_deals, verdict_line};
 
 /// Measure the plain-4NT minor keycard: an A/B duplicate match
 #[derive(Parser)]
@@ -187,24 +186,12 @@ fn main() {
     }
     for (label, swings) in rows {
         let total: i64 = swings.iter().sum();
-        let mut acc = Accumulator::new();
-        for &swing in swings.iter() {
-            acc.push(swing as f64);
-        }
-        let stats = acc.sample();
-        let mean = stats.mean();
-        let se = stats.sd() / (args.count.max(1) as f64).sqrt();
-        let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
+        let (mean, ci) = mean_with_ci(swings);
+        let (lo, hi) = (mean - ci, mean + ci);
         let per_div = total as f64 / divergent.len().max(1) as f64;
-        let verdict = if (lo..=hi).contains(&0.0) {
-            "parity"
-        } else if mean > 0.0 {
-            "feature ahead"
-        } else {
-            "feature behind"
-        };
         println!(
-            "{label}: {total:+} IMPs, {mean:+.5}/board  95% CI [{lo:+.5}, {hi:+.5}]  {per_div:+.2}/divergent  ({verdict})",
+            "{label}: {total:+} IMPs, {mean:+.5}/board  95% CI [{lo:+.5}, {hi:+.5}]  {per_div:+.2}/divergent",
         );
+        println!("{}", verdict_line(label, mean, ci, Some(1.0)));
     }
 }

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every whole-experiment A/B reporter prints a non-inferiority verdict
+  (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).** The eight
+  standalone `parity` / ahead / behind classifiers (`ab-accountant-floor`,
+  `ab-kickback`, `ab-fit-sum-game`, `ab-minor-keycard`, `ab-nt-hcp`,
+  `ab-stayman-net-force`, `ab-slam-entry`, `ab-settle-floor`), which read a
+  straddling CI as no loss, now print `common::verdict_line` per scorer, and
+  the reporters that printed no verdict or no CI (DD paths of the SD
+  harnesses, the summary-only tools) gained one. Per-board figures print at
+  least 4 decimals so δ = 0.002 is visible. `ab-stayman-net-force --slice`
+  counts its draws and scales the margin by the slice's density. Guards:
+  `--density` outside `(0, 1]` is refused (`common::parse_density`; at 0 the
+  margin was infinite and labelled any straddling CI non-inferior), and under
+  two boards `mean_with_ci` returns an infinite half-width, so the verdict is
+  `inconclusive` instead of a zero-width `non-inferior`. Forensic subgroup
+  tables stay verdict-free. `ab-size-ask-*` name their verdict's direction
+  (`decline − accept`, `pass − invite`); `ab-responsive`'s verdict says plain
+  DD, the scorer it runs, although its docs say perfect defense.
+  `ab-dnf-sd-lead` withholds one: it signs a both-sides leader effect from
+  NS's chair, so the mean cancels. Reporting only; bidding untouched.
+
 - **The `1♥ - 1NT - 2♠` reverse needs 15 HCP and exactly five hearts,
   default-on (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).**
   `rebid.forcing_nt_reverse_hcp_floor`: the 15–17 *point* reverse also needs

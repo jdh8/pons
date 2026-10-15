@@ -62,7 +62,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals};
+use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals, verdict_line};
 
 /// Size-ask accept-floor A/B: accept (floor 15) vs decline (17), split by opener HCP
 #[derive(Parser)]
@@ -328,7 +328,7 @@ fn main() {
             tag[i].is_none_or(|(_, c)| c == Class::Other)
         }),
     ];
-    for (group_label, keep) in &groups {
+    for (group_index, (group_label, keep)) in groups.iter().enumerate() {
         let fired = divergent.iter().filter(|&&i| keep(i)).count();
         println!("--- {group_label} ({fired} divergent) ---");
         for (label, per_board) in &brackets {
@@ -338,6 +338,11 @@ fn main() {
                 "{label}: {board_mean:+.4} ± {board_ci:.4} IMPs/board  |  \
                  {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent  (n={n})",
             );
+            // The whole experiment only; the subgroups are forensic.
+            if group_index == 0 {
+                let scorer = format!("{}, decline − accept", label.trim_end());
+                println!("{}", verdict_line(&scorer, board_mean, board_ci, Some(1.0)));
+            }
         }
         println!();
     }

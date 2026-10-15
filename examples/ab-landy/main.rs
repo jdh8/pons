@@ -45,7 +45,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{NtDefenseArg, bid_out, hand_hcp, seat_to_act};
+use common::{NtDefenseArg, bid_out, hand_hcp, mean_with_ci, seat_to_act, verdict_line};
 
 /// Contested Landy-vs-default A/B under plain-DD duplicate scoring
 #[derive(Parser)]
@@ -686,11 +686,17 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&scored.board_imps);
+    let density = if args.filter {
+        (scanned > 0).then(|| scored.board_imps.len() as f64 / scanned as f64)
+    } else {
+        Some(1.0)
+    };
     println!(
-        "Measured ({arms}) vs default: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/filtered-board, {:+.3} IMPs/divergent)",
-        total_imps as f64 / args.count.max(1) as f64,
+        "Measured ({arms}) vs default: {points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/filtered-board, {:+.3} IMPs/divergent)",
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line(&args.score, mean, ci, density));
     println!("--- IMPs won per natural defensive action ---");
     for (action, (boards, imps_won)) in &by_action {
         println!(

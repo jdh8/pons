@@ -37,7 +37,6 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::NonEmptyStrainFlags;
-use pons::Accumulator;
 use pons::american;
 use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
@@ -48,7 +47,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, next_call, seat_to_act};
+use common::{Board, mean_with_ci, next_call, seat_to_act, verdict_line};
 
 /// The baseline RKCB-ask floor — the 33 notrump small-slam yardstick.
 const BASELINE: u8 = 33;
@@ -250,23 +249,9 @@ fn main() {
     }
     for (label, swings) in rows {
         let total: i64 = swings.iter().sum();
-        let mut acc = Accumulator::new();
-        for &swing in swings.iter() {
-            acc.push(swing as f64);
-        }
-        let stats = acc.sample();
-        let mean = stats.mean();
-        let se = stats.sd() / (args.count.max(1) as f64).sqrt();
-        let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
-        let verdict = if (lo..=hi).contains(&0.0) {
-            "parity"
-        } else if mean > 0.0 {
-            "feature ahead"
-        } else {
-            "feature behind"
-        };
-        println!(
-            "{label}: {total:+} IMPs, {mean:+.3}/board  95% CI [{lo:+.3}, {hi:+.3}]  ({verdict})",
-        );
+        let (mean, ci) = mean_with_ci(swings);
+        let (lo, hi) = (mean - ci, mean + ci);
+        println!("{label}: {total:+} IMPs, {mean:+.4}/board  95% CI [{lo:+.4}, {hi:+.4}]");
+        println!("{}", verdict_line(label, mean, ci, Some(1.0)));
     }
 }

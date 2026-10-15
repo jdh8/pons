@@ -65,8 +65,8 @@ struct Args {
     sd_worlds: usize,
     /// Share of random deals the dumps' `--filter-*` accepted, for the
     /// verdict's δ / density margin; an enriched dump without it withholds
-    /// the verdict
-    #[arg(long)]
+    /// the verdict.  Must be in `(0, 1]`
+    #[arg(long, value_parser = common::parse_density)]
     density: Option<f64>,
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]

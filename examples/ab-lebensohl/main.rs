@@ -52,7 +52,7 @@ use std::collections::HashMap;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{hand_hcp, seat_to_act};
+use common::{hand_hcp, mean_with_ci, seat_to_act, verdict_line};
 
 /// Contested Lebensohl A/B
 #[derive(Parser)]
@@ -653,6 +653,8 @@ fn main() {
 
     let mut points = 0i64;
     let mut total_imps = 0i64;
+    // Match the headline's all-board denominator, with excluded boards at zero.
+    let mut headline_imps = vec![0i64; args.count];
     // 2♣ overcall: systems-on for every variant, not Lebensohl — counted apart.
     let mut systems_on = (0usize, 0i64);
     let mut worst: Vec<(i64, usize)> = Vec::new();
@@ -678,6 +680,7 @@ fn main() {
 
         points += swing;
         total_imps += board_imps;
+        headline_imps[i] = board_imps;
         worst.push((board_imps, i));
 
         if args.diverge_diff {
@@ -792,13 +795,19 @@ fn main() {
         100.0 * leb_divergent as f64 / args.count.max(1) as f64,
         systems_on.0,
     );
+    let (mean, ci) = mean_with_ci(&headline_imps);
+    let density = if args.filter_dh {
+        (scanned > 0).then(|| args.count as f64 / scanned as f64)
+    } else {
+        Some(1.0)
+    };
     println!(
-        "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
+        "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/board, {:+.3} IMPs/divergent)",
         args.ns,
         args.ew,
-        total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / leb_divergent.max(1) as f64,
     );
+    println!("{}", verdict_line("plain DD", mean, ci, density));
     println!(
         "systems on after 1NT - 2♣ (not Lebensohl): {} boards, {:+} IMPs ({:+.3}/board) — excluded above",
         systems_on.0,

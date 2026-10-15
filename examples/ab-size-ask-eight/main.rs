@@ -53,7 +53,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals};
+use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals, verdict_line};
 
 /// Size-ask-eight A/B: invite the balanced 8 vs pass it, priced four ways
 #[derive(Parser)]
@@ -275,7 +275,7 @@ fn main() {
         ("flat-4333", &|i| flat[i]),
         ("non-flat ", &|i| !flat[i]),
     ];
-    for (shape_label, keep) in &shapes {
+    for (shape_index, (shape_label, keep)) in shapes.iter().enumerate() {
         let fired = divergent.iter().filter(|&&i| keep(i)).count();
         println!("--- {shape_label} ({fired} divergent) ---");
         for (label, per_board) in &brackets {
@@ -285,6 +285,11 @@ fn main() {
                 "{label}: {board_mean:+.4} ± {board_ci:.4} IMPs/board  |  \
                  {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent  (n={n})",
             );
+            // The whole experiment only; the shape subsets are forensic.
+            if shape_index == 0 {
+                let scorer = format!("{}, pass − invite", label.trim_end());
+                println!("{}", verdict_line(&scorer, board_mean, board_ci, Some(1.0)));
+            }
         }
         println!();
     }

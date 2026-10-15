@@ -79,7 +79,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, mean_with_ci, report_sd_brackets, seat_to_act};
+use common::{bid_uncontested, mean_with_ci, report_sd_brackets, seat_to_act, verdict_line};
 
 /// 1NT - 3M splinter A/B: the Polish Club treatment vs the shipped empty slot
 #[derive(Parser)]
@@ -363,6 +363,7 @@ fn main() {
              {fired_mean:+.2} ± {fired_ci:.2} IMPs/fired)",
             swings.iter().sum::<i64>(),
         );
+        println!("{}", verdict_line(label, board_mean, board_ci, Some(1.0)));
     }
     println!("raw points: {points:+}");
 

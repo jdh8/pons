@@ -56,7 +56,9 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, hand_hcp, next_call, report_sd_brackets, seat_to_act};
+use common::{
+    Board, hand_hcp, mean_with_ci, next_call, report_sd_brackets, seat_to_act, verdict_line,
+};
 
 /// Which runout feature the two tables differ on
 #[derive(Clone, Copy, PartialEq, Eq, Debug, ValueEnum)]
@@ -444,13 +446,15 @@ fn main() {
     };
     let mut total_points = 0i64;
     let mut total_imps = 0i64;
+    let mut board_imps = vec![0i64; boards.len()];
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
         let swing = scorer(contract_a, table, args.vulnerability)
             - scorer(contract_b, table, args.vulnerability);
         total_points += swing;
-        total_imps += imps(swing);
+        board_imps[index] = imps(swing);
+        total_imps += board_imps[index];
 
         if shown < args.show {
             shown += 1;
@@ -484,11 +488,21 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&board_imps);
+    let density = if args.filter_1nt {
+        (drawn > 0).then(|| args.count as f64 / drawn as f64)
+    } else {
+        Some(1.0)
+    };
+    let scorer_name = match args.score {
+        Score::Plain => "plain DD",
+        Score::Pd => "PD",
+    };
     println!(
-        "Runout team: {total_points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
-        total_imps as f64 / args.count.max(1) as f64,
+        "Runout team: {total_points:+} points, {total_imps:+} IMPs ({mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent)",
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line(scorer_name, mean, ci, density));
 
     if args.sd {
         // Blind-lead pass over the same divergent boards: each table's auction is

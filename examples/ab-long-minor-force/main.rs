@@ -34,7 +34,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act};
+use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, verdict_line};
 
 /// Source-of-tricks eight A/B: force 3NT vs transfer/invite
 #[derive(Parser)]
@@ -170,4 +170,13 @@ fn main() {
     println!("(+ ⇒ FORCE wins; opponents silent, plain DD)\n");
     println!("Divergent (fired) boards: {}", swings.len());
     println!("Force - baseline: {total:+} IMPs total, {mean:+.4} IMPs/fired (95% CI {ci:+.4})",);
+
+    let mut board_imps = swings;
+    board_imps.resize(
+        usize::try_from(args.count).expect("deal count fits in usize"),
+        0,
+    );
+    let (mean, ci) = mean_with_ci(&board_imps);
+    println!("Force - baseline: {mean:+.4} IMPs/board (95% CI {ci:+.4})");
+    println!("{}", verdict_line("plain DD", mean, ci, Some(1.0)));
 }

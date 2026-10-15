@@ -74,8 +74,8 @@ struct Args {
     out_pd: Option<String>,
     /// Share of random deals the dumps' `--filter-*` accepted, for the
     /// verdict's δ / density margin; an enriched dump without it withholds
-    /// the verdict
-    #[arg(long)]
+    /// the verdict.  Must be in `(0, 1]`
+    #[arg(long, value_parser = common::parse_density)]
     density: Option<f64>,
 }
 

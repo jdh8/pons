@@ -91,7 +91,6 @@ use clap::{Parser, ValueEnum};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::NonEmptyStrainFlags;
-use pons::Accumulator;
 use pons::bidding::Partnership;
 use pons::bidding::american::american_with_compact;
 use pons::bidding::features::{CompactConfig, ConventionCard};
@@ -104,7 +103,9 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, next_call, seat_to_act, seeded_deals};
+use common::{
+    Board, mean_with_ci, mean_with_ci_f64, next_call, seat_to_act, seeded_deals, verdict_line,
+};
 use std::path::PathBuf;
 
 /// One arm of the experiment: which knobs it arms
@@ -572,18 +573,27 @@ fn rescore(args: &Args, path: &str) {
         let finite: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
         if finite.is_empty() {
             println!("{label:<26} (no priced boards)");
-            continue;
-        }
-        let total: f64 = finite.iter().sum();
-        let (mean, ci) = common::mean_with_ci_f64(&finite);
-        let scope = if finite.len() == n {
-            count.map_or_else(String::new, |c| {
-                format!("  {:+.5}/board of {c}", total / c as f64)
-            })
         } else {
-            format!("  (n={})", finite.len())
-        };
-        println!("{label:<26} {total:+9.1} IMPs  {mean:+.4} ± {ci:.4} /divergent{scope}",);
+            let total: f64 = finite.iter().sum();
+            let (mean, ci) = mean_with_ci_f64(&finite);
+            let scope = if finite.len() == n {
+                count.map_or_else(String::new, |c| {
+                    format!("  {:+.5}/board of {c}", total / c as f64)
+                })
+            } else {
+                format!("  (n={})", finite.len())
+            };
+            println!("{label:<26} {total:+9.1} IMPs  {mean:+.4} ± {ci:.4} /divergent{scope}",);
+        }
+        // A verdict needs every dumped board priced (an unpriced SD board is
+        // not a zero) and the experiment's board count, to pad back the zeros
+        // of the boards that did not diverge.
+        if let Some(c) = count.filter(|&c| finite.len() == n && c >= n) {
+            let mut board_swings = finite;
+            board_swings.resize(c, 0.0);
+            let (mean, ci) = mean_with_ci_f64(&board_swings);
+            println!("{}", verdict_line(label, mean, ci, Some(1.0)));
+        }
     }
 
     // The ask-bucketed census × every instrument: per-board means per bucket.
@@ -831,25 +841,13 @@ fn main() {
     }
     for (label, swings) in rows {
         let total: i64 = swings.iter().sum();
-        let mut acc = Accumulator::new();
-        for &swing in swings.iter() {
-            acc.push(swing as f64);
-        }
-        let stats = acc.sample();
-        let mean = stats.mean();
-        let se = stats.sd() / (args.count.max(1) as f64).sqrt();
-        let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
+        let (mean, ci) = mean_with_ci(swings);
+        let (lo, hi) = (mean - ci, mean + ci);
         let per_div = total as f64 / divergent.len().max(1) as f64;
-        let verdict = if (lo..=hi).contains(&0.0) {
-            "parity"
-        } else if mean > 0.0 {
-            "feature ahead"
-        } else {
-            "feature behind"
-        };
         println!(
-            "{label}: {total:+} IMPs, {mean:+.5}/board  95% CI [{lo:+.5}, {hi:+.5}]  {per_div:+.2}/divergent  ({verdict})",
+            "{label}: {total:+} IMPs, {mean:+.5}/board  95% CI [{lo:+.5}, {hi:+.5}]  {per_div:+.2}/divergent",
         );
+        println!("{}", verdict_line(label, mean, ci, Some(1.0)));
     }
     per_trump_census(
         &boards,

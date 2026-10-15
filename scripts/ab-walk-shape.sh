@@ -42,6 +42,12 @@
 # `smoke-default --count 20000 --seed 1` is already byte-identical at
 # `9c56a4b2…`, so self-play is untouched; the whole footprint is competitive.
 #
+# That bar predates the non-inferiority margin (2026-10-14, #7): a plain wash
+# is no proof of "non-loss".  A re-run reads the worst cell's `Verdict` lines
+# (non-inferior = lower bound above −δ, docs/measurement.md § The decision
+# table); the recorded ship's status is in docs/research-method-review.md §
+# Issue #7 non-inferiority inventory.
+#
 # Resumable: existing arm dirs and non-empty diff files are skipped; SEED_BASE
 # persists in $R/seed (a NEW dir -> a fresh seed).
 set -eu

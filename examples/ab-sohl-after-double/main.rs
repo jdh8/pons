@@ -42,7 +42,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, hand_hcp, score_boards};
+use common::{bid_out, hand_hcp, mean_with_ci, score_boards, verdict_line};
 
 /// Contested sohl-after-double A/B
 #[derive(Parser)]
@@ -218,11 +218,17 @@ fn main() {
         args.count,
         100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&scored.board_imps);
+    let density = if args.filter {
+        (scanned > 0).then(|| deals.len() as f64 / scanned as f64)
+    } else {
+        Some(1.0)
+    };
     println!(
-        "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
+        "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/board, {:+.3} IMPs/divergent)",
         args.ns,
         args.ew,
-        total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / scored.divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line("plain DD", mean, ci, density));
 }

@@ -39,3 +39,31 @@ fn an_enriched_run_scales_the_margin_by_density() {
     assert_eq!(verdict(0.0, 0.0150, 0.1), "non-inferior");
     assert_eq!(verdict(0.0, 0.0250, 0.1), "inconclusive");
 }
+
+#[test]
+fn a_ci_without_width_proves_nothing() {
+    // Under two boards there is no variance: the CI is unbounded, not zero-width
+    assert_eq!(mean_with_ci(&[]), (0.0, f64::INFINITY));
+    assert_eq!(mean_with_ci(&[3]), (3.0, f64::INFINITY));
+    assert_eq!(mean_with_ci_f64(&[0.5]), (0.5, f64::INFINITY));
+    let (mean, ci) = mean_with_ci(&[0]);
+    assert_eq!(verdict(mean, ci, 1.0), "inconclusive");
+    assert_eq!(verdict(f64::NAN, 0.0, 1.0), "inconclusive");
+    assert_eq!(verdict(0.0, f64::NAN, 1.0), "inconclusive");
+}
+
+#[test]
+fn density_must_be_a_share_of_random_deals() {
+    assert_eq!(parse_density("1"), Ok(1.0));
+    assert_eq!(parse_density("0.004"), Ok(0.004));
+    for bad in ["0", "-0.1", "1.5", "NaN", "inf", "x"] {
+        assert!(parse_density(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+#[should_panic(expected = "not a share of random deals")]
+fn a_zero_density_cannot_reach_a_verdict() {
+    // δ / 0 = ∞ would label any straddling CI non-inferior
+    let _ = verdict(0.0, 1.0, 0.0);
+}

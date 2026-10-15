@@ -42,7 +42,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, report_sd_brackets, seat_to_act};
+use common::{bid_uncontested, mean_with_ci, report_sd_brackets, seat_to_act, verdict_line};
 
 /// Meckstroth-2NT A/B: natural `2NT` rebid vs the artificial game force
 #[derive(Parser)]
@@ -233,12 +233,16 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     let mut pd_imps = 0i64;
+    // Whole-experiment CIs include zero swings on non-divergent boards.
+    let mut board_imps = vec![0i64; args.count];
+    let mut pd_board_imps = vec![0i64; args.count];
     let mut swings: Vec<(i64, usize)> = Vec::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
         let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += adj - base;
         total_imps += imps(adj - base);
+        board_imps[i] = imps(adj - base);
         swings.push((imps(adj - base), i));
         // Perfect-defense read from the same tables — opponents are silenced, so
         // this only ever adds a double to a contract that fails DD (no doubling
@@ -246,6 +250,7 @@ fn main() {
         let pd_base = ns_score_bid(contracts[i][0], table, args.vulnerability);
         let pd_adj = ns_score_bid(contracts[i][1], table, args.vulnerability);
         pd_imps += imps(pd_adj - pd_base);
+        pd_board_imps[i] = imps(pd_adj - pd_base);
     }
 
     // The treatment arm's name in the report: positive favors it.
@@ -265,14 +270,14 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&board_imps);
     println!(
-        "{arm}: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board plain)",
-        total_imps as f64 / args.count.max(1) as f64,
+        "{arm}: {points:+} points, {total_imps:+} IMPs ({mean:+.4} IMPs/board plain [95% CI ±{ci:.4}])",
     );
-    println!(
-        "        {pd_imps:+} IMPs ({:+.3} IMPs/board PD)",
-        pd_imps as f64 / args.count.max(1) as f64,
-    );
+    println!("{}", verdict_line("plain", mean, ci, Some(1.0)));
+    let (pd_mean, pd_ci) = mean_with_ci(&pd_board_imps);
+    println!("        {pd_imps:+} IMPs ({pd_mean:+.4} IMPs/board PD [95% CI ±{pd_ci:.4}])",);
+    println!("{}", verdict_line("PD", pd_mean, pd_ci, Some(1.0)));
     if args.worst > 0 {
         print_trace("plain", &swings, &bids, &deals, &contracts, args.worst);
     }

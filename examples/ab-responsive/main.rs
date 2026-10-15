@@ -43,7 +43,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, hand_hcp, score_boards};
+use common::{bid_out, hand_hcp, mean_with_ci, score_boards, verdict_line};
 
 /// Contested responsive-double A/B under perfect-defense scoring
 #[derive(Parser)]
@@ -204,12 +204,18 @@ fn main() {
         args.count,
         100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
+    let (mean, ci) = mean_with_ci(&scored.board_imps);
+    let density = if args.filter {
+        (scanned > 0).then(|| args.count as f64 / scanned as f64)
+    } else {
+        Some(1.0)
+    };
     println!(
-        "{} responsive double vs floor: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/filtered-board, {:+.3} IMPs/divergent)",
+        "{} responsive double vs floor: {points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/filtered-board, {:+.3} IMPs/divergent)",
         args.conv,
-        total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / scored.divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line("plain DD", mean, ci, density));
     // The filter-independent real-world rate (per *raw* deal dealt): the headline
     // effect size, unlike IMPs/filtered-board, does not move with the filter's tightness.
     println!(

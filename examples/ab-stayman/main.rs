@@ -30,7 +30,7 @@ use std::fs;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::bid_uncontested;
+use common::{bid_uncontested, mean_with_ci, verdict_line};
 
 #[derive(Parser)]
 struct Args {
@@ -129,15 +129,21 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     let mut pd_imps = 0i64;
+    let mut board_imps = vec![0i64; args.count];
+    let mut pd_board_imps = vec![0i64; args.count];
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(baseline[i], table, args.vulnerability);
         let new = ns_score_contract(contracts[i], table, args.vulnerability);
         points += new - base;
-        total_imps += imps(new - base);
+        board_imps[i] = imps(new - base);
+        total_imps += board_imps[i];
         let base_pd = ns_score_bid(baseline[i], table, args.vulnerability);
         let new_pd = ns_score_bid(contracts[i], table, args.vulnerability);
-        pd_imps += imps(new_pd - base_pd);
+        pd_board_imps[i] = imps(new_pd - base_pd);
+        pd_imps += pd_board_imps[i];
     }
+    let (mean, ci) = mean_with_ci(&board_imps);
+    let (pd_mean, pd_ci) = mean_with_ci(&pd_board_imps);
 
     println!(
         "=== Stayman A/B: {} boards, vulnerability {} (opponents silenced) ===",
@@ -150,13 +156,16 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "New Stayman authoring: {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board, {:+.3} IMPs/divergent) [plain DD]",
-        total_imps as f64 / args.count.max(1) as f64,
+        "New Stayman authoring: {points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/board, {:+.3} IMPs/divergent) [plain DD]",
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+    println!("{}", verdict_line("plain DD", mean, ci, Some(1.0)));
     println!(
-        "                       {pd_imps:+} IMPs ({:+.4} IMPs/board, {:+.3} IMPs/divergent) [perfect defense]",
-        pd_imps as f64 / args.count.max(1) as f64,
+        "                       {pd_imps:+} IMPs ({pd_mean:+.4} ± {pd_ci:.4} IMPs/board, {:+.3} IMPs/divergent) [perfect defense]",
         pd_imps as f64 / divergent.len().max(1) as f64,
+    );
+    println!(
+        "{}",
+        verdict_line("perfect defense", pd_mean, pd_ci, Some(1.0)),
     );
 }

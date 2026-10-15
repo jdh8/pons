@@ -36,7 +36,7 @@ use std::collections::HashMap;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, score_boards, seat_to_act};
+use common::{Board, mean_with_ci, score_boards, seat_to_act, verdict_line};
 
 /// Measure the instinct floor: A/B duplicate match plus floor telemetry
 #[derive(Parser)]
@@ -255,6 +255,7 @@ fn main() {
     let deals: Vec<FullDeal> = boards.iter().map(|board| board.deal).collect();
     let scored = score_boards(&contracts, &deals, args.vulnerability, ns_score_contract);
     let (total_points, total_imps) = (scored.total_points, scored.total_imps);
+    let (mean, ci) = mean_with_ci(&scored.board_imps);
 
     println!(
         "=== Instinct floor A/B match: {} boards, vulnerability {} ===",
@@ -267,9 +268,9 @@ fn main() {
         100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "Floored team: {total_points:+} points, {total_imps:+} IMPs ({:+.2} IMPs/board)",
-        total_imps as f64 / args.count.max(1) as f64,
+        "Floored team: {total_points:+} points, {total_imps:+} IMPs ({mean:+.4} ± {ci:.4} IMPs/board)",
     );
+    println!("{}", verdict_line("plain DD", mean, ci, Some(1.0)));
 
     println!(
         "\n=== Floor telemetry: {} of {} floored-side calls ({:.1}%) ===",

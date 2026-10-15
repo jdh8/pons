@@ -33,6 +33,12 @@
 # spelled in post-flip terms: bba-cap *is* the default; bba-off pins the
 # ladder off, bba-on pins the cap off.
 #
+# Those two gates predate the non-inferiority margin (2026-10-14, #7): a plain
+# wash is no proof, and "leaning positive" is not a lower bound above −δ.  Read
+# a re-run's verdict off ab-dump-sd's `Verdict` lines (docs/measurement.md §
+# The decision table); the 2026-08-15 ship's evidence status is in
+# docs/research-method-review.md § Issue #7 non-inferiority inventory.
+#
 # Pool three seeds: run this script three times with R = ab-results/landy-bba,
 # …-v2, …-v3 (each dir keeps its own persistent seed).  Iron rule: do NOT
 # rebuild binaries while this runs.

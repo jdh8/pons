@@ -23,7 +23,7 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); five rows still unknown, two near-bound rows await jdh8 |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; five rows still unknown, two near-bound rows await jdh8 |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
@@ -190,7 +190,7 @@ leading sequences are `1♦ - 1♠ - 1NT - 2♣` (437 boards, −1,153) and
 5♠4♥ `2♥` (1.05), and the invitational `2♠` (1.2) outranks the invitational
 `2♥` (1.1), so a 5-4 or 5-5 responder never shows hearts. Opener's answer to
 the weak `2♥` was not authored either. The repair is
-`rebid.xyz_second_major_first` (default off): `2♥` with four hearts and at
+`rebid.xyz_second_major_first` (then default off, shipped default-on below): `2♥` with four hearts and at
 most five spades outranks `2♠` in both rounds, and opener corrects the weak
 `2♥` to `2♠` only with three spades and a doubleton heart. A smaller leak
 stays with the floor: responder passes `1m - 1♠ - 2m` where hearts-first

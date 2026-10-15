@@ -435,12 +435,13 @@ pub fn load_dump(path: &str) -> Dump {
 ///
 /// The mean is the headline IMPs/board; the half-width is `1.96 · SE` from the
 /// per-board sample standard deviation, so a CI that excludes 0 is a result
-/// distinguishable from noise.
+/// distinguishable from noise.  Under two values there is no sample variance:
+/// the half-width is `+∞`, which [`verdict`] reads as inconclusive.
 #[allow(clippy::cast_precision_loss)]
 pub fn mean_with_ci(values: &[i64]) -> (f64, f64) {
     let n = values.len();
     if n < 2 {
-        return (0.0, 0.0);
+        return (values.first().map_or(0.0, |&v| v as f64), f64::INFINITY);
     }
     let mean = values.iter().sum::<i64>() as f64 / n as f64;
     let variance = values
@@ -616,7 +617,7 @@ pub fn sd_blend_imps(a: &SdScores, b: &SdScores, k: usize) -> f64 {
 pub fn mean_with_ci_f64(values: &[f64]) -> (f64, f64) {
     let n = values.len();
     if n < 2 {
-        return (0.0, 0.0);
+        return (values.first().copied().unwrap_or(0.0), f64::INFINITY);
     }
     let mean = values.iter().sum::<f64>() / n as f64;
     let variance = values
@@ -644,7 +645,18 @@ pub const NI_MARGIN: f64 = 0.002;
 /// random deals (1 unconditional, accepted/drawn for an enriched run), so the
 /// margin per measured board is `δ / density`.  The lower bound is the
 /// one-sided 97.5% bound.  A CI-clear negative reads `loss` even inside δ.
+/// A CI with no finite width (under two boards, [`mean_with_ci`]) or a `NaN`
+/// reads `inconclusive`: it rules nothing out.
+///
+/// # Panics
+///
+/// If `density` is not in `(0, 1]` — `0` would make the margin infinite and
+/// prove anything non-inferior.  [`parse_density`] rejects it at the CLI.
 pub fn verdict(mean: f64, half_width: f64, density: f64) -> &'static str {
+    assert!(
+        density > 0.0 && density <= 1.0,
+        "density {density} is not a share of random deals in (0, 1]",
+    );
     let lower = mean - half_width;
     if mean + half_width < 0.0 {
         "loss"
@@ -654,6 +666,16 @@ pub fn verdict(mean: f64, half_width: f64, density: f64) -> &'static str {
         "non-inferior"
     } else {
         "inconclusive"
+    }
+}
+
+/// Parse a `--density` flag: a share of random deals, finite and in `(0, 1]`
+pub fn parse_density(s: &str) -> Result<f64, String> {
+    let density: f64 = s.parse().map_err(|e| format!("{e}"))?;
+    if density > 0.0 && density <= 1.0 {
+        Ok(density)
+    } else {
+        Err(format!("{s} is not a share of random deals in (0, 1]"))
     }
 }
 
@@ -676,6 +698,22 @@ pub fn verdict_line(scorer: &str, mean: f64, half_width: f64, density: Option<f6
         ),
         None => format!("Verdict ({scorer}): withheld — enriched dump, pass --density"),
     }
+}
+
+/// Print one scorer's whole-experiment line and its [`verdict_line`]
+///
+/// `board_imps` is ON − OFF per measured board, zeros included, so its mean is
+/// IMPs per board over the population `density` describes (1 for random
+/// deals).  `divergent` is the per-divergent figure's denominator.
+#[allow(clippy::cast_precision_loss)]
+pub fn report_swings(scorer: &str, board_imps: &[i64], divergent: usize, density: Option<f64>) {
+    let (mean, ci) = mean_with_ci(board_imps);
+    let total: i64 = board_imps.iter().sum();
+    println!(
+        "{scorer:>15}: {total:+} IMPs — {mean:+.4} ± {ci:.4} IMPs/board, {:+.3} IMPs/divergent",
+        total as f64 / divergent.max(1) as f64,
+    );
+    println!("{}", verdict_line(scorer, mean, ci, density));
 }
 
 /// The outcome of scoring a board set against itself.

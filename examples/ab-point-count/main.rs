@@ -52,7 +52,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{mean_with_ci, report_brackets, seat_to_act, seeded_deals};
+use common::{mean_with_ci, report_brackets, seat_to_act, seeded_deals, verdict_line};
 
 /// Measure the candidate point-count scale: an A/B duplicate match
 #[derive(Parser)]
@@ -706,6 +706,7 @@ fn main() {
                 args.sd_seed,
                 total as f64 / divergent.len().max(1) as f64,
             );
+            println!("{}", verdict_line(label.trim_end(), mean, ci, Some(1.0)));
         };
         // Plain SD (SD lead, DD play, face value) and SD+PD (same trick count,
         // but a game that still fails is doubled). The PD bracket is the arbiter
