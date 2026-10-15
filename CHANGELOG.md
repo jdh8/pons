@@ -74,6 +74,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sampling statistics (2026-10-16).** `SampleStats` and `*_with_stats`
+  variants of the samplers, `ev_all` and the single-dummy scorers report how
+  many worlds came from the auction readings and how many from a fallback;
+  `ab-dump-sd` prints a `Sampling` line per arm (about 1% fallback worlds on
+  2% of boards on the Lebensohl lane). Worlds and RNG streams are unchanged.
+
+- **`DeclarerObjective` (2026-10-16).** `single_dummy_playout_with` takes
+  `DeclarerObjective::Make(need)`, a safety-play declarer that maximizes the
+  share of sampled worlds that make, against the default mean-tricks
+  objective (unchanged). It does not fix `probe-slam-battery`'s recorded
+  detours, which track world count. `docs/measurement.md` now calls plain/PD
+  and the SD pair per-arm scenario checks, not bounds on a paired delta.
+
 - **`competition.lebensohl_signoff_raise` and its re-measure (2026-10-16,
   [#9](https://github.com/jdh8/pons/issues/9)).** The 0.10.0 stretch, where a
   maximum 1NT opener raises `1NT (2♠) 2NT - 3♣ - 3♥ -` to `4♥`, shipped
