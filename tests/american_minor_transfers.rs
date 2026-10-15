@@ -423,3 +423,58 @@ fn weak_diamond_hands_are_untouched_by_the_splinter_lane() {
         call(3, Strain::Diamonds),
     );
 }
+
+// --- They overcall the transfer: responder captain -------------------------
+//
+// `competition.diamond_transfer_responder_captain` (default off, A/B owed)
+// drops opener's 3NT rung over `1NT - 2NT (3♥)` and authors responder's
+// answer to opener's penalty double.  The whole sequence through the bound
+// partnership, both knob states.
+
+fn partnership_responder_captain() -> Partnership {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.competition.diamond_transfer_responder_captain = true;
+    american(&agreements).bind()
+}
+
+/// `1NT - 2NT (3♥)`
+fn transfer_overcalled_hearts() -> Vec<Call> {
+    vec![
+        call(1, Strain::Notrump),
+        P,
+        call(2, Strain::Notrump),
+        call(3, Strain::Hearts),
+    ]
+}
+
+#[test]
+fn opener_3nt_over_their_overcall_is_the_shipped_default() {
+    let system = partnership();
+    assert_eq!(
+        best_call(&system, &transfer_overcalled_hearts(), "AQx.KJx.Axx.KJxx"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn captain_opener_passes_and_responder_answers_the_double() {
+    let system = partnership_responder_captain();
+    // Opener's 17 with a stopper passes; with four hearts it doubles.
+    assert_eq!(
+        best_call(&system, &transfer_overcalled_hearts(), "AQx.KJx.Axx.KJxx"),
+        P
+    );
+    assert_eq!(
+        best_call(&system, &transfer_overcalled_hearts(), "AQx.KJ9x.Ax.KJxx"),
+        Call::Double,
+    );
+    // Over the double responder leaves it in with a doubleton heart and
+    // pulls to 4♦ with six diamonds and a singleton.
+    let mut doubled = transfer_overcalled_hearts();
+    doubled.extend([Call::Double, P]);
+    assert_eq!(best_call(&system, &doubled, "xxx.xx.KJxxx.xxx"), P);
+    assert_eq!(
+        best_call(&system, &doubled, "xxx.x.KJxxxx.xxx"),
+        call(4, Strain::Diamonds),
+    );
+}

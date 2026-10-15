@@ -23,7 +23,7 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ awaiting a repair); `PointCount` (sizing) and the RKCB queen ask (no off arm) await jdh8 |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); reporter coverage and the density / small-sample guards landed 2026-10-15; the four status-unknown rows with an off arm re-measured 2026-10-15 (`competitive_4333` and `takeout_support` proven, `penalty_no_pull` inert and removed, the diamond-transfer contest a loss inside δ, its repair built 2026-10-15 behind `diamond_transfer_responder_captain`, three-arm A/B owed); `PointCount` running at 5,120,000 boards/arm/vul (launched 2026-10-15); the RKCB queen ask superseded (no off arm) |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
@@ -141,6 +141,31 @@ and they play `3M` undoubled. Repairs to measure, each reversible: drop the
 `3NT` rung; author responder's answer to the `X` (pass, `4♦` with six);
 or switch only the high-overcall rows off. The default stays on until one
 is measured: jdh8's call.
+
+**Decided 2026-10-15 (jdh8, grill rounds 1–2).** Three dispositions:
+
+- *Diamond transfer*: repair, not a trade-off. Built behind the default-off
+  sub-knob `competition.diamond_transfer_responder_captain` (`bba-gen
+  --ns-diamond-transfer-captain`): opener's `3NT` rung is gone over
+  `1NT - 2NT (3♦/3♥/3♠)` (opener doubles with four of their suit or passes,
+  responder captain) and responder's answer to the penalty `X` is authored
+  (pass; `4♦` with six diamonds and at most one card in their suit).
+  Responder after opener's pass stays floor-owned, as today. Default
+  byte-identical (`smoke-default`, 20,000 auctions, seed 1). **A/B owed**,
+  three arms on one seed at the declared 1,228,800 boards/arm/vul: shipped,
+  captain, package off, diffs captain − shipped and captain − off, plain DD +
+  PD + SD; the knob flips on if captain is non-inferior | win over shipped
+  and not behind off, and the package turns off if off beats both.
+- *`PointCount` and the linearised `upgrade`*: one fresh A/B vs
+  `rule-of-n-floored`, declared 5,120,000 boards/arm/vul (a 2,000-board
+  pilot moved our auction on ~14.5% of boards at σ ≈ 2.3 IMPs/board), plain
+  DD + PD, no SD. Launched 2026-10-15, `ab-results/issue7-unknown/point-scale/`,
+  SEED_BASE 1792050558052897282; the row lands when it finishes.
+- *RKCB queen ask*: **superseded**. The ask is structural now (the knob is
+  deleted and BBA always relays), so no off arm exists to measure; the
+  surviving evidence is 10M self-play boards per cell with PD intervals of
+  about ±0.0002, under which a plain lower bound at −δ is implausible. No
+  statistical proof is claimed.
 
 Three more sat outside their own row and were re-measured (below).
 `longer_major_response` shipped on the naturalness tiebreak with a PD *loss*

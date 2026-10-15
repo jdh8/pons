@@ -238,6 +238,7 @@ that live *inside* a book are in Tier B.
 | set_competition_over_transfer | `--ns-comp-over-transfer` | Artificial | OFF | DD loss plain −0.94, PD −0.33 IMPs/bd-fired (640k) | fresh | stays opt-in (measured loss) |
 | set_competition_over_minor_transfer | `--no-ns-comp-over-minor-transfer` | Artificial | ON | +4.80 plain / +5.63 PD IMPs/fired (CI>0, 640k; rare 0.03%) | fresh | default-on ✓ |
 | set_competition_over_diamond_transfer | `--no-ns-comp-over-diamond-transfer` | Artificial | ON | plain wash +0.24/fired, PD +3.40 (1M boards; never loses plain) | fresh | default-on ✓ |
+| set_diamond_transfer_responder_captain | `--ns-diamond-transfer-captain` | Artificial | OFF | unmeasured — the #7 repair of the row above (loss inside δ 2026-10-15: opener's 3NT rung and the unauthored answer to his penalty X); three-arm A/B owed | fresh | sub-knob, stays off until measured |
 
 ### A5 — Defending their 1NT & their overcalls
 

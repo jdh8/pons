@@ -58,7 +58,10 @@
 # many boards to solve single-dummy at this size).
 #
 # Pre-declared sizes (boards/arm/vul): k8-floor 1,638,400 (8 × 204,800: its
-# 409,600-board half-widths were ±0.0039 / ±0.0045); the four knobs 1,228,800.
+# 409,600-board half-widths were ±0.0039 / ±0.0045); the four knobs 1,228,800,
+# except point-scale 5,120,000: a 2,000-board pilot (2026-10-15) moved our
+# auction on ~14.5% of boards at σ ≈ 2.3 IMPs/board, so a ±0.002 half-width
+# needs ~5.1M.  point-scale skips SD at that size (plain DD + PD decide).
 #
 #   SKIP_BUILD=1 setsid nohup scripts/idle-run.sh scripts/ab-non-inferiority.sh \
 #       ab-results/non-inferiority >ab-results/non-inferiority.log 2>&1 < /dev/null &
@@ -77,6 +80,7 @@ E=$2
 R=$ROOT/$E
 case $E in
 k8-floor) BOARDS=1638400 ;;
+point-scale) BOARDS=5120000 ;;
 *) BOARDS=1228800 ;;
 esac
 BUILD_EXTRA='--example ab-dump-sd'
@@ -159,7 +163,6 @@ for vul in none both; do
     point-scale)
         arm ruleofn "$vul" --ns-point-scale rule-of-n-floored
         diffpair shipped ruleofn "$vul"
-        sddiff shipped ruleofn "$vul"
         ;;
     *) echo "ab-non-inferiority: unknown experiment $E" >&2; exit 2 ;;
     esac

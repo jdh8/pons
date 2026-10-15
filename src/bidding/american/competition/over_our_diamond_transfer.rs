@@ -2,6 +2,10 @@
 //!
 //! Opener's replies after the opponents double or overcall our 2NT diamond transfer
 //! are authored under `agreements.competition.competition_over_diamond_transfer`.
+//! Its sub-knob `diamond_transfer_responder_captain` (default off, A/B owed)
+//! removes opener's `3NT` rung over a high overcall and authors responder's
+//! answer to opener's penalty double there — see [`diamond_overcalled_captain`]
+//! and [`diamond_pulls_penalty`].
 
 use super::*;
 
@@ -69,6 +73,38 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
         .rule(Call::Pass, 20, hcp(0..))
 }
 
+/// Opener's reply over a high overcall with responder captain
+/// (`diamond_transfer_responder_captain`): [`diamond_overcalled_high`] without
+/// its `3NT` rung
+///
+/// The transfer is uncapped downwards, so opener cannot place `3NT`; the hand
+/// that knows is responder, who bids on over the pass with values.  `X` = 4+ in
+/// their suit (penalty), else Pass.
+fn diamond_overcalled_captain(over: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Double, 60, len(over, 4..))
+        .penalty()
+        .rule(Call::Pass, 20, hcp(0..))
+}
+
+/// Responder's answer to opener's penalty double of their high overcall
+/// (`1NT - 2NT (3♥) X -`), under `diamond_transfer_responder_captain`
+///
+/// Opener showed four of their suit opposite responder's known diamonds, so
+/// defending is the default; the one pull is the shape that cannot defend —
+/// six diamonds and at most one card in their suit — which plays `4♦`.
+/// Unauthored, this seat belongs to the floor, which pulled weak diamond hands
+/// to `3NT` on every worst board of the 2026-10-15 re-measure.
+fn diamond_pulls_penalty(over: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            80,
+            len(Suit::Diamonds, 6..) & len(over, ..2),
+        )
+        .rule(Call::Pass, 20, hcp(0..))
+}
+
 /// Competition over our own `2NT` diamond transfer as a row package
 /// (`agreements.competition.competition_over_diamond_transfer`, default on)
 ///
@@ -82,8 +118,9 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
             agreements.competition.competition_over_diamond_transfer
                 && agreements.decision.reading.notrump_minors == PUPPET
         },
-        entries: |_| {
+        entries: |agreements| {
             const TWO_NT: &str = "P* 1NT - 2NT";
+            let captain = agreements.competition.diamond_transfer_responder_captain;
             // Our 2NT doubled: opener's 3♦-fit / 3♣-clubs / XX-values / Pass
             // reply, then the systems-on rebase off his fit-showing bid.
             let mut entries = rows_of(Pattern::after(TWO_NT, "(X)"), diamond_doubled_opener());
@@ -99,14 +136,32 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
 
             // Our 2NT overcalled.  `3♣` leaves the `3♦` completion legal; a
             // higher overcall (`3♦` cue / `3♥` / `3♠`) keeps `3NT`/`X`/Pass
-            // natural.
-            for (over, rules) in [
-                ("(3♣)", diamond_overcalled_low()),
-                ("(3♦)", diamond_overcalled_high(Suit::Diamonds)),
-                ("(3♥)", diamond_overcalled_high(Suit::Hearts)),
-                ("(3♠)", diamond_overcalled_high(Suit::Spades)),
+            // natural — or, with responder captain, `X`/Pass and responder's
+            // answer to the `X`.
+            entries.extend(rows_of(
+                Pattern::after(TWO_NT, "(3♣)"),
+                diamond_overcalled_low(),
+            ));
+            for (over, suit) in [
+                ("(3♦)", Suit::Diamonds),
+                ("(3♥)", Suit::Hearts),
+                ("(3♠)", Suit::Spades),
             ] {
-                entries.extend(rows_of(Pattern::after(TWO_NT, over), rules));
+                if captain {
+                    entries.extend(rows_of(
+                        Pattern::after(TWO_NT, over),
+                        diamond_overcalled_captain(suit),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::after(TWO_NT, &format!("{over} X -")),
+                        diamond_pulls_penalty(suit),
+                    ));
+                } else {
+                    entries.extend(rows_of(
+                        Pattern::after(TWO_NT, over),
+                        diamond_overcalled_high(suit),
+                    ));
+                }
             }
             entries
         },

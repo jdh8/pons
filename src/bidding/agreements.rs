@@ -585,6 +585,25 @@ pub struct CompetitionKnobs {
     /// real value the day the opponents punish the floor's
     /// `X`-then-pull-to-`3NT` overreach, so it ships on.
     pub competition_over_diamond_transfer: bool,
+    /// Responder is captain after they overcall our `2NT` diamond transfer
+    /// above `3♣`
+    ///
+    /// A sub-knob of [`competition_over_diamond_transfer`][Self::competition_over_diamond_transfer]
+    /// (inert without it).  The shipped table lets opener bid `3NT` with 17+
+    /// and a stopper over `1NT - 2NT (3♦/3♥/3♠)` — "to play" opposite a
+    /// transfer that is uncapped *downwards*, so a 3-count responder sits in
+    /// `3NT` — and leaves responder's answer to opener's penalty `X`
+    /// unauthored, where the floor pulls a weak diamond hand to `3NT`.  Both
+    /// were every worst board of the 2026-10-15 #7 re-measure (loss inside δ,
+    /// −1.3 to −9.3 IMPs per fired board).  On: the `3NT` rung is gone, opener
+    /// only doubles (4+ in their suit, penalty) or passes, and over the `X`
+    /// responder passes (the default: opener holds their suit) or pulls to
+    /// `4♦` with six diamonds and at most one card in their suit.  Responder
+    /// after opener's pass stays with the floor, as today.
+    ///
+    /// **Off by default** (`--ns-diamond-transfer-captain` in `bba-gen` for the
+    /// on arm); A/B owed (three arms: shipped, captain, package off).
+    pub diamond_transfer_responder_captain: bool,
     /// Author continuations when they contest our Jacoby transfer
     ///
     /// Over a `(X)` opener completes the transfer with three-card support, jump
@@ -2092,6 +2111,7 @@ impl Default for CompetitionKnobs {
             weak_two_competition: false,
             strong_two_competition: true,
             competition_over_diamond_transfer: true,
+            diamond_transfer_responder_captain: false,
             competition_over_transfer: false,
             competition_over_minor_transfer: true,
             competition_over_stayman: true,

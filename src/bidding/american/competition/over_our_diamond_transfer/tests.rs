@@ -143,3 +143,71 @@ fn defense_to_their_diamond_transfer_cues_both_majors() {
     assert_eq!(c, call(3, Strain::Diamonds));
     assert!(!floored, "the both-majors cue must come from the book");
 }
+
+// --- Responder captain over a high overcall (`diamond_transfer_responder_captain`) ---
+
+/// `1NT - 2NT (3♥)`, with the given captain-knob state
+fn overcalled_hearts(captain: bool) -> (Agreements, [Call; 4]) {
+    let mut arm = Agreements::default();
+    arm.competition.competition_over_diamond_transfer = true;
+    arm.competition.diamond_transfer_responder_captain = captain;
+    let auction = [
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        call(3, Strain::Hearts),
+    ];
+    (arm, auction)
+}
+
+#[test]
+fn captain_opener_passes_a_maximum_with_a_stopper() {
+    // On: the same 17-count passes — responder, not opener, knows whether the
+    // transfer holds 3 or 13.
+    let (arm, auction) = overcalled_hearts(true);
+    let (c, floored) = best_call_with(&arm, &auction, "AQx.KJx.Axx.KJxx");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the captain pass comes from the book");
+}
+
+#[test]
+fn captain_opener_doubles_with_four_of_their_suit() {
+    let (arm, auction) = overcalled_hearts(true);
+    let (c, floored) = best_call_with(&arm, &auction, "AQx.KJ9x.Ax.KJxx");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the penalty X comes from the book");
+}
+
+/// `1NT - 2NT (3♥) X -`: responder's seat after opener's penalty double
+fn doubled_hearts(captain: bool) -> (Agreements, Vec<Call>) {
+    let (arm, auction) = overcalled_hearts(captain);
+    let mut auction = auction.to_vec();
+    auction.extend([Call::Double, Call::Pass]);
+    (arm, auction)
+}
+
+#[test]
+fn captain_responder_leaves_the_penalty_double_in() {
+    // Five diamonds and two hearts: opener holds their suit, defend.
+    let (arm, auction) = doubled_hearts(true);
+    let (c, floored) = best_call_with(&arm, &auction, "xxx.xx.KJxxx.xxx");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the leave-in comes from the book");
+}
+
+#[test]
+fn captain_responder_pulls_to_4d_with_six_and_a_stiff() {
+    // Six diamonds, a singleton heart: cannot defend, play 4♦.
+    let (arm, auction) = doubled_hearts(true);
+    let (c, floored) = best_call_with(&arm, &auction, "xxx.x.KJxxxx.xxx");
+    assert_eq!(c, call(4, Strain::Diamonds));
+    assert!(!floored, "the pull comes from the book");
+}
+
+#[test]
+fn shipped_responder_answer_to_the_penalty_double_is_floor_owned() {
+    // Off: the seat is unauthored — the hole the knob fills.
+    let (arm, auction) = doubled_hearts(false);
+    let (_, floored) = best_call_with(&arm, &auction, "xxx.x.KJxxxx.xxx");
+    assert!(floored, "shipped, responder's answer falls to the floor");
+}

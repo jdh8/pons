@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`competition.diamond_transfer_responder_captain` — the #7 repair of the
+  contested `2NT` diamond transfer (2026-10-15,
+  [#7](https://github.com/jdh8/pons/issues/7)); default off, A/B owed.**
+  The shipped package's re-measure read loss | loss inside δ (PD −0.0005
+  ±0.0002 both cells, −1.3 to −9.3 IMPs per fired board), and every worst
+  board was `1NT - 2NT (3♥/3♠)` followed by opener's `3NT` (17+ with a
+  stopper, "to play" opposite a transfer that may hold a 3-count) or opener's
+  penalty `X` with responder's answer unauthored, where the floor pulled a
+  weak diamond hand to `3NT`. On, the `3NT` rung is gone (opener doubles with
+  four of their suit or passes; responder is captain) and responder answers
+  the `X`: pass, or `4♦` with six diamonds and at most one card in their
+  suit. `bba-gen --ns-diamond-transfer-captain`, web
+  `set_diamond_transfer_responder_captain` (gated on the package). Default
+  byte-identical (`smoke-default`, 20,000 auctions, seed 1). Three-arm A/B
+  (shipped / captain / package off) at 1,228,800 boards/arm/vul owed; the
+  disposition of the RKCB queen ask (superseded: no off arm, 10M self-play
+  boards at PD ±0.0002) and the `PointCount` run (5,120,000 boards/arm/vul,
+  in flight) are recorded in `docs/research-method-review.md`.
+
 ### Changed
 
 - **The `penalty_no_pull` knob is gone; its no-pull gate is hard-wired
