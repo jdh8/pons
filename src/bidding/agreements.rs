@@ -4341,6 +4341,10 @@ pub struct RebidKnobs {
     /// The fresh vs-BBA re-measure (2026-10-14, #7) **loses** on every DD
     /// cell (plain −0.0003 ±0.0003, PD −0.0009 ±0.0003 both-vul); the trace
     /// blames responder's `4♠` over a 5-2 heart fit (`research-method-review.md`).
+    /// With the reverse floored at 15 HCP and five hearts (2026-10-15) it is
+    /// non-inferior vs off on both scorers (plain +0.0000 ±0.0002 / +0.0002
+    /// ±0.0002, PD −0.0002 ±0.0002 / −0.0001 ±0.0003) and wins SD-PD
+    /// both-vul (+0.0003 ±0.0003).
     ///
     /// Over the forcing 1NT, opener with 15–17 and a second major suit has no
     /// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural
@@ -4366,6 +4370,35 @@ pub struct RebidKnobs {
     /// board.  The trace's `4♠` bucket was priced against the auctions
     /// without the reverse, not against `4♥`.  Stays opt-in.
     pub forcing_nt_reverse_heart_game: bool,
+    /// Cap opener's `1♥ - 1NT - 2♠` reverse at five hearts
+    ///
+    /// **Default on** since 2026-10-15.  Off, a 6-4 with 15 points reverses
+    /// (16+ takes the `3♥` jump rebid), and responder's answers land it in
+    /// the 4-3 spade game or `3NT` instead of hearts: −451 plain IMPs on 150
+    /// boards in the #7 trace of
+    /// [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter]
+    /// (`research-method-review.md`).  On, the reverse takes exactly five
+    /// hearts and the 6-4 rebids `2♥`.  Alone it wins vs the old reverse
+    /// (plain +0.0002 / +0.0003, PD +0.0004 / +0.0005 none/both) but still
+    /// loses PD to no reverse; with
+    /// [`forcing_nt_reverse_hcp_floor`][Self::forcing_nt_reverse_hcp_floor]
+    /// it adds +8 / +22 plain IMPs on 9 boards per 1,228,800.  Off-switch
+    /// `--no-ns-forcing-nt-reverse-five-hearts` in `bba-gen`.
+    pub forcing_nt_reverse_five_hearts: bool,
+    /// Floor opener's `1♥ - 1NT - 2♠` reverse at 15 HCP
+    ///
+    /// **Default on** since 2026-10-15.  Off, the reverse's `points(15..=17)`
+    /// counts length, so a 13–14 HCP 5-4 reverses and pushes a minimum
+    /// responder to the three level: −539 plain IMPs on 330 boards in the #7
+    /// trace of [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter]
+    /// (`research-method-review.md`).  On, the reverse also needs 15+ HCP,
+    /// and the lighter hand rebids naturally.  With
+    /// [`forcing_nt_reverse_five_hearts`][Self::forcing_nt_reverse_five_hearts],
+    /// vs the old reverse (1,228,800 boards per cell vs BBA): plain +0.0003
+    /// ±0.0001 / +0.0004 ±0.0002, PD +0.0006 / +0.0007, SD-PD +0.0003 /
+    /// +0.0004 none/both, all wins, +2.2 to +4.4 IMPs per fired board.
+    /// Off-switch `--no-ns-forcing-nt-reverse-hcp-floor` in `bba-gen`.
+    pub forcing_nt_reverse_hcp_floor: bool,
     // --- rebids/jump_shifts.rs
     /// Natural strong jump shifts over the forcing `1NT` instead of Meckstroth
     ///
@@ -4756,6 +4789,8 @@ impl Default for RebidKnobs {
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
             forcing_nt_reverse_heart_game: false,
+            forcing_nt_reverse_five_hearts: true,
+            forcing_nt_reverse_hcp_floor: true,
             forcing_nt_jump_shifts: true,
             xyz_invite_judgment: true,
             xyz_second_major_first: true,

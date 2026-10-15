@@ -23,7 +23,7 @@ folded in below.
 | Priority | Issue | Completion belongs in |
 | --- | --- | --- |
 | P1 | [#6 Deal overlap between fresh-seed runs](https://github.com/jdh8/pons/issues/6) | `measurement.md` and affected replication ledgers |
-| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured (two losses inside δ await jdh8); five rows still unknown, two near-bound rows await jdh8 |
+| P1 | [#7 Non-inferiority margin instead of wash as no loss](https://github.com/jdh8/pons/issues/7) | `measurement.md`, the ship rules and affected verdicts — margin and verdicts landed 2026-10-14; [inventory](#issue-7-non-inferiority-inventory) decided and re-measured; both losses inside δ repaired and proven non-inferior 2026-10-15 (XYZ's `2♥`, the reverse's HCP floor); five rows still unknown, two near-bound rows await jdh8 |
 | P1 | [#8 Direct A/B versus reference-relative IMP gain](https://github.com/jdh8/pons/issues/8) | scorer reports, `measurement.md` and anchor ledgers |
 
 The entries below preserve the remaining review findings. Open an issue when
@@ -170,13 +170,16 @@ and off reaches `4♥` through `2♥ - 3♥ - 4♥` or stops in `2♥`. Opener's
 `3♥`. The 16–17 HCP hands and the three-heart `4♥` already gain. Repairs to
 measure, each reversible: let `4♥` take 2+ hearts above `4♠`; cap the
 reverse at five hearts; raise the floor to 15 HCP. The default stays on
-until one is measured: jdh8's call.
+until one is measured: jdh8's call. (Settled 2026-10-15: the five-heart
+cap and the 15 HCP floor both won and shipped; the reverse is now
+non-inferior vs off, below.)
 
 **`longer_major_response`** has no row in the decision table: plain is
 non-inferior, PD and SD-PD lose in the both cell (lower bounds −0.0019 and
 −0.0020). It shipped on naturalness with this same PD sign. Proposed
 reversible default: keep it on as a recorded trade-off on naturalness, PD
-loss −0.0010 accepted, until the repair below is measured.
+loss −0.0010 accepted, until the repair below is measured. (Settled
+2026-10-15: non-inferior on every scorer on top of the repair, below.)
 
 Its trace (2026-10-15, all 10,155 divergent boards, −541 plain / −1,637 PD)
 puts the loss in the continuation, not the response. On 3,039 boards the
@@ -211,6 +214,49 @@ with a maximum. The heart-game repair failed because the trace priced the
 two-suiter loss stays open, its next levers the 6+ heart reverse (−451) and
 the 13–14 HCP hands (−539). `longer_major_response` should be re-measured on
 top of the XYZ repair before its trade-off is recorded.
+
+**`longer_major_response` on top of the XYZ repair (run 2026-10-15, sha
+`2dbbc57d`, `SEED_BASE=1792007254549759702`, 96 × 12,800 = 1,228,800
+boards per arm and cell, `ab-results/issue7-remeasure/longer-major-response/`).**
+Shipped − off, as before:
+
+| Cell | Plain DD | PD | SD plain | SD-PD | Fired |
+| --- | --- | --- | --- | --- | --- |
+| none | +0.0009 ±0.0006 (**win**) | +0.0005 ±0.0007 | +0.0005 ±0.0007 | +0.0001 ±0.0007 | 0.41% |
+| both | +0.0003 ±0.0008 | +0.0000 ±0.0009 | −0.0003 ±0.0009 | −0.0006 ±0.0009 | 0.40% |
+
+**Non-inferior \| non-inferior**, SD-PD non-inferior (worst lower bound
+−0.0015): the both-vul PD and SD-PD losses (−0.0010, −0.0011) were the XYZ
+leak and are gone with `xyz_second_major_first` on. The default is proven
+and no trade-off is recorded.
+
+**Reverse levers (run 2026-10-15, sha `2dbbc57d`-dirty with `tree.patch`,
+`SEED_BASE=1792009682846689673`, 1,228,800 boards per arm and cell,
+`ab-results/issue7-remeasure/reverse-levers/`).** The two remaining
+two-suiter buckets, as default-off knobs on opener's `1♥ - 1NT - 2♠`:
+`rebid.forcing_nt_reverse_five_hearts` (exactly five hearts, so the 6-4
+rebids `2♥`) and `rebid.forcing_nt_reverse_hcp_floor` (15+ HCP as well as
+15–17 points). Five arms on one seed: the old reverse, no reverse (`off`),
+each lever and both. A 6-4 with 15+ HCP counts 16+ points and takes the
+`3♥` jump, so the floor already catches almost every 6-4 reverse; `both`
+and `floor` differ on 9 boards (+8 / +22 plain, +14 / +38 PD, both − floor).
+
+| Diff | Plain DD none / both | PD none / both | SD-PD none / both | Fired |
+| --- | --- | --- | --- | --- |
+| old − off (replication) | **−0.0003 ±0.0002** / −0.0003 ±0.0003 | **−0.0007 ±0.0003 / −0.0009 ±0.0003** | **−0.0003 ±0.0002** / −0.0002 ±0.0003 | 0.04% |
+| five − old | +0.0002 ±0.0001 / +0.0003 ±0.0001 | +0.0004 ±0.0001 / +0.0005 ±0.0002 | +0.0003 ±0.0001 / +0.0003 ±0.0001 | 0.01% |
+| floor − old | +0.0003 ±0.0001 / +0.0004 ±0.0002 | +0.0006 ±0.0002 / +0.0007 ±0.0002 | +0.0003 ±0.0002 / +0.0004 ±0.0002 | 0.02% |
+| both − old | +0.0003 ±0.0001 / +0.0004 ±0.0002 | +0.0006 ±0.0002 / +0.0007 ±0.0002 | +0.0003 ±0.0002 / +0.0004 ±0.0002 | 0.02% |
+| five − off | −0.0000 ±0.0002 / +0.0001 ±0.0003 | **−0.0004 ±0.0002 / −0.0004 ±0.0003** | +0.0000 ±0.0002 / +0.0002 ±0.0003 | 0.04% |
+| floor − off | +0.0000 ±0.0002 / +0.0001 ±0.0002 | −0.0002 ±0.0002 / −0.0002 ±0.0003 | +0.0001 ±0.0002 / +0.0003 ±0.0003 | 0.03% |
+| both − off | +0.0000 ±0.0002 / +0.0002 ±0.0002 | −0.0002 ±0.0002 / −0.0001 ±0.0003 | +0.0001 ±0.0002 / +0.0003 ±0.0003 | 0.03% |
+
+The old reverse replicates its loss. Each lever **wins** against it on every
+cell and scorer (both: +2.2 to +4.4 IMPs per fired board), so both shipped
+default-on. With them the reverse is **non-inferior \| non-inferior** vs no
+reverse (worst lower bounds −0.0004 PD none, −0.0002 plain none) and wins
+SD-PD both-vul, so `forcing_nt_two_suiter` stays on, now proven. The five-heart
+cap alone still loses PD to no reverse; the HCP floor carries the repair.
 
 **Recorded trade-offs.** Each default is kept without a proof; the loss it
 accepts is its worst plain-DD lower bound per board.

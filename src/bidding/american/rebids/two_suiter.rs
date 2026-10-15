@@ -38,13 +38,7 @@ pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit, knobs: &Rebi
         return rules;
     }
     match major {
-        Suit::Hearts => rules
-            .rule(
-                Bid::new(2, Strain::Spades),
-                110,
-                len(Suit::Hearts, 5..) & len(Suit::Spades, 4..) & points(15..=17),
-            )
-            .alert(OPENER_REVERSE),
+        Suit::Hearts => with_forcing_nt_reverse(rules, knobs).alert(OPENER_REVERSE),
         Suit::Spades => rules
             .rule(
                 Bid::new(3, Strain::Hearts),
@@ -53,6 +47,41 @@ pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit, knobs: &Rebi
             )
             .alert(OPENER_JUMP_SHIFT),
         _ => rules,
+    }
+}
+
+/// Opener's `1♥ - 1NT - 2♠` reverse: 5+ hearts, 4+ spades, 15–17 points
+///
+/// [`RebidKnobs::forcing_nt_reverse_five_hearts`] caps the hearts at five and
+/// [`RebidKnobs::forcing_nt_reverse_hcp_floor`] adds a 15 HCP floor; with both
+/// off the rule is the shipped one, unchanged.
+fn with_forcing_nt_reverse(rules: Rules, knobs: &RebidKnobs) -> Rules {
+    let bid = Bid::new(2, Strain::Spades);
+    let spades = || len(Suit::Spades, 4..);
+    match (
+        knobs.forcing_nt_reverse_five_hearts,
+        knobs.forcing_nt_reverse_hcp_floor,
+    ) {
+        (false, false) => rules.rule(
+            bid,
+            110,
+            len(Suit::Hearts, 5..) & spades() & points(15..=17),
+        ),
+        (true, false) => rules.rule(
+            bid,
+            110,
+            len(Suit::Hearts, 5..=5) & spades() & points(15..=17),
+        ),
+        (false, true) => rules.rule(
+            bid,
+            110,
+            len(Suit::Hearts, 5..) & spades() & points(15..=17) & hcp(15..),
+        ),
+        (true, true) => rules.rule(
+            bid,
+            110,
+            len(Suit::Hearts, 5..=5) & spades() & points(15..=17) & hcp(15..),
+        ),
     }
 }
 

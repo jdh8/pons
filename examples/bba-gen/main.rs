@@ -1514,6 +1514,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_forcing_nt_reverse_heart_game: bool,
 
+    /// Let opener's `1♥ - 1NT - 2♠` reverse take six hearts
+    /// (`rebid.forcing_nt_reverse_five_hearts`, **shipped default-on
+    /// 2026-10-15**; this is the off arm)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_nt_reverse_five_hearts: bool,
+
+    /// Drop the 15 HCP floor on opener's `1♥ - 1NT - 2♠` reverse
+    /// (`rebid.forcing_nt_reverse_hcp_floor`, **shipped default-on
+    /// 2026-10-15**; this is the off arm)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_nt_reverse_hcp_floor: bool,
+
     /// Withhold the 5♠4♥ / 5-5 `2♥` before `2♠` after `1m - 1♠ - 1NT`
     /// (`rebid.xyz_second_major_first`, **shipped default-on 2026-10-14**;
     /// this is the off arm)
@@ -3244,6 +3256,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
+    agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;
+    agreements.rebid.forcing_nt_reverse_hcp_floor = !args.no_ns_forcing_nt_reverse_hcp_floor;
     agreements.rebid.xyz_second_major_first = !args.no_ns_xyz_second_major_first;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;

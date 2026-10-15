@@ -918,9 +918,14 @@ pub struct ReadingProfile {
     /// IMPs/board marginal on the shipped XYZ + up-the-line package), and a
     /// push against a natural default goes to the natural method — the
     /// naturalness tiebreak (docs/measurement.md) — so the simplification is
-    /// the opt-in.  The M6.4 control-bid classifier reads the same discipline
-    /// at classify time: the response rule, the rebid structure and the
-    /// classifier move together. Read at build time too
+    /// the opt-in.  The fresh vs-BBA re-measure (2026-10-15, #7) on top of
+    /// XYZ's 5♠4♥ `2♥` (`RebidKnobs::xyz_second_major_first`) reads
+    /// non-inferior on every scorer (plain DD +0.0009 ±0.0006 / +0.0003
+    /// ±0.0008, PD +0.0005 / +0.0000 none/both); the PD loss it showed
+    /// without that repair was XYZ's, not this response's
+    /// (`research-method-review.md`).  The M6.4 control-bid classifier reads
+    /// the same discipline at classify time: the response rule, the rebid
+    /// structure and the classifier move together. Read at build time too
     /// (`american/responses/longer_major.rs` picks the selector pair off it),
     /// which is why the response book takes it from here rather than keeping
     /// another copy of its own — one value, one home.

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `1♥ - 1NT - 2♠` reverse needs 15 HCP and exactly five hearts,
+  default-on (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).**
+  `rebid.forcing_nt_reverse_hcp_floor`: the 15–17 *point* reverse also needs
+  15+ HCP, so a 13–14 HCP 5-4 rebids naturally. `rebid.forcing_nt_reverse_five_hearts`:
+  a 6-4 rebids `2♥` instead of reversing. Together, vs the old reverse at
+  1,228,800 boards per cell vs BBA: plain DD +0.0003 ±0.0001 / +0.0004
+  ±0.0002, PD +0.0006 ±0.0002 / +0.0007 ±0.0002, SD-PD +0.0003 / +0.0004
+  none/both, a win on every cell, +2.2 to +4.4 IMPs per fired board. The
+  same run replicates the old reverse's loss to no reverse (PD −0.0007 /
+  −0.0009); repaired, `forcing_nt_two_suiter` is non-inferior vs off on both
+  scorers (worst lower bound −0.0004 PD) and stays on. Off-switches
+  `--no-ns-forcing-nt-reverse-hcp-floor` / `--no-ns-forcing-nt-reverse-five-hearts`
+  in `bba-gen`.
+
+- **`longer_major_response` proven non-inferior on top of the XYZ repair
+  (2026-10-15, [#7](https://github.com/jdh8/pons/issues/7)).** Re-measured
+  shipped − off vs BBA at `2dbbc57d`, 1,228,800 boards per arm and cell:
+  plain DD +0.0009 ±0.0006 (win) / +0.0003 ±0.0008, PD +0.0005 ±0.0007 /
+  +0.0000 ±0.0009, SD-PD +0.0001 / −0.0006 ±0.0009 none/both. The earlier
+  both-vul PD loss (−0.0010 ±0.0009) was XYZ's missing 5♠4♥ `2♥`, repaired
+  by `rebid.xyz_second_major_first`; the default stays on, now proven, with
+  no trade-off recorded. Bidding untouched.
+
 - **XYZ shows 5♠4♥ hearts first, default-on (2026-10-14).**
   `rebid.xyz_second_major_first`: after `1m - 1♠ - 1NT`, a hand with four
   hearts and at most five spades bids `2♥` above `2♠` in the weak and the

@@ -425,6 +425,47 @@ fn opener_reverses_into_spades_with_five_four_and_extras() {
 }
 
 #[test]
+fn opener_with_six_hearts_rebids_them_under_the_five_heart_cap() {
+    // Q432.AKJ432.2.K2 — 13 HCP, 4-6-1-2: the 6-4 rebids its hearts; with
+    // `forcing_nt_reverse_five_hearts` and the HCP floor both off it reverses.
+    let hand = "Q432.AKJ432.2.K2";
+    assert_eq!(
+        best_call(&partnership(), &after_1h_1nt(), hand),
+        call(2, Strain::Hearts),
+    );
+    let mut agreements = Agreements::default();
+    agreements.rebid.forcing_nt_reverse_five_hearts = false;
+    agreements.rebid.forcing_nt_reverse_hcp_floor = false;
+    assert_eq!(
+        best_call(&american(&agreements).bind(), &after_1h_1nt(), hand),
+        call(2, Strain::Spades),
+    );
+}
+
+#[test]
+fn opener_needs_fifteen_hcp_to_reverse_under_the_floor() {
+    // KJ54.AQJ32.K2.32 — 14 HCP, 4-5-2-2: 15 points by length, but the
+    // reverse needs 15 HCP, so a natural `2♥`; with
+    // `forcing_nt_reverse_hcp_floor` off it reverses.  The 16 HCP
+    // KQ54.AKJ32.K2.32 reverses either way.
+    let hand = "KJ54.AQJ32.K2.32";
+    assert_eq!(
+        best_call(&partnership(), &after_1h_1nt(), hand),
+        call(2, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call(&partnership(), &after_1h_1nt(), "KQ54.AKJ32.K2.32"),
+        call(2, Strain::Spades),
+    );
+    let mut agreements = Agreements::default();
+    agreements.rebid.forcing_nt_reverse_hcp_floor = false;
+    assert_eq!(
+        best_call(&american(&agreements).bind(), &after_1h_1nt(), hand),
+        call(2, Strain::Spades),
+    );
+}
+
+#[test]
 fn opener_jumps_to_show_five_five_majors() {
     // AKQ32.KQJ32.2.32 — 15 HCP, 5-5-1-2: the 1♠ - 1NT - 3♥ jump (on),
     // a natural 2♥ rebid (off).

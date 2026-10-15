@@ -21,6 +21,22 @@
 # now the off-switch and the diff reads `shipped vs off`; the recorded run, made
 # before the flip, is `repair vs shipped` with the same sign.
 #
+# reverse-levers (2026-10-15): the two-suiter trace's two remaining buckets, on
+# opener's 1♥ - 1NT - 2♠ reverse, in one five-arm run on one SEED_BASE —
+#
+#   five    exactly five hearts (the 6-4 rebids 2♥)   --ns-forcing-nt-reverse-five-hearts
+#   floor   15+ HCP as well as 15–17 points           --ns-forcing-nt-reverse-hcp-floor
+#   both    the two together
+#   off     no two-suiter rebids at all               --no-ns-forcing-nt-two-suiter
+#
+# Each lever is diffed against shipped (does it repair?) and against off (does the
+# repaired reverse beat no reverse?), plus `shipped vs off` as the replication.
+#
+# Both levers shipped default-on on that run (2026-10-15), so the arms below are now
+# spelled with the off-switches: `shipped` is the repaired reverse (= the recorded
+# `both`), `old` is the unrepaired one (= the recorded `shipped`).  Same arms, same
+# diffs, renamed.
+#
 # Every diff is `shipped vs <arm>`: positive = the shipped default gains.  The
 # verdict is ab-dump-diff's Verdict line, worst vulnerability cell, on plain DD
 # and PD; SD-PD is reported for the four knobs (the k8 floor diverges on too
@@ -94,6 +110,21 @@ for vul in none both; do
         arm off "$vul" --no-ns-xyz-second-major-first
         diffpair shipped off "$vul"
         sddiff shipped off "$vul"
+        ;;
+    reverse-levers)
+        arm off "$vul" --no-ns-forcing-nt-two-suiter
+        arm old "$vul" --no-ns-forcing-nt-reverse-five-hearts --no-ns-forcing-nt-reverse-hcp-floor
+        arm five "$vul" --no-ns-forcing-nt-reverse-hcp-floor
+        arm floor "$vul" --no-ns-forcing-nt-reverse-five-hearts
+        diffpair old off "$vul"
+        sddiff old off "$vul"
+        for lever in five floor shipped; do
+            diffpair "$lever" old "$vul"
+            sddiff "$lever" old "$vul"
+            diffpair "$lever" off "$vul"
+            sddiff "$lever" off "$vul"
+        done
+        diffpair shipped floor "$vul"
         ;;
     *) echo "ab-non-inferiority: unknown experiment $E" >&2; exit 2 ;;
     esac
