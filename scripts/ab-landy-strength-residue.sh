@@ -44,6 +44,14 @@
 #         negative — did not fire); NV 0 divergent.  The flag flipped with it:
 #         `base2` now carries `--no-ns-landy-strength-nv-invite`.
 #
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS=ns, fresh seed, arms
+# with `--wide-1nt` added so the 1NT candidate covers the default opener
+# (runs before this date used the strict candidate and pair only with each
+# other), results in ab-results/landy-strength-residue-ns.  Only `nv2` against `base2` matters here; `ew` cannot differ, the knob adds a conjunct on our own vulnerability.  The default stands in a cell
+# that reads plain DD non-inferior or better with PD not a loss; any other
+# reading is flagged for a decision, not applied.
+#
 R=${1:?usage: ab-landy-strength-residue.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -53,12 +61,13 @@ log "=== landy-strength-residue SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $
 
 # Run 4's arms (`nv` / `strx` / `rail` against `base`) are retired with the
 # flip: their ON flags no longer exist.  The run-4 loop is in git at a28d2784.
-for v in both none; do
-    arm base2 "$v" --filter-landy --no-ns-landy-strength-nv-invite
-    arm nv2   "$v" --filter-landy
+for v in $VULS; do
+    arm base2 "$v" --filter-landy --wide-1nt --no-ns-landy-strength-nv-invite
+    arm nv2   "$v" --filter-landy --wide-1nt
     # `none` must read zero divergent boards; the gate may balk at that.
     gatepair nv2 base2 "$v" || log "nv2 $v gate exited non-zero — read $R/gate.nv2.vs.base2.$v.txt"
-    [ "$v" = both ] || continue
+    [ "$v" = none ] && continue
+    DENSITY=$(density_of "$R/base2-$v")
     diffpair nv2 base2 "$v"
     sddiff   nv2 base2 "$v"
 done

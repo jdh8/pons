@@ -40,6 +40,14 @@
 # `competition.landy_splinter_tails` — the flag is now
 # `--no-ns-landy-splinter-tails`, so a rerun's `base` arm needs it and the
 # `tails` arm is `main`.  Write-up: docs/one-notrump-competitive.md §N1r tails.
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed, arms
+# with `--wide-1nt` added so the 1NT candidate covers the default opener
+# (runs before this date used the strict candidate and pair only with each
+# other), results in ab-results/landy-splinter-tails-nsew.  The tails double their save, so the asymmetric cells are the live ones.  The default stands in a cell
+# that reads plain DD non-inferior or better with PD not a loss; any other
+# reading is flagged for a decision, not applied.
+#
 R=${1:?usage: ab-landy-splinter-tails.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -48,9 +56,10 @@ SEED_BASE=$(seed_for landy-splinter-tails)
 log "=== landy-splinter-tails SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in $VULS; do
-    arm base  "$v" --filter-landy --no-ns-landy-splinter-tails
-    arm tails "$v" --filter-landy
+    arm base  "$v" --filter-landy --wide-1nt --no-ns-landy-splinter-tails
+    arm tails "$v" --filter-landy --wide-1nt
     gatepair tails base "$v"
+    DENSITY=$(density_of "$R/base-$v")
     diffpair tails base "$v"
 done
 

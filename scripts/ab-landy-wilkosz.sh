@@ -32,6 +32,14 @@
 # — the flag is now `--no-ns-landy-wilkosz`, so a rerun's `base` arm needs it
 # and the `wilkosz` arm is `main`.  Write-up: docs/archive/
 # one-notrump-competitive-landy.md §N1s.
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS=ns, fresh seed, arms
+# with `--wide-1nt` added so the 1NT candidate covers the default opener
+# (runs before this date used the strict candidate and pair only with each
+# other), results in ab-results/landy-wilkosz-ns.  `ew` cannot differ: the call is dead at favourable.  The default stands in a cell
+# that reads plain DD non-inferior or better with PD not a loss; any other
+# reading is flagged for a decision, not applied.
+#
 R=${1:?usage: ab-landy-wilkosz.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -40,9 +48,10 @@ SEED_BASE=$(seed_for landy-wilkosz)
 log "=== landy-wilkosz SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in $VULS; do
-    arm base    "$v" --filter-landy --no-ns-landy-wilkosz
-    arm wilkosz "$v" --filter-landy
+    arm base    "$v" --filter-landy --wide-1nt --no-ns-landy-wilkosz
+    arm wilkosz "$v" --filter-landy --wide-1nt
     gatepair wilkosz base "$v"
+    DENSITY=$(density_of "$R/base-$v")
     diffpair wilkosz base "$v"
 done
 

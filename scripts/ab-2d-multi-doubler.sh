@@ -81,6 +81,14 @@
 # Resumable: an existing arm dir, gate, or diff file is skipped, and SEED_BASE
 # persists in $R/2d-multi-doubler.seed.  Iron rule: do NOT rebuild binaries
 # while this runs.
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed, arms
+# with `--wide-1nt` added so the 1NT candidate covers the default opener
+# (runs before this date used the strict candidate and pair only with each
+# other), results in ab-results/2d-multi-doubler-nsew.  The both-vul PD cell already read a loss; the asymmetric cells show whether it follows our vulnerability or theirs.  The default stands in a cell
+# that reads plain DD non-inferior or better with PD not a loss; any other
+# reading is flagged for a decision, not applied.
+#
 R=${1:?usage: ab-2d-multi-doubler.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -90,10 +98,11 @@ SEED_BASE=$(seed_for 2d-multi-doubler)
 log "=== 2d-multi-doubler SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in $VULS; do
-    arm base "$v" --their-2d-multi --no-ns-multi-doubler-major --filter-1nt
-    arm dm   "$v" --their-2d-multi --filter-1nt
+    arm base "$v" --their-2d-multi --no-ns-multi-doubler-major --filter-1nt --wide-1nt
+    arm dm   "$v" --their-2d-multi --filter-1nt --wide-1nt
 
     gatepair dm base "$v"
+    DENSITY=$(density_of "$R/base-$v")
     diffpair dm base "$v"
     sddiff   dm base "$v"
 done
