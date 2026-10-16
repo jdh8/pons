@@ -833,7 +833,14 @@ DD prices it because their contract actually moves.
 > `1792107984640740881`) agrees in direction (its M1 slice lost plain in
 > all four cells). Before flipping, decide whether a 0-HCP floor is the
 > natural-overcall style wanted at the table, or whether an intermediate
-> floor (4–6) should be swept on a fresh seed.
+> floor should be swept on a fresh seed.
+>
+> **Correction (2026-10-16): there is no floor between 1 and 6.** `points`
+> is raw HCP plus an upgrade capped at 2, so `points(8..=14)` already holds
+> every overcall to 6+ HCP and floors 1–6 bid exactly as floor 0 (checked:
+> floor 6 against floor 0 on 32,000 seeded boards, identical auctions; floor
+> 7 differs). The live floors are 7, 8 and 9, swept in
+> [`scripts/ab-nt-overcall-floor-sweep.sh`](../scripts/ab-nt-overcall-floor-sweep.sh).
 
 ### Follow-ups this A/B opened
 
