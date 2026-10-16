@@ -14,12 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decodes the opponents' calls only when alerted, so an unalerted natural call
   (the `(1NT) 2♥` overcall band, a free bid's range) never reached the leader:
   `--on-ns-overcall 20:37` reproduced the 9:14 numbers to the last IMP. East–West
-  now reads with our partnership declared as its opponent (`common::DumpReader`).
+  now reads with our partnership declared as its opponent (`common::TableReader`). The
+  self-play SD harnesses (fifteen of them) now read the same way.
   On 300 diagnostic `(1NT) 2♥` deals the band now moves 195 leads (before: 0).
   sd-lead and SD-PD numbers from before this change are not comparable; reports
   print `leader reading:`, and `--legacy-leader-reading` reproduces old ones.
-  Four verdicts that rested on SD pricing that disclosure need a re-measure
-  (`docs/research-method-review.md` §4). Default system byte-identical.
+  Three of the four verdicts that rested on SD pricing that disclosure were
+  re-measured on fresh deals at all four vulnerabilities, no default changed:
+  the natural overcall of 1NT (HCP floor 8 + advance) now reads loss | win,
+  plain DD losing at `ew` with the advance carrying the gain; the 8:14 band
+  holds; Modern negative doubles read win | loss, PD's loss following their
+  vulnerability. Decisions owed are in `docs/research-method-review.md` §4.
+  Default system byte-identical.
 
 - **The trainer's validation split no longer cuts a board in two
   (2026-10-16).** The cut moves to the next board start; `--row-split` keeps the
@@ -73,6 +79,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   being scored under the first shard's metadata.
 
 ### Added
+
+- **`filter-coverage` (2026-10-16).** Takes two unfiltered arms on one seed
+  and reports, for every `bba-gen` scan, how many of their divergent boards the
+  scan would have rejected: the preflight that says whether an enriched
+  verdict covers the change. The scans now have one definition
+  (`common::filters`); `bba-gen`'s accepted sets are byte-identical.
+
+- **BEN shards verified, every runner on ab-lib (2026-10-16).** `ben-gen`
+  writes atomically and takes `--verify`; `ben-gen-parallel.sh` reports failed
+  workers; `ab-lib.sh` takes `GENERATOR=ben-gen`, and the runners that kept
+  their own resume logic now use the manifest and shard check. `load_dump`
+  rejects a shard directory whose generation arguments differ.
 
 - **Sampling statistics (2026-10-16).** `SampleStats` and `*_with_stats`
   variants of the samplers, `ev_all` and the single-dummy scorers report how

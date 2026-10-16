@@ -508,7 +508,7 @@ unalerted `(1NT) 2♥` as `points 8..37` under both 9–14 and 20–37. A
 North–South leader was unaffected after 2026-08-16. The alerted negative
 double reaches both leaders today; its July inertness probably came from the
 unpinned decode contexts fixed 2026-08-09 (inferred, not verified).
-`common::DumpReader` reads East–West with our partnership declared as its
+`common::DumpReader` (now `TableReader`) reads East–West with our partnership declared as its
 opponent, so every North–South call decodes off its authoring rule. The band
 now moves 195 of 300 diagnostic leads and 48 trick counts (legacy: 0 and 0);
 the default system is byte-identical (`smoke-default`, 20,000 auctions).
@@ -516,17 +516,29 @@ Reports print `leader reading: disclosed|legacy`, and
 `--legacy-leader-reading` reproduces old outputs; regression tests in
 `examples/ab-dump-sd/tests.rs`.
 
-**Open.** (1) The self-play SD harnesses read the leader the same way:
-`ab-nt-defense-matrix`, `ab-point-count`, `ab-dnf-sd-lead`,
-`ab-meckstroth-2nt`, `ab-notrump-minors`, `ab-forcing-nt-two-suiter`,
-`ab-fuzzy-strength`, `ab-size-ask-*`, `ab-nt-splinter`, `ab-one-nt-runout`.
-(2) Four verdicts rest on SD pricing the disclosure of an unalerted call of
-ours, and need a re-measure: the natural overcall HCP floor of 8 with its
-advance (`defensive-overcalls.md`, CHANGELOG 2026-08-23), the 8:14 overcall
-band (`archive/point-count-threshold-campaign.md`, `convention-tuning.md`),
-Modern negative doubles' sd overrule of the vul-PD −0.026
-(`competitive-book.md`), and the weak-two HCP knobs (self-play
-`ab-point-count`). Thirteen more cite the sd row but stand on DD or on an
+**Self-play harnesses fixed (`430fac29`).** `ab-nt-defense-matrix`,
+`ab-point-count`, `ab-dnf-sd-lead`, `ab-meckstroth-2nt`, `ab-notrump-minors`,
+`ab-forcing-nt-two-suiter`, `ab-fuzzy-strength`, `ab-size-ask-*`,
+`ab-nt-splinter` and `ab-one-nt-runout`, plus the SD-declarer rows of `ab-kickback`, `ab-minor-keycard`, `ab-slam-entry` and
+`probe-sd-calibration` read through `common::TableReader::self_play`: each
+pair reads with the other pair's partnership declared as its opponent. Six
+harnesses that read every seat through one fixed book now read each table
+with its own pairs' books. `--legacy-leader-reading` reproduces old outputs
+byte for byte; the default system is byte-identical. The SD-blend λ
+(`common::SD_BLEND_LAMBDA`) was fitted with `probe-sd-calibration` on the old
+reader; a refit may be owed.
+
+**Re-measured 2026-10-16 on the disclosed reader**, fresh deals, four
+vulnerability cells, no default changed (details in the owning docs):
+
+| Verdict | Runner, seed | Decision row now | Original rationale | Decision owed (jdh8) |
+| --- | --- | --- | --- | --- |
+| Natural overcall of 1NT: HCP floor 8 + authored advance | `ab-nt-natural-overcall-disclosed.sh`, 1792107984640740881 | **loss \| win**: plain DD loses at `ew` (−0.0035 ±0.0021 per accepted board, about −0.0009 per deal), PD and SD-PD win every cell | SD-PD half stands; plain DD fails in `ew`, never measured in August. Bucketed: the advance carries the whole gain, the floor's boards lose plain in all four cells | Bisect on a fresh seed (advance on, floor 0 against 8); proposed reversible default if the floor alone loses: floor 0, advance kept |
+| The 8:14 overcall band | `ab-nt-overcall-band-disclosed.sh`, 1792110704895967184 | 9:14 and 10:14 lose plain DD in three and four cells | "NV holds" stands, firmer (SD-PD now a clear loss for tighter bands); "vul leaning tighten" does not | Keep 8:14 (proposed) |
+| Modern negative doubles + forcing free bids | `ab-modern-negx-disclosed.sh`, 1792113860641334667 | **win \| loss**: plain wins every cell; PD loses at `ew` and `both` (lower bounds −0.0234 / −0.0231) | The PD loss follows *their* vulnerability, not ours, so July's "thin vul games of ours" named the wrong side; SD-PD now non-inferior at `both`, inconclusive at `ew` | Keep Modern as a recorded trade-off (proposed). Also: the knob changes how we read *their* negative double (13% of divergent boards opened by them, so the isolation gate cannot pass) |
+
+**Open.** The weak-two HCP knobs (self-play `ab-point-count`) still owe their
+re-measure. Thirteen more verdicts cite the sd row but stand on DD or on an
 alerted call (`nt_overcall_systems_on`'s major cells the strongest).
 
 The original finding, for the record:
@@ -582,8 +594,15 @@ from every 15–17 HCP hand with no suit shorter than two, a superset of the
 default opener; see [the filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan).
 The verdicts drawn on the strict candidate since 2026-07-12 are not re-run.
 
-- Run an unfiltered bidding-only preflight and count divergences outside
-  the raw-hand filter before interpreting an enriched result globally.
+The preflight exists (`7a43ddc5`): `examples/filter-coverage` takes two
+unfiltered arms on one seed and splits their divergent boards by every
+`bba-gen` scan, strict and `--wide-1nt`, reporting density, rejected share
+and rejected examples; the scans have one definition, `common::filters`
+(`bba-gen`'s accepted sets byte-identical). On 4,000 `--nt-fifths` boards the
+strict `--filter-1nt` missed 6 of 48 divergent boards (all 5m422/6m322), the
+wide candidate none. It counts `table_a` divergence only. `ab-lebensohl`,
+`ab-one-nt-runout` and `ab-uvu` keep their own strict `is_1nt_opener`.
+
 - For a trigger that is not a 1NT opening, use the union of candidate
   triggers or separate strata, and report the population weights and
   conditional effects together.
@@ -835,13 +854,20 @@ fingerprint plus shards, per-shard and `SEED_BASE`, compared, with source
 SHA, dirty-diff hash, JOBS and BOARDS recorded but not compared (the binary's
 bytes are the code identity, so a doc-only commit does not wedge a resume;
 comparing the SHA is a one-line change if wanted). Gate, diff and SD reports
-carry an `.inputs` stamp and are rescored when it changes. **Open:**
-`ben-gen-parallel.sh` (bare `wait`) and `ben-gen` (non-atomic writes); the
-runners that shadow `arm`/`diffpair`/`sddiff` or keep their own resume
-(`ab-ben-*`, `ab-diamond-floor`, `ab-face-corroborate`, `ab-reading-drift`,
-`ab-walk-shape`, `ab-weak-two-balancing`, `ab-reading-knobs`,
-`ab-nt-overcall-gladiator`, `ab-nt-overcall-systems-on`); `common::load_dump`
-does not compare `gen_args` across shards.
+carry an `.inputs` stamp and are rescored when it changes. **BEN and the
+remaining runners (`bf8fe233`):** `ben-gen` writes atomically and answers
+`--verify`/`--provenance`; `ben-gen-parallel.sh` waits on every worker,
+refuses a fleet whose size differs from `SHARDS`, clears stale shards and
+verifies; `ab-lib.sh` takes `GENERATOR=ben-gen`, so the `ab-ben-*`,
+binary-arm, weak-two-balancing (now honouring `JOBS`) and split-by-opening
+runners resume on the manifest and shard check; `ab-reading-knobs` keeps its
+layout with the same checks. `load_dump` rejects shard dirs whose `gen_args`
+differ beyond seed/output/count/port/start-board/note (none of 2,723 scanned
+here and on dl02 did). Results dirs without `arm.meta` now refuse to resume
+without `FORCE_REUSE=1`. **Open:** the BEN servers stay outside the
+fingerprint (the runners' `--note` records the conf's sha256); excluding
+`--note` from the `gen_args` check lets a changed tier-conf hash pass (the
+tier itself is checked by label).
 
 The original finding, for the record:
 [ab-lib.sh](../scripts/ab-lib.sh), `arm`, considers an arm complete by shard
