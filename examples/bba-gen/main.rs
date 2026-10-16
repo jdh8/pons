@@ -35,7 +35,7 @@
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, Seat, Strain};
 use pons::bidding::Bidder;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::DoubleShape;
@@ -46,10 +46,11 @@ use std::ffi::{CString, c_int};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
+use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, floor_card, hand_hcp,
-    seat_floor, seat_floor_vs, seat_to_act,
+    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, floor_card, seat_floor,
+    seat_floor_vs, seat_to_act,
 };
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -2654,72 +2655,6 @@ fn label_overrides(overrides: &[(CString, c_int)]) -> String {
 // The BBA oracle (`BbaOracle`) and the `&dyn Bidder` match drivers
 // (`next_call`/`bid_out`) now live in `common::oracle`, shared with `ben-gen`.
 
-// ---------------------------------------------------------------------------
-// The 1NT pre-filters that shape which boards are generated
-// ---------------------------------------------------------------------------
-
-/// Balanced (no singleton/void, at most one doubleton) with 15-17 HCP — a strict
-/// 1NT-opener gate for the cheap `--filter-1nt` pre-filter.
-fn is_1nt_opener(hand: Hand) -> bool {
-    let len = Suit::ASC.map(|s| hand[s].len());
-    let balanced = len.iter().all(|&l| l >= 2) && len.iter().filter(|&&l| l == 2).count() <= 1;
-    balanced && (15..=17).contains(&hand_hcp(hand))
-}
-
-/// 15–17 HCP with no suit shorter than two: a superset of the default
-/// `NotrumpShape::Wide6322` opener, for `--filter-multi-slam` and
-/// `--filter-lebensohl-raise`.
-///
-/// [`is_1nt_opener`] stops at one doubleton, so it drops the 5m422 and 6m322
-/// hands the default opens 1NT, and those are the shapes that upgrade a point.
-/// This also admits the long-major 5422/6322 and the 7222 that open a suit:
-/// loose is the safe direction for a *scan* (see `--filter-landy`).
-/// [`is_1nt_opener`] stays strict because the older filters' persisted seeds
-/// must keep reproducing their accepted sets.
-fn is_wide_1nt_opener(hand: Hand) -> bool {
-    Suit::ASC.iter().all(|&s| hand[s].len() >= 2) && (15..=17).contains(&hand_hcp(hand))
-}
-
-/// Landy-shaped: 4+ in both majors with the longer 5+, and overcall values —
-/// the raw-hand twin of `landy_2c`'s `five_four(♥, ♠) & points(..)`
-/// (`src/bidding/american/defense/nt_landy.rs`), for `--filter-landy`.
-///
-/// HCP rather than upgraded points, and 8+ uncapped, because this gates a
-/// *scan*, not a call: it must not reject a hand the opponents' own band would
-/// overcall on.  See `--filter-landy` for why loose is the safe direction.
-fn is_landy_shaped(hand: Hand) -> bool {
-    let (hearts, spades) = (hand[Suit::Hearts].len(), hand[Suit::Spades].len());
-    hearts.min(spades) >= 4 && hearts.max(spades) >= 5 && hand_hcp(hand) >= 8
-}
-
-/// Preempt-shaped: a seven-card suit and no more than 12 HCP — the raw-hand
-/// twin of BBA's natural three-level overcall of a 1NT opening, for
-/// `--filter-preempt`.
-///
-/// HCP rather than upgraded points, and no floor, because this gates a *scan*,
-/// not a call.  See `--filter-preempt` for why loose is the safe direction.
-fn is_preempt_shaped(hand: Hand) -> bool {
-    Suit::ASC.iter().any(|&suit| hand[suit].len() >= 7) && hand_hcp(hand) <= 12
-}
-
-/// Multi-shaped: a six-card major, for `--filter-multi-slam`.  No HCP gate —
-/// see that flag for why.
-fn is_multi_shaped(hand: Hand) -> bool {
-    hand[Suit::Hearts].len() >= 6 || hand[Suit::Spades].len() >= 6
-}
-
-/// A six-card minor with 9+ HCP, for `--filter-multi-slam`: looser than the
-/// `points(13..) & len(minor, 6..)` slam try it stands in for.
-fn is_minor_slam_shaped(hand: Hand) -> bool {
-    (hand[Suit::Clubs].len() >= 6 || hand[Suit::Diamonds].len() >= 6) && hand_hcp(hand) >= 9
-}
-
-/// The weak heart sign-off hand, for `--filter-lebensohl-raise`: looser than
-/// the relay's `hcp(6..)` floor and its weak ceiling.
-fn is_weak_heart_signoff(hand: Hand) -> bool {
-    hand[Suit::Hearts].len() >= 5 && hand_hcp(hand) <= 11
-}
-
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
 /// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
@@ -3897,59 +3832,21 @@ fn main() -> anyhow::Result<()> {
     // until `count` deals carry a 1NT-opener candidate.
     let mut boards: Vec<Board> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
-    let candidate: fn(Hand) -> bool = if args.wide_1nt {
-        is_wide_1nt_opener
-    } else {
-        is_1nt_opener
-    };
+    // The armed `--filter-*` scans; a deal is kept only when all accept it.
+    let scans: Vec<Filter> = [
+        (args.filter_landy, Filter::Landy),
+        (args.filter_preempt, Filter::Preempt),
+        (args.filter_multi_slam, Filter::MultiSlam),
+        (args.filter_lebensohl_raise, Filter::LebensohlRaise),
+        (args.filter_1nt, Filter::OneNt),
+    ]
+    .into_iter()
+    .filter_map(|(armed, scan)| armed.then_some(scan))
+    .collect();
     while boards.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
-        // One paired scan, not two independent ones: `--filter-landy` must
-        // find a single seat that is both the 1NT candidate *and* has a
-        // Landy-shaped LHO, or it would accept deals where two unrelated seats
-        // satisfy the halves.  LHO is dealer-independent table geometry, which
-        // matters because `dealer` is only assigned below.
-        if args.filter_landy
-            && !Seat::ALL
-                .iter()
-                .any(|&seat| candidate(deal[seat]) && is_landy_shaped(deal[seat.lho()]))
-        {
-            continue;
-        }
-        // Same paired scan as `--filter-landy`: one seat must be both the 1NT
-        // candidate and hold the preempt-shaped LHO.
-        if args.filter_preempt
-            && !Seat::ALL
-                .iter()
-                .any(|&seat| candidate(deal[seat]) && is_preempt_shaped(deal[seat.lho()]))
-        {
-            continue;
-        }
-        // Same paired scan, three seats: the 1NT candidate, its Multi-shaped
-        // LHO and its partner, the responder.
-        if args.filter_multi_slam
-            && !Seat::ALL.iter().any(|&seat| {
-                is_wide_1nt_opener(deal[seat])
-                    && is_multi_shaped(deal[seat.lho()])
-                    && is_minor_slam_shaped(deal[seat.partner()])
-            })
-        {
-            continue;
-        }
-        // Same paired scan, three seats: the 1NT candidate with a heart fit,
-        // its spade-overcalling LHO and its partner, the weak responder.
-        if args.filter_lebensohl_raise
-            && !Seat::ALL.iter().any(|&seat| {
-                is_wide_1nt_opener(deal[seat])
-                    && deal[seat][Suit::Hearts].len() >= 3
-                    && deal[seat.lho()][Suit::Spades].len() >= 5
-                    && is_weak_heart_signoff(deal[seat.partner()])
-            })
-        {
-            continue;
-        }
-        if args.filter_1nt && !Seat::ALL.iter().any(|&seat| candidate(deal[seat])) {
+        if !scans.iter().all(|scan| scan.accepts(&deal, args.wide_1nt)) {
             continue;
         }
         let dealer = Seat::ALL[boards.len() % 4];

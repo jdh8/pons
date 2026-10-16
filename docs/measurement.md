@@ -679,6 +679,21 @@ example, against the shipped `NotrumpShape`), not against its usual case,
 and state an uncovered slice with the verdict: it is unmeasured, not
 non-inferior. Per-fired figures do not recover it.
 
+Measure coverage before reading an enriched verdict globally: bid both arms
+**unfiltered** on one seed (bidding only, no solver), then
+`filter-coverage` counts the boards whose `table_a` auction (and contract)
+moved and splits them by every `--filter-*` scan, strict and `--wide-1nt`,
+with the rejected share and examples. The scans are `common::filters`, the
+code `bba-gen` draws through, so "accepted" means `bba-gen` would keep it.
+On 4,000 boards of `--nt-fifths` against the default, strict `--filter-1nt`
+rejected 6 of 48 divergent boards (12.5%: five 5m422 and one 6m322
+opener) and the wide candidate none.
+
+```text
+cargo run --release --features serde --example filter-coverage -- on/ off/ \
+  --filter lebensohl-raise --examples 5
+```
+
 ## Enriched probing — when the trigger is too rare for random deals
 
 A random-deal A/B prices a change by burying it in a million boards it cannot

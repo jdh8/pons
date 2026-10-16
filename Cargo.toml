@@ -166,6 +166,14 @@ path = "examples/deal-overlap/main.rs"
 required-features = ["serde"]
 test = true
 
+# Bidding-only coverage preflight: of two unfiltered arms' divergent boards,
+# how many each `bba-gen --filter-*` scan would keep (research-method-review §5).
+[[example]]
+name = "filter-coverage"
+path = "examples/filter-coverage/main.rs"
+required-features = ["serde"]
+test = true
+
 [[example]]
 name = "probe-doubling"
 path = "examples/probe-doubling/main.rs"
