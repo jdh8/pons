@@ -27,6 +27,17 @@
 #     the reversal `natural_overcall_hcp_floor = 0` (advance kept) for jdh8.
 #   - Any other reading (e.g. loss | win again) is flagged, not applied.
 #
+# VERDICT (2026-10-16, code fded92a7, SEED_BASE 1792119766568383243, 393,216
+# accepted boards/arm/vul, density 0.252942, gate 0 foreign, leader reading
+# disclosed).  floor8 − floor0, IMPs/accepted board, plain / PD / SD-PD:
+#   none  -0.0074 ±0.0015  -0.0051 ±0.0018  -0.0058 ±0.0019   (3257 fired)
+#   ns    -0.0071 ±0.0017  -0.0044 ±0.0020  -0.0051 ±0.0020   (3234)
+#   ew    -0.0076 ±0.0019  -0.0056 ±0.0022  -0.0066 ±0.0023   (3251)
+#   both  -0.0076 ±0.0020  -0.0047 ±0.0024  -0.0060 ±0.0024   (3207)
+# Loss on every scorer in every cell (plain SD too): the reversal condition
+# is met.  FLAGGED for jdh8, nothing changed: proposed default
+# `natural_overcall_hcp_floor = 0`, advance kept (docs/defensive-overcalls.md).
+#
 # Resumable; SEED_BASE persists in $R/nt-overcall-floor-bisect.seed.  Iron
 # rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-nt-overcall-floor-bisect.sh RESULTS_DIR}

@@ -803,6 +803,38 @@ pre-registration held `bisect` in reserve for.
 > reads a plain loss, set `natural_overcall_hcp_floor = 0` and keep the
 > advance on. The knob value is the reversal.
 
+### The floor on its own: bisect (2026-10-16)
+
+[`scripts/ab-nt-overcall-floor-bisect.sh`](../scripts/ab-nt-overcall-floor-bisect.sh),
+pre-registered (`e23c935a`) before any number was read: `floor8` (shipped)
+against `floor0` (`--ns-nt-overcall-hcp-floor 0`), the advance on in both,
+SEED_BASE `1792119766568383243`, `--filter-1nt --wide-1nt`, 393,216 accepted
+boards per arm per cell, density 0.252942, gate 0 foreign in every cell,
+leader reading `disclosed`.
+
+| cell | fired | plain DD | PD | plain SD | SD-PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| none | 3257 | −0.0074 ±0.0015 loss | −0.0051 ±0.0018 loss | −0.0075 ±0.0017 loss | −0.0058 ±0.0019 loss |
+| ns (we vul) | 3234 | −0.0071 ±0.0017 loss | −0.0044 ±0.0020 loss | −0.0073 ±0.0018 loss | −0.0051 ±0.0020 loss |
+| ew (we NV) | 3251 | −0.0076 ±0.0019 loss | −0.0056 ±0.0022 loss | −0.0082 ±0.0020 loss | −0.0066 ±0.0023 loss |
+| both | 3207 | −0.0076 ±0.0020 loss | −0.0047 ±0.0024 loss | −0.0082 ±0.0021 loss | −0.0060 ±0.0024 loss |
+
+IMPs per accepted board, `floor8 − floor0`; about −0.0019 per random board
+plain, −0.6 to −0.9 IMPs per fired board. **The floor loses on every scorer
+in every cell**, so `floor0` over `floor8` is win | win. The worst boards are
+the light overcall's obstruction made visible to DD: over `1NT - 2♣` or a
+transfer, the 2-level overcall pushes them out of their structure into a
+worse contract (`1NT 2♦ 3NT` against `1NT - 2♣ - 2♦ - 3♠ X - 3NT X`), and
+DD prices it because their contract actually moves.
+
+> **The pre-registered reversal condition is met; flagged for jdh8, nothing
+> changed.** Proposed default: `defense.natural_overcall_hcp_floor = 0` with
+> the advance kept on. One seed; the earlier package run (SEED_BASE
+> `1792107984640740881`) agrees in direction (its M1 slice lost plain in
+> all four cells). Before flipping, decide whether a 0-HCP floor is the
+> natural-overcall style wanted at the table, or whether an intermediate
+> floor (4–6) should be swept on a fresh seed.
+
 ### Follow-ups this A/B opened
 
 - **`(1NT) 2x (X)` is still the floor; the census below closes widening it as
