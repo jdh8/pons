@@ -45,7 +45,7 @@ verdict vs the floor** — then read the action:
 - **Wash-era rows.** Verdicts recorded before 2026-10-14 as "wash", "never
   loses" or "CI ⊇ 0" are not non-inferiority proofs. The rows #7 re-measured
   say so in place; the rest are inventoried in
-  [research-method-review.md](research-method-review.md#issue-7-non-inferiority-inventory).
+  [archive/research-method-review-closed.md](archive/research-method-review-closed.md#issue-7-non-inferiority-inventory).
 - **Engine** rows (inference/floor/evaluator toggles) are not a book of calls;
   they read or settle. They are judged by their measured sign, kept default-on
   when they help, and never carry a natural/artificial verdict.

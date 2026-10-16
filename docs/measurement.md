@@ -14,10 +14,12 @@ is indexed in [bidding-options.md](bidding-options.md) — one row per `set_*`
 option with its A/B number and ship/opt-in decision.
 
 Open corrections from the 2026-10-14 review are tracked in
-[research-method-review.md](research-method-review.md): issues #6–#8 cover
-deal independence, non-inferiority and the IMP comparison target; the remaining
-entries cover disclosure, population coverage, sampling, SD calibration and
-experiment identity. Read the affected entry before relying on a historical
+[research-method-review.md](research-method-review.md): disclosure, population
+coverage, asymmetric vulnerability, sampling, SD calibration, dataset and
+experiment identity, and the decisions still owed. Issues #6–#9 (deal
+independence, non-inferiority, the IMP comparison target, cell counts) are
+closed; their ledgers are in
+[archive/research-method-review-closed.md](archive/research-method-review-closed.md). Read the affected entry before relying on a historical
 verdict or designing its confirmation.
 
 Mechanics that churn (exact CLI flags, shard counts) are documented where they
@@ -601,7 +603,7 @@ naturalness, bridge theory, or engineering cost — but the ledger must say so:
 the basis, the plain-DD interval, and the loss the decision accepts (its
 lower bound). Never write such a decision up as "proven no loss" or "a
 non-loss". The defaults shipped on a wash before 2026-10-14 are inventoried
-in [research-method-review.md](research-method-review.md#issue-7-non-inferiority-inventory).
+in [archive/research-method-review-closed.md](archive/research-method-review-closed.md#issue-7-non-inferiority-inventory).
 
 **Domain addendum — name the knob's direction before you read a row**
 (2026-08-12, paid for by the competitive accountant). Every row above assumes

@@ -1,6 +1,7 @@
 #!/bin/sh
-# ab-non-inferiority.sh — the issue #7 re-measures (docs/research-method-review.md
-# § "Issue #7: non-inferiority inventory").  Five shipped defaults whose plain-DD
+# ab-non-inferiority.sh — the issue #7 re-measures
+# (docs/archive/research-method-review-closed.md § "Issue #7: non-inferiority
+# inventory").  Five shipped defaults whose plain-DD
 # lower bound reached −δ (δ = 0.002 IMPs/board) or was never recorded, each
 # re-run vs BBA on fresh deals at a board count declared here, before any data:
 #

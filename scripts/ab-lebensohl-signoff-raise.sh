@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-lebensohl-signoff-raise.sh — `competition.lebensohl_signoff_raise` on
 # against off, head to head
-# (docs/research-method-review.md § Issue #9).
+# (docs/archive/research-method-review-closed.md § Issue #9).
 #
 #   JOBS=96 BOARDS=192000 BBA_GEN=$HOME/.local/opt/glibc-2.36/bba-gen \
 #       DDSS_THREADS=96 setsid nohup scripts/idle-run.sh \

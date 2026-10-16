@@ -351,7 +351,8 @@ pub struct CompetitionKnobs {
     /// non-inferior | win, so `24` ships there, and against off it is win |
     /// non-inferior with SD-PD a win.  Red is PD's loss | win artifact row, so
     /// red keeps `23`: win | non-inferior against off on both seeds, SD-PD a
-    /// win, a recorded trade-off (docs/research-method-review.md § Issue #9).
+    /// win, a recorded trade-off
+    /// (docs/archive/research-method-review-closed.md § Issue #9).
     /// Both seeds drew balanced openers only; a third, widened to the
     /// 5m422/6m322 1NT openers, confirmed both colours.
     pub lebensohl_signoff_raise: Option<(u8, u8)>,
@@ -4392,7 +4393,8 @@ pub struct RebidKnobs {
     /// positive.  The A/B builds a baseline arm with it off.
     /// The fresh vs-BBA re-measure (2026-10-14, #7) **loses** on every DD
     /// cell (plain −0.0003 ±0.0003, PD −0.0009 ±0.0003 both-vul); the trace
-    /// blames responder's `4♠` over a 5-2 heart fit (`research-method-review.md`).
+    /// blames responder's `4♠` over a 5-2 heart fit
+    /// (`archive/research-method-review-closed.md`).
     /// With the reverse floored at 15 HCP and five hearts (2026-10-15) it is
     /// non-inferior vs off on both scorers (plain +0.0000 ±0.0002 / +0.0002
     /// ±0.0002, PD −0.0002 ±0.0002 / −0.0001 ±0.0003) and wins SD-PD
@@ -4411,7 +4413,8 @@ pub struct RebidKnobs {
     /// with three spades and two hearts bids `4♠` into a 4-3 fit when the
     /// 5-2 heart fit is on offer; the #7 trace of
     /// [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter] finds −733 plain
-    /// IMPs there, more than its −641 total (`research-method-review.md`).
+    /// IMPs there, more than its −641 total
+    /// (`archive/research-method-review-closed.md`).
     /// On, `4♥` takes 2+ hearts and keeps its weight above `4♠`.  Opt-in
     /// `--ns-forcing-nt-reverse-heart-game` in `bba-gen`.
     ///
@@ -4429,8 +4432,8 @@ pub struct RebidKnobs {
     /// the 4-3 spade game or `3NT` instead of hearts: −451 plain IMPs on 150
     /// boards in the #7 trace of
     /// [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter]
-    /// (`research-method-review.md`).  On, the reverse takes exactly five
-    /// hearts and the 6-4 rebids `2♥`.  Alone it wins vs the old reverse
+    /// (`archive/research-method-review-closed.md`).  On, the reverse
+    /// takes exactly five hearts and the 6-4 rebids `2♥`.  Alone it wins vs the old reverse
     /// (plain +0.0002 / +0.0003, PD +0.0004 / +0.0005 none/both) but still
     /// loses PD to no reverse; with
     /// [`forcing_nt_reverse_hcp_floor`][Self::forcing_nt_reverse_hcp_floor]
@@ -4443,8 +4446,8 @@ pub struct RebidKnobs {
     /// counts length, so a 13–14 HCP 5-4 reverses and pushes a minimum
     /// responder to the three level: −539 plain IMPs on 330 boards in the #7
     /// trace of [`forcing_nt_two_suiter`][Self::forcing_nt_two_suiter]
-    /// (`research-method-review.md`).  On, the reverse also needs 15+ HCP,
-    /// and the lighter hand rebids naturally.  With
+    /// (`archive/research-method-review-closed.md`).  On, the reverse
+    /// also needs 15+ HCP, and the lighter hand rebids naturally.  With
     /// [`forcing_nt_reverse_five_hearts`][Self::forcing_nt_reverse_five_hearts],
     /// vs the old reverse (1,228,800 boards per cell vs BBA): plain +0.0003
     /// ±0.0001 / +0.0004 ±0.0002, PD +0.0006 / +0.0007, SD-PD +0.0003 /
@@ -4495,8 +4498,8 @@ pub struct RebidKnobs {
     /// invitational `2♠` after the relay (1.2) outrank the 5♠4♥ `2♥` (1.05 /
     /// 1.1), so a 5-4 or 5-5 responder never shows hearts and the 4-4 or 5-4
     /// heart fit is lost — the #7 trace of the longer-major response
-    /// (`research-method-review.md`).  On, a hand with 4+ hearts and at most
-    /// five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
+    /// (`archive/research-method-review-closed.md`).  On, a hand with
+    /// 4+ hearts and at most five spades bids `2♥` in both rounds, and opener answers the weak `2♥`:
     /// `2♠` with three spades and a doubleton heart (three hearts too under
     /// [`Self::xyz_weak_spade_preference`]), else pass.
     pub xyz_second_major_first: bool,

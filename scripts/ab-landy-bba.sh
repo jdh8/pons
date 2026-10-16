@@ -42,7 +42,7 @@
 # wash is no proof, and "leaning positive" is not a lower bound above −δ.  Read
 # a re-run's verdict off ab-dump-sd's `Verdict` lines (docs/measurement.md §
 # The decision table); the 2026-08-15 ship's evidence status is in
-# docs/research-method-review.md § Issue #7 non-inferiority inventory.
+# docs/archive/research-method-review-closed.md § Issue #7.
 #
 # Pool three seeds: run this script three times with R = ab-results/landy-bba,
 # …-v2, …-v3 (each dir keeps its own persistent seed).  Iron rule: do NOT

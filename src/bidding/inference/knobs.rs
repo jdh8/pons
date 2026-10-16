@@ -928,8 +928,8 @@ pub struct ReadingProfile {
     /// non-inferior on every scorer (plain DD +0.0009 ±0.0006 / +0.0003
     /// ±0.0008, PD +0.0005 / +0.0000 none/both); the PD loss it showed
     /// without that repair was XYZ's, not this response's
-    /// (`research-method-review.md`).  The M6.4 control-bid classifier reads
-    /// the same discipline at classify time: the response rule, the rebid
+    /// (`archive/research-method-review-closed.md`).  The M6.4
+    /// control-bid classifier reads the same discipline at classify time: the response rule, the rebid
     /// structure and the classifier move together. Read at build time too
     /// (`american/responses/longer_major.rs` picks the selector pair off it),
     /// which is why the response book takes it from here rather than keeping

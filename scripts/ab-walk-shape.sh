@@ -45,8 +45,9 @@
 # That bar predates the non-inferiority margin (2026-10-14, #7): a plain wash
 # is no proof of "non-loss".  A re-run reads the worst cell's `Verdict` lines
 # (non-inferior = lower bound above −δ, docs/measurement.md § The decision
-# table); the recorded ship's status is in docs/research-method-review.md §
-# Issue #7 non-inferiority inventory.
+# table); the recorded ship's status is in
+# docs/archive/research-method-review-closed.md § Issue #7 non-inferiority
+# inventory.
 #
 # Resumable through ab-lib.sh: an arm resumes only on a matching arm.meta
 # manifest (its copied binary's bytes, flags and deal set) and verified shards,

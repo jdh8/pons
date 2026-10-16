@@ -237,6 +237,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The research-method review keeps only open work (2026-10-16).**
+  `docs/research-method-review.md` drops from about 1,050 lines to 430: the
+  closed #7 non-inferiority inventory and #9 cell-count audit, and the finished
+  parts of §4–§7 and §11, move verbatim to
+  `docs/archive/research-method-review-closed.md`. What stays: the three
+  decisions owed (Modern negative doubles, the 8:14 overcall band, the deal-bank
+  separation), the strict-1NT-scan rule and runner classification, and each
+  section's open items. Citations in `docs/`, `scripts/` and `src/` doc comments
+  follow the move. No code or default changed.
+
 - **Our natural two-level overcall of their 1NT has no HCP floor again
   (2026-10-16).** `defense.natural_overcall_hcp_floor` goes from `8` to `0`, so
   `(1NT) 2x` is back to a five-card suit and `points(8..=14)`, with 6- and

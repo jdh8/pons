@@ -18,10 +18,10 @@ Shipped, refuted and closed items are archived verbatim in
 
 Research-method follow-ups from 2026-10-14 are recorded in
 [research-method-review.md](research-method-review.md), with evidence, priority
-and completion checklists. Issues [#6](https://github.com/jdh8/pons/issues/6),
-[#7](https://github.com/jdh8/pons/issues/7) and
-[#8](https://github.com/jdh8/pons/issues/8) are the first three corrections;
-the remaining findings stay in that ledger until their work starts. Check the
+and the decisions owed. Issues [#6](https://github.com/jdh8/pons/issues/6)–[#9](https://github.com/jdh8/pons/issues/9)
+are closed and archived in
+[archive/research-method-review-closed.md](archive/research-method-review-closed.md);
+the remaining findings stay in the live ledger until their work is done. Check the
 affected measurement assumptions before spending another confirmation run.
 
 ## 1. Floor junk-action rails — closed 2026-09-26

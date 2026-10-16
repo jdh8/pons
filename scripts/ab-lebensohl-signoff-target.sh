@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-lebensohl-signoff-target.sh — `competition.lebensohl_signoff_raise` at a
 # combined target of `24` against the shipped `23` and against `off`
-# (docs/research-method-review.md § Issue #9, the follow-up to
+# (docs/archive/research-method-review-closed.md § Issue #9, the follow-up to
 # scripts/ab-lebensohl-signoff-raise.sh).
 #
 #   JOBS=96 BOARDS=384000 BBA_GEN=$HOME/.local/opt/glibc-2.36/bba-gen \

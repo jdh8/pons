@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-2d-multi-slam-floor.sh — `competition.multi_minor_slam_try` at `15` (the
 # shipped default) against `13`, head to head (docs/minor-transfer-slam.md
-# Round 2; docs/research-method-review.md § Issue #9).
+# Round 2; docs/archive/research-method-review-closed.md § Issue #9).
 #
 #   JOBS=96 BOARDS=192000 BBA_GEN=$HOME/.local/opt/glibc-2.36/bba-gen \
 #       DDSS_THREADS=96 setsid nohup scripts/idle-run.sh \
