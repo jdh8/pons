@@ -63,6 +63,10 @@ fresh-seed A/Bs under [measurement.md](measurement.md).
 shards, but this snapshot has 32 × 6,400 = 204,800 boards per arm and
 `scripts/anchor.sh` uses `nproc`. The wording is corrected to the observed
 series size; the runner and seed protocol are unchanged.
+Since 2026-10-16 the shard count and size are series constants like the
+seed: `anchor.sh` reads them from `ab-results/anchor/shards` (32) and
+`per-shard` (6400) and refuses a `JOBS` or `PER_SHARD` that disagrees, so a
+re-anchor on a bigger box deals the same boards.
 
 Since the floor swap (2026-07-19) `american()` floors off-book with the
 BBA-distilled net, so the bucket *history* is on the `american-instinct` arm.

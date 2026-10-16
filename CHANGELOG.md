@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`scripts/anchor.sh` pins the series' shard count (2026-10-16).** `JOBS` is
+  `bba-gen-parallel.sh`'s shard count, so an anchor run on a box whose `nproc`
+  differs from 32 dealt a different board set: unpaired with the last snapshot,
+  missing the DD cache (on this 640-thread box, 4.1M boards per arm per vul).
+  The shard count and size now live beside the seed (`shards`, `per-shard`);
+  a disagreeing `JOBS`/`PER_SHARD` exits, and the start line logs the real
+  count instead of `nproc`. Anchor deals unchanged.
+
 - **`ab-dump-sd`'s blind leader now reads our unalerted calls (2026-10-16).**
   East–West read North–South's calls through the plain partnership, which
   decodes the opponents' calls only when alerted, so an unalerted natural call
@@ -24,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the natural overcall of 1NT (HCP floor 8 + advance) now reads loss | win,
   plain DD losing at `ew` with the advance carrying the gain; the 8:14 band
   holds; Modern negative doubles read win | loss, PD's loss following their
-  vulnerability. Decisions owed are in `docs/research-method-review.md` §4.
+  vulnerability. jdh8 kept 8:14 and Modern (a recorded trade-off) on 2026-10-16.
   Default system byte-identical.
 
 - **More re-measures, no default changed (2026-10-16).** The 1NT natural

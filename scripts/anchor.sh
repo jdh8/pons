@@ -27,7 +27,31 @@ mkdir -p "$R"
 # "Rules the series taught" #2, control at HEAD).
 SHA=$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo -dirty)
 SNAP="$R/$(date -u +%F)-$SHA"
-PER_SHARD=${PER_SHARD:-6400}
+
+# The series' deal set is SHARDS × PER_SHARD boards per arm per vul, shard i
+# dealt from SEED_BASE + i, so both are series constants like the seed:
+# recorded on first use, read back on every re-anchor.  JOBS is
+# bba-gen-parallel's shard count, not just its parallelism; a different JOBS
+# deals different boards, unpaired with the last snapshot and missing the DD
+# cache.  A series whose seed predates these files must have them written by
+# hand (the canonical one: 32 and 6400).
+pin() { # pin NAME FILE DEFAULT [OVERRIDE] — echo the series value of NAME
+    if [ -s "$2" ]; then
+        if [ -n "${4:-}" ] && [ "$4" != "$(cat "$2")" ]; then
+            echo "anchor.sh: $1=$4, but the series in $R was dealt with $1=$(cat "$2"); unset $1 or use a fresh series dir" >&2
+            exit 1
+        fi
+    elif [ -s "$R/seed" ]; then
+        echo "anchor.sh: $R has a seed but no $2; write the series' $1 there (the canonical series: shards 32, per-shard 6400)" >&2
+        exit 1
+    else
+        echo "${4:-$3}" >"$2"
+    fi
+    cat "$2"
+}
+JOBS=$(pin JOBS "$R/shards" "$(nproc)" "${JOBS:-}")
+PER_SHARD=$(pin PER_SHARD "$R/per-shard" 6400 "${PER_SHARD:-}")
+export JOBS
 
 cargo build --release --features serde \
     --example bba-gen --example bba-decompose --example ab-dump-diff
@@ -46,7 +70,7 @@ if [ ! -s "$R/seed" ]; then echo $(date +%s%N) >"$R/seed"; fi
 SEED_BASE=$(cat "$R/seed")
 export SEED_BASE
 
-log "=== anchor start, sha=$SHA, SEED_BASE=$SEED_BASE, $(nproc)x$PER_SHARD bd/arm/vul -> $SNAP"
+log "=== anchor start, sha=$SHA, SEED_BASE=$SEED_BASE, ${JOBS}x$PER_SHARD bd/arm/vul -> $SNAP"
 for vul in none both; do
     dir="$SNAP/$vul"
     verified "$dir" && { log "skip $dir (complete, verified)"; continue; }
