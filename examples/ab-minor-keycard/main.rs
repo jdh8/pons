@@ -30,7 +30,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, bid_out, mean_with_ci, seeded_deals, verdict_line};
+use common::{Board, TableReader, bid_out, mean_with_ci, seeded_deals, verdict_line};
 
 /// Measure the plain-4NT minor keycard: an A/B duplicate match
 #[derive(Parser)]
@@ -62,6 +62,13 @@ struct Args {
     /// Seed for the sd world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 sd reader: one book reads every seat, so
+    /// the blind leader and declarer see only the other pair's *alerted*
+    /// calls.  Default: each table's pairs read with their own books, the
+    /// other pair declared as the opponent (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -136,26 +143,43 @@ fn main() {
         }
     }
 
-    // The sd-declarer playout row: reading uses the feature partnership for both
-    // tables (the knob only gates book *nodes*; range reading is shared).
+    // The sd-declarer playout row.
     let swings_sd = args.sd.then(|| {
+        // Table A seats the feature pair North–South, table B East–West; each
+        // pair reads with the other declared as its opponent, so the blind
+        // leader and declarer decode every call off its authoring rule.  The
+        // legacy reader read every seat through the feature book (the knob only gates
+        // book *nodes*).
+        let [reader_a, reader_b] = if args.legacy_leader_reading {
+            [
+                TableReader::self_play(&feature, &feature, true),
+                TableReader::self_play(&feature, &feature, true),
+            ]
+        } else {
+            [
+                TableReader::self_play(&feature, &baseline, false),
+                TableReader::self_play(&baseline, &feature, false),
+            ]
+        };
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
         let mut swings = [vec![0i64; args.count], vec![0i64; args.count]];
         for &index in &divergent {
             let board = &boards[index];
-            let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
-                common::sd_declarer_ns_score(
-                    auction,
-                    board.dealer,
-                    &board.deal,
-                    &feature,
-                    args.vulnerability,
-                    &mut rng,
-                    args.sd_worlds,
-                    args.sd_worlds,
-                )
-                .playout
-            });
+            let [a, b] = [(&board.table_a, &reader_a), (&board.table_b, &reader_b)].map(
+                |(auction, reader)| {
+                    common::sd_declarer_ns_score(
+                        auction,
+                        board.dealer,
+                        &board.deal,
+                        reader,
+                        args.vulnerability,
+                        &mut rng,
+                        args.sd_worlds,
+                        args.sd_worlds,
+                    )
+                    .playout
+                },
+            );
             for (k, swing) in swings.iter_mut().enumerate() {
                 swing[index] = imps(a[k] - b[k]);
             }
@@ -167,6 +191,12 @@ fn main() {
         "\n=== Minor-keycard A/B: {} boards, vulnerability {}, seed {} ===",
         args.count, args.vulnerability, args.seed,
     );
+    if args.sd {
+        println!(
+            "leader reading: {}",
+            TableReader::self_play_mode(args.legacy_leader_reading)
+        );
+    }
     println!(
         "Divergent boards: {} of {} ({:.4}%)",
         divergent.len(),

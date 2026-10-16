@@ -329,13 +329,32 @@ alerted negative double reaches both leaders on today's reader; its July
 inertness is not reproduced and probably came from the pre-2026-08-09 decode
 contexts, which read thread-live knobs instead of the arm's pinned ones.
 
-The fix is in the harness only (`common::DumpReader`): an East–West reader
+The fix is in the harness only (`common::TableReader`): an East–West reader
 declares our own partnership as its opponent (`Partnership::with_opponents`),
 so every North–South call decodes off its authoring rule, alerted or not;
 North–South readers are unchanged, and the default system's bidding is
 byte-identical. The report prints a `leader reading:` line naming the mode, and
 `--legacy-leader-reading` reproduces the old numbers. **An `sd.*.txt` without a
 `leader reading:` line is legacy.**
+
+The self-play sd harnesses read the same way and were fixed the same day:
+`ab-nt-defense-matrix`, `ab-point-count`, `ab-fuzzy-strength`,
+`ab-dnf-sd-lead`, `ab-meckstroth-2nt`, `ab-notrump-minors`,
+`ab-forcing-nt-two-suiter`, `ab-size-ask-accept`, `ab-size-ask-eight`,
+`ab-nt-splinter`, `ab-one-nt-runout`, the sd-declarer rows of `ab-kickback`
+(live and `--rescore`), `ab-minor-keycard` and `ab-slam-entry`, and
+`probe-sd-calibration`. Both pairs are ours there, so each pair reads with the
+*other* pair's partnership declared as its opponent
+(`TableReader::self_play`): the arm-pure tables declare the arm's own book, the
+duplicate matches the opposing arm's. Six of them used to read every seat
+through one fixed book (`ab-point-count` and `ab-fuzzy-strength` the default
+book, `ab-one-nt-runout` and `ab-slam-entry` the baseline, `ab-kickback` and
+`ab-minor-keycard` the feature); they now read each table with its own
+pairs' books. Each prints `leader reading:` and takes
+`--legacy-leader-reading`, which restores the old reader exactly (the
+regression test is `examples/ab-point-count/tests.rs`: the candidate's
+unalerted weak-two HCP band reaches the leader, and the legacy leader reads
+`5..10` points at any HCP under every band).
 
 Consequences: legacy verdicts from dump rescores **stand as treatment effects**
 (both arms were read identically, and the arms still differ in the auctions and
@@ -957,7 +976,9 @@ plain/PD; `ab-point-count --sd` is the `.pdd`-bank harness. **Every one of them
 now prints the SD pair** (plain and perfect-defense) from a single trick count —
 `common::report_sd_brackets` does the dual print, and
 `common::sd_declarer_ns_score` returns `[plain, pd]`; wire both when adding SD
-to another harness. `probe-sd-calibration` is the bracket's own calibration
+to another harness, and read it through `common::TableReader` (every sd
+harness prints a `leader reading:` line; one without it is legacy).
+`probe-sd-calibration` is the bracket's own calibration
 (per-level make-rates vs Pavlicek). The playout is sequential per board (no
 cross-board pooling), so reserve it for divergent sets.
 

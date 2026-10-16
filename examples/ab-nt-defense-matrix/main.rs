@@ -22,8 +22,12 @@
 //! table vs 60.5% double-dummy — the DD defender always finds the killing
 //! lead): the opening leader chooses their lead *single-dummy* via
 //! [`single_dummy_lead_tricks`] — maximizing mean defensive tricks over worlds
-//! sampled consistent with the auction as the leader's own book reads it — and
-//! play thereafter is double-dummy on the actual deal.  Under this scorer an
+//! sampled consistent with the auction as the leader's own book reads it, with
+//! the cell's other pair declared as its opponent so every call of the
+//! declaring side decodes off its authoring rule ([`common::TableReader`];
+//! `--legacy-leader-reading` restores the pre-2026-10-16 reader, which saw only
+//! their alerted calls) — and play thereafter is double-dummy on the actual
+//! deal.  Under this scorer an
 //! auction's *disclosure* finally has a price: an overcall directs partner's
 //! lead, and a silent pass leaves it blind.  Cells are compared at auction
 //! granularity here (the same contract reached through a different auction can
@@ -54,7 +58,6 @@ use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::agreements::{Agreements, CompetitionKnobs, DefenseKnobs};
 use pons::bidding::american::{DoubleStyle, NotrumpDefense};
-use pons::bidding::context::relative;
 use pons::bidding::inference::ReadingProfile;
 use pons::bidding::instinct::InstinctProfile;
 use pons::bidding::{Inferences, Partnership};
@@ -70,7 +73,7 @@ use std::collections::{BTreeMap, HashMap};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Reached, bid_out, hand_hcp, mean_with_ci, seat_to_act};
+use common::{Reached, TableReader, bid_out, hand_hcp, mean_with_ci, seat_to_act};
 
 const ROWS: usize = 8;
 const COLS: usize = 4;
@@ -119,6 +122,14 @@ struct Args {
     /// bracket)
     #[arg(long, default_value = "16")]
     sd_worlds: usize,
+
+    /// Reproduce the pre-2026-10-16 sd-lead reader: the leader reads through
+    /// its own pair's book alone, so it sees only the declaring side's
+    /// *alerted* calls.  Default: the cell's other pair is declared as the
+    /// leader's opponent and every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// The two knob areas the matrix moves that are fields of the [`Agreements`]
@@ -269,23 +280,44 @@ fn action_label(call: Option<Call>) -> String {
     }
 }
 
-/// Whose book reads an auction for the opening lead: the leader's own side's —
-/// a row book when NS defends (they declare), a column book when EW does.  Two
-/// cells share an sd-lead score only when both the calls *and* the reader
-/// agree: the same call sequence can carry different alerted meanings in
-/// different rows (a natural 2♥ vs a Muiderberg 2♥ direct opposite leads).
-#[derive(Clone, Copy, PartialEq, Eq)]
+/// Whose books read an auction for the opening lead.  Disclosed (the
+/// default): the whole cell — the leader reads with its own side's book and
+/// decodes the declaring side's calls off the other side's, so both matter.
+/// Legacy: the leader's own side's book alone — a row book when NS defends
+/// (they declare), a column book when EW does.  Two cells share an sd-lead
+/// score only when both the calls *and* the reader agree: the same call
+/// sequence can carry different meanings in different rows (a natural 2♥ vs a
+/// Muiderberg 2♥ direct opposite leads).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Reader {
+    /// Disclosed: row book NS, column book EW, each declared to the other
+    Cell(usize, usize),
+    /// Legacy: an NS leader's row book alone
     Row(usize),
+    /// Legacy: an EW leader's column book alone
     Col(usize),
     /// Passed out — no lead, the sd-lead score is 0 regardless of books
     PassOut,
 }
 
+impl Reader {
+    /// The table reader this key names; the matrix builds one at a time, since
+    /// each declared-opponent pair clones two partnerships
+    fn table_reader(self, rows: &[Partnership], cols: &[Partnership]) -> TableReader {
+        match self {
+            Self::Cell(row, col) => TableReader::self_play(&rows[row], &cols[col], false),
+            Self::Row(row) => TableReader::self_play(&rows[row], &rows[row], true),
+            Self::Col(col) => TableReader::self_play(&cols[col], &cols[col], true),
+            Self::PassOut => unreachable!("a contract implies a lead reader"),
+        }
+    }
+}
+
 /// The reader of `auction`'s opening lead when bid in cell (`row`, `col`)
-fn reader_of(auction: &Auction, dealer: Seat, row: usize, col: usize) -> Reader {
+fn reader_of(auction: &Auction, dealer: Seat, row: usize, col: usize, legacy: bool) -> Reader {
     match final_contract(auction, dealer) {
         None => Reader::PassOut,
+        Some(_) if !legacy => Reader::Cell(row, col),
         Some((_, declarer)) => match declarer.lho() {
             Seat::North | Seat::South => Reader::Row(row),
             Seat::East | Seat::West => Reader::Col(col),
@@ -316,6 +348,7 @@ fn bid_board(
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: FullDeal,
+    legacy_reading: bool,
 ) -> Option<BoardOut> {
     let datum_auction = bid_out(&rows[0], &cols[0], true, dealer, vul, &deal);
     if !ew_opened_1nt(&datum_auction, dealer) {
@@ -324,7 +357,7 @@ fn bid_board(
     let datum = final_contract(&datum_auction, dealer);
     let mut contracts = [[datum; COLS]; ROWS];
     let mut actions = [None; ROWS];
-    let datum_reader = reader_of(&datum_auction, dealer, 0, 0);
+    let datum_reader = reader_of(&datum_auction, dealer, 0, 0, legacy_reading);
     let mut auctions: Vec<(Auction, Reader)> = vec![(datum_auction, datum_reader)];
     let mut cell_auction = [[0u8; COLS]; ROWS];
     for row in 1..ROWS {
@@ -335,7 +368,7 @@ fn bid_board(
                 actions[row] = ns_action_over_1nt(&auction, dealer);
             }
             if auction[..] != auctions[0].0[..] {
-                let reader = reader_of(&auction, dealer, row, col);
+                let reader = reader_of(&auction, dealer, row, col, legacy_reading);
                 let index = auctions
                     .iter()
                     .position(|(a, r)| *r == reader && a[..] == auction[..])
@@ -343,7 +376,7 @@ fn bid_board(
                         auctions.push((auction, reader));
                         auctions.len() - 1
                     });
-                // SAFETY: at most 13 cells, so the index fits in a byte.
+                // SAFETY: at most 32 cells, so the index fits in a byte.
                 #[allow(clippy::cast_possible_truncation)]
                 {
                     cell_auction[row][col] = index as u8;
@@ -359,36 +392,6 @@ fn bid_board(
         auctions,
         cell_auction,
     })
-}
-
-/// The (contract, declarer, leader-view inferences) of one auction — the
-/// inputs of its sd-lead question; `None` for a pass-out (sd score 0).
-fn lead_inputs(
-    auction: &Auction,
-    reader: Reader,
-    rows: &[Partnership],
-    cols: &[Partnership],
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let partnership = match reader {
-        Reader::Row(row) => &rows[row],
-        Reader::Col(col) => &cols[col],
-        Reader::PassOut => unreachable!("a contract implies a lead reader"),
-    };
-    // Align the read prefix so the leader is the player to act: the last
-    // non-pass call sits within the final four calls, so exactly one of these
-    // prefix lengths keeps every non-pass call and puts the leader on lead.
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
 }
 
 /// Solve the zero-sum matrix game (row maximizes, column minimizes) by
@@ -495,11 +498,16 @@ fn main() {
                 candidates += 1;
             }
         }
-        boards.par_extend(
-            chunk
-                .into_par_iter()
-                .filter_map(|(idx, deal)| bid_board(&rows, &cols, Seat::ALL[idx % 4], vul, deal)),
-        );
+        boards.par_extend(chunk.into_par_iter().filter_map(|(idx, deal)| {
+            bid_board(
+                &rows,
+                &cols,
+                Seat::ALL[idx % 4],
+                vul,
+                deal,
+                args.legacy_leader_reading,
+            )
+        }));
     }
     boards.truncate(args.count);
     let n = boards.len();
@@ -566,25 +574,49 @@ fn main() {
             .iter()
             .map(|board| vec![[0; 2]; board.auctions.len()])
             .collect();
+        // Every (board, auction) to price, in board order, grouped by reader
+        // so each table reader is built once and dropped before the next.
+        let asks: Vec<(usize, usize)> = boards
+            .iter()
+            .enumerate()
+            .filter(|(_, board)| board.auctions.len() >= 2)
+            .flat_map(|(b, board)| (0..board.auctions.len()).map(move |index| (b, index)))
+            .filter(|&(b, index)| boards[b].auctions[index].1 != Reader::PassOut)
+            .collect();
+        let mut keys: Vec<Reader> = asks
+            .iter()
+            .map(|&(b, index)| boards[b].auctions[index].1)
+            .collect();
+        keys.sort_unstable();
+        keys.dedup();
+        let mut read: Vec<Option<(Contract, Seat, Inferences)>> = vec![None; asks.len()];
+        for key in keys {
+            let reader = key.table_reader(&rows, &cols);
+            let slots: Vec<usize> = (0..asks.len())
+                .filter(|&k| boards[asks[k].0].auctions[asks[k].1].1 == key)
+                .collect();
+            let inputs: Vec<_> = slots
+                .par_iter()
+                .map(|&k| {
+                    let board = &boards[asks[k].0];
+                    reader.lead_inputs(&board.auctions[asks[k].1].0, board.dealer, vul)
+                })
+                .collect();
+            for (k, input) in slots.into_iter().zip(inputs) {
+                read[k] = input;
+            }
+        }
         let mut pending: Vec<(usize, usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
-        for (b, board) in boards.iter().enumerate() {
-            if board.auctions.len() < 2 {
-                continue;
-            }
-            for (index, (auction, reader)) in board.auctions.iter().enumerate() {
-                if let Some((contract, declarer, inferences)) =
-                    lead_inputs(auction, *reader, &rows, &cols, board.dealer, vul)
-                {
-                    pending.push((b, index, contract, declarer));
-                    questions.push(LeadQuestion {
-                        deal: board.deal,
-                        strain: contract.bid.strain,
-                        declarer,
-                        inferences,
-                    });
-                }
-            }
+        for (&(b, index), input) in asks.iter().zip(read) {
+            let (contract, declarer, inferences) = input.expect("a non-pass-out reader");
+            pending.push((b, index, contract, declarer));
+            questions.push(LeadQuestion {
+                deal: boards[b].deal,
+                strain: contract.bid.strain,
+                declarer,
+                inferences,
+            });
         }
         eprintln!("sd-lead: {} lead questions...", questions.len());
 
@@ -652,6 +684,14 @@ fn main() {
     println!(
         "rows = our defense, cols = their counters; entries = IMPs/board vs the (always-pass, default) datum",
     );
+    if sd_on {
+        // Name the reader: sd-lead outputs written before this line existed
+        // are the legacy reader's, and do not price undisclosed calls.
+        println!(
+            "leader reading: {}",
+            TableReader::self_play_mode(args.legacy_leader_reading)
+        );
+    }
     let print_matrix = |name: &str, swings: &[Vec<Vec<i64>>]| {
         println!("--- {name} ---");
         print!("{:<13}", "");

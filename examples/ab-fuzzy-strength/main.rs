@@ -27,7 +27,7 @@ use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Inferences, Partnership};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -37,7 +37,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{report_brackets, report_sd_brackets, seat_to_act, seeded_deals};
+use common::{TableReader, report_brackets, report_sd_brackets, seat_to_act, seeded_deals};
 
 /// Which half of the fuzzy-strength policy the fuzzy team enables
 #[derive(Clone, Copy, ValueEnum)]
@@ -106,6 +106,14 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 blind-lead reader: one default-flag book
+    /// reads every seat and sees only the declaring side's *alerted* calls.
+    /// Default: each table's pairs read with their own books, the other pair
+    /// declared as the opponent, so every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// The highest-logit *legal* call, defaulting to a pass
@@ -164,38 +172,12 @@ type AuctionPair = [Auction; 2];
 /// [`AuctionPair`], so the DD/PD and single-dummy paths line up.
 type ContractPair = [Option<(Contract, Seat)>; 2];
 
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-meckstroth-2nt`.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
-}
-
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
     let policy = args.policy;
-    // One default-flag book reads the leader's view for the blind-lead pass: the
-    // fuzzy upgrade barely shifts disclosed meaning, so a single reading serves
-    // both arms (a deliberate simplification — we do not flip the fuzzy flags for
-    // inference, unlike per-call bidding above).  Built first, before either arm
-    // arms a gauge, so it stays the default-flag book it has always been.
-    let infer_partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     // `[off, on]` for this policy's gauges, indexed by the acting side.
     let partnerships = [policy.partnership(false), policy.partnership(true)];
 
@@ -254,9 +236,28 @@ fn main() {
     if args.sd {
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
-        // (read from the leader's view through the default-flag book), then play
-        // is double-dummy on the actual deal. Main thread only — the solver is
-        // not reentrant, and the plain/PD solve above has already released it.
+        // (read from the leader's view), then play is double-dummy on the actual
+        // deal. Main thread only — the solver is not reentrant, and the plain/PD
+        // solve above has already released it.  Each table's pairs read with
+        // their own books, the other pair declared as the opponent, in
+        // `AuctionPair` order: table B seats the fuzzy pair East–West, table A
+        // North–South.  The legacy reader read every seat through one
+        // default-flag book (a deliberate simplification that saw only the
+        // declaring side's alerted calls).
+        let readers = if args.legacy_leader_reading {
+            let fixed = american(&pons::bidding::agreements::Agreements::default()).bind();
+            [
+                TableReader::self_play(&fixed, &fixed, true),
+                TableReader::self_play(&fixed, &fixed, true),
+            ]
+        } else {
+            let [off, on] = &partnerships;
+            [
+                TableReader::self_play(off, on, false),
+                TableReader::self_play(on, off, false),
+            ]
+        };
+        println!("leader reading: {}", readers[0].mode());
         let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for &i in &divergent {
@@ -264,7 +265,7 @@ fn main() {
             // (is_on, table index): 1 = table_a/on (fuzzy NS), 0 = table_b/off.
             for (is_on, idx) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&auctions[i][idx], &infer_partnership, dealer, vul)
+                    readers[idx].lead_inputs(&auctions[i][idx], dealer, vul)
                 {
                     pending.push((i, is_on, contract, declarer));
                     questions.push(LeadQuestion {

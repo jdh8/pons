@@ -42,9 +42,8 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::NonEmptyStrainFlags;
 use pons::american;
-use pons::bidding::context::relative;
+use pons::bidding::Partnership;
 use pons::bidding::instinct::Unusual2nt;
-use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -57,7 +56,8 @@ use rayon::prelude::*;
 #[allow(dead_code)]
 mod common;
 use common::{
-    Board, hand_hcp, mean_with_ci, next_call, report_sd_brackets, seat_to_act, verdict_line,
+    Board, TableReader, hand_hcp, mean_with_ci, next_call, report_sd_brackets, seat_to_act,
+    verdict_line,
 };
 
 /// Which runout feature the two tables differ on
@@ -162,6 +162,14 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 blind-lead reader: the baseline book reads
+    /// every seat and sees only the declaring side's *alerted* calls.
+    /// Default: each table's pairs read with their own books, the other pair
+    /// declared as the opponent, so every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 
     /// Print this many divergent boards (auction + contracts) for inspection
     #[arg(long, default_value = "0")]
@@ -363,30 +371,6 @@ fn run_coverage(partnership: &Partnership, args: &Args, deals: &[(Seat, FullDeal
 }
 
 #[allow(clippy::cast_precision_loss)]
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
-///
-/// ponytail: read under the shipped defaults, not each table's runout toggle —
-/// the escape calls the two tables differ on are natural suit bids either way,
-/// so the leader's reading of them barely moves.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
-}
-
 fn main() {
     let args = Args::parse();
 
@@ -512,16 +496,34 @@ fn main() {
         // pair costs nothing extra.  Main thread only — the solver is not
         // reentrant, and the solve above has released it.
         let vul = args.vulnerability;
+        // Table A seats the feature pair North–South, table B East–West; each
+        // pair reads with the other declared as its opponent.  The legacy
+        // reader read every seat through the baseline book (the flipped knobs
+        // are floor members, so either book reads the same calls), seeing only
+        // the declaring side's alerted calls.
+        let [baseline, feature] = &partnerships;
+        let [reader_a, reader_b] = if args.legacy_leader_reading {
+            [
+                TableReader::self_play(baseline, baseline, true),
+                TableReader::self_play(baseline, baseline, true),
+            ]
+        } else {
+            [
+                TableReader::self_play(feature, baseline, false),
+                TableReader::self_play(baseline, feature, false),
+            ]
+        };
+        println!("leader reading: {}", reader_a.mode());
         let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for &index in &divergent {
             let board = &boards[index];
-            for (is_a, auction) in [(true, &board.table_a), (false, &board.table_b)] {
+            for (is_a, auction, reader) in [
+                (true, &board.table_a, &reader_a),
+                (false, &board.table_b, &reader_b),
+            ] {
                 if let Some((contract, declarer, inferences)) =
-                    // Every flipped knob is an `InstinctProfile` (floor) member;
-                    // `infer` reads the `ReadingProfile`, so both partnerships read
-                    // this auction identically and either serves.
-                    lead_inputs(auction, &partnerships[0], board.dealer, vul)
+                    reader.lead_inputs(auction, board.dealer, vul)
                 {
                     pending.push((index, is_a, contract, declarer));
                     questions.push(LeadQuestion {

@@ -104,7 +104,8 @@ use rayon::prelude::*;
 #[allow(dead_code)]
 mod common;
 use common::{
-    Board, mean_with_ci, mean_with_ci_f64, next_call, seat_to_act, seeded_deals, verdict_line,
+    Board, TableReader, mean_with_ci, mean_with_ci_f64, next_call, seat_to_act, seeded_deals,
+    verdict_line,
 };
 use std::path::PathBuf;
 
@@ -185,6 +186,13 @@ struct Args {
     /// Seed for the sd world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 sd reader: the feature book reads every
+    /// seat, so the blind leader and declarer see only the other pair's
+    /// *alerted* calls.  Default: each table's pairs read with their own
+    /// books, the other pair declared as the opponent (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 
     /// Write the divergent boards (only — identical contracts swing zero
     /// under every scorer) as a `common::Dump` shard under this directory
@@ -354,6 +362,26 @@ fn build(arm: Arm, opponent: Arm, shown: Arm) -> Partnership {
     american_with_compact(&arm_agreements(arm), cell).bind()
 }
 
+/// The sd readers of a duplicate match's two tables, `[table_a, table_b]`:
+/// table A seats `feature` North–South against `baseline`, table B the
+/// reverse, and each pair reads with the other declared as its opponent, so
+/// the blind leader and declarer decode every call off its authoring rule.
+/// `legacy` restores the pre-2026-10-16 reader, the feature book for every
+/// seat (the arms differ in what they *bid*; it saw only alerted calls).
+fn sd_readers(feature: &Partnership, baseline: &Partnership, legacy: bool) -> [TableReader; 2] {
+    if legacy {
+        [
+            TableReader::self_play(feature, feature, true),
+            TableReader::self_play(feature, feature, true),
+        ]
+    } else {
+        [
+            TableReader::self_play(feature, baseline, false),
+            TableReader::self_play(baseline, feature, false),
+        ]
+    }
+}
+
 /// Bid one deal, the feature arm seated N-S or E-W.  Each partnership carries both
 /// halves of its arm's knobs — build-time and classify-time — from [`build`].
 fn bid_out(
@@ -463,6 +491,10 @@ fn rescore(args: &Args, path: &str) {
         dump.seed,
     );
     println!("gen args: {:?}", dump.gen_args);
+    println!(
+        "leader reading: {}",
+        TableReader::self_play_mode(args.legacy_leader_reading)
+    );
 
     let contracts: Vec<_> = dump
         .boards
@@ -499,9 +531,13 @@ fn rescore(args: &Args, path: &str) {
         .map(|label| !args.sd_ask_only || label != "no keycard ask (net alone)")
         .collect();
 
-    // The sd endpoints, sequential per board (the playout cannot pool); the
-    // feature partnership reads for both tables, as in the live --sd row.
-    let partnership = build(feature, baseline, feature);
+    // The sd endpoints, sequential per board (the playout cannot pool); each
+    // table reads as in the live --sd row ([`sd_readers`]).
+    let [reader_a, reader_b] = sd_readers(
+        &build(feature, baseline, feature),
+        &build(baseline, feature, baseline),
+        args.legacy_leader_reading,
+    );
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     let sd: Vec<Option<[common::SdScores; 2]>> = dump
         .boards
@@ -509,18 +545,20 @@ fn rescore(args: &Args, path: &str) {
         .enumerate()
         .map(|(index, board)| {
             priced[index].then(|| {
-                [&board.table_a, &board.table_b].map(|auction| {
-                    common::sd_declarer_ns_score(
-                        auction,
-                        board.dealer,
-                        &board.deal,
-                        &partnership,
-                        vul,
-                        &mut rng,
-                        args.sd_worlds,
-                        args.sd_worlds,
-                    )
-                })
+                [(&board.table_a, &reader_a), (&board.table_b, &reader_b)].map(
+                    |(auction, reader)| {
+                        common::sd_declarer_ns_score(
+                            auction,
+                            board.dealer,
+                            &board.deal,
+                            reader,
+                            vul,
+                            &mut rng,
+                            args.sd_worlds,
+                            args.sd_worlds,
+                        )
+                    },
+                )
             })
         })
         .collect();
@@ -802,26 +840,28 @@ fn main() {
         }
     }
 
-    // The sd-declarer playout row reads with the feature partnership on both tables:
-    // the arms differ in what they *bid*, and range reading is shared.
+    // The sd-declarer playout row, each table read by its own pairs ([`sd_readers`]).
     let swings_sd = args.sd.then(|| {
+        let [reader_a, reader_b] = sd_readers(&feature, &baseline, args.legacy_leader_reading);
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
         let mut swings = [vec![0i64; args.count], vec![0i64; args.count]];
         for &index in &divergent {
             let board = &boards[index];
-            let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
-                common::sd_declarer_ns_score(
-                    auction,
-                    board.dealer,
-                    &board.deal,
-                    &feature,
-                    args.vulnerability,
-                    &mut rng,
-                    args.sd_worlds,
-                    args.sd_worlds,
-                )
-                .playout
-            });
+            let [a, b] = [(&board.table_a, &reader_a), (&board.table_b, &reader_b)].map(
+                |(auction, reader)| {
+                    common::sd_declarer_ns_score(
+                        auction,
+                        board.dealer,
+                        &board.deal,
+                        reader,
+                        args.vulnerability,
+                        &mut rng,
+                        args.sd_worlds,
+                        args.sd_worlds,
+                    )
+                    .playout
+                },
+            );
             for (k, swing) in swings.iter_mut().enumerate() {
                 swing[index] = imps(a[k] - b[k]);
             }
@@ -837,6 +877,12 @@ fn main() {
         args.vulnerability,
         args.seed,
     );
+    if args.sd {
+        println!(
+            "leader reading: {}",
+            TableReader::self_play_mode(args.legacy_leader_reading)
+        );
+    }
     println!(
         "Divergent boards: {} of {} ({:.4}%)",
         divergent.len(),

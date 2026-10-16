@@ -6,10 +6,10 @@
 //! reproduced the `9:14` numbers to the last IMP.
 
 use super::*;
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{FullDeal, Hand, Suit};
 use pons::bidding::agreements::Agreements;
-use pons::bidding::{Envelope, Relative};
+use pons::bidding::{Envelope, Inferences, Relative};
 use pons::single_dummy::single_dummy_leads;
 
 fn auction(text: &str) -> Auction {
@@ -27,23 +27,24 @@ fn band(lo: u8, hi: u8) -> Agreements {
     agreements
 }
 
-fn reader(agreements: &Agreements, legacy: bool) -> DumpReader {
+fn reader(agreements: &Agreements, legacy: bool) -> TableReader {
     let partnership = american(agreements).bind();
     if legacy {
-        DumpReader::legacy(partnership)
+        TableReader::legacy(partnership)
     } else {
-        DumpReader::new(partnership)
+        TableReader::new(partnership)
     }
 }
 
 /// The blind leader's inferences on a complete auction
-fn leader_inferences(text: &str, dealer: Seat, reader: &DumpReader) -> Inferences {
-    lead_inputs(&auction(text), reader, dealer, AbsoluteVulnerability::NONE)
+fn leader_inferences(text: &str, dealer: Seat, reader: &TableReader) -> Inferences {
+    reader
+        .lead_inputs(&auction(text), dealer, AbsoluteVulnerability::NONE)
         .expect("a contract")
         .2
 }
 
-fn shown(text: &str, dealer: Seat, reader: &DumpReader, who: Relative) -> Envelope {
+fn shown(text: &str, dealer: Seat, reader: &TableReader, who: Relative) -> Envelope {
     *leader_inferences(text, dealer, reader).get(who)
 }
 
@@ -164,7 +165,7 @@ fn negative_double_shape_reaches_both_leaders() {
 /// beside a 15–17 notrump.
 const WEST: &str = "8642.32.9643.854";
 
-fn south_hcp_in_worlds(reader: &DumpReader) -> Vec<u8> {
+fn south_hcp_in_worlds(reader: &TableReader) -> Vec<u8> {
     let hand: Hand = WEST.parse().expect("a hand");
     let inferences = leader_inferences(WE_DECLARE, Seat::East, reader);
     let mut rng = StdRng::seed_from_u64(20261016);
@@ -192,7 +193,7 @@ fn absurd_band_moves_the_sampled_worlds() {
 
 /// The leads themselves: `(1NT) 2♥` deals (East 15–17 balanced, South a
 /// 9–14 overcall with 5+ hearts), led by West under each band.
-fn west_leads(reader: &DumpReader, deals: &[FullDeal]) -> Vec<contract_bridge::Card> {
+fn west_leads(reader: &TableReader, deals: &[FullDeal]) -> Vec<contract_bridge::Card> {
     let inferences = leader_inferences(WE_DECLARE, Seat::East, reader);
     let questions: Vec<_> = deals
         .iter()

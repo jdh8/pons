@@ -6,7 +6,7 @@
 //! lead.  The leader (declarer's LHO) chooses a card *single-dummy* — best over
 //! `sd_worlds` layouts consistent with the auction as the scored arm's
 //! agreements disclose it (an East–West leader decodes every one of our calls
-//! off its authoring rule, [`common::DumpReader`]; `--legacy-leader-reading`
+//! off its authoring rule, [`common::TableReader`]; `--legacy-leader-reading`
 //! restores the pre-2026-10-16 reader, which showed it our alerted calls only)
 //! — and play thereafter is double-dummy on the actual deal (`single_dummy_leads`;
 //! Pavlicek: a blind lead pays declarer ≈+0.3 tricks at the 1NT level).  Truth
@@ -43,12 +43,11 @@
 //! ```
 
 use clap::Parser;
-use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
+use pons::bidding::SampleStats;
 use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape};
-use pons::bidding::{Inferences, SampleStats};
-use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
+use pons::scoring::{imps, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads_with_stats};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -56,7 +55,7 @@ use rand::rngs::StdRng;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{DumpReader, dump_density, mean_with_ci, seat_to_act, verdict_line};
+use common::{TableReader, dump_density, mean_with_ci, verdict_line};
 
 #[derive(Parser)]
 struct Args {
@@ -213,7 +212,7 @@ struct Args {
     /// foreign pair, and the leader whenever we declare) saw only our
     /// *alerted* calls, so a manipulation of an unalerted call's disclosure
     /// (`--on-ns-overcall`) never reached it.  Default: every NS call decodes
-    /// off its authoring rule for an East–West reader (`common::DumpReader`)
+    /// off its authoring rule for an East–West reader (`common::TableReader`)
     #[arg(long, default_value_t = false)]
     legacy_leader_reading: bool,
 }
@@ -256,32 +255,6 @@ impl Sampling {
             pct(s.accepted, s.draws),
         )
     }
-}
-
-/// The (contract, declarer, leader-view inferences) of one auction, read
-/// through `reader`; `None` for a pass-out (sd score 0).  Mirrors
-/// `ab-nt-defense-matrix::lead_inputs` with a single partnership, except that
-/// an East–West leader reads our calls as our agreements disclose them
-/// ([`common::DumpReader`]).
-fn lead_inputs(
-    auction: &Auction,
-    reader: &DumpReader,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    // Align the read prefix so the leader is the player on lead: the last
-    // non-pass call sits within the final four calls, so exactly one of these
-    // prefix lengths keeps every non-pass call and puts the leader to act.
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        reader.infer(leader, vul, &auction[..cut]),
-    ))
 }
 
 fn main() {
@@ -338,9 +311,9 @@ fn main() {
     let read_arm = |arm: &pons::bidding::agreements::Agreements| {
         let partnership = american(arm).bind();
         if args.legacy_leader_reading {
-            DumpReader::legacy(partnership)
+            TableReader::legacy(partnership)
         } else {
-            DumpReader::new(partnership)
+            TableReader::new(partnership)
         }
     };
     let reader_on = read_arm(&on_arm);
@@ -388,11 +361,11 @@ fn main() {
                 (&mut on_score[i], on_tally, a, &reader_on),
                 (&mut off_score[i], off_tally, b, &reader_off),
             ] {
-                let sd = common::sd_declarer_ns_score_read(
+                let sd = common::sd_declarer_ns_score(
                     &board.table_a,
                     board.dealer,
                     &board.deal,
-                    |seat, prefix| reader.infer(seat, vul, prefix),
+                    reader,
                     vul,
                     &mut rng,
                     args.sd_worlds,
@@ -418,7 +391,7 @@ fn main() {
             fired += 1;
             for (arm_on, board, reader) in [(true, a, &reader_on), (false, b, &reader_off)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&board.table_a, reader, board.dealer, vul)
+                    reader.lead_inputs(&board.table_a, board.dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

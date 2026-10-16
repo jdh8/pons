@@ -49,8 +49,6 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::NonEmptyStrainFlags;
 use pons::american;
-use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -62,7 +60,9 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals, verdict_line};
+use common::{
+    TableReader, bid_uncontested, hand_hcp, mean_with_ci, seat_to_act, seeded_deals, verdict_line,
+};
 
 /// Size-ask accept-floor A/B: accept (floor 15) vs decline (17), split by opener HCP
 #[derive(Parser)]
@@ -87,6 +87,14 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 sd-lead reader: the leader reads through
+    /// its own book alone, so it sees only the declaring side's *alerted*
+    /// calls.  Default: the declaring side is declared as the leader's
+    /// opponent and every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// One board's two arms: each arm's uncontested auction and its final contract.
@@ -151,26 +159,6 @@ fn board_tag(deal: &FullDeal, auction: &Auction, dealer: Seat) -> Option<(u8, Cl
         Class::Other
     };
     Some((hand_hcp(deal[opener]), class))
-}
-
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-size-ask-eight`.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
 }
 
 /// Mean IMPs/board (over `count`) and mean IMPs/divergent, each with a 95% CI, for
@@ -253,13 +241,18 @@ fn main() {
     // lead single-dummy over `sd_worlds` sampled worlds, play double-dummy, score
     // the trick count both plain (`ns_score_tricks`) and SD-PD (`ns_score_pd_tricks`).
     // Main thread only — the DD solve above released the solver lock.
+    // Each arm's table is ours on both sides: the leader reads with the
+    // declaring side declared as its opponent (`common::TableReader`).
+    let readers = partnerships
+        .each_ref()
+        .map(|p| TableReader::self_play(p, p, args.legacy_leader_reading));
     let mut pending: Vec<(usize, usize, Contract, Seat)> = Vec::new();
     let mut questions: Vec<LeadQuestion> = Vec::new();
     for &i in &divergent {
         let dealer = Seat::ALL[i % 4];
         for arm in [0usize, 1usize] {
             if let Some((contract, declarer, inferences)) =
-                lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
+                readers[arm].lead_inputs(&bids[i][arm].0, dealer, vul)
             {
                 pending.push((i, arm, contract, declarer));
                 questions.push(LeadQuestion {
@@ -305,6 +298,7 @@ fn main() {
          (should be +), 16 = question. sd {} worlds, sd seed {})",
         args.sd_worlds, args.sd_seed,
     );
+    println!("leader reading: {}", readers[0].mode());
     println!(
         "Divergent boards: {} of {} ({:.3}%)\n",
         divergent.len(),

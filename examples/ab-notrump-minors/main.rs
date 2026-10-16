@@ -27,8 +27,6 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::NonEmptyStrainFlags;
 use pons::american;
 use pons::bidding::american::{EUROPEAN, PUPPET};
-use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -40,7 +38,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, mean_with_ci, report_sd_brackets, seat_to_act, verdict_line};
+use common::{TableReader, bid_uncontested, mean_with_ci, report_sd_brackets, verdict_line};
 
 /// 1NT minor-scheme A/B: Puppet minor responses vs European transfers
 #[derive(Parser)]
@@ -65,30 +63,18 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 sd-lead reader: the leader reads through
+    /// its own book alone, so it sees only the declaring side's *alerted*
+    /// calls.  Default: the declaring side is declared as the leader's
+    /// opponent and every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// One board's two arms: each arm's uncontested auction and its final contract.
 type ArmBids = [(Auction, Option<(Contract, Seat)>); 2];
-
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
-}
 
 #[allow(clippy::cast_precision_loss)]
 fn main() {
@@ -185,13 +171,19 @@ fn main() {
         // lead is chosen single-dummy over `sd_worlds` sampled worlds, then play
         // is double-dummy on the actual deal. Main thread only — the solver is
         // not reentrant, and the plain/PD solve above has already released it.
+        // Each arm's table is ours on both sides: the leader reads with the
+        // declaring side declared as its opponent (`common::TableReader`).
+        let readers = partnerships
+            .each_ref()
+            .map(|p| TableReader::self_play(p, p, args.legacy_leader_reading));
+        println!("leader reading: {}", readers[0].mode());
         let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for &i in &divergent {
             let dealer = Seat::ALL[i % 4];
             for (arm_on, arm) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
+                    readers[arm].lead_inputs(&bids[i][arm].0, dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

@@ -44,9 +44,7 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
-use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Partnership};
-use pons::scoring::{final_contract, imps, ns_score_tricks};
+use pons::scoring::{imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -55,7 +53,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, mean_with_ci, seat_to_act, seeded_deals};
+use common::{TableReader, bid_out, mean_with_ci, seeded_deals};
 
 /// DNF sd-lead A/B: one contested auction, its opening lead priced off vs on
 #[derive(Parser)]
@@ -80,26 +78,14 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
-}
 
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
+    /// Reproduce the pre-2026-10-16 sd-lead reader: the leader reads through
+    /// the arm's book alone, so it sees only the declaring side's
+    /// *alerted* calls.  Default: the arm's book is also declared as the
+    /// leader's opponent and every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -132,18 +118,20 @@ fn main() {
     // sample worlds *under the arm's knobs* (disjunctive boxes and/or gauge
     // membership).  Both knobs are captured into a partnership at build, so the arm
     // gets its own `reader`; the sampler inside `single_dummy_leads` runs on the
-    // main thread and follows the `Inferences` that reader produced.
+    // main thread and follows the `Inferences` that reader produced.  Every seat
+    // bid `american`, so the arm's book is both sides' (`TableReader::self_play`):
+    // the leader decodes every declaring-side call off its authoring rule.
     let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
         let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.decision.reading.envelope_union = envelope_union;
         agreements.decision.reading.gauge_membership = gauge;
-        let reader = american(&agreements).bind();
+        let arm = american(&agreements).bind();
+        let reader = TableReader::self_play(&arm, &arm, args.legacy_leader_reading);
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {
             let dealer = Seat::ALL[i % 4];
-            if let Some((contract, declarer, inferences)) =
-                lead_inputs(auction, &reader, dealer, vul)
+            if let Some((contract, declarer, inferences)) = reader.lead_inputs(auction, dealer, vul)
             {
                 pending.push((i, contract, declarer));
                 questions.push(LeadQuestion {
@@ -178,6 +166,10 @@ fn main() {
     println!(
         "(knob matrix on one bid-out; bidding identical — only the leader's sampled model changes; {} worlds, sd seed {})",
         args.sd_worlds, args.sd_seed,
+    );
+    println!(
+        "leader reading: {}",
+        TableReader::self_play_mode(args.legacy_leader_reading)
     );
 
     // NS-signed sd score, so IMPs read from NS's chair; a defensive gain on a

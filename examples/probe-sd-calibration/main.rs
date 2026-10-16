@@ -30,7 +30,6 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::NonEmptyStrainFlags;
 use pons::american;
-use pons::bidding::context::relative;
 use pons::scoring::final_contract;
 use pons::single_dummy::{LeadQuestion, single_dummy_leads, single_dummy_playout};
 use rand::SeedableRng;
@@ -40,7 +39,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, seat_to_act};
+use common::{TableReader, bid_out};
 
 #[derive(Parser)]
 #[command(about = "Per-level make-rates under plain DD, sd-lead, and sd-declarer")]
@@ -73,6 +72,12 @@ struct Args {
     /// Upper bound on dealt batches while topping up rare levels
     #[arg(long, default_value_t = 50)]
     max_batches: usize,
+    /// Reproduce the pre-2026-10-16 reader: each blind player sees only the
+    /// other pair's *alerted* calls.  Default: the other pair is declared as
+    /// the opponent and every call decodes off its authoring rule
+    /// (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// One reached contract: its level and strain class, whether the bid was made
@@ -240,6 +245,8 @@ fn pavlicek(level: u8, class: Option<usize>) -> (f64, f64, u32) {
 fn main() {
     let args = Args::parse();
     let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
+    // Self-play: the default book on both sides, each declared to the other.
+    let reader = TableReader::self_play(&partnership, &partnership, args.legacy_leader_reading);
     let mut rows: Vec<Row> = Vec::new();
     let mut playouts_at = [[0usize; 3]; 8];
 
@@ -280,10 +287,7 @@ fn main() {
         // then the expensive playouts only on the per-level subsample.
         let mut rng = StdRng::seed_from_u64(args.seed ^ 0x5dca_11b8 ^ batch as u64);
         let view = |auction: &Auction, dealer: Seat, seat: Seat| {
-            let cut = (auction.len().saturating_sub(3)..=auction.len())
-                .find(|&len| seat_to_act(dealer, len) == seat)
-                .expect("one of four consecutive lengths reaches every seat");
-            partnership.infer(relative(args.vulnerability, seat), &auction[..cut])
+            reader.view(auction, dealer, seat, args.vulnerability)
         };
         let questions: Vec<LeadQuestion> = reached
             .iter()
@@ -350,6 +354,7 @@ fn main() {
         args.sd_worlds,
         args.seed,
     );
+    println!("leader reading: {}", reader.mode());
     println!(
         "{:>6} {:>6} | {:>8} {:>8} {:>7} | {:>6} {:>8} {:>8} {:>8} {:>8} {:>8}",
         "cell",

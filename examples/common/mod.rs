@@ -507,8 +507,8 @@ pub struct SdScores {
 /// play +7pp of make-rate on slams) and once with a declarer who chooses
 /// every card over range-consistent worlds instead of peeking
 /// (the pessimist — its misguess haircut measures ≈1.5× the real one).
-/// `partnership` reads the auction for both modelled views (the leader's and
-/// declarer's); a pass-out scores 0.
+/// `reader` reads the auction for both modelled views (the leader's and
+/// declarer's, [`TableReader::view`]); a pass-out scores 0.
 ///
 /// Each endpoint is priced `[plain, perfect-defense]` ([`ns_score_tricks`]
 /// and [`ns_score_pd_tricks`]).  Everything comes back from a single call
@@ -529,102 +529,7 @@ pub fn sd_declarer_ns_score(
     auction: &Auction,
     dealer: Seat,
     deal: &FullDeal,
-    partnership: &Partnership,
-    vul: AbsoluteVulnerability,
-    rng: &mut StdRng,
-    lead_worlds: usize,
-    line_worlds: usize,
-) -> SdScores {
-    sd_declarer_ns_score_read(
-        auction,
-        dealer,
-        deal,
-        |seat, prefix| partnership.infer(relative(vul, seat), prefix),
-        vul,
-        rng,
-        lead_worlds,
-        line_worlds,
-    )
-}
-
-/// How the blind single-dummy players of a **`bba-gen` dump** read `table_a`,
-/// whose North–South pair is ours and whose East–West pair is the foreign engine
-///
-/// A North–South reader is ours and reads with our partnership as it always
-/// has. An East–West reader is the opponent, and what it may know of our calls is
-/// what our agreements *disclose*: every call we made, alerted or not, decoded
-/// off the rule that authored it. Reading through the plain partnership gave
-/// it only our alerted calls — the opponents' calls decode at
-/// `ReadingScope::Alerted` unless an opponent is declared — so an unalerted
-/// natural call (the `(1NT) 2♥` overcall band, a free bid's range) fell to the
-/// natural walk, and a disclosure manipulation such as `ab-dump-sd
-/// --on-ns-overcall 20:37` could not reach the leader. The East–West reader
-/// therefore declares our own partnership as its opponent
-/// ([`Partnership::with_opponents`]), which decodes the opponents' calls at
-/// the full reading scope through that partnership's books. East–West's own
-/// calls still read through our books, as before: the foreign engine's system
-/// is not ours to disclose.
-pub struct DumpReader {
-    ours: Partnership,
-    theirs: Partnership,
-    legacy: bool,
-}
-
-impl DumpReader {
-    /// Read `table_a` with our partnership disclosed to East–West
-    pub fn new(ours: Partnership) -> Self {
-        let theirs = ours.clone().with_opponents(&ours);
-        Self {
-            ours,
-            theirs,
-            legacy: false,
-        }
-    }
-
-    /// The pre-2026-10-16 reader: both pairs read through the plain
-    /// partnership, so East–West sees only our alerted calls. Kept so old
-    /// `ab-dump-sd` outputs can be reproduced.
-    pub fn legacy(ours: Partnership) -> Self {
-        Self {
-            theirs: ours.clone(),
-            ours,
-            legacy: true,
-        }
-    }
-
-    /// One line naming the leader-reading mode, for report headers
-    pub const fn mode(&self) -> &'static str {
-        if self.legacy {
-            "legacy (EW readers see only our alerted calls; pre-2026-10-16 outputs)"
-        } else {
-            "disclosed (EW readers decode every NS call off its authoring rule)"
-        }
-    }
-
-    /// What `seat` reads from `prefix` (the player to act after it)
-    pub fn infer(
-        &self,
-        seat: Seat,
-        vul: AbsoluteVulnerability,
-        prefix: &[Call],
-    ) -> pons::bidding::Inferences {
-        let reader = match seat {
-            Seat::North | Seat::South => &self.ours,
-            Seat::East | Seat::West => &self.theirs,
-        };
-        reader.infer(relative(vul, seat), prefix)
-    }
-}
-
-/// [`sd_declarer_ns_score`] with each view read by `read(seat, prefix)` —
-/// the seat to act after `prefix` — instead of one partnership
-// Each argument is a distinct fact of the board, as in `score_boards`.
-#[allow(clippy::too_many_arguments)]
-pub fn sd_declarer_ns_score_read(
-    auction: &Auction,
-    dealer: Seat,
-    deal: &FullDeal,
-    read: impl Fn(Seat, &[Call]) -> pons::bidding::Inferences,
+    reader: &TableReader,
     vul: AbsoluteVulnerability,
     rng: &mut StdRng,
     lead_worlds: usize,
@@ -633,16 +538,7 @@ pub fn sd_declarer_ns_score_read(
     let Some((contract, declarer)) = final_contract(auction, dealer) else {
         return SdScores::default();
     };
-    // Align the read prefix so the viewing seat is the player to act: the
-    // last non-pass call sits within the final four calls, so exactly one of
-    // four consecutive prefix lengths keeps every non-pass call and puts that
-    // seat to act (the `ab-dump-sd` lead idiom, applied to both views).
-    let view = |seat: Seat| {
-        let cut = (auction.len().saturating_sub(3)..=auction.len())
-            .find(|&len| seat_to_act(dealer, len) == seat)
-            .expect("one of four consecutive lengths reaches every seat");
-        read(seat, &auction[..cut])
-    };
+    let view = |seat: Seat| reader.view(auction, dealer, seat, vul);
     let (_, lead_tricks, line_tricks, sampling) = pons::single_dummy_declarer_tricks_with_stats(
         deal,
         contract.bid.strain,
@@ -665,6 +561,175 @@ pub fn sd_declarer_ns_score_read(
         lead: price(u8::from(lead_tricks)),
         playout: price(u8::from(line_tricks)),
         sampling,
+    }
+}
+
+/// How the blind single-dummy players of one table read its auction: each
+/// seat through its own pair's partnership, knowing what the *other* pair's
+/// agreements disclose
+///
+/// What a defender may know of the declaring side's calls is what that side's
+/// agreements disclose: every call it made, alerted or not, decoded off the
+/// rule that authored it.  Reading through a plain partnership gives only the
+/// alerted ones — the opponents' calls decode at `ReadingScope::Alerted`
+/// unless an opponent is declared — so an unalerted natural call (the
+/// `(1NT) 2♥` overcall band, a weak two's range, a free bid's strength) fell
+/// to the natural walk, and a manipulation of its disclosure could not reach
+/// the leader (docs/research-method-review.md §4).  A disclosed reader
+/// therefore declares the other pair's partnership as its opponent
+/// ([`Partnership::with_opponents`]), which decodes their calls at the full
+/// reading scope through their books.
+///
+/// Two table shapes:
+///
+/// - **`bba-gen` dump** ([`new`][Self::new]): North–South is ours and
+///   East–West the foreign engine.  East–West reads with our partnership
+///   declared as its opponent; North–South reads as it always has, because
+///   the foreign engine's system is not ours to disclose.
+/// - **Self-play** ([`self_play`][Self::self_play]): both pairs are ours —
+///   often the same partnership, sometimes different arms per pair.  Each
+///   pair reads with the other pair's partnership declared as its opponent.
+///
+/// Every harness report prints [`mode`][Self::mode] on a `leader reading:`
+/// line; a report without one predates 2026-10-16 and is legacy.
+pub struct TableReader {
+    ns: Partnership,
+    ew: Partnership,
+    mode: LeaderReading,
+}
+
+/// Which reader a [`TableReader`] is, for the report's `leader reading:` line
+#[derive(Clone, Copy)]
+enum LeaderReading {
+    Dump,
+    DumpLegacy,
+    SelfPlay,
+    SelfPlayLegacy,
+}
+
+impl LeaderReading {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Dump => "disclosed (EW readers decode every NS call off its authoring rule)",
+            Self::DumpLegacy => {
+                "legacy (EW readers see only our alerted calls; pre-2026-10-16 outputs)"
+            }
+            Self::SelfPlay => {
+                "disclosed (self-play: each pair decodes the other's calls off their authoring rules)"
+            }
+            Self::SelfPlayLegacy => {
+                "legacy (self-play: each pair sees only the other's alerted calls; pre-2026-10-16 outputs)"
+            }
+        }
+    }
+}
+
+impl TableReader {
+    /// Read a `bba-gen` dump's `table_a` with our partnership disclosed to
+    /// East–West
+    pub fn new(ours: Partnership) -> Self {
+        let ew = ours.clone().with_opponents(&ours);
+        Self {
+            ns: ours,
+            ew,
+            mode: LeaderReading::Dump,
+        }
+    }
+
+    /// The pre-2026-10-16 dump reader: both pairs read through the plain
+    /// partnership, so East–West sees only our alerted calls. Kept so old
+    /// `ab-dump-sd` outputs can be reproduced.
+    pub fn legacy(ours: Partnership) -> Self {
+        Self {
+            ew: ours.clone(),
+            ns: ours,
+            mode: LeaderReading::DumpLegacy,
+        }
+    }
+
+    /// Read a self-play table whose North–South bid off `ns` and East–West
+    /// off `ew` (the same partnership at an arm-pure table)
+    ///
+    /// `legacy` restores the pre-2026-10-16 reader — each seat through the
+    /// partnership given for its pair, no opponent declared, so it sees only
+    /// the other pair's *alerted* calls.  A harness that used to read every
+    /// seat through one fixed book passes that book as both `ns` and `ew`.
+    pub fn self_play(ns: &Partnership, ew: &Partnership, legacy: bool) -> Self {
+        if legacy {
+            Self {
+                ns: ns.clone(),
+                ew: ew.clone(),
+                mode: LeaderReading::SelfPlayLegacy,
+            }
+        } else {
+            Self {
+                ns: ns.clone().with_opponents(ew),
+                ew: ew.clone().with_opponents(ns),
+                mode: LeaderReading::SelfPlay,
+            }
+        }
+    }
+
+    /// One line naming the leader-reading mode, for report headers
+    pub const fn mode(&self) -> &'static str {
+        self.mode.label()
+    }
+
+    /// [`mode`][Self::mode] of a [`self_play`][Self::self_play] reader, for a
+    /// report that has none at hand
+    pub const fn self_play_mode(legacy: bool) -> &'static str {
+        if legacy {
+            LeaderReading::SelfPlayLegacy.label()
+        } else {
+            LeaderReading::SelfPlay.label()
+        }
+    }
+
+    /// What `seat` reads from `prefix` (the player to act after it)
+    pub fn infer(
+        &self,
+        seat: Seat,
+        vul: AbsoluteVulnerability,
+        prefix: &[Call],
+    ) -> pons::bidding::Inferences {
+        let reader = match seat {
+            Seat::North | Seat::South => &self.ns,
+            Seat::East | Seat::West => &self.ew,
+        };
+        reader.infer(relative(vul, seat), prefix)
+    }
+
+    /// What `seat` reads from a complete `auction`, cut so that `seat` is the
+    /// player to act: the last non-pass call sits within the final four
+    /// calls, so exactly one of four consecutive prefix lengths keeps every
+    /// non-pass call and puts `seat` to act
+    pub fn view(
+        &self,
+        auction: &Auction,
+        dealer: Seat,
+        seat: Seat,
+        vul: AbsoluteVulnerability,
+    ) -> pons::bidding::Inferences {
+        let cut = (auction.len().saturating_sub(3)..=auction.len())
+            .find(|&len| seat_to_act(dealer, len) == seat)
+            .expect("one of four consecutive lengths reaches every seat");
+        self.infer(seat, vul, &auction[..cut])
+    }
+
+    /// The (contract, declarer, leader-view inferences) of one auction — the
+    /// inputs of its blind-lead question; `None` for a pass-out (sd score 0)
+    pub fn lead_inputs(
+        &self,
+        auction: &Auction,
+        dealer: Seat,
+        vul: AbsoluteVulnerability,
+    ) -> Option<(Contract, Seat, pons::bidding::Inferences)> {
+        let (contract, declarer) = final_contract(auction, dealer)?;
+        Some((
+            contract,
+            declarer,
+            self.view(auction, dealer, declarer.lho(), vul),
+        ))
     }
 }
 

@@ -179,6 +179,14 @@ required-features = ["serde"]
 # reach the blind leader's sampler).
 test = true
 
+# Declared only so `test = true` sticks: the self-play leader-reading
+# regression test (a disclosed band must reach the blind leader).
+[[example]]
+name = "ab-point-count"
+path = "examples/ab-point-count/main.rs"
+required-features = ["dd"]
+test = true
+
 [[example]]
 name = "ab-dump-bucket"
 path = "examples/ab-dump-bucket/main.rs"

@@ -47,7 +47,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, mean_with_ci, next_call, seat_to_act, verdict_line};
+use common::{Board, TableReader, mean_with_ci, next_call, seat_to_act, verdict_line};
 
 /// The baseline RKCB-ask floor — the 33 notrump small-slam yardstick.
 const BASELINE: u8 = 33;
@@ -94,6 +94,13 @@ struct Args {
     /// Seed for the sd world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Reproduce the pre-2026-10-16 sd reader: one book reads every seat, so
+    /// the blind leader and declarer see only the other pair's *alerted*
+    /// calls.  Default: each table's pairs read with their own books, the
+    /// other pair declared as the opponent (`common::TableReader`)
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// Bid out one deal, lowering the slam-entry gate only for the feature side
@@ -199,26 +206,41 @@ fn main() {
     // (a lowered gate whose slams only make when declarer peeks shows up
     // here).  Sequential — the playout can't pool across boards.
     let swings_sd = args.sd.then(|| {
+        // Table A seats the feature pair North–South, table B East–West; each
+        // pair reads with the other declared as its opponent, so the blind
+        // leader and declarer decode every call off its authoring rule.  The
+        // legacy reader read every seat through the baseline book (the flipped knob is a
+        // floor member).
+        let [reader_a, reader_b] = if args.legacy_leader_reading {
+            [
+                TableReader::self_play(&partnerships[0], &partnerships[0], true),
+                TableReader::self_play(&partnerships[0], &partnerships[0], true),
+            ]
+        } else {
+            [
+                TableReader::self_play(&partnerships[1], &partnerships[0], false),
+                TableReader::self_play(&partnerships[0], &partnerships[1], false),
+            ]
+        };
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
         let mut swings = [vec![0i64; args.count], vec![0i64; args.count]];
         for &index in &divergent {
             let board = &boards[index];
-            let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
-                common::sd_declarer_ns_score(
-                    auction,
-                    board.dealer,
-                    &board.deal,
-                    // The flipped knob is an `InstinctProfile` (floor) member and
-                    // the playout only calls `infer`, which reads the
-                    // `ReadingProfile` — so either partnership reads identically.
-                    &partnerships[0],
-                    args.vulnerability,
-                    &mut rng,
-                    args.sd_worlds,
-                    args.sd_worlds,
-                )
-                .playout
-            });
+            let [a, b] = [(&board.table_a, &reader_a), (&board.table_b, &reader_b)].map(
+                |(auction, reader)| {
+                    common::sd_declarer_ns_score(
+                        auction,
+                        board.dealer,
+                        &board.deal,
+                        reader,
+                        args.vulnerability,
+                        &mut rng,
+                        args.sd_worlds,
+                        args.sd_worlds,
+                    )
+                    .playout
+                },
+            );
             for (k, swing) in swings.iter_mut().enumerate() {
                 swing[index] = imps(a[k] - b[k]);
             }
@@ -230,6 +252,12 @@ fn main() {
         "\n=== Slam-entry A/B: {} boards, threshold {} vs {BASELINE}, vulnerability {} ===",
         args.count, args.threshold, args.vulnerability,
     );
+    if args.sd {
+        println!(
+            "leader reading: {}",
+            TableReader::self_play_mode(args.legacy_leader_reading)
+        );
+    }
     println!(
         "Divergent boards: {} of {} ({:.2}%)",
         divergent.len(),

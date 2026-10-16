@@ -41,7 +41,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Inferences, Partnership};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 
@@ -52,7 +52,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{mean_with_ci, report_brackets, seat_to_act, seeded_deals, verdict_line};
+use common::{TableReader, mean_with_ci, report_brackets, seat_to_act, seeded_deals, verdict_line};
 
 /// Measure the candidate point-count scale: an A/B duplicate match
 #[derive(Parser)]
@@ -126,6 +126,14 @@ struct Args {
     /// plus the first-divergence buckets over all divergent boards
     #[arg(long, default_value_t = 0)]
     show: usize,
+
+    /// Reproduce the pre-2026-10-16 blind-lead reader: one default-flag book
+    /// reads every seat and sees only the declaring side's *alerted* calls.
+    /// Default: each table's pairs read with their own books, the other pair
+    /// declared as the opponent, so every call decodes off its authoring rule
+    /// ([`table_readers`])
+    #[arg(long, default_value_t = false)]
+    legacy_leader_reading: bool,
 }
 
 /// A CLI name for each global [`PointScale`] arm
@@ -364,24 +372,72 @@ type AuctionPair = [Auction; 2];
 /// [`AuctionPair`], so the DD/PD and single-dummy paths line up.
 type ContractPair = [Option<(Contract, Seat)>; 2];
 
-/// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-fuzzy-strength`.
-fn lead_inputs(
-    auction: &Auction,
-    partnership: &Partnership,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Option<(Contract, Seat, Inferences)> {
-    let (contract, declarer) = final_contract(auction, dealer)?;
-    let leader = declarer.lho();
-    let cut = (auction.len().saturating_sub(3)..=auction.len())
-        .find(|&len| seat_to_act(dealer, len) == leader)
-        .expect("one of four consecutive lengths reaches every seat");
-    Some((
-        contract,
-        declarer,
-        partnership.infer(relative(vul, leader), &auction[..cut]),
-    ))
+/// The two books, `[baseline, candidate]`, each with its arm baked in
+fn build_partnerships(arms: Arms) -> [Partnership; 2] {
+    // Every arm bakes its difference in at build — the scale knobs are pinned
+    // into a partnership, so a per-call flip would be inert.
+    match arms {
+        Arms::WeakTwoHcp { band } => {
+            let shipped = pons::bidding::agreements::Agreements::default();
+            let baseline = american(&shipped).bind();
+            let mut armed = shipped;
+            armed.opening.weak_two_hcp = Some(band);
+            let candidate = american(&armed).bind();
+            [baseline, candidate]
+        }
+        Arms::GateFix { fix } => {
+            let baseline = american(&fix.set(false)).bind();
+            let candidate = american(&fix.set(true)).bind();
+            // Restores the cells the fix wrote; the returned value is spent.
+            fix.set(false);
+            [baseline, candidate]
+        }
+        // The scale arms are *eval-time*: both books are built on the shipped
+        // defaults and only the classify-time gauge differs, so the measurement
+        // prices the scale rather than the whole system it would also rebuild.
+        // `profile_mut` is what keeps that expressible — it moves the gauge on a
+        // built partnership without touching the book underneath, and each arm edits
+        // only its own copy, so neither can leak into the other or outlive the run.
+        // ponytail: one known cost, inert for this binary — `support_points`
+        // defaults *on*, so the baseline arm mismatches the compiled rule
+        // registry while the candidate matches: same answer, different cost.
+        // Narrowing the registry guard to the four cells that actually drive the
+        // projection bake is the fix.
+        _ => {
+            let shipped = pons::bidding::agreements::Agreements::default();
+            let mut baseline = american(&shipped).bind();
+            let mut candidate = american(&shipped).bind();
+            arms.apply(baseline.profile_mut(), false);
+            arms.apply(candidate.profile_mut(), true);
+            [baseline, candidate]
+        }
+    }
+}
+
+/// The blind-lead readers of one board's two tables, in [`AuctionPair`] order
+/// `[table_b, table_a]`
+///
+/// Table A seats the candidate North–South against the baseline, table B the
+/// reverse, and each pair reads with the other declared as its opponent
+/// ([`TableReader::self_play`]), so the leader decodes every declaring-side
+/// call — alerted or not — off the rule that authored it.  `legacy` restores
+/// the pre-2026-10-16 reader: one default-flag book for every seat, a
+/// deliberate simplification that saw only the declaring side's alerted
+/// calls.
+fn table_readers(partnerships: &[Partnership; 2], legacy: bool) -> [TableReader; 2] {
+    let [baseline, candidate] = partnerships;
+    if legacy {
+        let fixed = american(&Agreements::default()).bind();
+        [
+            TableReader::self_play(&fixed, &fixed, true),
+            TableReader::self_play(&fixed, &fixed, true),
+        ]
+    } else {
+        [
+            TableReader::self_play(baseline, candidate, false),
+            TableReader::self_play(candidate, baseline, false),
+        ]
+    }
 }
 
 /// Forensics for `--show`: rank divergent boards by candidate plain-DD swing
@@ -490,52 +546,7 @@ fn main() {
         }
     };
 
-    // One default-flag book reads the leader's view for the blind-lead pass:
-    // neither the scale nor the weak-two gate shifts disclosed meaning enough to
-    // matter, so a single reading serves both arms (a deliberate simplification —
-    // we do not flip the knob for inference, unlike the per-arm books below).
-    // Built first, before any arm is armed, so it is the default-flag book.
-    let infer_partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
-
-    // Two books, `[baseline, candidate]`.  Every arm bakes its difference in at
-    // build — the scale knobs are pinned into a partnership, so a per-call flip would
-    // be inert.
-    let partnerships = match arms {
-        Arms::WeakTwoHcp { band } => {
-            let shipped = pons::bidding::agreements::Agreements::default();
-            let baseline = american(&shipped).bind();
-            let mut armed = shipped;
-            armed.opening.weak_two_hcp = Some(band);
-            let candidate = american(&armed).bind();
-            [baseline, candidate]
-        }
-        Arms::GateFix { fix } => {
-            let baseline = american(&fix.set(false)).bind();
-            let candidate = american(&fix.set(true)).bind();
-            // Restores the cells the fix wrote; the returned value is spent.
-            fix.set(false);
-            [baseline, candidate]
-        }
-        // The scale arms are *eval-time*: both books are built on the shipped
-        // defaults and only the classify-time gauge differs, so the measurement
-        // prices the scale rather than the whole system it would also rebuild.
-        // `profile_mut` is what keeps that expressible — it moves the gauge on a
-        // built partnership without touching the book underneath, and each arm edits
-        // only its own copy, so neither can leak into the other or outlive the run.
-        // ponytail: one known cost, inert for this binary — `support_points`
-        // defaults *on*, so the baseline arm mismatches the compiled rule
-        // registry while the candidate matches: same answer, different cost.
-        // Narrowing the registry guard to the four cells that actually drive the
-        // projection bake is the fix.
-        _ => {
-            let shipped = pons::bidding::agreements::Agreements::default();
-            let mut baseline = american(&shipped).bind();
-            let mut candidate = american(&shipped).bind();
-            arms.apply(baseline.profile_mut(), false);
-            arms.apply(candidate.profile_mut(), true);
-            [baseline, candidate]
-        }
-    };
+    let partnerships = build_partnerships(arms);
 
     // Deal source: the seeded stream (base + index) so every arm/vul replays
     // the identical stream, or a slice of a pre-solved .pdd deal bank whose
@@ -645,11 +656,13 @@ fn main() {
     }
 
     if args.sd {
-        // One default-profile reading serves both arms (see `infer_partnership`
-        // above); bare contexts use `ReadingProfile::default()`.
+        // Each table's pairs read with their own books, the other pair
+        // declared as the opponent ([`table_readers`]).
+        let readers = table_readers(&partnerships, args.legacy_leader_reading);
+        println!("leader reading: {}", readers[0].mode());
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
-        // (read from the leader's view through the default-flag book), then play
+        // (read from the leader's view, [`table_readers`]), then play
         // is double-dummy on the actual deal. Main thread only — the solver is
         // not reentrant, and the plain/PD solve above has already released it.
         let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
@@ -659,7 +672,7 @@ fn main() {
             // (is_on, table index): 1 = table_a/on (candidate NS), 0 = table_b/off.
             for (is_on, idx) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&auctions[i][idx], &infer_partnership, dealer, vul)
+                    readers[idx].lead_inputs(&auctions[i][idx], dealer, vul)
                 {
                     pending.push((i, is_on, contract, declarer));
                     questions.push(LeadQuestion {
@@ -716,3 +729,6 @@ fn main() {
         report("sd-lead perfect-defense", &on_pd, &off_pd);
     }
 }
+
+#[cfg(test)]
+mod tests;
