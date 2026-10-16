@@ -34,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain win | PD inconclusive: insufficient data, it stays off. Four-cell
   confirmations: `landy_wilkosz`, `landy_splinter_tails` and
   `multi_doubler_major` hold at ns/ew; `defense_2c_landy_strength_nv_invite`
-  loses plain DD at ns, flagged. Details in
+  loses plain DD at ns (−0.0008 ±0.0003). Its pre-registered `both` re-run on
+  a fresh seed reads a win on every scorer (plain +0.0009 ±0.0003, PD
+  +0.0016 ±0.0003, SD-PD +0.0013 ±0.0003 IMPs per accepted board), so it
+  stays on as a recorded trade-off. Details in
   `docs/research-method-review.md` §4 and §6.
 
 - **The trainer's validation split no longer cuts a board in two

@@ -58,6 +58,17 @@
 # FLAGGED for jdh8, nothing changed: re-run `both` fresh with --wide-1nt; if
 # it is not a win, defense_2c_landy_strength_nv_invite = false.
 #
+# BOTH RE-RUN (pre-registered 2026-10-16, decided by jdh8, before any number
+# is read).  VULS=both, fresh seed, `--wide-1nt`, 4,608,000 accepted boards
+# per arm, results in ab-results/landy-strength-residue-both.  The knob stays
+# on iff `both` reads a WIN on plain DD with PD not a loss; any other reading
+# (non-inferior, inconclusive, loss) sets it to false.
+#
+# BOTH RE-RUN VERDICT (2026-10-16, seed 1792152287380614337, sha bf359622,
+# density 0.009021, gate 0 foreign of 8,599): plain +0.0009 ±0.0003 WIN
+# (+0.46/fired), PD +0.0016 ±0.0003 win, SD-PD +0.0013 ±0.0003 win.  STAYS
+# ON, a recorded trade-off against the ns loss above.
+#
 R=${1:?usage: ab-landy-strength-residue.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

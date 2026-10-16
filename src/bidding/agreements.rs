@@ -1907,7 +1907,10 @@ pub struct CompetitionKnobs {
     /// +9,238 plain was cancelled by 9,529 seven-counts falling to `Pass`.
     /// **On by default since 2026-09-21**: the repaired arm read plain +0.0018
     /// ±0.0003 both-vul on 9,623 boards, PD a wash, sd-lead plain +0.0013
-    /// ±0.0004 (run 5, `ab-results/landy-strength5`).
+    /// ±0.0004 (run 5, `ab-results/landy-strength5`).  Re-measured
+    /// 2026-10-16 with `--wide-1nt`: plain DD win at `both` (+0.0009 ±0.0003),
+    /// loss at `ns` (−0.0008 ±0.0003); kept on as a recorded trade-off
+    /// (`docs/research-method-review.md` §6).
     pub defense_2c_landy_strength_nv_invite: bool,
     /// Responder sits opener's `3NT` answer to its stopper cue
     /// (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -`, and the diamond twin)

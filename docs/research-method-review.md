@@ -41,11 +41,10 @@ a row once decided, recording the decision where its evidence lives.
 
 | # | Decision | Evidence | Proposed default |
 | --- | --- | --- | --- |
-| 1 | `competition.defense_2c_landy_strength_nv_invite` | [§6 run](#6-asymmetric-vulnerability-in-competitive-experiments): plain DD loss at `ns` (−0.0008 ±0.0003), PD non-inferior | Re-run the `both` cell on a fresh seed with `--wide-1nt`; set it to `false` unless `both` reads a win |
-| 2 | Modern negative doubles: plain win at every cell, PD loss at `ew` and `both` (lower bounds −0.0234 / −0.0231) | [§4 table](#4-disclosure-in-sd-dump-rescoring), [competitive-book.md](competitive-book.md#p3b-modern-re-measured-under-the-disclosed-sd-leader-2026-10-16) | Keep Modern as a recorded trade-off: both-majors loses plain DD in every cell. Note that the knob also changes how we read *their* negative double |
-| 3 | The 8:14 natural overcall band | [§4 table](#4-disclosure-in-sd-dump-rescoring): 9:14 and 10:14 lose plain DD in three and four cells | Keep 8:14 |
-| 4 | The ~45 enriched verdicts drawn on the strict 1NT candidate since Wide6322 shipped (2026-07-12), which never scanned the 5m422/6m322 openers | [Filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan), [§5](#5-filter-coverage-and-conditional-comparisons) | No blanket re-run. When a verdict is next relied on, run `filter-coverage` on an unfiltered preflight of its two arms. Re-measure with `--wide-1nt` if the strict scan misses a material share of the divergent boards (say over 5%); otherwise mark the verdict "balanced openers only" |
-| 5 | Separate development and confirmation deal banks | [§12](#12-development-banks-and-solver-efficiency) | Keep the current rule (no bank-backed A/B reuse) until a separation of training, reusable development and locked confirmation data is adopted |
+| 1 | Modern negative doubles: plain win at every cell, PD loss at `ew` and `both` (lower bounds −0.0234 / −0.0231) | [§4 table](#4-disclosure-in-sd-dump-rescoring), [competitive-book.md](competitive-book.md#p3b-modern-re-measured-under-the-disclosed-sd-leader-2026-10-16) | Keep Modern as a recorded trade-off: both-majors loses plain DD in every cell. Note that the knob also changes how we read *their* negative double |
+| 2 | The 8:14 natural overcall band | [§4 table](#4-disclosure-in-sd-dump-rescoring): 9:14 and 10:14 lose plain DD in three and four cells | Keep 8:14 |
+| 3 | The ~45 enriched verdicts drawn on the strict 1NT candidate since Wide6322 shipped (2026-07-12), which never scanned the 5m422/6m322 openers | [Filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan), [§5](#5-filter-coverage-and-conditional-comparisons) | No blanket re-run. When a verdict is next relied on, run `filter-coverage` on an unfiltered preflight of its two arms. Re-measure with `--wide-1nt` if the strict scan misses a material share of the divergent boards (say over 5%); otherwise mark the verdict "balanced openers only" |
+| 4 | Separate development and confirmation deal banks | [§12](#12-development-banks-and-solver-efficiency) | Keep the current rule (no bank-backed A/B reuse) until a separation of training, reusable development and locked confirmation data is adopted |
 
 Settled by its pre-registered rule, so no decision is needed: the weak-two
 `5:10` HCP gauge stays off ([§4](#4-disclosure-in-sd-dump-rescoring),
@@ -699,7 +698,8 @@ verdict to name its cells. First use: the colour-split
   | Knob | Cell | Plain DD | PD | SD-PD | Reading |
   | --- | --- | --- | --- | --- | --- |
   | `landy_wilkosz` | ns | +0.0003 ±0.0001 win | +0.0006 ±0.0001 win | win | stands |
-  | `defense_2c_landy_strength_nv_invite` | ns | **−0.0008 ±0.0003 loss** | −0.0001 ±0.0003 non-inferior | −0.0004 ±0.0003 loss | **flagged** |
+  | `defense_2c_landy_strength_nv_invite` | ns | **−0.0008 ±0.0003 loss** | −0.0001 ±0.0003 non-inferior | −0.0004 ±0.0003 loss | trade-off, see below |
+  | | both (re-run) | +0.0009 ±0.0003 win | +0.0016 ±0.0003 win | win | stands |
   | `landy_splinter_tails` | ns | +0.0001 ±0.0001 win | +0.0000 ±0.0001 non-inferior | non-inferior | stands |
   | | ew | +0.0071 ±0.0003 win | +0.0007 ±0.0002 win | non-inferior | stands |
   | `multi_doubler_major` | ns | +0.0007 ±0.0001 win | +0.0002 ±0.0001 win | win | stands |
@@ -710,9 +710,18 @@ verdict to name its cells. First use: the colour-split
   boards, about −7×10⁻⁶ per deal: far inside δ, but a loss. It differs from
   off only when we are vulnerable, so `both` is its only other live cell, and
   that cell shipped it on an older seed with the strict candidate.
-  **Flagged for jdh8, nothing changed:** proposed, re-run `both` on a fresh
-  seed with `--wide-1nt`; if `both` does not read a win, set
-  `defense_2c_landy_strength_nv_invite = false`.
+  **Re-run `both`, decided by jdh8** (rule pre-registered in the runner
+  before reading: on iff `both` reads a plain DD win with PD not a loss;
+  `ab-results/landy-strength-residue-both`, seed 1792152287380614337, sha
+  `bf359622`, 4,608,000 accepted boards per arm, density 0.009021, gate 0
+  foreign of 8,599 divergent): plain +0.0009 ±0.0003 **win** (+0.46 per
+  fired board), PD +0.0016 ±0.0003 win, SD-PD +0.0013 ±0.0003 win (plain SD
+  −0.0001 ±0.0003 non-inferior). **The knob stays on**, a recorded trade-off:
+  it wins at `both` and loses plain DD at `ns`. The two cells differ only in
+  *their* colour, which the gate does not read; a `both`-only gate
+  (`vulnerable() & they-vulnerable`) is the untested refinement it suggests.
+  Caveat on the SD column: the off arm's sampler fell back on 44.8% of its
+  worlds (on: 1.0%), so the SD numbers price the off arm's reading coarsely.
 
   Still queued: `competitive_accountant` and its two siblings (unfiltered,
   hand-edited loops), `landy_opener_rungs` + `landy_opener_px`,
