@@ -99,6 +99,10 @@ struct Args {
     /// (`competition.negative_double_shape`; all but both-majors imply the free bids)
     #[arg(long, default_value = "modern")]
     on_ns_negative_double_shape: String,
+    /// Same for the OFF arm (the shipped `modern` unless a control arm plays
+    /// another school, e.g. `both-majors` for the pre-Modern system)
+    #[arg(long, default_value = "modern")]
+    off_ns_negative_double_shape: String,
     /// Read the ON arm's auctions under this 2-level free-bid style:
     /// forcing (shipped default) | negative | transfer (`competition.free_bid_style`)
     #[arg(long, default_value = "forcing")]
@@ -345,7 +349,7 @@ fn main() {
     let mut off_arm = pons::bidding::agreements::Agreements::default();
     off_arm.decision.reading.natural_overcall_points = (lo, hi);
     off_arm.competition.free_bids = false;
-    off_arm.competition.negative_double_shape = NegativeDoubleShape::Modern;
+    off_arm.competition.negative_double_shape = shape(&args.off_ns_negative_double_shape);
     off_arm.competition.free_bid_style = FreeBidStyle::Forcing;
     off_arm.competition.free_1nt_floor = 6;
     off_arm.defense.two_level_minor_overcall_tight = false;
