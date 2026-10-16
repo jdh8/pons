@@ -3,6 +3,11 @@
 # (docs/one-notrump-competitive.md): our counter-defense when their 2♣ overcall
 # of our 1NT is Landy (both majors) instead of natural clubs.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 # The census picked this package: the (2♣) bucket is the anchor's largest 1NT
 # interference loss and the only one negative on BOTH scorers
 # (plain −0.74/bd pooled, PD −0.70 NV).  Mechanism traced there — systems-on

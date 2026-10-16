@@ -604,6 +604,12 @@ the then-positive candidate flag; the current runner expresses the same pair
 as `base --no-ns-landy-minor-slam-answer` versus default `ans`. Run code was
 base `4eb925c2` plus the campaign worktree.
 
+**Scope (2026-10-16):** the answer is opener's call and `--filter-1nt` is
+the strict scan, so this round saw no 5m422/6m322 opener (14.4% of the
+default's 1NT). It is "balanced openers only" and owes a `--wide-1nt`
+re-measure before it is relied on
+([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+
 **Isolation gate first, as the runner's header demands: PASSED in both cells** —
 0 of 18 (NV) and 0 of 9 (both) divergent boards opened by the other side, 100%
 "ours", no board where the candidate bid over a pass or passed over a bid. Every

@@ -2,6 +2,9 @@
 # ab-landy-lia-repair.sh — §N1-lia package B, repaired: Lia's re-rung counter
 # ladder over their Landy `2♣` with the forensic's four named defects fixed.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only; no live
+# verdict rests on this runner (docs/research-method-review.md, "Filter scope").
+#
 # ============================== VERDICT ==============================
 # STOPPED 2026-09-01, SUPERSEDED BY THE PROBE CORRECTION.  Do not resume,
 # and do not launch this runner again — the build it scores no longer

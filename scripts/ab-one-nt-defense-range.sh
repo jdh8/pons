@@ -4,6 +4,10 @@
 # defended-1NT deals and advertised as natural.  Plain + PD pre-screen every
 # range; SD_RANGES selects the sd-lead finalists (the competitive-range arbiter).
 #
+# SCOPE (2026-10-16): their 1NT.  BBA opens 1NT on 98.0% strict-balanced
+# hands and 2.0% 5m422, so the strict scan covers the trigger to within 2%
+# (docs/research-method-review.md, "Filter scope").
+#
 # Example (about 400k boards/arm/vulnerability with 24 polite shards):
 #   JOBS=24 BOARDS=408000 SD_RANGES='7:14 8:37' \
 #     scripts/idle-run.sh scripts/ab-one-nt-defense-range.sh ab-results/nt-range

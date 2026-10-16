@@ -703,6 +703,29 @@ On 4,000 boards of `--nt-fifths` against the default, strict `--filter-1nt`
 rejected 6 of 48 divergent boards (12.5%: five 5m422 and one 6m322
 opener) and the wide candidate none.
 
+**Verdicts drawn on the strict 1NT candidate** (`--filter-1nt`,
+`--filter-landy` or `--filter-preempt` without `--wide-1nt`, from Wide6322's
+ship on 2026-07-12 to 2026-10-16) are scoped "balanced 1NT openers only".
+14.4% of the default's 1NT openers are 5m422 or 6m322 (Monte Carlo, 2M
+hands), so a `filter-coverage` preflight misses about that share of nearly
+any lane after our 1NT. A coverage threshold therefore cannot sort these verdicts, and the
+rule turns on what the treatment touches instead (jdh8, 2026-10-16):
+
+- **The treated call is opener's**, or the arm also authors opener's
+  continuation: re-measure with `--wide-1nt` on fresh deals before the
+  verdict is relied on (a default flip, a dependent build, a cited
+  baseline). The missing shapes change opener's own call, as in Lebensohl,
+  where a 17-count 5m422 raised on three trumps.
+- **Only responder's, the doubler's or a reading is treated**: the
+  "balanced openers only" label stands. The missing openers change the
+  routing only.
+- **Their 1NT** (our defense): BBA opens 1NT on 98.0% strict-balanced hands
+  and 2.0% 5m422, no 6m322 (4,000 `--isolate-defense` boards, seed
+  1792160000, none), so the strict scan covers the trigger to within 2%.
+
+The runner-by-runner classification is in
+[research-method-review.md](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan).
+
 ```text
 cargo run --release --features serde --example filter-coverage -- on/ off/ \
   --filter lebensohl-raise --examples 5

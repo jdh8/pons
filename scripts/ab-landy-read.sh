@@ -6,6 +6,10 @@
 # false on every board of the lane.  `--ns-their-landy-read` makes the declared
 # 2♣ read 4-4+ majors (no strength claim) and natural-suppresses the advances.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-landy-read.sh \
 #       ab-results/landy-read >ab-results/landy-read.log 2>&1 < /dev/null &
 #

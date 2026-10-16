@@ -3,6 +3,9 @@
 # transfer (docs/minor-transfer-slam.md, docs/one-notrump-competitive.md §N4-KK
 # residues 3 and 6).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only; no live
+# verdict rests on this runner (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-slam.sh ab-results/2d-multi-slam \
 #       >ab-results/2d-multi-slam.log 2>&1 < /dev/null &

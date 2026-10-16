@@ -3,6 +3,10 @@
 # (docs/one-notrump-competitive.md §N1h/N1i): the Landy counter's minor rungs
 # re-priced, two ways, against one shared baseline.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-landy-rungs.sh \
 #       ab-results/landy-low >ab-results/landy-low.log 2>&1 < /dev/null &
 #

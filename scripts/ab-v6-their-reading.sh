@@ -4,6 +4,10 @@
 # defensive lanes, so the package isolation gate does not apply; attribute the
 # direct `1NT (2♦)` subset from the paired divergence records before reading the
 # whole filtered-arm headline.
+#
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only; no live
+# verdict rests on this runner (docs/research-method-review.md, "Filter scope").
+#
 set -eu
 ROOT_R=${1:?usage: ab-v6-their-reading.sh RESULTS_DIR}
 R=$ROOT_R

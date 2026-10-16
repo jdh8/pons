@@ -179,6 +179,13 @@ that live *inside* a book are in Tier B.
 
 ### A3 — Our 1NT: competition, runouts & escapes
 
+**Scope (2026-10-16):** the runout and Lebensohl rows measured since
+2026-07-12 used the strict 1NT scan (`--filter-1nt`, or the examples' own
+`is_1nt_opener`) and saw no 5m422/6m322 opener, 14.4% of the default's 1NT.
+They are "balanced openers only"; where the knob authors opener's call,
+re-measure with `--wide-1nt` before relying on the row
+([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
 | set_one_nt_runout | `ab-one-nt-runout --compare runout --filter-1nt` | Artificial | ON | **isolated vs the passing floor** (1M/cell ×2 seeds ×2 vuls, SHA 03d981f, `scripts/ab-a3.sh`): plain **+0.039/+0.053**, PD **+0.023/+0.031** NV/vul — all 8 cells positive both seeds, PD holds (not a doubling artifact); fires 1.58%, +2.5/+3.4 IMPs/div plain (weak responder escapes the doubled 1NT) ([project_one-nt-doubled-runout]) | fresh | default-on ✓ |

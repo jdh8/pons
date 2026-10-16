@@ -4,6 +4,10 @@
 # on vs off, both vuls, plain + PD + sd-lead.  The ON arm's sd read discloses
 # the defense, so the blind leader reads `X` as lead-directing clubs.
 #
+# SCOPE (2026-10-16): their 1NT.  BBA opens 1NT on 98.0% strict-balanced
+# hands and 2.0% 5m422, so the strict scan covers the trigger to within 2%
+# (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=409600 setsid nohup scripts/idle-run.sh scripts/ab-stayman-defense.sh \
 #       ab-results/stayman-defense >ab-results/stayman-defense.log 2>&1 < /dev/null &
 #

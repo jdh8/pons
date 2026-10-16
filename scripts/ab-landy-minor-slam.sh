@@ -2,6 +2,11 @@
 # ab-landy-minor-slam.sh — opener's answer to the N1j Landy `4m` slam try
 # (docs/minor-transfer-slam.md queue item 2).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-minor-slam.sh ab-results/landy-minor-slam \
 #       >ab-results/landy-minor-slam.log 2>&1 < /dev/null &

@@ -2,6 +2,9 @@
 # ab-landy-lia.sh — §N1-lia package B: Lia's re-rung counter ladder over their
 # Landy `2♣`, one arm — a permutation, it cannot be decomposed.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only; no live
+# verdict rests on this runner (docs/research-method-review.md, "Filter scope").
+#
 # SUPERSEDED TWICE.  This runner measured a loss on 2026-08-31 (see the VERDICT
 # block below); `ab-landy-lia-repair.sh` repaired the four defects that verdict
 # named and was itself stopped mid-flight on 2026-09-01, when the probe of

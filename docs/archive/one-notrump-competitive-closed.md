@@ -17,6 +17,10 @@
 > the snapshots each package was chosen against. They are permanent facts and
 > are never re-run for freshness; only *state* numbers (the census, the score
 > against a lane) are refreshed, and those live in the live doc.
+>
+> **Scope (2026-10-16):** every verdict here from 2026-07-12 on saw only
+> balanced 1NT openers; see
+> [the ledger's scope note](../one-notrump-competitive.md#ledger).
 
 ## N1* — the Landy `(2♣)` counter (**SHIPPED DEFAULT-ON 2026-08-14**)
 

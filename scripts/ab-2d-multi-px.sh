@@ -2,6 +2,11 @@
 # ab-2d-multi-px.sh — the Kokish–Kraft `P`/`X` information split
 # (docs/one-notrump-competitive.md §N4-KK, docs/one-notrump-multi.md).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   SKIP_BUILD=1 JOBS=24 BOARDS=230400 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-px.sh ab-results/2d-multi-px \
 #       >ab-results/2d-multi-px.log 2>&1 < /dev/null &

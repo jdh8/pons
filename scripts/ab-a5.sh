@@ -3,6 +3,10 @@
 # (docs/bidding-options.md A5, "Defending their 1NT & their overcalls"). Isolates
 # the remaining archival A5 worklist knobs.
 #
+# SCOPE (2026-10-16): their 1NT.  BBA opens 1NT on 98.0% strict-balanced
+# hands and 2.0% 5m422, so the strict scan covers the trigger to within 2%
+# (docs/research-method-review.md, "Filter scope").
+#
 # Two carry a bba-gen flag → ab-lib.sh arm/diffpair (a4 template). Both are
 # default-OFF and add an sd-lead read; minor-transfer disclosure is unavailable,
 # so that SD figure is a floor. `responsive_overcall_enabled` has no bba-gen

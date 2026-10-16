@@ -2,6 +2,9 @@
 # ab-landy-lia2.sh — §N1-lia package B, rebuilt on the CORRECTED probe: Lia's
 # actual counter to our `1NT (2♣)` Landy lane.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only; no live
+# verdict rests on this runner (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia2.sh ab-results/landy-lia2 \
 #       >ab-results/landy-lia2.log 2>&1 < /dev/null & disown

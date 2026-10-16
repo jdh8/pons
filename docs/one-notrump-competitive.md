@@ -417,6 +417,19 @@ the final pooled verdict, IMPs per board unless marked per fired; every row
 since 2026-08-28 is 4.608M bd/arm/vul with all isolation gates 0 foreign
 unless stated.
 
+**Balanced 1NT openers only (scoped 2026-10-16).** Every row here measured
+on `--filter-1nt`, `--filter-landy` or `--filter-preempt` without
+`--wide-1nt` saw only the strict 1NT candidate, never the 5m422/6m322
+openers that are 14.4% of the default's 1NT. Where the arm authors
+opener's call, re-measure with `--wide-1nt` before relying on the row;
+where it authors only responder's or the doubler's, the label stands. The
+runner-by-runner classification is in
+[research-method-review.md](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan).
+Measured wide so far, all on 2026-10-16 (the §6 confirmations):
+`multi_doubler_major`, `landy_splinter_tails` and `landy_wilkosz` at their
+asymmetric cells only, and `defense_2c_landy_strength_nv_invite` at `ns`
+and `both`. Their original none/both cells stay strict.
+
 **Measured through the leak (rows before 2026-08-25).** Every N1 and N4 row
 before the [mirror book](archive/one-notrump-competitive-closed.md#the-mirror-book--why-the-leak-was-not-a-seat-gate)
 (`29f93561`) read their calls off our own counter-table. The verdicts stand:

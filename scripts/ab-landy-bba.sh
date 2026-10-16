@@ -3,6 +3,11 @@
 # (docs/one-notrump-competitive.md §N1j): the BBA-ladder Landy counter — the
 # anchor-aligned table — against the shipped stack, plus its weak-2♦ cap arm.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=153600 setsid nohup scripts/idle-run.sh scripts/ab-landy-bba.sh \
 #       ab-results/landy-bba >ab-results/landy-bba.log 2>&1 < /dev/null &
 #

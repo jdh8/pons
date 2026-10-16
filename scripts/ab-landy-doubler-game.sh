@@ -7,6 +7,11 @@
 # minor.  Face-gated on favourable, so `ew` is the only cell that moves on
 # table A (seeded identity check: none/both byte-identical, ns table A too).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-doubler-game.sh ab-results/landy-doubler-game \
 #       >ab-results/landy-doubler-game.log 2>&1 < /dev/null & disown

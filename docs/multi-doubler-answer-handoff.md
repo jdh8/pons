@@ -12,6 +12,14 @@ default-on 2026-08-27**, also a win in all four cells (item 2). The answer
 table's ladder is now complete on the `2♠` leg; the `3♥` leg and the rest of
 the both-vulnerable cell (item 3) are what remain.
 
+**Scope (2026-10-16):** both notrump outs are opener's calls and were
+measured on the strict 1NT scan, which never deals the 5m422/6m322 openers
+(14.4% of the default's 1NT). They are "balanced openers only" and owe a
+`--wide-1nt` re-measure before they are relied on
+([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+The parent `multi_doubler_major` was measured wide on 2026-10-16, at
+`ns` and `ew` only.
+
 ## What shipped, and what it measured
 
 `ab-results/2d-multi-doubler/`, `SEED_BASE=1787740671`, sha `96ecfd9a`,

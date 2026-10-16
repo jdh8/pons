@@ -2,6 +2,11 @@
 # ab-2d-double.sh — the `(2♦)` diamond penalty double, swept one axis at a time
 # (docs/one-notrump-competitive.md §N4b).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-double.sh ab-results/2d-double \
 #       >ab-results/2d-double.log 2>&1 < /dev/null &

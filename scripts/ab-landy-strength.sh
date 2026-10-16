@@ -2,6 +2,11 @@
 # ab-landy-strength.sh — §N1q: the Landy counter's two-level majors sorted by
 # STRENGTH instead of by major shortness, and opener's doubles over it.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-strength.sh ab-results/landy-strength \
 #       >ab-results/landy-strength.log 2>&1 < /dev/null & disown

@@ -2,6 +2,11 @@
 # ab-nt-high-overcall.sh — N3: their three-level overcall of our 1NT
 # (docs/one-notrump-competitive.md §N3).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-high-overcall.sh ab-results/nt-high-overcall \
 #       >ab-results/nt-high-overcall.log 2>&1 < /dev/null &

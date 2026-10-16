@@ -2,6 +2,10 @@
 # ab-nt-natural-overcall.sh — M1 + M2 of the `(1NT) 2♦` mirror forensic
 # (docs/defensive-overcalls.md § "Defense to their 1NT — the (1NT) 2♦ mirror panel").
 #
+# SCOPE (2026-10-16): their 1NT.  BBA opens 1NT on 98.0% strict-balanced
+# hands and 2.0% 5m422, so the strict scan covers the trigger to within 2%
+# (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-nt-natural-overcall.sh pack ab-results/nt-natural-overcall \
 #       >ab-results/nt-natural-overcall.log 2>&1 < /dev/null &

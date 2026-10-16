@@ -2,6 +2,11 @@
 # ab-landy-texas.sh — §N1-lia package C: the four-level over their Landy `2♣`
 # rides South African Texas, one arm.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-texas.sh ab-results/landy-texas \
 #       >ab-results/landy-texas.log 2>&1 < /dev/null & disown

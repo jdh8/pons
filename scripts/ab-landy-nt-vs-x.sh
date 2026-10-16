@@ -2,6 +2,10 @@
 # ab-landy-nt-vs-x.sh — §N1r step 0: `3NT` vs the values `X` over their Landy
 # `(2♣)`, at ALL FOUR vulnerabilities.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-nt-vs-x.sh ab-results/landy-nt-vs-x \
 #       >ab-results/landy-nt-vs-x.log 2>&1 < /dev/null & disown

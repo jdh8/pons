@@ -3,6 +3,11 @@
 # `1NT (2♣) X (2♥)` and `X (2♠)`.  The seat §N1k authored a `3NT` at, lost, and
 # gave back to the floor.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-opener.sh ab-results/landy-opener \
 #       >ab-results/landy-opener.log 2>&1 < /dev/null &

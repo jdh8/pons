@@ -69,6 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/measurement.md` now says that a filter changes the divergent set, not
   only the denominator, unless it covers the changed rule's population.
 
+- **Strict-scan 1NT verdicts scoped, not re-run (2026-10-16).** The 5m422
+  and 6m322 hands are 14.4% of the default's 1NT openers, so a coverage
+  preflight would flag nearly every verdict in a lane after our 1NT; the
+  rule instead turns on the treated seat. Verdicts on opener's call (21
+  runners: the Multi tables and outs, the Landy counter and its opener
+  rebids, `nt_high_overcall_responses`, A3's runouts) are "balanced openers
+  only" and owe a `--wide-1nt` re-measure before they are relied on.
+  Responder-side verdicts (11 Landy runners) keep the label. Our defense to
+  their 1NT (4 runners) is covered: BBA opens 1NT on 98.0% strict-balanced
+  hands and 2.0% 5m422, none 6m322 (4,000 boards, seed 1792160000). Each
+  runner header and owning ledger carries the scope; the classification is
+  in `docs/research-method-review.md`, "Filter scope". Nothing re-measured,
+  no default changed.
+
 - **Runners take `VULS` (2026-10-16).** `ab-lib.sh` defaults it to
   `none both`, and the 40 runners with a plain `for v in none both` loop read
   it, so `VULS="none ns ew both"` measures the asymmetric cells.

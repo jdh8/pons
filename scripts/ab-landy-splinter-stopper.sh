@@ -4,6 +4,11 @@
 # the short major (two of A-K-Q) or no four-card minor; a single stopper with
 # a four-card minor answers `4m` (which responder now raises to `5m`, arm 1).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-splinter-stopper.sh ab-results/landy-splinter-stopper \
 #       >ab-results/landy-splinter-stopper.log 2>&1 < /dev/null & disown

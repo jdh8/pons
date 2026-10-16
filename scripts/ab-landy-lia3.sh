@@ -2,6 +2,10 @@
 # ab-landy-lia3.sh — §N1-lia package B, REFINED on the lia2 forensic: keep the
 # club leg, re-cut the diamond leg, delete the convicted sell-outs.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia3.sh ab-results/landy-lia3 \
 #       >ab-results/landy-lia3.log 2>&1 < /dev/null & disown

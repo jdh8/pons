@@ -1,6 +1,11 @@
 #!/bin/sh
 # sd-pd-queue.sh — the three remaining SD-PD re-adjudications, back to back.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 # Cheapest first, so verdicts arrive early: the dump rescores (replay only, no
 # bidding), then the Meckstroth `3m` leg, then the runout marginal (heaviest —
 # 1M filtered boards per cell, four cells).

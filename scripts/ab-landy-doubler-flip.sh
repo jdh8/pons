@@ -2,6 +2,10 @@
 # ab-landy-doubler-flip.sh — §N1l's flip: the doubler's rebid ladder cut down
 # to the rungs the 2026-08-28 per-rung split actually credited.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-doubler-flip.sh ab-results/landy-doubler-flip \
 #       >ab-results/landy-doubler-flip.log 2>&1 < /dev/null &

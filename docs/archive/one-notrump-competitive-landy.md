@@ -13,6 +13,9 @@
 > is [one-notrump-competitive.md §N1](../one-notrump-competitive.md#n1--the-landy-2-counter-shipped-default-on-2026-08-15);
 > the pooled numbers are in [its ledger](../one-notrump-competitive.md#ledger).
 > Nothing here is re-run for freshness.
+>
+> **Scope (2026-10-16):** every verdict here saw only balanced 1NT openers;
+> see [the ledger's scope note](../one-notrump-competitive.md#ledger).
 
 ### N1l — the doubler's own rebid (`landy_doubler_rebids`, **measured 2026-08-28: mixed, stays off**)
 

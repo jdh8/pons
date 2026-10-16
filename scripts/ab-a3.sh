@@ -2,6 +2,11 @@
 # ab-a3.sh — measurements for the A3 pass of the bidding-options audit
 # (docs/bidding-options.md A3, "Our 1NT: competition, runouts & escapes").
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 # A3's unmeasured knobs have NO bba-gen flag, so they are measured with the
 # self-play example binaries directly (NOT the bba-gen arm/diffpair mechanism in
 # ab-lib.sh). Each example invocation runs one complete duplicate A/B and prints

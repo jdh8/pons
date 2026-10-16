@@ -2,6 +2,10 @@
 # ab-landy-major-jam.sh — §N1p-jam: the `4M` jam rung over their Landy `2♣`,
 # measured **standalone** for the first time.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-major-jam.sh ab-results/landy-major-jam \
 #       >ab-results/landy-major-jam.log 2>&1 < /dev/null & disown

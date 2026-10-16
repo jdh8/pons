@@ -2,6 +2,11 @@
 # ab-2d-multi-balance.sh — N4f + the two Multi reading knobs
 # (docs/one-notrump-competitive.md §N4f, docs/one-notrump-multi.md).
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Opener-side: re-run with --wide-1nt on fresh
+# deals before relying on the verdict (docs/research-method-review.md,
+# "Filter scope").
+#
 #   JOBS=24 BOARDS=460800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2d-multi-balance.sh ab-results/2d-multi-balance \
 #       >ab-results/2d-multi-balance.log 2>&1 < /dev/null &

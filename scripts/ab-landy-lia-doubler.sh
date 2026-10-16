@@ -2,6 +2,10 @@
 # ab-landy-lia-doubler.sh — §N1-lia package A: the Landy doubler's rebid seat,
 # the catch-all deleted and exactly-three trumps bought back cell by cell.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-lia-doubler.sh ab-results/landy-lia-doubler \
 #       >ab-results/landy-lia-doubler.log 2>&1 < /dev/null & disown

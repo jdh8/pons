@@ -3,6 +3,10 @@
 # `(2♣)` values double: `1NT (2♣) X (2♥) - -`, `X (2♠) - -`, and the two escape
 # legs `X (2♦) - (2♥)` / `X (2♦) - (2♠)`.
 #
+# SCOPE (2026-10-16): strict 1NT scan, balanced openers only (no 5m422/6m322,
+# 14.4% of the default 1NT).  Responder-side: the label stands; new runs pass
+# --wide-1nt (docs/research-method-review.md, "Filter scope").
+#
 #   JOBS=24 BOARDS=4608000 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-landy-doubler-rebids.sh ab-results/landy-doubler-rebids \
 #       >ab-results/landy-doubler-rebids.log 2>&1 < /dev/null &
