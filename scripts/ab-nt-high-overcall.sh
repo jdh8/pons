@@ -190,4 +190,44 @@ if [ "${ROUND:-1}" = 8 ]; then
     done
 fi
 
+# Round 9 (`ROUND=9`): FOUR-CELL CONFIRMATION of the leave-in (pre-registered
+# 2026-10-16, before any number is read; docs/research-method-review.md § 6).
+# Its v1 flipped sign by vulnerability, so the asymmetric cells are the real
+# test of the length gate.  Round 8's arms with `--wide-1nt` (the preempt scan's
+# 1NT candidate then covers the default opener), VULS="ns ew", fresh seed,
+# BOARDS=2400000, results in ab-results/nt-high-overcall-nsew.  The mechanism
+# keeps doubles in, so plain DD arbitrates and PD is a double-blind column; the
+# default stands in a cell whose plain DD reads non-inferior or better, any
+# other reading is flagged for a decision, not applied.
+if [ "${ROUND:-1}" = 9 ]; then
+    for v in $VULS; do
+        arm base    "$v" --filter-preempt --wide-1nt
+        arm noleave "$v" --filter-preempt --wide-1nt --ns-nt-high-overcall-x-leave-in false
+        gatepair base noleave "$v"
+        DENSITY=$(density_of "$R/base-$v")
+        diffpair base noleave "$v"
+        sddiff   base noleave "$v"
+    done
+fi
+
+# Round 10 (`ROUND=10`): the owed FRESH-SEED CONFIRMATION of N3-fit
+# (`nt_high_overcall_x_major_at_four`, the `4♥` rung over `1NT (3♠) X`;
+# pre-registered 2026-10-16, before any number is read).  It shipped on Round
+# 4's single seed; Round 4's block above predates the ship, so its `base` and
+# `fit` arms are now identical.  The rung does not read vulnerability, so the
+# ship's cells: VULS="none both", `--wide-1nt` on both arms, fresh seed,
+# BOARDS=2400000, results in ab-results/nt-high-overcall-n3fit.  The default
+# stands in a cell that reads plain DD non-inferior or better with PD not a
+# loss; any other reading is flagged for a decision, not applied.
+if [ "${ROUND:-1}" = 10 ]; then
+    for v in $VULS; do
+        arm base "$v" --filter-preempt --wide-1nt --ns-nt-high-overcall-x-major-at-four false
+        arm fit  "$v" --filter-preempt --wide-1nt
+        gatepair fit base "$v"
+        DENSITY=$(density_of "$R/base-$v")
+        diffpair fit base "$v"
+        sddiff   fit base "$v"
+    done
+fi
+
 log "nt-high-overcall done"

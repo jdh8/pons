@@ -71,6 +71,16 @@
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0 foreign
 # BEFORE any headline.  Resumable; SEED_BASE persists in $R/landy-opener.seed.
 # Iron rule: do NOT edit `src/` while this runs.
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# BOARDS=4608000, results in ab-results/landy-opener-nsew.  Arms gain
+# `--wide-1nt` so the 1NT candidate covers the default opener; the shipped
+# unit is px + rungs, so only `rungs vs base` runs (CONFIRM=1); `px` alone was
+# refused 2026-08 and is not re-measured.  PD is blind to `px` (falsifier 4):
+# plain DD arbitrates, SD-PD tie-breaks.
+#
+# The default stands in a cell that reads plain DD non-inferior or better
+# with PD not a loss; any other reading is flagged for a decision, not applied.
 R=${1:?usage: ab-landy-opener.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
@@ -96,6 +106,19 @@ log "=== landy-opener SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD 
 # honest-lead scorers (+1.82 / +1.92 IMPs per fired sd-plain over `px`).
 # Falsifier 4 held in the other direction than expected: plain DD liked `px`
 # alone at both colours, and the sd bracket is what refused it.
+if [ "${CONFIRM:-0}" = 1 ]; then
+    for v in $VULS; do
+        arm base  "$v" --filter-landy --wide-1nt --no-ns-landy-opener-px --no-ns-landy-opener-rungs
+        arm rungs "$v" --filter-landy --wide-1nt
+        gatepair rungs base "$v"
+        DENSITY=$(density_of "$R/base-$v")
+        diffpair rungs base "$v"
+        sddiff   rungs base "$v"
+    done
+    log "landy-opener done"
+    exit 0
+fi
+
 for v in $VULS; do
     arm base  "$v" --filter-landy --no-ns-landy-opener-px --no-ns-landy-opener-rungs
     arm px    "$v" --filter-landy --no-ns-landy-opener-rungs

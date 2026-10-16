@@ -14,13 +14,21 @@
 #   BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-2nt-double-veto.sh ab-results/2nt-double-veto \
 #       >ab-results/2nt-double-veto.log 2>&1 &
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# BOARDS=409600, results in ab-results/2nt-double-veto-nsew.  Unfiltered, as the
+# ship.  The loop reads $VULS (default "none both", the ship's cells).
+#
+# The default stands in a cell that reads plain DD non-inferior or better
+# with PD not a loss; any other reading is flagged for a decision, not applied.
+#
 R=${1:?usage: ab-2nt-double-veto.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 
 log "=== 2nt double veto start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm plain "$vul" --our-floor american --no-ns-2nt-double-veto
     arm on    "$vul" --our-floor american
     gatepair on plain "$vul" theirs

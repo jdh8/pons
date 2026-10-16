@@ -350,9 +350,10 @@ bump the same way, but a bump alone does not re-arbitrate the rails.
 
 Near-zero direct IMPs; protects banked wins and unblocks measurement:
 
-- Owed fresh-seed confirmations: N3-fit
-  ([one-notrump-competitive.md](one-notrump-competitive.md) queue),
-  pass_exclusion's two seeds. (Meckstroth `3m` jumps: confirmed, demoted
+- Owed fresh-seed confirmation: N3-fit
+  ([one-notrump-competitive.md](one-notrump-competitive.md) queue; queued
+  2026-10-16 as `ab-nt-high-overcall.sh` Round 10). pass_exclusion's two
+  seeds are not owed: the knob was removed 2026-08-18 (`97206fcc`). (Meckstroth `3m` jumps: confirmed, demoted
   2026-09-26; forcing-NT two-suiter: not confirmed, stays on —
   [bidding-options.md](bidding-options.md).)
 
@@ -481,10 +482,12 @@ group waits on that decision, the second group does not.
   round 5 won vs the Meckstroth `2NT` on every bracket of every cell (SD-PD
   +0.0016/+0.0012 NV, +0.0011/+0.0009 vul, 400k × 2 seeds; numbers and the
   trace in [bidding-options.md](bidding-options.md),
-  `set_forcing_nt_jump_shifts`). **Owed:** a vs-BBA run of the flip — 42 of
-  the 200 auctions `smoke-default` moved (0.2% of deals) have an opponent's
-  call after the opening, which `ab-meckstroth-2nt` never sees (it silences
-  them). Residual levers, each worth ≈ 50–100 SD-PD IMPs per 400k cell:
+  `set_forcing_nt_jump_shifts`). The vs-BBA run of the flip (contested
+  auctions included, which `ab-meckstroth-2nt` never sees) is **done**: the
+  2026-10-14 non-inferiority re-measure
+  (`ab-non-inferiority.sh … forcing-nt-jump-shifts`, unfiltered, 1,228,800
+  boards, seed 1791988795385093508) reads non-inferior on both scorers at
+  both vulnerabilities (plain −0.0001 / −0.0003). Residual levers, each worth ≈ 50–100 SD-PD IMPs per 400k cell:
   1. The `3♣` bucket is negative in all four cells: the floor's re-ask
      sometimes raises straight to `6M` (`3♠ - 4♠ - 6♠`) or wanders (`4NT -
      5♦ - 5♥ - 6♣ - 6♠`). An authored 12+ re-ask **lost** to it on the same

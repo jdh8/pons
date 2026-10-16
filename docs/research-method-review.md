@@ -167,11 +167,15 @@ does not read; a `both`-only gate is the untested refinement. Numbers in the
 
   | Knob | Cells owed | Runner | Note |
   | --- | --- | --- | --- |
-  | `competitive_accountant` with `competitive_pass_demotion`, `competitive_push_natural_only` | ns, ew | `ab-competitive-accountant.sh`, `ab-competitive-demotion.sh` | prices our vulnerability against theirs; unfiltered, hand-edit the loops |
+  | `competitive_accountant` with `competitive_pass_demotion`, `competitive_push_natural_only` | ns, ew | `ab-competitive-4cell.sh` | prices our vulnerability against theirs; unfiltered |
   | `landy_opener_rungs` + `landy_opener_px` | ns, ew | `ab-landy-opener.sh` | `!vulnerable()` rung |
   | `landy_doubler_px` | ns, ew | `ab-landy-doubler-flip.sh` | pure doubling |
   | `nt_high_overcall_x_leave_in` | ns, ew | `ab-nt-high-overcall.sh` | penalty conversion; its v1 flipped sign by vulnerability |
-  | `their_2nt_double_veto`, `their_3nt_pull_veto` | ns, ew | — | doubling vetoes |
+  | `their_2nt_double_veto`, `their_3nt_pull_veto` | ns, ew | `ab-2nt-double-veto.sh`, `ab-3nt-pull-veto.sh` | doubling vetoes |
+
+  All five rows are pre-registered in their runners (2026-10-16) and queued
+  in `scripts/confirm-queue-2026-10-16.sh`, with the N3-fit fresh seed
+  (`ab-nt-high-overcall.sh` Round 10).
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,

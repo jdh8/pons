@@ -79,12 +79,38 @@
 # sd-lead tie-breaks.  `probe-divergence --gate-opener ours` must read 0 foreign
 # BEFORE any headline.  Resumable; SEED_BASE persists in $R/landy-doubler-flip.seed.
 # Iron rule: do NOT edit `src/` while this runs.
+# FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
+# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# BOARDS=4608000, results in ab-results/landy-doubler-px-nsew.  `px` has been
+# the default since 2026-08-29 and `--ns-landy-doubler-px` /
+# `--ns-landy-doubler-white` no longer exist, so the three-arm body below no
+# longer parses; CONFIRM=1 runs the default against `--no-ns-landy-doubler-px`
+# instead.  With px off the later extras (`landy_doubler_game`, the honour and
+# small-trump rungs) are inert, so this prices today's whole px ladder against
+# the floor, not the 2026-08-29 unit.  Arms gain `--wide-1nt`.  PD is blind to
+# `px` (falsifier 4): plain DD arbitrates, SD-PD tie-breaks.
+#
+# The default stands in a cell that reads plain DD non-inferior or better
+# with PD not a loss; any other reading is flagged for a decision, not applied.
 R=${1:?usage: ab-landy-doubler-flip.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 
 SEED_BASE=$(seed_for landy-doubler-flip)
 log "=== landy-doubler-flip SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
+
+if [ "${CONFIRM:-0}" = 1 ]; then
+    for v in $VULS; do
+        arm base "$v" --filter-landy --wide-1nt --no-ns-landy-doubler-px
+        arm px   "$v" --filter-landy --wide-1nt
+        gatepair px base "$v"
+        DENSITY=$(density_of "$R/base-$v")
+        diffpair px base "$v"
+        sddiff   px base "$v"
+    done
+    log "landy-doubler-flip done"
+    exit 0
+fi
 
 for v in $VULS; do
     arm base  "$v" --filter-landy
