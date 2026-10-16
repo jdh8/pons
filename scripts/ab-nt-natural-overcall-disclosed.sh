@@ -82,14 +82,14 @@ log "=== nt-natural-overcall-disclosed SEED_BASE=$SEED_BASE sha=$SHA shards=$SHA
 FILTER='--filter-1nt --wide-1nt'
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm shipped "$v" $FILTER
+    arm shipped "$v" $FILTER --ns-nt-overcall-hcp-floor 8
     # shellcheck disable=SC2086
     arm base "$v" $FILTER --ns-nt-overcall-hcp-floor 0 --no-ns-nt-overcall-advance
     DENSITY=$(density_of "$R/base-$v")
     log "density $v: $DENSITY"
     gatepair shipped base "$v" theirs
     diffpair shipped base "$v"
-    sddiff shipped base "$v" --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
+    sddiff shipped base "$v" --on-ns-nt-overcall-hcp-floor 8 --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
 done
 
 log "nt-natural-overcall-disclosed done"

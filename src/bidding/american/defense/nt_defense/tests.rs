@@ -20,27 +20,27 @@ fn always_pass_defense_passes_over_1nt() {
 /// M1: the raw-HCP floor cuts the tail `points(8..)` admits through distribution
 ///
 /// `96.A9532.Q7543.3` is the forensic's worst `2♦` overcaller — 6 HCP, 8 points
-/// through 5-5 shape. The shipped floor of 8 passes it; `0` restores the overcall.
+/// through 5-5 shape. The default floor of 0 overcalls it; a floor of 8 passes.
 #[test]
 fn natural_overcall_hcp_floor_cuts_the_shapely_tail() {
     let over_1nt = [call(1, Strain::Notrump)];
     let hand = "96.A9532.Q7543.3";
-    let shipped = Agreements::default();
+    let default = Agreements::default();
     assert_eq!(
-        shipped.defense.natural_overcall_hcp_floor, 8,
-        "shipped default-on 2026-08-23"
+        default.defense.natural_overcall_hcp_floor, 0,
+        "off since 2026-10-16: the floor lost on its own"
     );
     assert_eq!(
-        best_call_with(&shipped, &over_1nt, hand).0,
-        Call::Pass,
-        "the shipped floor rejects 6 HCP even at 8 points"
-    );
-    let mut loose = Agreements::default();
-    loose.defense.natural_overcall_hcp_floor = 0;
-    assert_eq!(
-        best_call_with(&loose, &over_1nt, hand).0,
+        best_call_with(&default, &over_1nt, hand).0,
         call(2, Strain::Hearts),
-        "0 restores the untightened overcall"
+        "no floor overcalls 6 HCP at 8 points"
+    );
+    let mut tight = Agreements::default();
+    tight.defense.natural_overcall_hcp_floor = 8;
+    assert_eq!(
+        best_call_with(&tight, &over_1nt, hand).0,
+        Call::Pass,
+        "a floor of 8 rejects 6 HCP even at 8 points"
     );
     // A 10-count with the same suit is above both candidate floors.
     for k in [8, 9] {

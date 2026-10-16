@@ -51,14 +51,15 @@ log "=== nt-overcall-floor-bisect SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x
 FILTER='--filter-1nt --wide-1nt'
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm floor8 "$v" $FILTER
+    arm floor8 "$v" $FILTER --ns-nt-overcall-hcp-floor 8
     # shellcheck disable=SC2086
     arm floor0 "$v" $FILTER --ns-nt-overcall-hcp-floor 0
     DENSITY=$(density_of "$R/floor0-$v")
     log "density $v: $DENSITY"
     gatepair floor8 floor0 "$v" theirs
     diffpair floor8 floor0 "$v"
-    sddiff floor8 floor0 "$v" --off-ns-nt-overcall-hcp-floor 0
+    sddiff floor8 floor0 "$v" --on-ns-nt-overcall-hcp-floor 8 \
+        --off-ns-nt-overcall-hcp-floor 0
 done
 
 log "nt-overcall-floor-bisect done"

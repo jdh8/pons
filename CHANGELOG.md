@@ -220,6 +220,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Our natural two-level overcall of their 1NT has no HCP floor again
+  (2026-10-16).** `defense.natural_overcall_hcp_floor` goes from `8` to `0`, so
+  `(1NT) 2x` is back to a five-card suit and `points(8..=14)`, with 6- and
+  7-HCP shapely hands overcalling. The authored advance
+  (`natural_overcall_advance_enabled`) stays on. The 08-23 package (floor 8
+  plus advance) won, but its gain was the advance: with the advance on in
+  every arm, the floor alone loses on every scorer. The bisect (SEED_BASE
+  1792119766568383243) read floor 8 − floor 0 at plain DD −0.0071 to −0.0076
+  IMPs per accepted 1NT board, PD −0.0044 to −0.0056. A sweep on a fresh
+  seed (1792143998575635198, 393,216 accepted boards per arm per cell, gate 0
+  foreign) replicated it, with plain −0.0073 to −0.0085 and PD −0.0041 to
+  −0.0062, and found floors 7 and 9 lose too: the loss grows with the floor,
+  and floor 7, which drops only the 6-HCP overcalls, already loses on PD in
+  every cell. Floors 1–6 bid exactly as floor 0, because `points` is HCP plus
+  an upgrade of at most 2. DD can see the light overcall's gain because their
+  contract actually moves: it pushes them out of Stayman or a transfer. Worth
+  about +0.0019 IMPs per random deal, plain. `bba-gen
+  --ns-nt-overcall-hcp-floor` and `ab-dump-sd
+  --{on,off}-ns-nt-overcall-hcp-floor` now default to `0`; the historical
+  runners pin `8` on their floor-8 arms. Both `cards/*.bbsa` are unchanged
+  (no card row describes a natural overcall's strength). `smoke-default --count
+  20000 --seed 1` moves on 159 deals (sha256 `5d17bd56…` → `210358ae…`).
+  Details: [docs/defensive-overcalls.md](docs/defensive-overcalls.md#every-live-floor-against-floor-0-the-sweep-2026-10-16--floor-0-ships).
+
 - **A balanced maximum 1NT opener no longer stretches a weak Lebensohl
   sign-off to game on three trumps when non-vulnerable (2026-10-16,
   [#9](https://github.com/jdh8/pons/issues/9)).** After `1NT (2♠) 2NT - 3♣ -

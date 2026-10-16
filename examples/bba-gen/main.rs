@@ -2223,9 +2223,9 @@ struct Args {
     ns_balancing: bool,
 
     /// Raw-HCP floor under the natural two-level overcall of their 1NT, on top of
-    /// the `points(8..=14)` band (M1; **8 shipped**, `0` restores the old overcall,
-    /// `9` is the wider cut and still unmeasured).
-    #[arg(long, default_value_t = 8)]
+    /// the `points(8..=14)` band (M1; **0 shipped** since 2026-10-16, was 8;
+    /// floors 1–6 bid as 0, and 7, 8, 9 all measured a loss against it).
+    #[arg(long, default_value_t = 0)]
     ns_nt_overcall_hcp_floor: u8,
 
     /// Leave `(1NT) 2x - ?` to the instinct floor instead of the authored advance

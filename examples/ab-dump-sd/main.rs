@@ -133,11 +133,11 @@ struct Args {
     off_ns_direct_minor_weak_jump_overcall: bool,
     /// Read the ON arm's natural two-level overcall of their 1NT with this raw-HCP
     /// floor on top of the points band (`defense.natural_overcall_hcp_floor`;
-    /// defaults to the shipped 8, so a control arm must pass `0` explicitly).
-    #[arg(long, default_value_t = 8)]
+    /// defaults to the shipped 0, so an arm with a floor must pass it explicitly).
+    #[arg(long, default_value_t = 0)]
     on_ns_nt_overcall_hcp_floor: u8,
     /// Read the OFF arm's natural two-level overcall of their 1NT with this raw-HCP floor.
-    #[arg(long, default_value_t = 8)]
+    #[arg(long, default_value_t = 0)]
     off_ns_nt_overcall_hcp_floor: u8,
     /// Read the ON arm with `(1NT) 2x - ?` left to the instinct floor
     /// (`defense.natural_overcall_advance_enabled`; the advance is shipped on, so

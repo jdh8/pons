@@ -663,7 +663,7 @@ rides a package, **not** something an A/B can resolve alone.
   raise on support, new suit natural and non-forcing.  Completes the convention
   so M1 is measured against a live continuation, per the iron rule.
 
-**SHIPPED DEFAULT-ON 2026-08-23** — `natural_overcall_hcp_floor: u8` = **8** and
+**SHIPPED DEFAULT-ON 2026-08-23** (the floor reverted to **0** on 2026-10-16, [the sweep](#every-live-floor-against-floor-0-the-sweep-2026-10-16--floor-0-ships)) — `natural_overcall_hcp_floor: u8` = **8** and
 `natural_overcall_advance_enabled: bool` = **true** in `DefenseKnobs`.  `0` /
 `false` restore the old behaviour.  As built:
 
@@ -842,6 +842,44 @@ DD prices it because their contract actually moves.
 > 7 differs). The live floors are 7, 8 and 9, swept in
 > [`scripts/ab-nt-overcall-floor-sweep.sh`](../scripts/ab-nt-overcall-floor-sweep.sh).
 
+### Every live floor against floor 0: the sweep (2026-10-16) — floor 0 ships
+
+[`scripts/ab-nt-overcall-floor-sweep.sh`](../scripts/ab-nt-overcall-floor-sweep.sh),
+pre-registered (`edebcc80`) before any number was read: floors 7, 8 and 9
+against floor 0, the advance on in every arm, a fresh SEED_BASE
+`1792143998575635198`, `--filter-1nt --wide-1nt`, 393,216 accepted boards
+per arm per cell, density 0.253419, gate 0 foreign in every pair, leader
+reading `disclosed`. Floors 1–6 are not arms because they bid as floor 0
+(the correction above).
+
+| floor | cell | fired | plain DD | PD | plain SD | SD-PD |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 7 | none | 823 | −0.0013 ±0.0008 loss | −0.0020 ±0.0010 loss | −0.0003 ±0.0009 NI | −0.0011 ±0.0010 loss |
+| 7 | ns | 845 | −0.0014 ±0.0009 loss | −0.0023 ±0.0011 loss | −0.0007 ±0.0009 NI | −0.0017 ±0.0010 loss |
+| 7 | ew | 818 | −0.0013 ±0.0010 loss | −0.0021 ±0.0011 loss | −0.0004 ±0.0010 NI | −0.0013 ±0.0012 loss |
+| 7 | both | 776 | −0.0010 ±0.0010 NI | −0.0022 ±0.0012 loss | +0.0001 ±0.0011 NI | −0.0011 ±0.0012 NI |
+| 8 | none | 3227 | −0.0082 ±0.0016 loss | −0.0052 ±0.0019 loss | −0.0089 ±0.0017 loss | −0.0066 ±0.0019 loss |
+| 8 | ns | 3261 | −0.0074 ±0.0017 loss | −0.0041 ±0.0021 loss | −0.0076 ±0.0018 loss | −0.0050 ±0.0021 loss |
+| 8 | ew | 3249 | −0.0085 ±0.0019 loss | −0.0062 ±0.0023 loss | −0.0085 ±0.0021 loss | −0.0067 ±0.0023 loss |
+| 8 | both | 3189 | −0.0073 ±0.0020 loss | −0.0044 ±0.0024 loss | −0.0086 ±0.0021 loss | −0.0068 ±0.0024 loss |
+| 9 | none | 7712 | −0.0205 ±0.0023 loss | −0.0087 ±0.0028 loss | −0.0250 ±0.0025 loss | −0.0153 ±0.0028 loss |
+| 9 | ns | 7745 | −0.0155 ±0.0025 loss | −0.0007 ±0.0031 NI | −0.0212 ±0.0026 loss | −0.0081 ±0.0031 loss |
+| 9 | ew | 7745 | −0.0219 ±0.0028 loss | −0.0101 ±0.0035 loss | −0.0269 ±0.0031 loss | −0.0176 ±0.0035 loss |
+| 9 | both | 7631 | −0.0167 ±0.0029 loss | −0.0020 ±0.0037 NI | −0.0238 ±0.0031 loss | −0.0113 ±0.0037 loss |
+
+IMPs per accepted board, `floorK − floor0`. The loss grows with the floor,
+and floor 7 already loses on PD in every cell, though it only removes the
+6-HCP overcalls. `floor7 − floor8` (descriptive) reads plain +0.0060 to
++0.0072 and PD +0.0017 to +0.0041. **No floor is a candidate; floor 8
+replicates the bisect** (plain loss in all four cells, the same size on a
+second seed).
+
+> **Decided 2026-10-16 (jdh8): `defense.natural_overcall_hcp_floor = 0`,
+> the authored advance kept on.** The 08-23 package's gain was the advance.
+> `bba-gen --ns-nt-overcall-hcp-floor` and `ab-dump-sd
+> --{on,off}-ns-nt-overcall-hcp-floor` default to `0` with it; the historical
+> runners pin `8` on their floor-8 arms.
+
 ### Follow-ups this A/B opened
 
 - **`(1NT) 2x (X)` is still the floor; the census below closes widening it as
@@ -850,7 +888,7 @@ DD prices it because their contract actually moves.
   notrump rung M2 removed over a pass), but a `--show` tail is a selected worst
   tail, not a population claim.  The `(X)` bucket is the lane's **best** on the
   forensic census (1135 bd, +450 plain / +729 PD).
-- **The `k = 9` arm**, above.
+- **The `k = 9` arm**, above — measured in the sweep: a loss.
 - **The 8-vs-11 floor gap** against a suit opening, still open and still
   proposed as "leave it".
 

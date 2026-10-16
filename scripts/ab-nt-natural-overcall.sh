@@ -107,8 +107,8 @@ for seed_set in 1 2; do
         arm base "$v" --filter-1nt $OFF_FLAGS
         case "$MODE" in
         pack)
-            arm pack8 "$v" --filter-1nt
-            compare pack8 base "$v" \
+            arm pack8 "$v" --filter-1nt --ns-nt-overcall-hcp-floor 8
+            compare pack8 base "$v" --on-ns-nt-overcall-hcp-floor 8 \
                 --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
             ;;
         nine)
@@ -119,9 +119,9 @@ for seed_set in 1 2; do
         # Reserve: bisect a package verdict into its two halves.  M2 alone is
         # below resolution by construction — it is here to attribute, not to judge.
         bisect)
-            arm m1 "$v" --filter-1nt --no-ns-nt-overcall-advance
+            arm m1 "$v" --filter-1nt --no-ns-nt-overcall-advance --ns-nt-overcall-hcp-floor 8
             arm m2 "$v" --filter-1nt --ns-nt-overcall-hcp-floor 0
-            compare m1 base "$v" --on-no-ns-nt-overcall-advance \
+            compare m1 base "$v" --on-no-ns-nt-overcall-advance --on-ns-nt-overcall-hcp-floor 8 \
                 --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
             compare m2 base "$v" --on-ns-nt-overcall-hcp-floor 0 \
                 --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance

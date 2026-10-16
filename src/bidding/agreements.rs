@@ -2602,15 +2602,17 @@ pub struct DefenseKnobs {
     /// is negative on **both** scorers at **both** vulnerabilities (264 bd,
     /// −120 plain / −158 PD).
     ///
-    /// **Shipped default-on at `8` (2026-08-23).**  Measured as one package with
-    /// [`natural_overcall_advance_enabled`][Self::natural_overcall_advance_enabled]
-    /// over 204,800 boards/arm/vulnerability × two seeds: plain DD +0.0011 /
-    /// +0.0068 (seed 1, nv/vul) and +0.0041 / +0.0096 (seed 2), SD-PD +0.0086 /
-    /// +0.0164 and +0.0100 / +0.0202 — every SD-PD cell CI-clear, no cell
-    /// negative on either arbiter.  `0` restores the old untightened overcall
-    /// (and reissues the rule with no HCP term at all, rather than an inert
-    /// `hcp(0..)`); `9` is the wider cut, still unmeasured.  It does **not**
-    /// touch
+    /// **Default `0` (off) since 2026-10-16**, after shipping at `8` on
+    /// 2026-08-23 as one package with
+    /// [`natural_overcall_advance_enabled`][Self::natural_overcall_advance_enabled].
+    /// With the advance on in both arms, the floor on its own loses on every
+    /// scorer: floor 8 − floor 0 read plain DD −0.0071 to −0.0076 IMPs per
+    /// accepted 1NT board in the bisect and −0.0074 to −0.0085 in the sweep,
+    /// PD and SD-PD negative too; floors 7 and 9 lose as well, and the loss
+    /// grows with the floor.  The package's win was the advance.  Floors 1–6
+    /// bid as `0`: the points band already holds every overcall to 6+ HCP.
+    /// `0` reissues the rule with no HCP term at all, rather than an inert
+    /// `hcp(0..)`.  It does **not** touch
     /// [`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
     /// which is a *reading* knob shared with the DONT and Meckwell one-suiter
     /// floors.  An A/B knob (`bba-gen --ns-nt-overcall-hcp-floor`).
@@ -3193,7 +3195,7 @@ impl Default for DefenseKnobs {
             weak_two_notrump_advances_enabled: false,
             advance_minor_jump_enabled: true,
             notrump_balancing_enabled: false,
-            natural_overcall_hcp_floor: 8,
+            natural_overcall_hcp_floor: 0,
             natural_overcall_advance_enabled: true,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
