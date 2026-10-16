@@ -64,6 +64,22 @@ struct Args {
     #[arg(short, long)]
     output: Option<String>,
 
+    /// Print the files whose bytes decide a run, one `role path` per line,
+    /// and exit without contacting BEN: `exe` (this binary's image), `lib`
+    /// (the EPBot library `--calibrate-epbot` loads) and one `weights` per
+    /// `PONS_FLOOR_WEIGHTS` blob.  `scripts/ab-lib.sh` fingerprints each arm
+    /// by them; the BEN servers are outside it (the runners' `--note` records
+    /// the tier conf's sha256, and servers never restart mid-experiment).
+    #[arg(long)]
+    provenance: bool,
+
+    /// Check that FILE is a complete shard and exit without contacting BEN: it
+    /// must parse, hold exactly `--count` boards and, if `--seed` is given,
+    /// have been dealt from that seed.  Exits non-zero otherwise.  The shard
+    /// check `scripts/ben-gen-parallel.sh --verify` runs on every shard.
+    #[arg(long, value_name = "FILE")]
+    verify: Option<String>,
+
     /// Vulnerability the boards are bid at: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
@@ -433,6 +449,13 @@ fn match_deals(seed: u64) -> impl Iterator<Item = (FullDeal, Seat)> {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if args.provenance {
+        let lib = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+        return common::print_provenance(&lib);
+    }
+    if let Some(file) = &args.verify {
+        return common::verify_shard(file, args.count, args.seed);
+    }
     anyhow::ensure!(
         matches!(args.tier.as_str(), "f" | "s"),
         "--tier must be f or s"
@@ -452,39 +475,42 @@ fn main() -> anyhow::Result<()> {
         let mut rng = StdRng::seed_from_u64(seed);
         let vuls: [(&str, AbsoluteVulnerability); 4] = ["none", "ns", "ew", "both"]
             .map(|s| (s, s.parse().expect("valid vulnerability label")));
-        let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
         let mut accepted = 0usize;
         let mut dealt = 0usize;
-        while accepted < args.count {
-            let deal = full_deal(&mut rng);
-            dealt += 1;
-            if args.contested && !contested(&deal) {
-                continue;
+        // Atomic like the match shards: a BEN abort mid-corpus leaves no
+        // truncated JSONL at `path`.
+        common::write_atomically(path, |out| {
+            while accepted < args.count {
+                let deal = full_deal(&mut rng);
+                dealt += 1;
+                if args.contested && !contested(&deal) {
+                    continue;
+                }
+                let pbn = format!(
+                    "N:{} {} {} {}",
+                    hand_pbn(deal[Seat::North]),
+                    hand_pbn(deal[Seat::East]),
+                    hand_pbn(deal[Seat::South]),
+                    hand_pbn(deal[Seat::West]),
+                );
+                for (label, vul) in vuls {
+                    let auction = bid_out(&ben, &ben, true, Seat::North, vul, &deal);
+                    let calls: Vec<String> = auction.iter().map(|&c| corpus_token(c)).collect();
+                    let top3: Vec<serde_json::Value> = calls
+                        .iter()
+                        .map(|t| serde_json::json!([[t.as_str(), 1.0]]))
+                        .collect();
+                    let ent = vec![0.0_f64; calls.len()];
+                    let row = serde_json::json!({
+                        "deal": args.first_deal + accepted, "vul": label, "pbn": pbn,
+                        "calls": calls, "top3": top3, "ent": ent,
+                    });
+                    writeln!(out, "{row}")?;
+                }
+                accepted += 1;
             }
-            let pbn = format!(
-                "N:{} {} {} {}",
-                hand_pbn(deal[Seat::North]),
-                hand_pbn(deal[Seat::East]),
-                hand_pbn(deal[Seat::South]),
-                hand_pbn(deal[Seat::West]),
-            );
-            for (label, vul) in vuls {
-                let auction = bid_out(&ben, &ben, true, Seat::North, vul, &deal);
-                let calls: Vec<String> = auction.iter().map(|&c| corpus_token(c)).collect();
-                let top3: Vec<serde_json::Value> = calls
-                    .iter()
-                    .map(|t| serde_json::json!([[t.as_str(), 1.0]]))
-                    .collect();
-                let ent = vec![0.0_f64; calls.len()];
-                let row = serde_json::json!({
-                    "deal": args.first_deal + accepted, "vul": label, "pbn": pbn,
-                    "calls": calls, "top3": top3, "ent": ent,
-                });
-                writeln!(out, "{row}")?;
-            }
-            accepted += 1;
-        }
-        out.flush()?;
+            Ok(())
+        })?;
         eprintln!(
             "ben-gen: self-play corpus — {} deals × 4 vul = {} boards to {path} (seed {seed}){}",
             args.count,
@@ -565,9 +591,7 @@ fn main() -> anyhow::Result<()> {
         boards,
     };
     match args.output.as_deref() {
-        Some(path) => {
-            serde_json::to_writer(std::io::BufWriter::new(std::fs::File::create(path)?), &dump)?;
-        }
+        Some(path) => common::write_atomically(path, |out| Ok(serde_json::to_writer(out, &dump)?))?,
         None => serde_json::to_writer(std::io::stdout().lock(), &dump)?,
     }
     eprintln!(

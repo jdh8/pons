@@ -14,56 +14,19 @@
 # Each feature arm sets ONLY its own flag, so the paired per-shard diff vs base
 # isolates exactly one knob against BBA. Both vulnerabilities, both scorers
 # (plain DD + perfect-defense), arms strictly sequential, one shared SEED_BASE
-# (paired diffs need identical deals). Modeled on scripts/ab-competitive-rebid.sh; do
-# NOT touch the codebase while it runs (bba-gen-parallel re-invokes cargo build;
-# it must stay a no-op).
+# (paired diffs need identical deals). Do NOT touch the codebase while it runs.
 #
-#   setsid nohup scripts/idle-run.sh \
+#   JOBS=96 BOARDS=204800 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-weak-two-balancing.sh ab-results/weak-two-balancing \
 #       >ab-results/weak-two-balancing.log 2>&1 &
 #
-# Resumable: an existing arm dir or a non-empty diff file is skipped; the
-# SEED_BASE persists in $R/seed so a restart stays seed-aligned.
-set -eu
-cd "$(dirname "$0")/.."
-
+# Resumable through ab-lib.sh (manifest-checked, shard-verified arms; stamped
+# diffs); the SEED_BASE persists in $R/seed so a restart stays seed-aligned.
+# The shard count is JOBS (default nproc), like every ab-lib runner; this
+# script used to hard-code nproc and ignore JOBS.
 R=${1:?usage: ab-weak-two-balancing.sh RESULTS_DIR}
-mkdir -p "$R"
-SHA=$(git rev-parse --short HEAD)
-DIFF=target/release/examples/ab-dump-diff
-PER_SHARD=${PER_SHARD:-6400}
-SHARDS=$(nproc)
-
-cargo build --release --features serde --example bba-gen --example ab-dump-diff
-export SKIP_BUILD=1   # this build is the whole run's; see ab-lib.sh
-
-log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
-
-# a persistent SEED_BASE, fresh on first use
-if [ ! -s "$R/seed" ]; then echo $(date +%s%N) >"$R/seed"; fi
-SEED_BASE=$(cat "$R/seed")
-
-# arm NAME VUL [flags...] — generate one arm unless already present
-arm() {
-    name=$1; vul=$2; shift 2
-    dir="$R/$name-$vul"
-    [ -d "$dir" ] && { log "skip $dir (exists)"; return 0; }
-    log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
-    SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
-        >>"$R/log" 2>&1
-}
-
-# diffpair ON OFF VUL — paired diff over the whole arm, both scorers.
-# ab-dump-diff folds the arm dir's shards into a single DDS fan-out.
-diffpair() {
-    on=$1; off=$2; vul=$3
-    plain="$R/diff.$on.vs.$off.$vul.plain.txt"
-    pd="$R/diff.$on.vs.$off.$vul.pd.txt"
-    [ -s "$plain" ] && [ -s "$pd" ] && { log "skip $plain + $pd (exist)"; return 0; }
-    log "diff $on vs $off ($vul, plain+pd)"
-    "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
-        --out-plain "$plain" --out-pd "$pd" --show 5 >>"$R/log" 2>&1
-}
+. "$(dirname "$0")/ab-lib.sh"
+SEED_BASE=$(seed_for)
 
 log "weak-two/balancing A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, shards=$SHARDS x $PER_SHARD boards/arm/vul"
 

@@ -17,13 +17,21 @@
 #   DENSITY      accepted ÷ scanned of a --filter-* run; when set, diffpair and
 #                sddiff pass it as --density so the verdict is not withheld
 #                (density_of computes it from the arm's shards in $R/log)
+#   GENERATOR    bba-gen (default) or ben-gen: the opponent every `arm` bids
+#                against, through scripts/$GENERATOR-parallel.sh.  A ben-gen
+#                runner sets JOBS to its BEN server count (the shard count,
+#                which ben-gen-parallel then insists on) and passes `-t f
+#                --note …` in each arm's flags; BBA_GEN applies to bba-gen only.
 #
 # Sourcing exports SKIP_BUILD=1, so the build it does here is the only one the
 # whole experiment gets; see the comment at that line.
 #
 # A runner that scores single-dummy sets BUILD_EXTRA='--example ab-dump-sd' and
-# calls sddiff; the two split-by-opening runners override diffpair/sddiff with
-# dir-based variants after sourcing (their shard dirs are split by strain).
+# calls sddiff; the two split-by-opening runners score strain-split copies of
+# each arm through report_inputs/fresh_report (their shard dirs are split by
+# strain), and the binary-arm runners export BBA_GEN per arm.  Do not shadow
+# arm/diffpair/sddiff: a shadow keeps its own resume check and silently loses
+# the manifest, the shard verification and the report stamps below.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -35,7 +43,13 @@ SD=target/release/examples/ab-dump-sd
 PROBE=target/release/examples/probe-divergence
 SHOW=${SHOW:-5}
 VULS=${VULS:-none both}
-SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners log it
+GENERATOR=${GENERATOR:-bba-gen}
+case "$GENERATOR" in
+    bba-gen | ben-gen) ;;
+    *) echo "ab-lib: GENERATOR must be bba-gen or ben-gen, not $GENERATOR" >&2; exit 1 ;;
+esac
+PARALLEL=scripts/$GENERATOR-parallel.sh
+SHARDS=${JOBS:-$(nproc)}   # shard count $PARALLEL creates; runners log it
 # BOARDS = total boards per arm per vul, the knob that actually sets statistical
 # power; when given, PER_SHARD is derived so JOBS is pure parallelism (rounded up
 # to a multiple of 4 per shard for dealer balance).  PER_SHARD alone still works,
@@ -70,7 +84,7 @@ done
 # target/release, so every harness it needs must exist.
 if [ "${SKIP_BUILD:-0}" = 1 ]; then
     # shellcheck disable=SC2086
-    for ex in bba-gen ab-dump-diff $(echo ${BUILD_EXTRA:-} | sed 's/--example//g'); do
+    for ex in "$GENERATOR" ab-dump-diff $(echo ${BUILD_EXTRA:-} | sed 's/--example//g'); do
         [ -x "target/release/examples/$ex" ] || {
             echo "ab-lib: SKIP_BUILD=1 but target/release/examples/$ex is missing" >&2
             exit 1
@@ -80,10 +94,10 @@ if [ "${SKIP_BUILD:-0}" = 1 ]; then
 else
     # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
     # shellcheck disable=SC2086
-    cargo build --release --features serde --example bba-gen --example ab-dump-diff ${BUILD_EXTRA:-}
+    cargo build --release --features serde --example "$GENERATOR" --example ab-dump-diff ${BUILD_EXTRA:-}
 fi
 
-# One build per experiment, here.  bba-gen-parallel.sh otherwise rebuilds at the
+# One build per experiment, here.  $PARALLEL otherwise rebuilds at the
 # head of *every arm*, so a `src/` edit mid-run makes late arms measure different
 # code from early ones with nothing in the log to say so.  With this exported it
 # hard-fails on a missing binary instead.  Cost: a run started on a dirty or
@@ -92,15 +106,15 @@ export SKIP_BUILD=1
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
-# arm NAME VUL [bba-gen flags...] — generate one arm unless already present
+# arm NAME VUL [generator flags...] — generate one arm unless already present
 #
-# The resume check VERIFIES the arm (`bba-gen-parallel.sh --verify`): exactly
-# shards 0..SHARDS-1, each parsing as PER_SHARD boards dealt from SEED_BASE+i.
-# Testing the directory resumes past an arm that died on startup (bba-gen-
-# parallel mkdirs first); testing shard-0, or merely counting shards, resumes
+# The resume check VERIFIES the arm (`$PARALLEL --verify`): exactly shards
+# 0..SHARDS-1, each parsing as PER_SHARD boards dealt from SEED_BASE+i.
+# Testing the directory resumes past an arm that died on startup (the parallel
+# scripts mkdir first); testing shard-0, or merely counting shards, resumes
 # past a short or truncated arm -- and if both arms lost the SAME index (one
 # deterministic crash, same deal stream) every downstream assert still passes.
-# An arm that fails the check is regenerated whole; bba-gen-parallel now exits
+# An arm that fails the check is regenerated whole; both parallel scripts exit
 # non-zero on any failed worker or unverified shard, which stops the runner.
 #
 # An arm is named by role (`shipped`, `off`), not by what it measured, and a
@@ -121,7 +135,7 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 #
 # The fingerprint is what the arm RUNS, not the checkout: the source tree is no
 # witness for a SKIP_BUILD=1 binary that predates it, nor for a BBA_GEN
-# override.  It cksums the files `bba-gen --provenance` names -- the image its
+# override.  It cksums the files `$GENERATOR --provenance` names -- the image its
 # code was mapped from (seen through a BBA_GEN loader wrapper, so rebuilding
 # the wrapped binary counts), the EPBot library, the PONS_FLOOR_WEIGHTS blobs
 # -- plus the launcher, flags and every flag value naming a file (a `.bbsa`
@@ -131,12 +145,19 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 # fail closed, including on fresh arms. FORCE_REUSE=1 explicitly overrides a
 # failed provenance check as well as a mismatched arm.meta. Doc-only commits
 # and unrebuilt source edits leave the fingerprint unchanged; a relink that
-# changes the bytes refuses.
+# changes the bytes refuses.  A ben-gen arm's BEN servers are outside it: its
+# `--note` flag records the tier conf's sha256, and servers never restart
+# mid-experiment (docs/ben-gen-design.md).
 #
 # A subshell body, so its names cannot clobber a runner's (`for a; do arm …`).
 arm_fingerprint() (
-    # Resolved as bba-gen-parallel.sh resolves it; keep the two in step.
-    bin=${BBA_GEN:-$PWD/target/release/examples/bba-gen}
+    # Resolved as $PARALLEL resolves it; keep them in step.  ben-gen has no
+    # override: ben-gen-parallel.sh always runs this checkout's build.
+    if [ "$GENERATOR" = bba-gen ]; then
+        bin=${BBA_GEN:-$PWD/target/release/examples/bba-gen}
+    else
+        bin=$PWD/target/release/examples/ben-gen
+    fi
     report=$("$bin" --provenance 2>/dev/null) || {
         echo "ab-lib: $bin does not report runtime provenance; use a wrapper that answers --provenance with its executable, library and weights" >&2
         return 1
@@ -201,7 +222,8 @@ seed-base: $SEED_BASE"
         fi
     fi
     if ls "$dir"/shard-*.json >/dev/null 2>&1; then
-        if JOBS=$SHARDS SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh --verify "$dir" "$PER_SHARD" \
+        # JOBS is bba-gen-parallel's shard count, SHARDS ben-gen-parallel's.
+        if JOBS=$SHARDS SHARDS=$SHARDS SEED_BASE=$SEED_BASE "$PARALLEL" --verify "$dir" "$PER_SHARD" \
             >>"$R/log" 2>&1; then
             log "skip $dir (complete, verified)"
             return 0
@@ -217,9 +239,9 @@ seed-base: $SEED_BASE"
         echo "# written: $(date -u +%FT%TZ)"
     } >"$dir/arm.meta"
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
-    SEED_BASE=$SEED_BASE JOBS=$SHARDS scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
+    SEED_BASE=$SEED_BASE JOBS=$SHARDS SHARDS=$SHARDS "$PARALLEL" "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1 || {
-        log "FAILED $dir: bba-gen-parallel exited non-zero (see $R/log); rerun to regenerate the arm"
+        log "FAILED $dir: $PARALLEL exited non-zero (see $R/log); rerun to regenerate the arm"
         exit 1
     }
 }

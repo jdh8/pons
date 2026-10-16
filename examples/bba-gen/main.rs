@@ -3379,104 +3379,15 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     Ok(agreements)
 }
 
-/// The file this code was mapped from
-///
-/// [`std::env::current_exe`] names the kernel's executable, which is the
-/// dynamic loader when a wrapper runs us as `ld-linux.so bba-gen` (`BBA_GEN` on
-/// an old-glibc box), so read the mapping that holds this very function.
-fn exe_image() -> std::io::Result<std::path::PathBuf> {
-    let here = exe_image as *const () as usize;
-    let maps = std::fs::read_to_string("/proc/self/maps").unwrap_or_default();
-    for line in maps.lines() {
-        let (Some((lo, hi)), Some(slash)) = (
-            line.split_whitespace()
-                .next()
-                .and_then(|r| r.split_once('-')),
-            line.find('/'),
-        ) else {
-            continue;
-        };
-        if let (Ok(lo), Ok(hi)) = (usize::from_str_radix(lo, 16), usize::from_str_radix(hi, 16))
-            && (lo..hi).contains(&here)
-        {
-            return Ok(line[slash..].into());
-        }
-    }
-    std::env::current_exe()
-}
-
-/// `--provenance`: the files whose bytes decide a run
-fn print_provenance(lib: &str) -> anyhow::Result<()> {
-    println!("exe {}", exe_image()?.display());
-    println!("lib {lib}");
-    if let Ok(paths) = std::env::var("PONS_FLOOR_WEIGHTS") {
-        for path in paths.split(',') {
-            println!("weights {path}");
-        }
-    }
-    Ok(())
-}
-
-/// `--verify`: `path` parses as a [`Dump`] of exactly `count` boards dealt
-/// from `seed` (when given).  A truncated shard fails to parse.
-fn verify_shard(path: &str, count: usize, seed: Option<u64>) -> anyhow::Result<()> {
-    use anyhow::Context as _;
-    let file = std::fs::File::open(path).with_context(|| format!("open shard {path}"))?;
-    let dump: Dump = serde_json::from_reader(std::io::BufReader::new(file))
-        .with_context(|| format!("parse shard {path}"))?;
-    anyhow::ensure!(
-        dump.boards.len() == count,
-        "shard {path} holds {} boards, expected {count}",
-        dump.boards.len(),
-    );
-    if let Some(seed) = seed {
-        anyhow::ensure!(
-            dump.seed == Some(seed),
-            "shard {path} was dealt from seed {:?}, expected {seed}",
-            dump.seed,
-        );
-    }
-    Ok(())
-}
-
-/// Write `dump` to a hidden temp file beside `path` and rename it into place,
-/// so a worker that dies mid-write leaves no `shard-*.json` behind for a
-/// resume to count — only a `.shard-*.tmp` that no shard glob matches.
-fn write_atomically(path: &str, dump: &Dump) -> anyhow::Result<()> {
-    use anyhow::Context as _;
-    let path = std::path::Path::new(path);
-    let name = path
-        .file_name()
-        .with_context(|| format!("--output {} names no file", path.display()))?;
-    let tmp = path.with_file_name(format!(
-        ".{}.{}.tmp",
-        name.to_string_lossy(),
-        std::process::id()
-    ));
-    let write = || -> anyhow::Result<()> {
-        let mut out = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
-        serde_json::to_writer(&mut out, dump)?;
-        // `into_inner` flushes and reports the error a dropped BufWriter swallows.
-        out.into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?
-            .sync_all()?;
-        std::fs::rename(&tmp, path)?;
-        Ok(())
-    };
-    write().inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
-    })
-}
-
 #[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
     if args.provenance {
-        return print_provenance(&path);
+        return common::print_provenance(&path);
     }
     if let Some(file) = &args.verify {
-        return verify_shard(file, args.count, args.seed);
+        return common::verify_shard(file, args.count, args.seed);
     }
     // A full `.bbsa` card expands to convention overrides applied before the
     // explicit `--*-conv` singles, so singles override the card.
@@ -3895,7 +3806,7 @@ fn main() -> anyhow::Result<()> {
         boards,
     };
     match args.output.as_deref() {
-        Some(path) => write_atomically(path, &dump)?,
+        Some(path) => common::write_atomically(path, |out| Ok(serde_json::to_writer(out, &dump)?))?,
         None => serde_json::to_writer(std::io::stdout().lock(), &dump)?,
     }
     eprintln!(

@@ -19,11 +19,6 @@ SERVERS=16
 CONF=vendor/ben/BEN-21GF-F.conf
 CONF_SHA=$(sha256sum "$CONF" | awk '{print $1}')
 NOTE="tier-f-conf-sha256=$CONF_SHA"
-DIFF=target/release/examples/ab-dump-diff
-SD=target/release/examples/ab-dump-sd
-mkdir -p "$R"
-
-log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu || true)
 count=$(printf '%s\n' "$ports" | awk 'NF { n++ } END { print n + 0 }')
@@ -37,42 +32,22 @@ count=$(printf '%s\n' "$ports" | awk 'NF { n++ } END { print n + 0 }')
 	exit 1
 }
 
-for bin in target/release/examples/ben-gen "$DIFF" "$SD"; do
-	[ -x "$bin" ] || { echo "release binary missing before BEN run: $bin" >&2; exit 1; }
-done
-
-arm() {
-	local name=$1 vul=$2
-	shift 2
-	local dir="$R/$name-$vul"
-	[ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; return; }
-	log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
-	SEED_BASE=$SEED_BASE SKIP_BUILD=1 scripts/ben-gen-parallel.sh "$dir" "$PER_SHARD" \
-		-v "$vul" -t f --note "$NOTE" "$@" >>"$R/log" 2>&1
-	local got
-	got=$(find "$dir" -maxdepth 1 -name 'shard-*.json' -type f -size +0c | wc -l)
-	[ "$got" -eq "$SERVERS" ] || {
-		echo "$dir has $got/$SERVERS complete shards" >&2
-		exit 1
-	}
-}
-
-diffpair() {
-	local vul=$1
-	local plain="$R/diff.on.vs.off.$vul.plain.txt"
-	local pd="$R/diff.on.vs.off.$vul.pd.txt"
-	log "diff on vs off ($vul, plain+pd)"
-	"$DIFF" "$R/on-$vul" "$R/off-$vul" --score both \
-		--out-plain "$plain" --out-pd "$pd" --show "$SHOW" >>"$R/log" 2>&1
-	log "sd-diff on vs off ($vul, 16 worlds)"
-	"$SD" "$R/on-$vul" "$R/off-$vul" -v "$vul" --sd-worlds 16 --show 0 \
-		--on-ns-direct-weak-jump-overcall >"$R/sd.on.vs.off.$vul.txt" 2>&1
-}
+# ab-lib's arm/diffpair/sddiff: a manifest-checked, shard-verified resume and
+# stamped reports (the old local arm skipped on a nonempty shard-0 and counted
+# nonempty shards after).  SKIP_BUILD=1 keeps this runner build-free: it
+# measures the binaries the BBA guard already ran, which must exist.  JOBS is
+# the server count: ben-gen-parallel refuses any other fleet size.
+GENERATOR=ben-gen
+JOBS=$SERVERS
+BUILD_EXTRA='--example ab-dump-sd'
+SKIP_BUILD=1
+. scripts/ab-lib.sh
 
 log "=== BEN direct-weak-jump-overcall A/B start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in none both; do
-	arm off "$vul" --no-ns-direct-weak-jump-overcall
-	arm on "$vul"
-	diffpair "$vul"
+	arm off "$vul" -t f --note "$NOTE" --no-ns-direct-weak-jump-overcall
+	arm on "$vul" -t f --note "$NOTE"
+	diffpair on off "$vul"
+	sddiff on off "$vul" --on-ns-direct-weak-jump-overcall
 done
 log "=== BEN direct-weak-jump-overcall A/B done"

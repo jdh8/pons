@@ -18,10 +18,6 @@ SHOW=${SHOW:-8}
 SERVERS=16
 CONF=vendor/ben/BEN-21GF-F.conf
 NOTE="tier-f-conf-sha256=$(sha256sum "$CONF" | awk '{print $1}')"
-DIFF=target/release/examples/ab-dump-diff
-SD=target/release/examples/ab-dump-sd
-mkdir -p "$R"
-log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 ports=$(pgrep -af 'gameapi.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu)
 count=$(printf '%s\n' "$ports" | grep -c . || true)
@@ -31,35 +27,25 @@ count=$(printf '%s\n' "$ports" | grep -c . || true)
     exit 1
 }
 
-cargo build --release --features serde --example ben-gen --example ab-dump-diff --example ab-dump-sd
+# ab-lib's arm/diffpair/sddiff: a manifest-checked, shard-verified resume and
+# stamped reports (the old local arm skipped on a nonempty shard-0 alone).
+# JOBS is the server count: ben-gen-parallel refuses any other fleet size.
+GENERATOR=ben-gen
+JOBS=$SERVERS
+BUILD_EXTRA='--example ab-dump-sd'
+. scripts/ab-lib.sh
 
-arm() {
-    local name=$1 vul=$2
-    shift 2
-    local dir="$R/$name-$vul"
-    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; return; }
-    log "generate $dir (flags: $*)"
-    SEED_BASE=$SEED_BASE SKIP_BUILD=1 scripts/ben-gen-parallel.sh "$dir" "$PER_SHARD" \
-        -v "$vul" -t f --note "$NOTE" "$@" >>"$R/log" 2>&1
-}
-
-compare() {
-    local on=$1 off=$2 vul=$3
-    log "diff $on vs $off ($vul, DD+PD)"
-    "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
-        --out-plain "$R/diff.$on.vs.$off.$vul.plain.txt" \
-        --out-pd "$R/diff.$on.vs.$off.$vul.pd.txt" --show "$SHOW" >>"$R/log" 2>&1
-    log "sd-diff $on vs $off ($vul, SD+SD-PD)"
-    "$SD" "$R/$on-$vul" "$R/$off-$vul" -v "$vul" --sd-worlds 16 --show 0 \
-        >"$R/sd.$on.vs.$off.$vul.txt" 2>&1
-}
+# ben NAME VUL [flags...] — one Tier-F arm
+ben() { arm "$1" "$2" -t f --note "$NOTE" "${@:3}"; }
 
 log "=== BEN competitive demotion start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in none both; do
-    arm control "$vul" --no-ns-competitive-push-natural-only
-    arm off "$vul" --no-ns-competitive-pass-demotion
-    arm natural "$vul"
-    compare off control "$vul"
-    compare natural control "$vul"
+    ben control "$vul" --no-ns-competitive-push-natural-only
+    ben off "$vul" --no-ns-competitive-pass-demotion
+    ben natural "$vul"
+    for on in off natural; do
+        diffpair "$on" control "$vul"
+        sddiff "$on" control "$vul"
+    done
 done
 log "=== BEN competitive demotion done"

@@ -23,33 +23,26 @@ cat >"$tmp/bin/pgrep" <<'SH'
 #!/bin/sh
 printf '%s\n' '100 gameapi.py --port 8000' '101 gameapi.py --port 8001'
 SH
+# A fake generator writes the seed it was dealt from; with --verify it accepts
+# a fake shard that holds that seed.  Both parallel scripts verify each shard
+# with the checkout's generator, so it doubles as bba-gen's checker and ben-gen.
 cat >"$tmp/fake-gen" <<'SH'
 #!/bin/sh
 set -eu
+verify=
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --verify) verify=$2; shift ;;
         --seed) seed=$2; shift ;;
         --output|-o) out=$2; shift ;;
     esac
     shift
 done
+[ -z "$verify" ] || { [ "$(cat "$verify")" = "$seed" ]; exit; }
 printf '%s\n' "$seed" >"$out"
 SH
-# bba-gen-parallel verifies each shard with the checkout's bba-gen; this one
-# accepts a fake shard that holds the seed it was dealt from.
-cat >"$tmp/target/release/examples/bba-gen" <<'SH'
-#!/bin/sh
-set -eu
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-        --verify) file=$2; shift ;;
-        --seed) seed=$2; shift ;;
-    esac
-    shift
-done
-[ "$(cat "$file")" = "$seed" ]
-SH
-chmod +x "$tmp/bin/date" "$tmp/bin/pgrep" "$tmp/fake-gen" "$tmp/target/release/examples/bba-gen"
+chmod +x "$tmp/bin/date" "$tmp/bin/pgrep" "$tmp/fake-gen"
+cp "$tmp/fake-gen" "$tmp/target/release/examples/bba-gen"
 cp "$tmp/fake-gen" "$tmp/target/release/examples/ben-gen"
 export PATH="$tmp/bin:$PATH" SKIP_BUILD=1 JOBS=2 BBA_GEN="$tmp/fake-gen"
 export SEED_CLOCK_STATE="$tmp/clock"

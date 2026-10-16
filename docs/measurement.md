@@ -216,6 +216,20 @@ arm, a rebuilt scorer or a changed flag rescores the cell; a report with no
 stamp (an older results directory) is rescored once. Scoring tools never read
 `arm.meta`, so old arms without one stay scoreable directly.
 
+The BEN runners get the same guard by sourcing `ab-lib.sh` with
+`GENERATOR=ben-gen` and `JOBS` set to their server count: `ben-gen` writes
+shards atomically and answers `--provenance`/`--verify`, and
+`ben-gen-parallel.sh` waits on every worker, refuses a fleet whose size is not
+`SHARDS`, and verifies `shard-0..N-1` the way `bba-gen-parallel.sh` does. The
+BEN servers themselves are outside the fingerprint; the `--note` flag records
+the tier conf's sha256. A runner never shadows `arm`/`diffpair`/`sddiff`: the
+binary-arm runners export `BBA_GEN` per arm, the split-by-opening runners stamp
+their strain-split reports with `report_inputs`. Finally, `load_dump` refuses a
+shard dir whose shards were generated with different arguments, ignoring only
+the per-shard values (`--seed`, `--output`, `--count`, `--port`,
+`--start-board`, `--note`); a scan of every shard dir here and on dl02
+(2,723 dirs, 2026-10-16) found none that differ otherwise.
+
 ## Watching a run
 
 A long run is watched by **polling the runner process**, never by grepping the

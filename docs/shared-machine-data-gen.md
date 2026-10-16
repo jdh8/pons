@@ -119,16 +119,18 @@ a comparison across two systems.
 experiment, and `bba-gen-parallel.sh` hard-fails on a missing binary instead of
 quietly making a new one.  (Under `SKIP_BUILD=1` it also needs this checkout's
 `target/release/examples/bba-gen` when `BBA_GEN` names another generator: that
-binary's `--verify` checks every shard.) `wj-calibration.sh` and `ab-weak-two-balancing.sh`
-build for themselves and got the same one-line export. The accepted cost is
+binary's `--verify` checks every shard.) `wj-calibration.sh` builds for itself
+and got the same one-line export; `ab-weak-two-balancing.sh` did too, and now
+sources `ab-lib.sh` (2026-10-16). The accepted cost is
 the staler hazard: a run started on a dirty or stale tree measures *that*
 build for all its arms — which is the point, but check `git status` before a
 run.
 
-Two callers are deliberately left alone — `cachalot-xfix-gen.sh` and
-`ab-reading-knobs.sh` build no binaries of their own and rely on the per-arm
-build (or a prebuilt tree). Both are finished one-offs; give either an explicit
-build before its loop if it is ever re-run.
+`cachalot-xfix-gen.sh` is deliberately left alone — it builds no binaries of
+its own and relies on the per-arm build (or a prebuilt tree). It is a finished
+one-off; give it an explicit build before its loop if it is ever re-run.
+`ab-reading-knobs.sh`, once in the same state, got that build (2026-10-16),
+because its cell manifests now cksum the generators.
 
 Editing `src/` while a run is live is still the iron rule. The export removes
 the silent-mixed-arms failure mode, not the reason for the rule.

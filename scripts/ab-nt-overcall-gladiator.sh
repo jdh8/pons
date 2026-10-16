@@ -20,27 +20,40 @@ BUILD_EXTRA='--example ab-dump-sd'
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 
-# Shards are split by opening strain, so the diff runs over dir/tag pairs (not
-# the name-based $R/$name-$vul convention): override ab-lib's diffpair/sddiff.
-# ab-dump-diff/-sd fold a whole strain dir's shards into one solve.
-# diffpair ON_DIR OFF_DIR TAG VUL — plain + pd
-diffpair() {
-    on=$1; off=$2; tag=$3; vul=$4
+# Shards are split by opening strain, so these score $R/ARM-VUL-KIND copies of
+# each arm (not the name-based $R/$name-$vul convention).  They are not
+# ab-lib's diffpair/sddiff (which they once shadowed with bare `-s` guards):
+# each report reuses only while its .inputs stamp -- both source arms'
+# manifests, the split script's and the scorer's bytes, the kind and flags --
+# still matches, the stamp written after the report.  ab-dump-diff/-sd fold a
+# whole strain dir's shards into one solve.
+# splitdiff ON OFF VUL KIND — plain + pd over $R/ON-VUL-KIND vs $R/OFF-VUL-KIND
+splitdiff() {
+    on=$1; off=$2; vul=$3; kind=$4; tag=$vul.$kind
     plain="$R/diff.$tag.plain.txt"
     pd="$R/diff.$tag.pd.txt"
-    [ -s "$plain" ] && [ -s "$pd" ] && { log "skip $plain + $pd"; return 0; }
+    inputs=$(report_inputs "$DIFF" "$on" "$off" "$vul" --split "$(cksum <"$SPLIT")" "$kind" \
+        --score both --show 0)
+    [ -s "$plain" ] && [ -s "$pd" ] && fresh_report "$R/diff.$tag.inputs" "$inputs" \
+        && { log "skip $plain + $pd (inputs unchanged)"; return 0; }
     log "diff $tag (plain+pd)"
-    "$DIFF" "$on" "$off" --score both \
+    "$DIFF" "$R/$on-$vul-$kind" "$R/$off-$vul-$kind" --score both \
         --out-plain "$plain" --out-pd "$pd" --show 0 >>"$R/log" 2>&1
+    printf '%s\n' "$inputs" >"$R/diff.$tag.inputs"
 }
 
-# sddiff ON_DIR OFF_DIR TAG VUL — sd-lead, 16 worlds
-sddiff() {
-    on=$1; off=$2; tag=$3; vul=$4
+# splitsd ON OFF VUL KIND — sd-lead, 16 worlds; guarded on the result line, as
+# ab-lib's sddiff is (a panic lands in the same file)
+splitsd() {
+    on=$1; off=$2; vul=$3; kind=$4; tag=$vul.$kind
     out="$R/sd.$tag.txt"
-    [ -s "$out" ] && { log "skip $out"; return 0; }
+    inputs=$(report_inputs "$SD" "$on" "$off" "$vul" --split "$(cksum <"$SPLIT")" "$kind" \
+        -v "$vul" --sd-worlds 16 --show 0)
+    grep -q '^Delta' "$out" 2>/dev/null && fresh_report "$out.inputs" "$inputs" \
+        && { log "skip $out (scored)"; return 0; }
     log "sd-diff $tag"
-    "$SD" "$on" "$off" -v "$vul" --sd-worlds 16 --show 0 >"$out" 2>&1
+    "$SD" "$R/$on-$vul-$kind" "$R/$off-$vul-$kind" -v "$vul" --sd-worlds 16 --show 0 >"$out" 2>&1
+    printf '%s\n' "$inputs" >"$out.inputs"
 }
 
 log "=== nt-overcall-gladiator A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
@@ -50,8 +63,8 @@ for vul in none both; do
     python3 "$SPLIT" "$R/on-$vul"
     python3 "$SPLIT" "$R/off-$vul"
     for kind in minor major; do
-        diffpair "$R/on-$vul-$kind" "$R/off-$vul-$kind" "$vul.$kind" "$vul"
-        sddiff   "$R/on-$vul-$kind" "$R/off-$vul-$kind" "$vul.$kind" "$vul"
+        splitdiff on off "$vul" "$kind"
+        splitsd   on off "$vul" "$kind"
     done
 done
 log "=== nt-overcall-gladiator A/B done"

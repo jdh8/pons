@@ -402,8 +402,9 @@ pub struct Dump {
 /// whole board set lets it solve the entire divergent set in a single DDS
 /// fan-out, instead of launching one solver process per shard — each of which
 /// spins a full-core DDS pool and oversubscribes the box.
-/// Every shard must name the same bidders and bidding vulnerability; seed and
-/// generation arguments may vary across shards.
+/// Every shard must name the same bidders and bidding vulnerability, and be
+/// generated with the same arguments up to [`shard_config`]'s per-shard values
+/// (seed, output path, board count, server port, chunk offset, free-form note).
 #[cfg(feature = "serde")]
 pub fn load_dump(path: &str) -> Dump {
     fn read(path: &std::path::Path) -> Dump {
@@ -449,9 +450,156 @@ pub fn load_dump(path: &str) -> Dump {
             "dump shard {} has a different reference bidder",
             shard.display(),
         );
+        assert_eq!(
+            shard_config(&dump.gen_args),
+            shard_config(&next.gen_args),
+            "dump shard {} was generated with different arguments",
+            shard.display(),
+        );
         dump.boards.extend(next.boards);
     }
     dump
+}
+
+/// A shard's generating arguments less the values that legitimately differ
+/// between the shards of one arm: `--seed` (`SEED_BASE + i`), `--output`/`-o`
+/// (the shard's own path), `--count`/`-c` (a re-dealt chunk), `--port`/`-p`
+/// (`ben-gen`'s server per shard), `--start-board` (a split shard's chunk
+/// offset) and `--note` (free-form provenance: an assembled BEN shard extends
+/// it, e.g. the 2026-09-13 Tier-S anchor's chunk-merged shards).  Every other
+/// argument is configuration, so two shards of one dir must agree on it.
+///
+/// Short forms are those of `bba-gen` and `ben-gen`, the generators that write
+/// shard dirs; `-p` is `ben-gen`'s port and unused by `bba-gen`.
+pub fn shard_config(gen_args: &[String]) -> Vec<&str> {
+    const PER_SHARD: [&str; 9] = [
+        "--seed",
+        "--output",
+        "-o",
+        "--count",
+        "-c",
+        "--port",
+        "-p",
+        "--start-board",
+        "--note",
+    ];
+    let mut config = Vec::with_capacity(gen_args.len());
+    let mut args = gen_args.iter();
+    while let Some(arg) = args.next() {
+        match arg.split_once('=') {
+            Some((flag, _)) if PER_SHARD.contains(&flag) => {}
+            None if PER_SHARD.contains(&arg.as_str()) => {
+                args.next();
+            }
+            _ => config.push(arg.as_str()),
+        }
+    }
+    config
+}
+
+/// `--verify`: `path` parses as a [`Dump`] of exactly `count` boards dealt
+/// from `seed` (when given).  A truncated shard fails to parse.  The shard
+/// check `scripts/{bba,ben}-gen-parallel.sh --verify` runs on every shard.
+#[cfg(feature = "serde")]
+pub fn verify_shard(path: &str, count: usize, seed: Option<u64>) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    let file = std::fs::File::open(path).with_context(|| format!("open shard {path}"))?;
+    let dump: Dump = serde_json::from_reader(std::io::BufReader::new(file))
+        .with_context(|| format!("parse shard {path}"))?;
+    anyhow::ensure!(
+        dump.boards.len() == count,
+        "shard {path} holds {} boards, expected {count}",
+        dump.boards.len(),
+    );
+    if let Some(seed) = seed {
+        anyhow::ensure!(
+            dump.seed == Some(seed),
+            "shard {path} was dealt from seed {:?}, expected {seed}",
+            dump.seed,
+        );
+    }
+    Ok(())
+}
+
+/// Write `path` through a hidden temp file beside it, renamed into place after
+/// a flush and an fsync, so a worker that dies mid-write (an error, a panic, a
+/// kill) leaves no `shard-*.json` behind for a resume to count -- at most a
+/// `.shard-*.tmp` that no shard glob matches.  On an error or a panic the temp
+/// file is removed.
+pub fn write_atomically(
+    path: &str,
+    write: impl FnOnce(&mut dyn std::io::Write) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    use anyhow::Context as _;
+    /// Removes the temp file unless disarmed by a successful rename.
+    struct Temp(Option<std::path::PathBuf>);
+    impl Drop for Temp {
+        fn drop(&mut self) {
+            if let Some(path) = &self.0 {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+    let path = std::path::Path::new(path);
+    let name = path
+        .file_name()
+        .with_context(|| format!("--output {} names no file", path.display()))?;
+    let tmp = path.with_file_name(format!(
+        ".{}.{}.tmp",
+        name.to_string_lossy(),
+        std::process::id()
+    ));
+    let mut guard = Temp(Some(tmp.clone()));
+    let mut out = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+    write(&mut out)?;
+    // `into_inner` flushes and reports the error a dropped BufWriter swallows.
+    out.into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?
+        .sync_all()?;
+    std::fs::rename(&tmp, path)?;
+    guard.0 = None;
+    Ok(())
+}
+
+/// The file this code was mapped from, for a generator's `--provenance`
+///
+/// [`std::env::current_exe`] names the kernel's executable, which is the
+/// dynamic loader when a wrapper runs us as `ld-linux.so bba-gen` (`BBA_GEN` on
+/// an old-glibc box), so read the mapping that holds this very function.
+pub fn exe_image() -> std::io::Result<std::path::PathBuf> {
+    let here = exe_image as *const () as usize;
+    let maps = std::fs::read_to_string("/proc/self/maps").unwrap_or_default();
+    for line in maps.lines() {
+        let (Some((lo, hi)), Some(slash)) = (
+            line.split_whitespace()
+                .next()
+                .and_then(|r| r.split_once('-')),
+            line.find('/'),
+        ) else {
+            continue;
+        };
+        if let (Ok(lo), Ok(hi)) = (usize::from_str_radix(lo, 16), usize::from_str_radix(hi, 16))
+            && (lo..hi).contains(&here)
+        {
+            return Ok(line[slash..].into());
+        }
+    }
+    std::env::current_exe()
+}
+
+/// `--provenance`: the files whose bytes decide a generator's run, one
+/// `role path` per line -- `exe` (the image this code was mapped from), `lib`
+/// (the EPBot library) and one `weights` per `PONS_FLOOR_WEIGHTS` blob.
+/// `scripts/ab-lib.sh` fingerprints each A/B arm by them.
+pub fn print_provenance(lib: &str) -> anyhow::Result<()> {
+    println!("exe {}", exe_image()?.display());
+    println!("lib {lib}");
+    if let Ok(paths) = std::env::var("PONS_FLOOR_WEIGHTS") {
+        for path in paths.split(',') {
+            println!("weights {path}");
+        }
+    }
+    Ok(())
 }
 
 /// Sample mean and the half-width of its 95% confidence interval

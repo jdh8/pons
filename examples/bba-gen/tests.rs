@@ -1,4 +1,4 @@
-use super::{Args, Dump, arm_knobs, verify_shard, write_atomically};
+use super::{Args, arm_knobs};
 use clap::Parser;
 use pons::bidding::agreements::Agreements;
 
@@ -32,39 +32,4 @@ fn default_args_arm_the_shipped_system() {
             diff.join("\n")
         );
     }
-}
-
-/// A shard written by `--output` round-trips through `--verify`, which
-/// rejects a wrong board count, a wrong seed and a truncated file.
-#[test]
-fn written_shard_verifies_and_truncation_does_not() {
-    let dir = std::env::temp_dir().join(format!("bba-gen-verify-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("shard-0.json");
-    let path = path.to_str().unwrap();
-    let dump = Dump {
-        our_label: "us".into(),
-        their_label: "them".into(),
-        vulnerability: contract_bridge::AbsoluteVulnerability::NONE,
-        seed: Some(7),
-        gen_args: Vec::new(),
-        boards: Vec::new(),
-    };
-    write_atomically(path, &dump).unwrap();
-    // The temp file was renamed away, not left beside the shard.
-    let names: Vec<_> = std::fs::read_dir(&dir)
-        .unwrap()
-        .map(|e| e.unwrap().file_name())
-        .collect();
-    assert_eq!(names, ["shard-0.json"]);
-
-    verify_shard(path, 0, Some(7)).unwrap();
-    verify_shard(path, 0, None).unwrap();
-    assert!(verify_shard(path, 1, Some(7)).is_err(), "board count");
-    assert!(verify_shard(path, 0, Some(8)).is_err(), "seed");
-
-    let bytes = std::fs::read(path).unwrap();
-    std::fs::write(path, &bytes[..bytes.len() - 1]).unwrap();
-    assert!(verify_shard(path, 0, Some(7)).is_err(), "truncated");
-    std::fs::remove_dir_all(&dir).unwrap();
 }

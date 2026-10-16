@@ -55,3 +55,25 @@ fn explicit_floor_selection_conflicts_with_modes_that_do_not_seat_pons() {
         assert_eq!(error.kind(), ErrorKind::ArgumentConflict);
     }
 }
+
+/// `ben-gen-parallel.sh --verify` and ab-lib's fingerprint call these forms.
+#[test]
+fn shard_check_and_provenance_parse() {
+    let args = Args::try_parse_from([
+        "ben-gen",
+        "--verify",
+        "d/shard-3.json",
+        "--count",
+        "800",
+        "--seed",
+        "45",
+    ])
+    .unwrap();
+    assert_eq!(args.verify.as_deref(), Some("d/shard-3.json"));
+    assert_eq!((args.count, args.seed), (800, Some(45)));
+    assert!(
+        Args::try_parse_from(["ben-gen", "--provenance"])
+            .unwrap()
+            .provenance
+    );
+}

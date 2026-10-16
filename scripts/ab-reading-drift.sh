@@ -23,16 +23,20 @@
 # so a non-loss (wash or win, plain and PD read together) ships them as they
 # stand; a loss gets its worst divergent boards traced before any conclusion.
 #
-# Resumable: existing arm dirs and non-empty diff files are skipped;
-# SEED_BASE persists in $R/seed (a NEW dir -> a fresh seed).
-set -eu
+# Resumable through ab-lib.sh: an arm resumes only on a matching arm.meta
+# manifest (its copied binary's bytes, flags and deal set) and verified shards,
+# a diff only on a matching .inputs stamp; SEED_BASE persists in $R/seed (a NEW
+# dir -> a fresh seed).  Before ab-lib this runner skipped any existing arm
+# dir unchecked, so a pre-ab-lib results dir refuses (no arm.meta) unless
+# FORCE_REUSE=1.  SKIP_BUILD=1: the arms differ by binary, prebuilt into $R,
+# so this script never invokes cargo (ab-lib still needs this checkout's
+# target/release bba-gen and ab-dump-diff, which the preparation builds: the
+# former verifies shards).  A copied binary from before `bba-gen --provenance`
+# needs a reporting wrapper (ab-lib.sh, arm_fingerprint) or FORCE_REUSE=1.
 R=${1:?usage: ab-reading-drift.sh RESULTS_DIR}
-cd "$(dirname "$0")/.."
-mkdir -p "$R"
-
-PER_SHARD=${PER_SHARD:-6400}
-SHARDS=${JOBS:-$(nproc)}
 SHOW=${SHOW:-40}
+SKIP_BUILD=1
+. "$(dirname "$0")/ab-lib.sh"
 # Optional extra bba-gen flags per arm (word-split intentionally), for A/Bs
 # where the arms differ by knob rather than binary — the same binary is then
 # copied to both bba-gen-fix and bba-gen-base.
@@ -42,43 +46,19 @@ BASE_ARGS=${BASE_ARGS:-}
 for bin in bba-gen-fix bba-gen-base ab-dump-diff; do
     [ -x "$R/$bin" ] || { echo "missing $R/$bin — see the preparation comment" >&2; exit 2; }
 done
-
-seed_f="$R/seed"
-[ -s "$seed_f" ] || echo $(date +%s%N) >"$seed_f"
-SEED_BASE=$(cat "$seed_f")
-
-log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
-
-# arm BIN NAME VUL ARGS — one arm, shard-parallel, same SEED_BASE both arms
-arm() {
-    bin=$1; name=$2; vul=$3; args=${4:-}
-    dir="$R/$name-$vul"
-    [ -d "$dir" ] && { log "skip $dir (exists)"; return 0; }
-    log "generate $dir ($bin $args, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD})"
-    mkdir -p "$dir.tmp"
-    i=0
-    while [ "$i" -lt "$SHARDS" ]; do
-        # shellcheck disable=SC2086 — $args word-splits by design
-        "$R/$bin" --count "$PER_SHARD" --seed "$((SEED_BASE + i))" \
-            --vulnerability "$vul" --output "$dir.tmp/shard-$i.json" $args &
-        i=$((i + 1))
-    done
-    wait
-    mv "$dir.tmp" "$dir"
-}
+DIFF=$R/ab-dump-diff
+bins=$(cd "$R" && pwd)
+SEED_BASE=$(seed_for)
 
 log "=== reading-drift start, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm bba-gen-fix fix "$vul" "$FIX_ARGS"
-    arm bba-gen-base base "$vul" "$BASE_ARGS"
-    plain="$R/diff.fix.vs.base.$vul.plain.txt"
-    pd="$R/diff.fix.vs.base.$vul.pd.txt"
-    if [ -s "$plain" ] && [ -s "$pd" ]; then
-        log "skip $plain + $pd (exist)"
-    else
-        log "diff fix vs base ($vul, plain+pd)"
-        "$R/ab-dump-diff" "$R/fix-$vul" "$R/base-$vul" \
-            --score both --out-plain "$plain" --out-pd "$pd" --show "$SHOW" >>"$R/log" 2>&1
-    fi
+    # Each arm runs its own copied binary; ab-lib fingerprints whatever BBA_GEN names.
+    BBA_GEN=$bins/bba-gen-fix; export BBA_GEN
+    # shellcheck disable=SC2086 — $FIX_ARGS/$BASE_ARGS word-split by design
+    arm fix "$vul" $FIX_ARGS
+    BBA_GEN=$bins/bba-gen-base; export BBA_GEN
+    # shellcheck disable=SC2086
+    arm base "$vul" $BASE_ARGS
+    diffpair fix base "$vul"
 done
 log "=== reading-drift done"

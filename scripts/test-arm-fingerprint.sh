@@ -7,9 +7,16 @@ unset BBA_GEN PONS_FLOOR_WEIGHTS FORCE_REUSE BOARDS PER_SHARD BUILD_EXTRA FEATUR
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
-mkdir -p "$tmp/scripts" "$tmp/target/release/examples" "$tmp/docs" "$tmp/src" "$tmp/examples" "$tmp/off"
-cp "$repo/scripts/ab-lib.sh" "$repo/scripts/bba-gen-parallel.sh" "$tmp/scripts/"
+mkdir -p "$tmp/scripts" "$tmp/target/release/examples" "$tmp/docs" "$tmp/src" "$tmp/examples" "$tmp/off" "$tmp/bin"
+cp "$repo/scripts/ab-lib.sh" "$repo/scripts/bba-gen-parallel.sh" "$repo/scripts/ben-gen-parallel.sh" "$tmp/scripts/"
 cd "$tmp"
+# A stub BEN fleet for ben-gen-parallel's port discovery: BEN_PORTS servers.
+cat >bin/pgrep <<'SH'
+#!/bin/sh
+for p in $(echo "${BEN_PORTS:-8085,8086}" | tr , " "); do echo "1 python gameapi.py --port $p"; done
+SH
+chmod +x bin/pgrep
+PATH="$tmp/bin:$PATH"
 
 # gen PATH BUILD [old] — a stub bba-gen; BUILD stands for the compiled bytes,
 # `old` for a generator from before `--provenance`.  A stub shard holds
@@ -29,7 +36,7 @@ fi
 verify=
 while [ "\$#" -gt 0 ]; do
     case "\$1" in
-        --output) out=\$2; shift ;;
+        --output|-o) out=\$2; shift ;;
         --verify) verify=\$2; shift ;;
         --seed) seed=\$2; shift ;;
         --count) count=\$2; shift ;;
@@ -282,6 +289,37 @@ with FAIL_SEED=2; expect fail 'failed worker' r f none
 [ -e r/f-none/shard-0.json ] && [ ! -e r/f-none/shard-1.json ] \
     || { echo "FAIL failed worker: expected shard-0 only" >&2; fails=$((fails + 1)); }
 expect generate 'failed arm regenerated on resume' r f none
+
+# GENERATOR=ben-gen: the same manifest and shard check through
+# ben-gen-parallel.sh, whose shard count is the BEN fleet's size.
+ben=target/release/examples/ben-gen
+gen "$ben" 1
+with GENERATOR=ben-gen; expect generate 'ben arm' rb a none -t f
+[ "$(cat rb/a-none/shard-1.json)" = "$(shard 2)" ] && grep -q '^shards: 2$' rb/a-none/arm.meta \
+    || { echo "FAIL ben arm: shards or manifest missing" >&2; fails=$((fails + 1)); }
+with GENERATOR=ben-gen; expect skip 'ben arm unchanged' rb a none -t f
+with GENERATOR=ben-gen BBA_GEN=$tmp/off/bba-gen; expect skip 'ben arm ignores BBA_GEN' rb a none -t f
+gen "$ben" 2
+with GENERATOR=ben-gen; expect refuse 'ben-gen rebuilt' rb a none -t f
+gen "$ben" 1
+with GENERATOR=ben-gen; expect refuse 'ben flags changed' rb a none -t s
+echo '2 64' >rb/a-none/shard-1.json
+with GENERATOR=ben-gen; expect generate 'ben corrupt shard regenerated' rb a none -t f
+with GENERATOR=ben-gen BEN_PORTS=8085,8086,8087; expect fail 'ben fleet grew' rb g none -t f
+[ ! -e rb/g-none/shard-0.json ] \
+    || { echo "FAIL ben fleet grew: generated anyway" >&2; fails=$((fails + 1)); }
+with GENERATOR=ben-gen FAIL_SEED=2; expect fail 'ben failed worker' rb f none -t f
+[ -e rb/f-none/shard-0.json ] && [ ! -e rb/f-none/shard-1.json ] \
+    || { echo "FAIL ben failed worker: expected shard-0 only" >&2; fails=$((fails + 1)); }
+with GENERATOR=ben-gen; expect generate 'ben failed arm regenerated' rb f none -t f
+cases=$((cases + 1))
+if GENERATOR=nope scripts/run-arm.sh rb a none >"$tmp/out" 2>&1 \
+    || ! grep -q 'GENERATOR must be bba-gen or ben-gen' "$tmp/out"; then
+    echo "FAIL unknown GENERATOR: not rejected" >&2
+    fails=$((fails + 1))
+else
+    echo "ok   unknown GENERATOR"
+fi
 
 # A report is reused only while its arms, scorer and flags are unchanged.
 cat >target/release/examples/ab-dump-diff <<'SH'
