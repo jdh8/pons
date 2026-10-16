@@ -17,8 +17,8 @@ Shipped, refuted and closed items are archived verbatim in
 [archive/next-steps-done.md](archive/next-steps-done.md).
 
 Research-method follow-ups from 2026-10-14 are recorded in
-[research-method-review.md](research-method-review.md), with evidence, priority
-and the decisions owed. Issues [#6](https://github.com/jdh8/pons/issues/6)–[#9](https://github.com/jdh8/pons/issues/9)
+[research-method-review.md](research-method-review.md), with evidence and
+priority. Issues [#6](https://github.com/jdh8/pons/issues/6)–[#9](https://github.com/jdh8/pons/issues/9)
 are closed and archived in
 [archive/research-method-review-closed.md](archive/research-method-review-closed.md);
 the remaining findings stay in the live ledger until their work is done. Check the

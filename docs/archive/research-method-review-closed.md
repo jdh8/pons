@@ -564,6 +564,16 @@ disclosure cost); those need a treatment-by-treatment qualification.
 - Identify affected concealment, lead-direction and disclosure-cost verdicts;
   remeasure those needed for a decision and update their evidence status.
 
+### The two verdicts decided 2026-10-16
+
+Both decided by jdh8 on 2026-10-16 as proposed: Modern kept as a recorded
+trade-off, `8:14` kept.
+
+| Verdict | Runner, seed | Decision row now | Original rationale | Decision (jdh8, 2026-10-16) |
+| --- | --- | --- | --- | --- |
+| The 8:14 overcall band | `ab-nt-overcall-band-disclosed.sh`, 1792110704895967184 | 9:14 and 10:14 lose plain DD in three and four cells | "NV holds" stands, firmer (SD-PD now a clear loss for tighter bands); "vul leaning tighten" does not | Keep 8:14 |
+| Modern negative doubles + forcing free bids | `ab-modern-negx-disclosed.sh`, 1792113860641334667 | **win \| loss**: plain wins every cell; PD loses at `ew` and `both` (lower bounds −0.0234 / −0.0231) | The PD loss follows *their* vulnerability, not ours, so July's "thin vul games of ours" named the wrong side; SD-PD now non-inferior at `both`, inconclusive at `ew` | Keep Modern as a recorded trade-off. Also: the knob changes how we read *their* negative double (13% of divergent boards opened by them, so the isolation gate cannot pass) |
+
 ## 5 Filter coverage: the original finding
 
 **P1 — confirmed coverage limitation and overbroad interpretation.**

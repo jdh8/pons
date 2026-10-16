@@ -36,18 +36,6 @@ that archive (or delete it when the owning doc already holds everything).
 Keep previously published outputs identifiable when an instrument or protocol
 changes.
 
-## Decisions owed
-
-Open as of 2026-10-16, each waiting on jdh8. Nothing below has changed a
-default; the proposed default is what to do if the answer is "agreed". Delete
-a row once decided, recording the decision where its evidence lives.
-
-| # | Decision | Evidence | Proposed default |
-| --- | --- | --- | --- |
-| 1 | Modern negative doubles: plain win at every cell, PD loss at `ew` and `both` (lower bounds −0.0234 / −0.0231) | [§4 table](#4-disclosure-in-sd-dump-rescoring), [competitive-book.md](competitive-book.md#p3b-modern-re-measured-under-the-disclosed-sd-leader-2026-10-16) | Keep Modern as a recorded trade-off: both-majors loses plain DD in every cell. Note that the knob also changes how we read *their* negative double |
-| 2 | The 8:14 natural overcall band | [§4 table](#4-disclosure-in-sd-dump-rescoring): 9:14 and 10:14 lose plain DD in three and four cells | Keep 8:14 |
-| 3 | Separate development and confirmation deal banks | [§12](#12-development-banks-and-solver-efficiency) | Keep the current rule (no bank-backed A/B reuse) until a separation of training, reusable development and locked confirmation data is adopted |
-
 ## Filter scope: the default 1NT is wider than the scan
 
 The `bba-gen` scans `--filter-1nt`, `--filter-landy` and `--filter-preempt`
@@ -107,12 +95,11 @@ with the authored advance
 ([the sweep](defensive-overcalls.md#every-live-floor-against-floor-0-the-sweep-2026-10-16--floor-0-ships));
 the weak-two `5:10` HCP gauge stays off by its pre-registered rule
 (insufficient data; a larger run on a fresh seed would settle its PD column).
-Awaiting jdh8 ([Decisions owed](#decisions-owed)):
-
-| Verdict | Runner, seed | Decision row now | Original rationale | Decision owed (jdh8) |
-| --- | --- | --- | --- | --- |
-| The 8:14 overcall band | `ab-nt-overcall-band-disclosed.sh`, 1792110704895967184 | 9:14 and 10:14 lose plain DD in three and four cells | "NV holds" stands, firmer (SD-PD now a clear loss for tighter bands); "vul leaning tighten" does not | Keep 8:14 (proposed) |
-| Modern negative doubles + forcing free bids | `ab-modern-negx-disclosed.sh`, 1792113860641334667 | **win \| loss**: plain wins every cell; PD loses at `ew` and `both` (lower bounds −0.0234 / −0.0231) | The PD loss follows *their* vulnerability, not ours, so July's "thin vul games of ours" named the wrong side; SD-PD now non-inferior at `both`, inconclusive at `ew` | Keep Modern as a recorded trade-off (proposed). Also: the knob changes how we read *their* negative double (13% of divergent boards opened by them, so the isolation gate cannot pass) |
+Decided by jdh8 on 2026-10-16: Modern negative doubles stay on as a
+recorded trade-off ([competitive-book.md](competitive-book.md#p3b-modern-re-measured-under-the-disclosed-sd-leader-2026-10-16)),
+and the natural overcall band stays `8:14`
+([convention-tuning.md](convention-tuning.md)). Both verdict rows are
+[archived](archive/research-method-review-closed.md#4-disclosure-in-sd-dump-rescoring-the-fix-and-the-settled-re-measures).
 
 **Open.**
 
@@ -369,7 +356,8 @@ samples as independent observations.
 Keep training data, reusable development data and a locked confirmation set
 separate. This would support multi-candidate and retraining screens while
 retaining independent final confirmation. Continue following the current bank
-policy until that proposed separation is explicitly adopted.
+policy until that proposed separation is explicitly adopted (jdh8,
+2026-10-16: the no-reuse rule stands until then).
 
 DD caching already exists in [bba-decompose](../examples/bba-decompose/main.rs)
 and [anchor.sh](../scripts/anchor.sh). General

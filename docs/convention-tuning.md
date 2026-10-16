@@ -144,8 +144,8 @@ The `8:14` vul verdict is corrected to *undetermined, leaning tighten*
 July SD columns never read the unalerted overcall), over four cells. SD-PD is
 now a CI-clear loss for both tightenings when we are not vulnerable. When we
 are vulnerable it is only non-inferior, so "leaning tighten" does not stand.
-`9:14` at `both` alone reads `non-inferior | win`; it is flagged and `8:14` is
-kept ([the re-measure](archive/point-count-threshold-campaign.md#re-measure-under-the-disclosed-sd-leader-2026-10-16-fresh-deals)).
+`9:14` at `both` alone reads `non-inferior | win`; jdh8 kept `8:14`
+(2026-10-16; [the re-measure](archive/point-count-threshold-campaign.md#re-measure-under-the-disclosed-sd-leader-2026-10-16-fresh-deals)).
 
 Generalize the lesson: never read four brackets as one ordered scale. Difference
 along one axis is only interpretable with the other axis held fixed.
