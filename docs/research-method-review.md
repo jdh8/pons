@@ -33,6 +33,25 @@ explicit decision in the doc that owns the conclusion; git keeps the history.
 Keep previously published outputs identifiable when an instrument or protocol
 changes.
 
+## Decisions owed
+
+Open as of 2026-10-16, each waiting on jdh8. Nothing below has changed a
+default; the proposed default is what to do if the answer is "agreed". Delete
+a row once decided, recording the decision where its evidence lives.
+
+| # | Decision | Evidence | Proposed default |
+| --- | --- | --- | --- |
+| 1 | `defense.natural_overcall_hcp_floor` over their 1NT | [The bisect](defensive-overcalls.md#the-floor-on-its-own-bisect-2026-10-16): floor 8 against floor 0, advance on in both, loses on every scorer in every cell (plain −0.0071 to −0.0076 per accepted board); [§4](#4-disclosure-in-sd-dump-rescoring) | Set it to `0` and keep the authored advance on. Alternative: sweep an intermediate floor (4–6) on a fresh seed first |
+| 2 | `competition.defense_2c_landy_strength_nv_invite` | [§6 run](#6-asymmetric-vulnerability-in-competitive-experiments): plain DD loss at `ns` (−0.0008 ±0.0003), PD non-inferior | Re-run the `both` cell on a fresh seed with `--wide-1nt`; set it to `false` unless `both` reads a win |
+| 3 | Modern negative doubles: plain win at every cell, PD loss at `ew` and `both` (lower bounds −0.0234 / −0.0231) | [§4 table](#4-disclosure-in-sd-dump-rescoring), [competitive-book.md](competitive-book.md#p3b-modern-re-measured-under-the-disclosed-sd-leader-2026-10-16) | Keep Modern as a recorded trade-off: both-majors loses plain DD in every cell. Note that the knob also changes how we read *their* negative double |
+| 4 | The 8:14 natural overcall band | [§4 table](#4-disclosure-in-sd-dump-rescoring): 9:14 and 10:14 lose plain DD in three and four cells | Keep 8:14 |
+| 5 | The ~45 enriched verdicts drawn on the strict 1NT candidate since Wide6322 shipped (2026-07-12), which never scanned the 5m422/6m322 openers | [Filter scope](#filter-scope-the-default-1nt-is-wider-than-the-scan), [§5](#5-filter-coverage-and-conditional-comparisons) | No blanket re-run. When a verdict is next relied on, run `filter-coverage` on an unfiltered preflight of its two arms. Re-measure with `--wide-1nt` if the strict scan misses a material share of the divergent boards (say over 5%); otherwise mark the verdict "balanced openers only" |
+| 6 | Separate development and confirmation deal banks | [§12](#12-development-banks-and-solver-efficiency) | Keep the current rule (no bank-backed A/B reuse) until a separation of training, reusable development and locked confirmation data is adopted |
+
+Settled by its pre-registered rule, so no decision is needed: the weak-two
+`5:10` HCP gauge stays off ([§4](#4-disclosure-in-sd-dump-rescoring),
+insufficient data). A larger run on a fresh seed would settle its PD column.
+
 ## Issue #7: non-inferiority inventory
 
 Defaults that shipped on a plain-DD wash before the margin, re-read on
