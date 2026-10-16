@@ -52,6 +52,12 @@
 # that reads plain DD non-inferior or better with PD not a loss; any other
 # reading is flagged for a decision, not applied.
 #
+# FOUR-CELL VERDICT (2026-10-16, ab-results/landy-strength-residue-ns, density
+# 0.009023, gate 0 foreign): ns plain -0.0008 ±0.0003 LOSS | PD -0.0001
+# ±0.0003 non-inferior, SD-PD -0.0004 ±0.0003 loss (8,710 fired, -0.42/fired).
+# FLAGGED for jdh8, nothing changed: re-run `both` fresh with --wide-1nt; if
+# it is not a win, defense_2c_landy_strength_nv_invite = false.
+#
 R=${1:?usage: ab-landy-strength-residue.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

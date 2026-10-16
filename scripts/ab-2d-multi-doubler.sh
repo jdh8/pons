@@ -89,6 +89,11 @@
 # that reads plain DD non-inferior or better with PD not a loss; any other
 # reading is flagged for a decision, not applied.
 #
+# FOUR-CELL VERDICT (2026-10-16, ab-results/2d-multi-doubler-nsew, density
+# 0.252708, gate 0 foreign): ns plain +0.0007 ±0.0001 win | PD +0.0002
+# ±0.0001 win; ew plain +0.0009 ±0.0001 win | PD -0.0000 non-inferior,
+# SD-PD win in both.  Stands; the both-vul PD loss is not an ew effect.
+#
 R=${1:?usage: ab-2d-multi-doubler.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

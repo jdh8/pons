@@ -537,8 +537,19 @@ vulnerability cells, no default changed (details in the owning docs):
 | The 8:14 overcall band | `ab-nt-overcall-band-disclosed.sh`, 1792110704895967184 | 9:14 and 10:14 lose plain DD in three and four cells | "NV holds" stands, firmer (SD-PD now a clear loss for tighter bands); "vul leaning tighten" does not | Keep 8:14 (proposed) |
 | Modern negative doubles + forcing free bids | `ab-modern-negx-disclosed.sh`, 1792113860641334667 | **win \| loss**: plain wins every cell; PD loses at `ew` and `both` (lower bounds −0.0234 / −0.0231) | The PD loss follows *their* vulnerability, not ours, so July's "thin vul games of ours" named the wrong side; SD-PD now non-inferior at `both`, inconclusive at `ew` | Keep Modern as a recorded trade-off (proposed). Also: the knob changes how we read *their* negative double (13% of divergent boards opened by them, so the isolation gate cannot pass) |
 
-**Open.** The weak-two HCP knobs (self-play `ab-point-count`) still owe their
-re-measure. Thirteen more verdicts cite the sd row but stand on DD or on an
+**Weak-two HCP gauge, re-measured 2026-10-16** (`ab-weak-two-hcp-disclosed.sh`,
+pre-registered in `fded92a7`, SEED_BASE 1792122226364649837, 512,000 boards
+per cell, self-play): `--weak-two-hcp 5:10` against the shipped
+`points(5..=10)` reads plain DD **win** in all four cells (+0.0045 ±0.0025
+none, +0.0056 ±0.0028 ns) and PD **inconclusive** in all four; SD-PD win at
+`ns`, non-inferior at `none`, inconclusive at `ew`/`both`, a loss nowhere.
+That is the pre-registered *insufficient data* branch: the knob stays off as
+a recorded trade-off, and July's "over-disclose to the blind lead" rationale
+is unproven, not confirmed. The legacy-reader control matches plain DD and
+PD to the IMP, so the comparison is valid. A larger pre-registered run on a
+fresh seed would settle PD.
+
+**Open.** Thirteen more verdicts cite the sd row but stand on DD or on an
 alerted call (`nt_overcall_systems_on`'s major cells the strongest).
 
 The original finding, for the record:
@@ -663,7 +674,32 @@ verdict to name its cells. First use: the colour-split
   | `nt_high_overcall_x_leave_in` | ns, ew | `ab-nt-high-overcall.sh` | penalty conversion; its v1 flipped sign by vulnerability |
   | `multi_doubler_major` | ns, ew | `ab-2d-multi-doubler.sh` | carries a known both-vul PD loss |
 
-  Then the doubling vetoes (`their_2nt_double_veto`, `their_3nt_pull_veto`).
+  **Run 2026-10-16** (pre-registered in `e75cb386`, 4,608,000 accepted boards
+  per arm per cell, `--filter-landy --wide-1nt` or `--filter-1nt --wide-1nt`,
+  gate 0 foreign everywhere), IMPs per accepted board, plain \| PD:
+
+  | Knob | Cell | Plain DD | PD | SD-PD | Reading |
+  | --- | --- | --- | --- | --- | --- |
+  | `landy_wilkosz` | ns | +0.0003 ±0.0001 win | +0.0006 ±0.0001 win | win | stands |
+  | `defense_2c_landy_strength_nv_invite` | ns | **−0.0008 ±0.0003 loss** | −0.0001 ±0.0003 non-inferior | −0.0004 ±0.0003 loss | **flagged** |
+  | `landy_splinter_tails` | ns | +0.0001 ±0.0001 win | +0.0000 ±0.0001 non-inferior | non-inferior | stands |
+  | | ew | +0.0071 ±0.0003 win | +0.0007 ±0.0002 win | non-inferior | stands |
+  | `multi_doubler_major` | ns | +0.0007 ±0.0001 win | +0.0002 ±0.0001 win | win | stands |
+  | | ew | +0.0009 ±0.0001 win | −0.0000 ±0.0001 non-inferior | win | stands |
+
+  The strength invite (an 8–9 HCP hand keeps the values double when we are
+  vulnerable) loses plain DD at `ns`, −0.42 IMPs per fired board over 8,710
+  boards, about −7×10⁻⁶ per deal: far inside δ, but a loss. It differs from
+  off only when we are vulnerable, so `both` is its only other live cell, and
+  that cell shipped it on an older seed with the strict candidate.
+  **Flagged for jdh8, nothing changed:** proposed, re-run `both` on a fresh
+  seed with `--wide-1nt`; if `both` does not read a win, set
+  `defense_2c_landy_strength_nv_invite = false`.
+
+  Still queued: `competitive_accountant` and its two siblings (unfiltered,
+  hand-edited loops), `landy_opener_rungs` + `landy_opener_px`,
+  `landy_doubler_px`, `nt_high_overcall_x_leave_in`, then the doubling
+  vetoes (`their_2nt_double_veto`, `their_3nt_pull_veto`).
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,
   the runouts and `accountant_floor` live in single-vulnerability example

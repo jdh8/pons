@@ -101,6 +101,13 @@
 # Iron rule: do NOT rebuild binaries while this runs.
 set -eu
 cd "$(dirname "$0")/.."
+# VERDICT (2026-10-16, SEED_BASE 1792122226364649837, 512,000 boards/cell,
+# divergent 2.05-2.26%): plain DD win in all four cells (none +0.0045 ±0.0025,
+# ns +0.0056 ±0.0028), PD inconclusive in all four, SD-PD win (ns) /
+# non-inferior (none) / inconclusive (ew, both), loss nowhere.  Legacy control
+# matches plain and PD to the IMP.  Pre-registered branch: INSUFFICIENT DATA;
+# the knob stays off as a recorded trade-off, the July rationale unproven.
+#
 R=${1:?usage: ab-weak-two-hcp-disclosed.sh RESULTS_DIR}
 mkdir -p "$R"
 SHA=$(git rev-parse --short HEAD)

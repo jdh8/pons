@@ -40,6 +40,10 @@
 # that reads plain DD non-inferior or better with PD not a loss; any other
 # reading is flagged for a decision, not applied.
 #
+# FOUR-CELL VERDICT (2026-10-16, ab-results/landy-wilkosz-ns, density 0.009022,
+# gate 0 foreign): ns plain +0.0003 ±0.0001 win | PD +0.0006 ±0.0001 win,
+# SD-PD win.  Stands.
+#
 R=${1:?usage: ab-landy-wilkosz.sh RESULTS_DIR}
 BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

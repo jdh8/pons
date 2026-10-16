@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vulnerability. Decisions owed are in `docs/research-method-review.md` §4.
   Default system byte-identical.
 
+- **More re-measures, no default changed (2026-10-16).** The 1NT natural
+  overcall's HCP floor of 8, measured on its own with the advance kept, loses
+  on every scorer at every vulnerability (plain DD about −0.0074 IMPs per
+  accepted board), so floor 0 is proposed. The weak-two HCP gauge reads
+  plain win | PD inconclusive: insufficient data, it stays off. Four-cell
+  confirmations: `landy_wilkosz`, `landy_splinter_tails` and
+  `multi_doubler_major` hold at ns/ew; `defense_2c_landy_strength_nv_invite`
+  loses plain DD at ns, flagged. Details in
+  `docs/research-method-review.md` §4 and §6.
+
 - **The trainer's validation split no longer cuts a board in two
   (2026-10-16).** The cut moves to the next board start; `--row-split` keeps the
   old behaviour. `scripts/splice-labels.py --validate` audits a splice for
