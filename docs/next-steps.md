@@ -1,9 +1,9 @@
 # Next-step candidates, ranked by potential IMP gain
 
-**Ranked 2026-09-26, item 2 re-read 2026-09-30, 2026-10-03, 2026-10-06 and
-2026-10-10** from the two current anchors — BBA shipping arm at `7838d8c2`
-(2026-10-10, re-anchored after the `1♥ - 1♠` round-2 ships; opening #1 plain,
-round-2 #1 PD, so the ranking below stands;
+**Ranked 2026-09-26, item 2 re-read 2026-09-30, 2026-10-03, 2026-10-06,
+2026-10-10 and 2026-10-16** from the two current anchors — BBA shipping arm at
+`16bf52b8` (2026-10-16; bucket order unchanged since `7838d8c2` on both arms,
+opening #1 plain, round-2 #1 PD, so the ranking below stands;
 [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
 `c72dd03e` (2026-10-11, +0.200 plain / +0.343 PD paired since M32; items 3/4
 re-priced on it, [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are

@@ -2343,6 +2343,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ships, not one.  `Defensive / book / round-1` is now #1 plain; the
   opening bucket's PD loss is gone.  Ranking and the re-priced next-steps
   slices: `docs/ben-gap-campaign.md`.
+- **BBA re-anchor (2026-10-16, `16bf52b8`)**: shipping `american()` scores
+  **−0.2763 plain / −0.0541 perfect-defense IMPs/board** (none −0.2636 /
+  −0.0361, both −0.2889 / −0.0721); `american_instinct()` −0.9114 / −0.9303.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches.  Paired to the `7838d8c2` snapshot on the same deals, shipping
+  moved +0.0017 / +0.0038 plain and +0.0037 / +0.0071 PD per table (none /
+  both; 1,179 / 1,319 boards fired): plain non-inferior NV and a win vul, PD
+  a win in both.  The window: the XYZ 5♠4♥ repair, the `1♥ - 1NT - 2♠`
+  reverse floor, the natural overcall of 1NT at floor 0, the accountant's
+  natural-only push, and three competitive ships too rare to fire on the
+  anchor deals.  The paired net gain over instinct is +0.3279 plain / +0.4462
+  PD.  Bucket order unchanged on both arms.
 - **BBA re-anchor (2026-10-10, `7838d8c2`)**: shipping `american()` scores
   **−0.2805 plain / −0.0631 perfect-defense IMPs/board** (none −0.2668 /
   −0.0430, both −0.2942 / −0.0831); `american_instinct()` −0.9163 / −0.9346.
