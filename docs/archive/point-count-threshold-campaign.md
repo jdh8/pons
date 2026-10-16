@@ -846,6 +846,57 @@ verdicts get corrected in the ledgers, flips are a separate decision.
 These were live filtered BBA runs, not `24.pdd` slices: the campaign cursor
 remains **38,700,000**.
 
+#### Re-measure under the disclosed SD leader (2026-10-16, fresh deals)
+
+The SD columns above, and the 07-26 test where `--on-ns-overcall 20:37`
+reproduced the run to the last IMP, came from `ab-dump-sd` before
+`7c60e309`. Its East–West leader read only our alerted calls, so the
+unalerted overcall read as `points 8..37` in every arm, and the band's
+disclosure was never priced when we declared
+([research-method-review.md §4](../research-method-review.md#4-disclosure-in-sd-dump-rescoring)).
+Re-run on fresh deals with the current code, which now includes the HCP floor
+of 8 and the authored advance (shipped 2026-08-23), in every arm:
+[`scripts/ab-nt-overcall-band-disclosed.sh`](../../scripts/ab-nt-overcall-band-disclosed.sh),
+SEED_BASE `1792110704895967184`, code `178f301b`, `--filter-1nt --wide-1nt`,
+**294,912 accepted boards per arm per cell**, all four cells, density
+**0.252979**, gate 0 foreign in all eight pairs, leader reading `disclosed`.
+Pre-registered in the runner header before any number was read.
+
+Tightening − `8:14`, IMPs per accepted board, with each scorer's verdict:
+
+| band, cell | plain DD | PD | plain SD | **SD-PD** |
+| --- | ---: | ---: | ---: | ---: |
+| `9:14` none | −0.0044 ±0.0013 loss | +0.0009 ±0.0017 NI | −0.0073 ±0.0014 | **−0.0030 ±0.0017 loss** |
+| `9:14` ns (we vul) | −0.0017 ±0.0015 loss | +0.0049 ±0.0020 win | −0.0044 ±0.0016 | **+0.0014 ±0.0020 NI** |
+| `9:14` ew (we NV) | −0.0038 ±0.0017 loss | +0.0012 ±0.0021 NI | −0.0066 ±0.0018 | **−0.0027 ±0.0021 loss** |
+| `9:14` both | −0.0014 ±0.0018 NI | +0.0047 ±0.0023 win | −0.0052 ±0.0019 | **+0.0002 ±0.0023 NI** |
+| `10:14` none | −0.0154 ±0.0022 loss | +0.0018 ±0.0029 NI | −0.0239 ±0.0025 | **−0.0100 ±0.0029 loss** |
+| `10:14` ns | −0.0081 ±0.0025 loss | +0.0123 ±0.0033 win | −0.0167 ±0.0026 | **+0.0014 ±0.0033 NI** |
+| `10:14` ew | −0.0145 ±0.0028 loss | +0.0027 ±0.0036 NI | −0.0228 ±0.0031 | **−0.0089 ±0.0037 loss** |
+| `10:14` both | −0.0082 ±0.0030 loss | +0.0117 ±0.0039 win | −0.0158 ±0.0032 | **+0.0020 ±0.0038 NI** |
+
+- **Gate result.** `8:14` holds in seven of the eight candidate cells. The
+  exception is `9:14` at `both`, `non-inferior | win`, a ship row. The other
+  cell where we are vulnerable (`ns`) reads a plain-DD loss.
+- **NV half: stands, and more firmly.** The 07-26 SD-PD was a wash. Under
+  the disclosed reader it is a CI-clear **loss** for both tightenings at
+  `none` and `ew`.
+- **Vul half ("leaning tighten"): does not stand.** PD still wins at `ns` and
+  `both`, but SD-PD is only non-inferior there (+0.0002 to +0.0020; it was
+  +0.0272 / +0.0456 under the legacy reader without the HCP floor). The
+  perfect-doubling win does not survive the blind lead once the leader reads
+  the band.
+- **Disclosure check passes.** Rescoring `9:14` at `none` with the absurd
+  `--on-ns-overcall 20:37` moves SD-PD −0.0030 → −0.0034 and plain SD
+  −0.0073 → −0.0077, so the leader now prices the band (in July the same
+  check moved nothing).
+
+> **Flagged for jdh8; nothing changed.** `9:14` reads as a ship row at `both`
+> on one seed, with `ns` a plain loss, and the band is one value for every
+> vulnerability. Proposed reversible default: keep `8:14` at every
+> vulnerability. A vulnerability-split band would have to be built and then
+> confirmed on a fresh seed before this cell could act.
+
 ## Ledger (memory compaction, 2026-08-16)
 
 - **2026-07-14 continuous-upgrade experiment (unmeasured).**
