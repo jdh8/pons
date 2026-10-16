@@ -14,6 +14,9 @@
 #                "none ns ew both" for a competitive treatment, see
 #                docs/measurement.md checklist 8 — we sit N/S, so `ns` is
 #                unfavourable and `ew` favourable)
+#   DENSITY      accepted ÷ scanned of a --filter-* run; when set, diffpair and
+#                sddiff pass it as --density so the verdict is not withheld
+#                (density_of computes it from the arm's shards in $R/log)
 #
 # Sourcing exports SKIP_BUILD=1, so the build it does here is the only one the
 # whole experiment gets; see the comment at that line.
@@ -279,12 +282,16 @@ diffpair() {
     plain="$R/diff.$on.vs.$off.$vul.plain.txt"
     pd="$R/diff.$on.vs.$off.$vul.pd.txt"
     stamp="$R/diff.$on.vs.$off.$vul.inputs"
-    inputs=$(report_inputs "$DIFF" "$on" "$off" "$vul" --score both --show "$SHOW")
+    # shellcheck disable=SC2086
+    inputs=$(report_inputs "$DIFF" "$on" "$off" "$vul" --score both --show "$SHOW" \
+        ${DENSITY:+--density $DENSITY})
     [ -s "$plain" ] && [ -s "$pd" ] && fresh_report "$stamp" "$inputs" \
         && { log "skip $plain + $pd (exist, inputs unchanged)"; return 0; }
-    log "diff $on vs $off ($vul, plain+pd)"
+    log "diff $on vs $off ($vul, plain+pd${DENSITY:+, density $DENSITY})"
+    # shellcheck disable=SC2086
     "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
-        --out-plain "$plain" --out-pd "$pd" --show "$SHOW" >>"$R/log" 2>&1
+        --out-plain "$plain" --out-pd "$pd" --show "$SHOW" \
+        ${DENSITY:+--density $DENSITY} >>"$R/log" 2>&1
     printf '%s\n' "$inputs" >"$stamp"
 }
 
@@ -298,12 +305,37 @@ sddiff() {
     # worse here: `2>&1` below folds a panic (ab-dump-sd asserts the arms are
     # aligned) into the very file the guard reads, so an `-s` guard skips the
     # cell permanently and the sd column silently goes missing.
-    inputs=$(report_inputs "$SD" "$on" "$off" "$vul" -v "$vul" --sd-worlds 16 --show 0 "$@")
+    # shellcheck disable=SC2086
+    inputs=$(report_inputs "$SD" "$on" "$off" "$vul" -v "$vul" --sd-worlds 16 --show 0 \
+        ${DENSITY:+--density $DENSITY} "$@")
     grep -q '^Delta' "$out" 2>/dev/null && fresh_report "$out.inputs" "$inputs" \
         && { log "skip $out (scored)"; return 0; }
     log "sd-diff $on vs $off ($vul, 16 worlds$*)"
-    "$SD" "$R/$on-$vul" "$R/$off-$vul" -v "$vul" --sd-worlds 16 --show 0 "$@" >"$out" 2>&1
+    # shellcheck disable=SC2086
+    "$SD" "$R/$on-$vul" "$R/$off-$vul" -v "$vul" --sd-worlds 16 --show 0 \
+        ${DENSITY:+--density $DENSITY} "$@" >"$out" 2>&1
     printf '%s\n' "$inputs" >"$out.inputs"
+}
+
+# density_of ARM_DIR — accepted ÷ scanned of an enriched (--filter-*) arm, from
+# its shards' `wrote N boards (M scanned) to ARM_DIR/shard-i.json` lines in
+# $R/log; the last line per shard wins, so a regenerated arm counts once.  A
+# resumed arm keeps the lines its generation wrote.  Fails on an arm with no
+# such line (generated elsewhere), rather than printing a density of nothing.
+density_of() {
+    awk -v pre="$1/shard-" '
+        /wrote [0-9]+ boards \([0-9]+ scanned\) to / {
+            for (i = 1; i < NF; i++)
+                if ($i == "to" && index($(i + 1), pre) == 1) {
+                    for (j = 1; j < i; j++)
+                        if ($j == "wrote") { acc[$(i + 1)] = $(j + 1); sc[$(i + 1)] = substr($(j + 3), 2) }
+                }
+        }
+        END {
+            for (k in acc) { a += acc[k]; n += sc[k] }
+            if (n == 0) exit 1
+            printf "%.6f\n", a / n
+        }' "$R/log"
 }
 
 # seed_for [NAME] — a persistent SEED_BASE in $R/[NAME.]seed, fresh on first use.

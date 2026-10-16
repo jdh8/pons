@@ -751,6 +751,58 @@ bidding change).  Both `cards/*.bbsa` are **unchanged**: BBA's schema has rows
 for named conventions, none for the strength band of a natural overcall or for
 a natural advance, so there is nothing to disclose.
 
+### Re-measure under the disclosed SD leader (2026-10-16)
+
+The SD-PD column above came from `ab-dump-sd` before `7c60e309`, whose
+East–West leader read only our alerted calls, so the unalerted `(1NT) 2x`
+read as `points 8..37` in both arms and the floor's disclosure was never
+priced when we declared ([research-method-review.md §4](research-method-review.md#4-disclosure-in-sd-dump-rescoring)).
+Re-run on fresh deals with the current code:
+[`scripts/ab-nt-natural-overcall-disclosed.sh`](../scripts/ab-nt-natural-overcall-disclosed.sh),
+shipped (bare) against the pre-ship arm (`--ns-nt-overcall-hcp-floor 0
+--no-ns-nt-overcall-advance`), SEED_BASE `1792107984640740881`, code
+`178f301b`, `--filter-1nt --wide-1nt`, **393,216 accepted boards per arm per
+cell**, all four vulnerability cells, density **0.253354** (accepted ÷
+scanned), isolation gate 0 foreign in every cell, leader reading
+`disclosed`. Pre-registered in the runner header before any number was read.
+
+| cell | plain DD | PD | plain SD | **SD-PD** |
+| --- | ---: | ---: | ---: | ---: |
+| none | −0.0017 ±0.0018 NI | +0.0094 ±0.0024 win | −0.0045 ±0.0019 loss | **+0.0047 ±0.0023 win** |
+| ns (we vul) | +0.0008 ±0.0021 NI | +0.0134 ±0.0028 win | −0.0020 ±0.0022 NI | **+0.0090 ±0.0028 win** |
+| ew (we NV) | **−0.0035 ±0.0021 loss** | +0.0081 ±0.0027 win | −0.0066 ±0.0023 loss | **+0.0032 ±0.0027 win** |
+| both | +0.0003 ±0.0024 NI | +0.0133 ±0.0031 win | −0.0017 ±0.0025 NI | **+0.0094 ±0.0030 win** |
+
+IMPs per accepted board, `shipped − base`; about 1.5% of accepted boards
+fired. **Gate result: the decision row is `loss | win`**, worst cell `ew`,
+the row the decision table calls an artifact of PD's synthetic X. The `ew`
+loss is −0.0009 IMPs per random board, inside δ, but its upper bound is
+below zero. SD-PD is a win in every cell under the disclosed reader, so that
+half of the original rationale stands; the plain-DD non-loss half fails in
+the new `ew` cell (the 08-23 run measured none/both only).
+
+**Trace: the win is the advance, not the floor.** `ab-dump-bucket --by node`
+splits the divergent boards by the first differing call (plain / PD IMPs over
+393,216 boards):
+
+| slice | none | ns | ew | both |
+| --- | ---: | ---: | ---: | ---: |
+| M1 `1NT ⟨- vs 2x⟩` (the floor removes the overcall) | −2591 / −601 | −1661 / +748 | −3067 / −1053 | −2118 / +164 |
+| M2 `(1NT) 2x - ⟨…⟩` (the authored advance) | +1748 / +4769 | +2685 / +6255 | +1569 / +4837 | +2575 / +6244 |
+| later calls in the overcall auction | +169 / −491 | −715 / −1717 | +122 / −611 | −336 / −1180 |
+
+The floor's slice loses on plain DD in all four cells and on PD when we are
+not vulnerable. This reverses the 08-23 attribution, which was to the floor.
+The slice compares Pass with an overcall that the instinct floor advances, so
+it bounds M1 alone only loosely. That is the split verdict the original
+pre-registration held `bisect` in reserve for.
+
+> **Flagged for jdh8; nothing changed.** Proposed reversible default: keep
+> both knobs until a pre-registered bisect on a fresh seed measures the floor
+> on its own (advance on, `natural_overcall_hcp_floor` 0 against 8). If that
+> reads a plain loss, set `natural_overcall_hcp_floor = 0` and keep the
+> advance on. The knob value is the reversal.
+
 ### Follow-ups this A/B opened
 
 - **`(1NT) 2x (X)` is still the floor; the census below closes widening it as
