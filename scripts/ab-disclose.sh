@@ -39,7 +39,7 @@ SEED_BASE=$(seed_for)
 CARD=${CARD:-cards/American.bbsa}
 
 log "=== disclose start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (--disclose $CARD)"
-for vul in none both; do
+for vul in $VULS; do
     arm blind "$vul" --disclose off
     arm told  "$vul" --disclose "$CARD"
     diffpair told blind "$vul"

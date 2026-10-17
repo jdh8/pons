@@ -34,7 +34,7 @@ exp=rein-advance
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-rein"        "$vul"                              # rein on (shipped candidate)
     arm "$exp-norein"      "$vul" --no-ns-rein-advance-raise   # rein off (old baseline)
     arm "$exp-rein-floor8" "$vul" --ns-free-1nt-floor 8        # rein on, floor 8 (re-sweep)

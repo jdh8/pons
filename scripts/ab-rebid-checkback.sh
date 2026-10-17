@@ -38,7 +38,7 @@ R=${1:?usage: ab-rebid-checkback.sh RESULTS_DIR}
 SEED_BASE=$(seed_for rebid-checkback)
 
 log "=== rebid-checkback A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-rebid-checkback
     arm on  "$vul"
     diffpair on off "$vul"

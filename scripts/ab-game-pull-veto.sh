@@ -21,7 +21,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for)
 
 log "=== game pull veto start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm plain "$vul" --our-floor american --no-ns-game-pull-veto
     arm on    "$vul" --our-floor american
     gatepair on plain "$vul" theirs

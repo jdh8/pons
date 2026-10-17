@@ -32,7 +32,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for eleven-count-majors)
 
 log "=== eleven-count-majors A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm on "$vul" --ns-eleven-count-majors
     diffpair on off "$vul"

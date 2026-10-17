@@ -84,7 +84,7 @@ bba_knob() {
     exp=$1; off_flag=$2
     SEED_BASE=$(seed_for "$exp")
     log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA (bba diffpair, off: $off_flag)"
-    for v in none both; do
+    for v in $VULS; do
         arm "$exp-on" "$v"
         arm "$exp-off" "$v" "$off_flag"
         diffpair "$exp-on" "$exp-off" "$v"

@@ -32,7 +32,7 @@ export SKIP_BUILD=1
 SEED_BASE=$(seed_for)
 
 log "=== competitive demotion start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm control "$vul" --no-ns-competitive-push-natural-only
     arm off "$vul" --no-ns-competitive-pass-demotion
     arm natural "$vul"

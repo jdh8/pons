@@ -19,7 +19,7 @@ exp=sputnik-negx
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-off" "$vul"
     arm "$exp-free" "$vul" --ns-free-bids
     arm "$exp-modern" "$vul" --ns-negative-double-shape modern

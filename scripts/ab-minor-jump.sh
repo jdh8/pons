@@ -27,7 +27,7 @@ R=${1:?usage: ab-minor-jump.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== minor-jump A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm base      "$vul" --no-ns-advance-minor-jump
     arm minorjump "$vul"
     diffpair minorjump base "$vul"

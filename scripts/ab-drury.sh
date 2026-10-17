@@ -53,7 +53,7 @@ R=${1:?usage: ab-drury.sh RESULTS_DIR}
 SEED_BASE=$(seed_for drury)
 
 log "=== drury A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-drury
     arm on "$vul"
     diffpair on off "$vul"

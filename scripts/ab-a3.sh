@@ -65,7 +65,7 @@ log "=== A3 run start sha=$SHA seeds=$S1,$S2 counts leb=$LEB_COUNT run=$RUN_COUN
 
 # 1) Lebensohl: Transfer (NS) vs Plain (EW). Plain-DD only (harness limitation).
 #    Fires on every 1NT-overcalled board — cheapest, so first.
-for v in none both; do
+for v in $VULS; do
     for s in $S1 $S2; do
         run "leb.transfer-vs-plain.$v.seed$s.txt" \
             "$LEB" --count "$LEB_COUNT" -v "$v" --ns transfer --ew plain --seed "$s"
@@ -75,7 +75,7 @@ done
 # 2) Runout vs the passing floor (set_one_nt_runout), dual-scored, both vuls,
 #    two seeds. `--no-universal` restricts to responder's direct seat; the delta
 #    (full - direct) prices set_one_nt_runout_universal.
-for v in none both; do
+for v in $VULS; do
     for sc in plain pd; do
         for s in $S1 $S2; do
             run "runout.full.$v.$sc.seed$s.txt" \
@@ -88,7 +88,7 @@ done
 
 # 3) Escape penalty-X battery (set_penalize_escape_stack / _values) — fires
 #    rarely (they run, we double), so a bigger count and a single seed. Last.
-for v in none both; do
+for v in $VULS; do
     for sc in plain pd; do
         run "escape-stack.$v.$sc.seed$S1.txt" \
             "$RUN" --compare escape-stack --filter-1nt --count "$ESC_COUNT" -v "$v" --score "$sc" --seed "$S1"

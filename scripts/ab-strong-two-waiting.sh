@@ -59,7 +59,7 @@ R=${1:?usage: ab-strong-two-waiting.sh RESULTS_DIR}
 SEED_BASE=$(seed_for strong-two-waiting)
 
 log "=== strong-two-waiting A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-strong-two-waiting
     arm on  "$vul"
     gatepair on off "$vul"

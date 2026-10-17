@@ -57,7 +57,7 @@ splitsd() {
 }
 
 log "=== nt-overcall-gladiator A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm on  "$vul" --ns-nt-overcall-gladiator
     python3 "$SPLIT" "$R/on-$vul"

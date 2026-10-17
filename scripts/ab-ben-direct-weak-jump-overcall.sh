@@ -44,7 +44,7 @@ SKIP_BUILD=1
 . scripts/ab-lib.sh
 
 log "=== BEN direct-weak-jump-overcall A/B start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
-for vul in none both; do
+for vul in $VULS; do
 	arm off "$vul" -t f --note "$NOTE" --no-ns-direct-weak-jump-overcall
 	arm on "$vul" -t f --note "$NOTE"
 	diffpair on off "$vul"

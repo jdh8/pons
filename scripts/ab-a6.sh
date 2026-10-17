@@ -55,7 +55,7 @@ sp_toggle() {
     exp=$1; bin=$2; shift 2
     seed=$(seed_for "$exp")
     log "=== $exp seed=$seed sha=$SHA extra:[$*]"
-    for v in none both; do
+    for v in $VULS; do
         # shellcheck disable=SC2086  # deliberate word-split of the extra flags
         sp_run "$exp.$v.txt" \
             "target/release/examples/$bin" --count "$COUNT" -v "$v" --seed "$seed" $*
@@ -80,7 +80,7 @@ sp_toggle fuzzy-fifths     ab-fuzzy-strength --policy fifths
 if [ "${A6_BBA:-1}" = 1 ]; then
     SEED_BASE=$(seed_for rubens-reading)
     log "=== rubens-reading SEED_BASE=$SEED_BASE sha=$SHA (bba diffpair, default-on knob)"
-    for v in none both; do
+    for v in $VULS; do
         arm rubens-on  "$v"                          # bare = reading default-on
         arm rubens-off "$v" --no-ns-rubens-reading   # reading suppressed
         diffpair rubens-on rubens-off "$v"           # on - off, plain + pd

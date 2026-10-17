@@ -33,7 +33,7 @@ for a; do
     log "arm $n: ${a#*=}"
     echo "$W" | while read -r line; do log "  blob $line"; done
 done
-for vul in none both; do
+for vul in $VULS; do
     arm plain "$vul" --our-floor american
     for a; do
         n=${a%%=*}

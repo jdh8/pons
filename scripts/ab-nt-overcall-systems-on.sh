@@ -56,7 +56,7 @@ splitsd() {
 }
 
 log "=== nt-overcall-systems-on A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-nt-overcall-systems-on
     arm on  "$vul"
     python3 "$SPLIT" "$R/on-$vul"

@@ -95,7 +95,7 @@ for seed_set in 1 2; do
     SEED_BASE=$(seed_for multi-balance)
     log "=== 2d-multi-balance seed=$seed_set SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-    for v in none both; do
+    for v in $VULS; do
         arm base "$v" --their-2d-multi true --filter-1nt
         arm balance "$v" --their-2d-multi true --ns-multi-balance --filter-1nt
         arm advance "$v" --their-2d-multi true --ns-their-multi-advance-read --filter-1nt

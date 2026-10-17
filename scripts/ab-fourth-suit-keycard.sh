@@ -35,7 +35,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for fourth-suit-keycard)
 
 log "=== fourth-suit-keycard A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm on "$vul" --ns-fourth-suit-keycard
     gatepair on off "$vul"

@@ -26,7 +26,7 @@ SEED_BASE=$(seed_for)
 
 log "takeout-support A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     # Explicit knobs on every arm — bba-gen's defaults now ship strict+discipline,
     # so `base` (the historical book) must opt out of both.
     arm base    "$vul" --ns-takeout-support off    --ns-overcall-discipline off

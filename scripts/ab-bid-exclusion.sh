@@ -40,7 +40,7 @@ R=${1:?usage: ab-bid-exclusion.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== Phase 4 bid-exclusion start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --ns-bid-exclusion=false
     arm bex "$vul" --ns-bid-exclusion
     diffpair bex off "$vul"

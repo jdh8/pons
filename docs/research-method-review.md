@@ -112,10 +112,15 @@ recorded trade-offs. The last of these closed on its BEN Tier-F guard at
 evidence, the runs and the record as it stood when it closed are
 [archived](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
 
-**Open.** About 100 runners spell the loop `for vul in none both` and
-ignore `VULS`; four `ab-ben-*` runners never source ab-lib; `penalty_pass`,
-`trap_pass`, the runouts and `accountant_floor` live in single-vulnerability
-example harnesses.
+Since 2026-10-18 every runner that sources ab-lib loops over `$VULS`,
+including the four `ab-ben-*` runners (`ab-landy-nt-vs-x.sh` deliberately
+spells out its four cells).
+
+**Open.** Seven scripts do not source ab-lib and keep `none both`:
+`ab-two-over-one{,-nofit-floor,-gate-sd,-gate-rescale}.sh`,
+`sd-pd-{queue,nt-defense,readjudicate}.sh` (and the data-gen
+`cachalot-xfix-gen.sh`). `penalty_pass`, `trap_pass`, the runouts and
+`accountant_floor` live in single-vulnerability example harnesses.
 
 ## 7 Auction conditioning and the replay approximation
 

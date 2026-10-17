@@ -55,7 +55,7 @@ SHOW=${SHOW:-40}
 SEED_BASE=$(seed_for)
 
 log "=== announced reading start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm announced "$vul" --ns-announced-reading
     diffpair announced off "$vul"

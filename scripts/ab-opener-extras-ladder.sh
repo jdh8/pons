@@ -21,7 +21,7 @@ SEED_BASE=$(seed_for)
 
 # Shipped default-on: ON arm is the current default system, OFF disables the ladder.
 log "=== opener-extras-ladder A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-opener-extras-ladder
     arm on  "$vul"
     diffpair on off "$vul"

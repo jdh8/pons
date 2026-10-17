@@ -30,7 +30,7 @@ R=${1:?usage: ab-rich-advance.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== rich-advance A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm flat     "$vul" --no-ns-rich-advance --no-ns-longest-advance
     arm rich     "$vul" --no-ns-longest-advance
     arm richlong "$vul"

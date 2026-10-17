@@ -23,7 +23,7 @@ exp=free-bid-floor
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-off" "$vul"
     arm "$exp-free6" "$vul" --ns-free-bids --ns-free-bid-floor 6
     arm "$exp-free7" "$vul" --ns-free-bids --ns-free-bid-floor 7

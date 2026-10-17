@@ -71,7 +71,7 @@ SEED_BASE=$(cat "$R/seed")
 export SEED_BASE
 
 log "=== anchor start, sha=$SHA, SEED_BASE=$SEED_BASE, ${JOBS}x$PER_SHARD bd/arm/vul -> $SNAP"
-for vul in none both; do
+for vul in $VULS; do
     dir="$SNAP/$vul"
     verified "$dir" && { log "skip $dir (complete, verified)"; continue; }
     log "generate $dir"
@@ -101,7 +101,7 @@ target/release/examples/bba-decompose "$SNAP/none" "$SNAP/both" \
 # arm; same $SNAP, same $SEED_BASE and same $SHA is what makes the paired delta
 # below the floor's value rather than the floor's value plus a batch of book
 # fixes (docs/bba-gap-campaign.md, rule #2).
-for vul in none both; do
+for vul in $VULS; do
     dir="$SNAP/american-$vul"
     verified "$dir" && { log "skip $dir (complete, verified)"; continue; }
     log "generate $dir"
@@ -122,7 +122,7 @@ target/release/examples/bba-decompose "$SNAP/american-none" "$SNAP/american-both
 # the headline difference of the two decomposes is the other metric, a
 # reference-relative gain over both tables (docs/measurement.md, "Direct A/B
 # vs reference-relative gain") — about twice it, and never summed with it.
-for vul in none both; do
+for vul in $VULS; do
     log "diff american vs american-instinct ($vul, plain+pd)"
     target/release/examples/ab-dump-diff "$SNAP/american-$vul" "$SNAP/$vul" \
         --score both \

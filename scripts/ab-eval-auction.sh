@@ -25,7 +25,7 @@ R=${1:?usage: ab-eval-auction.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== eval-auction start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (v3 calls-tail evaluator vs hull-only)"
-for vul in none both; do
+for vul in $VULS; do
     arm on "$vul"
     arm off "$vul" --no-ns-eval-auction
     diffpair on off "$vul"

@@ -27,7 +27,7 @@ R=${1:?usage: ab-closure.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== closure C1 start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm sum "$vul" --ns-sum-closure
     diffpair sum off "$vul"

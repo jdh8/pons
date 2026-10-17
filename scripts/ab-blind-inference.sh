@@ -50,7 +50,7 @@ SHOW=${SHOW:-40}
 SEED_BASE=$(seed_for)
 
 log "=== blind inference start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm seen "$vul"
     arm blind "$vul" --ns-blind-inference
     diffpair blind seen "$vul"

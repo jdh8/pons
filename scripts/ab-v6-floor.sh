@@ -6,7 +6,7 @@ R=${1:?usage: ab-v6-floor.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== v6 honest-net gate start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (american-v6 vs american)"
-for vul in none both; do
+for vul in $VULS; do
     arm american "$vul" --our-floor american
     arm american-v6 "$vul" --our-floor american-v6
     diffpair american-v6 american "$vul"

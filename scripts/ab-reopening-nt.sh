@@ -29,7 +29,7 @@ exp=reopening-nt
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-base"     "$vul"                              # floor 6, reopening on (shipped)
     arm "$exp-noreopen" "$vul" --no-ns-reopening-notrump    # reopening OFF (baseline)
     arm "$exp-floor8"   "$vul" --ns-free-1nt-floor 8        # floor 8, reopening on (re-sweep)

@@ -27,7 +27,7 @@ R=${1:?usage: ab-rubens.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== rubens start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (--ns-rubens vs default)"
-for vul in none both; do
+for vul in $VULS; do
     arm on  "$vul" --ns-rubens
     arm off "$vul"
     diffpair on off "$vul"

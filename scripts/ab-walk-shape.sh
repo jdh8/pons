@@ -72,7 +72,7 @@ bins=$(cd "$R" && pwd)
 SEED_BASE=$(seed_for)
 
 log "=== walk-shape start, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     # Each arm runs its own copied binary; ab-lib fingerprints whatever BBA_GEN names.
     BBA_GEN=$bins/bba-gen-fix; export BBA_GEN
     arm fix "$vul"

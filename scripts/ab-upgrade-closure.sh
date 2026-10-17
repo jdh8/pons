@@ -34,7 +34,7 @@ R=${1:?usage: ab-upgrade-closure.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== closure C2 start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm upg "$vul" --ns-upgrade-closure
     diffpair upg off "$vul"

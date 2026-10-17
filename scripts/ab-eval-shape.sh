@@ -63,7 +63,7 @@ R=${1:?usage: ab-eval-shape.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== eval-shape start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (shape twin × sum closure)"
-for vul in none both; do
+for vul in $VULS; do
     arm base "$vul"
     arm base-closure "$vul" --ns-sum-closure
     arm shape "$vul" --ns-eval-shape

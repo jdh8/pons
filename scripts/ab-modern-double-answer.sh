@@ -33,7 +33,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for modern-double-answer)
 
 log "=== modern-double-answer A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-modern-double-answer
     arm on "$vul"
     gatepair on off "$vul"

@@ -42,7 +42,7 @@ bba_knob() {
     kexp=$1; ksd=$2; kon=$3; kcommon=$4
     SEED_BASE=$(seed_for "$kexp")
     log "=== $kexp SEED_BASE=$SEED_BASE sha=$SHA sd=$ksd on:[$kon] common:[$kcommon]"
-    for v in none both; do
+    for v in $VULS; do
         # shellcheck disable=SC2086  # deliberate word-split of the flag lists
         arm "$kexp-on"  "$v" $kon $kcommon
         # shellcheck disable=SC2086
@@ -82,7 +82,7 @@ resp_run() {
     fi
 }
 
-for vul in none both; do
+for vul in $VULS; do
     resp_run "responsive-overcall.$vul.txt" \
         "$RESP" --conv overcall --filter -v "$vul" --count "$RESP_COUNT"
 done

@@ -28,7 +28,7 @@ R=${1:?usage: ab-book-value.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== book value start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (american vs american-floor)"
-for vul in none both; do
+for vul in $VULS; do
     arm american-floor "$vul" --our-floor american-floor
     arm american       "$vul" --our-floor american
     diffpair american american-floor "$vul"

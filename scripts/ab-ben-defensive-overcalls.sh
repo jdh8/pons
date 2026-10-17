@@ -57,7 +57,7 @@ compare() {
 }
 
 log "=== BEN defensive-overcalls $MODE start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
-for vul in none both; do
+for vul in $VULS; do
     case "$MODE" in
     o3)
         ben control "$vul" --no-ns-direct-minor-weak-jump-overcall

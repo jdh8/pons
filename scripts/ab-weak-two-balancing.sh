@@ -30,7 +30,7 @@ SEED_BASE=$(seed_for)
 
 log "weak-two/balancing A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm base      "$vul"                       # shipped default (neither knob)
     arm weak      "$vul" --ns-weak-two-comp    # + contested weak twos
     arm balancing "$vul" --ns-balancing        # + 1NT balancing-seat defense

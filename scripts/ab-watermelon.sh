@@ -28,7 +28,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for)
 
 log "=== watermelon $FLAG start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm plain "$vul" --our-floor american
     arm on    "$vul" --our-floor american "$FLAG"
     [ -n "${NO_GATE:-}" ] || gatepair on plain "$vul"

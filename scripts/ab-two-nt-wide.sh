@@ -28,7 +28,7 @@ R=${1:?usage: ab-two-nt-wide.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== two-nt-wide start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (chop G0: --ns-two-nt-wide vs default)"
-for vul in none both; do
+for vul in $VULS; do
     arm off  "$vul"
     arm wide "$vul" --ns-two-nt-wide
     diffpair wide off "$vul"

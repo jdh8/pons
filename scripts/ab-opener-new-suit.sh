@@ -21,7 +21,7 @@ BUILD_EXTRA='--example ab-dump-sd --example probe-divergence'
 SEED_BASE=$(seed_for)
 
 log "=== opener new suit start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm plain "$vul" --our-floor american --no-ns-forcing-nt-three-card-minor
     arm d2c   "$vul" --our-floor american --no-ns-forcing-nt-three-card-minor --ns-one-diamond-two-clubs
     arm tcm   "$vul" --our-floor american

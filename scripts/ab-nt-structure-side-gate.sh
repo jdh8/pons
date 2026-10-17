@@ -54,7 +54,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for nt-structure-side)
 
 log "=== nt-structure-side A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-nt-structure-side-gate
     arm side "$vul"
     out="$R/divergence.side.vs.off.$vul.txt"

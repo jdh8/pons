@@ -24,7 +24,7 @@ W=$(echo "$PONS_FLOOR_WEIGHTS" | tr , '\n' | xargs sha256sum)
 [ "$(cat "$R/weights")" = "$W" ] || { echo "ab-floor-rails: $R was generated with other blobs (see $R/weights)" >&2; exit 1; }
 
 log "=== floor-rails start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm file   "$vul" --our-floor american-file
     arm norail "$vul" --our-floor american-file \
         --no-ns-3nt-pull-veto --no-ns-2nt-double-veto --no-ns-3nt-unusual-veto \

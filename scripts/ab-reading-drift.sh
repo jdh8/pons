@@ -51,7 +51,7 @@ bins=$(cd "$R" && pwd)
 SEED_BASE=$(seed_for)
 
 log "=== reading-drift start, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     # Each arm runs its own copied binary; ab-lib fingerprints whatever BBA_GEN names.
     BBA_GEN=$bins/bba-gen-fix; export BBA_GEN
     # shellcheck disable=SC2086 — $FIX_ARGS/$BASE_ARGS word-split by design

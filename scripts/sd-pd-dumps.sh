@@ -74,7 +74,7 @@ rescore() {
     cat "$out"
 }
 
-for vul in none both; do
+for vul in $VULS; do
     # Modern negative doubles (competitive-book P3b‴, SHIPPED default-on).
     # Published: plain +0.0213 NV / +0.0074 vul (CI>0 both), PD -0.0044 / -0.0256
     # (vul CI<0), plain-SD +0.4221 / +0.2881 per divergent board.  The vul-PD

@@ -25,7 +25,7 @@ R=${1:?usage: ab-advance-2nt.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== advance-2nt A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm base  "$vul" --no-ns-advance-2nt-continuation
     arm twont "$vul"
     diffpair twont base "$vul"

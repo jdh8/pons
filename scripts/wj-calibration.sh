@@ -33,7 +33,7 @@ export SKIP_BUILD=1   # this build is the whole run's; see ab-lib.sh
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 log "=== WJ calibration start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/vul"
-for vul in none both; do
+for vul in $VULS; do
     if [ -d "$R/$vul" ]; then
         log "skip $R/$vul (exists)"
     else

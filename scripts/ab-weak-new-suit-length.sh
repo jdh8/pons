@@ -37,7 +37,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for weak-new-suit-length)
 
 log "=== weak-new-suit-length A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm five "$vul" --ns-weak-new-suit-length 5
     arm six "$vul"
     gatepair six five "$vul"

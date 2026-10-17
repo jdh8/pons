@@ -37,7 +37,7 @@ sdpair() {
 }
 
 log "=== defensive-overcalls $MODE start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     case "$MODE" in
     o3)
         arm control "$vul" --no-ns-direct-minor-weak-jump-overcall

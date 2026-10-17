@@ -115,7 +115,7 @@ SEED_BASE=$(seed_for)
 [ -s "$R/tree.patch" ] || git diff HEAD >"$R/tree.patch"
 
 log "=== non-inferiority $E start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm shipped "$vul"
     case $E in
     k8-floor)

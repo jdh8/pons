@@ -36,7 +36,7 @@ for seed_set in 1 2 3; do
     SEED_BASE=$(seed_for multi-residue)
     log "=== 2d-multi-residue seed=$seed_set SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
-    for v in none both; do
+    for v in $VULS; do
         arm base "$v" --their-2d-multi true --ns-their-multi-read false \
             --ns-multi-stopper-ask off --filter-1nt
         arm reader "$v" --their-2d-multi true --ns-their-multi-read true \

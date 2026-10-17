@@ -31,7 +31,7 @@ run_two_arm() {
     exp=$1; on_flags=$2; off_flags=$3
     SEED_BASE=$(seed_for "$exp")
     log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA"
-    for vul in none both; do
+    for vul in $VULS; do
         arm "$exp-off" "$vul" $off_flags
         arm "$exp-on"  "$vul" $on_flags
         diffpair "$exp-on" "$exp-off" "$vul"
@@ -49,7 +49,7 @@ run_two_arm p4-jordan      ''                 --no-ns-jordan-truscott     # ship
 exp=p3bd-negx
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA"
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-off" "$vul"
     arm "$exp-free" "$vul" --ns-free-bids
     arm "$exp-modern" "$vul" --ns-negative-double-shape modern

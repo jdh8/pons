@@ -20,7 +20,7 @@ exp=free-bid-answers
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-off" "$vul"
     arm "$exp-modern" "$vul" --ns-negative-double-shape modern
     diffpair "$exp-modern" "$exp-off" "$vul" # ship gate: modern-complete vs baseline

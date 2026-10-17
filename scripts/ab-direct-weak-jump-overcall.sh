@@ -17,7 +17,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for)
 
 log "=== direct-weak-jump-overcall A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-direct-weak-jump-overcall
     arm on  "$vul"
     diffpair on off "$vul"

@@ -21,7 +21,7 @@ SEED_BASE=$(seed_for)
 # Shipped default-on: the ON arm is the default system (suppresses), the OFF arm
 # re-enables the flat-4333 takeout double.
 log "=== flat-4333-takeout A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm on  "$vul"
     arm off "$vul" --no-ns-suppress-flat-4333-takeout
     diffpair on off "$vul"

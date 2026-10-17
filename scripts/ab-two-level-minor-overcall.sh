@@ -22,7 +22,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for)
 
 log "=== two-level-minor-overcall A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm on  "$vul" --ns-two-level-minor-overcall-tight
     diffpair on off "$vul"

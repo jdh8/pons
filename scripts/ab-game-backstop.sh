@@ -34,7 +34,7 @@ SEED_BASE=$(seed_for)
 # recorded run predates the default flip and used the old spellings
 # (--no-ns-game-backstop / --ns-two-over-one-force); a re-run wants a fresh dir.
 log "=== game-backstop A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm keep  "$vul" --ns-game-backstop --no-ns-two-over-one-force
     arm drop  "$vul" --no-ns-two-over-one-force
     arm force "$vul"

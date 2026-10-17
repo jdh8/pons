@@ -59,7 +59,7 @@ else
 fi
 
 log "=== cue-raise-sign-off A/B start, sha=$SHA vs base=$base_sha, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     # Subshell: bash-as-sh keeps a prefix assignment past a function call,
     # and would generate the on arm below with the off binary.
     (BBA_GEN=$OFF_BIN arm off "$vul")

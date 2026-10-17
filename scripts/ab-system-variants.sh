@@ -25,7 +25,7 @@ SHOW=${SHOW:-40}
 SEED_BASE=$(seed_for)
 
 log "=== system variants start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm advanced "$vul"
     arm basic "$vul" --ns-preset basic
     arm basic-instinct "$vul" --ns-preset basic --our-floor american-instinct

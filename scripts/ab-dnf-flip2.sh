@@ -20,7 +20,7 @@ R=${1:?usage: ab-dnf-flip2.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== dnf flip2 start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (chop F2b: DNF-on + evaluator_v2_dnf vs --no-ns-envelope-union)"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-envelope-union
     arm dnf "$vul"
     diffpair dnf off "$vul"

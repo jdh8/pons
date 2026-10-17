@@ -32,7 +32,7 @@ for knob in cue-raise-answer cue-minor-raise-answer; do
     exp=$knob
     SEED_BASE=$(seed_for "$exp")
     log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
-    for vul in none both; do
+    for vul in $VULS; do
         arm "$exp-on" "$vul"
         arm "$exp-off" "$vul" "--no-ns-$knob"
         diffpair "$exp-on" "$exp-off" "$vul" # ship gate vs the byte-identical default

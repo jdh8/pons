@@ -23,7 +23,7 @@ exp=school-negx
 SEED_BASE=$(seed_for "$exp")
 log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
-for vul in none both; do
+for vul in $VULS; do
     arm "$exp-modern" "$vul"
     arm "$exp-cachalot" "$vul" --ns-negative-double-shape cachalot
     arm "$exp-sputnik" "$vul" --ns-negative-double-shape sputnik

@@ -36,7 +36,7 @@ R=${1:?usage: ab-quantitative-6nt.sh RESULTS_DIR}
 SEED_BASE=$(seed_for quantitative-6nt)
 
 log "=== quantitative-6nt A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-quantitative-six-notrump
     arm on  "$vul"
     diffpair on off "$vul"

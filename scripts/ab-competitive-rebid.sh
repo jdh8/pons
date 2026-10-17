@@ -19,7 +19,7 @@ SEED_BASE=$(seed_for)
 
 # Shipped default-on: the OFF arm disables it, the ON arm is the default system.
 log "=== competitive-rebid A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-competitive-rebid
     arm on  "$vul"
     diffpair on off "$vul"

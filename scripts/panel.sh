@@ -73,7 +73,7 @@ echo "$MEMBERS" | while read -r member flags; do
     # `eval set --` rather than word-splitting: BBA convention names contain
     # spaces (`--their-conv "Weak natural 2D=0"`).
     eval "set -- $flags"
-    for vul in none both; do
+    for vul in $VULS; do
         arm "$member-seen" "$vul" "$@"
         arm "$member-blind" "$vul" "$@" --ns-blind-opponent-reading
         diffpair "$member-seen" "$member-blind" "$vul"

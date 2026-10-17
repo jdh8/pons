@@ -38,7 +38,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for minor-jump-nt-slam)
 
 log "=== minor-jump-nt-slam A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --ns-minor-jump-notrump-slam-try off
     arm t8 "$vul" --ns-minor-jump-notrump-slam-try 8
     arm t9 "$vul"

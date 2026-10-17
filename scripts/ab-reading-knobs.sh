@@ -122,7 +122,7 @@ for ref in ben bba; do
 	for arm in on "$KNOB-off"; do
 		flags=()
 		[ "$arm" = on ] || flags=("$OFFFLAG")
-		for vul in none both; do
+		for vul in $VULS; do
 			dir="$EXP/$ref-$arm/$vul"
 			if [ "$ref" = ben ]; then
 				cell ben-gen "$BEN_SHARDS" "$dir" -v "$vul" -t f "${flags[@]+"${flags[@]}"}"
@@ -156,7 +156,7 @@ diff=target/release/examples/ab-dump-diff
 for ref in ben bba; do
 	[ "${complete[$ref]}" = 1 ] || { log "!!! $ref cells incomplete — skip scoring"; continue; }
 	for arm in on "$KNOB-off"; do
-		for vul in none both; do
+		for vul in $VULS; do
 			for bracket in plain pd; do
 				out="$EXP/scores/$ref-$arm-$vul-$bracket.txt"
 				stamp=$(inputs "$score" "--score $bracket" "$EXP/$ref-$arm/$vul")
@@ -172,7 +172,7 @@ for ref in ben bba; do
 	done
 	# One invocation per cell, both brackets: a scorer only re-prices solved
 	# tables, so this pays for the shard parse and the DDS fan-out once.
-	for vul in none both; do
+	for vul in $VULS; do
 		plain="$EXP/scores/diff-$ref-$KNOB-$vul-plain.txt"
 		pd="$EXP/scores/diff-$ref-$KNOB-$vul-pd.txt"
 		stamp=$(inputs "$diff" "--score both" "$EXP/$ref-on/$vul" "$EXP/$ref-$KNOB-off/$vul")

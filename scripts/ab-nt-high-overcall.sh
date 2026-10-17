@@ -70,7 +70,7 @@ SEED_BASE=$(seed_for nt-high-overcall)
 log "=== nt-high-overcall SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 if [ "${ROUND:-1}" = 1 ]; then
-  for v in none both; do
+  for v in $VULS; do
     # Post-ship spellings: `base` is the pre-ship arm, `stop` the shipped default.
     arm base   "$v" --filter-1nt --ns-nt-high-overcall false
     arm stop   "$v" --filter-1nt
@@ -85,7 +85,7 @@ fi
 
 # Round 2: the two increments over the shipped default, against `stop`.
 if [ "${ROUND:-1}" = 2 ]; then
-    for v in none both; do
+    for v in $VULS; do
         # Skipped in round 1's dir (already there); generated in a fresh
         # pooling seed's dir, where `stop` IS the shipped default.
         arm stop   "$v" --filter-1nt
@@ -110,7 +110,7 @@ fi
 #         seven-card suit.  BBA's advancer sits for it on 88% (minor) / ~50%
 #         (major) and its preemptor never bids again.
 if [ "${ROUND:-1}" = 4 ]; then
-    for v in none both; do
+    for v in $VULS; do
         arm base "$v" --filter-preempt
         arm fit  "$v" --filter-preempt --ns-nt-high-overcall-x-major-at-four true
         arm pass "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true
@@ -144,7 +144,7 @@ fi
 # v1's -2.06 IMPs/fired on sd-lead.  Run `probe-divergence --gate-opener ours`
 # before the headline.
 if [ "${ROUND:-1}" = 5 ]; then
-    for v in none both; do
+    for v in $VULS; do
         arm base   "$v" --filter-preempt
         arm length "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true
         arm three  "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true \
@@ -182,7 +182,7 @@ fi
 #   base     today's shipped default (leave-in on, `len(over, 4..)`)
 #   noleave  --ns-nt-high-overcall-x-leave-in false (the pre-Round-7 ladder)
 if [ "${ROUND:-1}" = 8 ]; then
-    for v in none both; do
+    for v in $VULS; do
         arm base    "$v" --filter-preempt
         arm noleave "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in false
         diffpair base noleave "$v"

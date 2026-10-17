@@ -24,13 +24,13 @@ BUILD_EXTRA='--example probe-union-hull'
 SEED_BASE=1787700673
 
 log "=== union-hull pre-count start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm on "$vul" --ns-union-hull
 done
 log "=== generation done"
 
-for vul in none both; do
+for vul in $VULS; do
     out="$R/reach-$vul.txt"
     [ -s "$out" ] || target/release/examples/probe-union-hull "$R/off-$vul" --show 20 >"$out" 2>&1
     log "reach $vul: $(sed -n 's/^call flips *: //p' "$out")"

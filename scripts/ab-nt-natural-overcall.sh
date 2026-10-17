@@ -106,7 +106,7 @@ for seed_set in 1 2; do
     # The pre-ship system: both knobs pinned off.  OFF_FLAGS is also the
     # disclosure the blind leader needs for whichever arm carries them.
     OFF_FLAGS="--ns-nt-overcall-hcp-floor 0 --no-ns-nt-overcall-advance"
-    for v in none both; do
+    for v in $VULS; do
         # shellcheck disable=SC2086
         arm base "$v" --filter-1nt $OFF_FLAGS
         case "$MODE" in

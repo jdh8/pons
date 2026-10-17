@@ -38,7 +38,7 @@ R=${1:?usage: ab-passed-hand-pass.sh RESULTS_DIR}
 SEED_BASE=$(seed_for passed-hand-pass)
 
 log "=== passed-hand-pass A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --ns-passed-hand-major-pass off
     arm h13 "$vul" --ns-passed-hand-major-pass 13
     arm h14 "$vul" --ns-passed-hand-major-pass 14

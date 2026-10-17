@@ -23,7 +23,7 @@ R=${1:?usage: ab-closure-isolate.sh RESULTS_DIR}
 SEED_BASE=$(seed_for)
 
 log "=== closure isolate start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm nb-off "$vul" --no-ns-accountant
     arm nb-sum "$vul" --no-ns-accountant --ns-sum-closure
     diffpair nb-sum nb-off "$vul"

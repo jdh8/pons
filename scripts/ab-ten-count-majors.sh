@@ -26,7 +26,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for ten-count-majors)
 
 log "=== ten-count-majors A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm ten "$vul" --ns-ten-count-majors
     arm bba "$vul" --ns-ten-count-majors --ns-eleven-count-majors

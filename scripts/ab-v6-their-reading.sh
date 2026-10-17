@@ -18,7 +18,7 @@ for seed_set in 1 2; do
     mkdir -p "$R"
     SEED_BASE=$(seed_for v6-their-reading)
     log "=== v6-their-reading seed=$seed_set SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
-    for vul in none both; do
+    for vul in $VULS; do
         arm base "$vul" --their-2d-multi true --filter-1nt
         arm their "$vul" --our-floor american-v6-their --their-2d-multi true \
             --ns-their-multi-advance-read --ns-their-multi-double-read --filter-1nt

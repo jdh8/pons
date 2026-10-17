@@ -31,7 +31,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for doubled-notrump-max-length)
 
 log "=== doubled-notrump-max-length A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm any "$vul" --ns-doubled-notrump-max-length 13
     arm four "$vul"
     gatepair four any "$vul"

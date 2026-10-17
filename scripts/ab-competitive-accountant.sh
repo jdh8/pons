@@ -46,7 +46,7 @@ SHOW=${SHOW:-40}
 SEED_BASE=$(seed_for)
 
 log "=== competitive accountant start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-competitive-accountant
     arm capped "$vul"
     diffpair capped off "$vul"

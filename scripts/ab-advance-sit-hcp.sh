@@ -29,7 +29,7 @@ BUILD_EXTRA='--example ab-dump-sd'
 SEED_BASE=$(seed_for)
 
 log "=== advance-sit-hcp sweep start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm hcp5 "$vul" --ns-advance-sit-hcp 5
     arm hcp6 "$vul" --ns-advance-sit-hcp 6

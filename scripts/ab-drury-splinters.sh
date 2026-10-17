@@ -45,7 +45,7 @@ R=${1:?usage: ab-drury-splinters.sh RESULTS_DIR}
 SEED_BASE=$(seed_for drury-splinters)
 
 log "=== drury-splinters A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul" --no-ns-drury-splinters
     arm on "$vul"
     diffpair on off "$vul"

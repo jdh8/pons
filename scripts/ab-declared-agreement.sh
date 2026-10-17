@@ -47,7 +47,7 @@ experiment() {
     exp=$1; deviation=$2; decoy=$3
     SEED_BASE=$(seed_for "$exp")
     log "=== $exp: they play [$deviation], mis-declared as [$decoy], SEED_BASE=$SEED_BASE"
-    for v in none both; do
+    for v in $VULS; do
         arm "$exp-symmetric" "$v" --their-floor american --their-ns "$deviation"
         arm "$exp-wrong" "$v" --their-floor american --their-ns "$deviation" \
             --declare-opponents --declare-as "$decoy"

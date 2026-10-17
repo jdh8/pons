@@ -58,7 +58,7 @@ BUILD_EXTRA='--example probe-divergence'
 SEED_BASE=$(seed_for)
 
 log "=== new-suit veto start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
-for vul in none both; do
+for vul in $VULS; do
     arm off "$vul"
     arm veto "$vul" --ns-new-suit-veto
     # Opener split + the per-board records the forensic replays; no
