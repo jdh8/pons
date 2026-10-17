@@ -168,17 +168,19 @@ confirmed `their_2nt_double_veto`, `competitive_accountant`,
 replicated N3-fit (`nt_high_overcall_x_major_at_four`) on a fresh seed.
 The Landy opener package's `ew` loss is repaired: the colour gate
 `landy_opener_rungs_unless_favourable` shipped default-on 2026-10-17, plain
-+0.0318 ±0.0009 at `ew` over the ungated package.
++0.0318 ±0.0009 at `ew` over the ungated package. The N3 leave-in's `ns`
+sd-lead loss is repaired the same way: `nt_high_overcall_x_leave_in_unless_unfavourable`
+shipped default-on 2026-10-17, plain non-inferior (−0.0002 ±0.0005) and
+sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
 
-- **Owed: three decisions (jdh8).** Each default stays as shipped until
+- **Owed: two decisions (jdh8).** Each default stays as shipped until
   decided; the archive holds the evidence and a proposed default for each.
-  The Landy opener's colour gate shipped 2026-10-17 (below).
+  Both colour gates shipped 2026-10-17 (above).
 
   | Knob | Cell | Reading | Proposed |
   | --- | --- | --- | --- |
   | `their_3nt_pull_veto` | ew | plain **loss** −0.0010 ±0.0007, PD win | keep, recorded trade-off: OFF's gain is undoubled pulls BBA failed to double |
   | `competitive_push_natural_only` | ew | plain **loss** −0.0016 ±0.0011, PD win | keep; BEN Tier-F guard at `ew` decides |
-  | `nt_high_overcall_x_leave_in` | ns | plain non-inferior, sd-lead **loss** both columns | colour gate on the leave-in, A/B at `ns` only |
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,

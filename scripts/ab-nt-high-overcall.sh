@@ -237,8 +237,11 @@ fi
 # BOARDS=2400000, `--wide-1nt`, results in ab-results/nt-high-overcall-colour;
 # a preflight at VULS="none ew both" (small BOARDS, its own dir) must read 0
 # divergent first.
-#   base    today's default (leave-in on, every colour)
-#   colour  plus --ns-nt-high-overcall-x-leave-in-unless-unfavourable
+#   base    the ungated leave-in (on at every colour), now
+#           --no-ns-nt-high-overcall-x-leave-in-unless-unfavourable
+#   colour  the gate: no leave-in when we are vulnerable and they are not
+#           (default since 2026-10-17; the flag spelling changed with the
+#           flip, the arms did not)
 # The knob takes doubles OUT, so this is the addendum's lane read the other
 # way: plain DD arbitrates, the sd-lead bracket tie-breaks, PD is a
 # double-blind column.  Rule: the gate ships default-on if `ns` reads plain DD
@@ -252,10 +255,17 @@ fi
 # colour and responder's later calls moved.  Rebuilt on `except_at`, which
 # keeps every projection fold off its cell; preflight re-run in
 # ab-results/nt-high-overcall-colour-preflight2.
+#
+# MEASURED 2026-10-17, sha e092aa82, SEED_BASE 1792236493237230273,
+# ab-results/nt-high-overcall-colour, preflight2 0 divergent at none/ew/both,
+# gate 0 foreign of 4,837 divergent at `ns`: plain −0.0002 ±0.0005
+# (non-inferior), PD −0.0031 ±0.0005 (double-blind), sd-plain +0.0055
+# ±0.0005, SD-PD +0.0030 ±0.0005 (+2.72 / +1.48 per fired).  SHIPPED
+# default-on.
 if [ "${ROUND:-1}" = 11 ]; then
     for v in $VULS; do
-        arm base   "$v" --filter-preempt --wide-1nt
-        arm colour "$v" --filter-preempt --wide-1nt --ns-nt-high-overcall-x-leave-in-unless-unfavourable
+        arm base   "$v" --filter-preempt --wide-1nt --no-ns-nt-high-overcall-x-leave-in-unless-unfavourable
+        arm colour "$v" --filter-preempt --wide-1nt
         gatepair colour base "$v"
         DENSITY=$(density_of "$R/base-$v")
         diffpair colour base "$v"

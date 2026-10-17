@@ -712,6 +712,16 @@ default changed; each is jdh8's decision):
   original none/both ship could not see. *Proposed:* author a colour gate
   (no leave-in when we are vulnerable and they are not), byte-identical
   elsewhere, and A/B it at `ns` alone. Keep on until then.
+  **Shipped 2026-10-17** under Round 11's pre-registered rule (plain DD
+  non-inferior or better, sd-lead plain not a loss; PD double-blind):
+  `nt_high_overcall_x_leave_in_unless_unfavourable`, `ab-nt-high-overcall.sh
+  ROUND=11` at `e092aa82`, seed 1792236493237230273, 2,400,000 boards at
+  `ns`, density 0.00776, preflight 0 divergent at none/ew/both (96,000 boards
+  each), gate 0 foreign of 4,837 divergent: plain −0.0002 ±0.0005
+  (non-inferior), PD −0.0031 ±0.0005, sd-plain +0.0055 ±0.0005, SD-PD
+  +0.0030 ±0.0005. The first build (`9de51c9f`) failed its preflight, 6–11
+  divergent per 96,000 at the untouched cells, and was rebuilt on
+  `except_at`.
 
 ## 7 Auction conditioning: the documentation pass
 

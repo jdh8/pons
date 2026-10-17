@@ -186,11 +186,18 @@ fn the_leave_in_yields_to_game_at_unfavourable() {
         Call::Pass,
     ];
     let long = "A3.J72.AQJ4.K952";
-    let mut gated = arm();
-    gated
+    let gated = arm();
+    assert!(
+        gated
+            .competition
+            .nt_high_overcall_x_leave_in_unless_unfavourable,
+        "the gate is the default since 2026-10-17",
+    );
+    let mut ungated = gated;
+    ungated
         .competition
-        .nt_high_overcall_x_leave_in_unless_unfavourable = true;
-    assert_eq!(best_call_vul(&arm(), V::WE, &auction, long), Call::Pass);
+        .nt_high_overcall_x_leave_in_unless_unfavourable = false;
+    assert_eq!(best_call_vul(&ungated, V::WE, &auction, long), Call::Pass);
     assert_eq!(
         best_call_vul(&gated, V::WE, &auction, long),
         call(3, Strain::Notrump),

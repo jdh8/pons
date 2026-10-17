@@ -21,13 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fired board). A preflight read 0 divergent boards at `none`, `ns` and
   `both`, where the gate cannot fire.
 
-### Added
+- **No `1NT (3x) X -` leave-in at unfavourable, default on (2026-10-17).**
+  When we are vulnerable and they are not, opener no longer passes
+  responder's takeout double for penalty on four of their suit; it bids from
+  the ladder instead (`3NT`, a fit, a suit), since their doubled white
+  partscore pays less than our red game.
+  `competition.nt_high_overcall_x_leave_in_unless_unfavourable` (also in
+  `web/`); `--no-ns-nt-high-overcall-x-leave-in-unless-unfavourable` restores
+  the leave-in at every colour. Measured at `ns` over 2,400,000 boards (seed
+  1792236493237230273): plain DD −0.0002 ±0.0005 IMPs per board
+  (non-inferior), sd-plain +0.0055 ±0.0005 and SD-PD +0.0030, both wins
+  (+2.72 sd-plain per fired board); DD-PD −0.0031 is blind to the doubles
+  the gate gives up. A preflight read 0 divergent boards at `none`, `ew` and
+  `both`.
 
-- **A vulnerability gate on the `1NT (3x) X -` leave-in, default off
-  (2026-10-17).** `competition.nt_high_overcall_x_leave_in_unless_unfavourable`
-  (`--ns-nt-high-overcall-x-leave-in-unless-unfavourable`, also in `web/`): no
-  penalty leave-in when we are vulnerable and they are not; opener bids from
-  the ladder instead. Its `ns` A/B is owed.
+### Added
 
 - **`constraint::except_at(vul, c)`: gate a rule on colour without moving
   its readings (2026-10-17).** It accepts what `c` accepts at every

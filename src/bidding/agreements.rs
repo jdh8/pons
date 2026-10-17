@@ -307,10 +307,14 @@ pub struct CompetitionKnobs {
     /// a doubled non-vulnerable three-level partscore pays +300/+500 against
     /// our vulnerable game.  The other three cells are byte-identical.
     ///
-    /// Default **off**.  Built 2026-10-17 from the four-cell confirmation
-    /// (docs/archive/research-method-review-closed.md §6): at `ns` the
-    /// leave-in reads plain DD non-inferior (+0.0004 ±0.0005) but loses both
-    /// sd-lead columns (−2.56 plain / −1.27 PD per fired); `ew` wins all four.
+    /// **On by default — measured 2026-10-17** (`scripts/ab-nt-high-overcall.sh`
+    /// `ROUND=11`, `SEED_BASE 1792236493237230273`, 2 400 000 boards at `ns`,
+    /// byte-identical at the other three cells by preflight): plain DD
+    /// −0.0002 ±0.0005 (non-inferior), sd-plain +0.0055 ±0.0005, SD-PD
+    /// +0.0030 IMPs per board over the ungated leave-in; DD-PD −0.0031 is the
+    /// double-blind column.  Built from the four-cell confirmation
+    /// (docs/archive/research-method-review-closed.md §6), where at `ns` the
+    /// leave-in read plain DD non-inferior but lost both sd-lead columns.
     pub nt_high_overcall_x_leave_in_unless_unfavourable: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
@@ -2157,7 +2161,7 @@ impl Default for CompetitionKnobs {
             nt_high_overcall_x_major_at_four: true,
             nt_high_overcall_x_leave_in: true,
             nt_high_overcall_x_leave_in_three: false,
-            nt_high_overcall_x_leave_in_unless_unfavourable: false,
+            nt_high_overcall_x_leave_in_unless_unfavourable: true,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,

@@ -346,7 +346,7 @@ fn main() {
         Err(_) => {}
     }
     // N3's leave-in colour gate (`competition.nt_high_overcall_x_leave_in_unless_unfavourable`,
-    // default off).
+    // default on).
     match std::env::var("PROBE_LEAVE_IN_COLOUR").as_deref() {
         Ok("0") | Ok("off") => {
             agreements

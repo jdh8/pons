@@ -1842,11 +1842,14 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_high_overcall_x_leave_in_three: Option<bool>,
 
-    /// No leave-in when we are unfavourable (we vulnerable, they not): opener
-    /// answers the double from the pre-leave-in ladder there.  Default off;
-    /// see `competition.nt_high_overcall_x_leave_in_unless_unfavourable`.
+    /// Keep the leave-in at unfavourable too (we vulnerable, they not), the
+    /// pre-2026-10-17 treatment
+    ///
+    /// `competition.nt_high_overcall_x_leave_in_unless_unfavourable`, default
+    /// **on** since 2026-10-17; the other three vulnerabilities are
+    /// byte-identical.
     #[arg(long, default_value_t = false)]
-    ns_nt_high_overcall_x_leave_in_unless_unfavourable: bool,
+    no_ns_nt_high_overcall_x_leave_in_unless_unfavourable: bool,
 
     /// Require a stopper for responder's *direct* `3NT` over their overcall of
     /// our `1NT`.  Unset tracks the shipped engine default (on); pass `false`
@@ -3172,7 +3175,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements
         .competition
         .nt_high_overcall_x_leave_in_unless_unfavourable =
-        args.ns_nt_high_overcall_x_leave_in_unless_unfavourable;
+        !args.no_ns_nt_high_overcall_x_leave_in_unless_unfavourable;
     if let Some(v) = args.ns_direct_3nt_stopper {
         agreements.competition.direct_3nt_stopper = v;
     }
