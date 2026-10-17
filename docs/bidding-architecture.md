@@ -275,6 +275,16 @@ seat-carrying `project` or the sampled projection.
   negative inference — excluding every other call its table offered — decoded
   from the table's own Pass gate via `project_band` (`set_pass_reading`,
   default on), each pass resolved in the trie of its own turn.
+- **Gate a rule on colour with `except_at(vul, c)`, never with a
+  `& vulnerable()` term.** A context atom projects to ⊤ both ways, so
+  `c & (!vulnerable() | they_vulnerable())` evaluates the same off the gated
+  cell but complements to ⊤, and every call priced below it stops denying
+  `c`'s hands at *every* vulnerability. `except_at` keeps all of `c`'s folds
+  off its cell. Found 2026-10-17, when the N3 leave-in gate's preflight moved
+  responder's later calls at cells the gate could not touch (CHANGELOG).
+  Older `vulnerable()` terms in the book carry the same leak and are part
+  of the shipped readings; converting one is a reading change, so it needs
+  an A/B.
 - Alerted calls are decoded by **rule projection** (`project_authored` in
   `inference/projection.rs`, master switch `set_alert_reading`, default on): the reader
   replays the authoring rule's `project` fold. Unalerted = natural =

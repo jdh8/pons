@@ -1260,3 +1260,40 @@ fn forward_projection_is_the_band_under_ceilings() {
         assert_eq!(hcp(0..).project(&context).hull(), Envelope::unknown());
     }
 }
+
+/// `except_at` is invisible off its cell — readings included — where a
+/// vulnerability atom inside `&` erases the negative inference
+///
+/// The leave-in gate's first build wrote `len(♣, 4..) & (!vulnerable() |
+/// they_vulnerable())`: the same eval off unfavourable, but its complement
+/// is ⊤, so the `3NT` priced below stopped denying four clubs at every
+/// colour and the preflight moved responder's later calls.
+#[test]
+fn except_at_keeps_every_fold_off_its_cell() {
+    use RelativeVulnerability as V;
+    let inner = len(Suit::Clubs, 4..);
+    let gated = except_at(V::WE, len(Suit::Clubs, 4..));
+    let atom = len(Suit::Clubs, 4..) & (!vulnerable() | they_vulnerable());
+    for vul in [V::NONE, V::THEY, V::WE | V::THEY] {
+        let context = Context::new(vul, &[]);
+        assert_eq!(gated.project(&context), inner.project(&context));
+        assert_eq!(gated.project_band(&context), inner.project_band(&context));
+        assert_eq!(
+            gated.project_complement(&context),
+            inner.project_complement(&context),
+            "{vul:?}: the call below still denies four clubs",
+        );
+        assert_ne!(
+            atom.project_complement(&context),
+            inner.project_complement(&context),
+            "{vul:?}: the atom spelling loses the denial",
+        );
+        assert_pass(gated.eval(hand("AK2.K53.QJ4.T932"), &context));
+    }
+    let unfavourable = Context::new(V::WE, &[]);
+    assert_reject(gated.eval(hand("AKQ.K53.QJ.T9432"), &unfavourable));
+    assert_eq!(
+        gated.project_complement(&unfavourable),
+        EnvelopeUnion::unknown(),
+    );
+}

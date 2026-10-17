@@ -345,6 +345,21 @@ fn main() {
         Ok(_) => agreements.competition.landy_opener_rungs = true,
         Err(_) => {}
     }
+    // N3's leave-in colour gate (`competition.nt_high_overcall_x_leave_in_unless_unfavourable`,
+    // default off).
+    match std::env::var("PROBE_LEAVE_IN_COLOUR").as_deref() {
+        Ok("0") | Ok("off") => {
+            agreements
+                .competition
+                .nt_high_overcall_x_leave_in_unless_unfavourable = false;
+        }
+        Ok(_) => {
+            agreements
+                .competition
+                .nt_high_overcall_x_leave_in_unless_unfavourable = true;
+        }
+        Err(_) => {}
+    }
     // §N1p — `3NT` denies a four-card major (default off), and the `4M` jam
     // above it (`landy_major_jam`, default **on**, independent of it).  Needs
     // `PROBE_THEIR_2C_LANDY`.

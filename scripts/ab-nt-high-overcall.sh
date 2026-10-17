@@ -244,6 +244,14 @@ fi
 # double-blind column.  Rule: the gate ships default-on if `ns` reads plain DD
 # non-inferior or better with sd-lead plain not a loss; anything else is
 # flagged, not applied.
+#
+# First preflight FAILED 2026-10-17 (9de51c9f, ab-results/nt-high-overcall-
+# colour-preflight: 9 / 11 / 6 divergent per 96,000 at none / ew / both).  The
+# gate was spelled `long & (!vulnerable() | they_vulnerable())`, whose
+# complement is ⊤, so the `3NT` below stopped denying the length at every
+# colour and responder's later calls moved.  Rebuilt on `except_at`, which
+# keeps every projection fold off its cell; preflight re-run in
+# ab-results/nt-high-overcall-colour-preflight2.
 if [ "${ROUND:-1}" = 11 ]; then
     for v in $VULS; do
         arm base   "$v" --filter-preempt --wide-1nt

@@ -359,16 +359,18 @@ fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
         let three = len(over, 3..=3) & top_honors(over, 2..);
         // Unfavourable, +300/+500 from their white partscore is less than our
         // red game (four-cell run, 2026-10-16: sd-lead loss at `ns` only).
-        let colour = !vulnerable() | they_vulnerable();
+        // `except_at`, not a `vulnerable()` term: `3NT` below must keep
+        // denying the length at the other three cells.
+        let unfavourable = RelativeVulnerability::WE;
         rules = match (
             agreements.competition.nt_high_overcall_x_leave_in_three,
             agreements
                 .competition
                 .nt_high_overcall_x_leave_in_unless_unfavourable,
         ) {
-            (true, true) => rules.rule(Call::Pass, 135, (long | three) & colour),
+            (true, true) => rules.rule(Call::Pass, 135, except_at(unfavourable, long | three)),
             (true, false) => rules.rule(Call::Pass, 135, long | three),
-            (false, true) => rules.rule(Call::Pass, 135, long & colour),
+            (false, true) => rules.rule(Call::Pass, 135, except_at(unfavourable, long)),
             (false, false) => rules.rule(Call::Pass, 135, long),
         };
     }

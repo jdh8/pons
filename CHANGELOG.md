@@ -27,9 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (2026-10-17).** `competition.nt_high_overcall_x_leave_in_unless_unfavourable`
   (`--ns-nt-high-overcall-x-leave-in-unless-unfavourable`, also in `web/`): no
   penalty leave-in when we are vulnerable and they are not; opener bids from
-  the ladder instead. Its byte-identity preflight failed (6–11 divergent
-  boards per 96,000 at the cells it should not touch, all in responder's
-  later calls), so its `ns` A/B is owed after that is fixed.
+  the ladder instead. Its `ns` A/B is owed.
+
+- **`constraint::except_at(vul, c)`: gate a rule on colour without moving
+  its readings (2026-10-17).** It accepts what `c` accepts at every
+  vulnerability but `vul` (matched exactly), and keeps all of `c`'s
+  projection folds there. A `& vulnerable()`-style term evaluates the same
+  but complements to ⊤, so every call priced below the gated rule stops
+  denying its hands. The leave-in gate's first build did exactly that, and
+  its preflight moved 6–11 of responder's later calls per 96,000 boards at
+  cells the gate cannot touch. Both colour gates now use `except_at`. The
+  shipped Landy gate's measured `ew` arm reproduces board for board (1,500 of
+  1,500 regenerated); at the other three cells, its readings now match the
+  ungated package exactly, as the gate's description always claimed.
 
 ### Fixed
 

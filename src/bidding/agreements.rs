@@ -300,8 +300,9 @@ pub struct CompetitionKnobs {
     pub nt_high_overcall_x_leave_in_three: bool,
     /// No leave-in when we are unfavourable (we vulnerable, they not)
     ///
-    /// Gates [`nt_high_overcall_x_leave_in`][Self::nt_high_overcall_x_leave_in]
-    /// (and its `_three` extension) on `!vulnerable() | they_vulnerable()`, so
+    /// Wraps [`nt_high_overcall_x_leave_in`][Self::nt_high_overcall_x_leave_in]'s
+    /// `Pass` (and its `_three` extension) in
+    /// [`except_at`][crate::bidding::constraint::except_at]`(WE, …)`, so
     /// at unfavourable opener answers the double from the pre-leave-in ladder:
     /// a doubled non-vulnerable three-level partscore pays +300/+500 against
     /// our vulnerable game.  The other three cells are byte-identical.
@@ -1557,12 +1558,12 @@ pub struct CompetitionKnobs {
     /// Drop opener's notrump rungs when we are favourable (they vulnerable,
     /// we not)
     ///
-    /// Gates [`Self::landy_opener_rungs`]: `3NT`@135 gains
-    /// `vulnerable() | !they_vulnerable()` and `2NT`@120 gains
-    /// `!they_vulnerable()` beside its `!vulnerable()`, so at favourable
-    /// opener doubles on four trumps and otherwise passes, collecting 100 a
-    /// trick from their vulnerable `2M`.  The other three cells are
-    /// byte-identical.
+    /// Gates [`Self::landy_opener_rungs`]: both rungs are wrapped in
+    /// [`except_at`][crate::bidding::constraint::except_at]`(THEY, …)`, so at
+    /// favourable opener doubles on four trumps and otherwise passes,
+    /// collecting 100 a trick from their vulnerable `2M`.  The other three
+    /// cells are byte-identical, readings included (`except_at` keeps every
+    /// projection fold there; a `they_vulnerable()` term would not).
     ///
     /// **On by default — measured 2026-10-17** (`scripts/ab-landy-opener.sh`
     /// `GATE=1`, `SEED_BASE 1792221503542310373`, 4 608 000 accepted

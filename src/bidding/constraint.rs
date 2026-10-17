@@ -3317,6 +3317,107 @@ pub fn they_vulnerable() -> Cons<impl Constraint + Clone> {
     Cons(TheyVulnerable)
 }
 
+/// `inner`, except at one vulnerability (the [`except_at`] constraint)
+#[derive(Clone, Copy, Debug)]
+pub struct ExceptAt<T> {
+    inner: T,
+    vul: contract_bridge::auction::RelativeVulnerability,
+}
+
+impl<T: Constraint> ExceptAt<T> {
+    fn off(&self, context: &Context<'_>) -> bool {
+        context.vul() == self.vul
+    }
+}
+
+impl<T: Constraint> Constraint for ExceptAt<T> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        if self.off(context) {
+            f32::NEG_INFINITY
+        } else {
+            self.inner.eval(hand, context)
+        }
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.inner.dependencies() | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let inner = self.inner.projection_dependencies();
+        let context = |kind| inner.get(kind) | ConstraintDependencies::CONTEXT;
+        inner.remap(
+            context(ProjectionKind::Forward),
+            context(ProjectionKind::Band),
+            context(ProjectionKind::Complement),
+            context(ProjectionKind::Announcement),
+        )
+    }
+
+    fn describe(&self) -> Description {
+        use contract_bridge::auction::RelativeVulnerability as V;
+        let colour = match self.vul {
+            V::NONE => "not at love all".into(),
+            V::WE => "not at unfavourable".into(),
+            V::THEY => "not at favourable".into(),
+            vul => format!("not at {vul:?}"),
+        };
+        self.inner.describe().and(Description::atom(colour))
+    }
+
+    // Every fold is `inner`'s off the excluded cell, so the gate is invisible
+    // there — readings included, which a vulnerability atom inside an `&`
+    // is not: `!vulnerable()` complements to ⊤ and erases the negative
+    // inference of every call priced below the gated one.  At the excluded
+    // cell nothing is accepted, so ⊤ is sound for every fold.
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.off(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project(context)
+        }
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.off(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project_band(context)
+        }
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.off(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project_complement(context)
+        }
+    }
+
+    fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.off(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.announce(context)
+        }
+    }
+}
+
+/// `inner` at every vulnerability but `vul`, where it rejects every hand
+///
+/// The way to gate a rule on colour without moving its readings elsewhere: a
+/// `& vulnerable()` term evaluates the same off the gated cell but
+/// complements to ⊤, so the calls priced below it stop denying its hands.
+/// `vul` is matched exactly — `RelativeVulnerability::THEY` is favourable
+/// only, not `both`.
+#[must_use]
+pub fn except_at<T: Constraint>(
+    vul: contract_bridge::auction::RelativeVulnerability,
+    inner: Cons<T>,
+) -> Cons<ExceptAt<Cons<T>>> {
+    Cons(ExceptAt { inner, vul })
+}
+
 /// About to open in a specific seat (the [`nth_seat`] constraint)
 #[derive(Clone)]
 struct NthSeat(u8);

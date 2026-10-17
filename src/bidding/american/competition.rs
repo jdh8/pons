@@ -27,9 +27,9 @@
 
 use super::super::agreements::Agreements;
 use super::super::constraint::{
-    Cons, Constraint, at_least_as_long, balanced, described, has_stopper, hcp, len, longer_suit,
-    longest_unbid, min_level_is, partner_suit_is, points, stopper_in, stopper_in_their_suits,
-    suit_hcp, support, they_bid, they_vulnerable, top_honors, vulnerable,
+    Cons, Constraint, at_least_as_long, balanced, described, except_at, has_stopper, hcp, len,
+    longer_suit, longest_unbid, min_level_is, partner_suit_is, points, stopper_in,
+    stopper_in_their_suits, suit_hcp, support, they_bid, top_honors, vulnerable,
 };
 use super::super::context::Context;
 use super::super::fallback::{ReplaceNext, described_guard, described_rewrite, guard, rewriter};
@@ -44,7 +44,7 @@ use super::notrump::{
 };
 use super::weak_twos;
 use super::{COMPLETION, call};
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
 
 mod cue_raise;

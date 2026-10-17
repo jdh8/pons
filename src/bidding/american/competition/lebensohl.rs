@@ -867,16 +867,19 @@ fn landy_opener_rebid(major: Suit, rungs: bool, unless_favourable: bool) -> Rule
         // The same two rungs, silent at favourable: their vulnerable `2M`
         // pays 100 a trick, more than our white notrump (four-cell run,
         // 2026-10-16: every top `ew` bucket was a rung against a pass).
+        // `except_at`, not a `they_vulnerable()` term, so the `Pass` below
+        // still denies them at the other three cells.
+        let favourable = RelativeVulnerability::THEY;
         rules = rules
             .rule(
                 Bid::new(3, Strain::Notrump),
                 135,
-                hcp(16..) & stopper_in(major) & (vulnerable() | !they_vulnerable()),
+                except_at(favourable, hcp(16..) & stopper_in(major)),
             )
             .rule(
                 Bid::new(2, Strain::Notrump),
                 120,
-                hcp(15..) & stopper_in(major) & !vulnerable() & !they_vulnerable(),
+                except_at(favourable, hcp(15..) & stopper_in(major) & !vulnerable()),
             );
     } else if rungs {
         rules = rules
