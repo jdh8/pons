@@ -425,7 +425,7 @@ openers that are 14.4% of the default's 1NT. Where the arm authors
 opener's call, re-measure with `--wide-1nt` before relying on the row;
 where it authors only responder's or the doubler's, the label stands. The
 runner-by-runner classification is in
-[research-method-review.md](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan).
+[the filter-scope archive](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification).
 Measured wide so far, all on 2026-10-16 (the §6 confirmations):
 `multi_doubler_major`, `landy_splinter_tails` and `landy_wilkosz` at their
 asymmetric cells only, and `defense_2c_landy_strength_nv_invite` at `ns`

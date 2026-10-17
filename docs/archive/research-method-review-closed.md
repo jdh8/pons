@@ -464,8 +464,8 @@ and the ns/ew `t23-ns` against every other Lebensohl seed, for the wide `s13-non
 earlier Multi seeds, and for the first two Multi seeds against each other.
 
 The standing rule for the strict-scan verdicts and the runner-by-runner
-classification stay in the live review,
-[Filter scope](../research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan).
+classification are in
+[Filter scope: the rule](#filter-scope-the-rule-and-the-runner-classification).
 
 **Rejections resting on the count**, where a default left off needs no
 proof: `advance_pass_yield_major` (seed 1785321152, per-fired figures only),
@@ -479,6 +479,51 @@ difference in [dnf-migration.md](../dnf-migration.md) and A/B-1 in
 deal twice, so those intervals are too narrow. The closure verdict rests on
 its −0.18 cost and `set_eval_shape` stays off, so nothing changes; the doc
 now says so.
+
+## Filter scope: the rule and the runner classification
+
+Moved here on 2026-10-18; decided 2026-10-16, nothing owed.
+
+The `bba-gen` scans `--filter-1nt`, `--filter-landy` and `--filter-preempt`
+take `is_1nt_opener`'s candidate: 15–17 HCP, balanced, at most one
+doubleton. The default `NotrumpShape::Wide6322` also opens 5m422 and 6m322,
+so every verdict those scans produced since Wide6322 shipped on 2026-07-12
+omits the semi-balanced 1NT openers. The scans keep the strict candidate by
+default, so their persisted seeds still reproduce; new runs pass
+`--wide-1nt` (jdh8, 2026-10-16), which switches all three to the wide
+candidate (15–17 HCP, no suit shorter than two, a superset of the default).
+The wide re-runs of the Lebensohl and Multi-slam verdicts are
+[archived](#filter-scope-the-default-1nt-is-wider-than-the-scan).
+
+**Decided 2026-10-16 (jdh8): no blanket re-run, and no coverage threshold.**
+14.4% of the default's 1NT openers are 5m422 or 6m322, so a preflight
+would report about that share missed for nearly every lane after our 1NT,
+and a 5% trigger would fire on all of them. The rule, in
+[measurement.md](../measurement.md#the-decision-table), turns on what the
+treatment touches: opener's call means re-measure with `--wide-1nt` before
+the verdict is relied on, responder's call keeps a "balanced openers only"
+label, and our defense to their 1NT is covered (BBA's 1NT is 98.0%
+strict-balanced and 2.0% 5m422 on 4,000 `--isolate-defense` boards, seed
+1792160000). Fifty runners use a strict scan. Eight now pass `--wide-1nt`:
+the four natural-overcall runs, and the four §6 confirmations
+(`2d-multi-doubler`, `landy-splinter-tails`, `landy-wilkosz` at their
+asymmetric cells; `landy-strength-residue` for
+`defense_2c_landy_strength_nv_invite` at `ns` and `both`). The none/both
+cells those four originally shipped on were strict, so those cells fall
+under the same rule. The other 42 runners, classified from their headers:
+
+| Class | Runners (`scripts/ab-*.sh` unless named) | Status |
+| --- | --- | --- |
+| Opener's call, or the arm also authors opener's continuation | `2d-double`, `2d-multi`, `2d-multi-balance`, `2d-multi-doubler-nt`, `2d-multi-doubler-min-nt`, `2d-multi-escape`, `2d-multi-kk`, `2d-multi-px`, `2d-multi-residue`, `landy-counter`, `landy-confirm`, `landy-bba`, `landy-doubler-game`, `landy-minor-slam`, `landy-opener`, `landy-splinter-stopper`, `landy-strength`, `landy-texas`, `nt-high-overcall`, `a3`, `sd-pd-queue.sh` (runout leg) | Balanced openers only; re-measure with `--wide-1nt` before relying on the verdict |
+| Responder's, the doubler's or a reading only | `landy-read`, `landy-rungs`, `landy-doubler-rebids`, `landy-doubler-flip`, `landy-lia-doubler`, `landy-lia3`, `landy-nt-remeasure`, `landy-notrump-shape`, `landy-nt-vs-x`, `landy-major-jam`, `landy-splinter-rebids` | Balanced openers only; the label stands |
+| Their 1NT (BBA opens) | `nt-natural-overcall`, `one-nt-defense-range`, `stayman-defense`, `a5` | Covered to within 2% |
+| No live verdict | `landy-lia`, `landy-lia-repair`, `landy-lia2` (superseded); `2d-multi-slam` (superseded by the wide `2d-multi-slam-floor`, which uses `--filter-1nt` only in its comments); `v6-their-reading` (screen of a twin never shipped) | None owed |
+
+The classification reads each runner's header for the seats its arms
+author; a whole-table arm that also authors opener's answers counts as
+opener's. `ab-lebensohl`, `ab-one-nt-runout` and `ab-uvu` keep their own
+strict `is_1nt_opener` and fall under the same rule (`a3` drives the first
+two).
 
 ## 4 Disclosure in SD dump rescoring: the fix and the settled re-measures
 

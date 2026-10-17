@@ -16,7 +16,7 @@ the both-vulnerable cell (item 3) are what remain.
 measured on the strict 1NT scan, which never deals the 5m422/6m322 openers
 (14.4% of the default's 1NT). They are "balanced openers only" and owe a
 `--wide-1nt` re-measure before they are relied on
-([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+([the rule](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification)).
 The parent `multi_doubler_major` was measured wide on 2026-10-16, at
 `ns` and `ew` only.
 

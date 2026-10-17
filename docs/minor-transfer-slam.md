@@ -608,7 +608,7 @@ base `4eb925c2` plus the campaign worktree.
 the strict scan, so this round saw no 5m422/6m322 opener (14.4% of the
 default's 1NT). It is "balanced openers only" and owes a `--wide-1nt`
 re-measure before it is relied on
-([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+([the rule](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification)).
 
 **Isolation gate first, as the runner's header demands: PASSED in both cells** —
 0 of 18 (NV) and 0 of 9 (both) divergent boards opened by the other side, 100%

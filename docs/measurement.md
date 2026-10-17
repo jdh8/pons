@@ -726,7 +726,7 @@ rule turns on what the treatment touches instead (jdh8, 2026-10-16):
   1792160000, none), so the strict scan covers the trigger to within 2%.
 
 The runner-by-runner classification is in
-[research-method-review.md](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan).
+[the filter-scope archive](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification).
 
 ```text
 cargo run --release --features serde --example filter-coverage -- on/ off/ \

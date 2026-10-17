@@ -184,7 +184,7 @@ that live *inside* a book are in Tier B.
 `is_1nt_opener`) and saw no 5m422/6m322 opener, 14.4% of the default's 1NT.
 They are "balanced openers only"; where the knob authors opener's call,
 re-measure with `--wide-1nt` before relying on the row
-([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+([the rule](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification)).
 
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |

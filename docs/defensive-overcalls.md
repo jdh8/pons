@@ -517,7 +517,7 @@ trigger. Price the trigger density before building.
 lane's trigger to within 2%. BBA opens 1NT on 98.0% strict-balanced hands
 and 2.0% 5m422, never 6m322 (4,000 `--isolate-defense` boards, seed
 1792160000, none vulnerable), so strict-scan verdicts here stand unscoped
-([the rule](research-method-review.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+([the rule](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification)).
 
 A different node from everything above: `chain_natural_overcalls`
 ([nt_defense.rs:95](../src/bidding/american/defense/nt_defense.rs)), the four
