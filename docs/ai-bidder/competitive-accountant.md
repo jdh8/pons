@@ -772,8 +772,9 @@ The accountant and the demotion hold at both asymmetric cells, and win most
 where we are favourable. The natural-only push is non-inferior at `ns` and
 a plain **loss** at `ew`, with a lower bound of −0.0027, past −δ. Its worst
 boards are the BBA exploit the guard exists for (OFF doubles a cue bid or a
-keycard answer and BBA runs from a making slam). **Decision owed (jdh8)**;
-the proposed default is to keep it on and run the BEN Tier-F guard at `ew`.
+keycard answer and BBA runs from a making slam). **Kept on (jdh8,
+2026-10-17)**; the BEN Tier-F guard at `ew` decides, and the knob turns off
+if BEN also reads a plain loss there. That guard is owed.
 
 ## Out of scope (decided, not neglect)
 

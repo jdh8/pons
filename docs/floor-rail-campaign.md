@@ -166,8 +166,9 @@ seeds, 409,728 boards, `ns`/`ew`):
   non-inferior.
 - `their_3nt_pull_veto` wins every scorer at `ns`. At `ew` (we are
   favourable) it reads plain **−0.0010 ±0.0007 loss**, PD +0.0087 win: the
-  pulls it vetoes go down undoubled against BBA. Decision owed (jdh8); the
-  proposed default is to keep the veto as a recorded trade-off.
+  pulls it vetoes go down undoubled against BBA. **Kept on as a recorded
+  trade-off (jdh8, 2026-10-17)**: plain lower bound −0.0017 at `ew`, the
+  off arm's gain being pulls BBA failed to double.
 
 Numbers in
 [research-method-review-closed.md §6](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).

@@ -140,7 +140,7 @@ wide candidate none. It counts `table_a` divergence only. `ab-lebensohl`,
 
 ## 6 Asymmetric vulnerability in competitive experiments
 
-**P1, tooling resolved and confirmations run 2026-10-16; four decisions owed.** Competitive,
+**P1, tooling resolved and confirmations run 2026-10-16; all four decisions taken 2026-10-17; one BEN guard owed.** Competitive,
 sacrifice and doubling decisions depend on favourable and unfavourable
 vulnerability, and `ab-landy-nt-vs-x.sh` once flipped sign between `ns` and
 `ew` ([evidence](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs)).
@@ -173,14 +173,16 @@ sd-lead loss is repaired the same way: `nt_high_overcall_x_leave_in_unless_unfav
 shipped default-on 2026-10-17, plain non-inferior (−0.0002 ±0.0005) and
 sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
 
-- **Owed: two decisions (jdh8).** Each default stays as shipped until
-  decided; the archive holds the evidence and a proposed default for each.
-  Both colour gates shipped 2026-10-17 (above).
-
-  | Knob | Cell | Reading | Proposed |
-  | --- | --- | --- | --- |
-  | `their_3nt_pull_veto` | ew | plain **loss** −0.0010 ±0.0007, PD win | keep, recorded trade-off: OFF's gain is undoubled pulls BBA failed to double |
-  | `competitive_push_natural_only` | ew | plain **loss** −0.0016 ±0.0011, PD win | keep; BEN Tier-F guard at `ew` decides |
+- **Decided 2026-10-17 (jdh8): both stay on.**
+  `their_3nt_pull_veto` is a recorded trade-off at `ew` (plain −0.0010
+  ±0.0007, PD +0.0087): the off arm's gain is pulls of their `3NT` that BBA
+  failed to double. `competitive_push_natural_only` stays on at `ew` (plain
+  −0.0016 ±0.0011, PD +0.0028) pending its BEN guard.
+- **Owed: the BEN Tier-F guard for `competitive_push_natural_only` at `ew`**
+  (same `SEED_BASE` 1792163301883580764 as the four-cell run). Turn the knob
+  off if BEN also reads a plain DD loss there. BEN is not installed on this
+  box yet; [ab-ben-competitive-demotion.sh](../scripts/ab-ben-competitive-demotion.sh)
+  hard-codes `none both`.
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,

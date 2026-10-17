@@ -678,6 +678,7 @@ default changed; each is jdh8's decision):
   down undoubled (`3NT 4♥ - - -`): plain DD credits the sacrifice because
   BBA did not double it. PD +13.3 IMPs per fired board. *Proposed:* keep
   on as a recorded trade-off, plain lower bound −0.0017.
+  **Decided 2026-10-17 (jdh8):** kept on as a recorded trade-off.
 - **(b) The natural-only push at `ew`.** A knob that doubles less, so plain
   DD arbitrates and the lower bound −0.0027 is past −δ. The worst boards
   are the exploit its ship section names: OFF's double of a cue bid or a
@@ -685,6 +686,7 @@ default changed; each is jdh8's decision):
   making slam. It shipped on the BEN Tier-F guard for exactly that reason.
   *Proposed:* keep on, and run the BEN guard at `ew` (the 2026-10-12 guard
   read `none`/`both` only); flip off if BEN also reads a plain loss there.
+  **Decided 2026-10-17 (jdh8):** kept on; the BEN guard at `ew` is owed.
 - **(c) The Landy opener package at `ew`** (they are vulnerable, we are
   not): a loss on every scorer, −0.56 plain per fired board.
   `ab-dump-bucket --by node` puts every top bucket on the notrump rungs
