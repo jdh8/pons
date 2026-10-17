@@ -54,6 +54,16 @@ BEN-side replay verification; fleet distribution.
     strong verneeds even when unreferenced). Pristine copy kept as
     `_dds3.so.orig`. Verified:
     `ddsolver.DDSolver()` constructs, Tier-S search bids answer.
+  - **On a host older than glibc 2.34** (the RHEL 8 box, glibc 2.28,
+    installed 2026-10-17) the same steps apply, and the interpreter must also
+    run under a newer loader: `libdds.so`, `libEPBot.so` and the shimmed
+    `_dds3.so` need 2.34. `ben-servers.sh` takes `BEN_PYTHON`, pointed at a
+    wrapper that execs `~/ben/.venv/bin/python` under a glibc ≥ 2.34
+    `ld-linux` (that box keeps one at `~/.local/opt/glibc-2.36/ben-python`).
+    The venv was installed from the reference install's `uv pip freeze`
+    (160 packages, identical), and both source patches (`nolimit.patch`, the
+    PASS-level one) were applied. The patched `_dds3.so` hash differs from
+    the reference install's (a newer patchelf); the original's matches.
   - BEN's BBA consultation uses **ctypes against the vendored native
     `bin/BBA/linux/x64/libEPBot.so`** at this tag (the .NET/pythonnet path
     was removed upstream) — works headlessly, no runtime needed; `/bid`

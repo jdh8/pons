@@ -16,7 +16,9 @@
 #
 # Tier f = vendor/ben/BEN-21GF-F.conf (pure policy); tier s = BEN's stock
 # BEN-21GF.conf. The BEN checkout lives at $BEN_DIR (default ~/ben — the path
-# must NOT contain "/src", see docs/ben-gen-design.md).
+# must NOT contain "/src", see docs/ben-gen-design.md). $BEN_PYTHON overrides
+# the interpreter (default $BEN_DIR/.venv/bin/python), e.g. a wrapper that runs
+# it under a newer glibc loader.
 #
 # IRON RULE: never restart or upgrade servers mid-experiment — finish or kill
 # the run first (the analog of no-rebuild-during-A/B).
@@ -24,6 +26,7 @@
 set -euo pipefail
 
 BEN_DIR="${BEN_DIR:-$HOME/ben}"
+BEN_PYTHON="${BEN_PYTHON:-$BEN_DIR/.venv/bin/python}"
 BASE_PORT=8085
 here="$(dirname "$(readlink -f "$0")")"
 probe='hand=AK97543.K.T3.AK7&seat=N&dealer=N&vul=&ctx='
@@ -58,7 +61,7 @@ start)
 			# ponytail: batch-of-1 small-LSTM inference gains nothing from an intra-op
 			# pool; pin to 1 so N instances pack onto N cores, not N*32 threads thrashing.
 			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 PONS_IDLE_LOCAL= \
-				"$here/idle-run.sh" "$BEN_DIR/.venv/bin/python" gameapi.py \
+				"$here/idle-run.sh" "$BEN_PYTHON" gameapi.py \
 				--config "$conf" --port "$port" --seed 42 --nolimit true --record false \
 				>"$BEN_DIR/run/server-$port.log" 2>&1 </dev/null &
 		)
