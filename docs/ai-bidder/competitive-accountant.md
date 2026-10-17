@@ -789,6 +789,25 @@ plain DD the arbiter:
 - anything else (inconclusive): keep, as the recorded trade-off decided
   2026-10-17.
 
+**Read 2026-10-18: inconclusive, so the knob stays on as the recorded
+trade-off.** `451ce675`, `ab-results/competitive-4cell-nsew/ben-ew/`, 256,000
+boards per arm, BEN v0.8.8.4 21GF Tier F. IMPs/board, natural − control:
+
+| vul | fired | plain DD | DD-PD | plain SD | SD-PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ew | 0.33% | −0.0006 ±0.0023 | +0.0016 ±0.0022 | −0.0007 ±0.0025 | +0.0011 ±0.0024 |
+
+The plain interval is [−0.0029, +0.0017]: the upper bound is above 0 and
+the lower bound is past −δ, so the third branch applies. BEN reads less
+than half BBA's plain loss (−0.19 against BBA's −0.42 IMPs per fired board),
+and both PD columns are non-inferior. The worst boards for the push are the
+same doubles as against BBA: OFF doubles a cue bid or a keycard answer. BEN
+responds differently. In three of the eight worst it leaves the double in
+(`4♦ X - - -`, `4♣ X - - -`), and in the rest it runs or stops short. If
+the point estimate held, a guard four times larger (about ±0.0011) would
+read non-inferior. The default does not change. The SD sampler fell back on 11.6% of ON's worlds
+and 12.4% of OFF's.
+
 ## Out of scope (decided, not neglect)
 
 - **Full probabilistic par over all 20 columns** — the chartered v2. The

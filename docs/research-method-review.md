@@ -140,54 +140,23 @@ wide candidate none. It counts `table_a` divergence only. `ab-lebensohl`,
 
 ## 6 Asymmetric vulnerability in competitive experiments
 
-**P1, tooling resolved and confirmations run 2026-10-16; all four decisions taken 2026-10-17; one BEN guard owed.** Competitive,
-sacrifice and doubling decisions depend on favourable and unfavourable
-vulnerability, and `ab-landy-nt-vs-x.sh` once flipped sign between `ns` and
-`ew` ([evidence](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs)).
-Done 2026-10-16: `ab-lib.sh` takes `VULS` (default `none both`) and the 40
-runners with a plain `for v in none both` loop read it; measurement.md
-checklist 8 now asks for all four cells on competitive, sacrifice and
-doubling treatments and on any knob that reads `vulnerable()`, and for a
-verdict to name its cells. First use: the colour-split
-`lebensohl_signoff_raise` holds at `ns` and `ew` too
-([its rows](archive/research-method-review-closed.md#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+**P1, closed 2026-10-18.** `ab-lib.sh` takes `VULS`, the 40 runners with a
+plain `for v in none both` loop read it, and measurement.md checklist 8 asks
+for all four cells on competitive, sacrifice and doubling treatments and on
+any knob that reads `vulnerable()`. Every knob the four-cell confirmations
+flagged is decided. The Landy opener's notrump rungs and the N3 leave-in got
+colour gates that shipped. `defense_2c_landy_strength_nv_invite`,
+`their_3nt_pull_veto` and `competitive_push_natural_only` stay on as
+recorded trade-offs. The last of these closed on its BEN Tier-F guard at
+`ew`, plain −0.0006 ±0.0023 (inconclusive)
+([competitive-accountant.md](ai-bidder/competitive-accountant.md)). The
+evidence, the runs and the record as it stood when it closed are
+[archived](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
 
-Confirmed at their asymmetric cells: `landy_notrump_no_major_favourable`,
-`lebensohl_signoff_raise`, `landy_doubler_game` (`ew`), and, on 2026-10-16,
-`landy_wilkosz`, `landy_splinter_tails` and `multi_doubler_major`.
-`defense_2c_landy_strength_nv_invite` stays on as a recorded trade-off: it
-wins every scorer at `both` and loses plain DD at `ns` (−0.0008 ±0.0003 per
-accepted board). The two cells differ only in *their* colour, which the gate
-does not read; a `both`-only gate is the untested refinement. Numbers in the
-[archive](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
-
-The confirm queue (`scripts/confirm-queue-2026-10-16.sh`, 2026-10-16,
-[numbers](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs))
-confirmed `their_2nt_double_veto`, `competitive_accountant`,
-`competitive_pass_demotion` and `landy_doubler_px` at `ns` and `ew`, and
-replicated N3-fit (`nt_high_overcall_x_major_at_four`) on a fresh seed.
-The Landy opener package's `ew` loss is repaired: the colour gate
-`landy_opener_rungs_unless_favourable` shipped default-on 2026-10-17, plain
-+0.0318 ±0.0009 at `ew` over the ungated package. The N3 leave-in's `ns`
-sd-lead loss is repaired the same way: `nt_high_overcall_x_leave_in_unless_unfavourable`
-shipped default-on 2026-10-17, plain non-inferior (−0.0002 ±0.0005) and
-sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
-
-- **Decided 2026-10-17 (jdh8): both stay on.**
-  `their_3nt_pull_veto` is a recorded trade-off at `ew` (plain −0.0010
-  ±0.0007, PD +0.0087): the off arm's gain is pulls of their `3NT` that BBA
-  failed to double. `competitive_push_natural_only` stays on at `ew` (plain
-  −0.0016 ±0.0011, PD +0.0028) pending its BEN guard.
-- **Owed: the BEN Tier-F guard for `competitive_push_natural_only` at `ew`**
-  (same `SEED_BASE` 1792163301883580764 as the four-cell run). Turn the knob
-  off if BEN also reads a plain DD loss there. Launched 2026-10-17 at 256,000
-  boards per arm; the three-way rule is pre-registered in
-  [competitive-accountant.md](ai-bidder/competitive-accountant.md).
-
-  About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
-  four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,
-  the runouts and `accountant_floor` live in single-vulnerability example
-  harnesses.
+**Open.** About 100 runners spell the loop `for vul in none both` and
+ignore `VULS`; four `ab-ben-*` runners never source ab-lib; `penalty_pass`,
+`trap_pass`, the runouts and `accountant_floor` live in single-vulnerability
+example harnesses.
 
 ## 7 Auction conditioning and the replay approximation
 

@@ -687,6 +687,8 @@ default changed; each is jdh8's decision):
   *Proposed:* keep on, and run the BEN guard at `ew` (the 2026-10-12 guard
   read `none`/`both` only); flip off if BEN also reads a plain loss there.
   **Decided 2026-10-17 (jdh8):** kept on; the BEN guard at `ew` is owed.
+  **Guard read 2026-10-18:** inconclusive (plain −0.0006 ±0.0023), so it
+  stays on as the recorded trade-off ([below](#the-ben-guard-at-ew-and-the-live-record-at-closure-2026-10-18)).
 - **(c) The Landy opener package at `ew`** (they are vulnerable, we are
   not): a loss on every scorer, −0.56 plain per fired board.
   `ab-dump-bucket --by node` puts every top bucket on the notrump rungs
@@ -724,6 +726,65 @@ default changed; each is jdh8's decision):
   +0.0030 ±0.0005. The first build (`9de51c9f`) failed its preflight, 6–11
   divergent per 96,000 at the untouched cells, and was rebuilt on
   `except_at`.
+
+### The BEN guard at `ew` and the live record at closure *(2026-10-18)*
+
+**(b) closed 2026-10-18 by its pre-registered rule.** The BEN Tier-F guard
+for `competitive_push_natural_only` at `ew` (`ab-ben-competitive-demotion.sh`
+`VULS=ew ARMS=natural` at `451ce675`, `SEED_BASE` 1792163301883580764, 80
+servers, 256,000 boards per arm, 838 fired) reads natural − control plain
+−0.0006 ±0.0023 (inconclusive), PD +0.0016 ±0.0022 (non-inferior), sd-lead
+plain −0.0007 ±0.0025 / SD-PD +0.0011 ±0.0024. That is the rule's third
+branch: the knob stays on as the recorded trade-off decided 2026-10-17. The
+result and its worst boards are in
+[competitive-accountant.md](../ai-bidder/competitive-accountant.md).
+
+The live §6 as it stood when it closed, moved here verbatim (links rebased):
+
+**P1, tooling resolved and confirmations run 2026-10-16; all four decisions taken 2026-10-17; one BEN guard owed.** Competitive,
+sacrifice and doubling decisions depend on favourable and unfavourable
+vulnerability, and `ab-landy-nt-vs-x.sh` once flipped sign between `ns` and
+`ew` ([evidence](#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs)).
+Done 2026-10-16: `ab-lib.sh` takes `VULS` (default `none both`) and the 40
+runners with a plain `for v in none both` loop read it; measurement.md
+checklist 8 now asks for all four cells on competitive, sacrifice and
+doubling treatments and on any knob that reads `vulnerable()`, and for a
+verdict to name its cells. First use: the colour-split
+`lebensohl_signoff_raise` holds at `ns` and `ew` too
+([its rows](#filter-scope-the-default-1nt-is-wider-than-the-scan)).
+
+Confirmed at their asymmetric cells: `landy_notrump_no_major_favourable`,
+`lebensohl_signoff_raise`, `landy_doubler_game` (`ew`), and, on 2026-10-16,
+`landy_wilkosz`, `landy_splinter_tails` and `multi_doubler_major`.
+`defense_2c_landy_strength_nv_invite` stays on as a recorded trade-off: it
+wins every scorer at `both` and loses plain DD at `ns` (−0.0008 ±0.0003 per
+accepted board). The two cells differ only in *their* colour, which the gate
+does not read; a `both`-only gate is the untested refinement. Numbers in the
+[archive](#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
+
+The confirm queue (`scripts/confirm-queue-2026-10-16.sh`, 2026-10-16,
+[numbers](#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs))
+confirmed `their_2nt_double_veto`, `competitive_accountant`,
+`competitive_pass_demotion` and `landy_doubler_px` at `ns` and `ew`, and
+replicated N3-fit (`nt_high_overcall_x_major_at_four`) on a fresh seed.
+The Landy opener package's `ew` loss is repaired: the colour gate
+`landy_opener_rungs_unless_favourable` shipped default-on 2026-10-17, plain
++0.0318 ±0.0009 at `ew` over the ungated package. The N3 leave-in's `ns`
+sd-lead loss is repaired the same way: `nt_high_overcall_x_leave_in_unless_unfavourable`
+shipped default-on 2026-10-17, plain non-inferior (−0.0002 ±0.0005) and
+sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
+
+- **Decided 2026-10-17 (jdh8): both stay on.**
+  `their_3nt_pull_veto` is a recorded trade-off at `ew` (plain −0.0010
+  ±0.0007, PD +0.0087): the off arm's gain is pulls of their `3NT` that BBA
+  failed to double. `competitive_push_natural_only` stays on at `ew` (plain
+  −0.0016 ±0.0011, PD +0.0028) pending its BEN guard.
+- **Owed: the BEN Tier-F guard for `competitive_push_natural_only` at `ew`**
+  (same `SEED_BASE` 1792163301883580764 as the four-cell run). Turn the knob
+  off if BEN also reads a plain DD loss there. Launched 2026-10-17 at 256,000
+  boards per arm; the three-way rule is pre-registered in
+  [competitive-accountant.md](../ai-bidder/competitive-accountant.md).
+
 
 ## 7 Auction conditioning: the documentation pass
 
