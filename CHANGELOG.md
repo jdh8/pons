@@ -57,17 +57,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Confirmed at both cells: the 2NT-double veto, the competitive accountant,
   its pass demotion and the Landy doubler's penalty ladder. The `4♥` fit rung
   over `1NT (3♠) X` replicates on a fresh seed at none/both. Four cells read
-  worse and await a decision:
+  worse; all four were decided by 2026-10-18:
   - The 3NT-pull veto loses plain DD at `ew` (−0.0010), from pulls BBA left
-    undoubled.
+    undoubled. Kept on as a recorded trade-off.
   - The natural-only competitive push loses plain DD at `ew` (−0.0016),
-    against BBA.
+    against BBA. Kept on as a recorded trade-off: its BEN Tier-F guard at
+    `ew` (256,000 boards per arm) reads plain −0.0006 ±0.0023
+    (inconclusive) and PD +0.0016 ±0.0022 (non-inferior).
   - Opener's Landy package loses every scorer at `ew` (plain −0.0090 per
     accepted board): its notrump rungs beat a pass only when they are not
-    vulnerable.
+    vulnerable. Repaired by the favourable colour gate above.
   - The `1NT (3x) X` leave-in is plain non-inferior but loses sd-lead at `ns`.
+    Repaired by the unfavourable colour gate above.
 
-  Numbers and proposed defaults are in
+  Numbers and decisions are in
   `docs/archive/research-method-review-closed.md` §6.
 
 - **`scripts/anchor.sh` pins the series' shard count (2026-10-16).** `JOBS` is
