@@ -230,4 +230,29 @@ if [ "${ROUND:-1}" = 10 ]; then
     done
 fi
 
+# Round 11 (`ROUND=11`, pre-registered 2026-10-17, before any number is read):
+# the colour gate `nt_high_overcall_x_leave_in_unless_unfavourable`, built
+# from Round 9's `ns` reading (plain DD non-inferior, sd-lead a loss on both
+# columns).  The gate fires at `ns` only, so the A/B is VULS=ns, fresh seed,
+# BOARDS=2400000, `--wide-1nt`, results in ab-results/nt-high-overcall-colour;
+# a preflight at VULS="none ew both" (small BOARDS, its own dir) must read 0
+# divergent first.
+#   base    today's default (leave-in on, every colour)
+#   colour  plus --ns-nt-high-overcall-x-leave-in-unless-unfavourable
+# The knob takes doubles OUT, so this is the addendum's lane read the other
+# way: plain DD arbitrates, the sd-lead bracket tie-breaks, PD is a
+# double-blind column.  Rule: the gate ships default-on if `ns` reads plain DD
+# non-inferior or better with sd-lead plain not a loss; anything else is
+# flagged, not applied.
+if [ "${ROUND:-1}" = 11 ]; then
+    for v in $VULS; do
+        arm base   "$v" --filter-preempt --wide-1nt
+        arm colour "$v" --filter-preempt --wide-1nt --ns-nt-high-overcall-x-leave-in-unless-unfavourable
+        gatepair colour base "$v"
+        DENSITY=$(density_of "$R/base-$v")
+        diffpair colour base "$v"
+        sddiff   colour base "$v"
+    done
+fi
+
 log "nt-high-overcall done"

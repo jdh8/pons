@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Two vulnerability gates, default off (2026-10-17).** Each turns one
+  shipped rule off in the single cell where the four-cell run read it worse;
+  the other three cells are byte-identical.
+  - `competition.landy_opener_rungs_unless_favourable`
+    (`--ns-landy-opener-rungs-unless-favourable`): in `1NT (2♣) X (2M)`,
+    opener's `2NT` and `3NT` rungs stay silent when they are vulnerable and
+    we are not, so opener doubles on four trumps and otherwise passes.
+  - `competition.nt_high_overcall_x_leave_in_unless_unfavourable`
+    (`--ns-nt-high-overcall-x-leave-in-unless-unfavourable`, also in `web/`):
+    in `1NT (3x) X -`, no penalty leave-in when we are vulnerable and they
+    are not; opener bids from the ladder instead.
+
+  A/Bs pre-registered (`scripts/gate-queue-2026-10-17.sh`: a byte-identity
+  preflight at the untouched cells, then `ew` and `ns` respectively).
+
 ### Fixed
 
 - **Four-cell confirmations, no default changed (2026-10-16).** Defaults

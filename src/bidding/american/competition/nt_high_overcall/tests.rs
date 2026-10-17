@@ -1,4 +1,4 @@
-use super::super::tests::{best_call_with, call};
+use super::super::tests::{best_call_vul, best_call_with, call};
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
@@ -169,6 +169,40 @@ fn the_leave_in_defends_on_length() {
         call(3, Strain::Spades),
         "a fit is still bid"
     );
+}
+
+/// `nt_high_overcall_x_leave_in_unless_unfavourable` drops the leave-in when
+/// we are vulnerable and they are not, and nowhere else
+///
+/// The four-cell run (2026-10-16) read the leave-in an sd-lead loss at `ns`
+/// only: +300/+500 from their white partscore against our red game.
+#[test]
+fn the_leave_in_yields_to_game_at_unfavourable() {
+    use contract_bridge::auction::RelativeVulnerability as V;
+    let auction = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let long = "A3.J72.AQJ4.K952";
+    let mut gated = arm();
+    gated
+        .competition
+        .nt_high_overcall_x_leave_in_unless_unfavourable = true;
+    assert_eq!(best_call_vul(&arm(), V::WE, &auction, long), Call::Pass);
+    assert_eq!(
+        best_call_vul(&gated, V::WE, &auction, long),
+        call(3, Strain::Notrump),
+        "unfavourable, opener bids the game instead",
+    );
+    for vul in [V::NONE, V::THEY, V::WE | V::THEY] {
+        assert_eq!(
+            best_call_vul(&gated, vul, &auction, long),
+            Call::Pass,
+            "{vul:?}: the leave-in is untouched",
+        );
+    }
 }
 
 /// `nt_high_overcall_x_leave_in_three` adds the three-card holding headed by

@@ -356,14 +356,20 @@ fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
         // would bury the good one.  One row either way: a second `Pass` at 135
         // is a weight tie the row invariants reject.
         let long = len(over, 4..);
-        rules = if agreements.competition.nt_high_overcall_x_leave_in_three {
-            rules.rule(
-                Call::Pass,
-                135,
-                long | (len(over, 3..=3) & top_honors(over, 2..)),
-            )
-        } else {
-            rules.rule(Call::Pass, 135, long)
+        let three = len(over, 3..=3) & top_honors(over, 2..);
+        // Unfavourable, +300/+500 from their white partscore is less than our
+        // red game (four-cell run, 2026-10-16: sd-lead loss at `ns` only).
+        let colour = !vulnerable() | they_vulnerable();
+        rules = match (
+            agreements.competition.nt_high_overcall_x_leave_in_three,
+            agreements
+                .competition
+                .nt_high_overcall_x_leave_in_unless_unfavourable,
+        ) {
+            (true, true) => rules.rule(Call::Pass, 135, (long | three) & colour),
+            (true, false) => rules.rule(Call::Pass, 135, long | three),
+            (false, true) => rules.rule(Call::Pass, 135, long & colour),
+            (false, false) => rules.rule(Call::Pass, 135, long),
         };
     }
     rules = rules.rule(notrump, 130, stopper_in_their_suits());

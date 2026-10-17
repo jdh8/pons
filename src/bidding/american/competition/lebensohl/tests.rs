@@ -1,6 +1,6 @@
 use super::super::tests::{
-    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_lia, bid_landy_n1,
-    bid_landy_n1p, bid_landy_strength, bid_landy_transfer, bid_transfer, call,
+    best_call_vul, best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_lia,
+    bid_landy_n1, bid_landy_n1p, bid_landy_strength, bid_landy_transfer, bid_transfer, call,
 };
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
@@ -1058,33 +1058,6 @@ fn landy_white_arm() -> Agreements {
     arm
 }
 
-/// A seat in this lane with a vulnerability, which [`best_call_with`] pins to
-/// `NONE`
-///
-/// One rung reads the context's colour: §N1l's `white` arm's constructive
-/// rungs.  §N1-lia's ladder used to be the second, on a five-card weak leg
-/// the 2026-09-01 probe correction deleted — Lia's sign-offs want six cards
-/// at both colours, so nothing in that package is vulnerability-dependent any
-/// more.
-fn best_call_vul(
-    agreements: &Agreements,
-    vul: contract_bridge::auction::RelativeVulnerability,
-    auction: &[Call],
-    hand: &str,
-) -> Call {
-    use contract_bridge::Hand;
-    let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, _) = crate::bidding::american::american(agreements)
-        .bind()
-        .classify_with_provenance(hand, vul, auction)
-        .expect("a legal auction classifies");
-    (&logits.0)
-        .into_iter()
-        .reduce(|best, next| if next.1 > best.1 { next } else { best })
-        .map(|(call, _)| call)
-        .expect("array is never empty")
-}
-
 /// The four calls that reach the doubler's rebid seat over their `2♥`
 fn landy_doubler_seat() -> [Call; 6] {
     [
@@ -1266,6 +1239,51 @@ fn landy_opener_doubles_four_of_their_advanced_major() {
     assert!(
         best_call_with(&off, &seat, "AQ32.J432.AQ3.K3").1,
         "and turning it off keeps the floor-owned seat",
+    );
+}
+
+/// `landy_opener_rungs_unless_favourable` silences both notrump rungs at
+/// favourable and nowhere else
+///
+/// The four-cell run (2026-10-16) lost every scorer at `ew` only, every top
+/// bucket a rung against a pass: their vulnerable `2M` pays 100 a trick.  The
+/// penalty double above the rungs keeps firing.
+#[test]
+fn landy_opener_rungs_stay_silent_at_favourable() {
+    use contract_bridge::auction::RelativeVulnerability as V;
+    let seat = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        call(2, Strain::Hearts),
+    ];
+    let shipped = landy_opener_arm(true);
+    let mut gated = shipped;
+    gated.competition.landy_opener_rungs_unless_favourable = true;
+    let three = call(3, Strain::Notrump);
+    let two = call(2, Strain::Notrump);
+    let both = V::WE | V::THEY;
+
+    let max = "AQ32.AJ3.Q432.K3";
+    assert_eq!(best_call_vul(&shipped, V::THEY, &seat, max), three);
+    assert_eq!(best_call_vul(&gated, V::THEY, &seat, max), Call::Pass);
+    for vul in [V::NONE, V::WE, both] {
+        assert_eq!(
+            best_call_vul(&gated, vul, &seat, max),
+            three,
+            "{vul:?}: the game rung is untouched off favourable",
+        );
+    }
+
+    let min = "AQ32.AJ3.J432.K3";
+    assert_eq!(best_call_vul(&shipped, V::THEY, &seat, min), two);
+    assert_eq!(best_call_vul(&gated, V::THEY, &seat, min), Call::Pass);
+    assert_eq!(best_call_vul(&gated, V::NONE, &seat, min), two);
+
+    assert_eq!(
+        best_call_vul(&gated, V::THEY, &seat, "AQ3.AJ32.Q432.K3"),
+        Call::Double,
+        "four trumps still double",
     );
 }
 

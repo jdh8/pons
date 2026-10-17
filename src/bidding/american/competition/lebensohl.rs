@@ -858,12 +858,27 @@ fn landy_doubler_rebid(major: Suit, ladder: DoublerLadder, agreements: &Agreemen
 /// worst of all seven candidates on its own 2.7% surface (−0.78 plain, −4.5
 /// PD): they hold four-plus of it.  Both rungs are therefore absent, not
 /// deferred.
-fn landy_opener_rebid(major: Suit, rungs: bool) -> Rules {
+fn landy_opener_rebid(major: Suit, rungs: bool, unless_favourable: bool) -> Rules {
     let mut rules = Rules::new()
         .rule(Call::Double, 150, len(major, 4..))
         .alert(LANDY_PENALTY)
         .penalty();
-    if rungs {
+    if rungs && unless_favourable {
+        // The same two rungs, silent at favourable: their vulnerable `2M`
+        // pays 100 a trick, more than our white notrump (four-cell run,
+        // 2026-10-16: every top `ew` bucket was a rung against a pass).
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                135,
+                hcp(16..) & stopper_in(major) & (vulnerable() | !they_vulnerable()),
+            )
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                120,
+                hcp(15..) & stopper_in(major) & !vulnerable() & !they_vulnerable(),
+            );
+    } else if rungs {
         rules = rules
             .rule(
                 Bid::new(3, Strain::Notrump),
@@ -2846,7 +2861,11 @@ fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
         for (path, major) in [("X (2♥)", Suit::Hearts), ("X (2♠)", Suit::Spades)] {
             entries.extend(rows_of(
                 Pattern::after(OVER, path),
-                landy_opener_rebid(major, agreements.competition.landy_opener_rungs),
+                landy_opener_rebid(
+                    major,
+                    agreements.competition.landy_opener_rungs,
+                    agreements.competition.landy_opener_rungs_unless_favourable,
+                ),
             ));
             // The doubler sits for the penalty double, and passes both notrump
             // rungs: the ordering caps the `2NT` at fifteen, so it is a

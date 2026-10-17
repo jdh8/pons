@@ -298,6 +298,19 @@ pub struct CompetitionKnobs {
     /// sd loss at both vulnerabilities where `length` vs `base` is a CI-clear
     /// win.  Retained as a single-dummy re-measure candidate.
     pub nt_high_overcall_x_leave_in_three: bool,
+    /// No leave-in when we are unfavourable (we vulnerable, they not)
+    ///
+    /// Gates [`nt_high_overcall_x_leave_in`][Self::nt_high_overcall_x_leave_in]
+    /// (and its `_three` extension) on `!vulnerable() | they_vulnerable()`, so
+    /// at unfavourable opener answers the double from the pre-leave-in ladder:
+    /// a doubled non-vulnerable three-level partscore pays +300/+500 against
+    /// our vulnerable game.  The other three cells are byte-identical.
+    ///
+    /// Default **off**.  Built 2026-10-17 from the four-cell confirmation
+    /// (docs/archive/research-method-review-closed.md §6): at `ns` the
+    /// leave-in reads plain DD non-inferior (+0.0004 ±0.0005) but loses both
+    /// sd-lead columns (−2.56 plain / −1.27 PD per fired); `ew` wins all four.
+    pub nt_high_overcall_x_leave_in_unless_unfavourable: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
     ///
@@ -1541,6 +1554,22 @@ pub struct CompetitionKnobs {
     /// §N1k's geometry is genuinely repaired by putting the `X` above the
     /// rungs, rather than the ≤3-trump cap having been the whole story.
     pub landy_opener_rungs: bool,
+    /// Drop opener's notrump rungs when we are favourable (they vulnerable,
+    /// we not)
+    ///
+    /// Gates [`Self::landy_opener_rungs`]: `3NT`@135 gains
+    /// `vulnerable() | !they_vulnerable()` and `2NT`@120 gains
+    /// `!they_vulnerable()` beside its `!vulnerable()`, so at favourable
+    /// opener doubles on four trumps and otherwise passes, collecting 100 a
+    /// trick from their vulnerable `2M`.  The other three cells are
+    /// byte-identical.
+    ///
+    /// Default **off**.  Built 2026-10-17 from the four-cell confirmation
+    /// (docs/archive/research-method-review-closed.md §6): the package loses
+    /// every scorer at `ew` (plain −0.0090, PD −0.0236 per accepted board),
+    /// every top bucket a rung against a pass (`2NT` −1.5…−3.9, `3NT`
+    /// −1.1…−4.2 plain per fired), while the same `3NT` wins at `ns`.
+    pub landy_opener_rungs_unless_favourable: bool,
     /// `3NT` over their Landy denies a four-card major (§N1p)
     ///
     /// `landy_bba_responder` carries an **ungated**
@@ -2124,6 +2153,7 @@ impl Default for CompetitionKnobs {
             nt_high_overcall_x_major_at_four: true,
             nt_high_overcall_x_leave_in: true,
             nt_high_overcall_x_leave_in_three: false,
+            nt_high_overcall_x_leave_in_unless_unfavourable: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
@@ -2176,6 +2206,7 @@ impl Default for CompetitionKnobs {
             landy_doubler_white: false,
             landy_opener_px: true,
             landy_opener_rungs: true,
+            landy_opener_rungs_unless_favourable: false,
             landy_notrump_no_major: false,
             landy_notrump_no_major_favourable: true,
             landy_splinter_rebids: true,

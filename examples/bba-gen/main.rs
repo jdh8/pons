@@ -1205,6 +1205,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_opener_rungs: bool,
 
+    /// Silence those notrump rungs when we are favourable (they vulnerable,
+    /// we not), leaving the `X` and `Pass` there
+    ///
+    /// `competition.landy_opener_rungs_unless_favourable`, default **off**;
+    /// the other three vulnerabilities are byte-identical.
+    #[arg(long, default_value_t = false)]
+    ns_landy_opener_rungs_unless_favourable: bool,
+
     /// Restrict `3NT` over their Landy so it denies a four-card major (§N1p)
     ///
     /// `competition.landy_notrump_no_major`, default **off**.  Both `3NT`
@@ -1833,6 +1841,12 @@ struct Args {
     /// `competition.nt_high_overcall_x_leave_in_three`.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_high_overcall_x_leave_in_three: Option<bool>,
+
+    /// No leave-in when we are unfavourable (we vulnerable, they not): opener
+    /// answers the double from the pre-leave-in ladder there.  Default off;
+    /// see `competition.nt_high_overcall_x_leave_in_unless_unfavourable`.
+    #[arg(long, default_value_t = false)]
+    ns_nt_high_overcall_x_leave_in_unless_unfavourable: bool,
 
     /// Require a stopper for responder's *direct* `3NT` over their overcall of
     /// our `1NT`.  Unset tracks the shipped engine default (on); pass `false`
@@ -3083,6 +3097,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_doubler_white = args.ns_landy_doubler_white;
     agreements.competition.landy_opener_px = !args.no_ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = !args.no_ns_landy_opener_rungs;
+    agreements.competition.landy_opener_rungs_unless_favourable =
+        args.ns_landy_opener_rungs_unless_favourable;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_notrump_no_major_favourable =
         !args.no_ns_landy_notrump_no_major_favourable;
@@ -3153,6 +3169,10 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.ns_nt_high_overcall_x_leave_in_three {
         agreements.competition.nt_high_overcall_x_leave_in_three = v;
     }
+    agreements
+        .competition
+        .nt_high_overcall_x_leave_in_unless_unfavourable =
+        args.ns_nt_high_overcall_x_leave_in_unless_unfavourable;
     if let Some(v) = args.ns_direct_3nt_stopper {
         agreements.competition.direct_3nt_stopper = v;
     }

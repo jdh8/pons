@@ -371,6 +371,25 @@ pub(super) fn best_call_with(
     (best, prov.depth == 0 && prov.fallback.is_some())
 }
 
+/// [`best_call_with`] at an explicit vulnerability (it pins `NONE`)
+pub(super) fn best_call_vul(
+    agreements: &Agreements,
+    vul: RelativeVulnerability,
+    auction: &[Call],
+    hand: &str,
+) -> Call {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let (logits, _) = american(agreements)
+        .bind()
+        .classify_with_provenance(hand, vul, auction)
+        .expect("a legal auction classifies");
+    (&logits.0)
+        .into_iter()
+        .reduce(|best, next| if next.1 > best.1 { next } else { best })
+        .map(|(call, _)| call)
+        .expect("array is never empty")
+}
+
 /// As [`best_call`], with plain Lebensohl pinned on
 pub(super) fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
     let mut arm = Agreements::default();
