@@ -166,15 +166,18 @@ The confirm queue (`scripts/confirm-queue-2026-10-16.sh`, 2026-10-16,
 confirmed `their_2nt_double_veto`, `competitive_accountant`,
 `competitive_pass_demotion` and `landy_doubler_px` at `ns` and `ew`, and
 replicated N3-fit (`nt_high_overcall_x_major_at_four`) on a fresh seed.
+The Landy opener package's `ew` loss is repaired: the colour gate
+`landy_opener_rungs_unless_favourable` shipped default-on 2026-10-17, plain
++0.0318 ±0.0009 at `ew` over the ungated package.
 
-- **Owed: four decisions (jdh8).** Each default stays as shipped until
+- **Owed: three decisions (jdh8).** Each default stays as shipped until
   decided; the archive holds the evidence and a proposed default for each.
+  The Landy opener's colour gate shipped 2026-10-17 (below).
 
   | Knob | Cell | Reading | Proposed |
   | --- | --- | --- | --- |
   | `their_3nt_pull_veto` | ew | plain **loss** −0.0010 ±0.0007, PD win | keep, recorded trade-off: OFF's gain is undoubled pulls BBA failed to double |
   | `competitive_push_natural_only` | ew | plain **loss** −0.0016 ±0.0011, PD win | keep; BEN Tier-F guard at `ew` decides |
-  | `landy_opener_px` + `landy_opener_rungs` | ew | **loss \| loss** (−0.0090 / −0.0236) | colour gate on the notrump rungs, A/B at `ew` only |
   | `nt_high_overcall_x_leave_in` | ns | plain non-inferior, sd-lead **loss** both columns | colour gate on the leave-in, A/B at `ns` only |
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;

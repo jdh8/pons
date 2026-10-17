@@ -7,22 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Opener's Landy notrump rungs are silent at favourable, default on
+  (2026-10-17).** In `1NT (2♣) X (2M)`, opener's `2NT` and `3NT` no longer
+  fire when they are vulnerable and we are not: opener doubles on four trumps
+  and otherwise passes, collecting 100 a trick from their vulnerable `2M`.
+  `competition.landy_opener_rungs_unless_favourable`;
+  `--no-ns-landy-opener-rungs-unless-favourable` restores the old package.
+  Measured at `ew` over 4,608,000 accepted Landy boards (seed
+  1792221503542310373): plain DD +0.0318 ±0.0009 IMPs per accepted board,
+  PD +0.0520, sd-plain +0.0117, SD-PD +0.0316, all wins (+2.51 plain per
+  fired board). A preflight read 0 divergent boards at `none`, `ns` and
+  `both`, where the gate cannot fire.
+
 ### Added
 
-- **Two vulnerability gates, default off (2026-10-17).** Each turns one
-  shipped rule off in the single cell where the four-cell run read it worse;
-  the other three cells are byte-identical.
-  - `competition.landy_opener_rungs_unless_favourable`
-    (`--ns-landy-opener-rungs-unless-favourable`): in `1NT (2♣) X (2M)`,
-    opener's `2NT` and `3NT` rungs stay silent when they are vulnerable and
-    we are not, so opener doubles on four trumps and otherwise passes.
-  - `competition.nt_high_overcall_x_leave_in_unless_unfavourable`
-    (`--ns-nt-high-overcall-x-leave-in-unless-unfavourable`, also in `web/`):
-    in `1NT (3x) X -`, no penalty leave-in when we are vulnerable and they
-    are not; opener bids from the ladder instead.
-
-  A/Bs pre-registered (`scripts/gate-queue-2026-10-17.sh`: a byte-identity
-  preflight at the untouched cells, then `ew` and `ns` respectively).
+- **A vulnerability gate on the `1NT (3x) X -` leave-in, default off
+  (2026-10-17).** `competition.nt_high_overcall_x_leave_in_unless_unfavourable`
+  (`--ns-nt-high-overcall-x-leave-in-unless-unfavourable`, also in `web/`): no
+  penalty leave-in when we are vulnerable and they are not; opener bids from
+  the ladder instead. Its byte-identity preflight failed (6–11 divergent
+  boards per 96,000 at the cells it should not touch, all in responder's
+  later calls), so its `ns` A/B is owed after that is fixed.
 
 ### Fixed
 

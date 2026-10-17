@@ -698,6 +698,12 @@ default changed; each is jdh8's decision):
   one `ew` A/B (the gated arm against today's default) decides it. Keep
   the package on until then: `px` alone was refused in 2026-09, and off
   gives back the `ns`/`none`/`both` gain.
+  **Shipped 2026-10-17** (jdh8 approved the gate): `landy_opener_rungs_unless_favourable`,
+  `ab-landy-opener.sh GATE=1` at `9de51c9f`, seed 1792221503542310373,
+  4,608,000 accepted boards at `ew`, density 0.009021, preflight 0 divergent
+  at none/ns/both (96,000 boards each), gate 0 foreign of 58,430 divergent:
+  plain +0.0318 ±0.0009, PD +0.0520 ±0.0009, sd-plain +0.0117 ±0.0009,
+  SD-PD +0.0316 ±0.0008, all wins.
 - **(d) The N3 leave-in at `ns`** (we are unfavourable). By the runner's
   letter it stands (plain DD non-inferior). By measurement.md's addendum,
   which names this lane as its exemplar (plain arbitrates, sd-lead

@@ -1205,13 +1205,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_landy_opener_rungs: bool,
 
-    /// Silence those notrump rungs when we are favourable (they vulnerable,
-    /// we not), leaving the `X` and `Pass` there
+    /// Let those notrump rungs fire at favourable too (they vulnerable, we
+    /// not), the pre-2026-10-17 package
     ///
-    /// `competition.landy_opener_rungs_unless_favourable`, default **off**;
-    /// the other three vulnerabilities are byte-identical.
+    /// `competition.landy_opener_rungs_unless_favourable`, default **on**
+    /// since 2026-10-17; the other three vulnerabilities are byte-identical.
     #[arg(long, default_value_t = false)]
-    ns_landy_opener_rungs_unless_favourable: bool,
+    no_ns_landy_opener_rungs_unless_favourable: bool,
 
     /// Restrict `3NT` over their Landy so it denies a four-card major (§N1p)
     ///
@@ -3098,7 +3098,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.landy_opener_px = !args.no_ns_landy_opener_px;
     agreements.competition.landy_opener_rungs = !args.no_ns_landy_opener_rungs;
     agreements.competition.landy_opener_rungs_unless_favourable =
-        args.ns_landy_opener_rungs_unless_favourable;
+        !args.no_ns_landy_opener_rungs_unless_favourable;
     agreements.competition.landy_notrump_no_major = args.ns_landy_notrump_no_major;
     agreements.competition.landy_notrump_no_major_favourable =
         !args.no_ns_landy_notrump_no_major_favourable;

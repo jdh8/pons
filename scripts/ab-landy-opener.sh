@@ -110,9 +110,11 @@ log "=== landy-opener SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD 
 # gate `competition.landy_opener_rungs_unless_favourable`, built from the
 # four-cell run's `ew` loss (docs/archive/research-method-review-closed.md
 # § 6: every top `ew` bucket a notrump rung against a pass).
-#   rungs  today's default (px + rungs)
-#   white  plus --ns-landy-opener-rungs-unless-favourable: both rungs silent
-#          when they are vulnerable and we are not
+#   rungs  the ungated package (px + rungs), now
+#          --no-ns-landy-opener-rungs-unless-favourable
+#   white  the gate: both rungs silent when they are vulnerable and we are not
+#          (default since 2026-10-17; the flag spelling changed with the
+#          flip, the arms did not)
 # The gate fires at `ew` only, so the A/B is VULS=ew, fresh seed, BOARDS=4608000,
 # `--wide-1nt`, results in ab-results/landy-opener-white.  A preflight at
 # VULS="none ns both" (small BOARDS, its own dir) must read 0 divergent first:
@@ -121,10 +123,17 @@ log "=== landy-opener SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD 
 # loss, or plain DD non-inferior with PD a win (the decision table); the knob
 # bids less, so PD is not double-blind here.  Anything else is flagged, not
 # applied.
+#
+# MEASURED 2026-10-17, sha 9de51c9f, SEED_BASE 1792221503542310373,
+# ab-results/landy-opener-white, preflight
+# 0 divergent at none/ns/both, gate 0 foreign of 58,430 divergent at `ew`:
+# plain +0.0318 ±0.0009, PD +0.0520 ±0.0009, sd-plain +0.0117 ±0.0009, SD-PD
+# +0.0316 ±0.0008, all wins (+2.51 plain / +4.10 PD per fired).  SHIPPED
+# default-on.
 if [ "${GATE:-0}" = 1 ]; then
     for v in $VULS; do
-        arm rungs "$v" --filter-landy --wide-1nt
-        arm white "$v" --filter-landy --wide-1nt --ns-landy-opener-rungs-unless-favourable
+        arm rungs "$v" --filter-landy --wide-1nt --no-ns-landy-opener-rungs-unless-favourable
+        arm white "$v" --filter-landy --wide-1nt
         gatepair white rungs "$v"
         DENSITY=$(density_of "$R/rungs-$v")
         diffpair white rungs "$v"

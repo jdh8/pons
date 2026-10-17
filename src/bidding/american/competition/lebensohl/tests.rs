@@ -1257,9 +1257,13 @@ fn landy_opener_rungs_stay_silent_at_favourable() {
         Call::Double,
         call(2, Strain::Hearts),
     ];
-    let shipped = landy_opener_arm(true);
-    let mut gated = shipped;
-    gated.competition.landy_opener_rungs_unless_favourable = true;
+    let gated = landy_opener_arm(true);
+    assert!(
+        gated.competition.landy_opener_rungs_unless_favourable,
+        "the gate is the default since 2026-10-17",
+    );
+    let mut shipped = gated;
+    shipped.competition.landy_opener_rungs_unless_favourable = false;
     let three = call(3, Strain::Notrump);
     let two = call(2, Strain::Notrump);
     let both = V::WE | V::THEY;

@@ -1564,11 +1564,14 @@ pub struct CompetitionKnobs {
     /// trick from their vulnerable `2M`.  The other three cells are
     /// byte-identical.
     ///
-    /// Default **off**.  Built 2026-10-17 from the four-cell confirmation
-    /// (docs/archive/research-method-review-closed.md §6): the package loses
-    /// every scorer at `ew` (plain −0.0090, PD −0.0236 per accepted board),
-    /// every top bucket a rung against a pass (`2NT` −1.5…−3.9, `3NT`
-    /// −1.1…−4.2 plain per fired), while the same `3NT` wins at `ns`.
+    /// **On by default — measured 2026-10-17** (`scripts/ab-landy-opener.sh`
+    /// `GATE=1`, `SEED_BASE 1792221503542310373`, 4 608 000 accepted
+    /// boards at `ew`, byte-identical at the other three cells by preflight):
+    /// plain DD +0.0318 ±0.0009, PD +0.0520, sd-plain +0.0117, SD-PD +0.0316
+    /// IMPs per accepted board over the ungated package.  Built from the
+    /// four-cell confirmation (docs/archive/research-method-review-closed.md
+    /// §6), where the package lost every scorer at `ew`, every top bucket a
+    /// rung against a pass, while the same `3NT` wins at `ns`.
     pub landy_opener_rungs_unless_favourable: bool,
     /// `3NT` over their Landy denies a four-card major (§N1p)
     ///
@@ -2206,7 +2209,7 @@ impl Default for CompetitionKnobs {
             landy_doubler_white: false,
             landy_opener_px: true,
             landy_opener_rungs: true,
-            landy_opener_rungs_unless_favourable: false,
+            landy_opener_rungs_unless_favourable: true,
             landy_notrump_no_major: false,
             landy_notrump_no_major_favourable: true,
             landy_splinter_rebids: true,
