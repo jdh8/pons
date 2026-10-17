@@ -774,7 +774,20 @@ a plain **loss** at `ew`, with a lower bound of −0.0027, past −δ. Its worst
 boards are the BBA exploit the guard exists for (OFF doubles a cue bid or a
 keycard answer and BBA runs from a making slam). **Kept on (jdh8,
 2026-10-17)**; the BEN Tier-F guard at `ew` decides, and the knob turns off
-if BEN also reads a plain loss there. That guard is owed.
+if BEN also reads a plain loss there.
+
+**BEN guard at `ew`, pre-registered 2026-10-17 before any number was read.**
+`scripts/ab-ben-competitive-demotion.sh` with `VULS=ew ARMS=natural`,
+`SEED_BASE=1792163301883580764` (the four-cell seed), Tier F on 80 servers,
+256,000 boards per arm (expected plain CI about ±0.0022). Natural − control,
+plain DD the arbiter:
+
+- upper bound below 0 (a loss against BEN too): flip
+  `competitive_push_natural_only` off;
+- lower bound above −δ = −0.002 (non-inferior against BEN): keep, and record
+  the BBA `ew` loss as the BBA-specific exploit the guard exists for;
+- anything else (inconclusive): keep, as the recorded trade-off decided
+  2026-10-17.
 
 ## Out of scope (decided, not neglect)
 

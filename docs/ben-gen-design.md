@@ -86,6 +86,17 @@ BEN-side replay verification; fleet distribution.
     BBA keycard consult stays on — it is search-free engine behavior.
     Measured: **~0.1 s/bid** (10 sequential /bid ≈ 0.99 s). The per-fix
     A/B engine.
+- **Where to serve (2026-10-17).** Tier F is served on the 640-thread
+  box: 48 servers there gave 13.2 boards/s under a ~520 load (16 gave 4.6,
+  near-linear), against ~9–10 boards/s at the plateau on the 32-thread
+  dl02. **Owed: a Tier-S benchmark** on the same box (servers vs boards/s,
+  against dl02's overnight 20k-board anchor), before the next Tier-S
+  reanchor. Neither box has ever run BEN on a GPU: dl02's venv has no CUDA
+  libraries, and every server log there says `Cannot dlopen some GPU
+  libraries`. A CUDA build could speed Tier S's batched sampling (up to
+  20,000 deals per search through the bidding net) but not its DDS
+  rollouts, and a GPU's float order would make it a new instrument for the
+  anchor series.
 - **Launch flags**: `python gameapi.py --config <conf> --port <p> --seed 42
   --nolimit true --record false`. `--nolimit` is mandatory (default rate
   limit 100/min; Tier F needs ~600 req/min/instance) — **but the tag parses

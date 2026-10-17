@@ -180,9 +180,9 @@ sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
   −0.0016 ±0.0011, PD +0.0028) pending its BEN guard.
 - **Owed: the BEN Tier-F guard for `competitive_push_natural_only` at `ew`**
   (same `SEED_BASE` 1792163301883580764 as the four-cell run). Turn the knob
-  off if BEN also reads a plain DD loss there. BEN is not installed on this
-  box yet; [ab-ben-competitive-demotion.sh](../scripts/ab-ben-competitive-demotion.sh)
-  hard-codes `none both`.
+  off if BEN also reads a plain DD loss there. Launched 2026-10-17 at 256,000
+  boards per arm; the three-way rule is pre-registered in
+  [competitive-accountant.md](ai-bidder/competitive-accountant.md).
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,
