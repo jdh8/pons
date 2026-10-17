@@ -9,7 +9,7 @@ R=ab-results/cachalot-xfix
 SEED=1783679026
 PER=6400
 mkdir -p "$R"
-for vul in both none; do
+for vul in ${VULS:-both none}; do
     on="$R/cachalot-xfix-$vul"
     off="$R/cachalot-off-$vul"
     if [ ! -d "$on" ]; then

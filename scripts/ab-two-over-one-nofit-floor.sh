@@ -41,7 +41,7 @@ run() { # run NAME SEED VUL GATE
 }
 
 S=$(seed_for)
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     run hcp12 "$S" "$vul" hcp12
     run points12 "$S" "$vul" points12
     run points13 "$S" "$vul" points13

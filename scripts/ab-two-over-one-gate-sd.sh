@@ -43,7 +43,7 @@ run() { # run GATE VUL OFFSET
 
 i=0
 for gate in points13 hcp12; do
-    for vul in none both; do
+    for vul in ${VULS:-none both}; do
         run "$gate" "$vul" "$((OFF + i * COUNT))"
         i=$((i + 1))
     done

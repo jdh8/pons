@@ -56,7 +56,7 @@ BINDIR="$BINDIR" sh "$(dirname "$0")/sd-pd-dumps.sh" \
 #    plain-SD row (plain wash, PD -0.0036/-0.0019, sd-lead +0.0012/+0.0042) —
 #    precisely the shape SD-PD refuted for set_forcing_nt_two_suiter.
 #    --minor-jumps-only keeps the GF 2NT in both arms and moves only the jumps.
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     run "meckstroth-3m.$vul" \
         "$BINDIR/ab-meckstroth-2nt" --count 400000 -v "$vul" \
         --minor-jumps-only --sd --sd-seed "$SEED"
@@ -68,7 +68,7 @@ done
 #    plain +0.009/+0.011, PD -0.004/-0.005, never sd-measured ("sd-lead
 #    candidate", bidding-options.md:156) — this is its first SD reading, and the
 #    SD block prices both brackets in one pass.
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     run "runout-full.$vul" \
         "$BINDIR/ab-one-nt-runout" --compare runout --filter-1nt \
         --count 1000000 -v "$vul" --seed "$SEED" --sd --sd-seed "$SEED"

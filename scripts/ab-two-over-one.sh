@@ -48,12 +48,12 @@ run() { # run NAME SEED VUL ARGS...
 }
 
 S1=$(seed_for cog 0)
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     run cog "$S1" "$vul" --choice-of-games
 done
 
 S2=$(seed_for gate 1000003)
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     run fit "$S2" "$vul" --two-over-one-fit
     run hcp13 "$S2" "$vul" --two-over-one-gate hcp13
     run hcp12 "$S2" "$vul" --two-over-one-gate hcp12

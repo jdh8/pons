@@ -59,7 +59,7 @@ mkdir -p "$R"
 run() {
     tag=$1 bin=$2 count=$3
     shift 3
-    for vul in none both; do
+    for vul in ${VULS:-none both}; do
         out="$R/$tag.$vul.txt"
         if [ -s "$out" ]; then
             echo "skip $tag/$vul (already done)"

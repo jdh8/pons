@@ -116,11 +116,17 @@ Since 2026-10-18 every runner that sources ab-lib loops over `$VULS`,
 including the four `ab-ben-*` runners (`ab-landy-nt-vs-x.sh` deliberately
 spells out its four cells).
 
-**Open.** Seven scripts do not source ab-lib and keep `none both`:
-`ab-two-over-one{,-nofit-floor,-gate-sd,-gate-rescale}.sh`,
-`sd-pd-{queue,nt-defense,readjudicate}.sh` (and the data-gen
-`cachalot-xfix-gen.sh`). `penalty_pass`, `trap_pass`, the runouts and
-`accountant_floor` live in single-vulnerability example harnesses.
+The seven scripts that do not source ab-lib
+(`ab-two-over-one{,-nofit-floor,-gate-sd,-gate-rescale}.sh`,
+`sd-pd-{queue,nt-defense,readjudicate}.sh`) and the data-gen
+`cachalot-xfix-gen.sh` read `${VULS:-none both}` too, defaults unchanged.
+
+**Open.** `penalty_pass`, `trap_pass`, the runouts and `accountant_floor`
+are measured by example harnesses run by hand (`ab-nt-defense-matrix`,
+`ab-lebensohl`, `ab-one-nt-runout`, `ab-accountant-floor`), one
+`--vulnerability` per invocation. The flag takes `ns` and `ew` already;
+what is owed is the four-cell confirmation itself, since all four are
+doubling or vulnerability-reading knobs under checklist 8.
 
 ## 7 Auction conditioning and the replay approximation
 

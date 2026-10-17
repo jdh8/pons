@@ -162,7 +162,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sacrifice and doubling treatments and on knobs that read `vulnerable()`.
   `lebensohl_signoff_raise` holds at `ns` (we red, `23` against off plain
   +0.0035 ±0.0013 win) and `ew` (we white, `24` over `23` plain non-inferior
-  | PD +0.0022 ±0.0009 win). Research-method review §6.
+  | PD +0.0022 ±0.0009 win). Research-method review §6. Since 2026-10-18
+  every ab-lib runner loops over `$VULS`, and so do the eight scripts that
+  do not source ab-lib (`ab-two-over-one*.sh`, `sd-pd-*.sh`,
+  `cachalot-xfix-gen.sh`); default runs are unchanged.
 
 - **Replay is described as what it is (2026-10-16).** Docs and doc comments
   that called the sampler's worlds "the self-play posterior" or

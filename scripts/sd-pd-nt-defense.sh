@@ -34,7 +34,7 @@ f="$R/seed"
 SEED=$(cat "$f")
 
 i=0
-for vul in none both; do
+for vul in ${VULS:-none both}; do
     out="$R/matrix.$vul.txt"
     i=$((i + 1))
     if [ -s "$out" ]; then
