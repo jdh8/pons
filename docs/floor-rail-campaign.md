@@ -158,6 +158,19 @@ CHANGELOG):
 | *(inert)* game-pull code exemption | `their_game_pull_alert_exempt` (dropped, `83989dd4`) | **off** 2026-09-26 | −0.0001/−0.0001 | −0.0001/−0.0001 | 1 bd | 1790419919 |
 | *(wash)* unusual-4NT over `2NT` (R4b) | `their_2nt_unusual_veto` | **off** 2026-09-26 | +0.0003/+0.0000 | +0.0003/+0.0000 | 0.02% | 1790406670 |
 | *(loss)* silent cue (R5) | `silent_cue_veto` | **off** 2026-09-26 | −0.0037/−0.0009 | −0.0011/+0.0028 | 0.36–0.38% | 1790407171 |
+
+The shipping cells above are none/both. **Four-cell check, 2026-10-16** (fresh
+seeds, 409,728 boards, `ns`/`ew`):
+
+- `their_2nt_double_veto` holds at both cells: plain +0.0161/+0.0196, PD
+  non-inferior.
+- `their_3nt_pull_veto` wins every scorer at `ns`. At `ew` (we are
+  favourable) it reads plain **−0.0010 ±0.0007 loss**, PD +0.0087 win: the
+  pulls it vetoes go down undoubled against BBA. Decision owed (jdh8); the
+  proposed default is to keep the veto as a recorded trade-off.
+
+Numbers in
+[research-method-review-closed.md §6](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
 | *(predecessor)* new-suit veto | `new_suit_veto` | refuted in aggregate, **off** | — | — | — | see [new-suit-veto.md](ai-bidder/new-suit-veto.md) |
 
 Every shipped rail was a win in **every** cell with single-dummy alike — the

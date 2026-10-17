@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Four-cell confirmations, no default changed (2026-10-16).** Defaults
+  that shipped on none/both only were re-measured at `ns` and `ew`, each on a
+  fresh seed under a pre-registered rule (`scripts/confirm-queue-2026-10-16.sh`).
+  Confirmed at both cells: the 2NT-double veto, the competitive accountant,
+  its pass demotion and the Landy doubler's penalty ladder. The `4♥` fit rung
+  over `1NT (3♠) X` replicates on a fresh seed at none/both. Four cells read
+  worse and await a decision:
+  - The 3NT-pull veto loses plain DD at `ew` (−0.0010), from pulls BBA left
+    undoubled.
+  - The natural-only competitive push loses plain DD at `ew` (−0.0016),
+    against BBA.
+  - Opener's Landy package loses every scorer at `ew` (plain −0.0090 per
+    accepted board): its notrump rungs beat a pass only when they are not
+    vulnerable.
+  - The `1NT (3x) X` leave-in is plain non-inferior but loses sd-lead at `ns`.
+
+  Numbers and proposed defaults are in
+  `docs/archive/research-method-review-closed.md` §6.
+
 - **`scripts/anchor.sh` pins the series' shard count (2026-10-16).** `JOBS` is
   `bba-gen-parallel.sh`'s shard count, so an anchor run on a box whose `nproc`
   differs from 32 dealt a different board set: unpaired with the last snapshot,

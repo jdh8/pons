@@ -140,7 +140,7 @@ wide candidate none. It counts `table_a` divergence only. `ab-lebensohl`,
 
 ## 6 Asymmetric vulnerability in competitive experiments
 
-**P1, tooling resolved 2026-10-16; confirmations owed.** Competitive,
+**P1, tooling resolved and confirmations run 2026-10-16; four decisions owed.** Competitive,
 sacrifice and doubling decisions depend on favourable and unfavourable
 vulnerability, and `ab-landy-nt-vs-x.sh` once flipped sign between `ns` and
 `ew` ([evidence](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs)).
@@ -161,21 +161,21 @@ accepted board). The two cells differ only in *their* colour, which the gate
 does not read; a `both`-only gate is the untested refinement. Numbers in the
 [archive](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
 
-- **Owed:** four-cell confirmations of the defaults shipped on none/both
-  only, vulnerability readers first, cells that cannot differ by
-  construction omitted:
+The confirm queue (`scripts/confirm-queue-2026-10-16.sh`, 2026-10-16,
+[numbers](archive/research-method-review-closed.md#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs))
+confirmed `their_2nt_double_veto`, `competitive_accountant`,
+`competitive_pass_demotion` and `landy_doubler_px` at `ns` and `ew`, and
+replicated N3-fit (`nt_high_overcall_x_major_at_four`) on a fresh seed.
 
-  | Knob | Cells owed | Runner | Note |
+- **Owed: four decisions (jdh8).** Each default stays as shipped until
+  decided; the archive holds the evidence and a proposed default for each.
+
+  | Knob | Cell | Reading | Proposed |
   | --- | --- | --- | --- |
-  | `competitive_accountant` with `competitive_pass_demotion`, `competitive_push_natural_only` | ns, ew | `ab-competitive-4cell.sh` | prices our vulnerability against theirs; unfiltered |
-  | `landy_opener_rungs` + `landy_opener_px` | ns, ew | `ab-landy-opener.sh` | `!vulnerable()` rung |
-  | `landy_doubler_px` | ns, ew | `ab-landy-doubler-flip.sh` | pure doubling |
-  | `nt_high_overcall_x_leave_in` | ns, ew | `ab-nt-high-overcall.sh` | penalty conversion; its v1 flipped sign by vulnerability |
-  | `their_2nt_double_veto`, `their_3nt_pull_veto` | ns, ew | `ab-2nt-double-veto.sh`, `ab-3nt-pull-veto.sh` | doubling vetoes |
-
-  All five rows are pre-registered in their runners (2026-10-16) and queued
-  in `scripts/confirm-queue-2026-10-16.sh`, with the N3-fit fresh seed
-  (`ab-nt-high-overcall.sh` Round 10).
+  | `their_3nt_pull_veto` | ew | plain **loss** −0.0010 ±0.0007, PD win | keep, recorded trade-off: OFF's gain is undoubled pulls BBA failed to double |
+  | `competitive_push_natural_only` | ew | plain **loss** −0.0016 ±0.0011, PD win | keep; BEN Tier-F guard at `ew` decides |
+  | `landy_opener_px` + `landy_opener_rungs` | ew | **loss \| loss** (−0.0090 / −0.0236) | colour gate on the notrump rungs, A/B at `ew` only |
+  | `nt_high_overcall_x_leave_in` | ns | plain non-inferior, sd-lead **loss** both columns | colour gate on the leave-in, A/B at `ns` only |
 
   About 100 runners spell the loop `for vul in none both` and ignore `VULS`;
   four `ab-ben-*` runners never source ab-lib; `penalty_pass`, `trap_pass`,

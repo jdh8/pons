@@ -753,6 +753,28 @@ demotion stands. The worst boards against BEN show the same pattern as
 against BBA: our double of a cue or a keycard answer (`5♠ X`, `4♣ X`) gets
 them to run, sometimes into a grand or a slam.
 
+### Four-cell confirmation *(2026-10-16, `a9362f96`, `SEED_BASE=1792163301883580764`)*
+
+`scripts/ab-competitive-4cell.sh`: 1,228,800 unfiltered boards per arm at
+`ns` and `ew`, the shipped default against one knob off. Plain DD
+arbitrates (pre-registered). IMPs/board, default − arm-off:
+
+| knob off | vul | fired | plain DD | DD-PD | plain SD | SD-PD |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| accountant | ns | 0.18% | **+0.0022 ±0.0007** | −0.0003 ±0.0006 | +0.0016 ±0.0007 | −0.0002 ±0.0007 |
+| accountant | ew | 0.42% | **+0.0112 ±0.0010** | −0.0005 ±0.0009 | +0.0094 ±0.0011 | +0.0000 ±0.0010 |
+| pass demotion | ns | 0.17% | **+0.0020 ±0.0006** | −0.0007 ±0.0006 | +0.0023 ±0.0007 | +0.0002 ±0.0007 |
+| pass demotion | ew | 0.39% | **+0.0106 ±0.0010** | −0.0020 ±0.0008 | +0.0091 ±0.0011 | −0.0009 ±0.0009 |
+| natural-only push | ns | 0.28% | −0.0000 ±0.0008 | +0.0010 ±0.0008 | −0.0001 ±0.0010 | +0.0004 ±0.0010 |
+| natural-only push | ew | 0.39% | **−0.0016 ±0.0011** | +0.0028 ±0.0011 | −0.0017 ±0.0013 | +0.0015 ±0.0012 |
+
+The accountant and the demotion hold at both asymmetric cells, and win most
+where we are favourable. The natural-only push is non-inferior at `ns` and
+a plain **loss** at `ew`, with a lower bound of −0.0027, past −δ. Its worst
+boards are the BBA exploit the guard exists for (OFF doubles a cue bid or a
+keycard answer and BBA runs from a making slam). **Decision owed (jdh8)**;
+the proposed default is to keep it on and run the BEN Tier-F guard at `ew`.
+
 ## Out of scope (decided, not neglect)
 
 - **Full probabilistic par over all 20 columns** — the chartered v2. The

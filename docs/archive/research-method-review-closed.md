@@ -641,6 +641,72 @@ it wins at `both` and loses plain DD at `ns`. The two cells differ only in
 Caveat on the SD column: the off arm's sampler fell back on 44.8% of its
 worlds (on: 1.0%), so the SD numbers price the off arm's reading coarsely.
 
+**The confirm queue, 2026-10-16** (`scripts/confirm-queue-2026-10-16.sh`
+at `a9362f96`, each rule pre-registered in its runner's header before any
+number was read, fresh seed per step, `ab-results/<step>`, gate 0 foreign
+in every gated cell; the competitive runner has no gate step). IMPs per
+board (per accepted board on the filtered runs), plain \| PD, 95% CI:
+
+| Knob | Step, seed | Cell | Fired | Plain DD | PD | sd-lead plain / SD-PD | Reading |
+| --- | --- | --- | ---: | --- | --- | --- | --- |
+| `their_2nt_double_veto` | `2nt-double-veto-nsew`, 1792162558292829023, 409,728 bd | ns | 1,526 | +0.0161 ±0.0016 win | +0.0001 ±0.0011 non-inferior | win / non-inferior | stands |
+| | | ew | 1,584 | +0.0196 ±0.0019 win | +0.0009 ±0.0014 non-inferior | win / inconclusive | stands |
+| `their_3nt_pull_veto` | `3nt-pull-veto-nsew`, 1792163023089299798, 409,728 bd | ns | 188 | +0.0036 ±0.0007 win | +0.0068 ±0.0010 win | win / win | stands |
+| | | ew | 269 | **−0.0010 ±0.0007 loss** | +0.0087 ±0.0010 win | loss / win | flagged (a) |
+| `competitive_accountant` | `competitive-4cell-nsew`, 1792163301883580764, 1,228,800 bd, unfiltered | ns | 2,208 | +0.0022 ±0.0007 win | −0.0003 ±0.0006 non-inferior | win / non-inferior | stands |
+| | | ew | 5,138 | +0.0112 ±0.0010 win | −0.0005 ±0.0009 non-inferior | win / non-inferior | stands |
+| `competitive_pass_demotion` | same | ns | 2,052 | +0.0020 ±0.0006 win | −0.0007 ±0.0006 loss | win / non-inferior | stands (PD double-blind) |
+| | | ew | 4,839 | +0.0106 ±0.0010 win | −0.0020 ±0.0008 loss | win / non-inferior | stands (PD double-blind) |
+| `competitive_push_natural_only` | same | ns | 3,411 | −0.0000 ±0.0008 non-inferior | +0.0010 ±0.0008 win | non-inferior / non-inferior | stands |
+| | | ew | 4,844 | **−0.0016 ±0.0011 loss** | +0.0028 ±0.0011 win | loss / win | flagged (b) |
+| `landy_opener_px` + `landy_opener_rungs` | `landy-opener-nsew`, 1792167042453704682, 4,608,000 bd, density 0.009017 | ns | 34,263 | +0.0072 ±0.0006 win | −0.0018 ±0.0006 loss | win / win | stands (PD blind to `px`; SD-PD tie-break wins) |
+| | | ew | 74,766 | **−0.0090 ±0.0010 loss** | **−0.0236 ±0.0010 loss** | loss / loss | flagged (c) |
+| `landy_doubler_px` (today's whole ladder vs the floor) | `landy-doubler-px-nsew`, 1792177143207773380, 4,608,000 bd, density 0.009015 | ns | 25,036 | +0.0068 ±0.0005 win | +0.0005 ±0.0001 win | non-inferior / non-inferior | stands |
+| | | ew | 37,086 | +0.0272 ±0.0007 win | +0.0125 ±0.0004 win | win / win | stands |
+| `nt_high_overcall_x_leave_in` | `nt-high-overcall-nsew` (Round 9), 1792184733335833470, 2,400,000 bd, density 0.007748 | ns | 4,945 | +0.0004 ±0.0005 non-inferior | +0.0035 ±0.0005 win | **loss / loss** | flagged (d) |
+| | | ew | 5,474 | +0.0127 ±0.0006 win | +0.0151 ±0.0006 win | win / win | stands |
+| `nt_high_overcall_x_major_at_four` (N3-fit, fresh seed) | `nt-high-overcall-n3fit` (Round 10), 1792187440017068589, 2,400,000 bd, density 0.00775 | none | 2,581 | +0.0008 ±0.0003 win | +0.0012 ±0.0003 win | non-inferior / non-inferior | replicated |
+| | | both | 3,427 | +0.0018 ±0.0004 win | +0.0028 ±0.0005 win | non-inferior / win | replicated |
+
+The four flagged readings, with a proposed reversible default for each (no
+default changed; each is jdh8's decision):
+
+- **(a) The 3NT pull veto at `ew`** (we are favourable). The veto removes
+  our calls, so OFF is the arm that bids more, and from OFF's side the row
+  is `win | loss`, the decision table's doubling artifact. Four of the five
+  worst boards for the veto are OFF's pull of their `3NT` to `4♥` going
+  down undoubled (`3NT 4♥ - - -`): plain DD credits the sacrifice because
+  BBA did not double it. PD +13.3 IMPs per fired board. *Proposed:* keep
+  on as a recorded trade-off, plain lower bound −0.0017.
+- **(b) The natural-only push at `ew`.** A knob that doubles less, so plain
+  DD arbitrates and the lower bound −0.0027 is past −δ. The worst boards
+  are the exploit its ship section names: OFF's double of a cue bid or a
+  keycard answer (`4NT - 5♦ X`, `5♣ - 5♦ X`) that makes BBA run from a
+  making slam. It shipped on the BEN Tier-F guard for exactly that reason.
+  *Proposed:* keep on, and run the BEN guard at `ew` (the 2026-10-12 guard
+  read `none`/`both` only); flip off if BEN also reads a plain loss there.
+- **(c) The Landy opener package at `ew`** (they are vulnerable, we are
+  not): a loss on every scorer, −0.56 plain per fired board.
+  `ab-dump-bucket --by node` puts every top bucket on the notrump rungs
+  against a pass: `2NT vs -` −1.5…−3.9 plain per fired, `3NT vs -`
+  −1.1…−4.2; the penalty `X` is not among them, and the remaining buckets
+  net about +90k plain (inferred from the totals). At `ns` the same `3NT`
+  rung is positive (+0.7…+2.6). When they are vulnerable, defending their
+  undoubled `2M` beats our non-vulnerable notrump. *Proposed:* author a
+  colour gate that drops both rungs when they are vulnerable and we are
+  not; it is byte-identical at the other three cells by construction, so
+  one `ew` A/B (the gated arm against today's default) decides it. Keep
+  the package on until then: `px` alone was refused in 2026-09, and off
+  gives back the `ns`/`none`/`both` gain.
+- **(d) The N3 leave-in at `ns`** (we are unfavourable). By the runner's
+  letter it stands (plain DD non-inferior). By measurement.md's addendum,
+  which names this lane as its exemplar (plain arbitrates, sd-lead
+  tie-breaks), it reads a loss: −2.56 plain / −1.27 PD per fired board on
+  sd-lead. That is the v1 leave-in's sign flip again, at the cell the
+  original none/both ship could not see. *Proposed:* author a colour gate
+  (no leave-in when we are vulnerable and they are not), byte-identical
+  elsewhere, and A/B it at `ns` alone. Keep on until then.
+
 ## 7 Auction conditioning: the documentation pass
 
 Documentation done 2026-10-16: every current doc and doc comment that called
