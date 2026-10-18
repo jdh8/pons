@@ -3518,18 +3518,18 @@ fn the_trap_yields_to_game_at_unfavourable() {
     // ♥AQxx: 6 HCP in their suit, game values, too long for the optional `X`.
     let trap = "K32.AQ54.K54.J32";
     let shipped = Agreements::default();
-    assert!(!shipped.competition.trap_pass_unless_unfavourable);
-    let mut gated = shipped;
-    gated.competition.trap_pass_unless_unfavourable = true;
+    assert!(shipped.competition.trap_pass_unless_unfavourable);
+    let mut ungated = shipped;
+    ungated.competition.trap_pass_unless_unfavourable = false;
     let nt = call(3, Strain::Notrump);
     for vul in [V::NONE, V::THEY, V::WE, V::WE | V::THEY] {
-        assert_ne!(best_call_vul(&shipped, vul, &auction, trap), nt, "{vul:?}");
+        assert_ne!(best_call_vul(&ungated, vul, &auction, trap), nt, "{vul:?}");
     }
-    assert_eq!(best_call_vul(&gated, V::WE, &auction, trap), nt);
+    assert_eq!(best_call_vul(&shipped, V::WE, &auction, trap), nt);
     for vul in [V::NONE, V::THEY, V::WE | V::THEY] {
         assert_eq!(
-            best_call_vul(&gated, vul, &auction, trap),
             best_call_vul(&shipped, vul, &auction, trap),
+            best_call_vul(&ungated, vul, &auction, trap),
             "{vul:?}: the trap is untouched",
         );
     }

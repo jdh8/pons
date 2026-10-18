@@ -9,16 +9,18 @@
 #
 # Arms, per cell, identical deals (`--filter-1nt --wide-1nt`, the
 # population the gate was chosen on):
-#   default   american as shipped
-#   trapgate  --ns-trap-pass-unless-unfavourable
+#   default     american as shipped (the gate default-on since 2026-10-18)
+#   notrapgate  --no-ns-trap-pass-unless-unfavourable
+# The 2026-10-18 run predates the flip: its dirs hold `default` (no gate) and
+# `trapgate` (--ns-trap-pass-unless-unfavourable) arms, read trapgate − default.
 #
 # PRE-REGISTERED (2026-10-18, before any number is read).  Two invocations
 # of this script, each with its own results dir and seed:
 #   1. VULS=ns BOARDS=2400000 → ab-results/trap-pass-colour.  The gate
 #      removes conversions to a doubled contract, so plain DD arbitrates and
 #      PD is the double-blind column (measurement.md's domain addendum).
-#      The gate ships default-on iff ns plain DD (trapgate − default) reads
-#      win or non-inferior.  Any other reading is flagged for jdh8.
+#      The gate ships default-on iff ns plain DD (gate − no gate) reads win
+#      or non-inferior.  It did (2026-10-18, +0.0005 ±0.0001).  Any other reading is flagged for jdh8.
 #   2. VULS="none both ew" BOARDS=96000 → ab-results/trap-pass-colour-inert.
 #      `waived_at` matches `WE` exactly, so all three cells must read
 #      0 divergent boards.  Any divergence blocks the ship and is traced.
@@ -40,9 +42,9 @@ log "=== trap-pass-colour SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SH
 
 for v in $VULS; do
     arm default  "$v" --filter-1nt --wide-1nt
-    arm trapgate "$v" --filter-1nt --wide-1nt --ns-trap-pass-unless-unfavourable
+    arm notrapgate "$v" --filter-1nt --wide-1nt --no-ns-trap-pass-unless-unfavourable
     DENSITY=$(density_of "$R/default-$v")
-    diffpair trapgate default "$v"
-    sddiff trapgate default "$v" --on-ns-trap-pass-unless-unfavourable
+    diffpair default notrapgate "$v"
+    sddiff default notrapgate "$v" --off-no-ns-trap-pass-unless-unfavourable
 done
 log "trap-pass-colour done"

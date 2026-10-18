@@ -2372,11 +2372,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_penalty_pass: bool,
 
-    /// Waive the trap pass at unfavourable vulnerability (default off): the
-    /// direct `3NT` stops denying 5+ HCP in their suit when we are red against
-    /// white (`competition.trap_pass_unless_unfavourable`).
+    /// Keep the trap pass at unfavourable vulnerability too (the colour gate
+    /// is default on): the direct `3NT` denies 5+ HCP in their suit at every
+    /// colour (`competition.trap_pass_unless_unfavourable`).
     #[arg(long, default_value_t = false)]
-    ns_trap_pass_unless_unfavourable: bool,
+    no_ns_trap_pass_unless_unfavourable: bool,
 
     /// Disable the stack double of their escape from our doubled `1NT`
     /// (default on), and opener's leave-in of it: the double in that context
@@ -2989,7 +2989,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.advancer_xx_runout = !args.no_ns_xx_runout;
     agreements.decision.instinct.one_nt_runout = !args.no_ns_one_nt_runout;
     agreements.competition.trap_pass = !args.no_ns_trap_pass;
-    agreements.competition.trap_pass_unless_unfavourable = args.ns_trap_pass_unless_unfavourable;
+    agreements.competition.trap_pass_unless_unfavourable =
+        !args.no_ns_trap_pass_unless_unfavourable;
     agreements.decision.instinct.penalize_escape_stack = !args.no_ns_penalize_escape_stack;
     agreements.decision.instinct.penalize_escape_values = !args.no_ns_penalize_escape_values;
     if args.no_ns_penalty_pass {

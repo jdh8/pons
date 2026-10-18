@@ -166,10 +166,10 @@ struct Args {
     /// (`bba-gen --no-ns-penalize-escape-values`).
     #[arg(long, default_value_t = false)]
     off_no_ns_penalize_escape_values: bool,
-    /// Read the ON arm with the trap pass waived at unfavourable
-    /// (`bba-gen --ns-trap-pass-unless-unfavourable`).
+    /// Read the OFF arm with the trap pass kept at unfavourable
+    /// (`bba-gen --no-ns-trap-pass-unless-unfavourable`).
     #[arg(long, default_value_t = false)]
-    on_ns_trap_pass_unless_unfavourable: bool,
+    off_no_ns_trap_pass_unless_unfavourable: bool,
     /// Read the ON arm with the takeout double barred on a six-card unbid minor
     /// (`defense.suppress_long_minor_takeout`).
     #[arg(long, default_value_t = false)]
@@ -314,7 +314,6 @@ fn main() {
     let mut on_arm = pons::bidding::agreements::Agreements::default();
     on_arm.decision.reading.natural_overcall_points = (lo, hi);
     on_arm.competition.free_bids = args.on_ns_free_bids;
-    on_arm.competition.trap_pass_unless_unfavourable = args.on_ns_trap_pass_unless_unfavourable;
     on_arm.competition.negative_double_shape = shape(&args.on_ns_negative_double_shape);
     on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
     on_arm.competition.free_1nt_floor = args.on_ns_free_1nt_floor;
@@ -361,6 +360,8 @@ fn main() {
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     off_arm.decision.instinct.one_nt_runout = !args.off_no_ns_one_nt_runout;
     off_arm.competition.trap_pass = !args.off_no_ns_trap_pass;
+    off_arm.competition.trap_pass_unless_unfavourable =
+        !args.off_no_ns_trap_pass_unless_unfavourable;
     off_arm.decision.instinct.penalize_escape_stack = !args.off_no_ns_penalize_escape_stack;
     off_arm.decision.instinct.penalize_escape_values = !args.off_no_ns_penalize_escape_values;
     if args.off_no_ns_penalty_pass {

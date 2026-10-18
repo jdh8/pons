@@ -144,7 +144,7 @@ column. Figures are default − off, in IMPs per (filtered) board:
 | `accountant_floor` | `ew` | 16,500 | +0.0347 ±0.0018 | +0.0315 ±0.0019 | stands |
 | `penalty_pass` | both | 0 | — | — | inert vs BBA (its `2♣` is Landy), recorded as inert, not as confirmed |
 | `trap_pass` | `ew` | 509 | +0.0008 ±0.0002 | +0.0013 ±0.0002 | stands |
-| `trap_pass` | `ns` | 333 | −0.0005 ±0.0001 | −0.0001 ±0.0001 | colour gate built, confirmation owed |
+| `trap_pass` | `ns` | 333 | −0.0005 ±0.0001 | −0.0001 ±0.0001 | colour gate built, confirmed, default on |
 | `one_nt_runout` | `ns` | 1,093 | −0.0004 ±0.0002 | +0.0020 ±0.0003 | recorded trade-off, escape doubles isolated |
 | `one_nt_runout` | `ew` | 1,101 | −0.0008 ±0.0002 | +0.0017 ±0.0002 | recorded trade-off, escape doubles isolated |
 
@@ -156,10 +156,13 @@ lane`): the `(2M) X - -` conversion reads −415 IMPs at `ns` and +2,155 at
 `ew`. Converting partner's takeout double of a white partscore collects
 +300/+500, less than our red game. The `1NT (2x)` lane loses plain at both
 cells (−696 / −223), on only 120–160 boards, so it is a lead, not a verdict.
-`competition.trap_pass_unless_unfavourable` (opt-in, built on the new
+`competition.trap_pass_unless_unfavourable` (built on the new
 `constraint::waived_at`) waives the trap at unfavourable only. This run chose
-it, so it cannot confirm it: `scripts/ab-trap-pass-colour.sh` confirms on a
-fresh seed at `ns` and must read 0 divergent at the other three cells.
+it, so `scripts/ab-trap-pass-colour.sh` confirmed it on a fresh seed
+(1792337712783260436, `ns`, 2,400,000 boards, 320 fired): gate − none, plain
+DD +0.0005 ±0.0001, PD +0.0003 ±0.0001, sd-plain +0.0007, SD-PD +0.0005, all
+wins, and 0 divergent boards at `none`, `both` and `ew` (96,000 each). Default
+on since 2026-10-18.
 
 *Runout: the recorded trade-off.* Accepted loss: plain DD lower bounds
 −0.0006 (`ns`) and −0.0010 (`ew`) per filtered board; `none` and `both`

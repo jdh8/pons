@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **No trap pass at unfavourable, default on (2026-10-18).** When we are
+  vulnerable and they are not, responder's direct `3NT` over their overcall
+  of our `1NT`, and the `3NT` advance of partner's takeout double of their
+  weak two, no longer deny 5+ HCP in their suit: a too-good stopper bids
+  game instead of converting partner's double of a white partscore, which
+  collects +300/+500, less than our red game.
+  `competition.trap_pass_unless_unfavourable`;
+  `bba-gen --no-ns-trap-pass-unless-unfavourable` (and `ab-dump-sd
+  --off-no-ns-trap-pass-unless-unfavourable`) keeps the trap at every colour.
+  Built from the four-cell confirmation below (trap pass plain DD −0.0005
+  ±0.0001 at `ns`) and confirmed on fresh deals at `ns` over 2,400,000
+  boards (seed 1792337712783260436, 320 fired): plain DD +0.0005 ±0.0001
+  IMPs per board, PD +0.0003 ±0.0001, sd-plain +0.0007, SD-PD +0.0005, all
+  wins. A preflight read 0 divergent boards at `none`, `both` and `ew`.
+
 - **Opener leaves in a double of their escape only when a knob authored it
   as penalty (2026-10-18).** After `1NT (X)` and their run, opener's leave-in
   used to sit for any double of ours, even where the stack or values double
@@ -71,18 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`constraint::waived_at(vul, c)` and an opt-in trap-pass colour gate
-  (2026-10-18).** `waived_at` is the dual of `except_at`: `c` at every
-  vulnerability but `vul`, where it accepts every hand, with `c`'s
-  projection folds kept off that cell. `competition.trap_pass_unless_unfavourable`
-  (default off; `bba-gen --ns-trap-pass-unless-unfavourable`,
-  `ab-dump-sd --on-ns-trap-pass-unless-unfavourable`) uses it to waive the
-  trap pass when we are vulnerable and they are not, so a too-good stopper
-  bids `3NT` instead of converting partner's double of a white partscore.
-  It covers every `3NT` the trap shapes, over their overcall of our `1NT` and
-  in the advance of partner's takeout double of their weak two. Built from
-  the four-cell confirmation below; its confirmation on fresh deals is owed
-  (`scripts/ab-trap-pass-colour.sh`).
+- **`constraint::waived_at(vul, c)` (2026-10-18).** The dual of
+  `except_at`: `c` at every vulnerability but `vul`, where it accepts every
+  hand, with `c`'s projection folds kept off that cell. The trap-pass colour
+  gate (under Changed) is built on it.
 
 - **A/B flags for the 1NT-lane doubling knobs (2026-10-18).** `bba-gen`
   takes `--no-ns-one-nt-runout`, `--no-ns-trap-pass`, `--no-ns-penalty-pass`,
