@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **No values double of their escape after our business redouble, default
+  off (2026-10-18).** `decision.instinct.penalize_escape_values` is now off
+  (also in `web/`), and with it opener's leave-in: in `1NT (X) XX (2x)`,
+  opener's double is the floor's takeout and is advanced. With the stack
+  double (below) off too, the 1NT runout keeps its escapes but no longer
+  chases them with penalty doubles. Measured against BBA at all four cells
+  over 2,400,000 boards each with the stack double off (seed
+  1792339065938270446, `scripts/ab-escape-values-lane.sh`), on − off: plain
+  DD −0.0006 ±0.0001 (`none`), −0.0006 ±0.0002 (`both`), −0.0006 ±0.0001
+  (`ns`), −0.0005 ±0.0001 (`ew`) IMPs per board, all losses; PD −0.0000 to
+  +0.0002, a wash. Opener was sitting for the double against our 3NT.
+  `bba-gen --ns-penalize-escape-values` restores it.
+
 - **No stack double of their escape from our doubled `1NT`, default off
   (2026-10-18).** `decision.instinct.penalize_escape_stack` is now off (also
   in `web/`), and with it opener's leave-in of a double of their escape from

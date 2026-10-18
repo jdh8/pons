@@ -2385,10 +2385,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_penalize_escape_stack: bool,
 
-    /// Disable the values double of their escape after `1NT (X) XX` (default
-    /// on), and opener's leave-in of it (`penalize_escape_values`).
+    /// Enable the values double of their escape after `1NT (X) XX` (default
+    /// off), and opener's leave-in of it (`penalize_escape_values`).
     #[arg(long, default_value_t = false)]
-    no_ns_penalize_escape_values: bool,
+    ns_penalize_escape_values: bool,
 
     /// Enable Rubens advances of partner's simple overcall (**default off**
     /// since the layer lost its A/B, `scripts/ab-rubens.sh`): the natural
@@ -2993,7 +2993,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.trap_pass_unless_unfavourable =
         !args.no_ns_trap_pass_unless_unfavourable;
     agreements.decision.instinct.penalize_escape_stack = args.ns_penalize_escape_stack;
-    agreements.decision.instinct.penalize_escape_values = !args.no_ns_penalize_escape_values;
+    agreements.decision.instinct.penalize_escape_values = args.ns_penalize_escape_values;
     if args.no_ns_penalty_pass {
         agreements.competition.penalty_pass = None;
     }

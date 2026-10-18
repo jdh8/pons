@@ -184,9 +184,15 @@ pub struct InstinctProfile {
     pub penalize_escape_stack: bool,
     /// Double their escape from our `1NT` XX on values
     ///
-    /// **Default on** (A/B'd a win).  Once responder's business redouble has
-    /// shown the values, the double of their escape is made on strength rather
-    /// than on a trump stack.
+    /// Once responder's business redouble has shown the values, the double of
+    /// their escape is made on strength rather than on a trump stack, and
+    /// opener leaves it in.
+    ///
+    /// **Default off** since 2026-10-18.  Measured against BBA at all four
+    /// cells with [`penalize_escape_stack`][Self::penalize_escape_stack] off
+    /// (`scripts/ab-escape-values-lane.sh`, 2 400 000 boards each), on − off
+    /// plain DD read a loss in every cell (−0.0005..−0.0006 IMPs per board), PD
+    /// a wash: opener sat for the double against our 3NT.
     pub penalize_escape_values: bool,
     /// Encircle the opponents' escape from our `1NT (2NT) X`
     ///
@@ -691,7 +697,7 @@ impl Default for InstinctProfile {
             one_nt_runout_universal: true,
             unusual_2nt: Unusual2nt::Direct,
             penalize_escape_stack: false,
-            penalize_escape_values: true,
+            penalize_escape_values: false,
             uvu_encircle: true,
             settle_floor: true,
             latch_style: LatchStyle::Penalty,
@@ -1435,8 +1441,7 @@ fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
 /// escape, the values double
 /// ([`penalize_escape_values`][InstinctProfile::penalize_escape_values]) after
 /// responder's business redouble.  With a knob off, the double in its context
-/// is the floor's takeout and is advanced as one.  Only the values double is
-/// on by default.
+/// is the floor's takeout and is advanced as one.  Both are off by default.
 fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
         let Some(index) = our_doubled_one_nt_escape(context) else {

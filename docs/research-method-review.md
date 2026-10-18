@@ -216,8 +216,8 @@ off it is live: `scripts/ab-escape-values-lane.sh` measured it against
 
 A plain-DD loss in every cell, PD a wash; the worst boards are again opener
 sitting for the double (`1NT X XX 2♥ - 2♠ X - - -`) against our 3NT.
-**Proposed reversible default, owed to jdh8:** `penalize_escape_values` off
-(off is a plain win and PD non-inferior).
+*Values: default off (jdh8, 2026-10-18).* Off is a plain win and PD
+non-inferior.
 
 *Runout at `none`/`both`.* The same trade-off as `ns`/`ew`: plain DD loses
 in all four cells. Kept on (jdh8, 2026-10-18).

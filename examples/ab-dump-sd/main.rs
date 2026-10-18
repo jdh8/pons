@@ -162,10 +162,10 @@ struct Args {
     /// (`bba-gen --ns-penalize-escape-stack`).
     #[arg(long, default_value_t = false)]
     on_ns_penalize_escape_stack: bool,
-    /// Read the OFF arm without the values double of their escape
-    /// (`bba-gen --no-ns-penalize-escape-values`).
+    /// Read the ON arm with the values double of their escape
+    /// (`bba-gen --ns-penalize-escape-values`).
     #[arg(long, default_value_t = false)]
-    off_no_ns_penalize_escape_values: bool,
+    on_ns_penalize_escape_values: bool,
     /// Read the OFF arm with the trap pass kept at unfavourable
     /// (`bba-gen --no-ns-trap-pass-unless-unfavourable`).
     #[arg(long, default_value_t = false)]
@@ -332,6 +332,7 @@ fn main() {
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
+    on_arm.decision.instinct.penalize_escape_values = args.on_ns_penalize_escape_values;
     let read_arm = |arm: &pons::bidding::agreements::Agreements| {
         let partnership = american(arm).bind();
         if args.legacy_leader_reading {
@@ -363,7 +364,6 @@ fn main() {
     off_arm.competition.trap_pass = !args.off_no_ns_trap_pass;
     off_arm.competition.trap_pass_unless_unfavourable =
         !args.off_no_ns_trap_pass_unless_unfavourable;
-    off_arm.decision.instinct.penalize_escape_values = !args.off_no_ns_penalize_escape_values;
     if args.off_no_ns_penalty_pass {
         off_arm.competition.penalty_pass = None;
     }
