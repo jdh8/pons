@@ -915,6 +915,22 @@ pub struct CompetitionKnobs {
     /// `resp 3NT` losers, −22/−20, are erased — at a near-wash in the shared
     /// advance-of-takeout-double context; net `+155`/`+230`).
     pub trap_pass: bool,
+    /// Waive the trap pass at unfavourable vulnerability
+    ///
+    /// With [`trap_pass`][Self::trap_pass] on, the direct `3NT` keeps its
+    /// stopper but no longer denies 5+ HCP in their suit when we are
+    /// vulnerable and they are not: converting partner's takeout double of a
+    /// white partscore collects +300/+500, less than our red game.  The other
+    /// three cells are byte-identical.  It gates every `3NT` the trap shapes —
+    /// over their overcall of our `1NT` and in the advance of partner's
+    /// takeout double of their weak two (`advance_sohl`).
+    ///
+    /// **Off by default — confirmation owed.**  Built from the four-cell
+    /// confirmation (`scripts/ab-nt-doubling-4cell.sh`, 2026-10-18, 2 400 000
+    /// boards): trap pass vs none, plain DD −0.0005 ±0.0001 (loss) at `ns`,
+    /// +0.0008 ±0.0002 (win) at `ew`, the `(2M) X` advance lane carrying the
+    /// sign flip.  That run chose the gate, so it cannot confirm it.
+    pub trap_pass_unless_unfavourable: bool,
     // --- competition/rubensohl.rs
     /// How a flat 4-3-3-3 cue-Staymans when our `1NT` is overcalled
     ///
@@ -2198,6 +2214,7 @@ impl Default for CompetitionKnobs {
             two_diamond_double: None,
             penalty_pass: Some((4, 4, true)),
             trap_pass: true,
+            trap_pass_unless_unfavourable: false,
             competitive_4333: Competitive4333::Suppress,
             multi_stopper_ask: MultiStopperAsk::Off,
             multi_weak_escape: Some(6),

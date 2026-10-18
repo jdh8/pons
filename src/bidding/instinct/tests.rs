@@ -3576,6 +3576,40 @@ fn one_nt_runout_leaves_in_escape_penalty() {
     );
 }
 
+/// The leave-in follows the knob that authored the double: with the stack
+/// double off, partner's double of their escape from an unredoubled `1NT X`
+/// is the floor's takeout, and opener advances it
+#[test]
+fn one_nt_runout_leave_in_follows_the_authoring_knob() {
+    let mut agreements = Agreements::default();
+    assert!(agreements.decision.instinct.penalize_escape_stack);
+    assert!(agreements.decision.instinct.penalize_escape_values);
+    let doubled_run = [
+        call(1, Strain::Notrump),
+        Call::Double,
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let short = "AK73.K54.AJ63.98";
+    assert_eq!(best_with(&agreements, &doubled_run, short), Call::Pass);
+    agreements.decision.instinct.penalize_escape_stack = false;
+    assert_ne!(best_with(&agreements, &doubled_run, short), Call::Pass);
+    // After the business redouble the values double still owns the leave-in.
+    let redoubled_run = [
+        call(1, Strain::Notrump),
+        Call::Double,
+        Call::Redouble,
+        call(2, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    assert_eq!(best_with(&agreements, &redoubled_run, short), Call::Pass);
+    agreements.decision.instinct.penalize_escape_values = false;
+    assert_ne!(best_with(&agreements, &redoubled_run, short), Call::Pass);
+}
+
 #[test]
 fn one_nt_runout_penalizes_escape_on_values() {
     let mut agreements = Agreements::default();

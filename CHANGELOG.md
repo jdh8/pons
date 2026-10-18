@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Opener leaves in a double of their escape only when a knob authored it
+  as penalty (2026-10-18).** After `1NT (X)` and their run, opener's leave-in
+  used to sit for any double of ours, even where the stack or values double
+  was off and the double was the floor's takeout. It now follows the knob:
+  the stack double (`penalize_escape_stack`) in any escape, the values double
+  (`penalize_escape_values`) after our business redouble. Both are on by
+  default, so the default system is unchanged (a seeded re-deal of 25,000
+  boards at `ns` and at `ew` is byte-identical). Note the default still sits
+  for the floor's takeout double: of the 375 (`ns`) and 437 (`ew`) such
+  boards in the four-cell run, opener sat every time, at −508 and −1,282
+  IMPs. That is a meaning/reading mismatch, flagged in
+  `docs/research-method-review.md` §6, and `scripts/ab-escape-double-4cell.sh`
+  measures the two knobs on their own.
+
 - **The BEN servers are part of every BEN arm's identity (2026-10-18).**
   `scripts/ben-servers.sh start` now writes `~/ben/run/servers.meta`, a
   deterministic record of what the fleet runs: BEN's commit, a hash of its
@@ -57,6 +71,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`constraint::waived_at(vul, c)` and an opt-in trap-pass colour gate
+  (2026-10-18).** `waived_at` is the dual of `except_at`: `c` at every
+  vulnerability but `vul`, where it accepts every hand, with `c`'s
+  projection folds kept off that cell. `competition.trap_pass_unless_unfavourable`
+  (default off; `bba-gen --ns-trap-pass-unless-unfavourable`,
+  `ab-dump-sd --on-ns-trap-pass-unless-unfavourable`) uses it to waive the
+  trap pass when we are vulnerable and they are not, so a too-good stopper
+  bids `3NT` instead of converting partner's double of a white partscore.
+  It covers every `3NT` the trap shapes, over their overcall of our `1NT` and
+  in the advance of partner's takeout double of their weak two. Built from
+  the four-cell confirmation below; its confirmation on fresh deals is owed
+  (`scripts/ab-trap-pass-colour.sh`).
+
+- **A/B flags for the 1NT-lane doubling knobs (2026-10-18).** `bba-gen`
+  takes `--no-ns-one-nt-runout`, `--no-ns-trap-pass`, `--no-ns-penalty-pass`,
+  `--no-ns-penalize-escape-stack` and `--no-ns-penalize-escape-values`;
+  `ab-dump-sd` reads the OFF arm through each with the matching `--off-no-ns-*`
+  flag. Runners: `scripts/ab-nt-doubling-4cell.sh`,
+  `scripts/ab-accountant-floor-4cell.sh`, `scripts/ab-escape-double-4cell.sh`.
+
 - **`constraint::except_at(vul, c)`: gate a rule on colour without moving
   its readings (2026-10-17).** It accepts what `c` accepts at every
   vulnerability but `vul` (matched exactly), and keeps all of `c`'s
@@ -70,6 +104,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ungated package exactly, as the gate's description always claimed.
 
 ### Fixed
+
+- **The last four-cell confirmations of research-method review §6, no
+  default changed (2026-10-18).** Four doubling knobs that had been measured
+  only by seat-swap harnesses were re-measured against BBA at `ns` and `ew`,
+  each under a pre-registered rule with plain DD as the arbiter. The
+  seat-swap harnesses average favourable and unfavourable inside every board,
+  so they cannot measure one colour.
+  - The accountant floor stands, a win on every scorer at both cells: plain
+    DD +0.0546 ±0.0024 (`ns`) and +0.0347 ±0.0018 (`ew`) IMPs per board.
+  - Opener's penalty pass of `1NT (2♣) X` never fires against BBA, whose
+    `2♣` is Landy: 0 divergent boards of 2,400,000 at either cell. Recorded
+    as inert there, not as confirmed.
+  - The trap pass wins plain DD at `ew` (+0.0008 ±0.0002 per 1NT-filtered
+    board) and loses at `ns` (−0.0005 ±0.0001). The `(2M) X - -` conversion
+    carries the flip (−415 IMPs at `ns`, +2,155 at `ew`): against a white
+    partscore the penalty pays less than our red game. Kept on; the colour
+    gate above is owed a fresh-seed confirmation.
+  - The doubled-1NT runout loses plain DD at both cells (`ns` −0.0004
+    ±0.0002, `ew` −0.0008 ±0.0002) while PD, blind to our doubles, reads a
+    win. Kept on as a recorded trade-off: the escapes themselves win, and the
+    loss is opener leaving in our later double of their escape (see Changed).
+
+  Numbers and decisions are in `docs/research-method-review.md` §6.
 
 - **Four-cell confirmations, no default changed (2026-10-16).** Defaults
   that shipped on none/both only were re-measured at `ns` and `ew`, each on a

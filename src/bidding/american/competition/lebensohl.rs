@@ -80,9 +80,15 @@ pub enum LebensohlStyle {
 }
 
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
-/// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
-/// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
-/// constraints have distinct types, so each combination is authored in its own arm.
+/// stopper ([`direct_3nt_stopper`]), trap-pass ([`trap_pass`]) and trap colour
+/// ([`trap_pass_unless_unfavourable`]) toggles. The trap denies a too-good
+/// stopper (`suit_hcp(over, ..=4)`), waived at unfavourable under the colour
+/// gate. The `&`-chained constraints have distinct types, so each combination is
+/// authored in its own arm.
+///
+/// [`direct_3nt_stopper`]: crate::bidding::agreements::CompetitionKnobs::direct_3nt_stopper
+/// [`trap_pass`]: crate::bidding::agreements::CompetitionKnobs::trap_pass
+/// [`trap_pass_unless_unfavourable`]: crate::bidding::agreements::CompetitionKnobs::trap_pass_unless_unfavourable
 pub(super) fn author_direct_3nt(
     rules: Rules,
     weight: i16,
@@ -90,18 +96,23 @@ pub(super) fn author_direct_3nt(
     agreements: &Agreements,
 ) -> Rules {
     let nt = Bid::new(3, Strain::Notrump);
+    let knobs = &agreements.competition;
+    let trap = || waived_at(RelativeVulnerability::WE, suit_hcp(over, ..=4));
     match (
-        agreements.competition.direct_3nt_stopper,
-        agreements.competition.trap_pass,
+        knobs.direct_3nt_stopper,
+        knobs.trap_pass,
+        knobs.trap_pass_unless_unfavourable,
     ) {
-        (true, true) => rules.rule(
+        (true, true, false) => rules.rule(
             nt,
             weight,
             points(10..) & stopper_in(over) & suit_hcp(over, ..=4),
         ),
-        (true, false) => rules.rule(nt, weight, points(10..) & stopper_in(over)),
-        (false, true) => rules.rule(nt, weight, points(10..) & suit_hcp(over, ..=4)),
-        (false, false) => rules.rule(nt, weight, points(10..)),
+        (true, true, true) => rules.rule(nt, weight, points(10..) & stopper_in(over) & trap()),
+        (true, false, _) => rules.rule(nt, weight, points(10..) & stopper_in(over)),
+        (false, true, false) => rules.rule(nt, weight, points(10..) & suit_hcp(over, ..=4)),
+        (false, true, true) => rules.rule(nt, weight, points(10..) & trap()),
+        (false, false, _) => rules.rule(nt, weight, points(10..)),
     }
 }
 

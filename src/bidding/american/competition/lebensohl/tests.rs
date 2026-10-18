@@ -3507,3 +3507,30 @@ fn landy_wilkosz_reads_no_diamonds() {
         "no six-card suit: {partner:?}",
     );
 }
+
+/// `trap_pass_unless_unfavourable` waives the trap at unfavourable only: a
+/// too-good stopper bids `3NT` when we are red against white, and still
+/// traps at the other three cells
+#[test]
+fn the_trap_yields_to_game_at_unfavourable() {
+    use contract_bridge::auction::RelativeVulnerability as V;
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
+    // ♥AQxx: 6 HCP in their suit, game values, too long for the optional `X`.
+    let trap = "K32.AQ54.K54.J32";
+    let shipped = Agreements::default();
+    assert!(!shipped.competition.trap_pass_unless_unfavourable);
+    let mut gated = shipped;
+    gated.competition.trap_pass_unless_unfavourable = true;
+    let nt = call(3, Strain::Notrump);
+    for vul in [V::NONE, V::THEY, V::WE, V::WE | V::THEY] {
+        assert_ne!(best_call_vul(&shipped, vul, &auction, trap), nt, "{vul:?}");
+    }
+    assert_eq!(best_call_vul(&gated, V::WE, &auction, trap), nt);
+    for vul in [V::NONE, V::THEY, V::WE | V::THEY] {
+        assert_eq!(
+            best_call_vul(&gated, vul, &auction, trap),
+            best_call_vul(&shipped, vul, &auction, trap),
+            "{vul:?}: the trap is untouched",
+        );
+    }
+}

@@ -1423,9 +1423,23 @@ fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
 /// We doubled their escape for penalty; partner leaves it in rather than read it
 /// as the takeout the `advancing_a_double` default would advance (see
 /// [`our_doubled_one_nt_escape`])
+///
+/// Only where an armed knob authored a penalty double: the stack double
+/// ([`penalize_escape_stack`][InstinctProfile::penalize_escape_stack]) in any
+/// escape, the values double
+/// ([`penalize_escape_values`][InstinctProfile::penalize_escape_values]) after
+/// responder's business redouble.  With a knob off, the double in its context
+/// is the floor's takeout and is advanced as one.  Both are on by default, so
+/// the default is unchanged.
 fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        our_doubled_one_nt_escape(context).is_some() && context.penalty() == Penalty::Doubled
+        let Some(index) = our_doubled_one_nt_escape(context) else {
+            return false;
+        };
+        let profile = pinned(context);
+        let redoubled = context.auction().get(index + 2) == Some(&Call::Redouble);
+        context.penalty() == Penalty::Doubled
+            && (profile.penalize_escape_stack || redoubled && profile.penalize_escape_values)
     })
 }
 

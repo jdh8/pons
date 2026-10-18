@@ -1297,3 +1297,27 @@ fn except_at_keeps_every_fold_off_its_cell() {
         EnvelopeUnion::unknown(),
     );
 }
+
+/// `waived_at` is `inner` off its cell, folds included, and accepts every
+/// hand on it
+#[test]
+fn waived_at_lifts_the_restriction_on_its_cell_only() {
+    use RelativeVulnerability as V;
+    let inner = len(Suit::Clubs, 4..);
+    let waived = waived_at(V::WE, len(Suit::Clubs, 4..));
+    let short = hand("AKQ.K532.QJ4.T9");
+    for vul in [V::NONE, V::THEY, V::WE | V::THEY] {
+        let context = Context::new(vul, &[]);
+        assert_eq!(waived.project(&context), inner.project(&context));
+        assert_eq!(waived.project_band(&context), inner.project_band(&context));
+        assert_eq!(
+            waived.project_complement(&context),
+            inner.project_complement(&context),
+            "{vul:?}: the call below still denies four clubs",
+        );
+        assert_reject(waived.eval(short, &context));
+    }
+    let unfavourable = Context::new(V::WE, &[]);
+    assert_pass(waived.eval(short, &unfavourable));
+    assert_eq!(waived.project(&unfavourable), EnvelopeUnion::unknown());
+}

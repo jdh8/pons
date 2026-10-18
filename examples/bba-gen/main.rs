@@ -2354,6 +2354,41 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_doubler_run: bool,
 
+    /// Disable the doubled-1NT runout (default on): after `1NT (X)`, a weak
+    /// responder sits for `1NTx` instead of escaping to its long suit
+    /// (`one_nt_runout`, whose payloads go with it).
+    #[arg(long, default_value_t = false)]
+    no_ns_one_nt_runout: bool,
+
+    /// Disable responder's trap pass over their overcall of our 1NT (default
+    /// on): a direct `3NT` no longer denies 5+ HCP in their suit, so a strong
+    /// holding bids `3NT` instead of waiting to convert opener's reopening `X`.
+    #[arg(long, default_value_t = false)]
+    no_ns_trap_pass: bool,
+
+    /// Disable opener's penalty pass at `1NT (2♣) X -` (default on): with good
+    /// clubs opener answers the stolen Stayman instead of defending `2♣`
+    /// doubled.
+    #[arg(long, default_value_t = false)]
+    no_ns_penalty_pass: bool,
+
+    /// Waive the trap pass at unfavourable vulnerability (default off): the
+    /// direct `3NT` stops denying 5+ HCP in their suit when we are red against
+    /// white (`competition.trap_pass_unless_unfavourable`).
+    #[arg(long, default_value_t = false)]
+    ns_trap_pass_unless_unfavourable: bool,
+
+    /// Disable the stack double of their escape from our doubled `1NT`
+    /// (default on), and opener's leave-in of it: the double in that context
+    /// is the floor's takeout (`penalize_escape_stack`).
+    #[arg(long, default_value_t = false)]
+    no_ns_penalize_escape_stack: bool,
+
+    /// Disable the values double of their escape after `1NT (X) XX` (default
+    /// on), and opener's leave-in of it (`penalize_escape_values`).
+    #[arg(long, default_value_t = false)]
+    no_ns_penalize_escape_values: bool,
+
     /// Enable Rubens advances of partner's simple overcall (**default off**
     /// since the layer lost its A/B, `scripts/ab-rubens.sh`): the natural
     /// raises plus natural two-level new-suit advance become the transfer
@@ -2952,6 +2987,14 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.preempt_4m_require_ace = !args.no_ns_preempt_4m_ace;
     agreements.decision.instinct.correct_3nt_to_major = !args.no_ns_correct_3nt_to_major;
     agreements.decision.instinct.advancer_xx_runout = !args.no_ns_xx_runout;
+    agreements.decision.instinct.one_nt_runout = !args.no_ns_one_nt_runout;
+    agreements.competition.trap_pass = !args.no_ns_trap_pass;
+    agreements.competition.trap_pass_unless_unfavourable = args.ns_trap_pass_unless_unfavourable;
+    agreements.decision.instinct.penalize_escape_stack = !args.no_ns_penalize_escape_stack;
+    agreements.decision.instinct.penalize_escape_values = !args.no_ns_penalize_escape_values;
+    if args.no_ns_penalty_pass {
+        agreements.competition.penalty_pass = None;
+    }
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;

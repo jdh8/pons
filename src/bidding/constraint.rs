@@ -3418,6 +3418,105 @@ pub fn except_at<T: Constraint>(
     Cons(ExceptAt { inner, vul })
 }
 
+/// `inner`, waived at one vulnerability (the [`waived_at`] constraint)
+#[derive(Clone, Copy, Debug)]
+pub struct WaivedAt<T> {
+    inner: T,
+    vul: contract_bridge::auction::RelativeVulnerability,
+}
+
+impl<T: Constraint> WaivedAt<T> {
+    fn waived(&self, context: &Context<'_>) -> bool {
+        context.vul() == self.vul
+    }
+}
+
+impl<T: Constraint> Constraint for WaivedAt<T> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        if self.waived(context) {
+            crisp(true)
+        } else {
+            self.inner.eval(hand, context)
+        }
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.inner.dependencies() | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let inner = self.inner.projection_dependencies();
+        let context = |kind| inner.get(kind) | ConstraintDependencies::CONTEXT;
+        inner.remap(
+            context(ProjectionKind::Forward),
+            context(ProjectionKind::Band),
+            context(ProjectionKind::Complement),
+            context(ProjectionKind::Announcement),
+        )
+    }
+
+    fn describe(&self) -> Description {
+        use contract_bridge::auction::RelativeVulnerability as V;
+        let colour = match self.vul {
+            V::NONE => "at love all".into(),
+            V::WE => "at unfavourable".into(),
+            V::THEY => "at favourable".into(),
+            vul => format!("at {vul:?}"),
+        };
+        self.inner.describe().or(Description::atom(colour))
+    }
+
+    // Off the waived cell every fold is `inner`'s, so the readings there are
+    // untouched.  At the waived cell every hand is accepted: ⊤ is exact for
+    // the forward folds and sound for the complement (no hand fails, but
+    // there is no ⊥ to say so).
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.waived(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project(context)
+        }
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.waived(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project_band(context)
+        }
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.waived(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.project_complement(context)
+        }
+    }
+
+    fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if self.waived(context) {
+            EnvelopeUnion::unknown()
+        } else {
+            self.inner.announce(context)
+        }
+    }
+}
+
+/// `inner` at every vulnerability but `vul`, where it accepts every hand
+///
+/// The dual of [`except_at`]: it lifts a restriction at one colour instead of
+/// barring the rule there.  A `| (vulnerable() & !they_vulnerable())` term
+/// would evaluate the same but project to ⊤ at every cell, erasing what the
+/// restriction says elsewhere.  `vul` is matched exactly.
+#[must_use]
+pub fn waived_at<T: Constraint>(
+    vul: contract_bridge::auction::RelativeVulnerability,
+    inner: Cons<T>,
+) -> Cons<WaivedAt<Cons<T>>> {
+    Cons(WaivedAt { inner, vul })
+}
+
 /// About to open in a specific seat (the [`nth_seat`] constraint)
 #[derive(Clone)]
 struct NthSeat(u8);

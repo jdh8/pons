@@ -29,7 +29,7 @@ use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, at_least_as_long, balanced, described, except_at, has_stopper, hcp, len,
     longer_suit, longest_unbid, min_level_is, partner_suit_is, points, stopper_in,
-    stopper_in_their_suits, suit_hcp, support, they_bid, top_honors, vulnerable,
+    stopper_in_their_suits, suit_hcp, support, they_bid, top_honors, vulnerable, waived_at,
 };
 use super::super::context::Context;
 use super::super::fallback::{ReplaceNext, described_guard, described_rewrite, guard, rewriter};
