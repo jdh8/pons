@@ -963,6 +963,26 @@ non-inferior.
 *Runout at `none`/`both`.* The same trade-off as `ns`/`ew`: plain DD loses
 in all four cells. Kept on (jdh8, 2026-10-18).
 
+*Runout re-measured on the new default (2026-10-19): confirmed.* The
+trade-off above was read with both escape doubles on. With both default off,
+`scripts/ab-one-nt-runout-4cell.sh` (seed 1792355596197730592, sha
+e5edb7ec, `--filter-1nt --wide-1nt`, 2,400,000 boards per arm per cell,
+density 0.252512) measured default − `--no-ns-one-nt-runout`, rules
+pre-registered in its header:
+
+| Cell | Fired | Plain DD | PD | sd-plain | SD-PD |
+| --- | --- | --- | --- | --- | --- |
+| `none` | 300 | +0.0002 ±0.0001 | +0.0006 ±0.0001 | +0.0001 | +0.0004 |
+| `both` | 377 | +0.0005 ±0.0001 | +0.0010 ±0.0002 | +0.0003 | +0.0007 |
+| `ns` | 347 | +0.0004 ±0.0001 | +0.0009 ±0.0002 | +0.0003 | +0.0007 |
+| `ew` | 315 | +0.0003 ±0.0001 | +0.0007 ±0.0001 | +0.0001 | +0.0005 |
+
+A win on all four scorers in every cell, so under the header rule the
+recorded trade-off is retired and the runout stands as confirmed. The fired
+count fell from ~1,100 to ~300–380 per cell: on the escape-double run's
+`none` deals, stack (463) + values (302) + this run's ~300 ≈ the old 1,074,
+so most of the old divergence was the two doubles, not the escapes.
+
 
 
 ## 7 Auction conditioning: the documentation pass

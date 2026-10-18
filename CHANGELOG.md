@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The doubled-1NT runout is confirmed against BBA (2026-10-19).** It was
+  kept on as a recorded trade-off: plain DD lost in all four cells, and the
+  loss was opener leaving in our double of their escape. Both of those
+  doubles are now default off, so `scripts/ab-one-nt-runout-4cell.sh`
+  re-measured `one_nt_runout` on today's default (2,400,000 boards per arm
+  per cell, `--filter-1nt --wide-1nt`). Default − off, plain DD +0.0002 /
+  +0.0005 / +0.0004 / +0.0003 IMPs per filtered board (none/both/ns/ew, each
+  ±0.0001), PD +0.0006..+0.0010, sd-lead plain and SD-PD wins in every cell.
+  The trade-off is retired. No code or default changed.
+
 - **The research-method review's §6 is archived (2026-10-19).** The
   last four doubling knobs are decided, so the rest of §6 (the four-cell
   tooling record and its "Open" tables) moves verbatim to
