@@ -404,7 +404,8 @@ pub struct Dump {
 /// spins a full-core DDS pool and oversubscribes the box.
 /// Every shard must name the same bidders and bidding vulnerability, and be
 /// generated with the same arguments up to [`shard_config`]'s per-shard values
-/// (seed, output path, board count, server port, chunk offset, free-form note).
+/// (seed, output path, board count, server port, chunk offset, the chunks an
+/// assembled shard was built from).
 #[cfg(feature = "serde")]
 pub fn load_dump(path: &str) -> Dump {
     fn read(path: &std::path::Path) -> Dump {
@@ -464,15 +465,24 @@ pub fn load_dump(path: &str) -> Dump {
 /// A shard's generating arguments less the values that legitimately differ
 /// between the shards of one arm: `--seed` (`SEED_BASE + i`), `--output`/`-o`
 /// (the shard's own path), `--count`/`-c` (a re-dealt chunk), `--port`/`-p`
-/// (`ben-gen`'s server per shard), `--start-board` (a split shard's chunk
-/// offset) and `--note` (free-form provenance: an assembled BEN shard extends
-/// it, e.g. the 2026-09-13 Tier-S anchor's chunk-merged shards).  Every other
-/// argument is configuration, so two shards of one dir must agree on it.
+/// (`ben-gen`'s server per shard) and `--start-board` (a split shard's chunk
+/// offset).  Every other argument is configuration, so two shards of one dir
+/// must agree on it.
+///
+/// `--note` is configuration too: it records the BEN runtime (the runners'
+/// `ben-servers-sha256=`, older `*-conf-sha256=` and `BEN=` tokens), so a dir
+/// whose shards were bid by different servers refuses to load.  Its
+/// whitespace-separated tokens are kept except `assembled-from=…`, the chunk
+/// list a reassembled shard appends, and a note left empty by that counts as
+/// none.  Of the 46 noted shard dirs here and on dl02 (2026-10-18), only
+/// `ben-anchor/2026-09-13-daa8bf4a/both` then disagrees: two of its shards
+/// were recovered under the PASS-level patch, a mixed runtime
+/// docs/ben-gap-campaign.md records.
 ///
 /// Short forms are those of `bba-gen` and `ben-gen`, the generators that write
 /// shard dirs; `-p` is `ben-gen`'s port and unused by `bba-gen`.
 pub fn shard_config(gen_args: &[String]) -> Vec<&str> {
-    const PER_SHARD: [&str; 9] = [
+    const PER_SHARD: [&str; 8] = [
         "--seed",
         "--output",
         "-o",
@@ -481,12 +491,24 @@ pub fn shard_config(gen_args: &[String]) -> Vec<&str> {
         "--port",
         "-p",
         "--start-board",
-        "--note",
     ];
+    fn note<'a>(config: &mut Vec<&'a str>, note: &'a str) {
+        let start = config.len();
+        config.push("--note");
+        config.extend(
+            note.split_whitespace()
+                .filter(|token| !token.starts_with("assembled-from=")),
+        );
+        if config.len() == start + 1 {
+            config.pop();
+        }
+    }
     let mut config = Vec::with_capacity(gen_args.len());
     let mut args = gen_args.iter();
     while let Some(arg) = args.next() {
         match arg.split_once('=') {
+            Some(("--note", value)) => note(&mut config, value),
+            None if arg == "--note" => note(&mut config, args.next().map_or("", String::as_str)),
             Some((flag, _)) if PER_SHARD.contains(&flag) => {}
             None if PER_SHARD.contains(&arg.as_str()) => {
                 args.next();

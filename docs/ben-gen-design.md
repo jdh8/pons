@@ -116,8 +116,15 @@ BEN-side replay verification; fleet distribution.
   (TF runtime dominates; nets are ~5 MB) — 8 instances ≈ 8 GB on the 61 GB
   box, not RAM-bound.
 - **Never restart/upgrade servers mid-experiment** — the analog of the
-  no-rebuild-during-A/B iron rule. Record BEN tag + config hash + startup
-  seed in `gen_args`.
+  no-rebuild-during-A/B iron rule. `ben-servers.sh start` records what the
+  fleet runs in `$BEN_DIR/run/servers.meta` (BEN tag and commit, a hash of the
+  working-tree patches and each untracked file, conf hash, interpreter and
+  package set, startup seed and server flags, tier, fleet size; deterministic,
+  removed by `stop`). The A/B arms fingerprint it and the runners' `--note`
+  carries its sha256 into `gen_args`
+  ([measurement.md](measurement.md#runtime-provenance-and-resuming-arms)), so a fleet restarted from
+  another runtime refuses a resume. It attests the tree at launch: edit
+  `~/ben` only with the fleet stopped.
 
 ## Wire protocol (the whole integration surface)
 

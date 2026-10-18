@@ -28,8 +28,10 @@ Issues [#6](https://github.com/jdh8/pons/issues/6),
 its re-measures and recorded trade-offs and the
 [#9 cell-count audit](archive/research-method-review-closed.md#issue-9-cell-counts-cited-as-replication),
 the [filter-scope rule](archive/research-method-review-closed.md#filter-scope-the-rule-and-the-runner-classification)
-with its runner-by-runner classification, and the finished parts of §4, §5,
-§6, §7 and §11 are archived verbatim in
+with its runner-by-runner classification, the finished parts of §4, §5, §6
+and §7, and all of
+[§11](archive/research-method-review-closed.md#11-experiment-identity-and-resumable-runs)
+(closed 2026-10-18 with the BEN fleet manifest) are archived verbatim in
 [archive/research-method-review-closed.md](archive/research-method-review-closed.md).
 
 Once an item here is done, record the measured result or the explicit
@@ -283,16 +285,6 @@ or explain v8's loss.
 - Run `splice-labels.py --validate` on the existing splices and report
   unmatched, ambiguous or changed rows before deciding which labels need
   recomputation.
-
-## 11 Experiment identity and resumable runs
-
-**Resolved 2026-10-16** for `bba-gen`, `ben-gen` and every `ab-lib.sh`
-runner: atomic shards, `--verify`, a manifest compared on resume, stamped
-reports (`bf8fe233`; the record and the original finding are
-[archived](archive/research-method-review-closed.md#11-experiment-identity-and-resumable-runs)). **Open:** the BEN
-servers stay outside the fingerprint (the runners' `--note` records the
-conf's sha256); excluding `--note` from the `gen_args` check lets a changed
-tier-conf hash pass (the tier itself is checked by label).
 
 ## 12 Development banks and solver efficiency
 

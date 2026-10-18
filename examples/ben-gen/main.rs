@@ -68,8 +68,8 @@ struct Args {
     /// and exit without contacting BEN: `exe` (this binary's image), `lib`
     /// (the EPBot library `--calibrate-epbot` loads) and one `weights` per
     /// `PONS_FLOOR_WEIGHTS` blob.  `scripts/ab-lib.sh` fingerprints each arm
-    /// by them; the BEN servers are outside it (the runners' `--note` records
-    /// the tier conf's sha256, and servers never restart mid-experiment).
+    /// by them plus the BEN fleet's manifest, which `scripts/ben-servers.sh`
+    /// writes at start (this binary cannot see the servers' runtime).
     #[arg(long)]
     provenance: bool,
 
@@ -197,8 +197,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_level_minor_overcall_vul_tight: bool,
 
-    /// Free-form provenance recorded in gen_args (the launcher passes the
-    /// server conf's sha256 here)
+    /// Provenance recorded in gen_args: the runners pass the BEN fleet
+    /// manifest's sha256 (`ben-servers-sha256=…`).  Shards of one dir must
+    /// agree on it, less any `assembled-from=…` token (`common::shard_config`)
     #[arg(long)]
     note: Option<String>,
 

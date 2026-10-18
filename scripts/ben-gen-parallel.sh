@@ -11,6 +11,11 @@
 # PER_SHARD. The clients are IO-bound; the servers (already idle-class) are
 # the real load. Builds ben-gen up front — never rebuild while a run is live.
 #
+# The fleet must carry the manifest ben-servers.sh writes at start
+# ($BEN_DIR/run/servers.meta, BEN_DIR default ~/ben): a run refuses when it
+# is missing, when its tier is not the `-t` passed here (ben-gen's tier is
+# otherwise only a label), or when its fleet size is not the running count.
+#
 # SHARDS, when set, is the shard count the caller expects: a run refuses to
 # start unless exactly that many servers are up, so a fleet that grew or
 # shrank between two arms cannot silently change the deal set (JOBS is not
@@ -94,6 +99,26 @@ ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{
 	exit 1
 }
 n=$(printf '%s\n' "$ports" | wc -l | tr -d ' ')
+meta=${BEN_DIR:-$HOME/ben}/run/servers.meta
+[ -f "$meta" ] || {
+	echo "ben-gen-parallel: no fleet manifest $meta; restart the servers with scripts/ben-servers.sh" >&2
+	exit 1
+}
+tier=f # ben-gen's default
+prev=
+for a in "$@"; do
+	case $prev in -t | --tier) tier=$a ;; esac
+	case $a in --tier=*) tier=${a#--tier=} ;; -t?*) tier=${a#-t} ;; esac
+	prev=$a
+done
+grep -qx "tier: $tier" "$meta" || {
+	echo "ben-gen-parallel: -t $tier, but $meta records $(grep '^tier:' "$meta" || echo 'no tier')" >&2
+	exit 1
+}
+grep -qx "servers: $n" "$meta" || {
+	echo "ben-gen-parallel: $n BEN servers running, but $meta records $(grep '^servers:' "$meta" || echo 'no fleet size')" >&2
+	exit 1
+}
 if [ -n "${SHARDS:-}" ] && [ "$n" != "$SHARDS" ]; then
 	echo "ben-gen-parallel: $n BEN servers running, expected SHARDS=$SHARDS; a fleet change breaks shard pairing" >&2
 	exit 1

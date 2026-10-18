@@ -863,10 +863,31 @@ runners resume on the manifest and shard check; `ab-reading-knobs` keeps its
 layout with the same checks. `load_dump` rejects shard dirs whose `gen_args`
 differ beyond seed/output/count/port/start-board/note (none of 2,723 scanned
 here and on dl02 did). Results dirs without `arm.meta` now refuse to resume
-without `FORCE_REUSE=1`. **Open:** the BEN servers stay outside the
-fingerprint (the runners' `--note` records the conf's sha256); excluding
-`--note` from the `gen_args` check lets a changed tier-conf hash pass (the
-tier itself is checked by label).
+without `FORCE_REUSE=1`.
+
+**Closed 2026-10-18: the BEN servers.** The open gap was that the servers
+stayed outside the fingerprint (the runners' `--note` hashed the conf on disk,
+not what the fleet loaded, and nothing covered BEN's commit, its patches or
+its interpreter), that `load_dump` ignored `--note` so a dir mixing two
+runtimes loaded, and that the tier was a label only. Now
+`scripts/ben-servers.sh start` writes a deterministic
+`$BEN_DIR/run/servers.meta` once every port answers (BEN's describe and
+commit, a sha256 of `git diff --binary HEAD` and of each untracked file, the
+conf, the interpreter and its package set, the server flags, tier and fleet
+size), adopts an already-running port only when that manifest matches, and
+`stop` removes it. `ab-lib.sh` cksums it into every ben-gen arm's fingerprint
+(no manifest, no arm) and copies it beside the arm; the four `ab-ben-*`
+runners pass `--note "$(ben_note)"`, the manifest's sha256;
+`ben-gen-parallel.sh` refuses a missing manifest, a `-t` other than its tier,
+or a running fleet of another size. `shard_config` keeps `--note` as
+configuration less its `assembled-from=` tokens: of the 46 noted shard dirs
+here and on dl02, the only one that now refuses is
+`ben-anchor/2026-09-13-daa8bf4a/both`, whose two recovered shards ran the
+PASS-level patch and six did not (recorded in
+[ben-gap-campaign.md](../ben-gap-campaign.md), superseded by the 2026-10-11
+anchor, dl02 only). Covered by `scripts/test-arm-fingerprint.sh` (86 cases)
+and `examples/common/tests/dumps.rs`. Residual: the manifest attests the BEN
+tree at launch, so editing `~/ben` while the fleet runs is invisible to it.
 
 The original finding, for the record:
 [ab-lib.sh](../../scripts/ab-lib.sh), `arm`, considers an arm complete by shard

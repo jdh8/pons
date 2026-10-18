@@ -23,16 +23,71 @@
 # IRON RULE: never restart or upgrade servers mid-experiment — finish or kill
 # the run first (the analog of no-rebuild-during-A/B).
 #
+# SERVER MANIFEST.  Once every port answers, `start` writes
+# $BEN_DIR/run/servers.meta: what the fleet was launched from — BEN's commit,
+# a hash of its working-tree patches (the PASS-level bidding.py, the nolimit
+# gameapi.py, the shimmed _dds3.so) and of each untracked file, the conf, the
+# interpreter and its package set, the server flags, the tier and the fleet
+# size.  It is deterministic (no dates, no pids), so a restart from the same
+# runtime rewrites it byte for byte.  ab-lib.sh fingerprints it into every
+# ben-gen arm and the BEN runners' `--note` records its sha256, so a changed
+# runtime refuses a resume; ben-gen-parallel.sh checks `-t` against its tier.
+# `start` adopts an already-answering port only when servers.meta exists and
+# matches this start, and `stop` removes it, so it never vouches for a fleet
+# it does not describe.  It attests the tree at launch: edit $BEN_DIR only
+# with the fleet stopped.
+#
 set -euo pipefail
 
 BEN_DIR="${BEN_DIR:-$HOME/ben}"
 BEN_PYTHON="${BEN_PYTHON:-$BEN_DIR/.venv/bin/python}"
 BASE_PORT=8085
+META="$BEN_DIR/run/servers.meta"
+SERVER_ARGS=(--seed 42 --nolimit true --record false)
 here="$(dirname "$(readlink -f "$0")")"
 probe='hand=AK97543.K.T3.AK7&seat=N&dealer=N&vul=&ctx='
 
 probe_port() {
 	curl -s -m 30 "http://localhost:$1/bid?$probe" 2>/dev/null | grep -q '"bid"'
+}
+
+# servers_meta TIER CONF N — the fleet manifest (see SERVER MANIFEST above).
+# Every piece is an assignment, so a failed probe fails the start instead of
+# hashing an empty string.
+servers_meta() {
+	local python head diff untracked conf packages sum
+	python=$(command -v "$BEN_PYTHON") || {
+		echo "ben-servers: BEN_PYTHON=$BEN_PYTHON not found" >&2
+		return 1
+	}
+	head="$(git -C "$BEN_DIR" describe --tags --always) $(git -C "$BEN_DIR" rev-parse HEAD)" &&
+		diff=$(git -C "$BEN_DIR" diff --binary HEAD | sha256sum) &&
+		untracked=$(git -C "$BEN_DIR" ls-files --others --exclude-standard) || {
+		echo "ben-servers: cannot read the BEN checkout at $BEN_DIR" >&2
+		return 1
+	}
+	conf=$(sha256sum <"$2") || return 1
+	packages=$("$BEN_PYTHON" -c 'import sys, importlib.metadata as m
+print(sys.version)
+print(*sorted(d.metadata["Name"] + "==" + d.version for d in m.distributions()), sep="\n")') || {
+		echo "ben-servers: $BEN_PYTHON cannot list its packages" >&2
+		return 1
+	}
+	echo "ben: $head"
+	echo "ben-diff: ${diff%% *}"
+	while read -r f; do
+		case $f in '' | run/*) continue ;; esac # our logs and this manifest
+		sum=$(sha256sum <"$BEN_DIR/$f") || return 1
+		echo "untracked: ${sum%% *} $f"
+	done <<<"$untracked"
+	echo "tier: $1"
+	echo "conf: ${conf%% *} $2"
+	sum=$(sha256sum <"$python") || return 1
+	echo "python: ${sum%% *} $python"
+	sum=$(sha256sum <<<"$packages")
+	echo "packages: ${sum%% *}"
+	echo "args: ${SERVER_ARGS[*]}"
+	echo "servers: $3"
 }
 
 case "${1:-}" in
@@ -48,11 +103,15 @@ start)
 		;;
 	esac
 	mkdir -p "$BEN_DIR/run"
-	echo "BEN $(git -C "$BEN_DIR" describe --tags) tier=$tier"
-	sha256sum "$conf"
+	want=$(servers_meta "$tier" "$conf" "$n")
+	echo "$want"
 	for ((i = 0; i < n; i++)); do
 		port=$((BASE_PORT + i))
 		if probe_port "$port"; then
+			[ "$(cat "$META" 2>/dev/null)" = "$want" ] || {
+				echo "port $port: already serving, but $META is missing or describes another runtime; ben-servers.sh stop first" >&2
+				exit 1
+			}
 			echo "port $port: already serving — leaving it alone" >&2
 			continue
 		fi
@@ -62,7 +121,7 @@ start)
 			# pool; pin to 1 so N instances pack onto N cores, not N*32 threads thrashing.
 			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 PONS_IDLE_LOCAL= \
 				"$here/idle-run.sh" "$BEN_PYTHON" gameapi.py \
-				--config "$conf" --port "$port" --seed 42 --nolimit true --record false \
+				--config "$conf" --port "$port" "${SERVER_ARGS[@]}" \
 				>"$BEN_DIR/run/server-$port.log" 2>&1 </dev/null &
 		)
 	done
@@ -78,8 +137,12 @@ start)
 		}
 		echo "port $port: ready"
 	done
+	printf '%s\n' "$want" >"$META.tmp"
+	mv "$META.tmp" "$META"
+	echo "wrote $META"
 	;;
 stop)
+	rm -f "$META"
 	# ponytail: pattern-kill — ours are the only gameapi.py processes on this box
 	pkill -u "$USER" -f 'gameapi\.py' && echo "stopped" || echo "nothing running"
 	;;

@@ -20,9 +20,6 @@ R=${1:?usage: ab-ben-two-level-minor-overcall-vul.sh RESULTS_DIR}
 PER_SHARD=${PER_SHARD:-800}
 SHOW=${SHOW:-50}
 SERVERS=16
-CONF=vendor/ben/BEN-21GF-F.conf
-CONF_SHA=$(sha256sum "$CONF" | awk '{print $1}')
-NOTE="tier-f-conf-sha256=$CONF_SHA"
 
 ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu || true)
 count=$(printf '%s\n' "$ports" | awk 'NF { n++ } END { print n + 0 }')
@@ -46,6 +43,7 @@ JOBS=$SERVERS
 BUILD_EXTRA='--example ab-dump-sd'
 SKIP_BUILD=1
 . scripts/ab-lib.sh
+NOTE=$(ben_note)
 
 log "=== BEN two-level-minor-overcall-vul A/B start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in $VULS; do

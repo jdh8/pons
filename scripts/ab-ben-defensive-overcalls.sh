@@ -26,8 +26,6 @@ R=$BASE/$MODE
 PER_SHARD=${PER_SHARD:-1600}
 SHOW=${SHOW:-8}
 SERVERS=16
-CONF=vendor/ben/BEN-21GF-F.conf
-NOTE="tier-f-conf-sha256=$(sha256sum "$CONF" | awk '{print $1}')"
 
 ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu || true)
 count=$(printf '%s\n' "$ports" | awk 'NF { n++ } END { print n + 0 }')
@@ -44,6 +42,7 @@ GENERATOR=ben-gen
 JOBS=$SERVERS
 BUILD_EXTRA='--example ab-dump-sd'
 . scripts/ab-lib.sh
+NOTE=$(ben_note)
 
 # ben NAME VUL [flags...] — one Tier-F arm
 ben() { arm "$1" "$2" -t f --note "$NOTE" "${@:3}"; }

@@ -294,10 +294,35 @@ expect generate 'failed arm regenerated on resume' r f none
 # ben-gen-parallel.sh, whose shard count is the BEN fleet's size.
 ben=target/release/examples/ben-gen
 gen "$ben" 1
+# The stub fleet's manifest, as ben-servers.sh writes it at start.
+export BEN_DIR="$tmp/ben"
+mkdir -p ben/run
+fleet() { printf 'ben: %s\ntier: f\nservers: %s\n' "$1" "${2:-2}" >ben/run/servers.meta; }
+fleet v1
 with GENERATOR=ben-gen; expect generate 'ben arm' rb a none -t f
 [ "$(cat rb/a-none/shard-1.json)" = "$(shard 2)" ] && grep -q '^shards: 2$' rb/a-none/arm.meta \
-    || { echo "FAIL ben arm: shards or manifest missing" >&2; fails=$((fails + 1)); }
+    && grep -q '^servers ' rb/a-none/arm.meta && cmp -s ben/run/servers.meta rb/a-none/servers.meta \
+    || { echo "FAIL ben arm: shards, manifest or fleet copy missing" >&2; fails=$((fails + 1)); }
 with GENERATOR=ben-gen; expect skip 'ben arm unchanged' rb a none -t f
+fleet v2
+with GENERATOR=ben-gen; expect refuse 'ben fleet restarted from another runtime' rb a none -t f
+fleet v1
+with GENERATOR=ben-gen; expect skip 'ben fleet runtime restored' rb a none -t f
+rm ben/run/servers.meta
+with GENERATOR=ben-gen; expect refuse 'ben fleet without a manifest' rb a none -t f
+with GENERATOR=ben-gen; expect refuse 'ben fleet without a manifest, fresh arm' rb n none -t f
+fleet v1
+with GENERATOR=ben-gen; expect fail 'ben tier label disagrees with the fleet' rb t none -t s
+[ ! -e rb/t-none/shard-0.json ] \
+    || { echo "FAIL ben tier label: generated anyway" >&2; fails=$((fails + 1)); }
+with GENERATOR=ben-gen; expect fail 'ben tier label disagrees, = form' rb t2 none --tier=s
+grep -q -- '-t s, but .* records tier: f' rb/log \
+    || { echo "FAIL ben tier label: refused for another reason" >&2; fails=$((fails + 1)); }
+fleet v1 3
+with GENERATOR=ben-gen; expect fail 'ben fleet size disagrees with its manifest' rb z none -t f
+grep -q '2 BEN servers running, but .* records servers: 3' rb/log \
+    || { echo "FAIL ben fleet size: refused for another reason" >&2; fails=$((fails + 1)); }
+fleet v1
 with GENERATOR=ben-gen BBA_GEN=$tmp/off/bba-gen; expect skip 'ben arm ignores BBA_GEN' rb a none -t f
 gen "$ben" 2
 with GENERATOR=ben-gen; expect refuse 'ben-gen rebuilt' rb a none -t f

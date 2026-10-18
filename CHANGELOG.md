@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The BEN servers are part of every BEN arm's identity (2026-10-18).**
+  `scripts/ben-servers.sh start` now writes `~/ben/run/servers.meta`, a
+  deterministic record of what the fleet runs: BEN's commit, a hash of its
+  working-tree patches and untracked files, the conf, the interpreter and its
+  package set, the server flags, tier and fleet size. It refuses to adopt an
+  already-running port whose manifest differs, and `stop` removes it.
+  `ab-lib.sh` fingerprints the manifest into every `GENERATOR=ben-gen` arm and
+  keeps a copy beside it, so a fleet restarted from another BEN runtime
+  refuses a resume instead of mixing bidders; the four `ab-ben-*` runners
+  record its sha256 as `--note` (it used to hash the conf on disk, not what
+  the servers loaded). `ben-gen-parallel.sh` refuses a missing manifest, a
+  `-t` other than its tier (the tier was a label only) and a running fleet of
+  another size. `load_dump` now compares `--note` across a shard dir, less an
+  assembled shard's `assembled-from=` token, so a dir bid by two runtimes
+  refuses to load; of 46 noted dirs here and on dl02, only the 2026-09-13 BEN
+  anchor's `both` cell (two recovered shards under the PASS-level patch, dl02
+  only, superseded) now refuses. Closes research-method review §11. **Start
+  the fleet again before the next BEN run:** a fleet launched before this
+  change has no manifest and every BEN arm refuses it.
+
 - **Opener's Landy notrump rungs are silent at favourable, default on
   (2026-10-17).** In `1NT (2♣) X (2M)`, opener's `2NT` and `3NT` no longer
   fire when they are vulnerable and we are not: opener doubles on four trumps

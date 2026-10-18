@@ -21,7 +21,10 @@
 #                against, through scripts/$GENERATOR-parallel.sh.  A ben-gen
 #                runner sets JOBS to its BEN server count (the shard count,
 #                which ben-gen-parallel then insists on) and passes `-t f
-#                --note …` in each arm's flags; BBA_GEN applies to bba-gen only.
+#                --note "$(ben_note)"` in each arm's flags; BBA_GEN applies to
+#                bba-gen only.
+#   BEN_DIR      the BEN checkout ben-servers.sh launched (default ~/ben); its
+#                run/servers.meta is part of every ben-gen arm's fingerprint
 #
 # Sourcing exports SKIP_BUILD=1, so the build it does here is the only one the
 # whole experiment gets; see the comment at that line.
@@ -44,6 +47,7 @@ PROBE=target/release/examples/probe-divergence
 SHOW=${SHOW:-5}
 VULS=${VULS:-none both}
 GENERATOR=${GENERATOR:-bba-gen}
+BEN_META=${BEN_DIR:-$HOME/ben}/run/servers.meta
 case "$GENERATOR" in
     bba-gen | ben-gen) ;;
     *) echo "ab-lib: GENERATOR must be bba-gen or ben-gen, not $GENERATOR" >&2; exit 1 ;;
@@ -145,9 +149,13 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 # fail closed, including on fresh arms. FORCE_REUSE=1 explicitly overrides a
 # failed provenance check as well as a mismatched arm.meta. Doc-only commits
 # and unrebuilt source edits leave the fingerprint unchanged; a relink that
-# changes the bytes refuses.  A ben-gen arm's BEN servers are outside it: its
-# `--note` flag records the tier conf's sha256, and servers never restart
-# mid-experiment (docs/ben-gen-design.md).
+# changes the bytes refuses.  A ben-gen arm's fingerprint also cksums the BEN
+# fleet's manifest, $BEN_META, which scripts/ben-servers.sh writes at start
+# and removes at stop (BEN's commit and patches, the conf, the interpreter and
+# its packages, the server flags, tier and fleet size): no manifest, no arm,
+# and a fleet restarted from another runtime refuses a resume.  Each arm keeps
+# a copy as $dir/servers.meta, since the live one is rewritten by the next
+# start.
 #
 # A subshell body, so its names cannot clobber a runner's (`for a; do arm …`).
 arm_fingerprint() (
@@ -187,12 +195,25 @@ EOF
         echo "ab-lib: --provenance must name both exe and lib files" >&2
         return 1
     }
+    if [ "$GENERATOR" = ben-gen ]; then
+        fingerprint_file servers "$BEN_META" || return 1
+    fi
     echo "flags: $*"
     for a in "$@"; do
         f=${a#*=}
         if [ -f "$f" ]; then fingerprint_file "file $f" "$f" || return 1; fi
     done
 )
+# ben_note — a ben-gen arm's `--note`: the fleet manifest's sha256, so every
+# shard carries the identity of the servers that bid it (load_dump compares
+# notes across a shard dir).  Fails when no fleet manifest exists.
+ben_note() {
+    sum=$(sha256sum <"$BEN_META") || {
+        echo "ab-lib: no BEN fleet manifest at $BEN_META; start the servers with scripts/ben-servers.sh" >&2
+        return 1
+    }
+    echo "ben-servers-sha256=${sum%% *}"
+}
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"
@@ -238,6 +259,7 @@ seed-base: $SEED_BASE"
         echo "# jobs: ${JOBS:-} boards: ${BOARDS:-}"
         echo "# written: $(date -u +%FT%TZ)"
     } >"$dir/arm.meta"
+    if [ "$GENERATOR" = ben-gen ]; then cp "$BEN_META" "$dir/servers.meta"; fi
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
     SEED_BASE=$SEED_BASE JOBS=$SHARDS SHARDS=$SHARDS "$PARALLEL" "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1 || {

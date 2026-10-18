@@ -101,7 +101,8 @@ fn per_shard_arguments_may_differ() {
     Shards::new("per-shard-args", |dump| {
         dump.gen_args = ["--count", "9", "--port", "8086", "-o", "b/shard-1.json"]
             .into_iter()
-            .chain(["--seed=2", "--start-board", "313", "--note", "assembled"])
+            .chain(["--seed=2", "--start-board", "313"])
+            .chain(["--note", "assembled-from=chunks/shard-1/chunk-0.json"])
             .map(String::from)
             .collect();
     })
@@ -113,6 +114,23 @@ fn per_shard_arguments_may_differ() {
 fn a_later_shard_cannot_change_the_configuration() {
     Shards::new("config", |dump| {
         dump.gen_args.push("--ns-defensive-seam-split".into());
+    })
+    .load();
+}
+
+/// The 2026-09-13 BEN anchor's case: a reassembled shard whose note records a
+/// patched runtime the other shards did not run.
+#[test]
+#[should_panic(expected = "shard-1.json was generated with different arguments")]
+fn a_later_shard_cannot_change_the_runtime_note() {
+    Shards::new("note", |dump| {
+        dump.gen_args.extend(
+            [
+                "--note",
+                "BEN=v1+pass-level assembled-from=chunks/shard-1/chunk-0.json",
+            ]
+            .map(String::from),
+        );
     })
     .load();
 }
@@ -131,7 +149,8 @@ fn shard_config_keeps_configuration_and_drops_per_shard_values() {
         "-v",
         "none",
         "--note",
-        "tier=f",
+        "ben-servers-sha256=ab  assembled-from=c0.json,c1.json BEN=v1",
+        "--note=assembled-from=c2.json",
         "-o",
         "x.json",
         "--our-card=c.bbsa",
@@ -143,7 +162,17 @@ fn shard_config_keeps_configuration_and_drops_per_shard_values() {
     .collect();
     assert_eq!(
         shard_config(&args),
-        ["-t", "f", "-v", "none", "--our-card=c.bbsa", "--flag"]
+        [
+            "-t",
+            "f",
+            "-v",
+            "none",
+            "--note",
+            "ben-servers-sha256=ab",
+            "BEN=v1",
+            "--our-card=c.bbsa",
+            "--flag"
+        ]
     );
 }
 

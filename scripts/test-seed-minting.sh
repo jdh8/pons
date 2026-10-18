@@ -45,6 +45,10 @@ chmod +x "$tmp/bin/date" "$tmp/bin/pgrep" "$tmp/fake-gen"
 cp "$tmp/fake-gen" "$tmp/target/release/examples/bba-gen"
 cp "$tmp/fake-gen" "$tmp/target/release/examples/ben-gen"
 export PATH="$tmp/bin:$PATH" SKIP_BUILD=1 JOBS=2 BBA_GEN="$tmp/fake-gen"
+# The stub fleet's manifest, as ben-servers.sh writes it at start.
+export BEN_DIR="$tmp/ben"
+mkdir -p "$BEN_DIR/run"
+printf 'tier: f\nservers: 2\n' >"$BEN_DIR/run/servers.meta"
 export SEED_CLOCK_STATE="$tmp/clock"
 echo 0 >"$SEED_CLOCK_STATE"
 unset SEED_BASE
