@@ -73,15 +73,26 @@ was checked rather than assumed:
    prove an equal auction prefix or table configuration. Under a cell
    rotation that changed (six cells → three), a key can match the same deal
    and seat played under another cell (the DD block pins deal and seat, not
-   cell). If the six cells were distinct, at most half the boards kept their
-   cell across the walks, yet 84–85% of rows matched, so roughly a third or
-   more of the uniform rows probably matched across cells — **unmeasured**,
-   and harmful only where the cut had relabelled the row. The keyed
-   path also drops every old key that occurs twice (those rows keep the
-   teacher's one-hot) and gives one old label to every new row sharing its
-   key. `splice-labels.py --validate NEW_CHUNKS OLD_CHUNKS CUT_STEM` counts
-   all of this, comparing each transplant's (table, cell, auction prefix)
-   rebuilt from the chunks; it has not been run on this corpus.
+   cell). The keyed path also drops every old key that occurs twice (those
+   rows keep the teacher's one-hot) and gives one old label to every new row
+   sharing its key. `splice-labels.py --validate NEW_CHUNKS OLD_CHUNKS
+   CUT_STEM` counts all of this, comparing each transplant's (table, cell,
+   auction prefix) rebuilt from the chunks.
+
+   **Audited 2026-10-18** (`--validate` on all 20 shards, data from dl02):
+   the 12 axis/enriched shards are clean (all positional, identity 0, tag 0);
+   the 8 uniform shards exit 1, every mismatch a **cell**. Board `b` sat at
+   `cells[b % 6]` in the fleet walk and `cells[b % 3]` in the re-walk, so the
+   boards with `b % 6 ≥ 3` (the two `dutch-*` cells and `american-off/dutch-off`)
+   took their label from a Dutch table. Uniform totals: 2,656,815 rows;
+   409,161 unmatched (keep BBA's one-hot), 0 ambiguous, 0 shared, 0 tag or
+   table mismatches; 2,247,654 transplanted, of which **918,237 (40.9%) from
+   another cell** and 15,760 of those also from another auction prefix. What
+   matters is the rows the cut relabelled: 58,602 of the 424,070 transplanted
+   M32 relabels (13.8%, 0.87% of the 6.76M-row corpus) came from a Dutch cell,
+   824 of them from another auction. The cut relabelled cross-cell rows at
+   6.4% and same-cell rows at 6.7%. The shipped v6 floor trains on the
+   original cut stems, not a splice, so it is untouched.
 3. **The stale-label caveat, stated.** A transplanted label is an M32 rollout
    verdict under the book of 2026-09-13; the corpus features are the reading
    of today's book. The positional chunks' one-hot labels are identical and

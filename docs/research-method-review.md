@@ -252,9 +252,15 @@ shared and identity-mismatched transplants, identity rebuilt from each chunk.
 **New finding:** the key omits the cell, and the uniform shards' rotation went
 from six cells to three, yet 84–85% of rows key-matched, so probably a third
 or more of the uniform rows took a label from another cell (it matters only
-where the M32 cut relabelled the row). **Open:** run `--validate` on the 20
-M32 shards (the data is not on this box); a stored per-row identity sibling
-for future dumps.
+where the M32 cut relabelled the row). **Measured 2026-10-18:** `--validate`
+on the 20 M32 shards finds axis/enriched clean and every uniform mismatch a
+cell. 918,237 uniform rows (40.9% of their transplants) took a label from a
+Dutch cell, but only 58,602 of the 424,070 transplanted relabels (13.8%) did;
+824 of those also came from another auction prefix. No ambiguous, shared, tag
+or table mismatches occurred
+([features-v8.md §2](ai-bidder/features-v8.md#2-labels-without-a-relabel--the-transplant)).
+**Open:** whether the keyed splice should refuse a transplant whose
+rebuilt identity differs; a stored per-row identity sibling for future dumps.
 
 The original finding:
 
