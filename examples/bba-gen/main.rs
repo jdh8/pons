@@ -2378,11 +2378,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_trap_pass_unless_unfavourable: bool,
 
-    /// Disable the stack double of their escape from our doubled `1NT`
-    /// (default on), and opener's leave-in of it: the double in that context
-    /// is the floor's takeout (`penalize_escape_stack`).
+    /// Enable the stack double of their escape from our doubled `1NT`
+    /// (default off), and opener's leave-in of any double of their escape:
+    /// with it off, the double of an unredoubled escape is the floor's
+    /// takeout (`penalize_escape_stack`).
     #[arg(long, default_value_t = false)]
-    no_ns_penalize_escape_stack: bool,
+    ns_penalize_escape_stack: bool,
 
     /// Disable the values double of their escape after `1NT (X) XX` (default
     /// on), and opener's leave-in of it (`penalize_escape_values`).
@@ -2991,7 +2992,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.trap_pass = !args.no_ns_trap_pass;
     agreements.competition.trap_pass_unless_unfavourable =
         !args.no_ns_trap_pass_unless_unfavourable;
-    agreements.decision.instinct.penalize_escape_stack = !args.no_ns_penalize_escape_stack;
+    agreements.decision.instinct.penalize_escape_stack = args.ns_penalize_escape_stack;
     agreements.decision.instinct.penalize_escape_values = !args.no_ns_penalize_escape_values;
     if args.no_ns_penalty_pass {
         agreements.competition.penalty_pass = None;

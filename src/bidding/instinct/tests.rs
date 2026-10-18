@@ -3582,8 +3582,9 @@ fn one_nt_runout_leaves_in_escape_penalty() {
 #[test]
 fn one_nt_runout_leave_in_follows_the_authoring_knob() {
     let mut agreements = Agreements::default();
-    assert!(agreements.decision.instinct.penalize_escape_stack);
+    assert!(!agreements.decision.instinct.penalize_escape_stack);
     assert!(agreements.decision.instinct.penalize_escape_values);
+    agreements.decision.instinct.penalize_escape_stack = true;
     let doubled_run = [
         call(1, Strain::Notrump),
         Call::Double,

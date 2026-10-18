@@ -38,6 +38,12 @@
 #       BBA_GEN=$HOME/.local/opt/glibc-2.36/bba-gen \
 #       scripts/idle-run.sh scripts/ab-escape-double-4cell.sh ab-results/escape-double-4cell
 #
+# Ran 2026-10-18 on the 72f838f1 binaries.  The stack double has been default
+# off since: `bba-gen` now spells it `--ns-penalize-escape-stack` (and
+# `ab-dump-sd --on-ns-penalize-escape-stack`), so the `nostack` lines below
+# are the pre-flip spelling and only resume under SKIP_BUILD=1 with those
+# binaries.
+#
 # Resumable; SEED_BASE persists in $R/escape-double.seed.  Iron rule: do NOT
 # rebuild binaries while this runs.
 R=${1:?usage: ab-escape-double-4cell.sh RESULTS_DIR}

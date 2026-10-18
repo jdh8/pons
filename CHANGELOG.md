@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **No stack double of their escape from our doubled `1NT`, default off
+  (2026-10-18).** `decision.instinct.penalize_escape_stack` is now off (also
+  in `web/`), and with it opener's leave-in of a double of their escape from
+  an unredoubled `1NT (X)`: that double is the floor's takeout and opener
+  advances it. Measured against BBA at all four cells over 2,400,000 boards
+  each (seed 1792339065938270446), default − off: plain DD −0.0006 ±0.0001
+  (`none`), −0.0004 ±0.0002 (`both`), −0.0003 ±0.0001 (`ns`), −0.0007
+  ±0.0002 (`ew`) IMPs per board, all losses; PD +0.0008..+0.0011 and
+  SD-PD wins, sd-plain losses. Off is a plain-DD win and PD non-inferior.
+  The authored stack double fired on only 7 boards; the loss was opener
+  sitting for the takeout double against our game. `bba-gen
+  --ns-penalize-escape-stack` restores it.
+
 - **No trap pass at unfavourable, default on (2026-10-18).** When we are
   vulnerable and they are not, responder's direct `3NT` over their overcall
   of our `1NT`, and the `3NT` advance of partner's takeout double of their

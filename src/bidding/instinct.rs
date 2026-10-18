@@ -172,9 +172,15 @@ pub struct InstinctProfile {
     pub unusual_2nt: Unusual2nt,
     /// Double the opponents' escape from our doubled `1NT` on a trump stack
     ///
-    /// **Default on** — A/B'd +5..+7 IMPs per divergent board.  We hold a stack
-    /// in the suit they ran to, so the escape is punished instead of played
-    /// undisturbed.
+    /// We hold a stack in the suit they ran to, so the escape is punished
+    /// instead of played undisturbed, and opener leaves the double in.
+    ///
+    /// **Default off** since 2026-10-18.  With it on, opener also sits for the
+    /// floor's *takeout* double of an unredoubled escape, since the stack
+    /// double itself almost never fires.  Measured against BBA at all four
+    /// cells (`scripts/ab-escape-double-4cell.sh`, 2 400 000 boards each),
+    /// on − off plain DD read a loss in every cell (−0.0003..−0.0007 IMPs per
+    /// board), PD a win (+0.0008..+0.0011).
     pub penalize_escape_stack: bool,
     /// Double their escape from our `1NT` XX on values
     ///
@@ -684,7 +690,7 @@ impl Default for InstinctProfile {
             runout_xx_min: 7,
             one_nt_runout_universal: true,
             unusual_2nt: Unusual2nt::Direct,
-            penalize_escape_stack: true,
+            penalize_escape_stack: false,
             penalize_escape_values: true,
             uvu_encircle: true,
             settle_floor: true,
@@ -1429,8 +1435,8 @@ fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
 /// escape, the values double
 /// ([`penalize_escape_values`][InstinctProfile::penalize_escape_values]) after
 /// responder's business redouble.  With a knob off, the double in its context
-/// is the floor's takeout and is advanced as one.  Both are on by default, so
-/// the default is unchanged.
+/// is the floor's takeout and is advanced as one.  Only the values double is
+/// on by default.
 fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
         let Some(index) = our_doubled_one_nt_escape(context) else {

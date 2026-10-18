@@ -1701,7 +1701,7 @@ static SETTINGS: &[Setting] = &[
     toggle("strong_two_positive", REBIDS, "after a positive to 2♣: opener's five-card major, the raise, RKCB", true, set_strong_two_positive, strong_two_positive),
     gated("strong_two_grand", REBIDS, "after a positive to 2♣: seven on two of the three side kings, minors too", true, set_strong_two_grand, strong_two_grand, "strong_two_positive"),
     gated("strong_two_positive_notrump", REBIDS, "after 2♣ - 2NT: opener counts notrump (3NT to 24, 6NT 25–29, 7NT 30+), responder raises by count", true, set_strong_two_positive_notrump, strong_two_positive_notrump, "strong_two_positive"),
-    gated("penalize_escape_stack", FLOOR, "", true, set_penalize_escape_stack, penalize_escape_stack, "one_nt_runout"),
+    gated("penalize_escape_stack", FLOOR, "", false, set_penalize_escape_stack, penalize_escape_stack, "one_nt_runout"),
     gated("penalize_escape_values", FLOOR, "", true, set_penalize_escape_values, penalize_escape_values, "one_nt_runout"),
     gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),
     gated("penalty_latch", FLOOR, "", true, set_penalty_latch, penalty_latch, "notrump_defense=natural"),

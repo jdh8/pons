@@ -182,9 +182,45 @@ stack double, which almost never fires, so opener is leaving in the floor's
 takeout doubles as penalty: a call whose meaning and reading disagree. Since
 2026-10-18 the leave-in follows the knob that authored the double. The default
 is byte-identical (re-dealt 25,000 boards at `ns` and `ew`), so it still
-sits. `scripts/ab-escape-double-4cell.sh` measures each knob, with its
-leave-in, at all four cells. **Proposed reversible default, owed to jdh8
-after that run:** whichever knob loses plain DD at every cell goes default-off.
+sits. `scripts/ab-escape-double-4cell.sh` (seed 1792339065938270446,
+2,400,000 boards per arm per cell) measured each knob, with its leave-in, at
+all four cells, default − off:
+
+| Knob | Cell | Fired | Plain DD | PD | sd-plain | SD-PD |
+| --- | --- | --- | --- | --- | --- | --- |
+| `penalize_escape_stack` | `none` | 463 | −0.0006 ±0.0001 | +0.0009 ±0.0001 | −0.0008 | +0.0006 |
+| `penalize_escape_stack` | `both` | 382 | −0.0004 ±0.0002 | +0.0011 ±0.0002 | −0.0008 | +0.0008 |
+| `penalize_escape_stack` | `ns` | 396 | −0.0003 ±0.0001 | +0.0011 ±0.0002 | −0.0006 | +0.0008 |
+| `penalize_escape_stack` | `ew` | 470 | −0.0007 ±0.0002 | +0.0008 ±0.0002 | −0.0010 | +0.0007 |
+| `penalize_escape_values` | all four | 0 | — | — | — | — |
+| `one_nt_runout` | `none` | 1,074 | −0.0010 ±0.0002 | +0.0014 ±0.0002 | −0.0015 | +0.0008 |
+| `one_nt_runout` | `both` | 1,099 | −0.0007 ±0.0003 | +0.0021 ±0.0003 | −0.0014 | +0.0014 |
+
+*Stack: default off (jdh8, 2026-10-18).* A plain-DD loss in every cell, PD
+the double-blind column; off is a plain win and PD non-inferior (worst lower
+bound −0.0013 > −δ). The worst boards are all `1NT X - 2x - 2y X - - -`
+against our 3NT or 4M: opener sitting for the floor's takeout double.
+
+*Values: not measured.* The leave-in is `stack || (XX && values)` and the
+stack rule fires after the redouble too, so with the stack on the values knob
+was shadowed: the floor doubled anyway and opener still sat. With the stack
+off it is live: `scripts/ab-escape-values-lane.sh` measured it against
+`nostack` on the same deals (on = `nostack`, off = both knobs off):
+
+| Cell | Fired | Plain DD | PD |
+| --- | --- | --- | --- |
+| `none` | 302 | −0.0006 ±0.0001 | −0.0000 ±0.0001 |
+| `both` | 324 | −0.0006 ±0.0002 | +0.0002 ±0.0001 |
+| `ns` | 320 | −0.0006 ±0.0001 | +0.0000 ±0.0001 |
+| `ew` | 304 | −0.0005 ±0.0001 | +0.0001 ±0.0001 |
+
+A plain-DD loss in every cell, PD a wash; the worst boards are again opener
+sitting for the double (`1NT X XX 2♥ - 2♠ X - - -`) against our 3NT.
+**Proposed reversible default, owed to jdh8:** `penalize_escape_values` off
+(off is a plain win and PD non-inferior).
+
+*Runout at `none`/`both`.* The same trade-off as `ns`/`ew`: plain DD loses
+in all four cells. Kept on (jdh8, 2026-10-18).
 
 ## 7 Auction conditioning and the replay approximation
 
