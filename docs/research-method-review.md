@@ -259,8 +259,9 @@ Dutch cell, but only 58,602 of the 424,070 transplanted relabels (13.8%) did;
 824 of those also came from another auction prefix. No ambiguous, shared, tag
 or table mismatches occurred
 ([features-v8.md §2](ai-bidder/features-v8.md#2-labels-without-a-relabel--the-transplant)).
-**Open:** whether the keyed splice should refuse a transplant whose
-rebuilt identity differs; a stored per-row identity sibling for future dumps.
+The splice now refuses those pairs (jdh8, 2026-10-18; `--any-identity`
+reproduces the old splice byte for byte). **Open:** a stored per-row identity
+sibling for future dumps.
 
 The original finding:
 
@@ -288,9 +289,6 @@ or explain v8's loss.
 
 - Store a stable deal ID, dealer, vulnerability, full auction prefix and
   cell per row in future dumps, so a splice can be checked against it.
-- Run `splice-labels.py --validate` on the existing splices and report
-  unmatched, ambiguous or changed rows before deciding which labels need
-  recomputation.
 
 ## 12 Development banks and solver efficiency
 

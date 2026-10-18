@@ -93,12 +93,20 @@ was checked rather than assumed:
    824 of them from another auction. The cut relabelled cross-cell rows at
    6.4% and same-cell rows at 6.7%. The shipped v6 floor trains on the
    original cut stems, not a splice, so it is untouched.
+
+   **Since 2026-10-18 the splice refuses a pair whose rebuilt identity
+   differs** (jdh8): the row keeps BBA's one-hot, so a re-splice of the
+   uniform shards transplants ~50% of their rows instead of ~85%.
+   `--any-identity` restores the old pairing and reproduces the 2026-09-26
+   `corpus-v8` stems byte for byte (checked on `uniform-0` and `axis-0004`);
+   the v8 net below was trained on that splice.
 3. **The stale-label caveat, stated.** A transplanted label is an M32 rollout
    verdict under the book of 2026-09-13; the corpus features are the reading
    of today's book. The positional chunks' one-hot labels are identical and
    their reading moved on 0.12% of rows (`--diff` on one chunk); that the
    row's *auction* is identical is **not** established by the key (see 2).
-   Labels transplanted: ≈424k of M32's 460,341 (the uniform shortfall).
+   Labels transplanted: ≈424k of M32's 460,341 (the uniform shortfall) in
+   the 2026-09-26 splice; the identity check would drop that to ≈365k.
 
 ## 3. Training and export
 

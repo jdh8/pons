@@ -138,7 +138,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unmatched, ambiguous and identity-mismatched transplants (review §10).
   Run on the 20 M32 shards (2026-10-18): 58,602 of the v8 splice's 424,070
   transplanted relabels (0.87% of the corpus) came from a retired Dutch cell.
-  The shipped v6 floor is unaffected (it trains on the original cut).
+  The shipped v6 floor is unaffected (it trains on the original cut). The
+  splice now refuses any pair whose rebuilt (table, cell, auction prefix)
+  differs, leaving that row on BBA's one-hot; `--any-identity` reproduces the
+  2026-09-26 v8 splice byte for byte.
 
 - **A/B runs verify their shards and pin their deal set (2026-10-16).**
   `bba-gen` writes each shard to a temp file and renames it after an fsync, so
