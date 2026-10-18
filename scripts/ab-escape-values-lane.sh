@@ -31,7 +31,7 @@
 # predate the stack flip, so `--no-ns-penalize-escape-stack` below is their
 # spelling; today's `bba-gen` has the stack off by default.
 #
-# Read 2026-10-18 (verdicts in docs/research-method-review.md §6): plain DD
+# Read 2026-10-18 (verdicts in docs/archive/research-method-review-closed.md §6): plain DD
 # loss in all four cells (−0.0005..−0.0006), PD a wash.
 R=${1:?usage: ab-escape-values-lane.sh RESULTS_DIR}
 . "$(dirname "$0")/ab-lib.sh"

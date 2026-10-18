@@ -41,7 +41,7 @@
 # `--no-ns-landy-splinter-tails`, so a rerun's `base` arm needs it and the
 # `tails` arm is `main`.  Write-up: docs/one-notrump-competitive.md §N1r tails.
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed, arms
+# read; docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed, arms
 # with `--wide-1nt` added so the 1NT candidate covers the default opener
 # (runs before this date used the strict candidate and pair only with each
 # other), results in ab-results/landy-splinter-tails-nsew.  The tails double their save, so the asymmetric cells are the live ones.  The default stands in a cell

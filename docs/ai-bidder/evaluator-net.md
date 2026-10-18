@@ -812,6 +812,14 @@ That the perfect-defense column gains most is the expected shape: PD punishes
 overbidding hardest, so a sharper `sd` — which is what the featurization sweep
 bought — shows up first as *fewer* contracts bid past their break-even.
 
+**Against BBA at the colour cells (2026-10-18).** The seat-swap harness nets
+`ns` against `ew` on every board, so it cannot see a colour cell.
+`scripts/ab-accountant-floor-4cell.sh` (`bba-gen`, seed 1792325631045239806,
+1,228,800 unfiltered boards per arm per cell) read default − off at `ns`
+(20,013 fired) plain DD +0.0546 ±0.0024, PD +0.0462 ±0.0026, and at `ew`
+(16,500 fired) plain +0.0347 ±0.0018, PD +0.0315 ±0.0019. It wins both
+scorers at both cells, so the knob stands.
+
 ## Known ceilings
 
 - **The Gaussian is symmetric; tricks are not.** On a good fit the trick

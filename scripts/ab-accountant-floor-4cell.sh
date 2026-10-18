@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-accountant-floor-4cell.sh — `decision.instinct.accountant_floor` confirmed
-# at the asymmetric cells (docs/research-method-review.md § 6 "Open"; the
+# at the asymmetric cells (docs/archive/research-method-review-closed.md § 6 "Open"; the
 # 1NT-lane siblings are scripts/ab-nt-doubling-4cell.sh, whose header says
 # why this runs on bba-gen rather than the seat-swap `ab-accountant-floor`).
 #

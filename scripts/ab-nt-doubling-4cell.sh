@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-nt-doubling-4cell.sh — the three 1NT-lane doubling knobs the review's § 6
-# left owed, confirmed at the asymmetric cells (docs/research-method-review.md
+# left owed, confirmed at the asymmetric cells (docs/archive/research-method-review-closed.md
 # § 6 "Open").  The fourth, the accountant floor, deals unfiltered at its own
 # size: scripts/ab-accountant-floor-4cell.sh.
 #

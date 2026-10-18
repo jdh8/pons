@@ -45,7 +45,7 @@
 #         `base2` now carries `--no-ns-landy-strength-nv-invite`.
 #
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS=ns, fresh seed, arms
+# read; docs/archive/research-method-review-closed.md § 6).  VULS=ns, fresh seed, arms
 # with `--wide-1nt` added so the 1NT candidate covers the default opener
 # (runs before this date used the strict candidate and pair only with each
 # other), results in ab-results/landy-strength-residue-ns.  Only `nv2` against `base2` matters here; `ew` cannot differ, the knob adds a conjunct on our own vulnerability.  The default stands in a cell

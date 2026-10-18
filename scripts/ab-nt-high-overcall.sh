@@ -191,7 +191,7 @@ if [ "${ROUND:-1}" = 8 ]; then
 fi
 
 # Round 9 (`ROUND=9`): FOUR-CELL CONFIRMATION of the leave-in (pre-registered
-# 2026-10-16, before any number is read; docs/research-method-review.md § 6).
+# 2026-10-16, before any number is read; docs/archive/research-method-review-closed.md § 6).
 # Its v1 flipped sign by vulnerability, so the asymmetric cells are the real
 # test of the length gate.  Round 8's arms with `--wide-1nt` (the preempt scan's
 # 1NT candidate then covers the default opener), VULS="ns ew", fresh seed,

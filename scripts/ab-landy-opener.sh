@@ -72,7 +72,7 @@
 # BEFORE any headline.  Resumable; SEED_BASE persists in $R/landy-opener.seed.
 # Iron rule: do NOT edit `src/` while this runs.
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# read; docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed,
 # BOARDS=4608000, results in ab-results/landy-opener-nsew.  Arms gain
 # `--wide-1nt` so the 1NT candidate covers the default opener; the shipped
 # unit is px + rungs, so only `rungs vs base` runs (CONFIRM=1); `px` alone was

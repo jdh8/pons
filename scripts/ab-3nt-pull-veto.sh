@@ -14,7 +14,7 @@
 #       scripts/ab-3nt-pull-veto.sh ab-results/3nt-pull-veto \
 #       >ab-results/3nt-pull-veto.log 2>&1 &
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# read; docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed,
 # BOARDS=409600, results in ab-results/3nt-pull-veto-nsew.  Unfiltered, as the
 # ship.  The loop reads $VULS (default "none both", the ship's cells).
 #

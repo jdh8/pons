@@ -80,7 +80,7 @@
 # BEFORE any headline.  Resumable; SEED_BASE persists in $R/landy-doubler-flip.seed.
 # Iron rule: do NOT edit `src/` while this runs.
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# read; docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed,
 # BOARDS=4608000, results in ab-results/landy-doubler-px-nsew.  `px` has been
 # the default since 2026-08-29 and `--ns-landy-doubler-px` /
 # `--ns-landy-doubler-white` no longer exist, so the three-arm body below no

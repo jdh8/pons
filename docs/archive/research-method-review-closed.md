@@ -830,6 +830,140 @@ sd-plain +0.0055 ±0.0005 at `ns` over the ungated leave-in.
   boards per arm; the three-way rule is pre-registered in
   [competitive-accountant.md](../ai-bidder/competitive-accountant.md).
 
+### The last four doubling knobs *(2026-10-18)*
+
+**Closed 2026-10-18: every knob decided, the three loss-side flips committed**
+(`2720675b` trap-pass colour gate on, `eb394474` stack double off, `9a9e91a0`
+values double off). Each decision is also recorded where the knob lives:
+[bidding-options.md](../bidding-options.md) A3 for the runout and the escape
+doubles, the `trap_pass_unless_unfavourable` doc comment in
+`src/bidding/agreements.rs`, and
+[evaluator-net.md](../ai-bidder/evaluator-net.md#against-the-shipped-floor) for
+the accountant floor. The live §6 as it stood when it closed, moved here
+verbatim (links rebased):
+
+**P1, closed 2026-10-18.** `ab-lib.sh` takes `VULS`, the 40 runners with a
+plain `for v in none both` loop read it, and measurement.md checklist 8 asks
+for all four cells on competitive, sacrifice and doubling treatments and on
+any knob that reads `vulnerable()`. Every knob the four-cell confirmations
+flagged is decided. The Landy opener's notrump rungs and the N3 leave-in got
+colour gates that shipped. `defense_2c_landy_strength_nv_invite`,
+`their_3nt_pull_veto` and `competitive_push_natural_only` stay on as
+recorded trade-offs. The last of these closed on its BEN Tier-F guard at
+`ew`, plain −0.0006 ±0.0023 (inconclusive)
+([competitive-accountant.md](../ai-bidder/competitive-accountant.md)). The
+evidence, the runs and the record as it stood when it closed are
+[archived](#6-asymmetric-vulnerability-the-evidence-and-the-four-cell-runs).
+
+Since 2026-10-18 every runner that sources ab-lib loops over `$VULS`,
+including the four `ab-ben-*` runners (`ab-landy-nt-vs-x.sh` deliberately
+spells out its four cells).
+
+The seven scripts that do not source ab-lib
+(`ab-two-over-one{,-nofit-floor,-gate-sd,-gate-rescale}.sh`,
+`sd-pd-{queue,nt-defense,readjudicate}.sh`) and the data-gen
+`cachalot-xfix-gen.sh` read `${VULS:-none both}` too, defaults unchanged.
+
+**Open: the last four doubling knobs (read 2026-10-18).** `penalty_pass`,
+`trap_pass`, the doubled-1NT runout and `accountant_floor` had been measured
+only by seat-swap harnesses (`ab-nt-defense-matrix`, `ab-lebensohl`,
+`ab-one-nt-runout`, `ab-accountant-floor`). These put the treated pair N/S at
+one table and E/W at the other under one absolute vulnerability, so `ns` is
+unfavourable at one table and favourable at the other. Every board nets the
+two, and these harnesses cannot measure a colour cell, although they accept
+`--vulnerability ns`. `bba-gen` keeps us N/S against a fixed reference, so the
+confirmation ran there: `scripts/ab-nt-doubling-4cell.sh` (SEED_BASE
+1792323411437067982, `--filter-1nt --wide-1nt`, 2,400,000 boards per arm per
+cell, density 0.2525) and `scripts/ab-accountant-floor-4cell.sh` (1,228,800
+unfiltered). Rules were pre-registered in each header. All four knobs add
+doubles or conversions, so plain DD arbitrates and PD is the double-blind
+column. Figures are default − off, in IMPs per (filtered) board:
+
+| Knob | Cell | Fired | Plain DD | PD | Decision (jdh8, 2026-10-18) |
+| --- | --- | --- | --- | --- | --- |
+| `accountant_floor` | `ns` | 20,013 | +0.0546 ±0.0024 | +0.0462 ±0.0026 | stands |
+| `accountant_floor` | `ew` | 16,500 | +0.0347 ±0.0018 | +0.0315 ±0.0019 | stands |
+| `penalty_pass` | both | 0 | — | — | inert vs BBA (its `2♣` is Landy), recorded as inert, not as confirmed |
+| `trap_pass` | `ew` | 509 | +0.0008 ±0.0002 | +0.0013 ±0.0002 | stands |
+| `trap_pass` | `ns` | 333 | −0.0005 ±0.0001 | −0.0001 ±0.0001 | colour gate built, confirmed, default on |
+| `one_nt_runout` | `ns` | 1,093 | −0.0004 ±0.0002 | +0.0020 ±0.0003 | recorded trade-off, escape doubles isolated |
+| `one_nt_runout` | `ew` | 1,101 | −0.0008 ±0.0002 | +0.0017 ±0.0002 | recorded trade-off, escape doubles isolated |
+
+sd-lead agrees in sign on every row (trap pass `ns` sd-plain −0.0007, SD-PD
+−0.0004; runout sd-plain −0.0010 / −0.0014 with SD-PD +0.0013 / +0.0010).
+
+*Trap pass.* Split by lane over every divergent board (`ab-dump-bucket --by
+lane`): the `(2M) X - -` conversion reads −415 IMPs at `ns` and +2,155 at
+`ew`. Converting partner's takeout double of a white partscore collects
++300/+500, less than our red game. The `1NT (2x)` lane loses plain at both
+cells (−696 / −223), on only 120–160 boards, so it is a lead, not a verdict.
+`competition.trap_pass_unless_unfavourable` (built on the new
+`constraint::waived_at`) waives the trap at unfavourable only. This run chose
+it, so `scripts/ab-trap-pass-colour.sh` confirmed it on a fresh seed
+(1792337712783260436, `ns`, 2,400,000 boards, 320 fired): gate − none, plain
+DD +0.0005 ±0.0001, PD +0.0003 ±0.0001, sd-plain +0.0007, SD-PD +0.0005, all
+wins, and 0 divergent boards at `none`, `both` and `ew` (96,000 each). Default
+on since 2026-10-18.
+
+*Runout: the recorded trade-off.* Accepted loss: plain DD lower bounds
+−0.0006 (`ns`) and −0.0010 (`ew`) per filtered board; `none` and `both`
+were not measured against BBA. Counted over every divergent board, the
+two-level escapes win plain DD (`ns` +539, `ew` +352 IMPs). The loss is
+opener leaving in our later double of their escape:
+
+| Our double of their escape | `ns` | `ew` |
+| --- | --- | --- |
+| after `1NT (X) XX`: values double, opener sits | 334 bds, −1,290 | 319 bds, −1,082 |
+| after `1NT (X) -`: the floor's takeout double, opener sits | 375 bds, −508 | 437 bds, −1,282 |
+| after `1NT (X) -`: the authored stack double, opener sits | 3 bds, +31 | 4 bds, +46 |
+
+**Discrepancy, flagged.** The leave-in (`leave_in_escape_penalty`) sits for any
+double after the escape. In the unredoubled lane the book authors only the
+stack double, which almost never fires, so opener is leaving in the floor's
+takeout doubles as penalty: a call whose meaning and reading disagree. Since
+2026-10-18 the leave-in follows the knob that authored the double. The default
+is byte-identical (re-dealt 25,000 boards at `ns` and `ew`), so it still
+sits. `scripts/ab-escape-double-4cell.sh` (seed 1792339065938270446,
+2,400,000 boards per arm per cell) measured each knob, with its leave-in, at
+all four cells, default − off:
+
+| Knob | Cell | Fired | Plain DD | PD | sd-plain | SD-PD |
+| --- | --- | --- | --- | --- | --- | --- |
+| `penalize_escape_stack` | `none` | 463 | −0.0006 ±0.0001 | +0.0009 ±0.0001 | −0.0008 | +0.0006 |
+| `penalize_escape_stack` | `both` | 382 | −0.0004 ±0.0002 | +0.0011 ±0.0002 | −0.0008 | +0.0008 |
+| `penalize_escape_stack` | `ns` | 396 | −0.0003 ±0.0001 | +0.0011 ±0.0002 | −0.0006 | +0.0008 |
+| `penalize_escape_stack` | `ew` | 470 | −0.0007 ±0.0002 | +0.0008 ±0.0002 | −0.0010 | +0.0007 |
+| `penalize_escape_values` | all four | 0 | — | — | — | — |
+| `one_nt_runout` | `none` | 1,074 | −0.0010 ±0.0002 | +0.0014 ±0.0002 | −0.0015 | +0.0008 |
+| `one_nt_runout` | `both` | 1,099 | −0.0007 ±0.0003 | +0.0021 ±0.0003 | −0.0014 | +0.0014 |
+
+*Stack: default off (jdh8, 2026-10-18).* A plain-DD loss in every cell, PD
+the double-blind column; off is a plain win and PD non-inferior (worst lower
+bound −0.0013 > −δ). The worst boards are all `1NT X - 2x - 2y X - - -`
+against our 3NT or 4M: opener sitting for the floor's takeout double.
+
+*Values: not measured.* The leave-in is `stack || (XX && values)` and the
+stack rule fires after the redouble too, so with the stack on the values knob
+was shadowed: the floor doubled anyway and opener still sat. With the stack
+off it is live: `scripts/ab-escape-values-lane.sh` measured it against
+`nostack` on the same deals (on = `nostack`, off = both knobs off):
+
+| Cell | Fired | Plain DD | PD |
+| --- | --- | --- | --- |
+| `none` | 302 | −0.0006 ±0.0001 | −0.0000 ±0.0001 |
+| `both` | 324 | −0.0006 ±0.0002 | +0.0002 ±0.0001 |
+| `ns` | 320 | −0.0006 ±0.0001 | +0.0000 ±0.0001 |
+| `ew` | 304 | −0.0005 ±0.0001 | +0.0001 ±0.0001 |
+
+A plain-DD loss in every cell, PD a wash; the worst boards are again opener
+sitting for the double (`1NT X XX 2♥ - 2♠ X - - -`) against our 3NT.
+*Values: default off (jdh8, 2026-10-18).* Off is a plain win and PD
+non-inferior.
+
+*Runout at `none`/`both`.* The same trade-off as `ns`/`ew`: plain DD loses
+in all four cells. Kept on (jdh8, 2026-10-18).
+
+
 
 ## 7 Auction conditioning: the documentation pass
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-competitive-4cell.sh — the competitive accountant's three default-on
-# knobs, confirmed at the asymmetric cells (docs/research-method-review.md § 6).
+# knobs, confirmed at the asymmetric cells (docs/archive/research-method-review-closed.md § 6).
 #
 # The gate prices our vulnerability against theirs, yet every ship read only
 # `none` and `both`.  Four arms per cell, identical deals, every comparison the

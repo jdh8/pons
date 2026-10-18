@@ -33,7 +33,7 @@
 # and the `wilkosz` arm is `main`.  Write-up: docs/archive/
 # one-notrump-competitive-landy.md §N1s.
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS=ns, fresh seed, arms
+# read; docs/archive/research-method-review-closed.md § 6).  VULS=ns, fresh seed, arms
 # with `--wide-1nt` added so the 1NT candidate covers the default opener
 # (runs before this date used the strict candidate and pair only with each
 # other), results in ab-results/landy-wilkosz-ns.  `ew` cannot differ: the call is dead at favourable.  The default stands in a cell

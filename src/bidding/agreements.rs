@@ -1967,7 +1967,7 @@ pub struct CompetitionKnobs {
     /// ±0.0004 (run 5, `ab-results/landy-strength5`).  Re-measured
     /// 2026-10-16 with `--wide-1nt`: plain DD win at `both` (+0.0009 ±0.0003),
     /// loss at `ns` (−0.0008 ±0.0003); kept on as a recorded trade-off
-    /// (`docs/research-method-review.md` §6).
+    /// (`docs/archive/research-method-review-closed.md` §6).
     pub defense_2c_landy_strength_nv_invite: bool,
     /// Responder sits opener's `3NT` answer to its stopper cue
     /// (`1NT (2♣) 2NT - 3♣ - 3M - 3NT -`, and the diamond twin)

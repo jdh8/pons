@@ -82,7 +82,7 @@
 # persists in $R/2d-multi-doubler.seed.  Iron rule: do NOT rebuild binaries
 # while this runs.
 # FOUR-CELL CONFIRMATION (pre-registered 2026-10-16, before any number is
-# read; docs/research-method-review.md § 6).  VULS="ns ew", fresh seed, arms
+# read; docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed, arms
 # with `--wide-1nt` added so the 1NT candidate covers the default opener
 # (runs before this date used the strict candidate and pair only with each
 # other), results in ab-results/2d-multi-doubler-nsew.  The both-vul PD cell already read a loss; the asymmetric cells show whether it follows our vulnerability or theirs.  The default stands in a cell

@@ -74,7 +74,7 @@
 # raises were 5m422/6m322 openers; `24` still raises ten on three trumps.
 #
 # Asymmetric cells (pre-registered 2026-10-16, before any number is read;
-# docs/research-method-review.md § 6).  VULS="ns ew", fresh seed,
+# docs/archive/research-method-review-closed.md § 6).  VULS="ns ew", fresh seed,
 # BOARDS=384000, wide filter, ab-results/lebensohl-signoff-target-nsew.  We
 # sit N/S, so `ns` is red against white (the red target, `23`, applies) and
 # `ew` white against red (`24` applies):

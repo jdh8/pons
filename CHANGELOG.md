@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The research-method review's §6 is archived (2026-10-19).** The
+  last four doubling knobs are decided, so the rest of §6 (the four-cell
+  tooling record and its "Open" tables) moves verbatim to
+  `docs/archive/research-method-review-closed.md` §6. Each decision is also
+  recorded where the knob lives: the runout trade-off, the trap pass and its
+  colour gate, and `penalty_pass` inert against BBA in
+  `docs/bidding-options.md`; the accountant floor's colour cells in
+  `docs/ai-bidder/evaluator-net.md`. `docs/measurement.md` checklist 8 now
+  says why a seat-swap harness cannot measure a colour cell. Citations in
+  `scripts/`, `src/` and this file follow the move. No code or default
+  changed.
+
 - **No values double of their escape after our business redouble, default
   off (2026-10-18).** `decision.instinct.penalize_escape_values` is now off
   (also in `web/`), and with it opener's leave-in: in `1NT (X) XX (2x)`,
@@ -61,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for the floor's takeout double: of the 375 (`ns`) and 437 (`ew`) such
   boards in the four-cell run, opener sat every time, at −508 and −1,282
   IMPs. That is a meaning/reading mismatch, flagged in
-  `docs/research-method-review.md` §6, and `scripts/ab-escape-double-4cell.sh`
+  `docs/archive/research-method-review-closed.md` §6, and `scripts/ab-escape-double-4cell.sh`
   measures the two knobs on their own.
 
 - **The BEN servers are part of every BEN arm's identity (2026-10-18).**
@@ -159,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     win. Kept on as a recorded trade-off: the escapes themselves win, and the
     loss is opener leaving in our later double of their escape (see Changed).
 
-  Numbers and decisions are in `docs/research-method-review.md` §6.
+  Numbers and decisions are in `docs/archive/research-method-review-closed.md` §6.
 
 - **Four-cell confirmations, no default changed (2026-10-16).** Defaults
   that shipped on none/both only were re-measured at `ns` and `ew`, each on a
@@ -220,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a fresh seed reads a win on every scorer (plain +0.0009 ±0.0003, PD
   +0.0016 ±0.0003, SD-PD +0.0013 ±0.0003 IMPs per accepted board), so it
   stays on as a recorded trade-off. Details in
-  `docs/research-method-review.md` §4 and §6.
+  `docs/research-method-review.md` §4 and
+  `docs/archive/research-method-review-closed.md` §6.
 
 - **The trainer's validation split no longer cuts a board in two
   (2026-10-16).** The cut moves to the next board start; `--row-split` keeps the

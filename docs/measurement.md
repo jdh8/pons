@@ -127,7 +127,12 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    doubling** treatment, or a knob that reads `vulnerable()`, is confirmed at
    all four cells: `VULS="none ns ew both"` (ab-lib; we sit N/S, so `ns` is
    unfavourable, `ew` favourable). Each cell rebids its own auctions; a
-   verdict names the cells it covers.
+   verdict names the cells it covers. The seat-swap `examples/ab-*`
+   harnesses cannot measure a colour cell, although they accept
+   `--vulnerability ns`: the treated pair sits N/S at one table and E/W at
+   the other, so every board nets unfavourable against favourable. Run a
+   colour cell on `bba-gen`, which keeps us N/S against a fixed reference
+   (2026-10-18; it found the trap pass's sign flip).
 9. **Read the verdict from the [decision table](#the-decision-table).**
 10. **Before declaring a loss dead, trace the worst divergent boards.** The
    cause is often an unauthored continuation, an over-broad trigger firing
