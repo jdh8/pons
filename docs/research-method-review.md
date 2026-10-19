@@ -311,6 +311,11 @@ Levers, ranked by how much each preserves the KR1 proof:
    about `max(sample, solve)`, ≈ −40% at this load. Every caller of
    `single_dummy_leads` benefits: ab-dump-sd and the twelve other SD harnesses
    and probes. Cost: a `Send` bound on the RNG.
+   **Shipped 2026-10-19.** On the same pair, run back to back with
+   `JOBS`/`DDSS_THREADS` 96, both reports are byte-identical to the archived
+   one. Wall time went from 690 s (HEAD, load ~690) to 460 s (−33%, load
+   ~600). Load was lower for the second run, so the size of the cut is
+   approximate; the identity is exact.
 2. **Parallel sampling with per-question seeds** drawn serially from the RNG.
    This is faster still on a free box, where DD speeds up and serial
    sampling would dominate. It changes the RNG stream, so every SD number

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Single-dummy lead scoring samples while it solves (2026-10-19).**
+  `single_dummy_leads` and its siblings now sample worlds on a background
+  thread that owns the RNG and draws in the same order as before. The main
+  thread keeps the DD solver and solves batches as they arrive. Answers and
+  RNG state are unchanged. On the profiled `competitive-4cell-nsew` ns pair,
+  the `ab-dump-sd` report is byte-identical and wall time went from 690 s to
+  460 s (−33%, at a load of ~600–690). Every SD harness that calls it gets
+  the same speedup. **API:** the `rng` parameter of `single_dummy_leads`,
+  `single_dummy_leads_with_stats`, `single_dummy_lead_tricks` and
+  `single_dummy_declarer_tricks{,_with_stats}` now needs `Send`.
+
 - **The doubled-1NT runout is confirmed against BBA (2026-10-19).** It was
   kept on as a recorded trade-off: plain DD lost in all four cells, and the
   loss was opener leaving in our double of their escape. Both of those

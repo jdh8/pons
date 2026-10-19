@@ -258,6 +258,36 @@ fn lead_stats_leave_the_answer_alone() {
     );
 }
 
+/// The batch overlaps sampling with solving, yet answers exactly as one
+/// question at a time on the same RNG, and leaves the RNG at the same place.
+#[test]
+fn batched_leads_match_serial_leads() {
+    let mut deal_rng = StdRng::seed_from_u64(23);
+    let empty = Builder::new()
+        .build_partial()
+        .expect("an empty partial deal is valid");
+    let questions: Vec<_> = fill_deals(&mut deal_rng, empty)
+        .zip(Strain::ASC.into_iter().cycle())
+        .zip(Seat::ALL.into_iter().cycle())
+        .take(10)
+        .map(|((deal, strain), declarer)| LeadQuestion {
+            deal,
+            strain,
+            declarer,
+            inferences: no_inferences(),
+        })
+        .collect();
+    let mut rng_a = StdRng::seed_from_u64(29);
+    let mut rng_b = StdRng::seed_from_u64(29);
+    let batched = single_dummy_leads(&questions, &mut rng_a, 4);
+    let serial: Vec<_> = questions
+        .iter()
+        .flat_map(|question| single_dummy_leads(std::slice::from_ref(question), &mut rng_b, 4))
+        .collect();
+    assert_eq!(batched, serial);
+    assert_eq!(rng_a.next_u64(), rng_b.next_u64());
+}
+
 /// A reading the leader's own hand contradicts — they hold nine hearts, and
 /// declarer (the leader's RHO) opened `1♥` — is topped up unconstrained, and
 /// the stats say so.

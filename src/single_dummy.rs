@@ -133,7 +133,7 @@ pub fn single_dummy_lead_tricks(
     strain: Strain,
     declarer: Seat,
     inferences: &Inferences,
-    rng: &mut impl Rng,
+    rng: &mut (impl Rng + Send),
     n: usize,
 ) -> (Card, TrickCount) {
     let question = LeadQuestion {
@@ -163,19 +163,22 @@ pub struct LeadQuestion {
 }
 
 /// Batched [`single_dummy_lead_tricks`]: answer many opening-lead positions
-/// with one pooled double-dummy call
+/// with pooled double-dummy calls
 ///
 /// Semantically identical to mapping [`single_dummy_lead_tricks`] over
 /// `questions` with the same `rng` — same worlds, same leads, same tricks —
-/// but every position's solves go into a **single** batched
-/// [`Solver::solve_boards`], so one slow board no longer stalls a tiny batch:
-/// wall-clock approaches total work over the pool width instead of the sum of
-/// per-position maxima.  Prefer this whenever positions are known in advance
-/// (a tournament scorer pricing thousands of auctions).
+/// but the positions' solves are pooled into batched
+/// [`Solver::solve_boards`] calls, so one slow board no longer stalls a tiny
+/// batch, and a sampler thread draws the next worlds while the solver works:
+/// wall-clock approaches the slower of sampling and total solving over the
+/// pool width, instead of the sum of per-position maxima.  Prefer this
+/// whenever positions are known in advance (a tournament scorer pricing
+/// thousands of auctions).  `rng` is `Send` because the sampler thread
+/// borrows it.
 #[must_use]
 pub fn single_dummy_leads(
     questions: &[LeadQuestion],
-    rng: &mut impl Rng,
+    rng: &mut (impl Rng + Send),
     n: usize,
 ) -> Vec<(Card, TrickCount)> {
     single_dummy_leads_with_stats(questions, rng, n).0
@@ -192,46 +195,43 @@ pub fn single_dummy_leads(
 #[must_use]
 pub fn single_dummy_leads_with_stats(
     questions: &[LeadQuestion],
-    rng: &mut impl Rng,
+    rng: &mut (impl Rng + Send),
     n: usize,
 ) -> (Vec<(Card, TrickCount)>, Vec<SampleStats>) {
     assert!(n > 0, "a lead needs at least one sampled world");
-    // Per question: `n` sampled worlds then the actual deal, all as trick-one
-    // [`Target::Legal`] solves.  A legal-solve score is the tricks the
-    // *defense* takes after that lead with perfect play thereafter; the lead
-    // is chosen from the sampled worlds only (no peeking at the real layout),
-    // and the actual deal's entry converts the chosen lead into declarer
-    // tricks as `13 − defensive tricks`.
-    let mut objectives = Vec::with_capacity(questions.len() * (n + 1));
-    let mut sampling = Vec::with_capacity(questions.len());
-    for question in questions {
-        let leader = question.declarer.lho();
-        let hand = question.deal[leader];
-        let (mut worlds, mut stats) =
-            sample_layouts_with_stats(hand, leader, &question.inferences, rng, n);
-        if worlds.len() < n {
-            // Tight or jointly-infeasible reading: top up unconstrained so
-            // the lead is still chosen over `n` worlds.
-            let mut builder = Builder::new();
-            builder[leader] = hand;
-            let partial = builder
-                .build_partial()
-                .expect("one thirteen-card hand is a valid partial deal");
-            stats.fallback = n - worlds.len();
-            stats.fallback_draws = stats.fallback;
-            worlds.extend(fill_deals(rng, partial).take(stats.fallback));
+    // Sampling and solving overlap: a scoped thread owns `rng` and samples
+    // the questions in order, while this thread (where the solver must stay)
+    // solves whatever the sampler has ready.  The draws happen in the same
+    // order as a serial loop and each world's DD score does not depend on its
+    // batch, so the answers are identical; wall time approaches the slower
+    // phase instead of the sum.
+    let solver = crate::dd::solver();
+    let mut found = Vec::with_capacity(questions.len() * (n + 1));
+    let sampling = std::thread::scope(|scope| {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let sampler = scope.spawn(move || {
+            questions
+                .iter()
+                .map(|question| {
+                    let (objectives, stats) = lead_objectives(question, rng, n);
+                    // The receiver outlives every send unless this thread's
+                    // caller already panicked; nothing is lost either way.
+                    let _ = tx.send(objectives);
+                    stats
+                })
+                .collect::<Vec<_>>()
+        });
+        // `recv` waits for the next question, and `try_iter` adds every
+        // question already sampled, so batches grow while DD is the slower
+        // phase.
+        while let Ok(first) = rx.recv() {
+            let batch: Vec<_> = first.into_iter().chain(rx.try_iter().flatten()).collect();
+            found.extend(solver.solve_boards(&batch));
         }
-        sampling.push(stats);
-        worlds.push(question.deal);
-        objectives.extend(worlds.into_iter().map(|world| {
-            Objective {
-                board: Board::try_new(world.into(), CurrentTrick::new(question.strain, leader))
-                    .expect("a full deal at trick one is a valid board"),
-                target: Target::Legal,
-            }
-        }));
-    }
-    let found = crate::dd::solver().solve_boards(&objectives);
+        sampler
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    });
 
     let answers = questions
         .iter()
@@ -264,6 +264,46 @@ pub fn single_dummy_leads_with_stats(
         })
         .collect();
     (answers, sampling)
+}
+
+/// One lead question's trick-one [`Target::Legal`] solves: `n` sampled worlds
+/// then the actual deal
+///
+/// A legal-solve score is the tricks the *defense* takes after that lead with
+/// perfect play thereafter.  The lead is chosen from the sampled worlds only
+/// (no peeking at the real layout), and the actual deal's entry converts the
+/// chosen lead into declarer tricks as `13 − defensive tricks`.
+fn lead_objectives(
+    question: &LeadQuestion,
+    rng: &mut impl Rng,
+    n: usize,
+) -> (Vec<Objective>, SampleStats) {
+    let leader = question.declarer.lho();
+    let hand = question.deal[leader];
+    let (mut worlds, mut stats) =
+        sample_layouts_with_stats(hand, leader, &question.inferences, rng, n);
+    if worlds.len() < n {
+        // Tight or jointly-infeasible reading: top up unconstrained so the
+        // lead is still chosen over `n` worlds.
+        let mut builder = Builder::new();
+        builder[leader] = hand;
+        let partial = builder
+            .build_partial()
+            .expect("one thirteen-card hand is a valid partial deal");
+        stats.fallback = n - worlds.len();
+        stats.fallback_draws = stats.fallback;
+        worlds.extend(fill_deals(rng, partial).take(stats.fallback));
+    }
+    worlds.push(question.deal);
+    let objectives = worlds
+        .into_iter()
+        .map(|world| Objective {
+            board: Board::try_new(world.into(), CurrentTrick::new(question.strain, leader))
+                .expect("a full deal at trick one is a valid board"),
+            target: Target::Legal,
+        })
+        .collect();
+    (objectives, stats)
 }
 
 /// Solved score of `card` among `plays`, matching its sequence equals
@@ -758,7 +798,7 @@ pub fn single_dummy_declarer_tricks(
     declarer: Seat,
     leader_inferences: &Inferences,
     declarer_inferences: &Inferences,
-    rng: &mut impl Rng,
+    rng: &mut (impl Rng + Send),
     n: usize,
     k: usize,
 ) -> (Card, TrickCount, TrickCount) {
@@ -792,7 +832,7 @@ pub fn single_dummy_declarer_tricks_with_stats(
     declarer: Seat,
     leader_inferences: &Inferences,
     declarer_inferences: &Inferences,
-    rng: &mut impl Rng,
+    rng: &mut (impl Rng + Send),
     n: usize,
     k: usize,
 ) -> (Card, TrickCount, TrickCount, [SampleStats; 2]) {
