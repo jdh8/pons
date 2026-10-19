@@ -185,6 +185,12 @@ const TAKEOUT_DOUBLE: Alert = Alert("takeout-double");
 /// name the longer one.  A "pick a suit" call, not a desire to sit, so alerted.
 const LANDY_SOS: Alert = Alert("landy:sos-redouble");
 
+/// Landy `2♦` relay — after `(1NT) 2♣ -` (or the direct-Landy `(1NT) X -`),
+/// equal majors asking the overcaller to name the longer one.  Promises no
+/// diamonds, so alerted; `inference::readers::landy_advance_suppress` still
+/// suppresses its natural reading by hand as well.
+const LANDY_RELAY: Alert = Alert("landy:2d-relay");
+
 /// Answers to the Landy `2NT` game-force ask — conventional step responses, not
 /// natural suits: `3♣`/`3♦` are the 5-4 strength steps and name no minor at all,
 /// `3♥`/`3♠`/`3NT` are 5-5 minimum / medium / maximum.  The row-layer invariant
@@ -224,6 +230,10 @@ const MULTI_ASK: Alert = Alert("1ntd:multi-ask");
 /// Advancer's `2NT` minor-ask over a Muiderberg `2M` (quiet: INV+ with no fit;
 /// doubled: any-strength no-fit escape).
 const MUIDERBERG_ASK: Alert = Alert("1ntd:muiderberg-ask");
+/// Advancer's double of their `2♥` over the Multi `2♦` (`(1NT) 2♦ (2♥) X`) —
+/// values with game interest, any shape; the overcaller bids `2♠` with spades
+/// or sits with hearts (`defense.woolsey_tails`).
+const MULTI_VALUES_X: Alert = Alert("1ntd:multi-values-x");
 /// Advancer's `2♣` "name your minor" relay over the Woolsey takeout `X`.
 const WOOLSEY_X_RELAY: Alert = Alert("1ntd:woolsey-x-relay");
 /// Advancer's `2NT` game-ask over the Woolsey takeout `X` (doubler names its

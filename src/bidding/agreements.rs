@@ -2997,6 +2997,94 @@ pub struct DefenseKnobs {
     /// No effect unless the active system is `DirectLandy`.  The A/B knob is
     /// `examples/ab-landy --ns-landy-x-penalty`.
     pub direct_landy_penalty_pass: bool,
+    // --- defense/nt_woolsey.rs
+    /// Sit a doubled Woolsey Muiderberg unless void or singleton in its major
+    ///
+    /// Three nodes of the doubled Muiderberg `(1NT) 2M (X)`; **off by default**,
+    /// and a no-op unless the active system is
+    /// [`NotrumpDefense::Woolsey`][crate::bidding::american::NotrumpDefense::Woolsey],
+    /// itself opt-in — so the default system is byte-identical either way.
+    ///
+    /// - The advancer's `2NT` minor-ask escape needs a void or singleton in
+    ///   the overcaller's major (`len(M, ..=1)`); a doubleton now sits `2Mx`
+    ///   (a 5-2 fit) instead of the old any-strength escape on `..=2`.  The
+    ///   `3M`/`4M` raises are unchanged.
+    /// - The overcaller's `(1NT) 2M (X) - -` — the advancer sat, opener
+    ///   passed — is authored `Pass`: the structure defines no escape for
+    ///   the overcaller, so it sits `2Mx` too.
+    /// - The overcaller's `(1NT) 2M (X) - (bid)` — the advancer sat, they ran
+    ///   out — is authored `Pass` over every bid they can make, so the floor
+    ///   no longer re-competes in the major.  Muiderberg is exactly five in
+    ///   the major, so there is no "rebid with six" clause to author.
+    ///
+    /// Forensics (isolate-defense Woolsey run at `f8286a5a`, none vul, 204,800
+    /// kept, table B all-BBA): the escape cost −0.0109 plain / −0.0178 PD per
+    /// kept board gross, all of it from `3♣x`/`3♦x`, 94% of it escaping on a
+    /// doubleton.  BBA escapes on a void or singleton in ~82% of its escapes
+    /// (128 of 156 over `2♥`, 126 of 151 over `2♠`) — mostly, not only.
+    /// Sitting does **not** buy `2Mx`: E/W left it in on only 3 of 735
+    /// boards and bid on every time both tables passed (751 of 751, mostly
+    /// opener's `3♦`).  The gain is avoiding our `3♣x`/`3♦x` and then
+    /// passing their run-out, which the floor re-competed after
+    /// `(1NT) 2M (X) - (3♦)` at −0.0023/−0.0065 on the 235 boards where BBA
+    /// passed.  Net forensic estimate, pre-A/B: ≈ +0.009 plain / +0.012 PD
+    /// per kept board (the gross escape cost less the run-out boards those
+    /// passes then meet).
+    ///
+    /// The A/B knob is `bba-gen --ns-woolsey-muiderberg-sit`
+    /// (`ab-dump-sd --on-ns-woolsey-muiderberg-sit`).  A/B owed:
+    /// `scripts/ab-woolsey-complete.sh`.
+    pub woolsey_muiderberg_sit: bool,
+    /// Author the Woolsey tails the instinct floor owned
+    ///
+    /// **Off by default**, and a no-op unless the active system is
+    /// [`NotrumpDefense::Woolsey`][crate::bidding::american::NotrumpDefense::Woolsey].
+    /// On, it authors these nodes, each with a finite `Pass` (or relay)
+    /// catch-all:
+    ///
+    /// - **Woolsey `2♣` advance catch-all.**  The shared Landy advance has no
+    ///   finite catch-all: an invitational hand (`20 − lo ..` up to `22 − lo`
+    ///   points) with no four-card major in the longer major falls to the
+    ///   floor.  The catch-all follows the table's own weak arms: equal majors
+    ///   go through the `2♦` relay (the overcaller names its five-carder), else
+    ///   the longer major.  Undoubled and doubled (`Redouble` is the equal-majors
+    ///   relay there).  Gated on Woolsey, so the Landy overlay and direct Landy
+    ///   keep their table.
+    /// - **`(1NT) 2♦ {-|(X)} 2♥ - - (X)`** and **`(1NT) 2♦ {-|(X)} 2♥ (X) - -`**
+    ///   — the advancer over their double (reopening or direct) of the weak
+    ///   pass-or-correct, after the overcaller passed with exactly six hearts:
+    ///   `2♠` only with six spades, else sit `2♥x` (even a singleton heart is
+    ///   a 6-1 fit).
+    /// - **`(1NT) 2♦ (2♥)`** — their `2♥` is natural (BBA: 5+ hearts, 4–9
+    ///   HCP).  `X` = values with game interest (`22 − lo`+ points; near-dead
+    ///   at this point of the auction), `2♠` = pass-or-correct on three-card
+    ///   spade tolerance, else `Pass`; the overcaller answers the `2♠` (pass
+    ///   spades / `3♥` hearts, near-dead) and the `X` (`2♠` with spades, else
+    ///   sit `2♥x`).  After `(1NT) 2♦ (2♥) - -` the overcaller balances a
+    ///   natural `2♠` with the spade Multi, else passes.
+    /// - **`(1NT) 2♦ (2♠)`** — `3♥` = pass-or-correct on three-card heart
+    ///   tolerance, else `Pass`; the overcaller passes hearts or corrects to
+    ///   `3♠` (near-dead).  After `(1NT) 2♦ (2♠) - -` the overcaller bids a
+    ///   natural `3♥` only with seven hearts (six plays a 6-2 at best), else passes.
+    ///
+    /// Forensics (the same run as
+    /// [`woolsey_muiderberg_sit`][Self::woolsey_muiderberg_sit]): the
+    /// reopening-double node cost −0.0017 plain / −0.0026 PD per kept board
+    /// over 96 boards (the floor ran to `2♠` on 59 where BBA passed), the
+    /// `(1NT) 2♦ (2♥)`/`(2♠)` nodes −0.0022/−0.0010 over 172 (BBA bids the
+    /// pass-or-correct).
+    ///
+    /// Dropped from the completion spec on purpose (forensics price them at
+    /// ≈ 0): the doubled asks and relays (`(1NT) X - 2NT (X)`,
+    /// `(1NT) 2M - 2NT (X)`, `(1NT) 2♣ - 2♦ (X)`, `(1NT) 2♣ - 2NT (X)` — 25
+    /// boards, all at `(1NT) 2♣ - 2♦ (X)`, −0.0002), and their bids over our
+    /// `X` (`(1NT) X (2x)` — 255 boards, +0.0003 plain / −0.0006 PD: the
+    /// floor already scores on par with BBA there, so authoring risks it).
+    ///
+    /// The A/B knob is `bba-gen --ns-woolsey-tails`
+    /// (`ab-dump-sd --on-ns-woolsey-tails`).  A/B owed:
+    /// `scripts/ab-woolsey-complete.sh`.
+    pub woolsey_tails: bool,
     // --- defense/michaels.rs
     /// Optional strength band for the unusual `2NT`
     ///
@@ -3274,6 +3362,8 @@ impl Default for DefenseKnobs {
             direct_landy_four_four: false,
             direct_landy_double_floor: 15,
             direct_landy_penalty_pass: false,
+            woolsey_muiderberg_sit: false,
+            woolsey_tails: false,
             unusual_notrump_range: Some((8, 13)),
             two_suiter_hcp_floor: Some(8),
             advance_sohl_style: LebensohlStyle::Transfer,

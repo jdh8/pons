@@ -42,6 +42,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--ns-nt-invite-double-veto` / `--ns-nt-invite-bid-veto` for the later BEN
   guard. Default system byte-identical.
 
+- **Woolsey completion knobs `defense.woolsey_muiderberg_sit` and
+  `defense.woolsey_tails`, and `scripts/ab-woolsey-complete.sh`
+  (2026-10-19).** Step 2 of the 1NT-defense plan: our opt-in Woolsey
+  (Multi-Landy) defense to their 1NT, completed so it can be a row in the
+  defense tournament. `woolsey_muiderberg_sit`: over `(1NT) 2M (X)` the `2NT`
+  minor-ask escape needs a void or singleton in the major (BBA's usual line,
+  ~82% of its escapes; a doubleton now sits `2Mx`), and the overcaller passes
+  both `(1NT) 2M (X) - -` and their run-out `(1NT) 2M (X) - (bid)`.
+  `woolsey_tails`: a finite catch-all on Woolsey's `2♣` advance (12–13 points
+  with no four-card major fell to the floor; equal majors relay, else the
+  longer major, undoubled and doubled); the advancer over their double of the
+  passed weak pass-or-correct, reopening `(1NT) 2♦ {-|(X)} 2♥ - - (X)` and
+  direct `… 2♥ (X) - -` (`2♠` only with six spades, else sit — the
+  overcaller showed exactly six hearts); and their natural `(1NT) 2♦ (2♥)` /
+  `(2♠)` (`X` = game-interest values, `2♠` / `3♥` pass-or-correct on
+  three-card tolerance in the other major, both alerted, with the
+  overcaller's answers and its natural balance after `- -`). Forensic
+  estimate, pre-A/B, from a 204,800-board none-vul isolate-defense run at
+  `f8286a5a`: the sit nets ≈ +0.009 plain / +0.012 PD per kept board (the
+  doubleton escape's gross −0.0109/−0.0178 less the run-out boards the new
+  passes meet — E/W left `2Mx` in on only 3 of 735, so the gain is avoiding
+  our `3♣x`/`3♦x` and then passing their run-out, which cost −0.0023/−0.0065
+  on the floor); the doubled weak pass-or-correct −0.0017/−0.0026 and their
+  `2♥`/`2♠` over the Multi −0.0022/−0.0010 gross. Dropped from the spec on
+  purpose, priced at ≈ 0: the doubled asks and relays (25 boards, all
+  `(1NT) 2♣ - 2♦ (X)`, −0.0002) and their bids over our `X` (`(1NT) X (2x)`,
+  255 boards, +0.0003/−0.0006 — the floor is on par with BBA there).
+  `bba-gen --ns-woolsey-muiderberg-sit` / `--ns-woolsey-tails`, and the
+  matching `ab-dump-sd --{on,off}-ns-woolsey-*` plus
+  `--{on,off}-ns-notrump-defense` so the SD leader reads a Woolsey arm as
+  Woolsey. The `nt_woolsey` docs no longer claim the structure "never bleeds
+  to the floor" or that its `X` is "a one-suiter or a strong hand". Both
+  default off, and Woolsey itself is opt-in, so the default system is
+  byte-identical; A/B owed (the runner pre-registers the standard decision
+  table: plain DD non-inferior and PD win, every cell).
+
 - **`ben-gen --filter-1nt --wide-1nt --ns-nt-overcall-hcp-floor`, and
   `scripts/ab-ben-nt-overcall-floor.sh` (2026-10-19).** The BEN generator now
   takes the natural 1NT overcall's HCP floor and the 1NT-candidate deal scan
@@ -79,6 +115,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/shared-machine-data-gen.md` § Sizing the solver; no bidding change.
 
 ### Changed
+
+- **The Landy `2♦` "pick a major" relay is alerted (`landy:2d-relay`,
+  2026-10-19).** The advancer's undoubled `2♦` over a both-majors `2♣`
+  (the Landy overlay, Woolsey's `2♣`) or direct Landy's `X` names no
+  diamonds; it now carries an alert like the other relays, as does its copy
+  in the `woolsey_tails` catch-all. The hand-written
+  `landy_advance_suppress` reader still suppresses its natural reading too.
+  This **breaks byte-identity of the opt-in Landy, direct-Landy and Woolsey
+  arms** (the alert changes the relay's reading, so later calls can move);
+  older measurements of those arms predate it. The natural default system is
+  untouched.
 
 - **Single-dummy lead scoring samples while it solves (2026-10-19).**
   `single_dummy_leads` and its siblings now sample worlds on a background

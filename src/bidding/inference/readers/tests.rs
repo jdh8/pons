@@ -305,6 +305,71 @@ fn woolsey_double_and_advances_read() {
     assert_eq!(off.partner().strength.points, Range::new(15, 37));
 }
 
+/// The Woolsey completion knobs' artificial calls decode off their own rules:
+/// the doubled Muiderberg escape narrows to a void or singleton, the values
+/// double over `(1NT) 2♦ (2♥)` reads as game interest, and the pass-or-correct
+/// `2♠`/`3♥` read as three-card tolerance rather than a natural suit.
+#[test]
+fn woolsey_completion_calls_read() {
+    use crate::bidding::american::NotrumpDefense;
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
+    agreements.decision.reading.convention_points = (8, 19);
+    let escape = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Hearts),
+        Call::Double,
+        bid(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    let shipped = read_booked_with(&agreements, &escape);
+    assert_eq!(shipped.partner().length(Suit::Hearts), Range::new(0, 2));
+
+    agreements.defense.woolsey_muiderberg_sit = true;
+    agreements.defense.woolsey_tails = true;
+    let sit = read_booked_with(&agreements, &escape);
+    assert_eq!(sit.partner().length(Suit::Hearts), Range::new(0, 1));
+
+    // `(1NT) 2♦ (2♥) X -`: game interest, `22 − 8` = 14+ points.
+    let x = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+        ],
+    );
+    assert_eq!(x.partner().strength.points, Range::new(14, 37));
+
+    // `(1NT) 2♦ (2♥) 2♠ -`: three-card spade tolerance, not a natural five.
+    let pc = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(2, Strain::Hearts),
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ],
+    );
+    assert_eq!(pc.partner().length(Suit::Spades).min, 3);
+
+    // `(1NT) 2♦ (2♠) 3♥ -`: three-card heart tolerance.
+    let pc = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(2, Strain::Spades),
+            bid(3, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
+    assert_eq!(pc.partner().length(Suit::Hearts).min, 3);
+}
+
 #[test]
 fn dont_overcalls_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;

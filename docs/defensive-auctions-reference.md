@@ -271,7 +271,7 @@ sacrifice logic** (`:432`).
 | 3-level jump overcall | 0 nodes (O6 owed) | 4–10, 7–8 cards, 3 HCP/missing card | DD-negative lane | O6 as owed |
 | weak two `(2x)` | full package, vul bands shipped | §2.6 | — | done |
 | advances of `(2x) X` | transfer Sohl shipped | Rubensohl | Lebensohl | done |
-| their 1NT | natural default, M1+M2 shipped | Woolsey native | Cappelletti declared | Woolsey continuations, if reprioritised |
+| their 1NT | natural default, M1+M2 shipped | Woolsey native | Cappelletti declared | Woolsey continuations: authored behind the opt-in knobs `defense.woolsey_muiderberg_sit` / `defense.woolsey_tails` (2026-10-19), A/B owed (`scripts/ab-woolsey-complete.sh`) |
 | their Multi 2♦ opening | none; reads as a natural weak 2♦ | none | n/a (2/1) | none today |
 | penalty-X sanity | accountant + four floor double rules gated ≤ 3-level | bilans | trump-control + control-count dock | **L5** |
 | rescue / final-contract check | none | none | Tier S | M8 search, deferred |

@@ -1,11 +1,21 @@
 //! Woolsey ("Multi-Landy") over their `1NT`
 //!
-//! The equilibrium defense: `X` = a one-suiter or a strong hand, `2♣` = both
-//! majors (Landy's call), `2♦` = a Multi major, `2♥`/`2♠` = Muiderberg (that
-//! major plus a minor).  Authored in full — every artificial call has a
-//! doubled and redoubled escape — so the structure never bleeds to the floor.
+//! The equilibrium defense: `X` = exactly four cards in one major plus a longer
+//! (5–6) minor, `2♣` = both majors (Landy's call), `2♦` = a Multi major,
+//! `2♥`/`2♠` = Muiderberg (that major plus a minor).
+//!
+//! The first answer to every artificial call is authored over their pass and
+//! their double (the `X` over their redouble), and so is the overcaller's
+//! answer to each ask or pass-or-correct.  Deeper continuations and most of
+//! their interference are **not** authored and fall to the instinct floor
+//! (2,160 floored continuation boards of 204,800 kept in the 2026-10
+//! isolate-defense forensics at `f8286a5a`).  Two opt-in knobs author the
+//! costliest of those holes:
+//! [`woolsey_muiderberg_sit`][field@crate::bidding::agreements::DefenseKnobs::woolsey_muiderberg_sit]
+//! and [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
 
 use super::nt_defense::NotrumpDefense;
+use super::nt_landy::sit;
 use super::*;
 
 /// Whether the Woolsey defense is the active system (read by the inference engine
@@ -91,13 +101,14 @@ pub(super) fn muiderberg(major: Suit, agreements: &Agreements) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Woolsey "Multi-Landy" continuations.  Authored in full so the structure never
-// bleeds to the instinct floor: the Multi 2♦ (BBA's two-strength pass-or-correct
-// with the 2♠ → 2NT heart-relay, plus a game-force ask), the Muiderberg 2♥/2♠
-// (raises + the 2NT minor-ask), and the takeout X (relay to the minor / own major
-// / ask).  The both-majors 2♣ reuses the Landy advances above.  Every artificial
-// call also has a doubled / redoubled escape (wired in `defensive`) so the
-// opponents can never trap us in a doubled artificial contract.
+// Woolsey "Multi-Landy" continuations: the Multi 2♦ (BBA's two-strength
+// pass-or-correct — over the constructive 2♠ the overcaller bids 3♥ with hearts
+// directly, no 2NT relay — plus a game-force ask), the Muiderberg 2♥/2♠ (raises
+// + the 2NT minor-ask), and the takeout X (relay to the minor / own major /
+// ask).  The both-majors 2♣ reuses the Landy advances in `nt_landy`.  The first
+// answer to each artificial call is authored over their pass and their double
+// (wired in `woolsey_package` below); deeper continuations are the floor's
+// unless a `defense.woolsey_*` knob authors them.
 // ---------------------------------------------------------------------------
 
 /// Advancer over the Woolsey **Multi** `2♦` (`(1NT) 2♦ -` or `(1NT) 2♦ (X)`):
@@ -112,7 +123,7 @@ fn multi_advances(lo: u8) -> Rules {
         // Game-force: ask the overcaller to name its 6-card major (it jumps to 4M).
         .rule(Bid::new(2, Strain::Notrump), 100, points(game..))
         .alert(MULTI_ASK)
-        // Constructive pass-or-correct: overcaller passes spades / 2NT-relays hearts.
+        // Constructive pass-or-correct: overcaller passes spades / bids 3♥ with hearts.
         .rule(Bid::new(2, Strain::Spades), 95, points(invite..game))
         .alert(MULTI_PC)
         // Weak pass-or-correct: overcaller passes hearts / corrects 2♠ / jumps with 7+.
@@ -175,23 +186,139 @@ fn muiderberg_advances(major: Suit, lo: u8) -> Rules {
 }
 
 /// Advancer over a **doubled** Muiderberg `2M` (`(1NT) 2M (X)`): with a fit sit
-/// for `2Mx` (a known 8+ card trump fit) or raise; with no fit escape via the
-/// `2NT` minor-ask rather than be trapped in a doubled 5-1 misfit
-fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
+/// for `2Mx` (a known 8+ card trump fit) or raise; without three-card support
+/// escape via the `2NT` minor-ask — on a doubleton too, unless `sit`
+///
+/// `sit` is
+/// [`woolsey_muiderberg_sit`][field@crate::bidding::agreements::DefenseKnobs::woolsey_muiderberg_sit]:
+/// the escape then needs a void or singleton in the major (BBA's line), and
+/// every other hand sits `2Mx` — a doubleton plays the 5-2 fit rather than a
+/// doubled minor at the three level.  The raises are the same either way.
+fn muiderberg_advances_doubled(major: Suit, lo: u8, sit: bool) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);
     let strain = Strain::from(major);
-    Rules::new()
+    let raises = Rules::new()
         .rule(Bid::new(4, strain), 120, len(major, 3..) & points(game..))
         .rule(
             Bid::new(3, strain),
             110,
             (len(major, 4..) & points(..game)) | (len(major, 3..) & points(invite..game)),
-        )
-        // No fit → escape to the 4+ minor (any strength); a fit sits 2Mx.
-        .rule(Bid::new(2, Strain::Notrump), 50, len(major, ..=2))
-        .alert(MUIDERBERG_ASK)
-        .rule(Call::Pass, 0, len(major, 3..))
+        );
+    if sit {
+        // Void or singleton → escape to the 4+ minor (any strength); else sit 2Mx.
+        raises
+            .rule(Bid::new(2, Strain::Notrump), 50, len(major, ..=1))
+            .alert(MUIDERBERG_ASK)
+            .rule(Call::Pass, 0, hcp(0..))
+    } else {
+        // Doubleton or shorter → escape to the 4+ minor (any strength); a fit sits 2Mx.
+        raises
+            .rule(Bid::new(2, Strain::Notrump), 50, len(major, ..=2))
+            .alert(MUIDERBERG_ASK)
+            .rule(Call::Pass, 0, len(major, 3..))
+    }
+}
+
+/// Every bid the opener's side can make over `(1NT) 2M (X) -`: each bid above
+/// our `2M`, up to `7NT`
+fn bids_above(bid: Bid) -> impl Iterator<Item = Bid> {
+    (2..=7u8)
+        .flat_map(|level| Strain::ASC.map(|strain| Bid::new(level, strain)))
+        .filter(move |&b| b > bid)
+}
+
+/// Advancer over their double of the weak pass-or-correct after the overcaller
+/// passed it with hearts — the reopening `(1NT) 2♦ {-|(X)} 2♥ - - (X)` and the
+/// direct `(1NT) 2♦ {-|(X)} 2♥ (X) - -`: run to a natural `2♠` only with six
+/// spades, else sit `2♥x`.  The overcaller's pass showed exactly six hearts, so
+/// even a singleton heart is a 6-1 fit — better than `2♠` opposite the 0–3
+/// spades the heart Multi holds.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+fn multi_2h_doubled_advance() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 6..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Advancer over their `2♥` interference of the Multi `2♦` (`(1NT) 2♦ (2♥)`):
+/// `X` = values with game interest (`22 − lo`+ points, any shape); `2♠` =
+/// pass-or-correct on three-card spade tolerance, whatever the hearts; else
+/// pass.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+///
+/// Their `2♥` is natural (5+ hearts, BBA's 4–9 HCP), so the overcaller almost
+/// always holds the spade Multi: the overcaller's `3♥` answer to this `2♠`
+/// ([`multi_2s_rebid`] at `(1NT) 2♦ (2♥) 2♠ *`) is a near-dead catch-all, kept
+/// so a six-heart Multi is never left to the floor.  No heart length is asked
+/// of the `2♠` — a short-heart hand is exactly the one that most wants to
+/// compete.
+fn multi_over_2h_advance(lo: u8) -> Rules {
+    let game = 22u8.saturating_sub(lo);
+    Rules::new()
+        // Near-dead (flagged, left as is): opener's 15–17, their 4+ HCP 2♥ and
+        // the overcall leave the advancer ~13–15 HCP at the very most (~6
+        // typical), so `22 − lo` (14 at the shipped 8) points needs shape too.
+        .rule(Call::Double, 110, points(game..))
+        .alert(MULTI_VALUES_X)
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 3..))
+        .alert(MULTI_PC)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Overcaller over the values double of their `2♥` (`(1NT) 2♦ (2♥) X -`): bid
+/// `2♠` with the spade Multi, else sit for `2♥x` — the overcaller's six hearts
+/// opposite a game-interest hand.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+fn multi_values_x_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 6..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Advancer over their `2♠` interference of the Multi `2♦` (`(1NT) 2♦ (2♠)`):
+/// `3♥` = pass-or-correct on three-card heart tolerance, whatever the spades;
+/// else pass.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+fn multi_over_2s_advance() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 3..))
+        .alert(MULTI_PC)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Overcaller over the `3♥` pass-or-correct (`(1NT) 2♦ (2♠) 3♥ *`): pass with
+/// hearts, correct to `3♠` with spades.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+///
+/// Their `2♠` is natural (5+ spades), so the overcaller almost always holds the
+/// heart Multi and the `3♠` correction is a near-dead catch-all, kept so a
+/// six-spade Multi is never left to the floor.
+fn multi_3h_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Spades), 100, len(Suit::Spades, 6..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Overcaller after their natural `2♥` over the Multi went `(1NT) 2♦ (2♥) - -`:
+/// the advancer's pass denied three spades and game values, so balance a
+/// natural `2♠` with the spade Multi, else pass.  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+fn multi_over_2h_balance() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 6..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Overcaller after their natural `2♠` over the Multi went `(1NT) 2♦ (2♠) - -`:
+/// a natural `3♥` only with seven hearts, else pass.  Six would always qualify
+/// (every heart Multi has six) and the advancer's pass denied three, so `3♥`
+/// on six plays a 6-2 fit at best (jdh8, 2026-10-20).  Part of
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
+fn multi_over_2s_balance() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 7..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Overcaller answering the Muiderberg `2NT` minor-ask (`(1NT) 2M … 2NT -`):
@@ -238,15 +365,20 @@ fn woolsey_x_2nt_rebid() -> Rules {
 
 /// Woolsey "Multi-Landy" continuations ([`NotrumpDefense::Woolsey`])
 ///
-/// Authored in full — the both-majors `2♣` reuses [`landy_advance_package`]'s
-/// wiring.  Every artificial call carries its doubled / redoubled escape so the
-/// opponents can never trap us in a doubled artificial contract.
+/// The both-majors `2♣` reuses [`landy_advance_package`]'s wiring.  The first
+/// answer to each artificial call is authored over their pass and their double
+/// (the `X` over their redouble); deeper continuations fall to the floor unless
+/// [`woolsey_muiderberg_sit`][field@crate::bidding::agreements::DefenseKnobs::woolsey_muiderberg_sit]
+/// or [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails]
+/// authors them.
 pub(super) fn woolsey_package() -> Package {
     Package {
         name: "woolsey",
         gate: |agreements| woolsey_enabled(agreements),
         entries: |agreements| {
             let lo = agreements.decision.reading.convention_points.0;
+            let sit_doubled = agreements.defense.woolsey_muiderberg_sit;
+            let tails = agreements.defense.woolsey_tails;
             let mut entries = Vec::new();
 
             // Multi 2♦.  The advance is the same over a pass or a double (it never
@@ -273,6 +405,53 @@ pub(super) fn woolsey_package() -> Package {
                         ));
                     }
                 }
+                // Their double of the weak 2♥ the overcaller passed with
+                // hearts, reopening or direct (woolsey_tails).
+                if tails {
+                    for doubled in ["2♥ - - (X)", "2♥ (X) - -"] {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{base} {doubled}")),
+                            multi_2h_doubled_advance(),
+                        ));
+                    }
+                }
+            }
+
+            // Their 2♥/2♠ over the Multi (woolsey_tails): the advancer's
+            // pass-or-correct (and values X over 2♥), and the overcaller's answers,
+            // whether the pass-or-correct is passed or doubled.
+            if tails {
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) 2♦ (2♥)"),
+                    multi_over_2h_advance(lo),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) 2♦ (2♥) X -"),
+                    multi_values_x_rebid(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) 2♦ (2♠)"),
+                    multi_over_2s_advance(),
+                ));
+                // The advancer passed, so did opener: the overcaller balances.
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) 2♦ (2♥) - -"),
+                    multi_over_2h_balance(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) 2♦ (2♠) - -"),
+                    multi_over_2s_balance(),
+                ));
+                for after in ["-", "(X)"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) 2♦ (2♥) 2♠ {after}")),
+                        multi_2s_rebid(),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) 2♦ (2♠) 3♥ {after}")),
+                        multi_3h_rebid(),
+                    ));
+                }
             }
 
             // Muiderberg 2♥/2♠ — raises + the 2NT minor-ask (a doubled escape with
@@ -284,8 +463,23 @@ pub(super) fn woolsey_package() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&format!("P* (1NT) {mbid} (X)")),
-                    muiderberg_advances_doubled(major, lo),
+                    muiderberg_advances_doubled(major, lo, sit_doubled),
                 ));
+                // The advancer sat 2Mx (woolsey_muiderberg_sit): the overcaller,
+                // exactly five in the major, sits too when opener passes (no
+                // escape — the structure defines none) and passes their run-out.
+                if sit_doubled {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) {mbid} (X) - -")),
+                        sit(),
+                    ));
+                    for run in bids_above(Bid::new(2, Strain::from(major))) {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("P* (1NT) {mbid} (X) - ({run})")),
+                            sit(),
+                        ));
+                    }
+                }
                 // The 2NT minor-ask reaches the overcaller over either RHO action.
                 for rho in ["-", "(X)"] {
                     entries.extend(rows_of(

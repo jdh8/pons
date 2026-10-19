@@ -282,3 +282,54 @@ fn test_advance_double_over_one_bid() {
         call(1, Strain::Spades),
     );
 }
+
+// --- Woolsey completion knobs -----------------------------------------------
+
+/// Our Woolsey defense to their 1NT, with the two completion knobs set
+fn woolsey(sit: bool, tails: bool) -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = pons::bidding::american::NotrumpDefense::Woolsey;
+    agreements.defense.woolsey_muiderberg_sit = sit;
+    agreements.defense.woolsey_tails = tails;
+    agreements
+}
+
+/// (1NT) 2♥ (X) with a doubleton heart: `defense.woolsey_muiderberg_sit` sits
+/// 2♥x (the 5-2 fit); off, the advancer escapes through the 2NT minor-ask
+#[test]
+fn test_woolsey_muiderberg_sit_toggle() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Hearts),
+        Call::Double,
+    ];
+    let hand = "Q432.32.J432.J43";
+    assert_eq!(
+        best_call(&american(&woolsey(true, false)).bind(), &auction, hand),
+        Call::Pass
+    );
+    assert_eq!(
+        best_call(&american(&woolsey(false, false)).bind(), &auction, hand),
+        call(2, Strain::Notrump)
+    );
+}
+
+/// (1NT) 2♦ (2♥) with spade tolerance: `defense.woolsey_tails` bids
+/// the 2♠ pass-or-correct (BBA's call); off, the floor passes
+#[test]
+fn test_woolsey_tails_toggle() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        call(2, Strain::Hearts),
+    ];
+    let hand = "KJ432.32.J43.Q43";
+    assert_eq!(
+        best_call(&american(&woolsey(false, true)).bind(), &auction, hand),
+        call(2, Strain::Spades)
+    );
+    assert_eq!(
+        best_call(&american(&woolsey(false, false)).bind(), &auction, hand),
+        Call::Pass
+    );
+}

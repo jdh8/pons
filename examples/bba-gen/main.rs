@@ -2364,6 +2364,20 @@ struct Args {
     #[arg(long, default_value_t = 12)]
     ns_woolsey_x_floor: u8,
 
+    /// Over our doubled Woolsey Muiderberg `(1NT) 2M (X)`, escape to the `2NT`
+    /// minor-ask only void or singleton in the major (else sit `2Mx`), and pass
+    /// their run-out `(1NT) 2M (X) - (bid)` (default off; see
+    /// `defense.woolsey_muiderberg_sit`).  Only with `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    ns_woolsey_muiderberg_sit: bool,
+
+    /// Author the Woolsey tails the floor owned: the `2♣` advance catch-all,
+    /// `(1NT) 2♦ (X) 2♥ - - (X)`, and the answers to `(1NT) 2♦ (2♥)`/`(2♠)`
+    /// (default off; see `defense.woolsey_tails`).  Only with
+    /// `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    ns_woolsey_tails: bool,
+
     /// Disable the penalty-double latch (default on): after our natural penalty X of
     /// BBA's 1NT, our later doubles read as penalty instead of takeout.
     #[arg(long, default_value_t = false)]
@@ -3352,6 +3366,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.notrump_balancing_enabled = args.ns_balancing;
     agreements.defense.natural_overcall_hcp_floor = args.ns_nt_overcall_hcp_floor;
     agreements.defense.natural_overcall_advance_enabled = !args.no_ns_nt_overcall_advance;
+    agreements.defense.woolsey_muiderberg_sit = args.ns_woolsey_muiderberg_sit;
+    agreements.defense.woolsey_tails = args.ns_woolsey_tails;
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
     agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;

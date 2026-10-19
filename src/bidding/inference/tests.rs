@@ -1116,6 +1116,20 @@ fn gated_profiles_preserve_alert_invariant() {
         a.decision.reading.notrump_defense = defense;
         profiles.push((name, a));
     }
+    // The Woolsey completion knobs and the Landy overlay: the Woolsey tails'
+    // alerted pass-or-corrects and the `landy:2d-relay` on both relays.
+    {
+        let mut a = base;
+        a.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
+        a.defense.woolsey_muiderberg_sit = true;
+        a.defense.woolsey_tails = true;
+        profiles.push(("woolsey-complete", a));
+    }
+    {
+        let mut a = base;
+        a.decision.reading.landy = true;
+        profiles.push(("landy", a));
+    }
     {
         let mut a = base;
         a.decision.reading.floor_rkcb = true;

@@ -118,12 +118,14 @@ fn landy_advances(lo: u8) -> Rules {
             110,
             len(Suit::Spades, 4..) & points(invite..game) & spades_longer.clone(),
         )
-        // Weak: equal majors → 2♦ relay; else preference signoff.
+        // Weak: equal majors → 2♦ relay (alerted: names no diamonds); else
+        // preference signoff.
         .rule(
             Bid::new(2, Strain::Diamonds),
             100,
             equal_majors & points(..invite),
         )
+        .alert(LANDY_RELAY)
         .rule(
             Bid::new(2, Strain::Hearts),
             90,
@@ -213,6 +215,51 @@ fn landy_advances_over_double(lo: u8, agreements: &Agreements) -> Rules {
             Bid::new(2, Strain::Spades),
             90,
             spades_longer & points(..invite),
+        )
+}
+
+/// The finite catch-all the both-majors advance lacks (Woolsey's `2♣`, under
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails])
+///
+/// Both advance tables leave one hole: an invitational hand
+/// (`points(20 − lo .. 22 − lo)`) with no four-card major to raise falls through
+/// every rule — the `3M` invites want four-card support, the signoffs stop below
+/// the invite, `2NT` starts at game — and the floor bids it.  The catch-all
+/// covers exactly that band the way the table's own weak arms do: **equal
+/// majors relay** (the alerted `2♦` undoubled, the alerted SOS `Redouble`
+/// when `doubled`) so the overcaller names its five-card major, otherwise
+/// **the longer major**.
+/// Equal length goes to the relay rather than to `2♥` because the relay is how
+/// this table already finds the 5-3 over the 4-3 on equal majors; the weights
+/// sit below every authored rule, and the band is disjoint from them anyway.
+fn woolsey_advance_catch_all(rules: Rules, lo: u8, doubled: bool) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+    let band = points(invite..game);
+    let equal_majors = equal_length("equal majors", Suit::Hearts, Suit::Spades);
+    let rules = if doubled {
+        rules
+            .rule(Call::Redouble, 80, equal_majors & band.clone())
+            .alert(LANDY_SOS)
+    } else {
+        rules
+            .rule(
+                Bid::new(2, Strain::Diamonds),
+                80,
+                equal_majors & band.clone(),
+            )
+            .alert(LANDY_RELAY)
+    };
+    rules
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            80,
+            longer_suit(Suit::Hearts, Suit::Spades) & band.clone(),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            80,
+            longer_suit(Suit::Spades, Suit::Hearts) & band,
         )
 }
 
@@ -341,20 +388,35 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 /// `2♦` "pick a major" relay and the `2NT` game-ask; over their double the
 /// advancer runs the richer escape (Redouble = equal-majors relay, Pass =
 /// clubs, `2♦` = natural, `2♥`/`2♠` = the longer major).
+///
+/// Under Woolsey with
+/// [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails]
+/// both advance tables also get [`woolsey_advance_catch_all`]; the Landy
+/// overlay and direct Landy keep theirs unchanged.
 pub(super) fn landy_advance_package() -> Package {
     Package {
         name: "landy-advance",
         gate: |agreements| agreements.decision.reading.landy || woolsey_enabled(agreements),
         entries: |agreements| {
             let (lo, hi) = agreements.decision.reading.convention_points;
+            let tails = woolsey_enabled(agreements) && agreements.defense.woolsey_tails;
+            let (undoubled, doubled) = (
+                landy_advances(lo),
+                landy_advances_over_double(lo, agreements),
+            );
+            let (undoubled, doubled) = if tails {
+                (
+                    woolsey_advance_catch_all(undoubled, lo, false),
+                    woolsey_advance_catch_all(doubled, lo, true),
+                )
+            } else {
+                (undoubled, doubled)
+            };
             [
-                ("P* (1NT) 2♣ -", landy_advances(lo)),
+                ("P* (1NT) 2♣ -", undoubled),
                 ("P* (1NT) 2♣ - 2♦ -", landy_2d_rebid()),
                 ("P* (1NT) 2♣ - 2NT -", landy_2nt_rebid(lo, hi)),
-                (
-                    "P* (1NT) 2♣ (X)",
-                    landy_advances_over_double(lo, agreements),
-                ),
+                ("P* (1NT) 2♣ (X)", doubled),
                 ("P* (1NT) 2♣ (X) XX -", landy_2d_rebid()),
                 ("P* (1NT) 2♣ (X) 2♦ -", landy_doubled_2d_rebid()),
                 ("P* (1NT) 2♣ (X) 2NT -", landy_2nt_rebid(lo, hi)),

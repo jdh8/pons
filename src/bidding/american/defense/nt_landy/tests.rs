@@ -139,3 +139,35 @@ fn direct_landy_penalty_pass_defends_1ntx() {
         "a major fit still bids, never penalty-passes"
     );
 }
+
+/// The undoubled `2♦` "pick a major" relay names no diamonds, so every rule
+/// that bids it carries the `landy:2d-relay` alert: the Landy advance itself
+/// (shared by Woolsey's `2♣` and direct Landy's `X`) and the copy in the
+/// `woolsey_tails` catch-all.
+#[test]
+fn landy_2d_relay_is_alerted() {
+    let relay = call(2, Strain::Diamonds);
+    for lo in [8, 10] {
+        let plain = super::landy_advances(lo);
+        let completed = super::woolsey_advance_catch_all(super::landy_advances(lo), lo, false);
+        for (name, rules) in [("landy", &plain), ("woolsey catch-all", &completed)] {
+            let relays: Vec<_> = rules
+                .rules()
+                .iter()
+                .filter(|rule| rule.call() == relay)
+                .collect();
+            assert_eq!(
+                relays.len(),
+                if name == "landy" { 1 } else { 2 },
+                "{name}: the relay rules"
+            );
+            for rule in relays {
+                assert_eq!(
+                    rule.alert(),
+                    Some(super::super::LANDY_RELAY),
+                    "{name} (lo {lo}): the 2♦ relay must be alerted"
+                );
+            }
+        }
+    }
+}
