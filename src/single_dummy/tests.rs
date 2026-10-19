@@ -364,8 +364,9 @@ fn playout_stats_sum_the_decisions() {
 
 /// Golden pin for the default (mean-tricks) objective: the composed playout
 /// on the two-way guess deal, seeds 0..8 at six worlds, recorded before the
-/// contract-aware objective existed.  Any drift here means the default path
-/// stopped being byte-identical.
+/// contract-aware objective existed, and re-pinned when the lead's worlds
+/// moved to per-question seeds (2026-10-19).  Any other drift here means the
+/// default path stopped being byte-identical.
 #[test]
 fn mean_tricks_playout_is_pinned() {
     let deal = two_way_guess_deal();
@@ -394,15 +395,19 @@ fn mean_tricks_playout_is_pinned() {
         suit: Suit::Diamonds,
         rank: Rank::new(3),
     };
+    let s2 = Card {
+        suit: Suit::Spades,
+        rank: Rank::new(2),
+    };
     let want = vec![
-        (c2, 13, 13),
-        (d3, 13, 13),
         (c2, 13, 12),
         (c2, 13, 13),
         (c2, 13, 13),
+        (s2, 13, 13),
+        (c2, 13, 13),
         (d3, 13, 12),
-        (d3, 13, 13),
-        (d3, 13, 13),
+        (c2, 13, 13),
+        (c2, 13, 12),
     ];
     assert_eq!(got, want);
 }

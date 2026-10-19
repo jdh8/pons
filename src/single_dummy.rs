@@ -133,7 +133,7 @@ pub fn single_dummy_lead_tricks(
     strain: Strain,
     declarer: Seat,
     inferences: &Inferences,
-    rng: &mut (impl Rng + Send),
+    rng: &mut impl Rng,
     n: usize,
 ) -> (Card, TrickCount) {
     let question = LeadQuestion {
@@ -169,16 +169,16 @@ pub struct LeadQuestion {
 /// `questions` with the same `rng` — same worlds, same leads, same tricks —
 /// but the positions' solves are pooled into batched
 /// [`Solver::solve_boards`] calls, so one slow board no longer stalls a tiny
-/// batch, and a sampler thread draws the next worlds while the solver works:
-/// wall-clock approaches the slower of sampling and total solving over the
-/// pool width, instead of the sum of per-position maxima.  Prefer this
+/// batch, and sampler threads (as many as the DD pool) draw the next worlds
+/// while the solver works: wall-clock approaches the slower of the two over
+/// the pool width, instead of the sum of per-position maxima.  Prefer this
 /// whenever positions are known in advance (a tournament scorer pricing
-/// thousands of auctions).  `rng` is `Send` because the sampler thread
-/// borrows it.
+/// thousands of auctions).  `rng` draws one seed per position, in order, and
+/// each position samples from its own seed.
 #[must_use]
 pub fn single_dummy_leads(
     questions: &[LeadQuestion],
-    rng: &mut (impl Rng + Send),
+    rng: &mut impl Rng,
     n: usize,
 ) -> Vec<(Card, TrickCount)> {
     single_dummy_leads_with_stats(questions, rng, n).0
@@ -195,47 +195,67 @@ pub fn single_dummy_leads(
 #[must_use]
 pub fn single_dummy_leads_with_stats(
     questions: &[LeadQuestion],
-    rng: &mut (impl Rng + Send),
+    rng: &mut impl Rng,
     n: usize,
 ) -> (Vec<(Card, TrickCount)>, Vec<SampleStats>) {
     assert!(n > 0, "a lead needs at least one sampled world");
-    // Sampling and solving overlap: a scoped thread owns `rng` and samples
-    // the questions in order, while this thread (where the solver must stay)
-    // solves whatever the sampler has ready.  The draws happen in the same
-    // order as a serial loop and each world's DD score does not depend on its
-    // batch, so the answers are identical; wall time approaches the slower
-    // phase instead of the sum.
+    // Each question samples from its own seed, drawn here in order, so the
+    // worlds do not depend on which thread samples them or when.  Scoped
+    // threads, as many as the DD pool, take questions in order while this
+    // thread, where the solver must stay, solves whatever has arrived; a
+    // world's DD score does not depend on its batch.  Wall time approaches
+    // the slower phase instead of the sum.
+    let seeds: Vec<u64> = questions.iter().map(|_| rng.next_u64()).collect();
+    let width = crate::dd::threads()
+        .or_else(|| std::thread::available_parallelism().ok())
+        .map_or(1, std::num::NonZero::get)
+        .min(questions.len());
     let solver = crate::dd::solver();
-    let mut found = Vec::with_capacity(questions.len() * (n + 1));
-    let sampling = std::thread::scope(|scope| {
+    let mut found = vec![Vec::new(); questions.len()];
+    let mut sampling = vec![SampleStats::default(); questions.len()];
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    std::thread::scope(|scope| {
         let (tx, rx) = std::sync::mpsc::channel();
-        let sampler = scope.spawn(move || {
-            questions
-                .iter()
-                .map(|question| {
-                    let (objectives, stats) = lead_objectives(question, rng, n);
-                    // The receiver outlives every send unless this thread's
-                    // caller already panicked; nothing is lost either way.
-                    let _ = tx.send(objectives);
-                    stats
-                })
-                .collect::<Vec<_>>()
-        });
+        for _ in 0..width {
+            let tx = tx.clone();
+            let (next, seeds) = (&next, &seeds);
+            scope.spawn(move || {
+                use rand::SeedableRng as _;
+                loop {
+                    let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let Some(&seed) = seeds.get(i) else { break };
+                    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                    let (objectives, stats) = lead_objectives(&questions[i], &mut rng, n);
+                    // The receiver outlives every send unless the solver
+                    // already panicked; nothing is lost either way.
+                    let _ = tx.send((i, objectives, stats));
+                }
+            });
+        }
+        // The loop below ends once every sampler has dropped its sender.  A
+        // sampler's panic resurfaces when the scope ends.
+        drop(tx);
         // `recv` waits for the next question, and `try_iter` adds every
         // question already sampled, so batches grow while DD is the slower
         // phase.
         while let Ok(first) = rx.recv() {
-            let batch: Vec<_> = first.into_iter().chain(rx.try_iter().flatten()).collect();
-            found.extend(solver.solve_boards(&batch));
+            let mut asked = Vec::new();
+            let mut batch = Vec::new();
+            for (i, objectives, stats) in std::iter::once(first).chain(rx.try_iter()) {
+                asked.push(i);
+                batch.extend(objectives);
+                sampling[i] = stats;
+            }
+            let solved = solver.solve_boards(&batch);
+            for (&i, chunk) in asked.iter().zip(solved.chunks_exact(n + 1)) {
+                found[i] = chunk.to_vec();
+            }
         }
-        sampler
-            .join()
-            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
     });
 
     let answers = questions
         .iter()
-        .zip(found.chunks_exact(n + 1))
+        .zip(&found)
         .map(|(question, chunk)| {
             let (actual, worlds) = chunk.split_last().expect("chunks are n + 1 long");
             // Total defensive tricks per candidate lead across the sampled
@@ -798,7 +818,7 @@ pub fn single_dummy_declarer_tricks(
     declarer: Seat,
     leader_inferences: &Inferences,
     declarer_inferences: &Inferences,
-    rng: &mut (impl Rng + Send),
+    rng: &mut impl Rng,
     n: usize,
     k: usize,
 ) -> (Card, TrickCount, TrickCount) {
@@ -832,7 +852,7 @@ pub fn single_dummy_declarer_tricks_with_stats(
     declarer: Seat,
     leader_inferences: &Inferences,
     declarer_inferences: &Inferences,
-    rng: &mut (impl Rng + Send),
+    rng: &mut impl Rng,
     n: usize,
     k: usize,
 ) -> (Card, TrickCount, TrickCount, [SampleStats; 2]) {
