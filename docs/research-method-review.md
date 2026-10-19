@@ -281,6 +281,49 @@ and [anchor.sh](../scripts/anchor.sh). General
 and requests all strains. A cache or selected-position solve is a benchmark
 candidate, not a demonstrated speedup.
 
+**`ab-dump-sd` profiled 2026-10-19** (sd-lead, 16 worlds, the
+`competitive-4cell-nsew` default/acctoff ns pair: 1,228,800 boards, 6,847
+fired, 13,694 lead questions; `JOBS`/`DDSS_THREADS` 96 under a load of ~510;
+temporary phase timers, report byte-identical to the archived one):
+
+| Phase | Wall | Share |
+| --- | ---: | ---: |
+| Load both dumps | 9.3 s | 1.4% |
+| Build readers + leader readings | 1.4 s | 0.2% |
+| Rejection sampling (serial, one thread) | 257 s | 39.7% |
+| DD solves (232,798 trick-one `Legal` boards, 96 threads) | 379 s | 58.6% |
+| Total | 650 s | |
+
+DD is the larger phase, but sampling is ~40% of wall clock and runs on one
+thread while the solver's pool waits. The two phases alternate per 4,096-question
+chunk inside `single_dummy_leads_with_stats`. Most of the sampling time goes to
+starved questions: a question that cannot fill its 16 worlds draws the whole
+16 × 4,096 = 65,536-draw budget before the fallback tier fills the rest. The
+2,839 such questions (both arms) drew 186M of the 266M draws (≈70%) and
+yielded ≈10.4k of the 219k sampled worlds (≈4.8%). One draw costs ≈1.1 µs:
+dealing 39 cards plus `within_ranges`.
+
+Levers, ranked by how much each preserves the KR1 proof:
+
+1. **Overlap sampling with solving**, byte-identical. A sampler thread owns
+   the RNG and draws in the same order, while the main thread (where the
+   solver must stay) solves sub-batches as they arrive. Wall time becomes
+   about `max(sample, solve)`, ≈ −40% at this load. Every caller of
+   `single_dummy_leads` benefits: ab-dump-sd and the twelve other SD harnesses
+   and probes. Cost: a `Send` bound on the RNG.
+2. **Parallel sampling with per-question seeds** drawn serially from the RNG.
+   This is faster still on a free box, where DD speeds up and serial
+   sampling would dominate. It changes the RNG stream, so every SD number
+   moves within noise and archived reports stop reproducing.
+3. **Early exit on starved questions** (a dry limit like the replay
+   sampler's). This cuts ≈70% of the draws but changes the stream and,
+   slightly, the mix of fallback worlds. It is a scorer change and needs its
+   own argument.
+
+The `solve_divergent` cache above prices `ab-dump-diff`, not this tool. Here
+DD is not marginal, but its 17 solves per question are distinct worlds, so a
+cache has nothing to reuse.
+
 - Define development reuse, data separation and final confirmation policy;
   record deal identities so overlap can be handled correctly.
 - Benchmark cache reuse and reached-position solves against full tables.
