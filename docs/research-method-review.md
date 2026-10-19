@@ -320,6 +320,13 @@ Levers, ranked by how much each preserves the KR1 proof:
    This is faster still on a free box, where DD speeds up and serial
    sampling would dominate. It changes the RNG stream, so every SD number
    moves within noise and archived reports stop reproducing.
+   **Parked 2026-10-19 on `park/sd-parallel-sampling`** (a sampler pool as
+   wide as the DD pool). At the 96-thread cap it is 17% slower: 554 s twice
+   against lever 1's 481 s and 466 s, run in ABBA order. Lever 1 is already
+   DD-bound there, and the extra sampler threads take cores from DD. The
+   stream change is noise: plain SD +0.0018 against the archived +0.0016,
+   SD-PD +0.0000 against −0.0002 (each ±0.0007), same verdicts. Flip plan:
+   re-measure on a free box (`JOBS`/`DDSS_THREADS` 640).
 3. **Early exit on starved questions** (a dry limit like the replay
    sampler's). This cuts ≈70% of the draws but changes the stream and,
    slightly, the mix of fallback worlds. It is a scorer change and needs its
