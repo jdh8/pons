@@ -585,6 +585,11 @@ fn main() -> anyhow::Result<()> {
     // `notrump_minors` keeps that mechanism from firing.
     let mut theirs = agreements;
     theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+    // BEN's defense does not change between our arms: the `--ns-*` defense
+    // knobs move only our book, never the one we read BEN's calls off.  Copying
+    // them leaked the arm into our reading of `1NT (2♥)` (2026-10-19:
+    // `--ns-nt-overcall-hcp-floor 8` vs `0`, 40 foreign boards at the gate).
+    theirs.defense = pons::bidding::agreements::Agreements::default().defense;
     let our_floor =
         seat_floor(&args.our_floor, &agreements)?.with_opponents(&american(&theirs).bind());
     let epbot = if args.calibrate_epbot {

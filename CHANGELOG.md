@@ -204,6 +204,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`ben-gen` no longer reads BEN through our arm's defense knobs
+  (2026-10-20).** The opponent book our side reads BEN's calls off was a copy
+  of our agreements taken after the `--ns-*` knobs, so a defense knob moved our
+  model of BEN too. `ab-ben-nt-overcall-floor.sh`'s first cell caught it: 40
+  divergent boards where *we* opened 1NT, our reading of their `(2♥)` moved
+  by `--ns-nt-overcall-hcp-floor`. That model's `defense` block is now the
+  shipped default in every arm. Default-flag runs are unchanged; a BEN A/B on
+  a defense knob reruns. No bidding change.
+
 - **`scripts/ben-servers.sh` no longer fills the system `/tmp`
   (2026-10-19).** Each BEN instance copies its models into ~28 temp dirs it
   never removes; repeated fleet starts had left 6,000 of them (≈ 39 GB), the
