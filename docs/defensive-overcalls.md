@@ -1067,6 +1067,118 @@ Woolsey (route undecided, owed to jdh8).
   balancing seat — dead until balancing is book work, which it is not.
 - **`P → X` volume** — see [takeout-double-layers.md](takeout-double-layers.md).
 
+## The DONT-style runout after `(1NT) X (XX)` (built 2026-10-20, A/B owed)
+
+Step 2 of the 1NT-defense plan, package B, book alternative to the ladder
+rails (`InstinctProfile::xx_runout_rails`). Knob `defense.xx_dont_runout`,
+**default off**; code `src/bidding/american/defense/nt_xx_runout.rs`; arms
+`off` / `rails` / `dont` of `scripts/ab-xx-runout-rails.sh` (pre-registered
+there). Owner decisions jdh8, 2026-10-20. Step-2 ledger row:
+
+| package | knobs | runner | clean estimate |
+| --- | --- | --- | --- |
+| DONT-style XX runout (book) | `defense.xx_dont_runout` | `scripts/ab-xx-runout-rails.sh` (`dont` arm) | the four-card share of ≈ +0.1 to +0.3 per 1,000 (rare) |
+
+**The fact it rests on.** Their `1NT` is 15+, our natural penalty `X` is 15+,
+so the advancer holds at most 40 − 15 − 15 = 10 HCP and, after a business
+redouble (our own floor reads 7+), 0–3 in practice. Karen Walker's
+values-pass branch ("pass with values, play `1NTxx`") is empty against a strong
+`1NT`, so the advancer's pass can be **forcing** at no cost, and running is
+right at every vulnerability: a made `1NTxx` is 560 / 760 plus 200 / 400 an
+overtrick, against 300 / 500 for a doubled two-level runout two down. The
+doubler is balanced (short in at most one suit), so any two four-card suits
+find a seven-card fit through pass-or-correct and any five-card suit is a
+seven-card fit; only a 4-3-3-3 naming its four-card suit opposite the
+doubler's doubleton lands in 4-2.
+
+**The scheme** (direct seat `P* (1NT) X (XX)` only, two leading passes at
+most; natural defense only). The balancing `(1NT) - - X (XX)` is excluded
+because that advancer passed `1NT` in the direct seat and *can* hold values.
+
+| Node | Call | Shows | Alert |
+| --- | --- | --- | --- |
+| advancer, `(1NT) X (XX)` | `2♣` | ♣ and a higher four-card suit, 4-4+; three-suiters bid it | `1ntd:xx-runout-2c` |
+| | `2♦` | ♦ and a four-card major, no four clubs | `1ntd:dont-2d` |
+| | `2♥` | both majors 4-4+, no four-card minor | `1ntd:dont-2h` |
+| | `2♠` | five-plus spades, no other four-card suit | — |
+| | `-` | **forcing**: a 5+ one-suiter in ♣/♦/♥ or any 4-3-3-3, at most 10 HCP | — (a pass) |
+| doubler, `… (XX) - -` | `2♣` | relay, any hand; never passes | `1ntd:dont-pc` |
+| advancer, `… - - 2♣ -` / `2♣ (X)` | `-` / `2♦` / `2♥` / `2♠` | clubs / that suit: five-plus, or the 4-3-3-3's four (a four-spade 4333 passed first, so a direct `2♠` stays five) | — |
+| doubler, `… (XX) 2♣ -` | `-` / `2♦` | three-plus clubs / "name your higher suit" | `1ntd:dont-pc` |
+| doubler, `… (XX) 2♦ -` | `-` / `2♥` | three-plus diamonds / pass-or-correct | `1ntd:dont-pc` |
+| doubler, `… (XX) 2♥ -` and `2♥ (X)` | `-` / `2♠` | hearts at least as long / longer spades | `1ntd:dont-pc` |
+| doubler, `… (XX) 2♣ (X)` / `2♦ (X)` | `-` / `XX` | three-plus / **SOS**: "bid your other suit" | `1ntd:xx-runout-sos` |
+| advancer after the SOS | `2♦` / `2♥` / `2♠` | the cheapest four-plus suit above the one shown | — |
+| any later double of theirs | `-` | sit: their redouble was business, so every later double is penalty | — |
+
+The advancer's table is an exact partition of every hand up to 10 HCP, so each
+call's reading is its own shape. HCP is a condition nowhere except the forcing
+pass's `hcp(..=10)`, which is what makes it *read* as weak; a one-suiter or
+4-3-3-3 above it cannot occur opposite 15 + 15 and is left to the floor
+rather than to a catch-all, whose ⊤ reading would erase the pass's. The pass
+cannot be alerted (`docs/authored-reading-handoff.md`: artificiality is
+bid-only); its forcing nature is the doubler's table having no `Pass`, and its
+meaning reaches the reader through the pass reading (`project_pass`: the
+union of the node's Pass rules). The relays reuse `nt_dont.rs`'s
+`passed_dont_*` tables and its "one table whether the relay is passed or
+doubled" idiom; `sit()` is `nt_landy.rs`'s.
+
+**Owed (jdh8, 2026-10-20): the doubler's pass reads as anything.** In the
+reused `passed_dont_*` tables the doubler's catch-all `Pass` over a two-suiter
+reads as any hand, not "3+ in the suit". Tightening it sharpens the reading
+but moves DONT's own lane too, so it is its own change with its own A/B, after
+this package's verdict.
+
+**PDI and the latch.** None of these calls is a PDI trigger: business and SOS
+redoubles are excluded by definition ([pdi.md](pdi.md)), the structural
+conversion `X - -` cannot match because every double here is theirs, and the
+penalty-latch double reader (`penalty_latch_double_reading`) counts only our
+`Call::Double`, so the SOS `XX` is never read as a penalty double to sit for.
+
+**Against the rails.** A book node with finite mass shadows the floor, so with
+both knobs on this package answers `(1NT) X (XX)`, `(1NT) X (XX) - -` and every
+continuation it keys, and the rails never fire there. The rails cover the
+five-card runouts only (a 4-4 or 4-3-3-3 bust still sits `1NTxx` on the
+ladder); this package covers both. The runner measures each against `off`,
+with `dont − rails` descriptive, and pre-registers which ships if both qualify.
+
+**Open choices** (the write-up's §5, decided as above; revisit only with
+data): the 4-3-3-3 names its own four-card suit (pure DONT) rather than
+passing and letting the doubler bid his cheapest suit (Bridgebum / Walker's
+scramble — 4-2 risk about 2.3% vs about 4% of advancer hands, a priori a wash);
+a doubled `2♥` is answered as undoubled (pass or `2♠`), since its other suit is
+known. Not changed: DONT's own `(1NT) X (XX)` keeps its `2♣` relay where
+Bridgebum's DONT turns it off.
+
+Sources (✓ = read at the source during the 2026-10-20 research; ~ = secondary
+or snippet only):
+
+- Karen Walker, "Contest their notrump?" Part 13, ACBL Bridge Bulletin, Jan
+  2020 — <https://kwbridge.com/bb/nt-5.htm> ✓ (business `XX` = a pass;
+  values pass vs weak pull; the scramble).
+- Bridgebum, DONT, "Partner Doubles, and RHO Redoubles" —
+  <https://www.bridgebum.com/dont.php> ✓ (relay off; pass = "let partner run";
+  SOS `XX` over a doubled two-suiter).
+- Adventures in Bridge #547 —
+  <https://www.advinbridge.com/this-week-in-bridge/547> ✓ (DONT runouts,
+  two-suiters "at least 4-4").
+- "Rescue Systems Over 1NT Doubled", bridge-tips.co.il, 2015 ✓ (DONT rescue:
+  cheapest of two or three 4+ suits; its "which higher suit?" weakness).
+- Larry Cohen, DONT — <https://www.larryco.com/bridge-articles/dont> ✓
+  (`(1NT) 2♣ (X)`: pass = willing, `XX` = bid your other suit); "Redoubles" —
+  <https://www.larryco.com/bridge-articles/redoubles> ✓ (responder's
+  redouble of a doubled opening is business; later doubles penalty).
+- Karen Walker, DONT summary — <http://kwbridge.com/dont.htm> ✓.
+- Bridgebum, Touching Escapes — <https://www.bridgebum.com/touching_escapes.php>
+  ✓ (the only source ruling on 4-3-3-3: treat the four-card suit as a five);
+  Helvic, SWINE, Owen Wriggle pages on bridgebum ✓ (forcing-pass schemes).
+- David Stevenson, "Responses to 1NT when it has been Doubled" —
+  <https://www.blakjak.org/dbl_1nt1.htm> ✓ (every listed system's `XX` forces
+  `2♣`).
+- BBO forum, "Escape structure after 1NT-X" ~ (awm: forcing weak pass;
+  Hinden's "1NTX must remain available" objection, void here);
+  Celestial "Chapter 9" ~ (pass for a one-suiter, then `XX` to learn it).
+
 ## Ledger (memory compaction, 2026-08-16)
 
 - **Strong-double gauge, 2026-07-29:** `StrongDoubleEdge::Points(18)` stays

@@ -147,6 +147,14 @@ struct Args {
     /// Read the OFF arm with `(1NT) 2x - ?` left to the instinct floor.
     #[arg(long, default_value_t = false)]
     off_no_ns_nt_overcall_advance: bool,
+    /// Read the ON arm with the DONT-style runout after `(1NT) X (XX)`
+    /// (`defense.xx_dont_runout`, `bba-gen --ns-xx-dont-runout`): its
+    /// two-suiters and forcing pass publish their shapes.
+    #[arg(long, default_value_t = false)]
+    on_ns_xx_dont_runout: bool,
+    /// Read the OFF arm with the DONT-style runout after `(1NT) X (XX)`.
+    #[arg(long, default_value_t = false)]
+    off_ns_xx_dont_runout: bool,
     /// Read the OFF arm without the doubled-1NT runout (`bba-gen
     /// --no-ns-one-nt-runout`).
     #[arg(long, default_value_t = false)]
@@ -359,6 +367,7 @@ fn main() {
     on_arm.defense.direct_minor_weak_jump_overcall = args.on_ns_direct_minor_weak_jump_overcall;
     on_arm.defense.natural_overcall_hcp_floor = args.on_ns_nt_overcall_hcp_floor;
     on_arm.defense.natural_overcall_advance_enabled = !args.on_no_ns_nt_overcall_advance;
+    on_arm.defense.xx_dont_runout = args.on_ns_xx_dont_runout;
     on_arm.defense.suppress_long_minor_takeout = args.on_ns_suppress_long_minor_takeout;
     on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
     on_arm.defense.nt_overcall_no_major = args.on_ns_nt_overcall_no_major;
@@ -408,6 +417,7 @@ fn main() {
     off_arm.defense.direct_minor_weak_jump_overcall = args.off_ns_direct_minor_weak_jump_overcall;
     off_arm.defense.natural_overcall_hcp_floor = args.off_ns_nt_overcall_hcp_floor;
     off_arm.defense.natural_overcall_advance_enabled = !args.off_no_ns_nt_overcall_advance;
+    off_arm.defense.xx_dont_runout = args.off_ns_xx_dont_runout;
     off_arm.defense.suppress_long_minor_takeout = args.off_ns_suppress_long_minor_takeout;
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);

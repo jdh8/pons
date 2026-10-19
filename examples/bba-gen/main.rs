@@ -639,6 +639,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_silent_cue_veto: bool,
 
+    /// Turn ON the rails that hand `(1NT) X (XX)` and `(1NT) X (XX) - -` to
+    /// the deterministic ladder's runouts instead of the net
+    /// (`InstinctProfile::xx_runout_rails`, crate default off).  The `on` arm
+    /// of `scripts/ab-xx-runout-rails.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_xx_runout_rails: bool,
+
     /// Turn OFF the rail that vetoes our silent side's bids over their `2NT`
     /// opening auction on 7 HCP or fewer (`InstinctProfile::their_2nt_bid_veto`,
     /// crate default on).  The `plain` arm of `scripts/ab-2nt-bid-veto.sh`.
@@ -2292,6 +2299,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_overcall_advance: bool,
 
+    /// Turn ON the DONT-style runout after BBA's redouble of our penalty `X` of
+    /// its 1NT (`defense.xx_dont_runout`, crate default off): the advancer's
+    /// forcing pass and 4-4 two-suiters, the doubler's forced `2♣` relay, the
+    /// SOS redouble.  The `dont` arm of `scripts/ab-xx-runout-rails.sh`; a book
+    /// package, so it shadows `--ns-xx-runout-rails` at every node it keys.
+    #[arg(long, default_value_t = false)]
+    ns_xx_dont_runout: bool,
+
     /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
     /// `natural`).
     ///
@@ -2400,13 +2415,14 @@ struct Args {
 
     /// Disable the advancer's runout from BBA's redoubled penalty X (default on):
     /// after `(1NT) X (XX)`, a weak advancer sits for `1NTxx` instead of escaping to
-    /// its long suit.
+    /// its long suit.  Inert under the net floor unless `--ns-xx-runout-rails`.
     #[arg(long, default_value_t = false)]
     no_ns_xx_runout: bool,
 
     /// Disable the *doubler's* runout once BBA's redoubled penalty X runs back around
     /// (default on): after `(1NT) X (XX) - -`, a 15+ doubler with a five-plus suit
-    /// escapes to it instead of defending `1NTxx`.
+    /// escapes to it instead of defending `1NTxx`.  Inert under the net floor
+    /// unless `--ns-xx-runout-rails`.
     #[arg(long, default_value_t = false)]
     no_ns_doubler_run: bool,
 
@@ -3063,6 +3079,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.their_game_pull_veto = !args.no_ns_game_pull_veto;
     agreements.decision.instinct.their_2nt_unusual_veto = args.ns_2nt_unusual_veto;
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
+    agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
     agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
     agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
@@ -3368,6 +3385,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.natural_overcall_advance_enabled = !args.no_ns_nt_overcall_advance;
     agreements.defense.woolsey_muiderberg_sit = args.ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = args.ns_woolsey_tails;
+    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
     agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;

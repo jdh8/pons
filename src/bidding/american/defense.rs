@@ -22,6 +22,7 @@
 //! | [`gladiator`] | the relay structure after our `1NT` overcall |
 //! | [`nt_defense`] | defending their `1NT` — the bundle and the natural chain |
 //! | [`nt_landy`], [`nt_dont`], [`nt_meckwell`], [`nt_woolsey`] | the four systems' calls and advances |
+//! | [`nt_xx_runout`] | the DONT-style runout after their redouble of our penalty `X` of their `1NT` |
 //! | [`nt_their_conventions`] | defending their Stayman and transfers |
 
 use super::super::agreements::Agreements;
@@ -66,6 +67,7 @@ mod nt_landy;
 mod nt_meckwell;
 mod nt_their_conventions;
 mod nt_woolsey;
+mod nt_xx_runout;
 mod overcall;
 mod responsive;
 mod weak_two_defense;
@@ -86,6 +88,7 @@ use nt_their_conventions::{
     their_stayman_defense_package, their_transfer_defense_package,
 };
 use nt_woolsey::woolsey_package;
+use nt_xx_runout::xx_dont_runout_package;
 use overcall::suit_defense_package;
 use responsive::{responsive_double_package, responsive_overcall_package};
 use weak_two_defense::weak_two_defense_package;
@@ -244,6 +247,16 @@ const WOOLSEY_X_ASK: Alert = Alert("1ntd:woolsey-x-ask");
 /// over the both-majors `2♥`.  One slug for the family; Meckwell's `2♣`/`2♦`
 /// advances reuse these rules and carry it too.
 const DONT_PC: Alert = Alert("1ntd:dont-pc");
+/// The `(1NT) X (XX)` runout's `2♣` — clubs and a higher four-card suit (♦, ♥
+/// or ♠), 4-4 or longer, pass-or-correct.  Unlike DONT's `2♣` the higher suit
+/// may be diamonds, so it carries its own slug; the runout's `2♦` (♦ + a major)
+/// and `2♥` (both majors) mean what DONT's do and reuse [`DONT_2D`] /
+/// [`DONT_2H`], and its relays reuse [`DONT_PC`].
+const XX_RUNOUT_2C: Alert = Alert("1ntd:xx-runout-2c");
+/// The `(1NT) X (XX)` runout's SOS redouble — they doubled our two-suiter and
+/// the doubler holds at most two cards in its first suit: "bid your other
+/// suit".  A rescue, not a desire to play (and not a penalty-latch double).
+const XX_RUNOUT_SOS: Alert = Alert("1ntd:xx-runout-sos");
 /// Advancer's `2♣` relay over the Meckwell two-way `X`.
 const MECKWELL_RELAY: Alert = Alert("1ntd:meckwell-relay");
 /// Lead-directing double of the opponents' 2♣ Stayman — shows clubs (the bid
@@ -395,6 +408,10 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
 
     // Advancing partner's natural two-level overcall of their 1NT, when on.
     compile_into(&mut d, agreements, &[natural_overcall_advance_package()]);
+
+    // The DONT-style runout after their redouble of our natural penalty `X`,
+    // when on (default off; it shadows `xx_runout_rails` at the nodes it keys).
+    compile_into(&mut d, agreements, &[xx_dont_runout_package()]);
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
     // 2♣ is the identical both-majors call on the same shared band, so it reuses this

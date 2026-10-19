@@ -78,6 +78,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   byte-identical; A/B owed (the runner pre-registers the standard decision
   table: plain DD non-inferior and PD win, every cell).
 
+- **`InstinctProfile::xx_runout_rails`: the redoubled-penalty-double runouts
+  as forced rails under the net floor, `bba-gen`/`ben-gen
+  --ns-xx-runout-rails`, and `scripts/ab-xx-runout-rails.sh` (2026-10-19).**
+  The advancer's and the doubler's runouts after their business redouble of
+  our penalty `X` of their `1NT` (`advancer_xx_runout`,
+  `InstinctKnobs::doubler_xx_runout`) were measured and shipped default-on in
+  June 2026, but they live only in the deterministic ladder, and under the v6
+  net floor neither node is a rail, so the net decides and both were inert.
+  On, `instinct::forced` also answers `true` at `(1NT) X (XX)` and
+  `(1NT) X (XX) - -`, so the shell hands both nodes to the ladder: a weak
+  (under 8 HCP) advancer or any doubler with a five-plus suit runs to it,
+  everything else passes and defends `1NTxx` — including a weak 4-4 or
+  4-3-3-3 advancer, which the ladder has no escape for. Each arm follows its
+  own runout knob, so a runout turned off keeps its rail off. The runouts are
+  natural and unalerted, and their reading is unchanged by the knob.
+  Forensics (natural census, 393k accepted boards per cell): the doubler sits
+  in `1NTxx` on 56–65 boards per cell (17 / 22 with a five-plus suit), and the
+  net passes a weak five-card advancer on ~7; the −7.0 / −8.3 IMPs per board
+  on the doubler's sits is a non-causal comparison against the other table,
+  not the value of running. This build covers the doubler arm and the
+  five-card advancer piece — about 40% of the boards the verdict priced. The
+  "+4.2 to +6.6 IMPs per changed board" counterfactual for running from
+  `(XX)` on 0–4 HCP belongs to four-card runouts this build does not make, so
+  it is not this build's expected gain. The four-card piece is the book
+  alternative `defense.xx_dont_runout` (above), which shadows this rail at
+  every node it keys when both are on.
+  **Default off, A/B owed** (`scripts/ab-xx-runout-rails.sh`, the standard
+  decision table: plain DD non-inferior in every cell and a PD win; perfect
+  defense scores a making `1NTxx` undoubled and so is biased against running).
+
+- **`defense.xx_dont_runout`: a DONT-style runout after their business
+  redouble of our penalty `X` of their `1NT`, `bba-gen`/`ben-gen
+  --ns-xx-dont-runout`, `ab-dump-sd --on-/--off-ns-xx-dont-runout`, and a
+  third arm in `scripts/ab-xx-runout-rails.sh` (2026-10-20).** A book
+  package, natural defense and direct seat only (`P* (1NT) X (XX)`). Their
+  `1NT` and our `X` are both 15+, so the advancer is broke and a values pass
+  has no hands: the advancer's pass is **forcing** (a 5+ one-suiter in
+  ♣/♦/♥ or any 4-3-3-3) and the doubler relays `2♣` over it, never passing;
+  `2♣` = ♣ + a higher suit, `2♦` = ♦ + a major, `2♥` = both majors (all
+  4-4+, alerted), `2♠` = five-plus spades. The doubler answers the
+  two-suiters pass-or-correct (reusing DONT's `passed_dont_*` tables),
+  rescues a doubled one with an alerted SOS redouble, and every later double
+  of theirs is sat. Each call reads as its exact shape, the forcing pass
+  included (one-suiter or 4-3-3-3, at most 10 HCP). It covers the four-card
+  runouts the ladder rails cannot; it is their alternative, not a
+  complement: with both knobs on the book answers every node it keys and the
+  rails never fire there. **Default off, A/B owed**: the runner now plays
+  `off` / `rails` / `dont` on one `SEED_BASE`, each candidate judged against
+  `off` by the standard decision table, `dont − rails` descriptive, and a
+  pre-registered tie-break if both qualify (confirmed by jdh8 2026-10-20).
+  Default system byte-identical. Design and sources:
+  `docs/defensive-overcalls.md` § "The DONT-style runout after
+  `(1NT) X (XX)`".
+
 - **`ben-gen --filter-1nt --wide-1nt --ns-nt-overcall-hcp-floor`, and
   `scripts/ab-ben-nt-overcall-floor.sh` (2026-10-19).** The BEN generator now
   takes the natural 1NT overcall's HCP floor and the 1NT-candidate deal scan

@@ -210,6 +210,27 @@ R4b, the first wash, sat right at the census bar (−0.50k PD); its masked
 the census over-stated it. Rows at the bar are coin flips — price the next
 ones against ~1k PD, not 0.5k.
 
+**After the series: an exact-auction forced delegation (2026-10-19).**
+`InstinctProfile::xx_runout_rails` (default off, A/B owed:
+`scripts/ab-xx-runout-rails.sh`) is *not* a rail in this series' sense. It
+masks no call: it makes `instinct::forced` answer `true` at two exact
+auctions, `(1NT) X (XX)` and `(1NT) X (XX) - -`, so the neural shell hands
+the whole decision there to the ladder's June runouts
+(`advancer_xx_runout`, `InstinctKnobs::doubler_xx_runout`), which are inert
+under the net floor without it. That breaks the *parametric or nothing*
+rule above on purpose — **allowed by owner decision (jdh8, 2026-10-19)**: the
+nodes are a runout structure the ladder already authors and measured, not
+junk the net should learn to avoid, so delegation, not a veto mask, is the
+patch. It covers five-plus-card runouts only; the four-card bust piece is
+the book alternative `defense.xx_dont_runout` (built 2026-10-20, default
+off; [defensive-overcalls.md](defensive-overcalls.md#the-dont-style-runout-after-1nt-x-xx-built-2026-10-20-ab-owed)),
+which shadows this rail at every node it keys when both are on, so the two
+are measured as separate arms of `scripts/ab-xx-runout-rails.sh`.
+
+| rail | knob | shipped | plain | PD | fired | seed |
+| --- | --- | --- | --- | --- | ---: | --- |
+| *(owed)* XX runouts, forced delegation (exact auction) | `xx_runout_rails` | **off**, A/B owed | — | — | — | — |
+
 ## Per-rail runbook
 
 1. **Trace.** Join the slice's rows back to the dumps, confirm the reference

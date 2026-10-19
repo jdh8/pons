@@ -1140,6 +1140,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.response.drury = true;
         profiles.push(("drury", a));
     }
+    // The DONT-style runout after `(1NT) X (XX)` (default off).
+    {
+        let mut a = base;
+        a.defense.xx_dont_runout = true;
+        profiles.push(("xx-dont-runout", a));
+    }
 
     let mut worklist = Vec::new();
     for (name, agreements) in profiles {

@@ -68,7 +68,6 @@ pub enum NotrumpDefense {
 }
 
 /// Whether the natural one-suiter defense is currently the active system
-#[allow(dead_code)]
 pub(super) fn natural_defense_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense == NotrumpDefense::Natural
 }

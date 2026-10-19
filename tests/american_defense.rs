@@ -333,3 +333,58 @@ fn test_woolsey_tails_toggle() {
         Call::Pass
     );
 }
+
+// --- DONT-style runout after (1NT) X (XX) ----------------------------------
+
+/// `(1NT) X (XX)` with `defense.xx_dont_runout` on, played call by call: a
+/// broke 4-3-3-3 makes the forcing pass, the doubler relays `2♣`, the advancer
+/// names its four-card suit, and the doubler sits; a 4-4 two-suiter bids its
+/// two-suiter directly instead, and the doubler rescues a doubled one with the
+/// SOS redouble.
+#[test]
+fn test_xx_dont_runout_end_to_end() {
+    let mut agreements = Agreements::default();
+    agreements.defense.xx_dont_runout = true;
+    let system = american(&agreements).bind();
+    let (nt, p, x, xx) = (
+        call(1, Strain::Notrump),
+        Call::Pass,
+        Call::Double,
+        Call::Redouble,
+    );
+    let (c2, h2, s2) = (
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+    );
+    let advancer = "J432.432.432.432";
+    let doubler = "AKQ2.KQ5.AJ4.932";
+
+    let mut auction = vec![nt, x, xx];
+    assert_eq!(best_call(&system, &auction, advancer), p);
+    auction.extend([p, p]);
+    assert_eq!(best_call(&system, &auction, doubler), c2);
+    auction.extend([c2, p]);
+    assert_eq!(best_call(&system, &auction, advancer), s2);
+    auction.extend([s2, x]);
+    assert_eq!(best_call(&system, &auction, doubler), p);
+
+    // Both majors 4-4: 2♥ at once; doubled, a doubler short in hearts
+    // corrects to spades rather than redoubling.
+    assert_eq!(best_call(&system, &[nt, x, xx], "Q432.J432.432.32"), h2);
+    assert_eq!(
+        best_call(&system, &[nt, x, xx, h2, x], "AQ32.KQ5.K43.Q32"),
+        s2
+    );
+    // Clubs and hearts: 2♣; doubled, a two-club doubler redoubles SOS and
+    // the advancer bids its hearts.
+    assert_eq!(best_call(&system, &[nt, x, xx], "32.Q432.32.J5432"), c2);
+    assert_eq!(
+        best_call(&system, &[nt, x, xx, c2, x], "AQ32.KQ5.KJ43.92"),
+        xx
+    );
+    assert_eq!(
+        best_call(&system, &[nt, x, xx, c2, x, xx, p], "32.Q432.32.J5432"),
+        h2
+    );
+}

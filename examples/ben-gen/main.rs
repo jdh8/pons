@@ -212,6 +212,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_nt_invite_bid_veto: bool,
 
+    /// Hand `(1NT) X (XX)` and `(1NT) X (XX) - -` to the ladder's runouts
+    /// instead of the net (opt-in; see `InstinctProfile::xx_runout_rails`).
+    #[arg(long, default_value_t = false)]
+    ns_xx_runout_rails: bool,
+
+    /// The DONT-style runout after their redouble of our penalty `X` of their
+    /// 1NT (opt-in book package; see `DefenseKnobs::xx_dont_runout`).  Shadows
+    /// `--ns-xx-runout-rails` at every node it keys.
+    #[arg(long, default_value_t = false)]
+    ns_xx_dont_runout: bool,
+
     /// Only keep deals with a 1NT-opener candidate somewhere, scanned by the
     /// same predicate as `bba-gen --filter-1nt` (`common::filters`); `--count`
     /// then means *kept* boards and the dealer rotates per kept board, so a
@@ -586,6 +597,9 @@ fn main() -> anyhow::Result<()> {
     }
     agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
     agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
+
+    agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
+    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
     // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
     // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was

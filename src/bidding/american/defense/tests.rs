@@ -37,6 +37,7 @@ fn row_package_invariants() {
             super::advance_of_double_package(),
             super::gladiator_package(),
             super::gladiator_sohl_package(),
+            super::xx_dont_runout_package(),
         ],
     );
 }

@@ -383,6 +383,182 @@ fn doubler_runs_from_redoubled_penalty_double() {
     assert_eq!(best_with(&off, &auction, "AQ765.KQ4.A82.K3"), Call::Pass);
 }
 
+/// `(1NT) X (XX)` — their business redouble, back to the advancer
+fn xx_advancer_auction() -> [Call; 3] {
+    [call(1, Strain::Notrump), Call::Double, Call::Redouble]
+}
+
+/// `(1NT) X (XX) - -` — the redouble ran back to the doubler
+fn xx_doubler_auction() -> [Call; 5] {
+    [
+        call(1, Strain::Notrump),
+        Call::Double,
+        Call::Redouble,
+        Call::Pass,
+        Call::Pass,
+    ]
+}
+
+/// The full system's call (net floor and all), its logits, and whether the
+/// floor answered (no book node at this auction)
+fn system_call(agreements: &Agreements, auction: &[Call], hand: &str) -> (Call, Vec<f32>, bool) {
+    use crate::bidding::american::american;
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let (logits, provenance) = american(agreements)
+        .bind()
+        .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+        .expect("a legal auction classifies");
+    let best = (&logits.0)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .map(|(call, _)| call)
+        .expect("array is never empty");
+    let raw = logits.iter().map(|(_, logit)| *logit).collect();
+    (
+        best,
+        raw,
+        provenance.depth == 0 && provenance.fallback.is_some(),
+    )
+}
+
+fn xx_rails() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.decision.instinct.xx_runout_rails = true;
+    agreements
+}
+
+#[test]
+fn xx_runout_rails_are_auction_determined_and_follow_their_runouts() {
+    let forced_under = |agreements: &Agreements, auction: &[Call]| {
+        forced(
+            &crate::bidding::american::american(agreements)
+                .bind()
+                .prefixed_context(RelativeVulnerability::NONE, auction),
+        )
+    };
+    let (advancer, doubler) = (xx_advancer_auction(), xx_doubler_auction());
+
+    // Default off: neither node is a rail, the net owns both.
+    assert!(!forced_under(&Agreements::default(), &advancer));
+    assert!(!forced_under(&Agreements::default(), &doubler));
+
+    // On: both nodes go to the ladder; the next seats do not.
+    let on = xx_rails();
+    assert!(forced_under(&on, &advancer));
+    assert!(forced_under(&on, &doubler));
+    assert!(!forced_under(&on, &doubler[..4]));
+    assert!(!forced_under(
+        &on,
+        &[
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Spades),
+        ]
+    ));
+
+    // Each arm follows its own runout: a runout switched off keeps its rail off.
+    let mut no_advancer = xx_rails();
+    no_advancer.decision.instinct.advancer_xx_runout = false;
+    assert!(!forced_under(&no_advancer, &advancer));
+    assert!(forced_under(&no_advancer, &doubler));
+    let mut no_doubler = xx_rails();
+    no_doubler.instinct.doubler_xx_runout = false;
+    assert!(forced_under(&no_doubler, &advancer));
+    assert!(!forced_under(&no_doubler, &doubler));
+}
+
+#[test]
+fn xx_runout_rails_hand_the_whole_node_to_the_ladder() {
+    let on = xx_rails();
+    let off = Agreements::default();
+
+    // The advancer: a weak (under 8 HCP) five-plus suit runs, everything else
+    // defends 1NTxx.  A 4-4 or 4-3-3-3 bust sits too — the ladder has no
+    // four-card escape (cf. the responder's both-minors 2NT), so the rail
+    // moves those hands from the net's occasional 2♣ to Pass.  Values sit
+    // even opposite the 15+ doubler: the redoubled 1NT is a contract we are
+    // penalizing (`not_penalizing` mutes the 3NT / 4M / 5m game milestones),
+    // and the penalty latch mutes the overcall-shaped bids (`may_pull_penalty`),
+    // so neither 12 HCP with five spades nor nine with seven of them bids game.
+    let advancer = xx_advancer_auction();
+    for (hand, expected) in [
+        ("J9763.852.764.43", call(2, Strain::Spades)), //  2 HCP, five spades
+        ("82.43.765.QJ8765", call(2, Strain::Clubs)),  //  3 HCP, six clubs
+        ("KJ763.Q82.J64.43", call(2, Strain::Spades)), //  7 HCP, five spades
+        ("KQ763.Q82.J64.43", Call::Pass),              //  8 HCP: values, defend
+        ("KQ7.K83.J642.643", Call::Pass),              //  9 HCP balanced
+        ("KQ7.Q83.QJ42.643", Call::Pass),              // 10 HCP balanced
+        ("KQ763.A82.K64.43", Call::Pass),              // 12 HCP, five spades
+        ("KQJ8763.82.K4.43", Call::Pass),              //  9 HCP, seven spades
+        ("843.92.Q643.J752", Call::Pass),              //  3 HCP, 4-4 minors
+        ("8432.T92.Q64.J75", Call::Pass),              //  3 HCP, 4-3-3-3
+    ] {
+        let (got, _, floor) = system_call(&on, &advancer, hand);
+        assert!(floor, "(1NT) X (XX) is floor territory");
+        assert_eq!(got, expected, "advancer {hand}");
+    }
+
+    // The doubler (15+): any five-plus suit runs, no five-card suit sits.
+    let doubler = xx_doubler_auction();
+    for (hand, expected) in [
+        ("AQ765.KQ4.A82.K3", call(2, Strain::Spades)),
+        ("AQ4.K82.K3.AQ765", call(2, Strain::Clubs)),
+        ("AQ74.KQ32.A82.K3", Call::Pass),
+        ("AKQ4.KJ3.A82.K32", Call::Pass),
+    ] {
+        let (got, _, floor) = system_call(&on, &doubler, hand);
+        assert!(floor, "(1NT) X (XX) - - is floor territory");
+        assert_eq!(got, expected, "doubler {hand}");
+    }
+
+    // Knob off — or on with the runout itself off — the decision is the net's:
+    // byte-identical logits to the shipped system.  The ladder's 2♠ above is
+    // not what the net bids on this hand, so the rail really changes hands.
+    let five_spades = "AQ765.KQ4.A82.K3";
+    let (net_call, net_logits, _) = system_call(&off, &doubler, five_spades);
+    // Weight-dependent: this pins what the shipped v6 net bids, not a rule.  A
+    // retrain that learns the runout will bid 2♠ here and break this line —
+    // drop it then (the logit identities below are the knob's real contract).
+    assert_ne!(net_call, call(2, Strain::Spades));
+    let mut no_doubler = xx_rails();
+    no_doubler.instinct.doubler_xx_runout = false;
+    assert_eq!(
+        system_call(&no_doubler, &doubler, five_spades).1,
+        net_logits
+    );
+    let mut no_advancer = xx_rails();
+    no_advancer.decision.instinct.advancer_xx_runout = false;
+    let bust = "J9763.852.764.43";
+    assert_eq!(
+        system_call(&no_advancer, &advancer, bust).1,
+        system_call(&off, &advancer, bust).1,
+    );
+}
+
+#[test]
+fn xx_runout_rails_leave_the_reading_unchanged() {
+    // The runouts are natural and unalerted; the rail moves who *answers* the
+    // node, never what the answer reads as.
+    use crate::bidding::american::american;
+    let (on, off) = (xx_rails(), Agreements::default());
+    let mut advancer_run = xx_advancer_auction().to_vec();
+    advancer_run.push(call(2, Strain::Spades));
+    let mut doubler_run = xx_doubler_auction().to_vec();
+    doubler_run.push(call(2, Strain::Spades));
+    for auction in [advancer_run, doubler_run] {
+        assert_eq!(
+            american(&on)
+                .bind()
+                .infer(RelativeVulnerability::NONE, &auction),
+            american(&off)
+                .bind()
+                .infer(RelativeVulnerability::NONE, &auction),
+            "reading of {auction:?}",
+        );
+    }
+}
+
 #[test]
 fn redoubled_runouts_read_the_pinned_notrump_defense() {
     let advancer_auction = [call(1, Strain::Notrump), Call::Double, Call::Redouble];

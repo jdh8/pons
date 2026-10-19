@@ -120,8 +120,14 @@ pub enum LatchStyle {
 ///
 /// One field per agreement the floor reads *during* classification.  Build-time
 /// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`) are
-/// deliberately absent — each is read only inside [`instinct`]'s table
-/// builder, so it is baked into the rules that come back.  Knobs the reading
+/// deliberately absent — each is read inside [`instinct`]'s table builder, so
+/// it is baked into the rules that come back.  One exception reads a build-time
+/// cell at classify time: with [`xx_runout_rails`][InstinctProfile::xx_runout_rails] on,
+/// the doubler arm of [`forced`] (`xx_runout_rail_now`) reads
+/// `DOUBLER_XX_RUNOUT` off the partnership serving the decision
+/// (`own_system().agreements()`), the same [`Agreements`] the ladder it
+/// delegates to was built from, so it stays partnership-scoped without joining
+/// this struct (a public-API change).  Knobs the reading
 /// layer already snapshots ([`ReadingProfile`]:
 /// `penalty_latch`, `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not
 /// duplicated here.
@@ -228,7 +234,55 @@ pub struct InstinctProfile {
     /// broke advancer escapes to its long suit rather than sit for the doom.
     /// The defensive mirror of the responder runout
     /// ([`one_nt_runout`][Self::one_nt_runout]).
+    ///
+    /// **Inert under the shipped net floor unless
+    /// [`xx_runout_rails`][Self::xx_runout_rails] is on.**  The rule lives in
+    /// the deterministic ladder, and `(1NT) X (XX)` is not a [`forced`] rail,
+    /// so the v6 net answers there and this knob moves nothing; it was
+    /// measured and shipped (June 2026, `782a4aaf`) when the ladder was the
+    /// floor.  It still gates the rule for the instinct-floored
+    /// [`american_instinct`][super::american::american_instinct] and for the
+    /// rail.
     pub advancer_xx_runout: bool,
+    /// Hand the redoubled-penalty-double nodes to the deterministic ladder
+    ///
+    /// **Default off.**  On, [`forced`] also answers `true` at the advancer's
+    /// node `(1NT) X (XX)` and at the doubler's node `(1NT) X (XX) - -`, so the
+    /// neural shell delegates both to the ladder, whose runouts
+    /// ([`advancer_xx_runout`][Self::advancer_xx_runout] and
+    /// [`InstinctKnobs::doubler_xx_runout`][super::agreements::InstinctKnobs::doubler_xx_runout])
+    /// were measured and shipped default-on in June 2026 but are inert under
+    /// the net floor, which owns every seat after our natural penalty `X` of
+    /// their `1NT`.  Each arm of the rail is on only while its runout is: the
+    /// advancer arm reads the pinned `advancer_xx_runout`, the doubler arm
+    /// the build-time `doubler_xx_runout` off the partnership serving the
+    /// decision (the same [`Agreements`] the ladder was built from), so
+    /// turning a runout off never leaves the rail handing its node to a
+    /// ladder without it.  The rail stays auction-determined: it hands the
+    /// ladder the *whole* decision there, and the ladder's answer is a
+    /// five-plus-card runout on a weak advancer (under 8 HCP) or any doubler,
+    /// and `Pass` (defend `1NTxx`) on everything else.
+    ///
+    /// Evidence (natural census, 393k accepted boards per cell), and what this
+    /// build covers of it.  At `(1NT) X (XX) - -` the doubler sits in `1NTxx`
+    /// on 56 (none) / 65 (both) boards per cell, 17 / 22 of them holding a
+    /// five-plus suit; the −7.0 / −8.3 IMPs per board on those boards is a
+    /// *non-causal* comparison against the other table's result, not the
+    /// value of running.  At `(1NT) X (XX)` the net passes a weak advancer
+    /// holding a five-card suit on ~7 boards per cell.  The rail covers the
+    /// doubler arm and that five-card advancer piece — about 40% of the
+    /// boards the verdict priced.  The "+4.2 to +6.6 IMPs per changed board"
+    /// counterfactual for running from `(XX)` on 0–4 HCP belongs to the
+    /// **four-card** runouts this ladder does not make (a 4-4 or 4-3-3-3
+    /// bust sits here), so it is not this build's expected gain.  The
+    /// four-card piece is the book alternative
+    /// [`DefenseKnobs::xx_dont_runout`][super::agreements::DefenseKnobs::xx_dont_runout]
+    /// (owner decision 2026-10-20, default off).  **With both on, the book
+    /// wins:** its nodes at `(1NT) X (XX)` and `(1NT) X (XX) - -` have finite
+    /// mass and shadow the floor, so this rail never fires there.
+    ///
+    /// A/B owed: `scripts/ab-xx-runout-rails.sh` (arms off / rails / dont).
+    pub xx_runout_rails: bool,
     /// HCP floor at which a strong-`1NT` responder forces game off the floor
     ///
     /// **Default 9**, an A/B win: plain **+0.0048 IMPs/board** vs BBA, PD wash.
@@ -758,6 +812,7 @@ impl Default for InstinctProfile {
             settle_floor: true,
             latch_style: LatchStyle::Penalty,
             advancer_xx_runout: true,
+            xx_runout_rails: false,
             nt_responder_game_floor: 9,
             suppress_nt_gf_over_double: true,
             correct_3nt_to_major: true,
@@ -812,6 +867,7 @@ impl InstinctProfile {
             settle_floor: false,
             latch_style: LatchStyle::Optional,
             advancer_xx_runout: false,
+            xx_runout_rails: true,
             nt_responder_game_floor: 10,
             suppress_nt_gf_over_double: false,
             correct_3nt_to_major: false,
@@ -856,6 +912,14 @@ impl InstinctProfile {
 /// decision — never on which thread is asking.  A bare context (a rule table
 /// classified without a partnership) gets the shipped default; tests that vary the
 /// profile pin their explicit value with [`Context::with_profile`].
+///
+/// One exception: `xx_runout_rail_now` reads the build-time
+/// [`InstinctKnobs::doubler_xx_runout`][super::agreements::InstinctKnobs::doubler_xx_runout]
+/// at classify time off `context.own_system()` rather than through here (it is
+/// not in the pinned [`DecisionProfile`]).  That is still partnership-scoped —
+/// the [`Agreements`] serving the decision — and a bare context reads the
+/// shipped default, so the thread-independence above holds; but a test that
+/// pins a profile with [`Context::with_profile`] alone cannot move it.
 fn pinned(context: &Context<'_>) -> InstinctProfile {
     context.decision_profile().instinct
 }
@@ -4796,8 +4860,11 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 
 /// An auction-determined forced situation: partner's live takeout double, a
 /// prior call committing our side to game, partner's just-made transfer over
-/// our strong notrump, or a live keycard conversation
-/// (`keycard_conversation_now`)
+/// our strong notrump, a live keycard conversation
+/// (`keycard_conversation_now`), or — behind
+/// [`xx_runout_rails`][field@InstinctProfile::xx_runout_rails], default off —
+/// a runout node after their business redouble of our penalty double of their
+/// `1NT` (`xx_runout_rail_now`)
 ///
 /// Hand-independent — it follows from the calls alone.  The neural safety shell
 /// consults it to decide when to delegate to the deterministic [`instinct()`]
@@ -4839,6 +4906,37 @@ pub fn forced(context: &Context<'_>) -> bool {
             .iter()
             .any(|&(nt_level, from, _)| partner_transferred_now(context, from, nt_level))
         || keycard_conversation_now(context)
+        || xx_runout_rail_now(context)
+}
+
+/// The redoubled-penalty-double runout nodes, railed to the ladder
+/// ([`xx_runout_rails`][field@InstinctProfile::xx_runout_rails], default off)
+///
+/// Auction-determined like the other [`forced`] arms.  Each arm is on only
+/// while the ladder actually carries its runout, so a runout turned off never
+/// leaves the rail handing its node to a ladder that would only sit:
+///
+/// - the advancer at `(1NT) X (XX)` — [`advancer_xx_runout_now`] already reads
+///   the pinned `advancer_xx_runout`, the same classify-time gate the ladder
+///   rule reads;
+/// - the doubler at `(1NT) X (XX) - -` — the ladder rule is gated at
+///   *construction* by
+///   [`InstinctKnobs::doubler_xx_runout`][super::agreements::InstinctKnobs::doubler_xx_runout],
+///   which is not part of the pinned [`DecisionProfile`], so the arm reads it
+///   off the partnership serving the decision: the same [`Agreements`] that
+///   built the ladder the shell delegates to.  A bare context (no partnership)
+///   reads the shipped default, as the ladder built from
+///   [`Agreements::default`] would.
+fn xx_runout_rail_now(context: &Context<'_>) -> bool {
+    if !pinned(context).xx_runout_rails {
+        return false;
+    }
+    advancer_xx_runout_now(context)
+        || (doubler_xx_runout_now(context)
+            && context.own_system().map_or_else(
+                || super::agreements::InstinctKnobs::default().doubler_xx_runout,
+                |partnership| partnership.agreements().instinct.doubler_xx_runout,
+            ))
 }
 
 /// A live keycard conversation, judged from the auction alone: partner's

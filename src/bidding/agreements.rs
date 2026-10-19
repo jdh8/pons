@@ -2699,6 +2699,32 @@ pub struct DefenseKnobs {
     /// [`NotrumpDefense::Natural`][crate::bidding::american::NotrumpDefense::Natural]
     /// is the active system.  An A/B knob (`bba-gen --ns-nt-overcall-advance`).
     pub natural_overcall_advance_enabled: bool,
+    // --- defense/nt_xx_runout.rs
+    /// Author a DONT-style runout after their redouble of our penalty `X` of their `1NT`
+    ///
+    /// `(1NT) X (XX)`, direct seat, natural defense only.  **Off by default**
+    /// (opt-in, A/B owed: `scripts/ab-xx-runout-rails.sh`, the `dont` arm).
+    /// Their `1NT` and our `X` are both 15+, so the advancer is broke and a
+    /// values pass has no hands: the advancer's pass is **forcing** and DONT's
+    /// escapes apply — `2♣` = ♣ + a higher suit, `2♦` = ♦ + a major, `2♥` =
+    /// both majors (all 4-4+, alerted), `2♠` = five-plus spades, and the pass
+    /// = a 5+ one-suiter in ♣/♦/♥ or any 4-3-3-3, after which the doubler
+    /// relays `2♣` (never passes) and the advancer names the suit.  The
+    /// doubler answers the two-suiters pass-or-correct, an SOS redouble
+    /// rescues a doubled two-suiter, and every later double of theirs is sat.
+    /// Off, both nodes belong to the floor (the v6 net).  Scheme, sources and
+    /// tables: `docs/defensive-overcalls.md` § "The DONT-style runout after
+    /// `(1NT) X (XX)`"; code in `american/defense/nt_xx_runout.rs`.
+    ///
+    /// **An alternative to
+    /// [`xx_runout_rails`][crate::bidding::instinct::InstinctProfile::xx_runout_rails],
+    /// not a complement:** a book node with finite mass shadows the floor, so
+    /// with both on this package answers at every node it keys — `(1NT) X
+    /// (XX)` and `(1NT) X (XX) - -` among them — and the rails never fire there.
+    /// Reading-active: its alerted calls and forcing pass publish their shapes.
+    /// An A/B knob (`bba-gen`/`ben-gen --ns-xx-dont-runout`, `ab-dump-sd
+    /// --on-ns-xx-dont-runout`/`--off-ns-xx-dont-runout`).
+    pub xx_dont_runout: bool,
     // --- defense/leaping_michaels.rs
     /// Author Leaping Michaels over their weak two
     ///
@@ -3348,6 +3374,7 @@ impl Default for DefenseKnobs {
             notrump_balancing_enabled: false,
             natural_overcall_hcp_floor: 0,
             natural_overcall_advance_enabled: true,
+            xx_dont_runout: false,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,
@@ -5155,6 +5182,15 @@ pub struct InstinctKnobs {
     /// Author opener's balanced-18-19 notrump actions in a contested auction
     pub reopening_notrump: bool,
     /// Author the doubler's runout after their redoubled penalty double
+    ///
+    /// `(1NT) X (XX) - -`: a doubler with a five-plus-card suit escapes the
+    /// redoubled `1NTxx`.  Measured and shipped default-on in June 2026
+    /// (`c1545636`) when the ladder was the floor.  **Inert under the shipped
+    /// net floor unless
+    /// [`xx_runout_rails`][crate::bidding::instinct::InstinctProfile::xx_runout_rails]
+    /// is on:** the node is not a forced rail, so the v6 net answers there
+    /// and this rule is never consulted.  It still gates the rule for the
+    /// instinct-floored system and, with the rail on, the rail's doubler arm.
     pub doubler_xx_runout: bool,
 }
 

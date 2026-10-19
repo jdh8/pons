@@ -115,7 +115,10 @@ pub(super) fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> 
 /// Advancing partner's DONT one-suiter double (`… (1NT) X -`): relay `2♣` to ask
 /// which suit.  (A passed advancer is too weak to introduce its own suit, so the
 /// single relay covers it.)
-fn passed_dont_x_advance() -> Rules {
+///
+/// Also the doubler's forced relay over the forcing pass of the `(1NT) X (XX)`
+/// runout ([`super::nt_xx_runout`]): the same "name your suit" `2♣`, any hand.
+pub(super) fn passed_dont_x_advance() -> Rules {
     Rules::new()
         .rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
         .alert(DONT_PC)
@@ -124,10 +127,24 @@ fn passed_dont_x_advance() -> Rules {
 /// Doubler naming the one-suiter after the `2♣` relay (`… (1NT) X - 2♣ -`): pass
 /// with clubs, else bid the five-or-six-card suit.
 fn passed_dont_x_rebid() -> Rules {
+    name_one_suiter(5)
+}
+
+/// Name the suit over a `2♣` "which suit?" relay: pass with clubs, else bid the
+/// `min`-plus suit at the two level
+///
+/// `min` is 5 for DONT's one-suiter `X`; the `(1NT) X (XX)` runout
+/// ([`super::nt_xx_runout`]) uses 4, so its 4-3-3-3 advancer names the four-card
+/// suit.
+pub(super) fn name_one_suiter(min: usize) -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Diamonds), 100, len(Suit::Diamonds, 5..))
-        .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, 5..))
-        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 5..))
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            100,
+            len(Suit::Diamonds, min..),
+        )
+        .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, min..))
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, min..))
         .rule(Call::Pass, 0, hcp(0..))
 }
 

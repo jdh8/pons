@@ -14,8 +14,10 @@
 //! - **Forced** — when `instinct::forced` reports an
 //!   *auction-determined* forced situation (partner's live takeout double, a
 //!   prior call committing us to game, partner's just-made transfer over our
-//!   strong notrump, or a live keycard conversation — partner's 4NT, their
-//!   1430 answer to ours, or their placement over our answer), it returns the
+//!   strong notrump, a live keycard conversation — partner's 4NT, their
+//!   1430 answer to ours, or their placement over our answer — or, behind the
+//!   default-off `InstinctProfile::xx_runout_rails`, a runout node after their
+//!   business redouble of our penalty double of their `1NT`), it returns the
 //!   deterministic [`instinct()`] answer verbatim.  The net is never trusted
 //!   on the rails; delegating reproduces the already-tested behavior exactly.
 //!   The keycard rail exists because a convention in motion is not judgement:
