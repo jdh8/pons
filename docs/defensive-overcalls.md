@@ -886,6 +886,35 @@ second seed).
 > --{on,off}-ns-nt-overcall-hcp-floor` default to `0` with it; the historical
 > runners pin `8` on their floor-8 arms.
 
+#### Against BEN: floor 0 is a system, not a BBA exploit (2026-10-20)
+
+Floor 0 shipped on BBA evidence only, and a 0–6 HCP overcall that gains with
+failures doubled could gain because BBA mis-bids after it. Step 1 of the
+1NT-defense plan asked BEN: `scripts/ab-ben-nt-overcall-floor.sh`, floor 8
+against floor 0 over BEN's 1NT, Tier F, `--filter-1nt --wide-1nt`, 480
+servers × 208 = 99,840 accepted boards per arm per cell, density 0.2529,
+SEED_BASE 1792441814692277547, `ab-results/ben-nt-overcall-floor-2`. The
+reading was pre-registered in the runner header. The first launch
+(`ab-results/ben-nt-overcall-floor`) died at the isolation gate on a ben-gen
+bug: BEN's model copied our arm's defense knobs (fixed in `f4e044e9`). Every
+gate of the rerun passed with 0 foreign boards.
+
+`floor8 − floor0`, IMPs per accepted board (95% CI), about 1,065 divergent
+boards per cell:
+
+| vul | plain DD | PD | SD plain | SD-PD |
+| --- | ---: | ---: | ---: | ---: |
+| none | −0.0038 ±0.0035 | −0.0034 ±0.0043 | −0.0047 ±0.0037 | −0.0042 ±0.0043 |
+| both | −0.0041 ±0.0046 | −0.0012 ±0.0055 | −0.0071 ±0.0048 | −0.0046 ±0.0055 |
+| ns | −0.0040 ±0.0036 | −0.0025 ±0.0046 | −0.0062 ±0.0039 | −0.0048 ±0.0047 |
+| ew | −0.0034 ±0.0045 | −0.0017 ±0.0054 | −0.0060 ±0.0048 | −0.0050 ±0.0054 |
+
+**Verdict: SYSTEM — floor 0 stands.** Floor 0 is plain non-inferior in every
+cell (the largest upper bound of `floor8 − floor0` is +0.0011, below +δ),
+and floor 8 wins no cell on PD or SD-PD; every one of the 16 point estimates
+favours floor 0. The sign matches the BBA sweep in all four cells, so the
+gain is not specific to BBA. Nothing changes; no second seed is owed.
+
 ### Follow-ups this A/B opened
 
 - **`(1NT) 2x (X)` is still the floor; the census below closes widening it as
@@ -944,6 +973,88 @@ reverse.  The arbiter is the realism pair **[plain DD, SD-PD]**
 (measurement.md:188-212), both vulnerabilities, two seeds.  Ship default-on
 only on a non-loss on plain DD **and** a win on SD-PD; a plain-DD loss with a
 PD win is the §O4 shape and stays an opt-in knob.
+
+### Step-2 forensics: where the 1NT defense still leaks (2026-10-19)
+
+Step 2 of the 1NT-defense plan (step 1 is the BEN check of floor 0,
+`scripts/ab-ben-nt-overcall-floor.sh`). Four evidence sweeps, then a skeptic
+per proposed fix that re-priced it on clean data. Scratch, scripts and
+per-board JSONL: `/data/public/jdh8/pons/forensics-2026-10-19/`. The data:
+
+- **Natural census**: the floor sweep's `floor0-{none,both}` arms, all 96
+  shards, 393,216 accepted boards per cell. Table A was replayed at HEAD
+  `f8286a5a` with zero mismatches. Its table B is *our* E/W against BBA's
+  defense of our own 1NT, so its table-A − table-B node costs are
+  contaminated (`convention-tuning.md` § Per-call forensics). They rank lanes;
+  they do not price nodes.
+- **Natural isolate**: `bba-gen --isolate-defense`, `f8286a5a`, none,
+  SEED_BASE 1792300000, 32,000 kept (0.2287 kept per accepted board).
+- **Woolsey isolate**: `--isolate-defense --ns-notrump-defense woolsey`,
+  `f8286a5a`, none, SEED_BASE 1792415758, 204,800 kept (density 0.0586).
+
+What it found:
+
+1. **The direct overcalls do not leak on plain DD.** Census lane totals,
+   IMPs ×10⁻³ per accepted board, plain/PD, none: `2♥` +10.7/+5.0, `2♦`
+   +10.5/+2.6, `2♣` +7.3/−9.6, `2♠` +6.9/−3.5, `X` +0.5/−2.7. At both, `2♣`
+   is −2.5/−26.2. The PD losses sit where BBA passes and the overcall plays
+   undoubled: step 1's question, not a continuation bug.
+2. **The leak is our silent side acting later, all of it floored.** When
+   they open 1NT, we have only passed, and their last bid is an invitation,
+   the v6 floor competes or doubles; BBA passes at every such prefix. Clean
+   (natural isolate) cost −0.0144 ±0.0020 plain / −0.0117 ±0.0019 PD per
+   accepted board, ≈ −3.7/−3.0 per 1,000 random deals. Per fired board,
+   plain/PD: `(1NT) - (2NT)` suit bid (160 bd) −2.00/−2.92; `(1NT) - (2NT) -
+   -` X (78) −6.85/−1.37; `(1NT) - (2♣) - (2♥) - (2NT) - -` 3♣ (76)
+   −8.57/−9.97; `(1NT) - (2♣) - (2♥) - (3♥)` X (52) −10.4/−6.5. Mechanism:
+   `bba-gen` models BBA as playing our card, so their natural 1NT-2NT reads
+   as our ♦ transfer (`ben-gen` already declares their European minors), and
+   the floor then acts against 23–25 combined. Pass was the best surviving
+   call on 56 of 56 probes with the competing calls masked. The 3♣ node is
+   the R4 node `floor-rail-campaign.md` left to the retrain; here it is one
+   member of a parametric family. Under Woolsey the same nodes cost −0.080
+   plain per kept board: the leak is defense-independent.
+3. **The M2 misfit escape is refuted as a leak.** The census priced the
+   new-suit escape at −0.0049/−0.0143 per accepted board (both), but 98% of
+   those boards split at or before the overcall (BBA passed on 70%). On the
+   same deals, passing partner's overcall instead of escaping scores worse:
+   pass − escape −1.77 plain / −3.47 PD per fired board at both, −1.00/−2.66
+   at none, and dropping only the 5-2 escapes is plain-inert. Keep the rung.
+4. **The natural penalty X's continuations are a small leak.** A
+   counterfactual (substitute the sit/run advance, re-bid with pons vs EPBot,
+   DD) gains +0.74 to +1.78 ×10⁻³ plain per accepted board, every lower bound
+   above 0, ≈ +0.2 to +0.45 per 1,000 random deals. About half of it is the
+   redoubled node: the advancer sits 1NTxx on 0–4 HCP, and the doubler sits
+   in 1NTxx on 56/65 boards per cell (none/both) at −7.0/−8.3 IMPs each,
+   17/22 of them holding a 5+ suit. The June instinct runouts
+   (`advancer_xx_runout`, `doubler_xx_runout`) cover exactly those hands but
+   are inert under the net floor: neither node is a forced rail. BBA's
+   runout after our penalty X is transfers (opener completes every time), so
+   an authored `(1NT) X (2x)` table would need a transfer reading.
+5. **Woolsey at HEAD trails BBA's Woolsey by −0.170 ±0.012 plain / −0.232
+   ±0.014 PD per kept board** (NV), not the July −0.23 plain
+   (`ai-bidder/gto-1nt-defense.md` § Rung 1). Split: −0.050 is harness
+   pollution (BBA's N/S opens first at table B on 5.9% of kept boards;
+   `--isolate-defense` checks table A only), −0.095 the defense-independent
+   floor family of item 2, −0.020 the continuations after a Woolsey action,
+   and −0.005 plain / −0.078 PD card divergence. The largest authored loss is
+   the doubled-Muiderberg 2NT escape (−0.0109/−0.0178), 94% of it escaping
+   with a doubleton in the major; BBA escapes only with a void or singleton.
+
+Packages built from it, all default off, A/B owed after step 1 (jdh8,
+2026-10-19):
+
+| package | knobs | runner | clean estimate |
+| --- | --- | --- | --- |
+| silent rail over their 1NT invitations, plus a reading arm | `InstinctProfile::their_nt_invite_{double,bid}_veto`, `bba-gen --declare-their-european-minors` | `scripts/ab-nt-invite-rail.sh` | +2.3 to +3.5 plain, +1.8 to +2.8 PD per 1,000 random deals (none) |
+| XX runouts as forced rails | `InstinctProfile::xx_runout_rails` | `scripts/ab-xx-runout-rails.sh` | ≈ +0.1 to +0.3 per 1,000 (rare) |
+| Woolsey completion | `defense.woolsey_muiderberg_sit`, `defense.woolsey_tails` | `scripts/ab-woolsey-complete.sh` | +0.65 to +1.0 plain per 1,000 NV, inside the opt-in card |
+| Woolsey card coverage | four `defense.woolsey_*` knobs | `scripts/ab-woolsey-coverage.sh` | +0.3 to +0.5 plain per 1,000 NV |
+
+Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
+v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
+the fourth-seat lane closed 2026-09-27); the 12+ HCP 5-5 minors route for
+Woolsey (route undecided, owed to jdh8).
 
 ## Out of scope (decided, not deferred by neglect)
 

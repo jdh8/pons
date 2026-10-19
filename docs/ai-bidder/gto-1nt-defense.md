@@ -254,6 +254,12 @@ IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
   **DONT at both-vul** on plain; on the pd bracket always-pass stays the best
   response vs BBA (BBA's doubles are perfect under pd, so every active arm gets
   maximally punished).
+- *Superseded 2026-10-19:* the −0.23 below is July code (pre-M2, pre-v6,
+  the retired `ns_score_pd` scorer). At HEAD `f8286a5a` the gap is −0.170
+  ±0.012 plain / −0.232 ±0.014 PD per kept board (NV), and most of it is
+  not continuation quality: −0.050 harness pollution, −0.095 a
+  defense-independent floor family, −0.020 continuations after a Woolsey
+  action ([defensive-overcalls.md § Step-2 forensics](../defensive-overcalls.md#step-2-forensics-where-the-1nt-defense-still-leaks-2026-10-19)).
 - **Our Woolsey trails BBA's Woolsey by 0.23 IMPs/board** (NV plain) on
   literally the same convention card — the gap is continuation/advance quality,
   not the card. That is the sharpest concrete improvement target this

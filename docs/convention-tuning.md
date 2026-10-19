@@ -221,7 +221,7 @@ that leaks and fix it. The loop:
 
 1. **Bucket by the first defensive call.** `bba-score` re-buckets the we-defend
    boards into `DIRECT (we bid over 1NT)` and `CONT <call>` per first action
-   (`examples/bba-score/main.rs:210`). Split conventions that share a syntactic
+   (`examples/bba-score/main.rs:211–247`). Split conventions that share a syntactic
    call — the defensive `X` bucket was hiding two different conventions until it
    was split into `X (pen)` (direct 15+ penalty) vs `X (PH Landy)` (passed-hand
    both-majors) on the doubler's lane; the combined bucket lied about which one
@@ -235,9 +235,13 @@ that leaks and fix it. The loop:
    we bid 3NT into a busted partner. Gating those rules off after a penalty latch
    (`set_penalty_no_pull`) moved the both-vul bucket **−2.086 → −0.608 IMPs/X-board**
    — a fixable continuation bug, not a wall.
-3. **Authored or floored?** `Trie::classify_with_provenance` (`book.rs:406`)
-   tells you: `depth:0, fallback:Some` = the call came from the deterministic
-   `instinct()` floor, not your authored node. A bad floored continuation is
+3. **Authored or floored?** `Partnership::classify_with_provenance`
+   (`book.rs:812`; `Table::classify_with_provenance`, `table.rs:289`;
+   `Partnership::explain_call`, `book.rs:857`) tells you: `depth:0,
+   fallback:Some` = the call came from the floor, not your authored node.
+   Under the shipped net floor "floor" does not separate the v6 net from the
+   instinct ladder's forced rails (`instinct::forced`), so a floored call on a
+   forced node is the ladder's, not the net's. A bad floored continuation is
    fixed by improving the floor or authoring the node; a bad *authored* one is
    your rule (`feedback_instinct_floor_over_node_authoring`).
 4. **Fix the continuation, re-measure paired.** The dominant leak of a
@@ -246,6 +250,19 @@ that leaks and fix it. The loop:
    from the tuning side. DONT's whole deficit was one missing escape node
    (`1NT (X) XX (2♣) X - - - → 2♣x` on a misfit); authoring the doubler's real-suit
    rebid over a doubled relay was worth +0.083/board.
+
+**Use an `--isolate-defense` dump for the census** (2026-10-19). A plain A/B
+dump is the wrong population for steps 1–3: its table B seats *our* side as
+E/W against BBA's defense of our own 1NT, so a table-A − table-B difference
+mixes our defense with BBA's and with our 1NT system's runouts. On the
+floor-sweep dumps most boards that fired a candidate rail first diverged
+before the node, at responder's call (our 2NT is a transfer, BBA's natural),
+and the M2 escape's apparent −0.005/−0.014 cost was 98% decided at the
+overcall, before the escape was bid (`defensive-overcalls.md` § Step-2
+forensics). Price nodes on `bba-gen --isolate-defense` (table B all-BBA), or
+on an arm-vs-arm diff of two of our arms. `--isolate-defense` itself checks
+only table A: on 5.9% of kept boards BBA's N/S opens first at table B, which
+cancels in a paired A/B but inflates an absolute gap.
 
 ### Two harness techniques (from the point-count campaign)
 

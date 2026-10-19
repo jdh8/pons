@@ -17,7 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(M scanned)` log token feeds `density_of`). The runner is step 1 of the
   1NT-defense plan: floor 8 against the shipped floor 0 over BEN's 1NT, all
   four cells, to tell a system from a BBA exploit. Its reading is
-  pre-registered in the header. No bidding change.
+  pre-registered in the header. No bidding change. **Verdict (2026-10-20):
+  a system.** `floor8 − floor0` is negative in all 16 cells and scorers
+  (plain DD −0.0034 to −0.0041 IMPs per accepted board, ±0.0035 to ±0.0046;
+  99,840 boards per arm per cell); floor 0 is plain non-inferior everywhere
+  and floor 8 wins nothing, so the shipped floor 0 stands against BEN too
+  (`docs/defensive-overcalls.md`).
 
 - **`examples/probe-nt-tricks-per-hcp` (2026-10-19).** A notrump trick
   histogram per combined HCP over a `.pdd` bank, for all pairs and for
