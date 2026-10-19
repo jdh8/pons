@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The 1NT-invite rail (`InstinctProfile::their_nt_invite_double_veto`,
+  `their_nt_invite_bid_veto`) and `bba-gen --declare-their-european-minors`
+  (2026-10-19), default off, A/B owed (`scripts/ab-nt-invite-rail.sh`).**
+  Step 2 of the 1NT-defense plan, and a reopening of the floor-rail series
+  for this one family (jdh8). When their `1NT` opened the auction, our side
+  has only passed, and their last bid is responder's `2NT` or responder's
+  three-level true major raise of opener's strain
+  (`(1NT) - (2♣) - (2♥) - (3♥)`; not responder's own suit again, not a
+  Stayman `3♣` or a raise of the `2♦` denial, not opener's `2NT` completing
+  `(1NT) - (2♠)`'s clubs transfer, never `3NT`), `their_nt_invite_gate`
+  masks our floor's `X` and/or every suit bid of five cards or fewer;
+  `Pass`, notrump and six-card suits survive. The forensic that found it
+  (clean `--isolate-defense natural`, `f8286a5a`, `none`) priced the family
+  at −0.0144 plain / −0.0117 PD per accepted `--filter-1nt --wide-1nt` board
+  (≈ −3.7 / −3.0 per 1,000 random deals) over the 470 boards an un-narrowed
+  gate fired on; the narrowed gate keeps the four priced nodes (366 boards),
+  the dropped ones netting ≈ 0. BBA passes at every prefix. The
+  harness flag is the other half of that cost: `bba-gen` models EPBot as
+  playing our card, so their natural `(1NT) - (2NT)` invitation reads as our
+  Puppet diamond transfer; on, our floor declares an opponent book with the
+  European minors EPBot and BEN play (what `ben-gen` already does, now
+  shared as `common::european_minors_opponents`, which also pins their
+  defense to the shipped default so no `--ns-*` defense knob leaks into how
+  we read them), and `ab-dump-sd
+  --{on,off}-declare-their-european-minors` reads the same way for the SD
+  leader. A declared opponent decodes every one of their calls through that
+  book, so the reading arm moves more than the minors. The flag is refused
+  with `bba-gen --isolate-opening pons` and with `ab-dump-sd
+  --legacy-leader-reading` (both seat our own partnership where the
+  declared opponent would read). `ben-gen` takes
+  `--ns-nt-invite-double-veto` / `--ns-nt-invite-bid-veto` for the later BEN
+  guard. Default system byte-identical.
+
 - **`ben-gen --filter-1nt --wide-1nt --ns-nt-overcall-hcp-floor`, and
   `scripts/ab-ben-nt-overcall-floor.sh` (2026-10-19).** The BEN generator now
   takes the natural 1NT overcall's HCP floor and the 1NT-candidate deal scan

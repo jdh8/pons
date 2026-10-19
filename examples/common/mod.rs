@@ -1494,6 +1494,33 @@ pub fn blinded(partnership: &Partnership) -> Partnership {
     out
 }
 
+/// Declare the opponents as our own system under `agreements` except for one
+/// axis, their `1NT` minor-suit responses, which play the **European** scheme
+/// (`2♠` clubs transfer, `2NT` invitation, `3♣` diamonds transfer)
+///
+/// EPBot's stock system-0 and BEN's declared card (`vendor/ben/BEN-21GF.bbsa`:
+/// `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`, `1N-3C Puppet
+/// Stayman=0`) both play it, so reading their `(1NT) - (2NT)` as our Puppet
+/// diamond transfer is simply false.  Only that axis: declaring a whole foreign
+/// system is the Phase-2b treatment, which measured plain wash / PD −0.0070
+/// (docs/declarative-rows.md §2b).  Reading only
+/// ([`Partnership::with_opponents`]); our bidding table and the net's card
+/// inputs are untouched.  `ben-gen` always reads BEN this way; `bba-gen
+/// --declare-their-european-minors` and `ab-dump-sd
+/// --{on,off}-declare-their-european-minors` opt in for EPBot.
+///
+/// Their **defense** is the shipped default, never `agreements.defense`: the
+/// harnesses' `--ns-*` / `--on-ns-*` defense knobs move only our book, never
+/// the one we read the opponent's calls off.  Copying them leaked the arm into
+/// our reading of `1NT (2♥)` (2026-10-19: `ben-gen
+/// --ns-nt-overcall-hcp-floor 8` vs `0`, 40 foreign boards at the gate).
+pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> Partnership {
+    let mut theirs = *agreements;
+    theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+    theirs.defense = Agreements::default().defense;
+    ours.with_opponents(&pons::american(&theirs).bind())
+}
+
 /// CLI face of [`pons::bidding::american::NotrumpDefense`]
 ///
 /// clap's `ValueEnum` cannot be derived for a foreign type, so every harness

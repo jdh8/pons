@@ -9,7 +9,9 @@ pool had fallen from −0.068 to −0.018 PD/board and no single "we act / BBA
 passes" lane reached 0.5k PD; R7 was the last family over the bar. What
 remains is a long tail for the retrain, not a rail (see *When to stop*,
 criteria 1 and 5). Companion ranking of the other campaign candidates:
-[next-steps.md](next-steps.md).
+[next-steps.md](next-steps.md). **Reopened 2026-10-19 (jdh8) for one family
+only**, R8 in the task queue (the 1NT-invite rail, A/B owed); the closure
+stands for everything else.
 
 ## What the series is
 
@@ -83,6 +85,33 @@ Priced at `c3bb94a7`, in order:
 | R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | **loss 2026-09-26** — generalised to `silent_cue_veto`, stays off; ledger below |
 | R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **done 2026-09-26** at `7e0bc648` — see below |
 | R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | **shipped 2026-09-26** — `their_2nt_bid_veto`; ledger below |
+| R8 | our silent side **doubles or bids** once their `1NT` auction reaches an invitation (responder's `2NT`, or responder's three-level true major raise) | 366¹ | −0.75k¹ (`none` only) | −0.61k¹ (`none` only) | **reopened 2026-10-19 (jdh8) for this one family** — built default off: `their_nt_invite_double_veto` + `their_nt_invite_bid_veto`; A/B owed, `scripts/ab-nt-invite-rail.sh` |
+
+¹ Not from the anchor census: the clean `--isolate-defense natural` forensic
+at `f8286a5a` (`none`, `--filter-1nt --wide-1nt`, step 2 of the 1NT-defense
+plan), BBA passing at every prefix. **Units.** The plain/PD cells are the
+table's — k IMPs, but over the census's `none` half only (204.8k random
+deals; the other rows sum `none` + `both`, 409.6k); `both` has no clean
+pricing. They convert −0.0144 plain / −0.0117 PD per accepted board
+(density 0.2536 accepted per random deal; ≈ −3.7 / −3.0 per 1,000 random
+deals). **Those are all-fired figures from the un-narrowed gate** (a
+three-level bid in any strain their side had bid): 470 boards. The gate as
+built reads only responder's `2NT` or true major raise; it keeps the four
+priced nodes below, **366 boards**, and the ≈ 100 dropped boards (responder's
+own suit again, Stayman follow-ups, opener's calls) net ≈ 0 (+5 IMPs), so
+the kept leak is about the same figure. Nodes, per fired board plain/PD: `(1NT) - (2NT)` suit bid 160 bd
+−2.00/−2.92; `(1NT) - (2NT) - -` `X` 78 bd −6.85/−1.37;
+`(1NT) - (2♣) - (2♥) - (2NT) - -` `3♣` 76 bd −8.57/−9.97;
+`(1NT) - (2♣) - (2♥) - (3♥)` `X` 52 bd −10.4/−6.5. Pass was the best
+surviving call on 56/56 sampled fired boards. The gate is parametric (their
+`1NT` first, our side only passed, their last bid an invitation class), so it
+also takes the R4 trace's `2♥ - 2NT` `3♣` lane that stop criterion 3 had left
+to the retrain as one exact sequence. The bid veto spares six-card suits (the
+R5 lesson: a gate that reads no length re-spends the masked mass). Part of
+the cost is a misread: `bba-gen` reads EPBot's natural `(1NT) - (2NT)`
+invitation as our Puppet diamond transfer, so the runner also carries a
+harness reading arm (`--declare-their-european-minors`), whose win would go to
+jdh8 as a protocol change, not ship.
 
 **R4 trace (2026-09-26).** The pool (silent side acts after their
 `1NT - 2♣`, BBA passes) splits three ways at `c3bb94a7`:

@@ -685,6 +685,62 @@ pub struct InstinctProfile {
     /// −1,250 PD IMPs over 409.6k; BBA passed 201 of the 213 boards where we
     /// acted on 7 HCP or fewer.  Shares `their_2nt_gate`'s trigger.
     pub their_2nt_bid_veto: bool,
+
+    /// Mask our silent side's **double** once their `1NT` auction reaches an
+    /// invitation — the `X` half of the 1NT-invite rail
+    ///
+    /// **Default off**, A/B owed: `scripts/ab-nt-invite-rail.sh`.  This
+    /// reopens the floor-rail series (closed 2026-09-26) for this one family
+    /// (jdh8 approved building it, 2026-10-19; `docs/floor-rail-campaign.md`).
+    /// `their_nt_invite_gate` fires when the first bid of the auction is their
+    /// `1NT` (any seat), every call our side has made is a pass, and their
+    /// last bid is **responder's** `2NT` or three-level **true major raise**
+    /// — a major below game that opener bid before
+    /// (`(1NT) - (2♣) - (2♥) - (3♥)`).  The clauses are narrowed on purpose:
+    /// responder repeating its own strain (`(1NT) - (2♦) - (2♥) - (3♦)`)
+    /// shows a second suit or a slam try, a minor "raise"
+    /// (`(1NT) - (2♣) - (2♦) - (3♦)`, of the Stayman denial) or a Stayman
+    /// follow-up `3♣` is no invitation, and opener's calls (the `2NT` that
+    /// completes `(1NT) - (2♠)`'s clubs transfer, a three-level accept) are
+    /// not invitations either.  `3NT` and higher never fire.  Then `X` is
+    /// masked; `Pass` and every bid survive.
+    ///
+    /// Evidence (the clean `--isolate-defense natural` forensic at
+    /// `f8286a5a`, `none`): over such an invitation the v6 floor competes or
+    /// doubles and goes for a number, while BBA passes at every prefix —
+    /// the un-narrowed gate's 470 fired boards cost −0.0144 plain / −0.0117
+    /// PD per accepted `--filter-1nt --wide-1nt` board (≈ −3.7 / −3.0 per
+    /// 1,000 random deals); the narrowed gate keeps the four priced nodes
+    /// (366 boards), the dropped ones netting ≈ 0.  The `X` nodes, per fired
+    /// board plain/PD:
+    /// `(1NT) - (2NT) - -` 78 bd −6.85/−1.37 and
+    /// `(1NT) - (2♣) - (2♥) - (3♥)` 52 bd −10.4/−6.5.  Pass was the best
+    /// surviving call on 56/56 sampled fired boards once the masked calls
+    /// were removed.  Independent of
+    /// [`their_nt_invite_bid_veto`][Self::their_nt_invite_bid_veto], which
+    /// shares the gate.
+    pub their_nt_invite_double_veto: bool,
+
+    /// Mask our silent side's **suit bids of five cards or fewer** once their
+    /// `1NT` auction reaches an invitation — the bidding half of the
+    /// 1NT-invite rail
+    ///
+    /// **Default off**, A/B owed: `scripts/ab-nt-invite-rail.sh`.  Same
+    /// trigger as
+    /// [`their_nt_invite_double_veto`][Self::their_nt_invite_double_veto]
+    /// (their `1NT` first, our side only passed, their last bid responder's
+    /// `2NT` or three-level true major raise) and the same 2026-10-19 reopening
+    /// of the floor-rail series.  Then every suit bid in a suit we hold five
+    /// cards or fewer in is masked; `Pass`, notrump bids and suit bids of six
+    /// cards or longer survive, so a distribution always exists.
+    ///
+    /// Evidence (same forensic): the bid nodes, per fired board plain/PD,
+    /// `(1NT) - (2NT)` suit bid 160 bd −2.00/−2.92 and
+    /// `(1NT) - (2♣) - (2♥) - (2NT) - -` `3♣` 76 bd −8.57/−9.97, BBA passing
+    /// throughout.  The six-card cut keeps a real long-suit competition alive:
+    /// a gate that reads no length re-spends the masked mass on other junk
+    /// (`silent_cue_veto`'s loss).
+    pub their_nt_invite_bid_veto: bool,
 }
 
 impl Default for InstinctProfile {
@@ -733,6 +789,8 @@ impl Default for InstinctProfile {
             their_2nt_unusual_veto: false,
             silent_cue_veto: false,
             their_2nt_bid_veto: true,
+            their_nt_invite_double_veto: false,
+            their_nt_invite_bid_veto: false,
         }
     }
 }
@@ -785,6 +843,8 @@ impl InstinctProfile {
             their_2nt_unusual_veto: true,
             silent_cue_veto: true,
             their_2nt_bid_veto: false,
+            their_nt_invite_double_veto: true,
+            their_nt_invite_bid_veto: true,
         }
     }
 }
@@ -4108,6 +4168,87 @@ pub(crate) fn their_2nt_gate(logits: &mut Logits, hand: Hand, context: &Context<
     if junk {
         for (call, logit) in logits.iter_mut() {
             if matches!(call, Call::Bid(_)) {
+                *logit = f32::NEG_INFINITY;
+            }
+        }
+    }
+}
+
+/// Mask our silent side's action over their invitation after their `1NT` —
+/// the [`their_nt_invite_double_veto`][InstinctProfile::their_nt_invite_double_veto]
+/// and [`their_nt_invite_bid_veto`][InstinctProfile::their_nt_invite_bid_veto]
+/// stages of the learned floor
+///
+/// Fires only when the first bid of the auction is the opponents' `1NT` (any
+/// seat), every call our side has made is a pass, and their last bid is
+/// **responder's**: either `2NT` or a three-level **major** in a strain opener
+/// bid before — a true raise, below game by construction.  Opener's calls
+/// (the `2NT` that completes `(1NT) - (2♠)`'s clubs transfer, a super-accept)
+/// and minor "raises" (`(1NT) - (2♣) - (2♦) - (3♦)`, a raise of the Stayman
+/// denial) never fire.  Then `X` is masked
+/// with the double veto, and every suit bid in a suit we hold five cards or
+/// fewer in with the bid veto.  `Pass`, notrump bids and six-card suit bids
+/// are untouched, so a distribution always survives.  Context predicates
+/// only, no exact auction.
+pub(crate) fn their_nt_invite_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    let profile = pinned(context);
+    if !profile.their_nt_invite_double_veto && !profile.their_nt_invite_bid_veto {
+        return;
+    }
+    let auction = context.auction();
+    let Some(first) = auction.iter().position(|c| matches!(c, Call::Bid(_))) else {
+        return;
+    };
+    // Their calls sit an odd distance back from the call about to be made,
+    // ours an even one.
+    let theirs = !(auction.len() - first).is_multiple_of(2);
+    let we_silent = auction
+        .iter()
+        .rev()
+        .skip(1)
+        .step_by(2)
+        .all(|c| *c == Call::Pass);
+    if !theirs || auction[first] != Call::Bid(Bid::new(1, Strain::Notrump)) || !we_silent {
+        return;
+    }
+    // Our side has only passed, so the last bid is theirs too.
+    let Some(last) = auction.iter().rposition(|c| matches!(c, Call::Bid(_))) else {
+        return;
+    };
+    let Call::Bid(bid) = auction[last] else {
+        return;
+    };
+    // Opener bids at `first`, `first + 4`, …; responder at `first + 2`,
+    // `first + 6`, …  Only responder invites: opener's `2NT` after
+    // `(1NT) - (2♠)` completes a clubs transfer, and opener's three-level
+    // bids are accepts or denials, not invitations.
+    let by_responder = (last - first) % 4 == 2;
+    let invite = by_responder
+        && match (bid.level.get(), bid.strain) {
+            (2, Strain::Notrump) => true,
+            // A true major raise: opener, two, six, ten… calls back, named
+            // this strain.  Responder repeating its own suit is not one, and
+            // a minor "raise" is a raise of opener's artificial Stayman
+            // denial (`(1NT) - (2♣) - (2♦) - (3♦)`).
+            (3, strain @ (Strain::Hearts | Strain::Spades)) => auction[..last]
+                .iter()
+                .rev()
+                .skip(1)
+                .step_by(4)
+                .any(|c| matches!(c, Call::Bid(b) if b.strain == strain)),
+            _ => false,
+        };
+    if !invite {
+        return;
+    }
+    if profile.their_nt_invite_double_veto {
+        logits[Call::Double] = f32::NEG_INFINITY;
+    }
+    if profile.their_nt_invite_bid_veto {
+        for (call, logit) in logits.iter_mut() {
+            if let Call::Bid(bid) = call
+                && bid.strain.suit().is_some_and(|suit| hand[suit].len() <= 5)
+            {
                 *logit = f32::NEG_INFINITY;
             }
         }

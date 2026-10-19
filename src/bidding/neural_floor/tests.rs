@@ -1013,3 +1013,147 @@ fn the_their_2nt_gate_masks_the_junk_bid() {
         "an 8-count is outside the rail"
     );
 }
+
+/// An auction from its space-delimited calls (`1NT P 2NT`)
+fn auction_of(text: &str) -> Vec<Call> {
+    text.split_whitespace()
+        .map(|token| token.parse().expect("a call"))
+        .collect()
+}
+
+/// The 1NT-invite rail masks our silent side's `X` over their invitation, and
+/// only with the knob on
+///
+/// `(1NT) - (2NT) - -` to a 12-count the net may double on: knob-off `X` is
+/// live, knob-on it is masked while `Pass` and the bids survive.  Both shells
+/// carry the stage, and their `1NT` may come in any seat.
+#[test]
+fn the_their_nt_invite_gate_masks_the_silent_double() {
+    let balancing = auction_of("1NT P 2NT P P");
+    let hand = "KQ9.A874.QT2.J32";
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.their_nt_invite_double_veto,
+        "the rail ships default off"
+    );
+    let off = shelled_v6_with(&agreements, &balancing, hand);
+    assert!(
+        off.0[Call::Double].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_nt_invite_double_veto = true;
+    for shell in [shelled_v6_with, shelled_with] {
+        let on = shell(&agreements, &balancing, hand);
+        assert_eq!(on.0[Call::Double], f32::NEG_INFINITY, "the X is masked");
+        assert!(on.0[Call::Pass].is_finite());
+        assert!(
+            on.0[call(3, Strain::Hearts)].is_finite(),
+            "the X veto leaves bids alone"
+        );
+    }
+
+    let third_seat = auction_of("P 1NT P 2NT");
+    let on = shelled_v6_with(&agreements, &third_seat, hand);
+    assert_eq!(
+        on.0[Call::Double],
+        f32::NEG_INFINITY,
+        "their 1NT in any seat"
+    );
+}
+
+/// The bid half masks a suit bid of five cards or fewer over their `2NT`
+/// invitation and spares a six-card suit, notrump, `X` and `Pass`
+///
+/// `(1NT) - (2NT)` to `5.AJ874.KQT983.2`: knob-off `3♥` is live, knob-on
+/// `3♥`, `3♣` and `4♠` are masked while `3♦` survives.
+#[test]
+fn the_their_nt_invite_gate_masks_the_short_suit_bid() {
+    let invite = auction_of("1NT P 2NT");
+    let hand = "5.AJ874.KQT983.2";
+    let mut agreements = Agreements::default();
+    assert!(
+        !agreements.decision.instinct.their_nt_invite_bid_veto,
+        "the rail ships default off"
+    );
+    let off = shelled_v6_with(&agreements, &invite, hand);
+    assert!(
+        off.0[call(3, Strain::Hearts)].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_nt_invite_bid_veto = true;
+    let on = shelled_v6_with(&agreements, &invite, hand);
+    for short in [
+        call(3, Strain::Hearts),
+        call(3, Strain::Clubs),
+        call(4, Strain::Spades),
+    ] {
+        assert_eq!(on.0[short], f32::NEG_INFINITY, "{short} is masked");
+    }
+    assert!(
+        on.0[call(3, Strain::Diamonds)].is_finite(),
+        "a six-card suit is outside the rail"
+    );
+    assert!(on.0[call(3, Strain::Notrump)].is_finite());
+    assert!(on.0[Call::Pass].is_finite());
+    assert!(
+        on.0[Call::Double].is_finite(),
+        "the bid veto leaves X alone"
+    );
+}
+
+/// The gate reads only **responder's** `2NT` or true major raise
+///
+/// `(1NT) - (2♣) - (2♥) - (3♥)` and the balancing seat over
+/// `(1NT) - (2♣) - (2♥) - (2NT) - -` fire.  Responder repeating its own
+/// strain (`(1NT) - (2♦) - (2♥) - (3♦)`), a Stayman follow-up `3♣`, a raise
+/// of the Stayman denial (`(1NT) - (2♣) - (2♦) - (3♦)`), opener's `2NT`
+/// completing `(1NT) - (2♠)`'s clubs transfer, their `3NT`, and a side that
+/// has bid or doubled do not.
+#[test]
+fn the_their_nt_invite_gate_reads_only_a_true_raise() {
+    let hand = "Q9.A874.QT32.J32";
+    let mut agreements = Agreements::default();
+    agreements.decision.instinct.their_nt_invite_double_veto = true;
+    agreements.decision.instinct.their_nt_invite_bid_veto = true;
+    // The shipped 3NT-pull rail masks the same short-suit bids over their
+    // `3NT`; off here, so what is read is this rail alone.
+    agreements.decision.instinct.their_3nt_pull_veto = false;
+
+    let raise = shelled_v6_with(&agreements, &auction_of("1NT P 2C P 2H P 3H"), hand);
+    assert_eq!(
+        raise.0[Call::Double],
+        f32::NEG_INFINITY,
+        "a raise of opener's strain fires"
+    );
+    assert_eq!(raise.0[call(4, Strain::Clubs)], f32::NEG_INFINITY);
+
+    let stayman_invite = shelled_v6_with(&agreements, &auction_of("1NT P 2C P 2H P 2NT P P"), hand);
+    assert_eq!(
+        stayman_invite.0[Call::Double],
+        f32::NEG_INFINITY,
+        "responder's 2NT after Stayman fires in the balancing seat"
+    );
+    assert_eq!(stayman_invite.0[call(3, Strain::Clubs)], f32::NEG_INFINITY);
+
+    for outside in [
+        "1NT P 2D P 2H P 3D",
+        "1NT P 2C P 2D P 3C",
+        "1NT P 2C P 2D P 3D",
+        "1NT P 2S P 2NT",
+        "1NT P 3NT",
+        "1NT 2C 2NT",
+        "1NT X 2NT",
+    ] {
+        let logits = shelled_v6_with(&agreements, &auction_of(outside), hand);
+        assert!(
+            logits.0[Call::Double].is_finite(),
+            "`{outside}` is outside the rail"
+        );
+        assert!(
+            logits.0[call(4, Strain::Spades)].is_finite(),
+            "`{outside}` keeps its short-suit bids"
+        );
+    }
+}

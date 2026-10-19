@@ -239,3 +239,29 @@ fn absurd_band_moves_the_lead() {
     assert_eq!(leads(9, 14, true), leads(20, 37, true));
     assert_ne!(leads(9, 14, false), leads(20, 37, false));
 }
+
+/// `--{on,off}-declare-their-european-minors` reaches the North–South leader:
+/// over their `(1NT) - (2NT) - (3NT)` South reads West's `2NT` as our Puppet
+/// diamond transfer by default, and as the European invitation declared
+#[test]
+fn european_minors_reach_the_north_south_leader() {
+    const INVITE: &str = "1NT P 2NT P 3NT P P P";
+    let agreements = Agreements::default();
+    let symmetric = shown(
+        INVITE,
+        Seat::East,
+        &reader(&agreements, false),
+        Relative::Lho,
+    );
+    let declared = shown(
+        INVITE,
+        Seat::East,
+        &TableReader::new(common::european_minors_opponents(
+            american(&agreements).bind(),
+            &agreements,
+        )),
+        Relative::Lho,
+    );
+    assert!(symmetric.length(Suit::Diamonds).min >= 5, "{symmetric:?}");
+    assert!(declared.length(Suit::Diamonds).min < 5, "{declared:?}");
+}

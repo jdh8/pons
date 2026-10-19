@@ -31,8 +31,13 @@
 //!   `InstinctProfile::new_suit_veto` is on, and `their_contract_gate` masks a
 //!   suit pull of their `3NT` when `InstinctProfile::their_3nt_pull_veto` is
 //!   on, and `their_2nt_gate` masks our silent side's double over their `2NT`
-//!   opening when `InstinctProfile::their_2nt_double_veto` is on.  All four
-//!   only ever demote, so
+//!   opening when `InstinctProfile::their_2nt_double_veto` is on, and
+//!   `their_nt_invite_gate` masks our silent side's double or short-suit bid
+//!   over their invitation after their `1NT` when
+//!   `InstinctProfile::their_nt_invite_double_veto` /
+//!   `their_nt_invite_bid_veto` is on, and `silent_cue_gate` masks a junk cue
+//!   of their suit when `InstinctProfile::silent_cue_veto` is on.  Every
+//!   stage only ever demotes, so
 //!   knob-off is byte-identical and the net keeps its monopoly on introducing
 //!   calls.
 //!
@@ -50,6 +55,7 @@ use super::context::Context;
 use super::features::{CompactConfig, Config};
 use super::instinct::{
     competitive_gate, forced, new_suit_gate, silent_cue_gate, their_2nt_gate, their_contract_gate,
+    their_nt_invite_gate,
 };
 use super::trie::Classifier;
 use super::{features, neural};
@@ -122,6 +128,7 @@ impl Classifier for ConfiguredFloorBba {
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, hand, context);
+        their_nt_invite_gate(&mut logits, hand, context);
         silent_cue_gate(&mut logits, hand, context);
         logits
     }
@@ -225,6 +232,7 @@ impl Classifier for ConfiguredFloorV6 {
         new_suit_gate(&mut logits, hand, context);
         their_contract_gate(&mut logits, hand, context);
         their_2nt_gate(&mut logits, hand, context);
+        their_nt_invite_gate(&mut logits, hand, context);
         silent_cue_gate(&mut logits, hand, context);
         logits
     }

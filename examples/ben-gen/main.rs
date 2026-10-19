@@ -29,7 +29,6 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
-use pons::american;
 use pons::bidding::Bidder;
 use pons::bidding::array::Logits;
 use rand::SeedableRng;
@@ -47,7 +46,7 @@ mod tests;
 
 use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, one_hot};
-use common::{Board, Dump, seat_floor};
+use common::{Board, Dump, european_minors_opponents, seat_floor};
 
 /// The pinned BEN release the servers must be running (recorded in labels;
 /// re-pinning is a campaign decision — see docs/ben-gap-campaign.md).
@@ -202,6 +201,16 @@ struct Args {
     /// shipped default (see `DefenseKnobs::natural_overcall_hcp_floor`).
     #[arg(long)]
     ns_nt_overcall_hcp_floor: Option<u8>,
+
+    /// Veto our silent side's double once their `1NT` auction reaches an
+    /// invitation (opt-in; see `InstinctProfile::their_nt_invite_double_veto`).
+    #[arg(long, default_value_t = false)]
+    ns_nt_invite_double_veto: bool,
+
+    /// Veto our silent side's suit bids of five cards or fewer over the same
+    /// invitation (opt-in; see `InstinctProfile::their_nt_invite_bid_veto`).
+    #[arg(long, default_value_t = false)]
+    ns_nt_invite_bid_veto: bool,
 
     /// Only keep deals with a 1NT-opener candidate somewhere, scanned by the
     /// same predicate as `bba-gen --filter-1nt` (`common::filters`); `--count`
@@ -575,6 +584,8 @@ fn main() -> anyhow::Result<()> {
     if let Some(floor) = args.ns_nt_overcall_hcp_floor {
         agreements.defense.natural_overcall_hcp_floor = floor;
     }
+    agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
+    agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
     // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
     // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was
@@ -582,16 +593,11 @@ fn main() -> anyhow::Result<()> {
     // false, so declare that one axis — and *only* that one.  Declaring BEN's whole
     // system is the Phase-2b treatment, which measured plain wash / PD −0.0070
     // (docs/declarative-rows.md §2b); confining the opponent book to
-    // `notrump_minors` keeps that mechanism from firing.
-    let mut theirs = agreements;
-    theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
-    // BEN's defense does not change between our arms: the `--ns-*` defense
-    // knobs move only our book, never the one we read BEN's calls off.  Copying
-    // them leaked the arm into our reading of `1NT (2♥)` (2026-10-19:
-    // `--ns-nt-overcall-hcp-floor 8` vs `0`, 40 foreign boards at the gate).
-    theirs.defense = pons::bidding::agreements::Agreements::default().defense;
+    // `notrump_minors` keeps that mechanism from firing.  The helper also reads
+    // BEN's defense at the shipped default in every arm: the `--ns-*` defense
+    // knobs move only our book, never the one we read BEN's calls off.
     let our_floor =
-        seat_floor(&args.our_floor, &agreements)?.with_opponents(&american(&theirs).bind());
+        european_minors_opponents(seat_floor(&args.our_floor, &agreements)?, &agreements);
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

@@ -49,8 +49,8 @@ mod common;
 use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, floor_card, seat_floor,
-    seat_floor_vs, seat_to_act,
+    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, european_minors_opponents,
+    floor_card, seat_floor, seat_floor_vs, seat_to_act,
 };
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -644,6 +644,48 @@ struct Args {
     /// crate default on).  The `plain` arm of `scripts/ab-2nt-bid-veto.sh`.
     #[arg(long, default_value_t = false)]
     no_ns_2nt_bid_veto: bool,
+
+    /// Turn ON the rail that vetoes our silent side's double once their `1NT`
+    /// auction reaches an invitation — their last bid responder's `2NT` or
+    /// three-level true major raise
+    /// (`InstinctProfile::their_nt_invite_double_veto`, crate default off).  The `dx` arm of `scripts/ab-nt-invite-rail.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_nt_invite_double_veto: bool,
+
+    /// Turn ON the rail that vetoes our silent side's suit bids of five cards
+    /// or fewer over the same invitation
+    /// (`InstinctProfile::their_nt_invite_bid_veto`, crate default off).  With
+    /// `--ns-nt-invite-double-veto`, the `dxb` arm of
+    /// `scripts/ab-nt-invite-rail.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_nt_invite_bid_veto: bool,
+
+    /// Read the opponents' `1NT` minor-suit responses in the **European**
+    /// scheme (`2♠` clubs transfer, `2NT` invitation, `3♣` diamonds transfer),
+    /// on their side only — a harness flag, not a system knob
+    ///
+    /// Off (the default) our partnership reads EPBot as playing our card
+    /// (`Config::symmetric`), so their natural `(1NT) - (2NT)` invitation reads
+    /// as our Puppet-scheme diamond transfer.  EPBot's stock system-0 and BEN
+    /// both play the European scheme, so on, our floor declares an opponent
+    /// book that is `american()` under our own knobs with
+    /// `reading.notrump_minors = EUROPEAN` and the shipped default defense
+    /// (our `--ns-*` defense knobs never move the book we read them off) —
+    /// the same declaration `ben-gen` makes
+    /// (`common::european_minors_opponents`).  Reading only
+    /// (`Partnership::with_opponents`): the
+    /// net's card inputs and both bidding tables are untouched, but a declared
+    /// opponent decodes **every** one of their calls through that book (the
+    /// legacy full-auction reader, not the undeclared mirror), so the arm moves
+    /// more readings than the minors: their `(1♣) - (1♠) - (2NT)` and a direct
+    /// `X` of our `1NT` read differently too.  The
+    /// `read` arm of `scripts/ab-nt-invite-rail.sh`; refused with
+    /// `--their-floor` (a pons opponent has its own books to declare),
+    /// `--isolate-opening pons` (our pair defends at both tables, so table A's
+    /// opponents are ourselves, not EPBot) and `--our-system` / `--our-card` /
+    /// `--ns-blind-opponent-reading` (nothing would read through it).
+    #[arg(long, default_value_t = false)]
+    declare_their_european_minors: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
@@ -3008,6 +3050,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.their_2nt_unusual_veto = args.ns_2nt_unusual_veto;
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
+    agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
+    agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
     agreements.decision.instinct.competitive_push_natural_only =
@@ -3547,6 +3591,19 @@ fn main() -> anyhow::Result<()> {
         declared_as.is_none() || args.declare_opponents,
         "--declare-as moves the card handed to our net; it needs --declare-opponents"
     );
+    anyhow::ensure!(
+        !args.declare_their_european_minors
+            || (args.their_floor.is_none()
+                && args.isolate_opening != "pons"
+                && args.our_system.is_none()
+                && args.our_card.is_none()
+                && !args.ns_blind_opponent_reading),
+        "--declare-their-european-minors declares EPBot's 1NT minors to our pons \
+         floor: --their-floor seats a pons opponent with books of its own, \
+         --isolate-opening pons seats our own defense against our 1NT, \
+         --our-system/--our-card seat EPBot on our side, and \
+         --ns-blind-opponent-reading blanks the reading it would move"
+    );
     /// Build one seat's agreements and run `read` under that value
     fn under<T>(
         seat: Option<&Args>,
@@ -3694,6 +3751,11 @@ fn main() -> anyhow::Result<()> {
             );
         };
         (our_floor.with_opponents(them), their_floor)
+    } else if args.declare_their_european_minors {
+        (
+            european_minors_opponents(our_floor, &agreements),
+            their_floor,
+        )
     } else {
         (our_floor, their_floor)
     };
@@ -3739,6 +3801,9 @@ fn main() -> anyhow::Result<()> {
             }
             if args.declare_books_mutually {
                 label += " [mutual books]";
+            }
+            if args.declare_their_european_minors {
+                label += " [their minors european]";
             }
             if let Some(spec) = &args.declare_as {
                 label += &format!(" [declared as {spec}]");

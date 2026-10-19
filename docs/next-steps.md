@@ -467,9 +467,12 @@ group waits on that decision, the second group does not.
   ([ai-bidder/features-v8.md](ai-bidder/features-v8.md) §5).
 - The retrain batch of §5 above (B2.5 axis mask, the `1♦ ♦3` atom, the
   phantom-suit input fix).
-- The floor-rail residue: `1NT - 2♣ - 2♥ - 2NT` `3♣` (38 bd, −410 PD — one
-  exact sequence) and the long "we act / BBA passes" tail at `7e0bc648`
-  (no lane at 0.5k PD).
+- The floor-rail residue: the long "we act / BBA passes" tail at `7e0bc648`
+  (no lane at 0.5k PD). The `1NT - 2♣ - 2♥ - 2NT` `3♣` lane (38 bd, −410 PD,
+  once left here as one exact sequence) is now inside the parametric
+  1NT-invite rail, R8 of
+  [floor-rail-campaign.md](floor-rail-campaign.md#task-queue) (built default
+  off, A/B owed).
 - The advance that passes a textbook raise: clean `(1x) 1y -`, 3-card
   support, 8–10 HCP. The v6 floor passes where both references raise
   (−4.0 PD/bd vs BEN, −2.1 vs BBA, but ≤ 0.003 IMPs/board). A labelled
