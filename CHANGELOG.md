@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ben-gen --filter-1nt --wide-1nt --ns-nt-overcall-hcp-floor`, and
+  `scripts/ab-ben-nt-overcall-floor.sh` (2026-10-19).** The BEN generator now
+  takes the natural 1NT overcall's HCP floor and the 1NT-candidate deal scan
+  (`common::filters`, the predicate `bba-gen` uses; the dealer rotates per
+  kept board, so one seed deals both generators the same boards, and the
+  `(M scanned)` log token feeds `density_of`). The runner is step 1 of the
+  1NT-defense plan: floor 8 against the shipped floor 0 over BEN's 1NT, all
+  four cells, to tell a system from a BBA exploit. Its reading is
+  pre-registered in the header. No bidding change.
+
 - **`examples/probe-nt-tricks-per-hcp` (2026-10-19).** A notrump trick
   histogram per combined HCP over a `.pdd` bank, for all pairs and for
   balanced opposite balanced, the census behind the half-step notrump ladder
@@ -193,6 +203,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ungated package exactly, as the gate's description always claimed.
 
 ### Fixed
+
+- **`scripts/ben-servers.sh` no longer fills the system `/tmp`
+  (2026-10-19).** Each BEN instance copies its models into ~28 temp dirs it
+  never removes; repeated fleet starts had left 6,000 of them (≈ 39 GB), the
+  root disk full and 15 of 48 servers dead at load. The fleet now runs with
+  its own `TMPDIR` (`$BEN_TMPDIR`, default `$BEN_DIR/run/tmp`), which `stop`
+  removes.
 
 - **The last four-cell confirmations of research-method review §6, no
   default changed (2026-10-18).** Four doubling knobs that had been measured

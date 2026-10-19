@@ -45,6 +45,7 @@ mod common;
 #[cfg(test)]
 mod tests;
 
+use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, one_hot};
 use common::{Board, Dump, seat_floor};
 
@@ -196,6 +197,22 @@ struct Args {
     /// (opt-in; see `DefenseKnobs::two_level_minor_overcall_vul_tight`).
     #[arg(long, default_value_t = false)]
     ns_two_level_minor_overcall_vul_tight: bool,
+
+    /// Raw-HCP floor of the natural overcall of their 1NT; unset keeps the
+    /// shipped default (see `DefenseKnobs::natural_overcall_hcp_floor`).
+    #[arg(long)]
+    ns_nt_overcall_hcp_floor: Option<u8>,
+
+    /// Only keep deals with a 1NT-opener candidate somewhere, scanned by the
+    /// same predicate as `bba-gen --filter-1nt` (`common::filters`); `--count`
+    /// then means *kept* boards and the dealer rotates per kept board, so a
+    /// seed deals `bba-gen`'s accepted set.  No bidding gates the scan.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["start_board", "self_play"])]
+    filter_1nt: bool,
+
+    /// Draw `--filter-1nt`'s candidate wide, as `bba-gen --wide-1nt` does.
+    #[arg(long, default_value_t = false, requires = "filter_1nt")]
+    wide_1nt: bool,
 
     /// Provenance recorded in gen_args: the runners pass the BEN fleet
     /// manifest's sha256 (`ben-servers-sha256=…`).  Shards of one dir must
@@ -448,6 +465,18 @@ fn match_deals(seed: u64) -> impl Iterator<Item = (FullDeal, Seat)> {
     std::iter::repeat_with(move || full_deal(&mut rng)).zip(Seat::ALL.into_iter().cycle())
 }
 
+/// The match's seeded deals that `--filter-1nt` keeps, each with the number
+/// of deals scanned through it.  The dealer rotates per *kept* deal, as in
+/// `bba-gen`, so one seed deals both generators the same boards.
+fn filtered_deals(seed: u64, wide: bool) -> impl Iterator<Item = (FullDeal, Seat, usize)> {
+    let mut rng = StdRng::seed_from_u64(seed);
+    std::iter::repeat_with(move || full_deal(&mut rng))
+        .zip(1..)
+        .filter(move |(deal, _)| Filter::OneNt.accepts(deal, wide))
+        .zip(Seat::ALL.into_iter().cycle())
+        .map(|((deal, scanned), dealer)| (deal, dealer, scanned))
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if args.provenance {
@@ -543,6 +572,9 @@ fn main() -> anyhow::Result<()> {
     agreements.defense.nt_overcall_major_band = args.ns_nt_overcall_major_band;
     agreements.defense.two_level_minor_overcall_vul_tight =
         args.ns_two_level_minor_overcall_vul_tight;
+    if let Some(floor) = args.ns_nt_overcall_hcp_floor {
+        agreements.defense.natural_overcall_hcp_floor = floor;
+    }
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
     // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
     // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was
@@ -572,9 +604,23 @@ fn main() -> anyhow::Result<()> {
     // Bid every board at both tables, dealer rotating per board.  Sequential
     // by design: the server serializes bids behind a lock anyway — parallelism
     // is one ben-gen process per server instance (ports 8085+i).
-    let boards = match_deals(seed)
-        .skip(args.start_board)
-        .take(args.count)
+    let mut scanned = None;
+    let deals: Vec<(FullDeal, Seat)> = if args.filter_1nt {
+        let kept: Vec<_> = filtered_deals(seed, args.wide_1nt)
+            .take(args.count)
+            .collect();
+        scanned = Some(kept.last().map_or(0, |&(_, _, n)| n));
+        kept.into_iter()
+            .map(|(deal, dealer, _)| (deal, dealer))
+            .collect()
+    } else {
+        match_deals(seed)
+            .skip(args.start_board)
+            .take(args.count)
+            .collect()
+    };
+    let boards = deals
+        .into_iter()
         .map(|(deal, dealer)| Board {
             table_a: bid_out(ours, &ben, true, dealer, args.vulnerability, &deal),
             table_b: bid_out(ours, &ben, false, dealer, args.vulnerability, &deal),
@@ -596,11 +642,13 @@ fn main() -> anyhow::Result<()> {
         None => serde_json::to_writer(std::io::stdout().lock(), &dump)?,
     }
     eprintln!(
-        "ben-gen: {} (us) vs {} (them), vulnerability {} — wrote {} boards{}",
+        "ben-gen: {} (us) vs {} (them), vulnerability {} — wrote {} boards{}{}",
         dump.our_label,
         dump.their_label,
         dump.vulnerability,
         dump.boards.len(),
+        // ab-lib.sh's density_of reads this `(M scanned)` token.
+        scanned.map_or(String::new(), |n| format!(" ({n} scanned)")),
         match args.output.as_deref() {
             Some(path) => format!(" to {path}"),
             None => " to stdout".into(),

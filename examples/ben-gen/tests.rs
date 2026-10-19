@@ -77,3 +77,54 @@ fn shard_check_and_provenance_parse() {
             .provenance
     );
 }
+
+/// `--filter-1nt` deals `bba-gen --filter-1nt`'s accepted set: keep a deal
+/// when the shared scan accepts it, rotate the dealer per kept deal.
+#[test]
+fn the_1nt_filter_deals_bba_gens_accepted_set() {
+    let seed = 1784237746;
+    for wide in [false, true] {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut expected = Vec::new();
+        let mut scanned = 0;
+        while expected.len() < 12 {
+            let deal = full_deal(&mut rng);
+            scanned += 1;
+            if Filter::OneNt.accepts(&deal, wide) {
+                expected.push((deal, Seat::ALL[expected.len() % 4], scanned));
+            }
+        }
+        assert_eq!(
+            filtered_deals(seed, wide).take(12).collect::<Vec<_>>(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn the_1nt_filter_rejects_offsets_and_self_play() {
+    assert!(Args::try_parse_from(["ben-gen", "--filter-1nt", "--wide-1nt"]).is_ok());
+    assert!(Args::try_parse_from(["ben-gen", "--wide-1nt"]).is_err());
+    let offset = [
+        "ben-gen",
+        "--filter-1nt",
+        "--seed",
+        "4",
+        "--start-board",
+        "3",
+    ];
+    assert!(Args::try_parse_from(offset).is_err());
+    assert!(Args::try_parse_from(["ben-gen", "--filter-1nt", "--self-play", "c.jsonl"]).is_err());
+}
+
+#[test]
+fn the_overcall_floor_flag_is_optional() {
+    assert_eq!(
+        Args::try_parse_from(["ben-gen"])
+            .unwrap()
+            .ns_nt_overcall_hcp_floor,
+        None
+    );
+    let args = Args::try_parse_from(["ben-gen", "--ns-nt-overcall-hcp-floor", "8"]).unwrap();
+    assert_eq!(args.ns_nt_overcall_hcp_floor, Some(8));
+}

@@ -20,6 +20,13 @@
 # the interpreter (default $BEN_DIR/.venv/bin/python), e.g. a wrapper that runs
 # it under a newer glibc loader.
 #
+# TEMP FILES.  Each instance copies its models into ~28 mkdtemp dirs (~0.3 GB)
+# that it never removes, so a fleet started and stopped a few times fills the
+# system /tmp (2026-10-19: 6,000 dirs, a full root disk, 15 of 48 servers dead
+# at load).  The fleet gets its own TMPDIR, $BEN_TMPDIR (default
+# $BEN_DIR/run/tmp), which `stop` removes; put it on a local disk if $BEN_DIR
+# is on NFS.
+#
 # IRON RULE: never restart or upgrade servers mid-experiment — finish or kill
 # the run first (the analog of no-rebuild-during-A/B).
 #
@@ -43,6 +50,7 @@ BEN_DIR="${BEN_DIR:-$HOME/ben}"
 BEN_PYTHON="${BEN_PYTHON:-$BEN_DIR/.venv/bin/python}"
 BASE_PORT=8085
 META="$BEN_DIR/run/servers.meta"
+BEN_TMPDIR="${BEN_TMPDIR:-$BEN_DIR/run/tmp}"
 SERVER_ARGS=(--seed 42 --nolimit true --record false)
 here="$(dirname "$(readlink -f "$0")")"
 probe='hand=AK97543.K.T3.AK7&seat=N&dealer=N&vul=&ctx='
@@ -102,7 +110,7 @@ start)
 		exit 1
 		;;
 	esac
-	mkdir -p "$BEN_DIR/run"
+	mkdir -p "$BEN_DIR/run" "$BEN_TMPDIR"
 	want=$(servers_meta "$tier" "$conf" "$n")
 	echo "$want"
 	for ((i = 0; i < n; i++)); do
@@ -119,7 +127,7 @@ start)
 			cd "$BEN_DIR/src"
 			# ponytail: batch-of-1 small-LSTM inference gains nothing from an intra-op
 			# pool; pin to 1 so N instances pack onto N cores, not N*32 threads thrashing.
-			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 PONS_IDLE_LOCAL= \
+			setsid nohup env TMPDIR="$BEN_TMPDIR" TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 PONS_IDLE_LOCAL= \
 				"$here/idle-run.sh" "$BEN_PYTHON" gameapi.py \
 				--config "$conf" --port "$port" "${SERVER_ARGS[@]}" \
 				>"$BEN_DIR/run/server-$port.log" 2>&1 </dev/null &
@@ -145,6 +153,9 @@ stop)
 	rm -f "$META"
 	# ponytail: pattern-kill — ours are the only gameapi.py processes on this box
 	pkill -u "$USER" -f 'gameapi\.py' && echo "stopped" || echo "nothing running"
+	# The servers' model copies (TEMP FILES above); give them a moment to exit.
+	for _ in $(seq 10); do pgrep -u "$USER" -f 'gameapi\.py' >/dev/null || break; sleep 1; done
+	rm -rf "$BEN_TMPDIR"
 	;;
 status)
 	for port in $(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu); do
