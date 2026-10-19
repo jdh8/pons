@@ -5,6 +5,10 @@
   font-weight: 1 1000;
   font-style: oblique -90deg 90deg;
   src: url("https://jdh8.github.io/fonts/suits.woff2") format("woff2");
+  /* Only the four filled suits.  Lacking U+0020, this face is never the first
+     available font, so line boxes keep the fallback's metrics instead of
+     Libertinus's short ascent, which would hoist every baseline. */
+  unicode-range: U+2660, U+2663, U+2665-2666;
 }
 
 /* Kitchen-table bridge: flat felt, card-paper panels, gold action buttons.
