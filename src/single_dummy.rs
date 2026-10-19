@@ -280,8 +280,17 @@ fn lead_objectives(
 ) -> (Vec<Objective>, SampleStats) {
     let leader = question.declarer.lho();
     let hand = question.deal[leader];
-    let (mut worlds, mut stats) =
-        sample_layouts_with_stats(hand, leader, &question.inferences, rng, n);
+    // A reading no layout can meet would spend the whole draw budget for
+    // nothing; skip straight to the unconstrained fill.
+    let (mut worlds, mut stats) = if question.inferences.may_complete(hand) {
+        sample_layouts_with_stats(hand, leader, &question.inferences, rng, n)
+    } else {
+        let stats = SampleStats {
+            requested: n,
+            ..SampleStats::default()
+        };
+        (Vec::with_capacity(n + 1), stats)
+    };
     if worlds.len() < n {
         // Tight or jointly-infeasible reading: top up unconstrained so the
         // lead is still chosen over `n` worlds.

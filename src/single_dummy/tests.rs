@@ -290,7 +290,7 @@ fn batched_leads_match_serial_leads() {
 
 /// A reading the leader's own hand contradicts — they hold nine hearts, and
 /// declarer (the leader's RHO) opened `1♥` — is topped up unconstrained, and
-/// the stats say so.
+/// the stats say so.  `may_complete` proves it empty, so no draw is spent.
 #[test]
 fn lead_stats_count_the_unconstrained_fill() {
     use crate::bidding::Context;
@@ -316,7 +316,11 @@ fn lead_stats_count_the_unconstrained_fill() {
     };
     let mut rng = StdRng::seed_from_u64(1);
     let (_, stats) = single_dummy_leads_with_stats(&[question], &mut rng, 4);
-    assert_eq!(stats[0].accepted, 0);
+    assert_eq!(
+        (stats[0].draws, stats[0].accepted),
+        (0, 0),
+        "provably empty: no draws"
+    );
     assert_eq!((stats[0].fallback, stats[0].fallback_draws), (4, 4));
     assert_eq!(stats[0].returned(), 4);
     assert!(stats[0].degraded());

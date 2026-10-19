@@ -420,6 +420,46 @@ impl Inferences {
         }
     }
 
+    /// Whether the other three seats could pass [`admits`][Self::admits] at
+    /// all, given the actor holds `me`
+    ///
+    /// A necessary condition checked on per-seat bounds: the box `admits`
+    /// tests (the union's hull when it tests the union), suit lengths summing
+    /// to what `me` leaves, and raw HCP summing to `40 − hcp(me)`.  Points
+    /// bound HCP from above on every scale (rule-of-N reads a flat 4-3-3-3
+    /// one below raw HCP, hence the `+ 1`); the HCP gauge counts only under
+    /// [`gauge_membership`][field@crate::bidding::ReadingProfile::gauge_membership],
+    /// as in `admits`.  `false` proves no layout passes, so a sampler may skip
+    /// the draws; `true` proves nothing.
+    #[must_use]
+    pub fn may_complete(&self, me: Hand) -> bool {
+        let bounds = [Relative::Lho, Relative::Partner, Relative::Rho].map(|who| {
+            let union = &self.unions[who as usize];
+            if self.profile.envelope_union() || union.boxes().len() > 1 {
+                union.hull()
+            } else {
+                self.players[who as usize]
+            }
+        });
+        let sum = |f: &dyn Fn(&Envelope) -> u8| bounds.iter().map(|b| u32::from(f(b))).sum::<u32>();
+        let suits_fit = Suit::ASC.into_iter().all(|suit| {
+            // SAFETY: a suit length is at most 13, so the cast cannot truncate.
+            #[allow(clippy::cast_possible_truncation)]
+            let rest = 13 - me[suit].len() as u32;
+            sum(&|b| b.length(suit).min) <= rest && rest <= sum(&|b| b.length(suit).max)
+        });
+        let hands_fit = bounds.iter().all(|b| {
+            let min: u32 = b.lengths.iter().map(|r| u32::from(r.min)).sum();
+            let max: u32 = b.lengths.iter().map(|r| u32::from(r.max)).sum();
+            min <= 13 && 13 <= max
+        });
+        let rest = 40 - u32::from(crate::bidding::constraint::raw_hcp(me));
+        let points_fit = rest <= sum(&|b| b.strength.points.max.saturating_add(1));
+        let hcp_fits = !self.profile.gauge_membership
+            || (sum(&|b| b.strength.hcp.min) <= rest && rest <= sum(&|b| b.strength.hcp.max));
+        suits_fit && hands_fit && points_fit && hcp_fits
+    }
+
     /// What the player to act has shown by their own prior calls
     #[must_use]
     pub const fn me(&self) -> &Envelope {
