@@ -331,6 +331,17 @@ Levers, ranked by how much each preserves the KR1 proof:
    sampler's). This cuts ≈70% of the draws but changes the stream and,
    slightly, the mix of fallback worlds. It is a scorer change and needs its
    own argument.
+   **Parked 2026-10-19 on `park/sd-infeasible-skip`** in its lossless form.
+   A replay of every lead question's accept positions on the same pair
+   priced the rules. Of the questions that run out of draws, 1,728 still
+   accept a few worlds, so a dry limit of 4,096 cuts 78% of draws but loses
+   13.7% of the accepted worlds. Stopping after 16,384 draws with no accept
+   cuts 30% and loses 0.84%. The parked form skips only readings
+   `Inferences::may_complete` proves empty (per-seat length and HCP bounds),
+   which loses nothing: it caught 448 of the 1,101 questions that never
+   accept and cut 11% of draws. Timed against lever 1: 477 s against 474 s,
+   no gain, because lever 1 is DD-bound at the cap. Same flip plan as
+   lever 2, ideally stacked on it.
 
 The `solve_divergent` cache above prices `ab-dump-diff`, not this tool. Here
 DD is not marginal, but its 17 solves per question are distinct worlds, so a
