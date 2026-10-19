@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-nt-tricks-per-hcp` (2026-10-19).** A notrump trick
+  histogram per combined HCP over a `.pdd` bank, for all pairs and for
+  balanced opposite balanced, the census behind the half-step notrump ladder
+  in bridge-tutorial's `src/opening.md` (jdh8/bridge-tutorial `84c8cfe1`).
+  No bidding change.
+
 - **`examples/dd-bench`, and the solver sized on the 640-thread box
   (2026-10-19).** A throughput probe for double dummy: full tables
   (`solve_deals`) and trick-one lead boards (`solve_boards`) over random
