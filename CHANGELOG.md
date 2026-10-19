@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`examples/dd-bench`, and the solver sized on the 640-thread box
+  (2026-10-19).** A throughput probe for double dummy: full tables
+  (`solve_deals`) and trick-one lead boards (`solve_boards`) over random
+  deals at the process's `DDSS_THREADS`. Measured once quiet and once with
+  the poker solver at 8 × 64: one process peaks at 200 threads (478–523
+  tables/s) and falls to 260 at 640, because DDS packs 200 boards per call
+  and a pool above ~64 threads idles (62% busy at 200). The rules are
+  **10 processes × `DDSS_THREADS=64` on a free box** (≈ 1,150 tables/s, 7×
+  dl02) and **4 × 32 on the occupied box** (257 tables/s, 1.7× the single
+  96-thread process); NUMA pinning is worth nothing, SMT ~27%, the all-core
+  clock (2.3 vs 3.7 GHz) is the largest term. The M32 relabel prices at ≈ 2
+  days free, ≈ 8 days occupied; a 64-world batch solves in 28 ms quiet / 74 ms
+  occupied against dl02's 400 ms. Tables and rules in
+  `docs/shared-machine-data-gen.md` § Sizing the solver; no bidding change.
+
 ### Changed
 
 - **Single-dummy lead scoring samples while it solves (2026-10-19).**

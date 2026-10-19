@@ -326,7 +326,9 @@ Levers, ranked by how much each preserves the KR1 proof:
    DD-bound there, and the extra sampler threads take cores from DD. The
    stream change is noise: plain SD +0.0018 against the archived +0.0016,
    SD-PD +0.0000 against −0.0002 (each ±0.0007), same verdicts. Flip plan:
-   re-measure on a free box (`JOBS`/`DDSS_THREADS` 640).
+   re-measure on a free box (`JOBS` 640, `DDSS_THREADS` ≤ 200: one process
+   peaks there and 640 threads is slower, [shared-machine-data-gen.md
+   § Sizing the solver](shared-machine-data-gen.md#sizing-the-solver-on-a-640-thread-box-2026-10-19)).
 3. **Early exit on starved questions** (a dry limit like the replay
    sampler's). This cuts ≈70% of the draws but changes the stream and,
    slightly, the mix of fallback worlds. It is a scorer change and needs its

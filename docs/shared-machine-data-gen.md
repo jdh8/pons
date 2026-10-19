@@ -428,9 +428,11 @@ after logout instead requires a root-installed LaunchDaemon with an explicit
 The `M`-series relabel of
 [ai-bidder/logit-calibration.md](ai-bidder/logit-calibration.md) §4d is
 double-dummy bound — ~2.7M net-served decisions × 2M layouts × 7.29 ms — and
-that cost **divides only across machines**: one `Solver::lock(None)` batch
-already takes every core of a box. At `M = 32` it is 14.6 box-days on the
-32-core box alone. The fleet below spreads it with the same model as the poker
+that cost **divides only across machines or processes**: one
+`Solver::lock(None)` batch takes every core of a 32-core box, but not of a
+larger one (DDS packs 200 boards per call, so a pool above ~64 threads idles;
+see [Sizing the solver](#sizing-the-solver-on-a-640-thread-box-2026-10-19)).
+At `M = 32` it is 14.6 box-days on the 32-core box alone. The fleet below spreads it with the same model as the poker
 solver's: no dispatcher, no queue, a stride/offset partition, an existence
 gate, tmp+rename publication, a mop-up pass, and one systemd user unit per
 box under `SCHED_IDLE`. Host names live in `~/.config/pons/hosts`, never in
@@ -487,6 +489,75 @@ script at once and the solver is SIGKILLed with nothing published, while
 trap only after the foreground child returns) and exit 0. `start` stops every
 `poker-worker@*` unit on every host and leaves them stopped — restart them by
 hand when the relabel is done.
+
+### Sizing the solver on a 640-thread box (2026-10-19)
+
+Measured with `examples/dd-bench` on the 2 × EPYC 9845 box (320 cores, 640
+threads, 2 NUMA nodes, 3 TB): random deals, a *table* = five strains × four
+declarers (`solve_deals`), a *lead board* = a trick-one `Target::Legal`
+solve in notrump (`solve_boards`, what the SD harnesses issue). Single thread
+at 3.7 GHz turbo: **172 ms per table, 35 ms per lead board**. The all-core
+clock is 2.3 GHz, 62% of turbo, which is the largest scaling term. DDS
+takes up to 160 MB per thread, so memory is never the limit here.
+
+**One process cannot use the box.** DDS packs at most 200 boards (40
+tables) into one call and returns when the slowest finishes, so a pool above
+~64 threads idles: at 200 threads 62% of the pool is busy and sys time
+grows sixfold (pool-queue contention); at 320 and 640 threads throughput
+falls. Split DD-bound work across processes — the fleet's stride/offset
+workers on `localhost` — and cap each at `DDSS_THREADS=64`. NUMA pinning
+(`taskset` per node) moves nothing (±3%), SMT buys ~27% (320 → 640
+threads), run-to-run noise is ~10%.
+
+Quiet box (poker solver frozen with `SIGSTOP`), 32,000 tables per row:
+
+| layout (processes × `DDSS_THREADS`) | threads | tables/s | lead boards/s |
+| --- | ---: | ---: | ---: |
+| 1 × 96 | 96 | 369 | 1,429 |
+| 1 × 200 | 200 | 478–523 | 1,605 |
+| 1 × 320 | 320 | 411 | 1,643 |
+| 1 × 640 | 640 | 260 | 1,497 |
+| 2 × 200 | 400 | 711 | |
+| 3 × 200 | 600 | 767–799 | |
+| 5 × 64 | 320 | 877 (936 pinned to physical cores) | 3,058 |
+| **10 × 64** | 640 | **1,120–1,190** | 2,525 |
+| 20 × 32 | 640 | 612–870 | 2,499 |
+| 64 × 10 | 640 | 822 | 4,639 |
+
+**Rule, free box: 10 processes × `DDSS_THREADS=64`, ≈ 1,150 tables/s** —
+about 7× dl02's 137 (7.29 ms/layout at 32 cores). The M32 relabel
+(≈ 170M tables, 14.6 dl02 box-days) is **≈ 2 days** here, M64 ≈ 4.
+
+Occupied box (the poker solver at 8 × 64 threads, load ≈ 510–650), 12,000
+tables per row. The 192-thread rows oversubscribe the box (512 + 192 > 640)
+and take their gain from the poker solver; `JOBS=96` was set so the spare
+~128 logical CPUs are what we use:
+
+| layout | threads | class | tables/s |
+| --- | ---: | --- | ---: |
+| 1 × 96 (the `JOBS=96` cap today) | 96 | normal | 151 |
+| 1 × 128 | 128 | normal | 160 |
+| 2 × 64 | 128 | normal | 219 |
+| **4 × 32** | 128 | normal | **257** |
+| 8 × 16 | 128 | normal | 247 |
+| 4 × 32 | 128 | `SCHED_IDLE` | 215 |
+| 8 × 16 | 128 | `SCHED_IDLE` | 208 |
+| 2 × 96 | 192 | normal | 208 |
+| 4 × 48 | 192 | normal | 333 |
+| 6 × 32 | 192 | normal | 338 |
+| 8 × 24 | 192 | normal | 365 |
+| 4 × 48 | 192 | `SCHED_IDLE` | 255 |
+
+**Rule, occupied box: 4 processes × `DDSS_THREADS=32`** — 257 tables/s at
+normal priority, 215 under `idle-run.sh`'s `SCHED_IDLE`, 1.7× the single
+96-thread process the cap gives. The M32 relabel at that rate is ≈ 8 days
+(≈ 9 under `SCHED_IDLE`).
+
+One live batch of 64 tables (the M8 per-decision size): median **28 ms** at
+200 threads on the quiet box, **74 ms** at 96 threads on the occupied box;
+dl02 recorded 400 ms (64 × 5.9 ms). An A/B is not DD-bound at all: in the
+2026-10-18 `runout-4cell` run each arm's generation (EPBot bidding, 96
+shards, 2.4M boards) took 9 minutes and the DD diff 30 seconds.
 
 ### Re-pricing a chunk, and the drift census (2026-09-16)
 
