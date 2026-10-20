@@ -1147,6 +1147,39 @@ cells in CHANGELOG):
       cell and a PD loss that the split puts in PD's bias against running —
       the same recorded trade-off as before, now without the unbiased
       plain loss.
+  - **Verdict 2026-10-21, 2× on [plain DD, PD-P]**
+    (`ab-results/xx-dont-major-first-2x`, SEED_BASE 1792519928828456189,
+    786,432 accepted boards per cell, sha 9b423467; PD-P from
+    `scripts/ab-xx-dont-pdp.sh`, pre-registered in Loose ends 2), per
+    accepted board, none / ns / ew / both:
+    - `longer − off`: 320–347 contract-divergent boards per cell. Plain
+      +0.0019 / +0.0022 / +0.0021 / +0.0026 (±0.0004–5, win), **PD-P
+      +0.0014 / +0.0013 / +0.0017 / +0.0019 (±0.0003–4, win)**. PD, now
+      descriptive: −0.0001 / −0.0006 / −0.0001 / −0.0007 (loss in ns, both,
+      as at 1×). `tied − off` matches it to 10⁻⁴ on all three scorers.
+      **Rule 1 met by both**, so rule 6 decides.
+    - Rule 6: pooled plain gain `longer` +6,906 IMPs, `tied` +6,879. The
+      paired `tied − longer` moves 5–6 boards per cell (plain −2 to −6, PD-P
+      −9 to −13 IMPs), and both the gain and the tie-break (fewer hands
+      moved) pick **`longer`**.
+    - `longer − dont` / `tied − dont`: 32–39 boards per cell. Plain +25 to
+      +93 IMPs (`longer` a win in ew and both), PD-P −12 to −33 IMPs, all
+      non-inferior. Major-first is what moves the unbiased plain hole, and
+      PD-P charges it a little for running more often.
+    - `doubler − off`: 47 / 56 / 47 / 58 boards, plain +343 to +460 IMPs and
+      PD-P a win in every cell, but none and ew fall under rule 0's 50, so
+      it is not judged. Even if it qualified, rule 6 would still pick
+      `longer` (pooled plain +1,569). **Discrepancy:** at 1× this arm
+      moved 13–16 boards for +1 to +16 IMPs. The 1× run was built from
+      86c2c712 with uncommitted edits, and the 2× from 9b423467, which adds
+      e4aa2b85 and 38792ebc (`with_house_defense`). The doubler node is
+      reached about 3.5× as often per board on the newer code, so item 9's
+      "dead" no longer holds, and the 1× and 2× runs do not pool (item 3).
+    - Per the runner's last line, nothing changes on this verdict. Owed to
+      jdh8: whether to ship `defense.xx_dont_runout` on with
+      `defense.xx_dont_major_first = Longer`, which would be a
+      decision-table ship on [plain, PD-P] and needs `cards/*.bbsa`
+      re-blessed. No BEN guard is feasible (item 8).
 
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
@@ -1160,6 +1193,20 @@ the ceiling inside Woolsey only (BBA's Unusual 2NT over 1NT is 9–25 HCP);
 the advance is unchanged and the strong hand bids again through the floor.
 Built default-off; A/B owed (`scripts/ab-woolsey-wide-2nt.sh`,
 pre-registered there), queued behind the XX runout's 2× run.
+**Verdict 2026-10-21: no ship, stays opt-in (rule 2).**
+`ab-results/woolsey-wide-2nt`, SEED_BASE 1792535244564472892, sha 0f6a6dfc,
+102,528 kept boards per cell, gates 0 foreign. `wide − base` per kept board,
+none / ns / ew / both, over 108–111 divergent boards per cell (the header
+estimated 200–400):
+plain +0.0011 / +0.0016 / +0.0005 / +0.0005 (±0.0010–14; a win in none and
+ns, non-inferior in ew and both). PD −0.0007 / −0.0004 / **−0.0018 /
+−0.0020** (±0.0013–17; a loss in ew and both). Descriptive SD, 16 worlds:
+plain +194 / +279 / +178 / +177 IMPs, SD-PD +13 / +45 / −49 / −90 (every CI
+straddles 0). PD's worst boards are the strong hand's `2NT` stopping in a
+failing `3♣`/`3♦` where the base arm passed `1NT` out or defended their
+`2♠`. PD scores the failing partscore doubled, which is the doubling
+artifact that rule 2 names. The PD loss sits where they are vulnerable.
+Re-measure single-dummy if wanted; the default is jdh8's call.
 
 ## Out of scope (decided, not deferred by neglect)
 
@@ -1274,6 +1321,9 @@ Nothing here blocks the knob staying off; each item names what would close it.
    rule-3 split puts the PD loss in PD's bias; with `tied` the unbiased boards
    are plain ≈ 0. Shipping default-on would be a recorded trade-off, not a
    decision-table ship. The candidate shape is `tied` or `longer`, not `Off`.
+   **2026-10-21:** on [plain DD, PD-P] (item 2) the 2× run is a win in every
+   cell for both, and rule 6 picks `longer` (§ step-2 verdicts). It is now a
+   decision-table ship, and the default is jdh8's call.
 2. **PD cannot price this lane.** `ns_score_bid` scores a making contract
    undoubled and a failing one doubled, whatever the table bid
    (`src/scoring.rs` module doc). So the off arm's sit in a making `1NTxx` is
@@ -1306,6 +1356,12 @@ Nothing here blocks the knob staying off; each item names what would close it.
    independent sample, so it can pool with the 1× run, where the same seed at
    2× would re-deal the 1× boards as its first half).
    `tied − longer` moves 2 boards per cell and will not separate.
+   **Done 2026-10-21, and it does not pool:** the 2× run was built on
+   9b423467, the 1× on 86c2c712 with uncommitted edits, and the arms moved
+   differently (the doubler 3.5×; § step-2 verdicts). Read alone, `longer −
+   dont` is a plain win in ew and both and non-inferior in none and ns. Its
+   PD-P is −12 to −20 IMPs per cell (non-inferior). Rule 7 is moot now that
+   rule 1 is met.
 4. **The ns cell's unbiased loss is untraced.** `tied − off` unbiased is plain
    −89 IMPs over 66 boards in ns against ≈ 0 in the other cells, and `dont`
    is −133 there too. The worst boards (`div.tied.vs.off.ns.jsonl`, the
@@ -1334,6 +1390,11 @@ Nothing here blocks the knob staying off; each item names what would close it.
    at plain ≈ 0. The doubler node is reached mostly when the advancer sits,
    so the rails' doubler gain in `xx-runout-rails-2` was rescuing the
    advancer rail's own sits. Re-run at ≥ 4× only on request.
+   **Reopened 2026-10-21:** on 9b423467 it moves 47–58 boards per cell at
+   plain +343 to +460 IMPs, a win on [plain, PD-P] in every cell, but two
+   cells are under rule 0's 50. It is an alternative to `longer` (a book
+   node shadows the rail) with about a quarter of the gain, so it matters
+   only if DONT does not ship.
 10. **The balancing seat is out of scope by design.** `(1NT) - - X (XX)` and
     a passed doubler are excluded, because that advancer can hold values.
     Not owed unless the balancing seat becomes book work (§ Out of scope).

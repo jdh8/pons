@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense to their 1NT, the both-minors `2NT` keeps its 8-point floor and
   drops its 13-point ceiling, so a strong 5-5 in the minors bids `2NT`
   instead of passing (BBA plays 9–25 HCP). The reading widens with the rule.
-  Default off and inert outside Woolsey, so the default system is unchanged;
-  its A/B is owed.
+  Default off and inert outside Woolsey, so the default system is unchanged.
+  **Measured 2026-10-21 (`ab-results/woolsey-wide-2nt`, 102,528 boards per
+  cell, about 110 divergent): stays opt-in.** Plain DD +0.0005 to +0.0016
+  per kept board (a win in none and ns, non-inferior in ew and both). PD is a
+  loss in ew and both (−0.0018, −0.0020), because the strong `2NT`'s failing
+  `3m` partscores are scored doubled. Rule 2: no ship.
 
 - **PD-P, prefix-honoring perfect defense (2026-10-21):
   `scoring::ns_score_bid_honoring` and `scoring::shared_penalty`,
@@ -66,7 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in every cell but 12–15 boards per cell (lower bound just under 0):
   inconclusive. The doubler rail alone moves 13–16 boards per cell
   (insufficient data). The DONT trade-off (plain win, biased PD loss) is
-  jdh8's.
+  jdh8's. **2× re-run on [plain DD, PD-P] (2026-10-21,
+  `ab-results/xx-dont-major-first-2x`, 786,432 boards per cell): `longer −
+  off` is a win on both scorers in every cell.** Plain +0.0019 to +0.0026
+  and PD-P +0.0013 to +0.0019 IMPs per accepted board, over 320–347
+  divergent boards. `tied` is the same to 10⁻⁴, and rule 6 picks `longer`.
+  PD still loses in ns and both (descriptive). No default has moved: turning
+  on `defense.xx_dont_runout` with `Longer` is owed to jdh8. The doubler rail
+  alone moves about 3.5× as many boards on the newer code (47–58 per cell),
+  but two cells are still under 50.
 
 - **The 1NT-invite rail (`InstinctProfile::their_nt_invite_double_veto`,
   `their_nt_invite_bid_veto`) and `bba-gen --declare-their-european-minors`
