@@ -170,6 +170,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`bba-gen` reads EPBot's `1NT` minors as the European scheme it plays,
+  by default (2026-10-20, jdh8: honest bridge).** Our side used to read
+  EPBot as playing our own card (`Config::symmetric`), so their natural
+  `(1NT) - (2NT)` invitation read as our Puppet diamond transfer. Real
+  opponents disclose their card, so now `bba-gen` declares the opponent
+  book `ben-gen` already uses (`common::european_minors_opponents`: our
+  system with `reading.notrump_minors = EUROPEAN` and the shipped default
+  defense). Measured as the `read` arm of `scripts/ab-nt-invite-rail.sh`
+  (before the rail shipped; 196,608 accepted boards per cell): plain
+  +0.0093 / +0.0022 / +0.0144 / +0.0072 per accepted board (none / ns / ew
+  / both; ns non-inferior at ±0.0052, the rest `win`), PD +0.0132 to
+  +0.0216, `win` everywhere. A declared opponent decodes every one of their
+  calls through that book, so more than the minors moves. `--no-declare-their-
+  european-minors` restores the symmetric reading; the declaration also
+  stands down where there is no EPBot opponent to describe (`--their-floor`,
+  `--isolate-opening pons`, `--our-system`/`--our-card`,
+  `--ns-blind-opponent-reading`). Each dump now records whether it applied
+  (`Dump::declared_european_minors`; older dumps fall back to the old opt-in
+  flag in `gen_args`, and a shard set that mixes the two refuses to load),
+  and the scorers follow it: `ab-dump-sd` reads each arm the way it was bid
+  (its `--{on,off}-declare-their-european-minors` flags are gone;
+  `--legacy-leader-reading` stays symmetric, as before), and
+  `bba-decompose`'s replay gate binds the same reading. **Costs:** a
+  declared opponent bypasses the incremental reader, so `bba-gen` runs
+  ≈ 15% slower and an `ab-dump-sd` pass ≈ 20× slower (≈ 6.5 min against
+  20 s per cell in that runner). **Anchor series break** (the anchor's BBA
+  is now read honestly; `docs/bba-gap-campaign.md` rule 10). Our bidding
+  system is unchanged.
+
 - **The 1NT-invite rail ships default-on, both halves
   (`InstinctProfile::their_nt_invite_double_veto` and
   `their_nt_invite_bid_veto`, 2026-10-20).** `scripts/ab-nt-invite-rail.sh`

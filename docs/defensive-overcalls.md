@@ -1060,7 +1060,8 @@ cells in CHANGELOG):
   wins on top of the double veto in every cell. The reading arm wins too
   (ns plain only non-inferior) and, with it on, the rail almost never
   fires: the rail's gain is mostly our Puppet misread of their `2NT`.
-  Making the declaration the harness default is owed to jdh8.
+  The declaration became `bba-gen`'s default the same day (jdh8: honest
+  bridge); the rail stays, since it still wins slightly under it.
 - **Woolsey completion — shipped default-on inside the Woolsey card.** Sit
   plain +0.0355 to +0.0557, PD +0.0589 to +0.0796 per kept board; tails
   plain +0.0054 to +0.0069, PD +0.0063 to +0.0083; additive. ≈ +2 to +3

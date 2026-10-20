@@ -668,32 +668,37 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_invite_bid_veto: bool,
 
-    /// Read the opponents' `1NT` minor-suit responses in the **European**
-    /// scheme (`2♠` clubs transfer, `2NT` invitation, `3♣` diamonds transfer),
-    /// on their side only — a harness flag, not a system knob
+    /// Read EPBot's `1NT` minor-suit responses as our own system, the
+    /// **Puppet** scheme, instead of the **European** one it plays — the
+    /// pre-2026-10-20 harness default
     ///
-    /// Off (the default) our partnership reads EPBot as playing our card
-    /// (`Config::symmetric`), so their natural `(1NT) - (2NT)` invitation reads
-    /// as our Puppet-scheme diamond transfer.  EPBot's stock system-0 and BEN
-    /// both play the European scheme, so on, our floor declares an opponent
-    /// book that is `american()` under our own knobs with
-    /// `reading.notrump_minors = EUROPEAN` and the shipped default defense
-    /// (our `--ns-*` defense knobs never move the book we read them off) —
-    /// the same declaration `ben-gen` makes
-    /// (`common::european_minors_opponents`).  Reading only
-    /// (`Partnership::with_opponents`): the
-    /// net's card inputs and both bidding tables are untouched, but a declared
-    /// opponent decodes **every** one of their calls through that book (the
-    /// legacy full-auction reader, not the undeclared mirror), so the arm moves
-    /// more readings than the minors: their `(1♣) - (1♠) - (2NT)` and a direct
-    /// `X` of our `1NT` read differently too.  The
-    /// `read` arm of `scripts/ab-nt-invite-rail.sh`; refused with
-    /// `--their-floor` (a pons opponent has its own books to declare),
-    /// `--isolate-opening pons` (our pair defends at both tables, so table A's
-    /// opponents are ourselves, not EPBot) and `--our-system` / `--our-card` /
-    /// `--ns-blind-opponent-reading` (nothing would read through it).
+    /// By default our partnership declares an opponent book that is
+    /// `american()` under our own knobs with
+    /// `reading.notrump_minors = EUROPEAN` (`2♠` clubs transfer, `2NT`
+    /// invitation, `3♣` diamonds transfer) and the shipped default defense (our
+    /// `--ns-*` defense knobs never move the book we read them off) — the same
+    /// declaration `ben-gen` makes (`common::european_minors_opponents`).
+    /// EPBot's stock system-0 and BEN both play the European scheme, and at
+    /// the table their card says so: reading their natural `(1NT) - (2NT)`
+    /// invitation as our Puppet diamond transfer is a misreading honest bridge
+    /// does not allow.  Measured (`scripts/ab-nt-invite-rail.sh`, the `read`
+    /// arm vs the symmetric reading, 196,608 accepted `--filter-1nt
+    /// --wide-1nt` boards per cell): plain win in three cells and
+    /// non-inferior at ns, PD win in all four.  Reading only
+    /// (`Partnership::with_opponents`): the net's card inputs and both bidding
+    /// tables are untouched, but a declared opponent decodes **every** one of
+    /// their calls through that book (the legacy full-auction reader, not the
+    /// undeclared mirror), so it moves more readings than the minors: their
+    /// `(1♣) - (1♠) - (2NT)` and a direct `X` of our `1NT` read differently
+    /// too.  The declaration does not apply — the symmetric reading is used,
+    /// as with this flag — where there is no EPBot opponent for it to
+    /// describe: `--their-floor` (a pons opponent, read off its own books or
+    /// our mirror), `--isolate-opening pons`, `--our-system` / `--our-card`
+    /// (EPBot on our side) and `--ns-blind-opponent-reading` (no reading to
+    /// move).  Each dump records whether it applied
+    /// (`Dump::declared_european_minors`).
     #[arg(long, default_value_t = false)]
-    declare_their_european_minors: bool,
+    no_declare_their_european_minors: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
@@ -2906,6 +2911,18 @@ fn their_2d_multi(args: &Args) -> anyhow::Result<bool> {
     })
 }
 
+/// Whether our pair reads EPBot through `common::european_minors_opponents`:
+/// the default, unless opted out or there is no EPBot opponent to describe
+/// (see `--no-declare-their-european-minors`)
+fn declares_european_minors(args: &Args) -> bool {
+    !args.no_declare_their_european_minors
+        && args.their_floor.is_none()
+        && args.isolate_opening != "pons"
+        && args.our_system.is_none()
+        && args.our_card.is_none()
+        && !args.ns_blind_opponent_reading
+}
+
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
@@ -3627,19 +3644,6 @@ fn main() -> anyhow::Result<()> {
         declared_as.is_none() || args.declare_opponents,
         "--declare-as moves the card handed to our net; it needs --declare-opponents"
     );
-    anyhow::ensure!(
-        !args.declare_their_european_minors
-            || (args.their_floor.is_none()
-                && args.isolate_opening != "pons"
-                && args.our_system.is_none()
-                && args.our_card.is_none()
-                && !args.ns_blind_opponent_reading),
-        "--declare-their-european-minors declares EPBot's 1NT minors to our pons \
-         floor: --their-floor seats a pons opponent with books of its own, \
-         --isolate-opening pons seats our own defense against our 1NT, \
-         --our-system/--our-card seat EPBot on our side, and \
-         --ns-blind-opponent-reading blanks the reading it would move"
-    );
     /// Build one seat's agreements and run `read` under that value
     fn under<T>(
         seat: Option<&Args>,
@@ -3787,7 +3791,7 @@ fn main() -> anyhow::Result<()> {
             );
         };
         (our_floor.with_opponents(them), their_floor)
-    } else if args.declare_their_european_minors {
+    } else if declares_european_minors(&args) {
         (
             european_minors_opponents(our_floor, &agreements),
             their_floor,
@@ -3838,8 +3842,8 @@ fn main() -> anyhow::Result<()> {
             if args.declare_books_mutually {
                 label += " [mutual books]";
             }
-            if args.declare_their_european_minors {
-                label += " [their minors european]";
+            if args.no_declare_their_european_minors {
+                label += " [their minors as ours]";
             }
             if let Some(spec) = &args.declare_as {
                 label += &format!(" [declared as {spec}]");
@@ -3972,6 +3976,7 @@ fn main() -> anyhow::Result<()> {
         vulnerability: args.vulnerability,
         seed: Some(seed),
         gen_args: std::env::args().skip(1).collect(),
+        declared_european_minors: Some(declares_european_minors(&args)),
         boards,
     };
     match args.output.as_deref() {

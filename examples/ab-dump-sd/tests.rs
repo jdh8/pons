@@ -240,7 +240,8 @@ fn absurd_band_moves_the_lead() {
     assert_ne!(leads(9, 14, false), leads(20, 37, false));
 }
 
-/// `--{on,off}-declare-their-european-minors` reaches the North–South leader:
+/// The European-minors declaration (read off each arm's dump) reaches the
+/// North–South leader:
 /// over their `(1NT) - (2NT) - (3NT)` South reads West's `2NT` as our Puppet
 /// diamond transfer by default, and as the European invitation declared
 #[test]

@@ -781,6 +781,7 @@ fn main() {
             vulnerability: args.vulnerability,
             seed: Some(args.seed),
             gen_args: std::env::args().skip(1).collect(),
+            declared_european_minors: Some(false),
             boards: divergent
                 .iter()
                 .map(|&index| {

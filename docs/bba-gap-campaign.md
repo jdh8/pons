@@ -150,6 +150,16 @@ Each was paid for; the story behind each is in the archive.
    pons's forcing free bids. Pons's fixed-seed smoke dump is byte-identical,
    but BBA's anchor policy changed in those lanes, so headline and bucket moves
    across this break are not attributable solely to pons changes.
+10. **Reading series break (2026-10-20).** `bba-gen` now declares EPBot's
+   `1NT` minors as the European scheme it plays (honest bridge: their card
+   discloses it), where every earlier anchor read EPBot as playing our card,
+   so their `(1NT) - (2NT)` invitation read as our Puppet diamond transfer.
+   A declared opponent decodes all of their calls through that book. Measured
+   alone (the `read` arm of `scripts/ab-nt-invite-rail.sh`, 1NT-filtered):
+   plain +0.002 to +0.014, PD +0.013 to +0.022 per accepted board. Our
+   bidding is unchanged, but the headline moves across this break for a
+   protocol reason; `bba-decompose` binds the same reading from each dump's
+   `declared_european_minors`.
 
 ## Runbook
 

@@ -393,7 +393,28 @@ pub struct Dump {
     /// older dumps.
     #[cfg_attr(feature = "serde", serde(default))]
     pub gen_args: Vec<String>,
+    /// Whether our pair read the opponents through
+    /// [`european_minors_opponents`] while bidding this dump, so a scorer reads
+    /// the auctions the same way.  `None` in dumps written before 2026-10-20,
+    /// when `bba-gen` declared only on `--declare-their-european-minors`; see
+    /// [`Dump::declares_european_minors`].
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub declared_european_minors: Option<bool>,
     pub boards: Vec<Board>,
+}
+
+impl Dump {
+    /// Whether our pair read the opponents' `1NT` minors as European while
+    /// bidding this dump: the recorded fact, else (older dumps) whether the
+    /// generating command line opted in
+    #[must_use]
+    pub fn declares_european_minors(&self) -> bool {
+        self.declared_european_minors.unwrap_or_else(|| {
+            self.gen_args
+                .iter()
+                .any(|arg| arg == "--declare-their-european-minors")
+        })
+    }
 }
 
 /// Load a dump from `path`.  A plain file is read directly; a **directory**
@@ -455,6 +476,12 @@ pub fn load_dump(path: &str) -> Dump {
             shard_config(&dump.gen_args),
             shard_config(&next.gen_args),
             "dump shard {} was generated with different arguments",
+            shard.display(),
+        );
+        assert_eq!(
+            dump.declares_european_minors(),
+            next.declares_european_minors(),
+            "dump shard {} read the opponents differently",
             shard.display(),
         );
         dump.boards.extend(next.boards);
@@ -1505,9 +1532,11 @@ pub fn blinded(partnership: &Partnership) -> Partnership {
 /// system is the Phase-2b treatment, which measured plain wash / PD −0.0070
 /// (docs/declarative-rows.md §2b).  Reading only
 /// ([`Partnership::with_opponents`]); our bidding table and the net's card
-/// inputs are untouched.  `ben-gen` always reads BEN this way; `bba-gen
-/// --declare-their-european-minors` and `ab-dump-sd
-/// --{on,off}-declare-their-european-minors` opt in for EPBot.
+/// inputs are untouched.  `ben-gen` always reads BEN this way, and `bba-gen`
+/// reads EPBot this way by default since 2026-10-20 (`--no-declare-their-
+/// european-minors` opts out); each dump records it
+/// ([`Dump::declared_european_minors`]) and `ab-dump-sd` reads each arm to
+/// match.
 ///
 /// Their **defense** is the shipped default, never `agreements.defense`: the
 /// harnesses' `--ns-*` / `--on-ns-*` defense knobs move only our book, never

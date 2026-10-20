@@ -34,16 +34,25 @@ fn default_args_arm_the_shipped_system() {
     }
 }
 
-/// `--declare-their-european-minors` parses, defaults off, and leaves the
-/// armed knobs alone: it is a harness flag on the reading channel, not a
-/// system knob, so `default_args_arm_the_shipped_system` holds with it on.
+/// The European-minors declaration is on by default and a reading flag only:
+/// opting out leaves the armed knobs alone, so
+/// `default_args_arm_the_shipped_system` holds either way.  It stands down
+/// where there is no EPBot opponent to describe.
 #[test]
-fn the_european_minors_flag_is_a_reading_flag_only() {
+fn the_european_minors_declaration_is_a_default_reading_flag() {
     let bare = Args::parse_from(["bba-gen"]);
-    assert!(!bare.declare_their_european_minors);
-    let on = Args::parse_from(["bba-gen", "--declare-their-european-minors"]);
-    assert!(on.declare_their_european_minors);
-    assert_eq!(arm_knobs(&on).unwrap(), arm_knobs(&bare).unwrap());
+    assert!(super::declares_european_minors(&bare));
+    let off = Args::parse_from(["bba-gen", "--no-declare-their-european-minors"]);
+    assert!(!super::declares_european_minors(&off));
+    assert_eq!(arm_knobs(&off).unwrap(), arm_knobs(&bare).unwrap());
+    for pons_seat in [
+        &["bba-gen", "--their-floor", "american"][..],
+        &["bba-gen", "--isolate-opening", "pons"],
+        &["bba-gen", "--ns-blind-opponent-reading"],
+    ] {
+        let args = Args::parse_from(pons_seat);
+        assert!(!super::declares_european_minors(&args), "{pons_seat:?}");
+    }
 }
 
 /// With the declaration our seat reads their `(1NT) - (2NT)` as the European

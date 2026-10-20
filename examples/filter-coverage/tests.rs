@@ -24,6 +24,7 @@ fn dump(boards: &[(&str, &str)], gen_args: &[&str]) -> Dump {
         vulnerability: AbsoluteVulnerability::NONE,
         seed: Some(1),
         gen_args: gen_args.iter().map(|&a| a.into()).collect(),
+        declared_european_minors: None,
         boards: boards
             .iter()
             .map(|&(deal, calls)| Board {

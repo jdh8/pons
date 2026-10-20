@@ -73,10 +73,11 @@ struct Args {
     our_floor: OurFloor,
 
     /// Replay with BEN's European minor-transfer reading declared as the
-    /// opponent book, as `ben-gen` has bound it since 2026-08-13.  Unset,
-    /// derived from the dump's opponent label (BEN → on); pass `false` to
-    /// replay BEN dumps generated before that date (the 2026-08-10 Tier-F
-    /// corpus).
+    /// opponent book, as `ben-gen` has bound it since 2026-08-13 and `bba-gen`
+    /// by default since 2026-10-20.  Unset, derived from the dump (its recorded
+    /// `declared_european_minors`, else its opponent label: BEN → on); pass
+    /// `false` to replay BEN dumps generated before 2026-08-13 (the 2026-08-10
+    /// Tier-F corpus).
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     european_minors: Option<bool>,
 
@@ -296,6 +297,9 @@ struct Arm {
     gen_args: Vec<String>,
     our_label: String,
     their_label: String,
+    /// The bidder read the opponents through European-minors
+    /// (`Dump::declares_european_minors`)
+    declared_european_minors: bool,
 }
 
 /// Everything the report needs about one contract-divergent board
@@ -344,6 +348,10 @@ fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
                 arm.our_label == dump.our_label && arm.their_label == dump.their_label,
                 "dump {file:?} has mismatched labels — won't merge different references",
             );
+            anyhow::ensure!(
+                arm.declared_european_minors == dump.declares_european_minors(),
+                "dump {file:?} read the opponents differently — won't merge",
+            );
             arm.origin
                 .extend((0..dump.boards.len()).map(|i| (dump.seed, i)));
             arm.boards.extend(dump.boards);
@@ -356,7 +364,9 @@ fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
 
 fn arm_from_dump(dump: Dump) -> Arm {
     let board_count = dump.boards.len();
+    let declared_european_minors = dump.declares_european_minors();
     Arm {
+        declared_european_minors,
         vul: dump.vulnerability,
         boards: dump.boards,
         origin: (0..board_count).map(|i| (dump.seed, i)).collect(),
@@ -500,9 +510,10 @@ fn main() -> anyhow::Result<()> {
             // axis only; see its comment).  Reading their `1NT - 2♠`/`3♣` as our Puppet
             // relay instead moves our own later calls, so the replay gate needs the
             // same binding.
-            let european = args
-                .european_minors
-                .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BEN")));
+            let european = args.european_minors.unwrap_or_else(|| {
+                arms.iter()
+                    .any(|arm| arm.declared_european_minors || arm.their_label.contains("BEN"))
+            });
             let partnership = if european {
                 let mut theirs = pons::bidding::agreements::Agreements::default();
                 theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;

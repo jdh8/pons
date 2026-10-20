@@ -27,6 +27,7 @@ impl Shards {
             vulnerability: AbsoluteVulnerability::NONE,
             seed: Some(1),
             gen_args: vec!["--seed".into(), "1".into()],
+            declared_european_minors: None,
             boards: vec![Board {
                 deal: seeded_deals(1, 1)[0],
                 dealer: Seat::North,
@@ -107,6 +108,34 @@ fn per_shard_arguments_may_differ() {
             .collect();
     })
     .load();
+}
+
+/// A pre-2026-10-20 shard that opted in on the command line and a new one
+/// that records the declaration agree; one that read symmetrically does not.
+#[test]
+fn the_recorded_declaration_matches_the_legacy_flag() {
+    let legacy = |dump: &mut Dump| dump.gen_args.push("--declare-their-european-minors".into());
+    let mut first = Dump {
+        our_label: String::new(),
+        their_label: String::new(),
+        vulnerability: AbsoluteVulnerability::NONE,
+        seed: None,
+        gen_args: Vec::new(),
+        declared_european_minors: None,
+        boards: Vec::new(),
+    };
+    assert!(!first.declares_european_minors());
+    legacy(&mut first);
+    assert!(first.declares_european_minors());
+    first.gen_args.clear();
+    first.declared_european_minors = Some(true);
+    assert!(first.declares_european_minors());
+}
+
+#[test]
+#[should_panic(expected = "shard-1.json read the opponents differently")]
+fn a_later_shard_cannot_change_the_reading() {
+    Shards::new("reading", |dump| dump.declared_european_minors = Some(true)).load();
 }
 
 #[test]
@@ -190,6 +219,7 @@ fn written_shard_verifies_and_truncation_does_not() {
         vulnerability: AbsoluteVulnerability::NONE,
         seed: Some(7),
         gen_args: Vec::new(),
+        declared_european_minors: None,
         boards: Vec::new(),
     };
     write_atomically(path, |out| Ok(serde_json::to_writer(out, &dump)?)).unwrap();

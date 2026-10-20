@@ -253,18 +253,6 @@ struct Args {
     /// lead-directing clubs to the blind leader
     #[arg(long, default_value_t = false)]
     on_ns_stayman_defense: bool,
-    /// Read the ON arm's auctions the way `bba-gen
-    /// --declare-their-european-minors` bid them: our pair (the leader when
-    /// they declare) reads East–West's `1NT` minor responses in the European
-    /// scheme (`common::european_minors_opponents`), so their `(1NT) - (2NT)`
-    /// is an invitation, not our Puppet diamond transfer.  Refused with
-    /// `--legacy-leader-reading`, whose East–West reader is the same
-    /// partnership and would read our own `1NT` minors as European
-    #[arg(long, default_value_t = false)]
-    on_declare_their_european_minors: bool,
-    /// Same for the OFF arm
-    #[arg(long, default_value_t = false)]
-    off_declare_their_european_minors: bool,
     /// Split the delta by `holding` — opener's holding in their suit over
     /// `1NT (3x) X -` (`common::holding_key`); ON must be the leave-in arm.
     /// `stayman` splits by our direct call over `(1NT) - (2♣)` in each arm
@@ -381,17 +369,24 @@ fn main() {
     on_arm.defense.woolsey_tails = !args.on_no_ns_woolsey_tails;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
     on_arm.decision.instinct.penalize_escape_values = args.on_ns_penalize_escape_values;
-    // `TableReader::legacy` reads East–West off the same partnership as
-    // North–South, so a declared opponent there would decode our own calls.
-    let european = args.on_declare_their_european_minors || args.off_declare_their_european_minors;
-    assert!(
-        !(args.legacy_leader_reading && european),
-        "--{{on,off}}-declare-their-european-minors cannot ride --legacy-leader-reading: \
-         its East–West reader shares our partnership and would read our 1NT minors as European"
-    );
-    // A declared European-minors opponent moves only how our pair (the leader
-    // when they declare) reads East–West; East–West's reading of us comes off
-    // our own books either way, since `with_opponents` ignores nesting.
+    // Each arm is read the way it was bid: a dump whose bidder declared
+    // European-minors opponents (`bba-gen` by default since 2026-10-20,
+    // `ben-gen` always) is read through the same declaration.  It moves only
+    // how our pair (the leader when they declare) reads East–West; East–West's
+    // reading of us comes off our own books either way, since `with_opponents`
+    // ignores nesting.  `TableReader::legacy` reads East–West off the same
+    // partnership as North–South, where a declared opponent would decode our
+    // own calls, so the legacy reading stays symmetric.
+    let declared = |dump: &common::Dump| {
+        let european = dump.declares_european_minors();
+        if european && args.legacy_leader_reading {
+            eprintln!(
+                "ab-dump-sd: --legacy-leader-reading reads a declared arm symmetrically \
+                 (its East–West reader shares our partnership)"
+            );
+        }
+        european && !args.legacy_leader_reading
+    };
     let read_arm = |arm: &pons::bidding::agreements::Agreements, european: bool| {
         let mut partnership = american(arm).bind();
         if european {
@@ -403,7 +398,7 @@ fn main() {
             TableReader::new(partnership)
         }
     };
-    let reader_on = read_arm(&on_arm, args.on_declare_their_european_minors);
+    let reader_on = read_arm(&on_arm, declared(&on));
     let (lo, hi) = band(&args.off_ns_overcall);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
     let mut off_arm = pons::bidding::agreements::Agreements::default();
@@ -433,7 +428,7 @@ fn main() {
     if args.off_no_ns_penalty_pass {
         off_arm.competition.penalty_pass = None;
     }
-    let reader_off = read_arm(&off_arm, args.off_declare_their_european_minors);
+    let reader_off = read_arm(&off_arm, declared(&off));
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one

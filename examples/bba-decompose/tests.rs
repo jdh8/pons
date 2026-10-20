@@ -22,6 +22,7 @@ fn self_play_fixture(floor: OurFloor) -> Arm {
         vulnerability: vul,
         seed: Some(0xD3C0_5EED),
         gen_args: Vec::new(),
+        declared_european_minors: None,
         boards,
     })
 }
@@ -97,6 +98,7 @@ fn json_emits_generic_call_and_compatibility_alias() {
         vulnerability: AbsoluteVulnerability::NONE,
         seed: Some(7),
         gen_args: Vec::new(),
+        declared_european_minors: None,
         boards: Vec::new(),
     });
     let row = sample_row();

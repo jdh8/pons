@@ -127,14 +127,18 @@ FILTER='--filter-1nt --wide-1nt'
 OFF='--no-ns-nt-invite-double-veto --no-ns-nt-invite-bid-veto'
 DX='--no-ns-nt-invite-bid-veto'
 DXB=''
-READ='--declare-their-european-minors'
+# The declaration became bba-gen's default 2026-10-20 (and ab-dump-sd reads
+# each arm as its dump records), so the symmetric arms now opt out and the
+# read arms are the bare default.
+SYM='--no-declare-their-european-minors'
+READ=''
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm off "$v" $FILTER $OFF
+    arm off "$v" $FILTER $OFF $SYM
     # shellcheck disable=SC2086
-    arm dx "$v" $FILTER $DX
+    arm dx "$v" $FILTER $DX $SYM
     # shellcheck disable=SC2086
-    arm dxb "$v" $FILTER $DXB
+    arm dxb "$v" $FILTER $DXB $SYM
     # shellcheck disable=SC2086
     arm read "$v" $FILTER $READ $OFF
     # shellcheck disable=SC2086
@@ -154,20 +158,19 @@ for v in $VULS; do
     done
     for a in read readdxb; do
         diffpair "$a" off "$v"
-        sddiff "$a" off "$v" --on-declare-their-european-minors
+        sddiff "$a" off "$v"
     done
     gatepair readdxb read "$v" theirs
     diffpair readdxb read "$v"
-    sddiff readdxb read "$v" --on-declare-their-european-minors \
-        --off-declare-their-european-minors
+    sddiff readdxb read "$v"
 done
 
 # Descriptive: the rail under our Woolsey defense, none only (isolated).
 WOOLSEY='--isolate-defense --ns-notrump-defense woolsey'
 # shellcheck disable=SC2086
-arm woff none $FILTER $WOOLSEY $OFF
+arm woff none $FILTER $WOOLSEY $OFF $SYM
 # shellcheck disable=SC2086
-arm wdxb none $FILTER $WOOLSEY $DXB
+arm wdxb none $FILTER $WOOLSEY $DXB $SYM
 DENSITY=$(density_of "$R/woff-none")
 log "density woolsey none: $DENSITY"
 gatepair wdxb woff none theirs

@@ -662,6 +662,7 @@ fn main() -> anyhow::Result<()> {
         vulnerability: args.vulnerability,
         seed: Some(seed),
         gen_args: std::env::args().skip(1).collect(),
+        declared_european_minors: Some(true),
         boards,
     };
     match args.output.as_deref() {
