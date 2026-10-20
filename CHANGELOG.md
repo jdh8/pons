@@ -241,6 +241,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --no-ns-woolsey-muiderberg-sit` / `--no-ns-woolsey-tails` and `ab-dump-sd
   --{on,off}-no-ns-woolsey-*`.
 
+- **XX runouts measured: `InstinctProfile::xx_runout_rails` and
+  `defense.xx_dont_runout` both stay off (2026-10-20).**
+  `ab-results/xx-runout-rails-2` vs BBA, 393,216 accepted boards per cell:
+  rails plain −0.0009 ±0.0006 at ew (a loss: its advancer arm sits weak 4-4
+  hands in a making `1NTxx`), PD win; DONT plain +0.0015 to +0.0019 (win in
+  every cell), PD −0.0004 to −0.0012 (loss), which the pre-registered rules
+  read as no ship. PD's loss is its known bias against running (it erases
+  the redouble of a making `1NTxx` and doubles our undoubled failing
+  runout); on the boards it scores without bias DONT's two-suiters lose to
+  the net's natural major runouts. Recorded trade-off; split and follow-up in
+  `docs/defensive-overcalls.md`.
+
 - **`defense.xx_dont_runout` is ours alone: the undeclared mirror pins it
   off (2026-10-20).** The first `scripts/ab-xx-runout-rails.sh` run stopped
   at the `dont` arm's isolation gate: 27 of its 199 divergent boards

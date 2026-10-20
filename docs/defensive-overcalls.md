@@ -1066,10 +1066,33 @@ cells in CHANGELOG):
   plain +0.0355 to +0.0557, PD +0.0589 to +0.0796 per kept board; tails
   plain +0.0054 to +0.0069, PD +0.0063 to +0.0083; additive. ≈ +2 to +3
   per 1,000 random deals, 3× the clean estimate.
-- **XX runouts — re-run owed.** The first run stopped at the `dont` arm's
-  isolation gate (the undeclared mirror read their runouts after our own
-  `1NT (X) XX` as DONT; fixed in `common::mirror_agreements`). `rails`
-  `none` had scored: plain non-inferior, PD win, 87 divergent boards.
+- **XX runouts — neither ships; both knobs stay off.** The first run
+  stopped at the `dont` arm's isolation gate (the undeclared mirror read
+  their runouts after our own `1NT (X) XX` as DONT; fixed in
+  `common::mirror_agreements`). Re-run `ab-results/xx-runout-rails-2`
+  (fresh seed, 393,216 accepted boards per cell, every gate 0 foreign,
+  108–176 contract-divergent boards per cell so rule 0 passes), per
+  accepted board, none / ns / ew / both:
+  - `rails − off`: plain −0.0005 / −0.0000 / **−0.0009 ±0.0006 (loss)** /
+    −0.0004, PD +0.0007 to +0.0009 (win). Rule 4's predicted culprit: the
+    advancer arm sits weak 4-4 / 4-3-3-3 hands in `1NTxx` where the net
+    runs, and `1NTxx` makes (47–55 boards per cell, plain −336 to −687
+    IMPs); the doubler arm gains (plain +87 to +151). PD's win is the
+    rule-3 bias in the rail's favour (it erases the redouble of the making
+    `1NTxx`).
+  - `dont − off`: plain **+0.0015 / +0.0015 / +0.0018 / +0.0019 (win)**, PD
+    −0.0004 / −0.0010 / −0.0005 / −0.0012 (loss), SD-PD −0.0002 to −0.0009.
+    Rule 2: no ship. Rule 3 split: the PD loss lives in the biased boards
+    (off sits a making `1NTxx`: plain +613 to +857, PD −111 to −311; our
+    runout fails undoubled and PD doubles it: plain +67 to +97, PD −53 to
+    −113). On the boards PD scores without bias DONT is plain −92 to −169,
+    PD −36 to +18 per cell, and that loss sits in the advancer's
+    two-suiters (`2♣`/`2♦` where the net bids a natural `2♥`/`2♠`: a
+    five-card major with a four-card minor goes through the minor).
+  - Recorded trade-off for jdh8 (rule 3): DONT's plain gain is real (it
+    escapes making `1NTxx`) and PD cannot see it. A redesign that bids a
+    five-card major naturally ahead of a 5-4 two-suiter, plus the rails'
+    doubler arm alone, is the follow-up; both measure on this runner.
 
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
