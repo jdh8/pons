@@ -295,3 +295,26 @@ fn artificial_calls_read_their_real_shape() {
         sos.length(Suit::Clubs)
     );
 }
+
+/// The package is ours alone (`common::mirror_agreements`): when *we* open
+/// `1NT` and redouble their penalty `X`, their runouts keep the house reading,
+/// so their pass is not read as forcing nor their `2♣` as a relay.
+#[test]
+fn their_runouts_over_our_redouble_keep_the_house_reading() {
+    let read = |agreements: &Agreements, auction: &[Call]| {
+        american(agreements)
+            .bind()
+            .infer(RelativeVulnerability::NONE, auction)
+    };
+    for auction in [
+        &[NT, X, XX, P][..],
+        &[NT, X, XX, H2],
+        &[NT, X, XX, P, P, C2],
+    ] {
+        assert_eq!(
+            read(&on(), auction),
+            read(&Agreements::default(), auction),
+            "{auction:?}"
+        );
+    }
+}

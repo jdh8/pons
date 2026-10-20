@@ -212,6 +212,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --no-ns-woolsey-muiderberg-sit` / `--no-ns-woolsey-tails` and `ab-dump-sd
   --{on,off}-no-ns-woolsey-*`.
 
+- **`defense.xx_dont_runout` is ours alone: the undeclared mirror pins it
+  off (2026-10-20).** The first `scripts/ab-xx-runout-rails.sh` run stopped
+  at the `dont` arm's isolation gate: 27 of its 199 divergent boards
+  (`none`) were ours-opened `1NT (X) XX`, because the mirror book we read
+  an undeclared opponent through carried the knob, so their pass read as
+  the forcing DONT pass and their `2♣` as a relay. `common::mirror_agreements`
+  now resets it, like our other opt-in overlays; a test pins the reading.
+  The `rails` arm's `none` cell had scored before the stop (87 divergent
+  boards; plain −0.0003 ±0.0005 non-inferior, PD +0.0007 ±0.0003 win;
+  advancer node −189 plain IMPs over 75 boards, doubler node +69 over 12);
+  the runner is re-run whole on a fresh seed. Default system byte-identical.
+
 - **The Landy `2♦` "pick a major" relay is alerted (`landy:2d-relay`,
   2026-10-19).** The advancer's undoubled `2♦` over a both-majors `2♣`
   (the Landy overlay, Woolsey's `2♣`) or direct Landy's `X` names no

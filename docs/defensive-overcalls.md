@@ -1051,6 +1051,25 @@ Packages built from it, all default off, A/B owed after step 1 (jdh8,
 | Woolsey completion | `defense.woolsey_muiderberg_sit`, `defense.woolsey_tails` | `scripts/ab-woolsey-complete.sh` | +0.65 to +1.0 plain per 1,000 NV, inside the opt-in card |
 | Woolsey card coverage | four `defense.woolsey_*` knobs | `scripts/ab-woolsey-coverage.sh` | +0.3 to +0.5 plain per 1,000 NV |
 
+**Verdicts, 2026-10-20** (vs BBA; numbers per accepted or kept board, full
+cells in CHANGELOG):
+
+- **Silent rail — shipped default-on, both halves.** Both vs neither plain
+  +0.0151 to +0.0182, PD +0.0138 to +0.0166 (`win | win` every cell,
+  ≈ +0.004 per random deal, about 1.5× the clean estimate); the bid veto
+  wins on top of the double veto in every cell. The reading arm wins too
+  (ns plain only non-inferior) and, with it on, the rail almost never
+  fires: the rail's gain is mostly our Puppet misread of their `2NT`.
+  Making the declaration the harness default is owed to jdh8.
+- **Woolsey completion — shipped default-on inside the Woolsey card.** Sit
+  plain +0.0355 to +0.0557, PD +0.0589 to +0.0796 per kept board; tails
+  plain +0.0054 to +0.0069, PD +0.0063 to +0.0083; additive. ≈ +2 to +3
+  per 1,000 random deals, 3× the clean estimate.
+- **XX runouts — re-run owed.** The first run stopped at the `dont` arm's
+  isolation gate (the undeclared mirror read their runouts after our own
+  `1NT (X) XX` as DONT; fixed in `common::mirror_agreements`). `rails`
+  `none` had scored: plain non-inferior, PD win, 87 divergent boards.
+
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
 the fourth-seat lane closed 2026-09-27); the 12+ HCP 5-5 minors route for
@@ -1071,7 +1090,10 @@ Woolsey (route undecided, owed to jdh8).
 
 Step 2 of the 1NT-defense plan, package B, book alternative to the ladder
 rails (`InstinctProfile::xx_runout_rails`). Knob `defense.xx_dont_runout`,
-**default off**; code `src/bidding/american/defense/nt_xx_runout.rs`; arms
+**default off**, ours alone (the undeclared mirror pins it off, so their
+runouts after our `1NT (X) XX` keep the house reading — the first A/B's
+isolation gate caught that leak, 2026-10-20); code
+`src/bidding/american/defense/nt_xx_runout.rs`; arms
 `off` / `rails` / `dont` of `scripts/ab-xx-runout-rails.sh` (pre-registered
 there). Owner decisions jdh8, 2026-10-20. Step-2 ledger row:
 

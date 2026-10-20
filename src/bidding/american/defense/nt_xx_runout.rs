@@ -44,6 +44,10 @@
 //! at every node it keys — including `(1NT) X (XX)` and `(1NT) X (XX) - -` —
 //! and the rails are inert there.  The two are alternatives, measured as
 //! separate arms of `scripts/ab-xx-runout-rails.sh`.
+//!
+//! **Ours alone.**  `common::mirror_agreements` pins the knob off, so when *we*
+//! open `1NT` and redouble their `X`, their pass and runouts keep the floor's
+//! reading rather than decoding as this package.
 
 use super::nt_defense::natural_defense_enabled;
 use super::nt_dont::{

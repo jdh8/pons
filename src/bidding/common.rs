@@ -251,5 +251,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.competition.weak_new_suit_length = 5;
     mirror.competition.doubled_notrump_pass = false;
     mirror.competition.doubled_notrump_max_length = 13;
+    // Likewise the DONT-style runout after `(1NT) X (XX)`: when we open `1NT`
+    // and redouble their `X`, their pass and `2♣` keep the floor's reading
+    // (measured: the leak moved 27 of 199 divergent boards, all ours-opened).
+    mirror.defense.xx_dont_runout = false;
     (mirror != *agreements).then_some(mirror)
 }
