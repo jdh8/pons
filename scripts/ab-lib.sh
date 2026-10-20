@@ -339,6 +339,24 @@ diffpair() {
     printf '%s\n' "$inputs" >"$stamp"
 }
 
+# pdpdiff ON OFF VUL — the PD-P column ($DIFF --score pdp: perfect defense that
+# erases no X/XX both arms saw before they split), for a lane whose trigger is
+# a double (src/scoring.rs, ns_score_bid_honoring).  Same stamp rule as diffpair.
+pdpdiff() {
+    on=$1; off=$2; vul=$3
+    out="$R/diff.$on.vs.$off.$vul.pdp.txt"
+    # shellcheck disable=SC2086
+    inputs=$(report_inputs "$DIFF" "$on" "$off" "$vul" --score pdp --show "$SHOW" \
+        ${DENSITY:+--density $DENSITY})
+    grep -q '^Delta' "$out" 2>/dev/null && fresh_report "$out.inputs" "$inputs" \
+        && { log "skip $out (scored)"; return 0; }
+    log "diff $on vs $off ($vul, pdp${DENSITY:+, density $DENSITY})"
+    # shellcheck disable=SC2086
+    "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score pdp --show "$SHOW" \
+        ${DENSITY:+--density $DENSITY} >"$out" 2>>"$R/log"
+    printf '%s\n' "$inputs" >"$out.inputs"
+}
+
 # sddiff ON OFF VUL [ab-dump-sd flags...] — sd-lead paired delta over the whole
 # arm, 16 worlds, one solver; extra flags (e.g. --on-ns-negative-double-shape)
 # disclose the ON arm's knobs to the blind leader.

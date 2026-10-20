@@ -1274,12 +1274,29 @@ Nothing here blocks the knob staying off; each item names what would close it.
    PD variant that keeps a business `XX` of a making contract would be a
    scorer change across every A/B, so it is a separate design question.
    Until then this lane's PD is descriptive, as rule 3 says.
+   **Resolved 2026-10-21 (jdh8): PD-P rules this lane.** Prefix-honoring
+   perfect defense (`scoring::ns_score_bid_honoring`, `ab-dump-diff --score
+   pdp`) is `ns_score_bid` except that a `X`/`XX` both arms saw before their
+   auctions split is never erased: the off arm's sit in a making `1NTxx`
+   keeps its redouble, and everything after the split keeps the double-dummy
+   axe (a failing runout is scored at least doubled, so PD-P stays harsh on
+   running). It equals PD on any A/B that splits before a double, so it moves
+   no other verdict. Pre-registered before the 2× run (item 3) produced a
+   number: the decision table reads [plain DD, PD-P], each its worst cell,
+   δ = 0.002 / density; PD stays as a description. Rescore with
+   `scripts/ab-xx-dont-pdp.sh`. Descriptive on the already-seen 1× run,
+   `tied − off` ns: plain +0.0012, PD −0.0009, PD-P +0.0006 ±0.0005 per
+   accepted board.
 3. **`Off` vs major-first is inconclusive.** `tied − dont` is positive on both
    scorers in every cell, but on only 12–15 boards per cell. The pooled plain
    gain is +1.07 ±1.24 ×10⁻⁴ per board, with a conservative CI because the
    cells share deals. About 1.5× the boards would put its lower bound above 0
    if the effect holds. A 2× re-run of `scripts/ab-xx-dont-major-first.sh`
    (BOARDS=786432, same SEED_BASE, fresh dir) takes about 2 h at JOBS=64.
+   **Running 2026-10-21** (jdh8): `ab-results/xx-dont-major-first-2x`,
+   JOBS=96, with a **fresh** SEED_BASE 1792519928828456189 instead (an
+   independent sample, so it can pool with the 1× run, where the same seed at
+   2× would re-deal the 1× boards as its first half).
    `tied − longer` moves 2 boards per cell and will not separate.
 4. **The ns cell's unbiased loss is untraced.** `tied − off` unbiased is plain
    −89 IMPs over 66 boards in ns against ≈ 0 in the other cells, and `dont`

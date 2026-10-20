@@ -33,6 +33,12 @@
 //! each twice.  Under `reference` both scorers price all four contracts of a
 //! board on that one table.
 //!
+//! `--score pdp` prices the direct A/B with **PD-P**
+//! ([`ns_score_bid_honoring`][pons::scoring::ns_score_bid_honoring]): perfect
+//! defense that erases no `X`/`XX` both arms saw before they split, for a lane
+//! whose trigger is a double.  Direct metric only — the shared prefix is the
+//! two arms' table-A auctions.
+//!
 //! ```text
 //! cargo run --release --features serde --example ab-dump-diff -- on.json off.json
 //! cargo run --release --features serde --example ab-dump-diff -- on/ off/ \
@@ -43,7 +49,10 @@
 
 use clap::{Parser, ValueEnum};
 use contract_bridge::AbsoluteVulnerability;
-use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
+use contract_bridge::Penalty;
+use pons::scoring::{
+    final_contract, ns_score_bid, ns_score_bid_honoring, ns_score_contract, shared_penalty,
+};
 use std::io::Write;
 
 #[path = "../common/mod.rs"]
@@ -86,7 +95,8 @@ struct Args {
     /// Scorer: `plain` = honest double-dummy (was the only mode); `pd` =
     /// perfect-defense doubling, which prices a failing contract as doubled;
     /// `both` = each of those, read off **one** solve and written to
-    /// `--out-plain` / `--out-pd`.
+    /// `--out-plain` / `--out-pd`; `pdp` = prefix-honoring PD (direct metric
+    /// only, see the module doc).
     /// For a *competitive* feature, a `plain` win that `pd` erases is the
     /// light-sacrifice / doubling artifact (see `reference_pd-vs-plain-dd-bracket`).
     #[arg(long, default_value = "plain")]
@@ -303,7 +313,39 @@ fn main() -> anyhow::Result<()> {
     }
     let deals: Vec<_> = on.boards.iter().map(|board| board.deal).collect();
     let pairs = on.boards.iter().zip(&off.boards);
+    // PD-P carries each arm's honored penalty in its contract's `penalty`
+    // slot, which `ns_score_bid_honoring` ignores; the scorer reads it back.
+    // PD-P reads only bid, declarer and honored penalty, so boards equal in
+    // those cannot swing, and the solve skips them; its `fired` count can sit
+    // below the plain report's (a pair differing only in a post-split double).
+    let pdp = args.score == "pdp";
+    anyhow::ensure!(
+        !pdp || args.metric == Metric::Direct,
+        "--score pdp prices the direct A/B only"
+    );
+    let honor = |reached: Reached, auction, other| {
+        reached.map(|(contract, declarer)| {
+            let penalty = shared_penalty(auction, other);
+            (
+                contract_bridge::Contract {
+                    penalty,
+                    ..contract
+                },
+                declarer,
+            )
+        })
+    };
     let paired = match args.metric {
+        Metric::Direct if pdp => Paired::Direct(
+            pairs
+                .map(|(a, b)| {
+                    (
+                        honor(final_contract(&a.table_a, a.dealer), &a.table_a, &b.table_a),
+                        honor(final_contract(&b.table_a, b.dealer), &b.table_a, &a.table_a),
+                    )
+                })
+                .collect(),
+        ),
         Metric::Direct => Paired::Direct(
             pairs
                 .map(|(a, b)| {
@@ -340,11 +382,18 @@ fn main() -> anyhow::Result<()> {
     let (scorers, labels): (Vec<Scorer>, Vec<&str>) = match args.score.as_str() {
         "plain" => (vec![ns_score_contract], vec!["plain DD"]),
         "pd" => (vec![ns_score_bid], vec!["PD"]),
+        "pdp" => (
+            vec![|reached: Reached, table: &ddss::TrickCountTable, vul| {
+                let honored = reached.map_or(Penalty::Undoubled, |(c, _)| c.penalty);
+                ns_score_bid_honoring(reached, honored, table, vul)
+            }],
+            vec!["PD-P"],
+        ),
         "both" => (
             vec![ns_score_contract, ns_score_bid],
             vec!["plain DD", "PD"],
         ),
-        other => anyhow::bail!("--score must be plain|pd|both, got {other:?}"),
+        other => anyhow::bail!("--score must be plain|pd|pdp|both, got {other:?}"),
     };
     let scored = paired.score(&deals, vul, &scorers);
     let experiment = Experiment {

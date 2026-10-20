@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PD-P, prefix-honoring perfect defense (2026-10-21):
+  `scoring::ns_score_bid_honoring` and `scoring::shared_penalty`,
+  `ab-dump-diff --score pdp`, ab-lib's `pdpdiff` and
+  `scripts/ab-xx-dont-pdp.sh`.** `ns_score_bid` with one change: a `X`/`XX`
+  that both arms of a paired A/B saw before their auctions split is never
+  erased. In the `(1NT) X (XX)` runout lane, PD scored the off arm's sit in a
+  making `1NTxx` as undoubled `1NT`, pricing away the premise both arms share.
+  jdh8 approved PD-P as that lane's second scorer, in place of PD, before the
+  2× re-run produced a number. It equals PD on any A/B that splits before a
+  double. Nothing else changes: `ns_score_bid` now delegates with
+  `Penalty::Undoubled`, so every existing score is identical.
+
 - **`ben-gen --ns-notrump-defense`, `--no-ns-woolsey-muiderberg-sit`,
   `--no-ns-woolsey-tails` and `--isolate-defense` (2026-10-20)**, mirroring
   `bba-gen`'s flags so the 1NT-defense A/Bs can run against BEN.

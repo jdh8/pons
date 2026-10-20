@@ -22,6 +22,11 @@
 //! Until 2026-09-27 a third scorer, `ns_score_pd`, kept a real `X`/`XX` on a
 //! making contract.  It was retired for the pure double-dummy rule (see
 //! `docs/ben-gap-campaign.md`, "the two PD scorers").
+//!
+//! [`ns_score_bid_honoring`] (PD-P, 2026-10-21) is the paired-A/B variant for
+//! a lane whose trigger is itself a double: it erases no `X`/`XX` that both
+//! arms saw before they split ([`shared_penalty`]).  It is not a general third
+//! column — `docs/defensive-overcalls.md` (§ DONT runout) says where it rules.
 
 #[cfg(feature = "dd")]
 use contract_bridge::AbsoluteVulnerability;
@@ -139,6 +144,58 @@ pub fn ns_score_bid(
     table: &TrickCountTable,
     vul: AbsoluteVulnerability,
 ) -> i64 {
+    ns_score_bid_honoring(result, Penalty::Undoubled, table, vul)
+}
+
+/// The penalty that the prefix `auction` shares with `other` already put on
+/// `auction`'s final contract
+///
+/// [`Penalty::Undoubled`] unless the final contract was already standing at the
+/// end of the shared prefix (no bid follows it), in which case the `X`/`XX`
+/// standing on it there.  Symmetric in its use: a paired A/B calls it once per
+/// arm with the other arm's auction.
+#[must_use]
+pub fn shared_penalty(auction: &Auction, other: &Auction) -> Penalty {
+    let shared = auction
+        .iter()
+        .zip(other.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    if auction[shared..]
+        .iter()
+        .any(|call| matches!(call, Call::Bid(_)))
+    {
+        return Penalty::Undoubled;
+    }
+    auction[..shared]
+        .iter()
+        .fold(Penalty::Undoubled, |penalty, &call| match call {
+            Call::Bid(_) => Penalty::Undoubled,
+            Call::Double => Penalty::Doubled,
+            Call::Redouble => Penalty::Redoubled,
+            Call::Pass => penalty,
+        })
+}
+
+/// **Prefix-honoring** perfect-defense NS score (PD-P): [`ns_score_bid`], except
+/// that the contract is never scored below `honored`
+///
+/// Pass the [`shared_penalty`] of a paired A/B: a `X`/`XX` that both arms saw
+/// before their auctions split is a fact of the board, not a doubling decision
+/// the arms disagree on, so the double-dummy rule may add to it (a failing
+/// contract is still at least doubled) but never erase it.  Built for lanes
+/// whose trigger *is* a double — `(1NT) X (XX)`, where [`ns_score_bid`] would
+/// score a making `1NTxx` as undoubled `1NT` and so price away the premise both
+/// arms share.  On an A/B whose arms split before any double it equals
+/// [`ns_score_bid`].  The contract's own penalty in `result` is ignored.
+#[cfg(feature = "dd")]
+#[must_use]
+pub fn ns_score_bid_honoring(
+    result: Option<(Contract, Seat)>,
+    honored: Penalty,
+    table: &TrickCountTable,
+    vul: AbsoluteVulnerability,
+) -> i64 {
     let Some((contract, declarer)) = result else {
         return 0;
     };
@@ -147,7 +204,7 @@ pub fn ns_score_bid(
     } else {
         Penalty::Undoubled
     };
-    ns_score_with(contract.bid, declarer, penalty, table, vul)
+    ns_score_with(contract.bid, declarer, penalty.max(honored), table, vul)
 }
 
 /// Signed-for-NS score of a reached contract given declarer's *actual* tricks
@@ -236,3 +293,6 @@ pub fn imps(diff: i64) -> i64 {
         .count();
     i64::try_from(magnitude).expect("at most 24 IMPs") * diff.signum()
 }
+
+#[cfg(test)]
+mod tests;
