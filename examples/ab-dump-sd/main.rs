@@ -247,6 +247,13 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_no_ns_woolsey_tails: bool,
+    /// Read the ON arm with the Woolsey unusual `2NT` uncapped
+    /// (`defense.woolsey_wide_unusual_2nt`; `bba-gen --ns-woolsey-wide-2nt`)
+    #[arg(long, default_value_t = false)]
+    on_ns_woolsey_wide_2nt: bool,
+    /// Same for the OFF arm
+    #[arg(long, default_value_t = false)]
+    off_ns_woolsey_wide_2nt: bool,
     /// Read the ON arm's auctions with the Gladiator advances of that 2NT
     /// authored (`defense.weak_two_notrump_advances_enabled`), which is what makes `3♣`
     /// a relay rather than natural to the leader
@@ -375,6 +382,7 @@ fn main() {
     on_arm.decision.reading.notrump_defense = args.on_ns_notrump_defense.into();
     on_arm.defense.woolsey_muiderberg_sit = !args.on_no_ns_woolsey_muiderberg_sit;
     on_arm.defense.woolsey_tails = !args.on_no_ns_woolsey_tails;
+    on_arm.defense.woolsey_wide_unusual_2nt = args.on_ns_woolsey_wide_2nt;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
     on_arm.decision.instinct.penalize_escape_values = args.on_ns_penalize_escape_values;
     // Each arm is read the way it was bid: a dump whose bidder declared
@@ -430,6 +438,7 @@ fn main() {
     off_arm.decision.reading.notrump_defense = args.off_ns_notrump_defense.into();
     off_arm.defense.woolsey_muiderberg_sit = !args.off_no_ns_woolsey_muiderberg_sit;
     off_arm.defense.woolsey_tails = !args.off_no_ns_woolsey_tails;
+    off_arm.defense.woolsey_wide_unusual_2nt = args.off_ns_woolsey_wide_2nt;
     off_arm.decision.instinct.one_nt_runout = !args.off_no_ns_one_nt_runout;
     off_arm.competition.trap_pass = !args.off_no_ns_trap_pass;
     off_arm.competition.trap_pass_unless_unfavourable =

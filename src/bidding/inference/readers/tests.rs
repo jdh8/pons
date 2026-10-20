@@ -160,6 +160,36 @@ fn landy_conditions_partner() {
 }
 
 #[test]
+fn woolsey_wide_2nt_reads_uncapped() {
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::american::NotrumpDefense;
+    // (1NT) 2NT -: both minors either way; the knob lifts the 13-point cap
+    // inside Woolsey and only there.
+    let auction = [bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass];
+    let read = |system, wide| {
+        let mut arm = Agreements::default();
+        arm.decision.reading.notrump_defense = system;
+        arm.defense.woolsey_wide_unusual_2nt = wide;
+        read_booked_with(&arm, &auction)
+    };
+    let capped = read(NotrumpDefense::Woolsey, false);
+    assert_eq!(capped.partner().length(Suit::Clubs), Range::new(5, 13));
+    assert_eq!(capped.partner().strength.points.max, 13);
+    let wide = read(NotrumpDefense::Woolsey, true);
+    assert_eq!(wide.partner().length(Suit::Diamonds), Range::new(5, 13));
+    assert_eq!(wide.partner().strength.points.min, 8);
+    assert!(wide.partner().strength.points.max > 13);
+    assert_eq!(
+        read(NotrumpDefense::Natural, true)
+            .partner()
+            .strength
+            .points
+            .max,
+        13
+    );
+}
+
+#[test]
 fn woolsey_conditions_partner() {
     use crate::bidding::agreements::Agreements;
     use crate::bidding::american::NotrumpDefense;

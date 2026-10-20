@@ -1150,8 +1150,16 @@ cells in CHANGELOG):
 
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
-the fourth-seat lane closed 2026-09-27); the 12+ HCP 5-5 minors route for
-Woolsey (route undecided, owed to jdh8).
+the fourth-seat lane closed 2026-09-27).
+
+The 12+ HCP 5-5 minors route for Woolsey: **`2NT`, chosen by jdh8
+2026-10-21.** Woolsey had no home for it (its `X` needs a four-card major or a
+minor one-suiter, and the unusual `2NT` stops at 13 points), so the hand
+passed. `defense.woolsey_wide_unusual_2nt` keeps the `2NT` floor and drops
+the ceiling inside Woolsey only (BBA's Unusual 2NT over 1NT is 9–25 HCP);
+the advance is unchanged and the strong hand bids again through the floor.
+Built default-off; A/B owed (`scripts/ab-woolsey-wide-2nt.sh`,
+pre-registered there), queued behind the XX runout's 2× run.
 
 ## Out of scope (decided, not deferred by neglect)
 

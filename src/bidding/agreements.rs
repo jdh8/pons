@@ -3129,6 +3129,19 @@ pub struct DefenseKnobs {
     /// +0.0063 to +0.0083 IMPs per kept board, a `win | win` in every cell;
     /// with the sit on too the gains add (no interaction).
     pub woolsey_tails: bool,
+    /// Lift the unusual `2NT`'s ceiling inside Woolsey
+    ///
+    /// Woolsey has no home for a strong both-minors hand: its `X` needs a
+    /// four-card major or a minor one-suiter, its `2♣`/`2♦` are artificial, and
+    /// the unusual `2NT` stops at the
+    /// [`unusual_notrump_range`][Self::unusual_notrump_range] ceiling (13
+    /// points), so a 12+ HCP 5-5 in the minors passes.  On, `2NT` keeps that
+    /// range's floor and drops its ceiling (BBA's Unusual 2NT over 1NT is
+    /// 9–25 HCP); the advancer still names the longer minor at the three
+    /// level and the strong hand bids again.  The reading follows the rule.
+    /// No effect outside Woolsey or with the unusual `2NT` off.  **Off by
+    /// default**; flag `bba-gen --ns-woolsey-wide-2nt`.
+    pub woolsey_wide_unusual_2nt: bool,
     // --- defense/michaels.rs
     /// Optional strength band for the unusual `2NT`
     ///
@@ -3410,6 +3423,7 @@ impl Default for DefenseKnobs {
             direct_landy_penalty_pass: false,
             woolsey_muiderberg_sit: true,
             woolsey_tails: true,
+            woolsey_wide_unusual_2nt: false,
             unusual_notrump_range: Some((8, 13)),
             two_suiter_hcp_floor: Some(8),
             advance_sohl_style: LebensohlStyle::Transfer,

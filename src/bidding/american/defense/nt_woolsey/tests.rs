@@ -513,3 +513,43 @@ fn their_calls_over_our_notrump_keep_the_house_reading() {
         );
     }
 }
+
+/// Best call over their `1NT` with the shipped unusual `2NT` (8–13) and
+/// `defense.woolsey_wide_unusual_2nt` set, under `system`
+fn wide_2nt(system: NotrumpDefense, wide: bool, hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.decision.reading.notrump_defense = system;
+    arm.defense.woolsey_wide_unusual_2nt = wide;
+    best_call_with(&arm, &[call(1, Strain::Notrump)], hand)
+}
+
+#[test]
+fn woolsey_wide_2nt_houses_the_strong_minors() {
+    // 15 HCP, 5-5 in the minors: above the 13-point ceiling, no major for X.
+    let strong = "2.A3.AKJ54.QJ432";
+    assert_ne!(
+        wide_2nt(NotrumpDefense::Woolsey, false, strong).0,
+        call(2, Strain::Notrump)
+    );
+    let (wide, floored) = wide_2nt(NotrumpDefense::Woolsey, true, strong);
+    assert_eq!(wide, call(2, Strain::Notrump));
+    assert!(!floored, "the wide 2NT must come from the book node");
+    // A hand inside the old range bids 2NT either way.
+    let weak = "2.43.KQ954.QJ432";
+    for wide in [false, true] {
+        assert_eq!(
+            wide_2nt(NotrumpDefense::Woolsey, wide, weak).0,
+            call(2, Strain::Notrump)
+        );
+    }
+}
+
+#[test]
+fn woolsey_wide_2nt_is_inert_outside_woolsey() {
+    for hand in ["2.A3.AKJ54.QJ432", "2.43.KQ954.QJ432", "AK2.Q3.AKJ5.Q432"] {
+        assert_eq!(
+            wide_2nt(NotrumpDefense::Natural, true, hand),
+            wide_2nt(NotrumpDefense::Natural, false, hand)
+        );
+    }
+}

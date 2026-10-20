@@ -265,6 +265,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_woolsey_tails: bool,
 
+    /// Drop the unusual `2NT`'s ceiling inside Woolsey, so a strong 5-5 in the
+    /// minors bids `2NT` instead of passing (default off; see
+    /// `defense.woolsey_wide_unusual_2nt`).  Only with `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    ns_woolsey_wide_2nt: bool,
+
     /// Cleanly isolate our DEFENSE to BEN's 1NT.  Keep only boards where BEN (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BEN
     /// reference — same BEN opener and responses, only the defender differs (ours
@@ -629,6 +635,7 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
         pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
+    agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;
     agreements
 }
 

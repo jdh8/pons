@@ -2406,6 +2406,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_woolsey_tails: bool,
 
+    /// Drop the unusual `2NT`'s ceiling inside Woolsey, so a strong 5-5 in the
+    /// minors bids `2NT` instead of passing (default off; see
+    /// `defense.woolsey_wide_unusual_2nt`).  Only with `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    ns_woolsey_wide_2nt: bool,
+
     /// Disable the penalty-double latch (default on): after our natural penalty X of
     /// BBA's 1NT, our later doubles read as penalty instead of takeout.
     #[arg(long, default_value_t = false)]
@@ -3396,6 +3402,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.natural_overcall_advance_enabled = !args.no_ns_nt_overcall_advance;
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
+    agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;
     agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;

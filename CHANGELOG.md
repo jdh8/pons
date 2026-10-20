@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`defense.woolsey_wide_unusual_2nt`, `bba-gen`/`ben-gen
+  --ns-woolsey-wide-2nt`, `ab-dump-sd --{on,off}-ns-woolsey-wide-2nt` and
+  `scripts/ab-woolsey-wide-2nt.sh` (2026-10-21).** Inside our opt-in Woolsey
+  defense to their 1NT, the both-minors `2NT` keeps its 8-point floor and
+  drops its 13-point ceiling, so a strong 5-5 in the minors bids `2NT`
+  instead of passing (BBA plays 9–25 HCP). The reading widens with the rule.
+  Default off and inert outside Woolsey, so the default system is unchanged;
+  its A/B is owed.
+
 - **PD-P, prefix-honoring perfect defense (2026-10-21):
   `scoring::ns_score_bid_honoring` and `scoring::shared_penalty`,
   `ab-dump-diff --score pdp`, ab-lib's `pdpdiff` and

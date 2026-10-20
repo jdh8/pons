@@ -28,7 +28,7 @@ use super::michaels::semi_balanced;
 use super::nt_dont::{direct_dont_one_suiter_min, dont_2c, dont_2d, dont_2h, dont_x};
 use super::nt_landy::{landy_2c, landy_x};
 use super::nt_meckwell::{meckwell_2c, meckwell_2d, meckwell_natural_major, meckwell_x};
-use super::nt_woolsey::{muiderberg, multi_2d, woolsey_2c, woolsey_x};
+use super::nt_woolsey::{muiderberg, multi_2d, woolsey_2c, woolsey_enabled, woolsey_x};
 use super::overcall::DoubleShape;
 use super::*;
 
@@ -79,8 +79,14 @@ pub(super) fn natural_defense_enabled(agreements: &Agreements) -> bool {
 
 /// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
 /// `agreements.defense.landy_use_hcp`).  Additive — compatible with every system.
+/// Inside Woolsey, `defense.woolsey_wide_unusual_2nt` drops the ceiling.
 fn unusual_2nt(agreements: &Agreements) -> Rules {
     let (lo, hi) = agreements.defense.unusual_notrump_range.unwrap_or((0, 37));
+    let hi = if agreements.defense.woolsey_wide_unusual_2nt && woolsey_enabled(agreements) {
+        37
+    } else {
+        hi
+    };
     let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
     if agreements.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Notrump), 180, shape & hcp(lo..=hi))
