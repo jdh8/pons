@@ -91,16 +91,21 @@ SEED_BASE=$(seed_for woolsey-complete)
 log "=== woolsey-complete SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul vuls=$VULS"
 
 BASE='--isolate-defense --ns-notrump-defense woolsey --filter-1nt --wide-1nt'
-READ='--on-ns-notrump-defense woolsey --off-ns-notrump-defense woolsey'
+# Both knobs shipped default-on inside Woolsey 2026-10-20, so the arms now
+# disarm them: base disarms both, sit and tails each disarm the other.
+NOSIT='--no-ns-woolsey-muiderberg-sit'
+NOTAILS='--no-ns-woolsey-tails'
+READ='--on-ns-notrump-defense woolsey --off-ns-notrump-defense woolsey
+      --off-no-ns-woolsey-muiderberg-sit --off-no-ns-woolsey-tails'
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm base "$v" $BASE
+    arm base "$v" $BASE $NOSIT $NOTAILS
     # shellcheck disable=SC2086
-    arm sit "$v" $BASE --ns-woolsey-muiderberg-sit
+    arm sit "$v" $BASE $NOTAILS
     # shellcheck disable=SC2086
-    arm tails "$v" $BASE --ns-woolsey-tails
+    arm tails "$v" $BASE $NOSIT
     # shellcheck disable=SC2086
-    arm both "$v" $BASE --ns-woolsey-muiderberg-sit --ns-woolsey-tails
+    arm both "$v" $BASE
     DENSITY=$(density_of "$R/base-$v")
     log "density $v: $DENSITY"
     for a in sit tails both; do
@@ -108,11 +113,11 @@ for v in $VULS; do
         diffpair "$a" base "$v"
     done
     # shellcheck disable=SC2086
-    sddiff sit base "$v" $READ --on-ns-woolsey-muiderberg-sit
+    sddiff sit base "$v" $READ --on-no-ns-woolsey-tails
     # shellcheck disable=SC2086
-    sddiff tails base "$v" $READ --on-ns-woolsey-tails
+    sddiff tails base "$v" $READ --on-no-ns-woolsey-muiderberg-sit
     # shellcheck disable=SC2086
-    sddiff both base "$v" $READ --on-ns-woolsey-muiderberg-sit --on-ns-woolsey-tails
+    sddiff both base "$v" $READ
 done
 
 log "woolsey-complete done"

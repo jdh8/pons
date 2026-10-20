@@ -3026,10 +3026,14 @@ pub struct DefenseKnobs {
     // --- defense/nt_woolsey.rs
     /// Sit a doubled Woolsey Muiderberg unless void or singleton in its major
     ///
-    /// Three nodes of the doubled Muiderberg `(1NT) 2M (X)`; **off by default**,
-    /// and a no-op unless the active system is
+    /// Three nodes of the doubled Muiderberg `(1NT) 2M (X)`; **on by default**
+    /// (shipped 2026-10-20), and a no-op unless the active system is
     /// [`NotrumpDefense::Woolsey`][crate::bidding::american::NotrumpDefense::Woolsey],
     /// itself opt-in — so the default system is byte-identical either way.
+    /// `scripts/ab-woolsey-complete.sh` vs BBA (`--isolate-defense`, 102,400
+    /// kept boards per cell): plain +0.0355 to +0.0557, PD +0.0589 to +0.0796
+    /// IMPs per kept board, a `win | win` in every cell (≈ +0.002 to +0.003
+    /// per random deal).
     ///
     /// - The advancer's `2NT` minor-ask escape needs a void or singleton in
     ///   the overcaller's major (`len(M, ..=1)`); a doubleton now sits `2Mx`
@@ -3057,13 +3061,13 @@ pub struct DefenseKnobs {
     /// per kept board (the gross escape cost less the run-out boards those
     /// passes then meet).
     ///
-    /// The A/B knob is `bba-gen --ns-woolsey-muiderberg-sit`
-    /// (`ab-dump-sd --on-ns-woolsey-muiderberg-sit`).  A/B owed:
-    /// `scripts/ab-woolsey-complete.sh`.
+    /// The disarming flag is `bba-gen --no-ns-woolsey-muiderberg-sit`
+    /// (`ab-dump-sd --{on,off}-no-ns-woolsey-muiderberg-sit`).
     pub woolsey_muiderberg_sit: bool,
     /// Author the Woolsey tails the instinct floor owned
     ///
-    /// **Off by default**, and a no-op unless the active system is
+    /// **On by default** (shipped 2026-10-20), and a no-op unless the active
+    /// system is
     /// [`NotrumpDefense::Woolsey`][crate::bidding::american::NotrumpDefense::Woolsey].
     /// On, it authors these nodes, each with a finite `Pass` (or relay)
     /// catch-all:
@@ -3107,9 +3111,11 @@ pub struct DefenseKnobs {
     /// `X` (`(1NT) X (2x)` — 255 boards, +0.0003 plain / −0.0006 PD: the
     /// floor already scores on par with BBA there, so authoring risks it).
     ///
-    /// The A/B knob is `bba-gen --ns-woolsey-tails`
-    /// (`ab-dump-sd --on-ns-woolsey-tails`).  A/B owed:
-    /// `scripts/ab-woolsey-complete.sh`.
+    /// The disarming flag is `bba-gen --no-ns-woolsey-tails`
+    /// (`ab-dump-sd --{on,off}-no-ns-woolsey-tails`).  `scripts/ab-woolsey-complete.sh`
+    /// vs BBA (102,400 kept boards per cell): plain +0.0054 to +0.0069, PD
+    /// +0.0063 to +0.0083 IMPs per kept board, a `win | win` in every cell;
+    /// with the sit on too the gains add (no interaction).
     pub woolsey_tails: bool,
     // --- defense/michaels.rs
     /// Optional strength band for the unusual `2NT`
@@ -3389,8 +3395,8 @@ impl Default for DefenseKnobs {
             direct_landy_four_four: false,
             direct_landy_double_floor: 15,
             direct_landy_penalty_pass: false,
-            woolsey_muiderberg_sit: false,
-            woolsey_tails: false,
+            woolsey_muiderberg_sit: true,
+            woolsey_tails: true,
             unusual_notrump_range: Some((8, 13)),
             two_suiter_hcp_floor: Some(8),
             advance_sohl_style: LebensohlStyle::Transfer,

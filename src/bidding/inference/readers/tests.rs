@@ -315,6 +315,9 @@ fn woolsey_completion_calls_read() {
     let mut agreements = Agreements::default();
     agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
     agreements.decision.reading.convention_points = (8, 19);
+    // Both knobs ship default on inside Woolsey; start from the bare structure.
+    agreements.defense.woolsey_muiderberg_sit = false;
+    agreements.defense.woolsey_tails = false;
     let escape = [
         bid(1, Strain::Notrump),
         bid(2, Strain::Hearts),

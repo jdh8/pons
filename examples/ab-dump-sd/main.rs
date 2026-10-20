@@ -225,20 +225,21 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, value_enum, default_value = "natural")]
     off_ns_notrump_defense: common::NtDefenseArg,
-    /// Read the ON arm with the doubled-Muiderberg sit
-    /// (`defense.woolsey_muiderberg_sit`; `bba-gen --ns-woolsey-muiderberg-sit`)
+    /// Read the ON arm without the doubled-Muiderberg sit (default on inside
+    /// Woolsey; `defense.woolsey_muiderberg_sit`;
+    /// `bba-gen --no-ns-woolsey-muiderberg-sit`)
     #[arg(long, default_value_t = false)]
-    on_ns_woolsey_muiderberg_sit: bool,
+    on_no_ns_woolsey_muiderberg_sit: bool,
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
-    off_ns_woolsey_muiderberg_sit: bool,
-    /// Read the ON arm with the Woolsey tails authored
-    /// (`defense.woolsey_tails`; `bba-gen --ns-woolsey-tails`)
+    off_no_ns_woolsey_muiderberg_sit: bool,
+    /// Read the ON arm without the Woolsey tails (default on inside Woolsey;
+    /// `defense.woolsey_tails`; `bba-gen --no-ns-woolsey-tails`)
     #[arg(long, default_value_t = false)]
-    on_ns_woolsey_tails: bool,
+    on_no_ns_woolsey_tails: bool,
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
-    off_ns_woolsey_tails: bool,
+    off_no_ns_woolsey_tails: bool,
     /// Read the ON arm's auctions with the Gladiator advances of that 2NT
     /// authored (`defense.weak_two_notrump_advances_enabled`), which is what makes `3♣`
     /// a relay rather than natural to the leader
@@ -376,8 +377,8 @@ fn main() {
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;
     on_arm.decision.reading.notrump_defense = args.on_ns_notrump_defense.into();
-    on_arm.defense.woolsey_muiderberg_sit = args.on_ns_woolsey_muiderberg_sit;
-    on_arm.defense.woolsey_tails = args.on_ns_woolsey_tails;
+    on_arm.defense.woolsey_muiderberg_sit = !args.on_no_ns_woolsey_muiderberg_sit;
+    on_arm.defense.woolsey_tails = !args.on_no_ns_woolsey_tails;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
     on_arm.decision.instinct.penalize_escape_values = args.on_ns_penalize_escape_values;
     // `TableReader::legacy` reads East–West off the same partnership as
@@ -423,8 +424,8 @@ fn main() {
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     off_arm.decision.reading.notrump_defense = args.off_ns_notrump_defense.into();
-    off_arm.defense.woolsey_muiderberg_sit = args.off_ns_woolsey_muiderberg_sit;
-    off_arm.defense.woolsey_tails = args.off_ns_woolsey_tails;
+    off_arm.defense.woolsey_muiderberg_sit = !args.off_no_ns_woolsey_muiderberg_sit;
+    off_arm.defense.woolsey_tails = !args.off_no_ns_woolsey_tails;
     off_arm.decision.instinct.one_nt_runout = !args.off_no_ns_one_nt_runout;
     off_arm.competition.trap_pass = !args.off_no_ns_trap_pass;
     off_arm.competition.trap_pass_unless_unfavourable =

@@ -197,6 +197,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--no-ns-nt-invite-bid-veto`, and the runner's arms disarm accordingly.
   Default system **moves** (this A/B is its KR1 proof).
 
+- **Woolsey's completion knobs ship default-on inside the Woolsey card
+  (`defense.woolsey_muiderberg_sit`, `defense.woolsey_tails`,
+  2026-10-20).** `scripts/ab-woolsey-complete.sh` vs BBA
+  (`--isolate-defense`, 102,400 kept boards per arm per cell, density
+  0.058, every gate 0 foreign): the sit plain **+0.0355 / +0.0525 /
+  +0.0386 / +0.0557** IMPs per kept board (none / ns / ew / both), PD
+  +0.0589 to +0.0796; the tails plain +0.0054 to +0.0069, PD +0.0063 to
+  +0.0083 — every cell `win | win` on plain, PD and SD-PD. Together they
+  add exactly (none: +0.0355 + 0.0054 = +0.0409), so no interaction. Per
+  random deal the sit is worth ≈ +0.002 to +0.003. Both remain no-ops
+  outside `NotrumpDefense::Woolsey`, itself opt-in, so the default system
+  is unchanged by this entry. Harness flags become `bba-gen
+  --no-ns-woolsey-muiderberg-sit` / `--no-ns-woolsey-tails` and `ab-dump-sd
+  --{on,off}-no-ns-woolsey-*`.
+
 - **The Landy `2♦` "pick a major" relay is alerted (`landy:2d-relay`,
   2026-10-19).** The advancer's undoubled `2♦` over a both-majors `2♣`
   (the Landy overlay, Woolsey's `2♣`) or direct Landy's `X` names no

@@ -9,8 +9,8 @@
 //! answer to each ask or pass-or-correct.  Deeper continuations and most of
 //! their interference are **not** authored and fall to the instinct floor
 //! (2,160 floored continuation boards of 204,800 kept in the 2026-10
-//! isolate-defense forensics at `f8286a5a`).  Two opt-in knobs author the
-//! costliest of those holes:
+//! isolate-defense forensics at `f8286a5a`).  Two knobs, default on since
+//! 2026-10-20 (A/B wins vs BBA), author the costliest of those holes:
 //! [`woolsey_muiderberg_sit`][field@crate::bidding::agreements::DefenseKnobs::woolsey_muiderberg_sit]
 //! and [`woolsey_tails`][field@crate::bidding::agreements::DefenseKnobs::woolsey_tails].
 
