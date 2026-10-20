@@ -33,9 +33,8 @@
 //! `--our-system <index>` swaps our side for a *second* EPBot card (BBA-vs-BBA).
 
 use clap::Parser;
-use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Seat};
 use pons::bidding::Bidder;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::DoubleShape;
@@ -49,8 +48,8 @@ mod common;
 use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, european_minors_opponents,
-    floor_card, seat_floor, seat_floor_vs, seat_to_act,
+    Board, Dump, NtDefenseArg, ReadingScopeArg, XxMajorFirstArg, blinded, deviant_floor,
+    european_minors_opponents, floor_card, opening_1nt, seat_floor, seat_floor_vs,
 };
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -2313,6 +2312,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_xx_dont_runout: bool,
 
+    /// Which weak two-suiters run to a five-card major first under
+    /// `--ns-xx-dont-runout` (`defense.xx_dont_major_first`, crate default
+    /// `off`): `longer` = a major strictly longer than its four-plus minor bids
+    /// `2♠` / passes and names hearts; `at-least-as-long` adds the 5-5s.
+    #[arg(long, value_enum, default_value = "off")]
+    ns_xx_dont_major_first: XxMajorFirstArg,
+
     /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
     /// `natural`).
     ///
@@ -2786,20 +2792,6 @@ fn label_overrides(overrides: &[(CString, c_int)]) -> String {
 
 // The BBA oracle (`BbaOracle`) and the `&dyn Bidder` match drivers
 // (`next_call`/`bid_out`) now live in `common::oracle`, shared with `ben-gen`.
-
-/// If this auction's *opening* call is 1NT, its index and whether the opener is
-/// North/South.  The opening requirement (all prior calls passes) excludes a
-/// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
-/// to keep only BBA-opens-1NT / we-defend boards.
-fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
-    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
-    let index = auction.iter().position(|&call| call == one_nt)?;
-    if auction[..index].iter().any(|&call| call != Call::Pass) {
-        return None;
-    }
-    let opener_ns = matches!(seat_to_act(dealer, index), Seat::North | Seat::South);
-    Some((index, opener_ns))
-}
 
 /// Parse a `--their-ns` / `--declare-as` string as a second `bba-gen` command
 /// line
@@ -3405,6 +3397,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
     agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
+    agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
     agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;

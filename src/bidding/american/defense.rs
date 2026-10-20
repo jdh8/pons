@@ -96,6 +96,7 @@ use weak_two_nt_advance::weak_two_notrump_advance_package;
 
 pub use advance_double::advance_double;
 pub use nt_defense::NotrumpDefense;
+pub use nt_xx_runout::XxMajorFirst;
 pub use overcall::{DoubleShape, TakeoutSupport, defense_to_suit};
 pub use weak_two_defense::defense_to_weak_two;
 

@@ -46,7 +46,9 @@ mod tests;
 
 use common::filters::Filter;
 use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, one_hot};
-use common::{Board, Dump, european_minors_opponents, seat_floor};
+use common::{
+    Board, Dump, NtDefenseArg, XxMajorFirstArg, european_minors_opponents, opening_1nt, seat_floor,
+};
 
 /// The pinned BEN release the servers must be running (recorded in labels;
 /// re-pinning is a campaign decision — see docs/ben-gap-campaign.md).
@@ -224,6 +226,53 @@ struct Args {
     /// `--ns-xx-runout-rails` at every node it keys.
     #[arg(long, default_value_t = false)]
     ns_xx_dont_runout: bool,
+
+    /// Which weak two-suiters run to a five-card major first under
+    /// `--ns-xx-dont-runout` (`defense.xx_dont_major_first`, crate default
+    /// `off`; see `bba-gen --ns-xx-dont-major-first`).
+    #[arg(long, value_enum, default_value = "off")]
+    ns_xx_dont_major_first: XxMajorFirstArg,
+
+    /// Which mutually-exclusive defense our side plays over BEN's 1NT (default
+    /// `natural`, the crate default).
+    ///
+    /// `natural` = penalty X + the four natural two-level overcalls; `direct-dont`
+    /// = one-suiter X, 2♣/2♦/2♥ two-suiters, 2♠ natural, 2NT both minors;
+    /// `meckwell` = two-way X, 2♣/2♦ minor+major, natural majors; `woolsey` =
+    /// Multi-Landy; `direct-landy` = both-majors takeout X; `always-pass` = we
+    /// never compete (the truest do-nothing baseline); `off` = author nothing
+    /// and let the bare instinct floor have the seat.  The systems' payload
+    /// knobs (`bba-gen --ns-woolsey-range` and friends) are not exposed here,
+    /// so each plays its crate-default payload.
+    ///
+    /// One flag because the systems are one choice: the engine holds them in a
+    /// single `Cell<NotrumpDefense>` (see `bba-gen --ns-notrump-defense`).
+    #[arg(long, value_enum, default_value = "natural")]
+    ns_notrump_defense: NtDefenseArg,
+
+    /// Withhold the doubled-Muiderberg sit: over our doubled Woolsey
+    /// Muiderberg `(1NT) 2M (X)`, escape to the `2NT` minor-ask on any
+    /// doubleton and leave their run-out to the floor (default on inside
+    /// Woolsey, shipped 2026-10-20; see `defense.woolsey_muiderberg_sit`).
+    /// Only with `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    no_ns_woolsey_muiderberg_sit: bool,
+
+    /// Withhold the Woolsey tails, leaving to the floor the `2♣` advance
+    /// catch-all, `(1NT) 2♦ (X) 2♥ - - (X)`, and the answers to
+    /// `(1NT) 2♦ (2♥)`/`(2♠)` (default on inside Woolsey, shipped 2026-10-20;
+    /// see `defense.woolsey_tails`).  Only with `--ns-notrump-defense woolsey`.
+    #[arg(long, default_value_t = false)]
+    no_ns_woolsey_tails: bool,
+
+    /// Cleanly isolate our DEFENSE to BEN's 1NT.  Keep only boards where BEN (E/W)
+    /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BEN
+    /// reference — same BEN opener and responses, only the defender differs (ours
+    /// vs BEN).  The swing is then pure defense quality.  `--count` means kept
+    /// (we-defend) boards and the dealer rotates per kept board, as in `bba-gen
+    /// --isolate-defense`; combine with `--filter-1nt` to scan the deals first.
+    #[arg(long, default_value_t = false, conflicts_with_all = ["start_board", "self_play"])]
+    isolate_defense: bool,
 
     /// Only keep deals with a 1NT-opener candidate somewhere, scanned by the
     /// same predicate as `bba-gen --filter-1nt` (`common::filters`); `--count`
@@ -499,6 +548,90 @@ fn filtered_deals(seed: u64, wide: bool) -> impl Iterator<Item = (FullDeal, Seat
         .map(|((deal, scanned), dealer)| (deal, dealer, scanned))
 }
 
+/// Bid `count` boards of the match off `deals` (each with the number of deals
+/// scanned through it), table A with our pair at N/S, and return them with the
+/// number of deals scanned through the last one.
+///
+/// Table B seats us at E/W, except under `--isolate-defense`: a board is then
+/// kept only when BEN (E/W) opened 1NT at table A and our N/S defended, table
+/// B is all-BEN (`theirs` at all four chairs), and the dealer rotates per
+/// *kept* board — the same rule as `bba-gen --isolate-defense`.
+fn bid_match(
+    mut deals: impl Iterator<Item = (FullDeal, Seat, usize)>,
+    count: usize,
+    isolate_defense: bool,
+    vul: AbsoluteVulnerability,
+    ours: &dyn Bidder,
+    theirs: &dyn Bidder,
+) -> (Vec<Board>, usize) {
+    let mut boards = Vec::with_capacity(count);
+    let mut scanned = 0;
+    while boards.len() < count {
+        let Some((deal, dealer, through)) = deals.next() else {
+            break;
+        };
+        scanned = through;
+        let dealer = if isolate_defense {
+            Seat::ALL[boards.len() % 4]
+        } else {
+            dealer
+        };
+        let table_a = bid_out(ours, theirs, true, dealer, vul, &deal);
+        let table_b = if isolate_defense {
+            if !matches!(opening_1nt(&table_a, dealer), Some((_, false))) {
+                continue;
+            }
+            bid_out(theirs, theirs, true, dealer, vul, &deal)
+        } else {
+            bid_out(ours, theirs, false, dealer, vul, &deal)
+        };
+        boards.push(Board {
+            deal,
+            dealer,
+            table_a,
+            table_b,
+        });
+    }
+    (boards, scanned)
+}
+
+/// The agreements our N/S plays: the crate default with every `--ns-*` /
+/// `--no-ns-*` knob applied.  Every flag left off keeps the crate default,
+/// so a bare command line bids the shipped system.
+fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.decision.reading.cue = !args.no_ns_cue_reading;
+    agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
+    agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
+    agreements.decision.reading.pass = !args.no_ns_pass_reading;
+    agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
+    agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
+    agreements.decision.instinct.competitive_push_natural_only =
+        !args.no_ns_competitive_push_natural_only;
+    agreements.defense.direct_minor_weak_jump_overcall =
+        !args.no_ns_direct_minor_weak_jump_overcall;
+    agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
+    agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
+    agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
+    agreements.defense.nt_overcall_major_band = args.ns_nt_overcall_major_band;
+    agreements.defense.two_level_minor_overcall_vul_tight =
+        args.ns_two_level_minor_overcall_vul_tight;
+    if let Some(floor) = args.ns_nt_overcall_hcp_floor {
+        agreements.defense.natural_overcall_hcp_floor = floor;
+    }
+    agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
+    agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
+
+    agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
+    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
+    agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
+    agreements.decision.reading.notrump_defense =
+        pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
+    agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
+    agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
+    agreements
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if args.provenance {
@@ -577,31 +710,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Both system names select their shipped net floor: measure the real us vs BEN.
-    let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.reading.cue = !args.no_ns_cue_reading;
-    agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
-    agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
-    agreements.decision.reading.pass = !args.no_ns_pass_reading;
-    agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
-    agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
-    agreements.decision.instinct.competitive_push_natural_only =
-        !args.no_ns_competitive_push_natural_only;
-    agreements.defense.direct_minor_weak_jump_overcall =
-        !args.no_ns_direct_minor_weak_jump_overcall;
-    agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
-    agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
-    agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
-    agreements.defense.nt_overcall_major_band = args.ns_nt_overcall_major_band;
-    agreements.defense.two_level_minor_overcall_vul_tight =
-        args.ns_two_level_minor_overcall_vul_tight;
-    if let Some(floor) = args.ns_nt_overcall_hcp_floor {
-        agreements.defense.natural_overcall_hcp_floor = floor;
-    }
-    agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
-    agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
-
-    agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
-    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
+    let agreements = ns_agreements(&args);
     // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
     // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
     // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was
@@ -631,30 +740,25 @@ fn main() -> anyhow::Result<()> {
     // Bid every board at both tables, dealer rotating per board.  Sequential
     // by design: the server serializes bids behind a lock anyway — parallelism
     // is one ben-gen process per server instance (ports 8085+i).
-    let mut scanned = None;
-    let deals: Vec<(FullDeal, Seat)> = if args.filter_1nt {
-        let kept: Vec<_> = filtered_deals(seed, args.wide_1nt)
-            .take(args.count)
-            .collect();
-        scanned = Some(kept.last().map_or(0, |&(_, _, n)| n));
-        kept.into_iter()
-            .map(|(deal, dealer, _)| (deal, dealer))
-            .collect()
+    let deals: Box<dyn Iterator<Item = (FullDeal, Seat, usize)>> = if args.filter_1nt {
+        Box::new(filtered_deals(seed, args.wide_1nt))
     } else {
-        match_deals(seed)
-            .skip(args.start_board)
-            .take(args.count)
-            .collect()
+        Box::new(
+            match_deals(seed)
+                .skip(args.start_board)
+                .zip(1..)
+                .map(|((deal, dealer), scanned)| (deal, dealer, scanned)),
+        )
     };
-    let boards = deals
-        .into_iter()
-        .map(|(deal, dealer)| Board {
-            table_a: bid_out(ours, &ben, true, dealer, args.vulnerability, &deal),
-            table_b: bid_out(ours, &ben, false, dealer, args.vulnerability, &deal),
-            deal,
-            dealer,
-        })
-        .collect();
+    let (boards, scanned) = bid_match(
+        deals,
+        args.count,
+        args.isolate_defense,
+        args.vulnerability,
+        ours,
+        &ben,
+    );
+    let scanned = (args.filter_1nt || args.isolate_defense).then_some(scanned);
 
     let dump = Dump {
         our_label,

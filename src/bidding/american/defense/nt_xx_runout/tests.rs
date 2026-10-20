@@ -1,5 +1,5 @@
 use super::super::tests::{best_call_with, call};
-use super::{advancer_runout, xx_dont_runout_package};
+use super::{XxMajorFirst, advancer_runout, xx_dont_runout_package};
 use crate::bidding::Relative;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::american::{NotrumpDefense, american};
@@ -38,18 +38,51 @@ fn book(auction: &[Call], hand: &str) -> Call {
     call
 }
 
+/// [`book`] under a major-first mode
+#[track_caller]
+fn book_with(mode: XxMajorFirst, auction: &[Call], hand: &str) -> Call {
+    let (call, floored) = best_call_with(&major_first(mode), auction, hand);
+    assert!(
+        !floored,
+        "{mode:?}: {hand} at {auction:?} must come from the book"
+    );
+    call
+}
+
 fn with(prefix: &[Call], tail: &[Call]) -> Vec<Call> {
     prefix.iter().chain(tail).copied().collect()
 }
 
+/// The knob on under a major-first mode
+fn major_first(mode: XxMajorFirst) -> Agreements {
+    let mut agreements = on();
+    agreements.defense.xx_dont_major_first = mode;
+    agreements
+}
+
+const MODES: [XxMajorFirst; 3] = [
+    XxMajorFirst::Off,
+    XxMajorFirst::Longer,
+    XxMajorFirst::AtLeastAsLong,
+];
+
 #[test]
 fn row_invariants_hold_with_the_knob_on() {
-    crate::bidding::rows::assert_package_invariants(&on(), &[xx_dont_runout_package()]);
+    for mode in MODES {
+        crate::bidding::rows::assert_package_invariants(
+            &major_first(mode),
+            &[xx_dont_runout_package()],
+        );
+    }
 }
 
 #[test]
 fn knob_defaults_off_and_the_nodes_floor() {
     assert!(!Agreements::default().defense.xx_dont_runout);
+    assert_eq!(
+        Agreements::default().defense.xx_dont_major_first,
+        XxMajorFirst::Off
+    );
     for (auction, hand) in [
         (&RUNOUT[..], "J432.432.432.432"),
         (&RELAY[..], "AKQ2.KQ5.AJ4.932"),
@@ -118,7 +151,13 @@ fn advancer_picks_the_cheapest_two_suiter() {
 /// partition, so each call's reading is its exact shape.
 #[test]
 fn advancer_table_partitions_every_reachable_hand() {
-    let rules = advancer_runout();
+    for mode in MODES {
+        assert_partition(mode);
+    }
+}
+
+fn assert_partition(mode: XxMajorFirst) {
+    let rules = advancer_runout(mode);
     let context = Context::new(RelativeVulnerability::NONE, &RUNOUT);
     let weak = hcp(..=super::ADVANCER_HCP_MAX);
     let mut rng = rand::rngs::StdRng::seed_from_u64(20261020);
@@ -135,24 +174,29 @@ fn advancer_table_partitions_every_reachable_hand() {
                 .into_iter()
                 .filter(|(_, logit)| logit.is_finite())
                 .count();
-            assert_eq!(live, 1, "{hand} has {live} live calls at (1NT) X (XX)");
+            assert_eq!(
+                live, 1,
+                "{mode:?}: {hand} has {live} live calls at (1NT) X (XX)"
+            );
         }
     }
 }
 
 #[test]
 fn artificial_calls_are_alerted_and_the_natural_ones_are_not() {
-    let rules = advancer_runout();
-    for rule in rules.rules() {
-        let alerted = rule.alert().is_some();
-        let natural = matches!(rule.call(), Call::Pass) || rule.call() == S2;
-        assert_eq!(
-            alerted,
-            !natural,
-            "{}: alert {:?}",
-            rule.call(),
-            rule.alert()
-        );
+    for mode in MODES {
+        let rules = advancer_runout(mode);
+        for rule in rules.rules() {
+            let alerted = rule.alert().is_some();
+            let natural = matches!(rule.call(), Call::Pass) || rule.call() == S2;
+            assert_eq!(
+                alerted,
+                !natural,
+                "{}: alert {:?}",
+                rule.call(),
+                rule.alert()
+            );
+        }
     }
 }
 
@@ -293,6 +337,79 @@ fn artificial_calls_read_their_real_shape() {
         sos.length(Suit::Clubs).max <= 2,
         "{:?}",
         sos.length(Suit::Clubs)
+    );
+}
+
+/// A five-plus major with a shorter four-plus minor runs to the major: spades
+/// bid `2♠`, hearts pass and name hearts over the relay.  A 5-5 joins them only
+/// under `AtLeastAsLong`; a longer minor and both majors never move.
+#[test]
+fn major_first_runs_a_longer_major_to_the_major() {
+    let off = |hand| best_call_with(&on(), &RUNOUT, hand).0;
+    let longer = |hand| book_with(XxMajorFirst::Longer, &RUNOUT, hand);
+    let five_five = |hand| book_with(XxMajorFirst::AtLeastAsLong, &RUNOUT, hand);
+    for (hand, built, expected, tied, why) in [
+        ("J5432.432.2.Q432", C2, S2, S2, "5♠-4♣"),
+        ("J5432.432.Q432.2", D2, S2, S2, "5♠-4♦"),
+        ("J65432.32.Q432.2", D2, S2, S2, "6♠-4♦"),
+        ("32.J5432.Q432.32", D2, P, P, "5♥-4♦"),
+        ("32.J5432.43.Q432", C2, P, P, "5♥-4♣"),
+        ("2.J5432.Q432.432", D2, P, P, "5♥-4♦-3♣"),
+        ("J5432.2.Q5432.32", D2, D2, S2, "5♠-5♦"),
+        ("2.J5432.32.Q5432", C2, C2, P, "5♥-5♣"),
+        ("43.J432.Q5432.32", D2, D2, D2, "4♥-5♦: the minor is longer"),
+        ("J5432.J432.32.32", H2, H2, H2, "5♠-4♥: both majors"),
+        ("J5432.2.Q432.J32", D2, S2, S2, "5♠-4♦-3♣"),
+    ] {
+        assert_eq!(off(hand), built, "Off: {hand} ({why})");
+        assert_eq!(longer(hand), expected, "Longer: {hand} ({why})");
+        assert_eq!(five_five(hand), tied, "AtLeastAsLong: {hand} ({why})");
+    }
+    // Over the relay a heart-first hand names hearts, even with four-plus
+    // diamonds, and the 4-3-3-3s still name their suit.
+    for mode in [XxMajorFirst::Longer, XxMajorFirst::AtLeastAsLong] {
+        let named = with(&RELAY, &[C2, P]);
+        for (hand, expected) in [
+            ("2.J5432.Q432.432", H2),
+            ("32.J5432.43.Q432", H2),
+            ("432.432.Q432.432", D2),
+            ("432.43.J5432.432", D2),
+            ("432.43.432.J5432", P),
+            ("J432.432.432.432", S2),
+        ] {
+            assert_eq!(book_with(mode, &named, hand), expected, "{mode:?}: {hand}");
+        }
+        if mode == XxMajorFirst::AtLeastAsLong {
+            assert_eq!(book_with(mode, &named, "2.J5432.32.Q5432"), H2, "5♥-5♣");
+        }
+    }
+}
+
+/// The moved hands move in the readings too: `2♠` admits a 5♠-4m and the
+/// forcing pass a 5♥-4m.  The minor two-suiters still admit both: their
+/// exclusion fold (`!major_first`) overruns the projection's box budget and is
+/// dropped, which costs precision, never soundness.
+#[test]
+fn major_first_readings_follow_the_hands() {
+    let parse = |hand: &str| -> Hand { hand.parse().expect("valid test hand") };
+    let admits = |auction: &[Call], hand: &str| {
+        american(&major_first(XxMajorFirst::Longer))
+            .bind()
+            .infer(RelativeVulnerability::NONE, auction)
+            .admits(Relative::Partner, parse(hand))
+    };
+    let spades = with(&RUNOUT, &[S2, P]);
+    let clubs = with(&RUNOUT, &[C2, P]);
+    assert!(admits(&spades, "J5432.432.2.Q432"));
+    assert!(admits(&RELAY, "32.J5432.Q432.32"));
+    assert!(admits(&clubs, "J5432.2.32.Q5432"), "5-5 stays a two-suiter");
+    assert!(
+        !admits(&spades, "J5432.2.32.Q5432"),
+        "Longer: 2♠ holds no 5-5"
+    );
+    assert!(
+        !admits(&RELAY, "J5432.432.2.Q432"),
+        "the pass never holds five spades"
     );
 }
 

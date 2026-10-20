@@ -22,7 +22,16 @@
 //! | `-` | forcing: a 5+ one-suiter in ♣/♦/♥, or any 4-3-3-3; at most 10 HCP |
 //!
 //! The table is a partition of every hand up to 10 HCP, so each call's reading
-//! is its exact shape.  The forcing pass cannot be alerted (a pass never is); its forcing
+//! is its exact shape.
+//!
+//! **Major first** (`agreements.defense.xx_dont_major_first`, default
+//! [`XxMajorFirst::Off`] = the table above).  Under `Longer` a five-plus major
+//! strictly longer than its four-plus minor, with at most three of the other
+//! major, leaves the minor two-suiter: spades bid `2♠`, hearts make the
+//! forcing pass and name hearts over the relay.  `AtLeastAsLong` adds the
+//! 5-5s.  The table stays a partition; `2♣`/`2♦` keep their old readings (the
+//! exclusion overruns the projection's box budget, which costs precision,
+//! never soundness).  The forcing pass cannot be alerted (a pass never is); its forcing
 //! nature is the doubler's table having no `Pass`, and its meaning is the Pass
 //! rule's own constraint, which the pass reading publishes.
 //!
@@ -56,6 +65,7 @@ use super::nt_dont::{
 };
 use super::nt_landy::sit;
 use super::*;
+use crate::bidding::common::other_major;
 
 /// The advancer's ceiling at `(1NT) X (XX)`: 40 − their 15 − our 15
 ///
@@ -72,44 +82,109 @@ const ADVANCER_HCP_MAX: u8 = 10;
 /// `penalty_x_reading_with_profile`).
 const PREFIX: &str = "P* (1NT) X (XX)";
 
+/// Which weak two-suiters at `(1NT) X (XX)` run to a five-card major instead of
+/// the `2♣`/`2♦` two-suiter
+///
+/// A five-plus major with a four-plus minor and at most three of the other
+/// major.  Under [`Off`][Self::Off] it bids the minor two-suiter, and the
+/// doubler's pass-or-correct then picks the minor whenever it holds three, so
+/// a 5♠-4♣ advancer plays a 4-3 club fit with a 5-2 spade fit available.
+/// The A/B that built the knob priced this bucket at −203 plain IMPs over 94
+/// boards (`ab-results/xx-runout-rails-2`, the `dont` arm).  Under the other
+/// two modes, five-plus spades bid `2♠` and five-plus hearts make the forcing
+/// pass, then bid `2♥` over the doubler's relay.  Both majors (5♠-4♥, 5♥-4♠)
+/// still bid `2♥`.  Read only while
+/// [`xx_dont_runout`][crate::bidding::agreements::DefenseKnobs::xx_dont_runout]
+/// is on.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum XxMajorFirst {
+    /// Every 4-4+ two-suiter with a minor bids the minor (the built package).
+    Off,
+    /// Only a major strictly longer than each four-plus minor (5-4, 6-4, 6-5);
+    /// a 5-5 still bids the minor two-suiter.
+    Longer,
+    /// Any five-plus major at least as long as each minor, 5-5 included.
+    AtLeastAsLong,
+}
+
+/// A weak hand that runs to `major` first: five-plus in it, at most
+/// three of the other major, a four-plus minor no longer than it (strictly
+/// shorter unless `ties`)
+fn major_first(major: Suit, ties: bool) -> Cons<impl Constraint + Clone> {
+    use Suit::{Clubs, Diamonds};
+    let tie = usize::from(ties);
+    len(major, 5..)
+        & len(other_major(major), ..=3)
+        & or([Clubs, Diamonds], 4..)
+        & ((len(major, 5..=5) & and([Clubs, Diamonds], ..=4 + tie))
+            | (len(major, 6..=6) & and([Clubs, Diamonds], ..=5 + tie))
+            | len(major, 7..))
+}
+
 /// The advancer's runout at `(1NT) X (XX)`
 ///
 /// An exact partition: two four-plus suits bid the cheapest two-suiter that
 /// holds them, five-plus spades alone bid `2♠`, and everything else — a 5+
-/// one-suiter in ♣/♦/♥ or a 4-3-3-3 — makes the forcing pass.
-fn advancer_runout() -> Rules {
+/// one-suiter in ♣/♦/♥ or a 4-3-3-3 — makes the forcing pass.  Under a
+/// [`XxMajorFirst`] mode other than `Off`, the [`major_first`] hands leave the
+/// minor two-suiters: spades join `2♠`, hearts join the forcing pass.
+fn advancer_runout(mode: XxMajorFirst) -> Rules {
     use Suit::{Clubs, Diamonds, Hearts, Spades};
     let one_suiter_or_flat =
         dont_one_suiter_direct(5) | and([Clubs, Diamonds, Hearts, Spades], 3..=4);
+    let both_majors = and([Hearts, Spades], 4..) & and([Clubs, Diamonds], ..=3);
+    let clubs = len(Clubs, 4..) & or([Diamonds, Hearts, Spades], 4..);
+    let diamonds = len(Diamonds, 4..) & or([Hearts, Spades], 4..) & len(Clubs, ..=3);
+    let spades = len(Spades, 5..) & and([Clubs, Diamonds, Hearts], ..=3);
+    let weak = hcp(..=ADVANCER_HCP_MAX);
+    if mode == XxMajorFirst::Off {
+        return Rules::new()
+            .rule(Bid::new(2, Strain::Clubs), 100, clubs)
+            .alert(XX_RUNOUT_2C)
+            .rule(Bid::new(2, Strain::Diamonds), 100, diamonds)
+            .alert(DONT_2D)
+            .rule(Bid::new(2, Strain::Hearts), 100, both_majors)
+            .alert(DONT_2H)
+            .rule(Bid::new(2, Strain::Spades), 100, spades)
+            .rule(Call::Pass, 100, one_suiter_or_flat & weak);
+    }
+    let ties = mode == XxMajorFirst::AtLeastAsLong;
+    let neither = !major_first(Spades, ties) & !major_first(Hearts, ties);
     Rules::new()
-        .rule(
-            Bid::new(2, Strain::Clubs),
-            100,
-            len(Clubs, 4..) & or([Diamonds, Hearts, Spades], 4..),
-        )
+        .rule(Bid::new(2, Strain::Clubs), 100, clubs & neither.clone())
         .alert(XX_RUNOUT_2C)
-        .rule(
-            Bid::new(2, Strain::Diamonds),
-            100,
-            len(Diamonds, 4..) & or([Hearts, Spades], 4..) & len(Clubs, ..=3),
-        )
+        .rule(Bid::new(2, Strain::Diamonds), 100, diamonds & neither)
         .alert(DONT_2D)
-        .rule(
-            Bid::new(2, Strain::Hearts),
-            100,
-            and([Hearts, Spades], 4..) & and([Clubs, Diamonds], ..=3),
-        )
+        .rule(Bid::new(2, Strain::Hearts), 100, both_majors)
         .alert(DONT_2H)
         .rule(
             Bid::new(2, Strain::Spades),
             100,
-            len(Spades, 5..) & and([Clubs, Diamonds, Hearts], ..=3),
+            spades | major_first(Spades, ties),
         )
         .rule(
             Call::Pass,
             100,
-            one_suiter_or_flat & hcp(..=ADVANCER_HCP_MAX),
+            (one_suiter_or_flat | major_first(Hearts, ties)) & weak,
         )
+}
+
+/// The advancer naming its suit over the doubler's `2♣` relay under a
+/// [`XxMajorFirst`] mode other than `Off`
+///
+/// [`name_one_suiter`]`(4)` with one change: `2♦` caps hearts at four, so a
+/// heart-first hand holding four-plus diamonds names hearts (the reason it
+/// passed), and each call's reading stays its exact shape.
+fn name_major_first() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            100,
+            len(Suit::Diamonds, 4..) & len(Suit::Hearts, ..=4),
+        )
+        .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
+        .rule(Bid::new(2, Strain::Spades), 100, len(Suit::Spades, 4..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// The doubler over a doubled two-suiter (`… 2♣ (X)` / `… 2♦ (X)`): pass with
@@ -138,13 +213,20 @@ fn other_suit_after_sos(shown: Suit) -> Rules {
 }
 
 /// The package's tables, keyed by the auction after [`PREFIX`]
-fn tables() -> Vec<(&'static str, Rules)> {
+fn tables(mode: XxMajorFirst) -> Vec<(&'static str, Rules)> {
+    let name = || {
+        if mode == XxMajorFirst::Off {
+            name_one_suiter(4)
+        } else {
+            name_major_first()
+        }
+    };
     vec![
-        ("", advancer_runout()),
+        ("", advancer_runout(mode)),
         // The forcing pass: the doubler relays, the advancer names the suit.
         ("- -", passed_dont_x_advance()),
-        ("- - 2♣ -", name_one_suiter(4)),
-        ("- - 2♣ (X)", name_one_suiter(4)),
+        ("- - 2♣ -", name()),
+        ("- - 2♣ (X)", name()),
         // 2♣: clubs + a higher suit.
         ("2♣ -", passed_dont_2c_advance()),
         ("2♣ (X)", sos_or_sit(Suit::Clubs)),
@@ -231,8 +313,8 @@ pub(super) fn xx_dont_runout_package() -> Package {
     Package {
         name: "xx-dont-runout",
         gate: |agreements| agreements.defense.xx_dont_runout && natural_defense_enabled(agreements),
-        entries: |_| {
-            let mut entries: Vec<Entry> = tables()
+        entries: |agreements| {
+            let mut entries: Vec<Entry> = tables(agreements.defense.xx_dont_major_first)
                 .into_iter()
                 .flat_map(|(suffix, rules)| rows_of(node(suffix), rules))
                 .collect();

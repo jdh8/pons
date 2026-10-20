@@ -33,6 +33,7 @@
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, MultiStopperAsk,
     NegativeDoubleShape, NotrumpShape, SizeAskEight, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
+    XxMajorFirst,
 };
 use super::context::DecisionProfile;
 
@@ -2725,6 +2726,17 @@ pub struct DefenseKnobs {
     /// An A/B knob (`bba-gen`/`ben-gen --ns-xx-dont-runout`, `ab-dump-sd
     /// --on-ns-xx-dont-runout`/`--off-ns-xx-dont-runout`).
     pub xx_dont_runout: bool,
+    /// Which weak two-suiters at `(1NT) X (XX)` run to a five-card major first
+    ///
+    /// Default [`XxMajorFirst::Off`] (the package as built).  The two other
+    /// modes send a five-plus major with a shorter four-plus minor (or, under
+    /// [`XxMajorFirst::AtLeastAsLong`], an equal one) to `2♠` or the forcing
+    /// pass instead of the `2♣`/`2♦` two-suiter.  Inert unless
+    /// [`xx_dont_runout`][Self::xx_dont_runout] is on, so the undeclared mirror
+    /// needs no pin of its own.  Reading-active.  An A/B knob (`bba-gen
+    /// --ns-xx-dont-major-first`, `ab-dump-sd
+    /// --on-ns-xx-dont-major-first`/`--off-ns-xx-dont-major-first`).
+    pub xx_dont_major_first: XxMajorFirst,
     // --- defense/leaping_michaels.rs
     /// Author Leaping Michaels over their weak two
     ///
@@ -3381,6 +3393,7 @@ impl Default for DefenseKnobs {
             natural_overcall_hcp_floor: 0,
             natural_overcall_advance_enabled: true,
             xx_dont_runout: false,
+            xx_dont_major_first: XxMajorFirst::Off,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,

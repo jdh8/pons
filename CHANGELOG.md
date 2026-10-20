@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ben-gen --ns-notrump-defense`, `--no-ns-woolsey-muiderberg-sit`,
+  `--no-ns-woolsey-tails` and `--isolate-defense` (2026-10-20)**, mirroring
+  `bba-gen`'s flags so the 1NT-defense A/Bs can run against BEN.
+  `--isolate-defense` keeps only the boards where BEN (E/W) opens 1NT at table A
+  and our N/S defend, bids table B all-BEN, and rotates the dealer per kept
+  board, as `bba-gen` does; it combines with `--filter-1nt` and conflicts with
+  `--start-board`/`--self-play`. The shared `opening_1nt` predicate moved into
+  `examples/common` (bba-gen, bba-score and ben-gen had or needed a copy).
+  Every flag defaults to the crate default, so a ben-gen run without them is
+  byte-identical; the flags reach the dump through `gen_args` as before.
+
+- **`defense.xx_dont_major_first` (`XxMajorFirst`): a five-card major ahead
+  of the minor two-suiter in the `(1NT) X (XX)` runout, `bba-gen
+  --ns-xx-dont-major-first {off,longer,at-least-as-long}`, `ab-dump-sd
+  --on-/--off-ns-xx-dont-major-first`, and `scripts/ab-xx-dont-major-first.sh`
+  (2026-10-20).** Default `Off` (the package as built) and inert unless
+  `defense.xx_dont_runout` is on, so the default system is unchanged. The
+  first A/B (`ab-results/xx-runout-rails-2`) put DONT's unbiased plain loss
+  in the advancer's two-suiters with a longer major: 94 boards, plain −203,
+  PD −301 IMPs, because a 5♠-4♣ bid `2♣` and the doubler's pass-or-correct
+  stopped in the minor (`ben-gen --ns-xx-dont-major-first` too). `Longer` sends a five-plus major strictly longer
+  than its four-plus minor (at most three of the other major) to `2♠`, or,
+  with hearts, to the forcing pass and `2♥` over the relay. `AtLeastAsLong`
+  also moves the 5-5s. Both majors still bid `2♥`. The two-suiters' readings
+  are unchanged (their exclusion overruns the projection's box budget: sound,
+  not exact). `2♠` and the forcing pass read the moved hands. The runner
+  pre-registers both modes and the rails' doubler arm alone (`--ns-xx-runout-rails
+  --no-ns-xx-runout`) as candidates against `off`. **Measured 2026-10-20,
+  knob stays `Off`, package stays off:** `longer − off` plain +0.0012 to
+  +0.0017 (win every cell), PD −0.0002 to −0.0009 (loss ns/both), no ship.
+  On the unbiased boards `tied − off` is plain ≈ 0 (+10 / −89 / +11 / +1
+  IMPs) where `dont − off` lost −26 to −133; the PD shortfall is now the
+  bias (off sits a making `1NTxx`). `tied − dont` positive on both scorers
+  in every cell but 12–15 boards per cell (lower bound just under 0):
+  inconclusive. The doubler rail alone moves 13–16 boards per cell
+  (insufficient data). The DONT trade-off (plain win, biased PD loss) is
+  jdh8's.
+
 - **The 1NT-invite rail (`InstinctProfile::their_nt_invite_double_veto`,
   `their_nt_invite_bid_veto`) and `bba-gen --declare-their-european-minors`
   (2026-10-19), default off, A/B owed (`scripts/ab-nt-invite-rail.sh`).**

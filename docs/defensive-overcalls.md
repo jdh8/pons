@@ -1062,6 +1062,11 @@ cells in CHANGELOG):
   fires: the rail's gain is mostly our Puppet misread of their `2NT`.
   The declaration became `bba-gen`'s default the same day (jdh8: honest
   bridge); the rail stays, since it still wins slightly under it.
+  BEN guard (`scripts/ab-ben-nt-invite-rail.sh`, pre-count, none, 8,256
+  boards, SEED_BASE 1792490245610720393): BEN reaches `(1NT) - (2NT)` with
+  our pass on 77 boards (0.9%), and the arms diverge on **0**: under the
+  honest reading the floor already passes there. Rule 0: infeasible at BEN's
+  throughput; the rail stays on its BBA evidence, a recorded gap.
 - **Woolsey completion — shipped default-on inside the Woolsey card.** Sit
   plain +0.0355 to +0.0557, PD +0.0589 to +0.0796 per kept board; tails
   plain +0.0054 to +0.0069, PD +0.0063 to +0.0083; additive. ≈ +2 to +3
@@ -1092,7 +1097,42 @@ cells in CHANGELOG):
   - Recorded trade-off for jdh8 (rule 3): DONT's plain gain is real (it
     escapes making `1NTxx`) and PD cannot see it. A redesign that bids a
     five-card major naturally ahead of a 5-4 two-suiter, plus the rails'
-    doubler arm alone, is the follow-up; both measure on this runner.
+    doubler arm alone, is the follow-up.
+  - Follow-up built 2026-10-20: split by the advancer's shape, DONT's
+    two-suiters with a longer major were 94 boards, plain −203, PD −301
+    (5M-5m: 8 boards, plain −82; flat 4-4s plain +1184, PD −601). Knob
+    `defense.xx_dont_major_first` (`Off` / `Longer` / `AtLeastAsLong`,
+    default `Off`); jdh8 asked for both modes to be measured. Runner
+    `scripts/ab-xx-dont-major-first.sh` (arms `off` / `dont` / `longer` /
+    `tied` / `doubler`, pre-registered there, rules 6–7 for choosing among
+    alternatives).
+  - **Verdict 2026-10-20** (`ab-results/xx-dont-major-first`, SEED_BASE
+    1792489934007903414, 393,216 accepted boards per cell, every gate 0
+    foreign), per accepted board, none / ns / ew / both:
+    - `longer − off`: plain +0.0014 / +0.0012 / +0.0017 / +0.0017 (win),
+      PD −0.0002 / **−0.0009** / −0.0002 / **−0.0006** (loss in ns, both).
+      `tied − off` within 0.0001 of it; `dont − off` 0.0001 below it.
+      Rule 2: no ship.
+    - Rule-3 split (`tied − off`): the plain gain is the `sits` bucket (off
+      sits a making `1NTxx`): 46–57 boards, plain +488 to +647, PD −99 to
+      −249 per cell. On the unbiased boards `tied` is plain +10 / −89 / +11 /
+      +1 and PD +76 / −30 / +104 / +92; `dont` was plain −26 to −133. The
+      major-first shape closes most of the unbiased hole; what PD charges is
+      now the bias.
+    - `longer − dont` / `tied − dont`: positive on both scorers in all four
+      cells but 12–15 divergent boards per cell, pooled plain +0.6 / +1.1
+      ×10⁻⁴ with lower bounds −0.43 / −0.17 ×10⁻⁴. Rule 7 not met:
+      inconclusive, `Off` stays the package's shape.
+    - `doubler − off`: 13–16 divergent boards per cell, every cell under
+      rule 0's 50, plain +1 to +16 IMPs, PD −51 to −89. Rule 0 asks for a
+      2× re-run, which still stays under 50; the doubler node is reached
+      mostly when the advancer sits, so the rails' doubler gain in
+      `xx-runout-rails-2` was the advancer rail's own sits being rescued.
+      Not re-run (owed to jdh8 if wanted, at ≥ 4×).
+    - Owed to jdh8: DONT (with `tied` or `longer`) is a plain win in every
+      cell and a PD loss that the split puts in PD's bias against running —
+      the same recorded trade-off as before, now without the unbiased
+      plain loss.
 
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
@@ -1110,7 +1150,7 @@ Woolsey (route undecided, owed to jdh8).
   balancing seat — dead until balancing is book work, which it is not.
 - **`P → X` volume** — see [takeout-double-layers.md](takeout-double-layers.md).
 
-## The DONT-style runout after `(1NT) X (XX)` (built 2026-10-20, A/B owed)
+## The DONT-style runout after `(1NT) X (XX)` (built and measured 2026-10-20, default off)
 
 Step 2 of the 1NT-defense plan, package B, book alternative to the ladder
 rails (`InstinctProfile::xx_runout_rails`). Knob `defense.xx_dont_runout`,
@@ -1195,6 +1235,69 @@ scramble — 4-2 risk about 2.3% vs about 4% of advancer hands, a priori a wash)
 a doubled `2♥` is answered as undoubled (pass or `2♠`), since its other suit is
 known. Not changed: DONT's own `(1NT) X (XX)` keeps its `2♣` relay where
 Bridgebum's DONT turns it off.
+
+**Major first** (`defense.xx_dont_major_first`, default `Off`; built after the
+first A/B priced the advancer's 5M-4m two-suiters at −203 plain over 94
+boards). `Longer`: a five-plus major strictly longer than its four-plus minor,
+at most three of the other major, bids `2♠` (spades) or passes and names `2♥`
+over the relay (hearts). `AtLeastAsLong` adds the 5-5s. Both majors still bid
+`2♥`. Verdicts in § step-2 verdicts above (`ab-results/xx-dont-major-first`).
+
+### Loose ends (2026-10-20)
+
+Nothing here blocks the knob staying off; each item names what would close it.
+
+1. **The ship decision (jdh8).** Every DONT arm is a plain win in every cell
+   (+0.0011 to +0.0018 per accepted board) and a PD loss in ns and both. The
+   rule-3 split puts the PD loss in PD's bias; with `tied` the unbiased boards
+   are plain ≈ 0. Shipping default-on would be a recorded trade-off, not a
+   decision-table ship. The candidate shape is `tied` or `longer`, not `Off`.
+2. **PD cannot price this lane.** `ns_score_bid` scores a making contract
+   undoubled and a failing one doubled, whatever the table bid
+   (`src/scoring.rs` module doc). So the off arm's sit in a making `1NTxx` is
+   scored as undoubled `1NT`, and our runout is scored doubled even when they
+   never doubled it. Escaping a business redouble is exactly what PD erases. A
+   PD variant that keeps a business `XX` of a making contract would be a
+   scorer change across every A/B, so it is a separate design question.
+   Until then this lane's PD is descriptive, as rule 3 says.
+3. **`Off` vs major-first is inconclusive.** `tied − dont` is positive on both
+   scorers in every cell, but on only 12–15 boards per cell. The pooled plain
+   gain is +1.07 ±1.24 ×10⁻⁴ per board, with a conservative CI because the
+   cells share deals. About 1.5× the boards would put its lower bound above 0
+   if the effect holds. A 2× re-run of `scripts/ab-xx-dont-major-first.sh`
+   (BOARDS=786432, same SEED_BASE, fresh dir) takes about 2 h at JOBS=64.
+   `tied − longer` moves 2 boards per cell and will not separate.
+4. **The ns cell's unbiased loss is untraced.** `tied − off` unbiased is plain
+   −89 IMPs over 66 boards in ns against ≈ 0 in the other cells, and `dont`
+   is −133 there too. The worst boards (`div.tied.vs.off.ns.jsonl`, the
+   `unbiased` bucket) have not been traced. Rule 4's candidates are their bid
+   over our runout (floored; item 5) and a 4-3-3-3 landing in 4-2.
+5. **Their bid over our runout is floored.** The package authors their pass
+   and their double at every node, but not a *bid*, e.g. `(1NT) X (XX) 2♣
+   (2♥)` or `… - - 2♣ (2♠)`. Those seats go to the net, and the iron rule
+   asks for interfered tails before a convention counts as complete. A
+   census of how often they bid there, which is cheap from the run's dumps,
+   decides whether it is worth authoring.
+6. **The doubler's pass reads as anything** (owed above): the reused
+   `passed_dont_*` catch-all. That is its own change with its own A/B, since
+   it moves DONT's lane too.
+7. **Looser two-suiter readings under major-first** (accepted by jdh8,
+   2026-10-20). `2♣`/`2♦` keep the `Off` reading: their `!major_first`
+   exclusion overruns `EXCLUSION_BOX_BUDGET` (16) and is dropped. That costs
+   precision, never soundness. `2♠` and the forcing pass do read the moved
+   hands.
+8. **No BEN guard, and none is feasible.** `ben-gen` has the flags
+   (`--ns-xx-dont-runout --ns-xx-dont-major-first …`). The lane moves about
+   160 boards per 393,216 against BBA, so BEN's ≈ 8k boards per cell would
+   see about 3. Unless BEN redoubles far more often than EPBot, this stays
+   BBA-only. A one-cell pre-count settles it, as for the rail.
+9. **The rails' doubler arm alone is dead.** It moves 13–16 boards per cell
+   at plain ≈ 0. The doubler node is reached mostly when the advancer sits,
+   so the rails' doubler gain in `xx-runout-rails-2` was rescuing the
+   advancer rail's own sits. Re-run at ≥ 4× only on request.
+10. **The balancing seat is out of scope by design.** `(1NT) - - X (XX)` and
+    a passed doubler are excluded, because that advancer can hold values.
+    Not owed unless the balancing seat becomes book work (§ Out of scope).
 
 Sources (✓ = read at the source during the 2026-10-20 research; ~ = secondary
 or snippet only):

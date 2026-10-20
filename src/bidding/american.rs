@@ -97,7 +97,7 @@ pub use competition::{
     NegativeDoubleShape, competition,
 };
 pub use defense::{
-    DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
+    DoubleShape, NotrumpDefense, TakeoutSupport, XxMajorFirst, advance_double, defense_to_suit,
     defense_to_weak_two,
 };
 pub use notrump::{EUROPEAN, PUPPET, SizeAskEight, notrump_responses};

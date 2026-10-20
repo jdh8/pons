@@ -27,7 +27,7 @@ use std::collections::BTreeMap;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Dump, mean_with_ci, score_boards, seat_to_act};
+use common::{Dump, mean_with_ci, opening_1nt, score_boards, seat_to_act};
 
 /// Score a `bba-gen` board dump and report IMPs/board (the scoring half of the
 /// A/B duplicate match)
@@ -72,19 +72,6 @@ fn action_label(call: Call) -> String {
         Call::Redouble => "XX".into(),
         Call::Bid(bid) => bid.to_string(),
     }
-}
-
-/// If this auction's *opening* call is 1NT, its index and whether the opener is
-/// North/South.  The opening requirement (all prior calls passes) excludes a
-/// `1♣ - 1NT` rebid — we want 1NT *openings* only.
-fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
-    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
-    let index = auction.iter().position(|&call| call == one_nt)?;
-    if auction[..index].iter().any(|&call| call != Call::Pass) {
-        return None;
-    }
-    let opener_ns = matches!(seat_to_act(dealer, index), Seat::North | Seat::South);
-    Some((index, opener_ns))
 }
 
 /// Our first call after the 1NT opening.  At table A our pair sits North/South,

@@ -223,7 +223,7 @@ nodes are a runout structure the ladder already authors and measured, not
 junk the net should learn to avoid, so delegation, not a veto mask, is the
 patch. It covers five-plus-card runouts only; the four-card bust piece is
 the book alternative `defense.xx_dont_runout` (built 2026-10-20, default
-off; [defensive-overcalls.md](defensive-overcalls.md#the-dont-style-runout-after-1nt-x-xx-built-2026-10-20-ab-owed)),
+off; [defensive-overcalls.md](defensive-overcalls.md#the-dont-style-runout-after-1nt-x-xx-built-and-measured-2026-10-20-default-off)),
 which shadows this rail at every node it keys when both are on, so the two
 are measured as separate arms of `scripts/ab-xx-runout-rails.sh`.
 

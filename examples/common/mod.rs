@@ -140,6 +140,21 @@ pub const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
 }
 
+/// If this auction's *opening* call is 1NT, its index and whether the opener is
+/// North/South.  The opening requirement (all prior calls passes) excludes a
+/// `1♣ - 1NT` rebid — we want 1NT *openings* only.  `bba-score` splits its
+/// report on it; `bba-gen`/`ben-gen` `--isolate-defense` keep only the boards
+/// where E/W open 1NT and our N/S defend.
+pub fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
+    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    let index = auction.iter().position(|&call| call == one_nt)?;
+    if auction[..index].iter().any(|&call| call != Call::Pass) {
+        return None;
+    }
+    let opener_ns = matches!(seat_to_act(dealer, index), Seat::North | Seat::South);
+    Some((index, opener_ns))
+}
+
 /// The `1NT (3x) X -` leave-in slice key: opener's holding in **their** suit
 ///
 /// `nt_high_overcall_x_leave_in`'s only row is a `Pass` priced between the
@@ -1578,6 +1593,25 @@ impl From<NtDefenseArg> for pons::bidding::american::NotrumpDefense {
             NtDefenseArg::DirectLandy => Self::DirectLandy,
             NtDefenseArg::AlwaysPass => Self::AlwaysPass,
             NtDefenseArg::Off => Self::Off,
+        }
+    }
+}
+
+/// CLI face of [`pons::bidding::american::XxMajorFirst`], same reason as
+/// [`NtDefenseArg`]
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum XxMajorFirstArg {
+    Off,
+    Longer,
+    AtLeastAsLong,
+}
+
+impl From<XxMajorFirstArg> for pons::bidding::american::XxMajorFirst {
+    fn from(arg: XxMajorFirstArg) -> Self {
+        match arg {
+            XxMajorFirstArg::Off => Self::Off,
+            XxMajorFirstArg::Longer => Self::Longer,
+            XxMajorFirstArg::AtLeastAsLong => Self::AtLeastAsLong,
         }
     }
 }
