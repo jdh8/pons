@@ -1557,11 +1557,16 @@ pub fn blinded(partnership: &Partnership) -> Partnership {
 /// harnesses' `--ns-*` / `--on-ns-*` defense knobs move only our book, never
 /// the one we read the opponent's calls off.  Copying them leaked the arm into
 /// our reading of `1NT (2♥)` (2026-10-19: `ben-gen
-/// --ns-nt-overcall-hcp-floor 8` vs `0`, 40 foreign boards at the gate).
+/// --ns-nt-overcall-hcp-floor 8` vs `0`, 40 foreign boards at the gate).  The
+/// same holds for the defensive systems that live in `decision.reading`
+/// ([`ReadingProfile::with_house_defense`][pons::bidding::ReadingProfile::with_house_defense]):
+/// copying `notrump_defense` read their calls over *our* 1NT as Woolsey
+/// whenever we played Woolsey (found 2026-10-20).
 pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> Partnership {
     let mut theirs = *agreements;
     theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
     theirs.defense = Agreements::default().defense;
+    theirs.decision.reading = theirs.decision.reading.with_house_defense();
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 

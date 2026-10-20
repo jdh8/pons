@@ -473,3 +473,43 @@ fn completion_knobs_hold_row_invariants() {
         ],
     );
 }
+
+/// Woolsey is ours alone (`common::mirror_agreements`, via
+/// `ReadingProfile::with_house_defense`): when *we* open `1NT`, their `2♦`,
+/// `2♣` and `X` keep the house reading rather than decoding as our Multi,
+/// Landy and Woolsey double.
+#[test]
+fn their_calls_over_our_notrump_keep_the_house_reading() {
+    use crate::bidding::Relative;
+    use crate::bidding::american::american;
+    use contract_bridge::auction::RelativeVulnerability;
+    // The envelopes, not the whole `Inferences`: it also carries our own
+    // reading profile, whose `notrump_defense` differs by construction.
+    let read = |agreements: &Agreements, auction: &[Call]| {
+        let read = american(agreements)
+            .bind()
+            .infer(RelativeVulnerability::NONE, auction);
+        [
+            Relative::Me,
+            Relative::Lho,
+            Relative::Partner,
+            Relative::Rho,
+        ]
+        .map(|who| (*read.get(who), read.announced_union(who).clone()))
+    };
+    let mut ours = Agreements::default();
+    ours.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
+    let nt = call(1, Strain::Notrump);
+    for auction in [
+        &[nt, call(2, Strain::Diamonds)][..],
+        &[nt, call(2, Strain::Clubs)],
+        &[nt, Call::Double],
+        &[nt, call(2, Strain::Hearts)],
+    ] {
+        assert_eq!(
+            read(&ours, auction),
+            read(&Agreements::default(), auction),
+            "{auction:?}"
+        );
+    }
+}

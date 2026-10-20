@@ -1200,6 +1200,31 @@ pub struct ReadingProfile {
 }
 
 impl ReadingProfile {
+    /// This profile with our defensive systems reset to the house default
+    ///
+    /// Our 1NT defense ([`notrump_defense`][field@Self::notrump_defense]) and
+    /// its Woolsey/Landy payload, our natural defense's bands, and our `1NT`
+    /// overcall's advances describe what *we* play when they open.  A model
+    /// of the opponents must not inherit them, or our Woolsey reads their
+    /// `(2♦)` over our `1NT` as a Multi: disclosure goes both ways, and what
+    /// they play is declared on its own axis.  Used by the undeclared mirror
+    /// and the harnesses' declared opponents.
+    #[must_use]
+    pub fn with_house_defense(self) -> Self {
+        let house = Self::default();
+        Self {
+            notrump_defense: house.notrump_defense,
+            convention_points: house.convention_points,
+            woolsey_double_floor: house.woolsey_double_floor,
+            landy: house.landy,
+            natural_double_floor: house.natural_double_floor,
+            natural_overcall_points: house.natural_overcall_points,
+            nt_overcall_systems_on: house.nt_overcall_systems_on,
+            nt_overcall_gladiator: house.nt_overcall_gladiator,
+            ..self
+        }
+    }
+
     /// Whether the Woolsey defense is the active notrump defense.
     pub(crate) fn woolsey_enabled(self) -> bool {
         self.notrump_defense == crate::bidding::american::NotrumpDefense::Woolsey

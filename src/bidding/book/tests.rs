@@ -1058,10 +1058,16 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     );
 }
 
+/// `ReadingScope::All` reads a declared partnership's *unalerted* book calls:
+/// their Gladiator `1♠ (1NT) - (3♦)` is natural and unalerted, read as 5+♦
+/// and 10+ only off their declared book.  Undeclared, the mirror plays the
+/// house defense (`ReadingProfile::with_house_defense`: our own Gladiator
+/// never leaks into the opponents' model), where the same `3♦` is an alerted
+/// call showing both majors and reads as such.
 #[test]
 fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
     use crate::bidding::american::american_book;
-    use crate::bidding::inference::{Range, ReadingScope, Relative};
+    use crate::bidding::inference::{ReadingScope, Relative};
     use contract_bridge::auction::RelativeVulnerability;
 
     let auction = [
@@ -1087,8 +1093,17 @@ fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
             .with_opponents(&their_books),
     );
 
-    assert_eq!(undeclared.strength.points, Range::FULL_POINTS);
+    assert!(
+        undeclared.lengths[Suit::Hearts as usize].min >= 5,
+        "house: alerted"
+    );
+    assert!(undeclared.lengths[Suit::Spades as usize].min >= 5);
+    assert!(undeclared.lengths[Suit::Diamonds as usize].min < 5);
     assert!(declared.lengths[Suit::Diamonds as usize].min >= 5);
+    assert!(
+        declared.lengths[Suit::Hearts as usize].max <= 3,
+        "Gladiator: diamonds"
+    );
     assert!(declared.strength.points.min >= 10);
 }
 

@@ -255,5 +255,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // and redouble their `X`, their pass and `2♣` keep the floor's reading
     // (measured: the leak moved 27 of 199 divergent boards, all ours-opened).
     mirror.defense.xx_dont_runout = false;
+    // Likewise our defensive systems in the reading profile: when we play
+    // Woolsey (or Landy, or any non-house band), their calls over our `1NT`
+    // keep the house reading rather than decoding as our own defense.
+    mirror.decision.reading = mirror.decision.reading.with_house_defense();
     (mirror != *agreements).then_some(mirror)
 }

@@ -208,6 +208,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Our defensive systems are ours alone: neither the undeclared mirror nor
+  the harnesses' declared opponents inherit them (2026-10-20).**
+  `ReadingProfile::with_house_defense` resets `notrump_defense`, the
+  Woolsey/Landy payload (`convention_points`, `woolsey_double_floor`,
+  `landy`), the natural defense's bands (`natural_double_floor`,
+  `natural_overcall_points`) and our `1NT` overcall's advances
+  (`nt_overcall_systems_on`, `nt_overcall_gladiator`) to the house default.
+  `common::mirror_agreements` and `examples/common::european_minors_opponents`
+  both apply it. Before, playing Woolsey ourselves read *their* `(2♦)` over
+  *our* `1NT` as a Multi and their `(2♣)` as Landy, in the library's
+  undeclared path and in every `bba-gen`/`ben-gen`/`ab-dump-sd`
+  `--ns-notrump-defense woolsey` arm (jdh8: disclosure goes both ways). The
+  default system is byte-identical (every field is at its default there).
+  Step-2 Woolsey verdicts are untouched: both arms shared the leak and
+  `--isolate-defense` keeps only boards they open; the BEN Woolsey guard
+  (`scripts/ab-ben-woolsey-complete.sh`) runs with the fix.
+
 - **`bba-gen` reads EPBot's `1NT` minors as the European scheme it plays,
   by default (2026-10-20, jdh8: honest bridge).** Our side used to read
   EPBot as playing our own card (`Config::symmetric`), so their natural
