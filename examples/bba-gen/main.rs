@@ -652,20 +652,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_2nt_bid_veto: bool,
 
-    /// Turn ON the rail that vetoes our silent side's double once their `1NT`
+    /// Turn OFF the rail that vetoes our silent side's double once their `1NT`
     /// auction reaches an invitation — their last bid responder's `2NT` or
     /// three-level true major raise
-    /// (`InstinctProfile::their_nt_invite_double_veto`, crate default off).  The `dx` arm of `scripts/ab-nt-invite-rail.sh`.
+    /// (`InstinctProfile::their_nt_invite_double_veto`, crate default on,
+    /// shipped 2026-10-20).  With `--no-ns-nt-invite-bid-veto`, the `off` arm
+    /// of `scripts/ab-nt-invite-rail.sh`.
     #[arg(long, default_value_t = false)]
-    ns_nt_invite_double_veto: bool,
+    no_ns_nt_invite_double_veto: bool,
 
-    /// Turn ON the rail that vetoes our silent side's suit bids of five cards
+    /// Turn OFF the rail that vetoes our silent side's suit bids of five cards
     /// or fewer over the same invitation
-    /// (`InstinctProfile::their_nt_invite_bid_veto`, crate default off).  With
-    /// `--ns-nt-invite-double-veto`, the `dxb` arm of
-    /// `scripts/ab-nt-invite-rail.sh`.
+    /// (`InstinctProfile::their_nt_invite_bid_veto`, crate default on, shipped
+    /// 2026-10-20).  Alone, the `dx` arm of `scripts/ab-nt-invite-rail.sh`.
     #[arg(long, default_value_t = false)]
-    ns_nt_invite_bid_veto: bool,
+    no_ns_nt_invite_bid_veto: bool,
 
     /// Read the opponents' `1NT` minor-suit responses in the **European**
     /// scheme (`2♠` clubs transfer, `2NT` invitation, `3♣` diamonds transfer),
@@ -3081,8 +3082,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
-    agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
-    agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
+    agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
+    agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.competitive_pass_demotion = !args.no_ns_competitive_pass_demotion;
     agreements.decision.instinct.competitive_push_natural_only =

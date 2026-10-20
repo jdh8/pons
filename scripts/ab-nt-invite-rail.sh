@@ -122,18 +122,21 @@ SEED_BASE=$(seed_for nt-invite-rail)
 log "=== nt-invite-rail SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul vuls=$VULS"
 
 FILTER='--filter-1nt --wide-1nt'
-DX='--ns-nt-invite-double-veto'
-DXB='--ns-nt-invite-double-veto --ns-nt-invite-bid-veto'
+# Both rails shipped default-on 2026-10-20, so the arms now disarm them:
+# off disarms both, dx disarms the bid veto, dxb is the bare default.
+OFF='--no-ns-nt-invite-double-veto --no-ns-nt-invite-bid-veto'
+DX='--no-ns-nt-invite-bid-veto'
+DXB=''
 READ='--declare-their-european-minors'
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm off "$v" $FILTER
+    arm off "$v" $FILTER $OFF
     # shellcheck disable=SC2086
     arm dx "$v" $FILTER $DX
     # shellcheck disable=SC2086
     arm dxb "$v" $FILTER $DXB
     # shellcheck disable=SC2086
-    arm read "$v" $FILTER $READ
+    arm read "$v" $FILTER $READ $OFF
     # shellcheck disable=SC2086
     arm readdxb "$v" $FILTER $READ $DXB
     DENSITY=$(density_of "$R/off-$v")
@@ -162,7 +165,7 @@ done
 # Descriptive: the rail under our Woolsey defense, none only (isolated).
 WOOLSEY='--isolate-defense --ns-notrump-defense woolsey'
 # shellcheck disable=SC2086
-arm woff none $FILTER $WOOLSEY
+arm woff none $FILTER $WOOLSEY $OFF
 # shellcheck disable=SC2086
 arm wdxb none $FILTER $WOOLSEY $DXB
 DENSITY=$(density_of "$R/woff-none")

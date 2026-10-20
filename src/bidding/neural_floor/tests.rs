@@ -1022,7 +1022,7 @@ fn auction_of(text: &str) -> Vec<Call> {
 }
 
 /// The 1NT-invite rail masks our silent side's `X` over their invitation, and
-/// only with the knob on
+/// only with the knob on (default on since 2026-10-20)
 ///
 /// `(1NT) - (2NT) - -` to a 12-count the net may double on: knob-off `X` is
 /// live, knob-on it is masked while `Pass` and the bids survive.  Both shells
@@ -1033,9 +1033,12 @@ fn the_their_nt_invite_gate_masks_the_silent_double() {
     let hand = "KQ9.A874.QT2.J32";
     let mut agreements = Agreements::default();
     assert!(
-        !agreements.decision.instinct.their_nt_invite_double_veto,
-        "the rail ships default off"
+        agreements.decision.instinct.their_nt_invite_double_veto,
+        "the rail ships default on"
     );
+    // Each half alone: the bid veto (also default on) stays off throughout.
+    agreements.decision.instinct.their_nt_invite_double_veto = false;
+    agreements.decision.instinct.their_nt_invite_bid_veto = false;
     let off = shelled_v6_with(&agreements, &balancing, hand);
     assert!(
         off.0[Call::Double].is_finite(),
@@ -1073,9 +1076,12 @@ fn the_their_nt_invite_gate_masks_the_short_suit_bid() {
     let hand = "5.AJ874.KQT983.2";
     let mut agreements = Agreements::default();
     assert!(
-        !agreements.decision.instinct.their_nt_invite_bid_veto,
-        "the rail ships default off"
+        agreements.decision.instinct.their_nt_invite_bid_veto,
+        "the rail ships default on"
     );
+    // Each half alone: the double veto (also default on) stays off throughout.
+    agreements.decision.instinct.their_nt_invite_double_veto = false;
+    agreements.decision.instinct.their_nt_invite_bid_veto = false;
     let off = shelled_v6_with(&agreements, &invite, hand);
     assert!(
         off.0[call(3, Strain::Hearts)].is_finite(),

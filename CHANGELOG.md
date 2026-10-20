@@ -170,6 +170,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The 1NT-invite rail ships default-on, both halves
+  (`InstinctProfile::their_nt_invite_double_veto` and
+  `their_nt_invite_bid_veto`, 2026-10-20).** `scripts/ab-nt-invite-rail.sh`
+  vs BBA, 196,608 accepted `--filter-1nt --wide-1nt` boards per arm per
+  cell (density 0.2526, δ ≈ 0.008 per accepted board), every gate 0
+  foreign, the stop rule never hit. Both rails against neither: plain
+  **+0.0151 / +0.0151 / +0.0181 / +0.0182** IMPs per accepted board (none /
+  ns / ew / both, CI ±0.0020–0.0023), PD +0.0143 / +0.0138 / +0.0164 /
+  +0.0166, SD-PD +0.0120 to +0.0147 — `win | win` in every cell, about
+  **+0.004 IMPs per random deal**. The double veto alone wins too (plain
+  +0.0055 to +0.0070, PD +0.0013 to +0.0043); the bid veto on top of it,
+  paired `dxb − dx` on the same deals, wins in every cell on all three
+  scorers (plain +0.0081 to +0.0126, PD +0.0095 to +0.0151), so both ship
+  (jdh8, over the pre-registered narrower-mask preference). **Caveat**:
+  under `--declare-their-european-minors` the rail fires on only 1–17
+  boards per cell against 366–513 bare, so most of its gain is
+  compensating our misreading of BBA's natural `(1NT) - (2NT)` as our
+  Puppet diamond transfer; the rail stays correct either way (it still
+  wins, slightly, under the honest reading). The read arm itself is a
+  plain `win` in three cells and `non-inferior` at ns (+0.0022 ±0.0052),
+  PD `win` everywhere; making it the harness default is open (it moves the
+  anchor series). Descriptive, under our Woolsey defense (`none`,
+  isolated): +0.077 ±0.004 per kept board. `bba-gen` / `ben-gen` flags
+  become the disarming `--no-ns-nt-invite-double-veto` /
+  `--no-ns-nt-invite-bid-veto`, and the runner's arms disarm accordingly.
+  Default system **moves** (this A/B is its KR1 proof).
+
 - **The Landy `2♦` "pick a major" relay is alerted (`landy:2d-relay`,
   2026-10-19).** The advancer's undoubled `2♦` over a both-majors `2♣`
   (the Landy overlay, Woolsey's `2♣`) or direct Landy's `X` names no

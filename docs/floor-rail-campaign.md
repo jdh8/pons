@@ -85,7 +85,7 @@ Priced at `c3bb94a7`, in order:
 | R5 | junk `2♠` cue over `1♠ - 2♦` | 446 | −0.4k | −0.7k | **loss 2026-09-26** — generalised to `silent_cue_veto`, stays off; ledger below |
 | R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **done 2026-09-26** at `7e0bc648` — see below |
 | R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | **shipped 2026-09-26** — `their_2nt_bid_veto`; ledger below |
-| R8 | our silent side **doubles or bids** once their `1NT` auction reaches an invitation (responder's `2NT`, or responder's three-level true major raise) | 366¹ | −0.75k¹ (`none` only) | −0.61k¹ (`none` only) | **reopened 2026-10-19 (jdh8) for this one family** — built default off: `their_nt_invite_double_veto` + `their_nt_invite_bid_veto`; A/B owed, `scripts/ab-nt-invite-rail.sh` |
+| R8 | our silent side **doubles or bids** once their `1NT` auction reaches an invitation (responder's `2NT`, or responder's three-level true major raise) | 366¹ | −0.75k¹ (`none` only) | −0.61k¹ (`none` only) | **shipped 2026-10-20, both halves** (reopened 2026-10-19, jdh8, for this one family): `scripts/ab-nt-invite-rail.sh`, 196,608 accepted boards per cell, both rails vs neither plain +0.0151 to +0.0182, PD +0.0138 to +0.0166 per accepted board (`win \| win` every cell, ≈ +0.004 per random deal); the bid veto wins on top of the double veto (paired `dxb − dx`). Under the honest reading (`--declare-their-european-minors`) it fires on only 1–17 boards per cell: mostly a misread compensator. CHANGELOG 2026-10-20 |
 
 ¹ Not from the anchor census: the clean `--isolate-defense natural` forensic
 at `f8286a5a` (`none`, `--filter-1nt --wide-1nt`, step 2 of the 1NT-defense

@@ -743,7 +743,12 @@ pub struct InstinctProfile {
     /// Mask our silent side's **double** once their `1NT` auction reaches an
     /// invitation — the `X` half of the 1NT-invite rail
     ///
-    /// **Default off**, A/B owed: `scripts/ab-nt-invite-rail.sh`.  This
+    /// **Default on** (shipped 2026-10-20 with
+    /// [`their_nt_invite_bid_veto`][Self::their_nt_invite_bid_veto]).
+    /// `scripts/ab-nt-invite-rail.sh` vs BBA, 196,608 accepted
+    /// `--filter-1nt --wide-1nt` boards per cell, this rail alone: plain
+    /// +0.0055 to +0.0070, PD +0.0013 to +0.0043 IMPs per accepted board, a
+    /// `win | win` in every cell.  This
     /// reopens the floor-rail series (closed 2026-09-26) for this one family
     /// (jdh8 approved building it, 2026-10-19; `docs/floor-rail-campaign.md`).
     /// `their_nt_invite_gate` fires when the first bid of the auction is their
@@ -779,7 +784,11 @@ pub struct InstinctProfile {
     /// `1NT` auction reaches an invitation — the bidding half of the
     /// 1NT-invite rail
     ///
-    /// **Default off**, A/B owed: `scripts/ab-nt-invite-rail.sh`.  Same
+    /// **Default on** (shipped 2026-10-20).  `scripts/ab-nt-invite-rail.sh`,
+    /// on top of the double veto (`dxb − dx`, paired, every cell `win` on
+    /// plain, PD and SD-PD): plain +0.0081 to +0.0126, PD +0.0095 to +0.0151
+    /// IMPs per accepted board; both rails against neither, plain +0.0151 to
+    /// +0.0182 (≈ +0.004 per random deal).  Same
     /// trigger as
     /// [`their_nt_invite_double_veto`][Self::their_nt_invite_double_veto]
     /// (their `1NT` first, our side only passed, their last bid responder's
@@ -844,8 +853,8 @@ impl Default for InstinctProfile {
             their_2nt_unusual_veto: false,
             silent_cue_veto: false,
             their_2nt_bid_veto: true,
-            their_nt_invite_double_veto: false,
-            their_nt_invite_bid_veto: false,
+            their_nt_invite_double_veto: true,
+            their_nt_invite_bid_veto: true,
         }
     }
 }
@@ -899,8 +908,8 @@ impl InstinctProfile {
             their_2nt_unusual_veto: true,
             silent_cue_veto: true,
             their_2nt_bid_veto: false,
-            their_nt_invite_double_veto: true,
-            their_nt_invite_bid_veto: true,
+            their_nt_invite_double_veto: false,
+            their_nt_invite_bid_veto: false,
         }
     }
 }

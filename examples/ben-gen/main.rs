@@ -202,15 +202,17 @@ struct Args {
     #[arg(long)]
     ns_nt_overcall_hcp_floor: Option<u8>,
 
-    /// Veto our silent side's double once their `1NT` auction reaches an
-    /// invitation (opt-in; see `InstinctProfile::their_nt_invite_double_veto`).
+    /// Turn OFF the veto of our silent side's double once their `1NT` auction
+    /// reaches an invitation (default on; see
+    /// `InstinctProfile::their_nt_invite_double_veto`).
     #[arg(long, default_value_t = false)]
-    ns_nt_invite_double_veto: bool,
+    no_ns_nt_invite_double_veto: bool,
 
-    /// Veto our silent side's suit bids of five cards or fewer over the same
-    /// invitation (opt-in; see `InstinctProfile::their_nt_invite_bid_veto`).
+    /// Turn OFF the veto of our silent side's suit bids of five cards or fewer
+    /// over the same invitation (default on; see
+    /// `InstinctProfile::their_nt_invite_bid_veto`).
     #[arg(long, default_value_t = false)]
-    ns_nt_invite_bid_veto: bool,
+    no_ns_nt_invite_bid_veto: bool,
 
     /// Hand `(1NT) X (XX)` and `(1NT) X (XX) - -` to the ladder's runouts
     /// instead of the net (opt-in; see `InstinctProfile::xx_runout_rails`).
@@ -595,8 +597,8 @@ fn main() -> anyhow::Result<()> {
     if let Some(floor) = args.ns_nt_overcall_hcp_floor {
         agreements.defense.natural_overcall_hcp_floor = floor;
     }
-    agreements.decision.instinct.their_nt_invite_double_veto = args.ns_nt_invite_double_veto;
-    agreements.decision.instinct.their_nt_invite_bid_veto = args.ns_nt_invite_bid_veto;
+    agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
+    agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
 
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
