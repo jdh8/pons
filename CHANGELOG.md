@@ -294,7 +294,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outside `NotrumpDefense::Woolsey`, itself opt-in, so the default system
   is unchanged by this entry. Harness flags become `bba-gen
   --no-ns-woolsey-muiderberg-sit` / `--no-ns-woolsey-tails` and `ab-dump-sd
-  --{on,off}-no-ns-woolsey-*`.
+  --{on,off}-no-ns-woolsey-*`. BEN guard confirmed
+  (`scripts/ab-ben-woolsey-complete.sh`, Tier F, 8,256 kept boards per arm
+  per cell, both knobs together): plain +0.0057 / +0.0164 / +0.0144 /
+  +0.0248 ±0.014–0.017 per kept board (none / ns / ew / both;
+  non-inferior or win in every cell), PD +0.0394 to +0.0585 (win).
 
 - **XX runouts measured: `InstinctProfile::xx_runout_rails` and
   `defense.xx_dont_runout` both stay off (2026-10-20).**

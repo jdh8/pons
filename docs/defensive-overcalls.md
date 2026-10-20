@@ -1071,6 +1071,20 @@ cells in CHANGELOG):
   plain +0.0355 to +0.0557, PD +0.0589 to +0.0796 per kept board; tails
   plain +0.0054 to +0.0069, PD +0.0063 to +0.0083; additive. ≈ +2 to +3
   per 1,000 random deals, 3× the clean estimate.
+  BEN guard **confirmed** 2026-10-20 (`scripts/ab-ben-woolsey-complete.sh`,
+  `ab-results/ben-woolsey-complete`, SEED_BASE 1792493644940166504, Tier F
+  on 48 servers, 8,256 kept boards per arm per cell, density 0.062–0.063,
+  every gate 0 foreign, 104–108 contract-divergent boards per cell): sit and
+  tails together, shipped − base per kept board, none / ns / ew / both,
+  plain +0.0057 ±0.0140 / **+0.0164 ±0.0160** / +0.0144 ±0.0162 /
+  **+0.0248 ±0.0172** (lowest lower bound −0.0083 against −δ ≈ −0.032), PD
+  +0.0394 / +0.0489 / +0.0522 / +0.0585 (win), SD plain +0.0004 to +0.0200,
+  SD-PD +0.0305 to +0.0518 (win). Rule 1: the knobs stay as shipped. The
+  gain is smaller than against BBA (plain about a seventh to two-fifths of
+  sit + tails, PD about two-thirds). Worst boards, none a loss to trace: the
+  tails' six-card `2♠` advance (`- (1NT) 2♦ (2♥) 2♠ … (4♥)`, −14 to −16)
+  and the sit passing `(1NT) 2♠ (X)` where base escapes to `2NT` (−12 to
+  −14).
 - **XX runouts — neither ships; both knobs stay off.** The first run
   stopped at the `dont` arm's isolation gate (the undeclared mirror read
   their runouts after our own `1NT (X) XX` as DONT; fixed in
