@@ -1140,11 +1140,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.response.drury = true;
         profiles.push(("drury", a));
     }
-    // The DONT-style runout after `(1NT) X (XX)` (default off).
+    // The DONT-style runout after `(1NT) X (XX)` ships on with `Longer`; the
+    // package as first built (`Off`) is the mode left to cover.
     {
         let mut a = base;
-        a.defense.xx_dont_runout = true;
-        profiles.push(("xx-dont-runout", a));
+        a.defense.xx_dont_major_first = crate::bidding::american::XxMajorFirst::Off;
+        profiles.push(("xx-dont-runout-minor-first", a));
     }
 
     let mut worklist = Vec::new();
@@ -1869,7 +1870,12 @@ fn authored_calls_read_what_they_gate() {
         // opener's `4♥` over `1♥ - 1♠ - 2♥ - 3♥` is `13+ points | (7+ ♥ & 12+
         // points)`, whose seven-heart arm the legacy hull cannot keep (opener
         // has shown six already), in the same two tries.  Knob-on stays 0.
-        ("length", 92, 0),
+        // 92 → 96 when `defense.xx_dont_runout` shipped with `Longer`
+        // (2026-10-21): the forcing pass, `2♠` and the `2♣`/`2♦` two-suiters
+        // at `(1NT) X (XX)` exclude the major-first hands, a negated
+        // disjunction past the legacy hull, in the american defensive try.
+        // Knob-on stays 0.
+        ("length", 96, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

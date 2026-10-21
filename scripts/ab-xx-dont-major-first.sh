@@ -130,30 +130,32 @@ precount() {
     log "pre-count $1 vs $2 $3: $fired contract-divergent boards"
 }
 
+# The package shipped on with `longer` (2026-10-21), so the off and doubler
+# arms now pass `--no-ns-xx-dont-runout` and the dont arm `off` explicitly.
 FILTER='--filter-1nt --wide-1nt'
-DONT='--ns-xx-dont-runout'
-DONT_SD='--on-ns-xx-dont-runout'
+OFF='--no-ns-xx-dont-runout'
+OFF_SD='--off-no-ns-xx-dont-runout'
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm off "$v" $FILTER
+    arm off "$v" $FILTER $OFF
     # shellcheck disable=SC2086
-    arm dont "$v" $FILTER $DONT
+    arm dont "$v" $FILTER --ns-xx-dont-major-first off
     # shellcheck disable=SC2086
-    arm longer "$v" $FILTER $DONT --ns-xx-dont-major-first longer
+    arm longer "$v" $FILTER --ns-xx-dont-major-first longer
     # shellcheck disable=SC2086
-    arm tied "$v" $FILTER $DONT --ns-xx-dont-major-first at-least-as-long
+    arm tied "$v" $FILTER --ns-xx-dont-major-first at-least-as-long
     # shellcheck disable=SC2086
-    arm doubler "$v" $FILTER --ns-xx-runout-rails --no-ns-xx-runout
+    arm doubler "$v" $FILTER $OFF --ns-xx-runout-rails --no-ns-xx-runout
     DENSITY=$(density_of "$R/off-$v")
     log "density $v: $DENSITY"
 
     # Candidates − off (the verdicts).
     for c in longer tied doubler dont; do
         case $c in
-            longer) sd="$DONT_SD --on-ns-xx-dont-major-first longer" ;;
-            tied) sd="$DONT_SD --on-ns-xx-dont-major-first at-least-as-long" ;;
-            dont) sd=$DONT_SD ;;
-            *) sd= ;;
+            longer) sd="$OFF_SD --on-ns-xx-dont-major-first longer" ;;
+            tied) sd="$OFF_SD --on-ns-xx-dont-major-first at-least-as-long" ;;
+            dont) sd="$OFF_SD --on-ns-xx-dont-major-first off" ;;
+            *) sd="$OFF_SD --on-no-ns-xx-dont-runout" ;;
         esac
         gatepair "$c" off "$v" theirs
         diffpair "$c" off "$v"

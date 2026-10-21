@@ -1,4 +1,9 @@
+1ntd:dont-2d 3
+1ntd:dont-2h 3
+1ntd:dont-pc 15
 1ntd:unusual-2nt 4
+1ntd:xx-runout-2c 3
+1ntd:xx-runout-sos 6
 1ntx:gambling-3nt 2
 advance-cue 56
 both-majors 120

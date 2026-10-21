@@ -178,18 +178,24 @@ precount() {
     log "pre-count $1 vs $2 $3: $fired contract-divergent boards"
 }
 
+# The package shipped on with `longer` (2026-10-21); this runner's arms are
+# the package as first built, so off and rails pass `--no-ns-xx-dont-runout`
+# and dont pins `--ns-xx-dont-major-first off`.
 FILTER='--filter-1nt --wide-1nt'
-DONT_SD='--on-ns-xx-dont-runout'
+OFF='--no-ns-xx-dont-runout'
+DONT='--ns-xx-dont-major-first off'
+DONT_SD='--on-ns-xx-dont-major-first off --off-no-ns-xx-dont-runout'
+NONE_SD='--on-no-ns-xx-dont-runout --off-no-ns-xx-dont-runout'
 cells=0
 under_rails=0
 under_dont=0
 for v in $VULS; do
     # shellcheck disable=SC2086
-    arm off "$v" $FILTER
+    arm off "$v" $FILTER $OFF
     # shellcheck disable=SC2086
-    arm rails "$v" $FILTER --ns-xx-runout-rails
+    arm rails "$v" $FILTER $OFF --ns-xx-runout-rails
     # shellcheck disable=SC2086
-    arm dont "$v" $FILTER --ns-xx-dont-runout
+    arm dont "$v" $FILTER $DONT
     DENSITY=$(density_of "$R/off-$v")
     log "density $v: $DENSITY"
     cells=$((cells + 1))
@@ -199,7 +205,8 @@ for v in $VULS; do
     diffpair rails off "$v"
     precount rails off "$v" || under_rails=$((under_rails + 1))
     node_split rails off "$v"
-    sddiff rails off "$v"
+    # shellcheck disable=SC2086
+    sddiff rails off "$v" $NONE_SD
 
     # Candidate 2: dont − off (the dont arm's reading differs).
     gatepair dont off "$v" theirs

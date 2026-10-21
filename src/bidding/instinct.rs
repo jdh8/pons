@@ -277,7 +277,8 @@ pub struct InstinctProfile {
     /// bust sits here), so it is not this build's expected gain.  The
     /// four-card piece is the book alternative
     /// [`DefenseKnobs::xx_dont_runout`][super::agreements::DefenseKnobs::xx_dont_runout]
-    /// (owner decision 2026-10-20, default off).  **With both on, the book
+    /// (owner decision 2026-10-20; default on since 2026-10-21, so this rail is
+    /// inert at those nodes in the default system).  **With both on, the book
     /// wins:** its nodes at `(1NT) X (XX)` and `(1NT) X (XX) - -` have finite
     /// mass and shadow the floor, so this rail never fires there.
     ///

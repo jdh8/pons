@@ -24,9 +24,19 @@ const RUNOUT: [Call; 3] = [NT, X, XX];
 /// `(1NT) X (XX) - -` — the doubler to act over the forcing pass
 const RELAY: [Call; 5] = [NT, X, XX, P, P];
 
+/// The knob on with the package as first built ([`XxMajorFirst::Off`]); the
+/// shipped `Longer` is [`major_first`]`(Longer)`
 fn on() -> Agreements {
     let mut agreements = Agreements::default();
     agreements.defense.xx_dont_runout = true;
+    agreements.defense.xx_dont_major_first = XxMajorFirst::Off;
+    agreements
+}
+
+/// The knob off: both nodes belong to the floor
+fn off() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.defense.xx_dont_runout = false;
     agreements
 }
 
@@ -77,17 +87,17 @@ fn row_invariants_hold_with_the_knob_on() {
 }
 
 #[test]
-fn knob_defaults_off_and_the_nodes_floor() {
-    assert!(!Agreements::default().defense.xx_dont_runout);
+fn knob_defaults_on_with_longer_and_off_the_nodes_floor() {
+    assert!(Agreements::default().defense.xx_dont_runout);
     assert_eq!(
         Agreements::default().defense.xx_dont_major_first,
-        XxMajorFirst::Off
+        XxMajorFirst::Longer
     );
     for (auction, hand) in [
         (&RUNOUT[..], "J432.432.432.432"),
         (&RELAY[..], "AKQ2.KQ5.AJ4.932"),
     ] {
-        let (_, floored) = best_call_with(&Agreements::default(), auction, hand);
+        let (_, floored) = best_call_with(&off(), auction, hand);
         assert!(floored, "knob off: {auction:?} belongs to the floor");
         let (_, floored) = best_call_with(&on(), auction, hand);
         assert!(!floored, "knob on: {auction:?} is a book node");
@@ -107,7 +117,7 @@ fn only_the_natural_direct_seat_is_keyed() {
     for system in [NotrumpDefense::DirectDont, NotrumpDefense::Meckwell] {
         let mut armed = on();
         armed.decision.reading.notrump_defense = system;
-        let mut bare = Agreements::default();
+        let mut bare = off();
         bare.decision.reading.notrump_defense = system;
         for hand in [hand, "Q432.J432.432.32", "432.J5432.43.432"] {
             assert_eq!(
@@ -304,7 +314,7 @@ fn forcing_pass_reads_one_suiter_or_flat_and_weak() {
     );
 
     // Knob off, the same pass is the floor's and reads nothing of the kind.
-    let off = american(&Agreements::default())
+    let off = american(&off())
         .bind()
         .infer(RelativeVulnerability::NONE, &RELAY);
     assert!(off.admits(Relative::Partner, parse("Q432.J432.432.32")));
@@ -428,10 +438,6 @@ fn their_runouts_over_our_redouble_keep_the_house_reading() {
         &[NT, X, XX, H2],
         &[NT, X, XX, P, P, C2],
     ] {
-        assert_eq!(
-            read(&on(), auction),
-            read(&Agreements::default(), auction),
-            "{auction:?}"
-        );
+        assert_eq!(read(&on(), auction), read(&off(), auction), "{auction:?}");
     }
 }

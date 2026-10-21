@@ -2703,8 +2703,11 @@ pub struct DefenseKnobs {
     // --- defense/nt_xx_runout.rs
     /// Author a DONT-style runout after their redouble of our penalty `X` of their `1NT`
     ///
-    /// `(1NT) X (XX)`, direct seat, natural defense only.  **Off by default**
-    /// (opt-in, A/B owed: `scripts/ab-xx-runout-rails.sh`, the `dont` arm).
+    /// `(1NT) X (XX)`, direct seat, natural defense only.  **On by default**
+    /// with [`xx_dont_major_first`][Self::xx_dont_major_first] =
+    /// [`XxMajorFirst::Longer`], shipped 2026-10-21 on a win in every cell on
+    /// [plain DD, PD-P] (`scripts/ab-xx-dont-major-first.sh` at 2×,
+    /// `scripts/ab-xx-dont-pdp.sh`).
     /// Their `1NT` and our `X` are both 15+, so the advancer is broke and a
     /// values pass has no hands: the advancer's pass is **forcing** and DONT's
     /// escapes apply — `2♣` = ♣ + a higher suit, `2♦` = ♦ + a major, `2♥` =
@@ -2713,7 +2716,7 @@ pub struct DefenseKnobs {
     /// relays `2♣` (never passes) and the advancer names the suit.  The
     /// doubler answers the two-suiters pass-or-correct, an SOS redouble
     /// rescues a doubled two-suiter, and every later double of theirs is sat.
-    /// Off, both nodes belong to the floor (the v6 net).  Scheme, sources and
+    /// Off, both nodes belong to the floor (the net).  Scheme, sources and
     /// tables: `docs/defensive-overcalls.md` § "The DONT-style runout after
     /// `(1NT) X (XX)`"; code in `american/defense/nt_xx_runout.rs`.
     ///
@@ -2723,13 +2726,15 @@ pub struct DefenseKnobs {
     /// with both on this package answers at every node it keys — `(1NT) X
     /// (XX)` and `(1NT) X (XX) - -` among them — and the rails never fire there.
     /// Reading-active: its alerted calls and forcing pass publish their shapes.
-    /// An A/B knob (`bba-gen`/`ben-gen --ns-xx-dont-runout`, `ab-dump-sd
-    /// --on-ns-xx-dont-runout`/`--off-ns-xx-dont-runout`).
+    /// An A/B knob (`bba-gen`/`ben-gen --no-ns-xx-dont-runout`, `ab-dump-sd
+    /// --on-no-ns-xx-dont-runout`/`--off-no-ns-xx-dont-runout`).
     pub xx_dont_runout: bool,
     /// Which weak two-suiters at `(1NT) X (XX)` run to a five-card major first
     ///
-    /// Default [`XxMajorFirst::Off`] (the package as built).  The two other
-    /// modes send a five-plus major with a shorter four-plus minor (or, under
+    /// Default [`XxMajorFirst::Longer`] (shipped 2026-10-21 with
+    /// [`xx_dont_runout`][Self::xx_dont_runout]; `AtLeastAsLong` measured the
+    /// same to 10⁻⁴ and moves more hands).  [`XxMajorFirst::Off`] is the
+    /// package as first built.  The two other modes send a five-plus major with a shorter four-plus minor (or, under
     /// [`XxMajorFirst::AtLeastAsLong`], an equal one) to `2♠` or the forcing
     /// pass instead of the `2♣`/`2♦` two-suiter.  Inert unless
     /// [`xx_dont_runout`][Self::xx_dont_runout] is on, so the undeclared mirror
@@ -3405,8 +3410,8 @@ impl Default for DefenseKnobs {
             notrump_balancing_enabled: false,
             natural_overcall_hcp_floor: 0,
             natural_overcall_advance_enabled: true,
-            xx_dont_runout: false,
-            xx_dont_major_first: XxMajorFirst::Off,
+            xx_dont_runout: true,
+            xx_dont_major_first: XxMajorFirst::Longer,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,
@@ -5430,6 +5435,9 @@ impl Agreements {
         a.defense.longest_first_advance_enabled = false;
         a.defense.advance_minor_jump_enabled = false;
         a.defense.advance_2nt_continuation_enabled = false;
+        // The DONT-style rescue after `(1NT) X (XX)` (shipped 2026-10-21):
+        // a gadget, so basic keeps the floor's runouts there, as before.
+        a.defense.xx_dont_runout = false;
         // Passed-hand gadgets.  Opener's jump shift over the forcing 1NT
         // stays natural and strong (`forcing_nt_jump_shifts` on, Meckstroth
         // off is already the default).

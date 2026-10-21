@@ -1179,7 +1179,8 @@ cells in CHANGELOG):
       jdh8: whether to ship `defense.xx_dont_runout` on with
       `defense.xx_dont_major_first = Longer`, which would be a
       decision-table ship on [plain, PD-P] and needs `cards/*.bbsa`
-      re-blessed. No BEN guard is feasible (item 8).
+      re-blessed. No BEN guard is feasible (item 8). **jdh8, 2026-10-21:
+      ship it — on with `Longer`.**
 
 Dropped: the M2 escape (item 3); the their-4NT pull veto (≈ 8 boards on
 v6, below the rail series' bar); the `(1NT) - (2♠) - (3♣)` 3♠ lane (inside
@@ -1206,7 +1207,7 @@ straddles 0). PD's worst boards are the strong hand's `2NT` stopping in a
 failing `3♣`/`3♦` where the base arm passed `1NT` out or defended their
 `2♠`. PD scores the failing partscore doubled, which is the doubling
 artifact that rule 2 names. The PD loss sits where they are vulnerable.
-Re-measure single-dummy if wanted; the default is jdh8's call.
+Re-measure single-dummy if wanted. **jdh8, 2026-10-21: stays opt-in.**
 
 ## Out of scope (decided, not deferred by neglect)
 
@@ -1219,11 +1220,13 @@ Re-measure single-dummy if wanted; the default is jdh8's call.
   balancing seat — dead until balancing is book work, which it is not.
 - **`P → X` volume** — see [takeout-double-layers.md](takeout-double-layers.md).
 
-## The DONT-style runout after `(1NT) X (XX)` (built and measured 2026-10-20, default off)
+## The DONT-style runout after `(1NT) X (XX)` (built 2026-10-20, shipped 2026-10-21)
 
 Step 2 of the 1NT-defense plan, package B, book alternative to the ladder
 rails (`InstinctProfile::xx_runout_rails`). Knob `defense.xx_dont_runout`,
-**default off**, ours alone (the undeclared mirror pins it off, so their
+**default on since 2026-10-21 with `xx_dont_major_first = Longer`** (jdh8's
+call on the 2× verdict below: a win on [plain DD, PD-P] in every cell; no BEN
+guard is feasible, item 8), ours alone (the undeclared mirror pins it off, so their
 runouts after our `1NT (X) XX` keep the house reading — the first A/B's
 isolation gate caught that leak, 2026-10-20); code
 `src/bidding/american/defense/nt_xx_runout.rs`; arms
@@ -1314,7 +1317,8 @@ over the relay (hearts). `AtLeastAsLong` adds the 5-5s. Both majors still bid
 
 ### Loose ends (2026-10-20)
 
-Nothing here blocks the knob staying off; each item names what would close it.
+Written while the knob was off; it shipped 2026-10-21 (item 1). Each item
+names what would close it.
 
 1. **The ship decision (jdh8).** Every DONT arm is a plain win in every cell
    (+0.0011 to +0.0018 per accepted board) and a PD loss in ns and both. The
@@ -1323,7 +1327,7 @@ Nothing here blocks the knob staying off; each item names what would close it.
    decision-table ship. The candidate shape is `tied` or `longer`, not `Off`.
    **2026-10-21:** on [plain DD, PD-P] (item 2) the 2× run is a win in every
    cell for both, and rule 6 picks `longer` (§ step-2 verdicts). It is now a
-   decision-table ship, and the default is jdh8's call.
+   decision-table ship. **Shipped 2026-10-21 (jdh8): on, with `Longer`.**
 2. **PD cannot price this lane.** `ns_score_bid` scores a making contract
    undoubled and a failing one doubled, whatever the table bid
    (`src/scoring.rs` module doc). So the off arm's sit in a making `1NTxx` is

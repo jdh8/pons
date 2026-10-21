@@ -221,16 +221,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_xx_runout_rails: bool,
 
-    /// The DONT-style runout after their redouble of our penalty `X` of their
-    /// 1NT (opt-in book package; see `DefenseKnobs::xx_dont_runout`).  Shadows
+    /// Turn OFF the DONT-style runout after their redouble of our penalty `X`
+    /// of their 1NT (shipped-on book package; see
+    /// `DefenseKnobs::xx_dont_runout`).  While on it shadows
     /// `--ns-xx-runout-rails` at every node it keys.
     #[arg(long, default_value_t = false)]
-    ns_xx_dont_runout: bool,
+    no_ns_xx_dont_runout: bool,
 
-    /// Which weak two-suiters run to a five-card major first under
-    /// `--ns-xx-dont-runout` (`defense.xx_dont_major_first`, crate default
-    /// `off`; see `bba-gen --ns-xx-dont-major-first`).
-    #[arg(long, value_enum, default_value = "off")]
+    /// Which weak two-suiters run to a five-card major first in the
+    /// `(1NT) X (XX)` runout (`defense.xx_dont_major_first`, crate default
+    /// `longer`; see `bba-gen --ns-xx-dont-major-first`).
+    #[arg(long, value_enum, default_value = "longer")]
     ns_xx_dont_major_first: XxMajorFirstArg,
 
     /// Which mutually-exclusive defense our side plays over BEN's 1NT (default
@@ -629,7 +630,7 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
     agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
 
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
-    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
+    agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
     agreements.decision.reading.notrump_defense =
         pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);

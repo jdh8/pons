@@ -4,7 +4,7 @@
 //! `(1NT) X (XX)`, our natural defense only
 //! ([`NotrumpDefense::Natural`][crate::bidding::american::NotrumpDefense::Natural]),
 //! **direct seat only**, behind `agreements.defense.xx_dont_runout` (default
-//! off).  The design and its sources are in
+//! on since 2026-10-21).  The design and its sources are in
 //! `docs/defensive-overcalls.md` § "The DONT-style runout after `(1NT) X (XX)`".
 //!
 //! The one fact the scheme rests on: their `1NT` is 15+, our `X` is 15+, so
@@ -25,7 +25,7 @@
 //! is its exact shape.
 //!
 //! **Major first** (`agreements.defense.xx_dont_major_first`, default
-//! [`XxMajorFirst::Off`] = the table above).  Under `Longer` a five-plus major
+//! [`XxMajorFirst::Longer`]; [`XxMajorFirst::Off`] is the table above).  Under `Longer` a five-plus major
 //! strictly longer than its four-plus minor, with at most three of the other
 //! major, leaves the minor two-suiter: spades bid `2♠`, hearts make the
 //! forcing pass and name hearts over the relay.  `AtLeastAsLong` adds the
@@ -101,7 +101,7 @@ pub enum XxMajorFirst {
     /// Every 4-4+ two-suiter with a minor bids the minor (the built package).
     Off,
     /// Only a major strictly longer than each four-plus minor (5-4, 6-4, 6-5);
-    /// a 5-5 still bids the minor two-suiter.
+    /// a 5-5 still bids the minor two-suiter.  The default.
     Longer,
     /// Any five-plus major at least as long as each minor, 5-5 included.
     AtLeastAsLong,

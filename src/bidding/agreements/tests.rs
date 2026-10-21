@@ -150,6 +150,7 @@ fn basic_differs_from_default_only_on_the_listed_fields() {
             "Agreements.defense.longest_first_advance_enabled",
             "Agreements.defense.responsive_takeout_enabled",
             "Agreements.defense.rich_advance_double_enabled",
+            "Agreements.defense.xx_dont_runout",
             "Agreements.notrump.diamond_splinter",
             "Agreements.notrump.invitational_5card_majors",
             "Agreements.notrump.minor_transfer_slam_try",

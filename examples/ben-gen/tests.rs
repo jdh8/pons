@@ -177,10 +177,10 @@ fn the_xx_major_first_flag_moves_its_knob() {
         .defense
         .xx_dont_major_first
     };
-    assert_eq!(parsed(&[]), XxMajorFirst::Off);
+    assert_eq!(parsed(&[]), XxMajorFirst::Longer);
     assert_eq!(
-        parsed(&["--ns-xx-dont-major-first", "longer"]),
-        XxMajorFirst::Longer
+        parsed(&["--ns-xx-dont-major-first", "off"]),
+        XxMajorFirst::Off
     );
     assert_eq!(
         parsed(&["--ns-xx-dont-major-first", "at-least-as-long"]),

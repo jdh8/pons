@@ -421,8 +421,16 @@ fn system_call(agreements: &Agreements, auction: &[Call], hand: &str) -> (Call, 
     )
 }
 
-fn xx_rails() -> Agreements {
+/// The shipped system without the DONT runout, whose book nodes at `(1NT) X
+/// (XX)` and `(1NT) X (XX) - -` would shadow the floor these tests pin
+fn no_dont() -> Agreements {
     let mut agreements = Agreements::default();
+    agreements.defense.xx_dont_runout = false;
+    agreements
+}
+
+fn xx_rails() -> Agreements {
+    let mut agreements = no_dont();
     agreements.decision.instinct.xx_runout_rails = true;
     agreements
 }
@@ -439,8 +447,8 @@ fn xx_runout_rails_are_auction_determined_and_follow_their_runouts() {
     let (advancer, doubler) = (xx_advancer_auction(), xx_doubler_auction());
 
     // Default off: neither node is a rail, the net owns both.
-    assert!(!forced_under(&Agreements::default(), &advancer));
-    assert!(!forced_under(&Agreements::default(), &doubler));
+    assert!(!forced_under(&no_dont(), &advancer));
+    assert!(!forced_under(&no_dont(), &doubler));
 
     // On: both nodes go to the ladder; the next seats do not.
     let on = xx_rails();
@@ -471,7 +479,7 @@ fn xx_runout_rails_are_auction_determined_and_follow_their_runouts() {
 #[test]
 fn xx_runout_rails_hand_the_whole_node_to_the_ladder() {
     let on = xx_rails();
-    let off = Agreements::default();
+    let off = no_dont();
 
     // The advancer: a weak (under 8 HCP) five-plus suit runs, everything else
     // defends 1NTxx.  A 4-4 or 4-3-3-3 bust sits too — the ladder has no
@@ -541,7 +549,7 @@ fn xx_runout_rails_leave_the_reading_unchanged() {
     // The runouts are natural and unalerted; the rail moves who *answers* the
     // node, never what the answer reads as.
     use crate::bidding::american::american;
-    let (on, off) = (xx_rails(), Agreements::default());
+    let (on, off) = (xx_rails(), no_dont());
     let mut advancer_run = xx_advancer_auction().to_vec();
     advancer_run.push(call(2, Strain::Spades));
     let mut doubler_run = xx_doubler_auction().to_vec();

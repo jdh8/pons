@@ -242,13 +242,13 @@ const fn not_defined() -> usize {
 //
 // `1ntd:xx-runout-2c` / `1ntd:xx-runout-sos` (the DONT-style runout after
 // their business redouble of our penalty `X` of their `1NT`,
-// `defense.xx_dont_runout`, default off; its `2♦`/`2♥` and relays reuse
+// `defense.xx_dont_runout`, default on; its `2♦`/`2♥` and relays reuse
 // `1ntd:dont-2d` / `1ntd:dont-2h` / `1ntd:dont-pc`): no schema name.  EPBot's
 // list has no DONT row at all and no row for a rescue structure after a
 // redouble; `Multi-Landy`/`Cappelletti`/`Landy` name *overcalls* of their
 // `1NT`, a different agreement.  Recorded at build time so a ship needs no
-// new decision here; while the knob is off the slugs are absent from the
-// default fixture.
+// new decision here (shipped 2026-10-21: the slugs are now in the default
+// fixture).
 const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bid"];
 
 /// The value of a [`PONS_SCHEMA`] row under the live knob state

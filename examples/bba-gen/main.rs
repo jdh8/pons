@@ -2304,19 +2304,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_overcall_advance: bool,
 
-    /// Turn ON the DONT-style runout after BBA's redouble of our penalty `X` of
-    /// its 1NT (`defense.xx_dont_runout`, crate default off): the advancer's
-    /// forcing pass and 4-4 two-suiters, the doubler's forced `2♣` relay, the
-    /// SOS redouble.  The `dont` arm of `scripts/ab-xx-runout-rails.sh`; a book
-    /// package, so it shadows `--ns-xx-runout-rails` at every node it keys.
+    /// Turn OFF the DONT-style runout after BBA's redouble of our penalty `X`
+    /// of its 1NT (`defense.xx_dont_runout`, **shipped on** 2026-10-21, so this
+    /// is the control arm's flag): the advancer's forcing pass and 4-4
+    /// two-suiters, the doubler's forced `2♣` relay, the SOS redouble.  A book
+    /// package, so while on it shadows `--ns-xx-runout-rails` at every node it
+    /// keys.
     #[arg(long, default_value_t = false)]
-    ns_xx_dont_runout: bool,
+    no_ns_xx_dont_runout: bool,
 
-    /// Which weak two-suiters run to a five-card major first under
-    /// `--ns-xx-dont-runout` (`defense.xx_dont_major_first`, crate default
-    /// `off`): `longer` = a major strictly longer than its four-plus minor bids
-    /// `2♠` / passes and names hearts; `at-least-as-long` adds the 5-5s.
-    #[arg(long, value_enum, default_value = "off")]
+    /// Which weak two-suiters run to a five-card major first in the
+    /// `(1NT) X (XX)` runout (`defense.xx_dont_major_first`, crate default
+    /// `longer`): `longer` = a major strictly longer than its four-plus minor
+    /// bids `2♠` / passes and names hearts; `at-least-as-long` adds the 5-5s;
+    /// `off` = the minor two-suiter, as first built.
+    #[arg(long, value_enum, default_value = "longer")]
     ns_xx_dont_major_first: XxMajorFirstArg,
 
     /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
@@ -3403,7 +3405,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
     agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;
-    agreements.defense.xx_dont_runout = args.ns_xx_dont_runout;
+    agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;

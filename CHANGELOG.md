@@ -241,6 +241,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The DONT-style runout after `(1NT) X (XX)` ships on, major first
+  (2026-10-21, jdh8).** `defense.xx_dont_runout` now defaults to on and
+  `defense.xx_dont_major_first` to `Longer`. When they redouble our penalty
+  double of their `1NT`, the advancer runs DONT-style: a forcing pass, 4-4+
+  two-suiters at `2♣`/`2♦`/`2♥`, `2♠` to play, and a five-plus major longer
+  than its minor goes to the major first. Before, the net floor answered both
+  nodes. Measured at 2× (786,432 boards per cell):
+  plain DD +0.0019 to +0.0026 and PD-P +0.0013 to +0.0019 IMPs per board, a
+  win in every cell (plain PD, biased on this lane, still −0.0006/−0.0007 in
+  ns and both). No BEN guard is feasible. `bba-gen`/`ben-gen
+  --ns-xx-dont-runout` becomes `--no-ns-xx-dont-runout`, `ab-dump-sd
+  --{on,off}-ns-xx-dont-runout` becomes `--{on,off}-no-ns-xx-dont-runout`,
+  and every `--*ns-xx-dont-major-first` defaults to `longer`.
+  `scripts/ab-xx-runout-rails.sh` and `ab-xx-dont-major-first.sh` pin their
+  arms explicitly so they still measure what they did. `Agreements::basic()`
+  turns the runout off, so the basic card is unchanged. The `.bbsa` cards
+  are unchanged too: BBA's schema has no row for this runout (`card.rs`).
+
 - **Our defensive systems are ours alone: neither the undeclared mirror nor
   the harnesses' declared opponents inherit them (2026-10-20).**
   `ReadingProfile::with_house_defense` resets `notrump_defense`, the
