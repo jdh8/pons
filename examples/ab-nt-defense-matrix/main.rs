@@ -198,11 +198,10 @@ fn build_books() -> (Vec<Partnership>, Vec<Partnership>) {
         build(&|_| ()),   // natural: the shipped default defense
         build(&dont(0)),  // DONT(6+): X floor inherits the natural 8
         build(&dont(12)), // DONT(6+,X12): strong one-suiter doubles only
-        build(&|k| {
-            // Woolsey owns every direct call over their 1NT.
-            k.reading.notrump_defense = NotrumpDefense::Woolsey;
-            k.defense.unusual_notrump_range = None;
-        }),
+        // Woolsey owns every direct call over their 1NT; its unusual `2NT`
+        // keeps the crate's 8–13, as `bba-gen`/`ben-gen` field it (this row
+        // dropped the `2NT` until 2026-10-21, so it was not the shipped card).
+        build(&|k| k.reading.notrump_defense = NotrumpDefense::Woolsey),
         build(&meckwell(0)),  // Meckwell: X floor inherits the natural 8
         build(&meckwell(12)), // Meck(X12): Woolsey-strength two-way double
         build(&meckwell(15)), // Meck(X15): only the strongest hands double

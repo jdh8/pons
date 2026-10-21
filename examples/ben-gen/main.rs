@@ -242,14 +242,22 @@ struct Args {
     /// `meckwell` = two-way X, 2♣/2♦ minor+major, natural majors; `woolsey` =
     /// Multi-Landy; `direct-landy` = both-majors takeout X; `always-pass` = we
     /// never compete (the truest do-nothing baseline); `off` = author nothing
-    /// and let the bare instinct floor have the seat.  The systems' payload
-    /// knobs (`bba-gen --ns-woolsey-range` and friends) are not exposed here,
-    /// so each plays its crate-default payload.
+    /// and let the bare instinct floor have the seat.  Each family plays
+    /// `bba-gen`'s card (`common::set_notrump_defense`: DONT and Meckwell's
+    /// unusual `2NT` on 8–14); the other payload knobs (`bba-gen
+    /// --ns-woolsey-range` and friends) are not exposed here, so they keep the
+    /// crate default.
     ///
     /// One flag because the systems are one choice: the engine holds them in a
     /// single `Cell<NotrumpDefense>` (see `bba-gen --ns-notrump-defense`).
     #[arg(long, value_enum, default_value = "natural")]
     ns_notrump_defense: NtDefenseArg,
+
+    /// DONT one-suiter minimum length for the `X`/`2♠` (default 5; the
+    /// 1NT-defense tournament's DONT(6+) row sets 6).  Only with
+    /// `--ns-notrump-defense direct-dont`; see `bba-gen --ns-dont-one-suiter-min`.
+    #[arg(long, default_value_t = 5)]
+    ns_dont_one_suiter_min: u8,
 
     /// Withhold the doubled-Muiderberg sit: over our doubled Woolsey
     /// Muiderberg `(1NT) 2M (X)`, escape to the `2NT` minor-ask on any
@@ -632,8 +640,11 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
-    agreements.decision.reading.notrump_defense =
-        pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
+    common::set_notrump_defense(
+        &mut agreements,
+        args.ns_notrump_defense,
+        args.ns_dont_one_suiter_min,
+    );
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
     agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;

@@ -232,6 +232,14 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, value_enum, default_value = "natural")]
     off_ns_notrump_defense: common::NtDefenseArg,
+    /// Read the ON arm's DONT with this one-suiter minimum
+    /// (`bba-gen --ns-dont-one-suiter-min`; only with `--on-ns-notrump-defense
+    /// direct-dont`)
+    #[arg(long, default_value_t = 5)]
+    on_ns_dont_one_suiter_min: u8,
+    /// Same for the OFF arm
+    #[arg(long, default_value_t = 5)]
+    off_ns_dont_one_suiter_min: u8,
     /// Read the ON arm without the doubled-Muiderberg sit (default on inside
     /// Woolsey; `defense.woolsey_muiderberg_sit`;
     /// `bba-gen --no-ns-woolsey-muiderberg-sit`)
@@ -379,7 +387,11 @@ fn main() {
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     on_arm.defense.stayman_defense_enabled = args.on_ns_stayman_defense;
-    on_arm.decision.reading.notrump_defense = args.on_ns_notrump_defense.into();
+    common::set_notrump_defense(
+        &mut on_arm,
+        args.on_ns_notrump_defense,
+        args.on_ns_dont_one_suiter_min,
+    );
     on_arm.defense.woolsey_muiderberg_sit = !args.on_no_ns_woolsey_muiderberg_sit;
     on_arm.defense.woolsey_tails = !args.on_no_ns_woolsey_tails;
     on_arm.defense.woolsey_wide_unusual_2nt = args.on_ns_woolsey_wide_2nt;
@@ -435,7 +447,11 @@ fn main() {
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
-    off_arm.decision.reading.notrump_defense = args.off_ns_notrump_defense.into();
+    common::set_notrump_defense(
+        &mut off_arm,
+        args.off_ns_notrump_defense,
+        args.off_ns_dont_one_suiter_min,
+    );
     off_arm.defense.woolsey_muiderberg_sit = !args.off_no_ns_woolsey_muiderberg_sit;
     off_arm.defense.woolsey_tails = !args.off_no_ns_woolsey_tails;
     off_arm.defense.woolsey_wide_unusual_2nt = args.off_ns_woolsey_wide_2nt;

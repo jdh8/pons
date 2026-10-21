@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The 1NT-defense tournament, step 3 (2026-10-21):
+  `scripts/ab-nt-defense-tournament.sh`, its reader
+  `scripts/nt-defense-tournament.py`, `ben-gen --ns-dont-one-suiter-min` and
+  `ab-dump-sd --{on,off}-ns-dont-one-suiter-min`.** Five defenses to their
+  strong 1NT (always-pass, natural, DONT(6+), Woolsey, Meckwell) against six
+  columns (BBA, BEN, and the four self-play counters of
+  `ab-nt-defense-matrix`) at all four vulnerabilities, read as a maximin on
+  [plain DD, SD-PD]. The reading rules are pre-registered in the runner.
+  `common::set_notrump_defense` now fields a defense the way `bba-gen` does
+  in every harness. Before, `ben-gen` and `ab-dump-sd` set only the family,
+  so DONT and Meckwell there played (or were read with) the 8–13 `2NT`
+  instead of 8–14. `ab-nt-defense-matrix`'s Woolsey row now keeps the
+  unusual `2NT`, so it is the shipped Woolsey card. Its July numbers came
+  from a Woolsey with no `2NT`. Harness-only; the default system is unchanged.
+
 - **`defense.woolsey_wide_unusual_2nt`, `bba-gen`/`ben-gen
   --ns-woolsey-wide-2nt`, `ab-dump-sd --{on,off}-ns-woolsey-wide-2nt` and
   `scripts/ab-woolsey-wide-2nt.sh` (2026-10-21).** Inside our opt-in Woolsey

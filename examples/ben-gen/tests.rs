@@ -160,6 +160,20 @@ fn the_notrump_defense_flags_each_move_their_knob() {
     );
     assert!(woolsey.defense.woolsey_muiderberg_sit && woolsey.defense.woolsey_tails);
 
+    // DONT and Meckwell field bba-gen's card: the 8–14 unusual `2NT`, and
+    // DONT's one-suiter minimum from its flag.
+    let dont = armed(&[
+        "--ns-notrump-defense",
+        "direct-dont",
+        "--ns-dont-one-suiter-min",
+        "6",
+    ]);
+    assert_eq!(dont.defense.unusual_notrump_range, Some((8, 14)));
+    assert_eq!(dont.defense.direct_dont_one_suiter_min, 6);
+    let meckwell = armed(&["--ns-notrump-defense", "meckwell"]);
+    assert_eq!(meckwell.defense.unusual_notrump_range, Some((8, 14)));
+    assert_eq!(woolsey.defense.unusual_notrump_range, Some((8, 13)));
+
     let no_sit = armed(&["--no-ns-woolsey-muiderberg-sit"]);
     assert!(!no_sit.defense.woolsey_muiderberg_sit && no_sit.defense.woolsey_tails);
     let no_tails = armed(&["--no-ns-woolsey-tails"]);

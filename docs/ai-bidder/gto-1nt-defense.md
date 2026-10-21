@@ -265,6 +265,32 @@ IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
   not the card. That is the sharpest concrete improvement target this
   tournament surfaced (`project_our-woolsey-defense`).
 
+## Step 3 — one tournament, real opponents as columns (launched 2026-10-21)
+
+The 1NT-defense plan's third step joins the self-play matrix and Rung 1 into
+one table. Runner: `scripts/ab-nt-defense-tournament.sh`, whose header holds
+the design, the caveats and the **pre-registered reading rules**. Reader:
+`scripts/nt-defense-tournament.py RESULTS_DIR`.
+
+- **Rows** (jdh8 ranked all five): always-pass, natural (the shipped
+  default), DONT(6+), Woolsey, Meckwell. Natural and Woolsey were completed
+  in step 2; DONT and Meckwell were not, so their cells price the
+  implementation along with the card.
+- **Columns** (jdh8: all six count in the maximin): BBA and BEN
+  (`--isolate-defense --filter-1nt --wide-1nt`, each row's arm against an
+  always-pass arm on the same seed) and the matrix's four counters.
+- **Cells**: row − pass in IMPs per kept board, at none/both/ns/ew, on the
+  realism pair [plain DD, SD-PD].
+- **The card**: the resolved maximin row in all eight (vul, scorer) cells.
+  Anything else goes back to jdh8. It replaces natural only through the
+  decision table against natural (rule 4).
+- **Disclosure caveat**: BBA's card has no DONT or Meckwell row, so BBA reads
+  those two rows' calls as natural. BEN reads every row with its own system.
+- **Sizing**: BBA 102,400 kept boards per arm per vul, BEN 16,384, matrix
+  60,000 per vul.
+
+Results: owed (run in flight; `ab-results/nt-defense-tournament`).
+
 ## Interpretation
 
 1. **On the DD brackets alone, "the best defense to 1NT" had no

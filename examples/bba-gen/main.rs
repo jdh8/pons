@@ -3422,20 +3422,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // both the conventional families and the natural overlay, so leaving it
     // alone would carry a widening into a family that never asked for one.
     // `(8, 13)` is the crate default.
-    agreements.defense.unusual_notrump_range = Some(
-        if matches!(
-            ns_defense,
-            pons::bidding::american::NotrumpDefense::DirectDont
-                | pons::bidding::american::NotrumpDefense::Meckwell
-        ) {
-            (8, 14)
-        } else {
-            (8, 13)
-        },
+    common::set_notrump_defense(
+        &mut agreements,
+        args.ns_notrump_defense,
+        args.ns_dont_one_suiter_min,
     );
     match ns_defense {
         pons::bidding::american::NotrumpDefense::DirectDont => {
-            agreements.defense.direct_dont_one_suiter_min = args.ns_dont_one_suiter_min;
             agreements.defense.direct_dont_four_four = args.ns_dont_four_four;
         }
         pons::bidding::american::NotrumpDefense::Meckwell => {

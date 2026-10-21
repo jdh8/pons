@@ -1602,6 +1602,30 @@ impl From<NtDefenseArg> for pons::bidding::american::NotrumpDefense {
     }
 }
 
+/// Field `family` as our 1NT defense, the card `bba-gen --ns-notrump-defense`
+/// plays: the family itself, the unusual `2NT` on DONT and Meckwell's `8..=14`
+/// band (`8..=13`, the crate default, elsewhere), and DONT's one-suiter
+/// minimum.  Shared so that every harness that bids or reads an arm fields the
+/// same card; `ben-gen` and `ab-dump-sd` once set the family alone, so a DONT
+/// or Meckwell arm there played a narrower `2NT` than the same arm vs BBA.
+pub fn set_notrump_defense(
+    agreements: &mut Agreements,
+    family: NtDefenseArg,
+    dont_one_suiter_min: u8,
+) {
+    use pons::bidding::american::NotrumpDefense;
+    let family = NotrumpDefense::from(family);
+    agreements.decision.reading.notrump_defense = family;
+    let wide = matches!(
+        family,
+        NotrumpDefense::DirectDont | NotrumpDefense::Meckwell
+    );
+    agreements.defense.unusual_notrump_range = Some(if wide { (8, 14) } else { (8, 13) });
+    if family == NotrumpDefense::DirectDont {
+        agreements.defense.direct_dont_one_suiter_min = dont_one_suiter_min;
+    }
+}
+
 /// CLI face of [`pons::bidding::american::XxMajorFirst`], same reason as
 /// [`NtDefenseArg`]
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
