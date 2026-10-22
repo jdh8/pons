@@ -265,7 +265,7 @@ IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
   not the card. That is the sharpest concrete improvement target this
   tournament surfaced (`project_our-woolsey-defense`).
 
-## Step 3 — one tournament, real opponents as columns (launched 2026-10-21)
+## Step 3 — one tournament, real opponents as columns (2026-10-21 → 22)
 
 The 1NT-defense plan's third step joins the self-play matrix and Rung 1 into
 one table. Runner: `scripts/ab-nt-defense-tournament.sh`, whose header holds
@@ -289,7 +289,64 @@ the design, the caveats and the **pre-registered reading rules**. Reader:
 - **Sizing**: BBA 102,400 kept boards per arm per vul, BEN 16,384, matrix
   60,000 per vul.
 
-Results: owed (run in flight; `ab-results/nt-defense-tournament`).
+### Results (finished 2026-10-22, `ab-results/nt-defense-tournament`)
+
+Seeds: BBA 1792548995803014896, self 1792575291223220663, BEN
+1792614509145856454. Kept boards per arm per vul: BBA 102,528, self 60,000,
+BEN 16,512. Every isolation gate read 0 foreign (rule 5). The table below is
+`scripts/nt-defense-tournament.py`'s worst column per row (V_r, IMPs per
+kept board, row − pass); the full six-column table with its CIs is the
+reader's output.
+
+| row | plain none | plain both | plain ns | plain ew | SD-PD none | SD-PD both | SD-PD ns | SD-PD ew |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| pass | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| natural | +0.107 | −0.237 | −0.150 | +0.050 | −0.108 | −0.471 | −0.416 | −0.125 |
+| DONT(6+) | +0.113 | −0.228 | −0.120 | +0.030 | −0.167 | −0.528 | −0.430 | −0.242 |
+| Woolsey | +0.079 | −0.077 | **+0.008** | +0.039 | −0.080 | −0.272 | −0.172 | −0.103 |
+| Meckwell | **+0.136** | −0.183 | −0.086 | **+0.057** | −0.115 | −0.457 | −0.371 | −0.188 |
+| maximin | Meckwell, unresolved | pass | Woolsey, unresolved | Meckwell, unresolved | pass | pass | pass | pass |
+
+**Verdict: no card (rule 3).** SD-PD resolves to pass in all four vuls; plain
+DD splits (pass when both vul, an active row elsewhere, none of them resolved
+over its rivals). Rule 4 therefore does not fire: natural stays the shipped
+default, untouched.
+
+What the table says beyond the verdict:
+
+- **The binding column is never a real opponent.** In every one of the
+  eight cells the row's worst column is a self-play counter (`default` or
+  `sit`, `penalty-X` at ew on SD-PD). Against BBA every active row beats
+  pass on plain DD at every vul (natural +0.075 to +0.250, the lone
+  exception Woolsey at both, −0.009 ± 0.018), and against BEN every point
+  estimate is positive (+0.03 to +0.23; DONT and Meckwell at both straddle
+  0). Our own counter package punishes our defenses harder
+  than either real opponent does, so the maximin is a statement about
+  exploitability, not about BBA or BEN.
+- **Against natural on BBA (rule 4's reading, for the record):** on plain DD
+  every alternative loses (DONT −0.028 to −0.079, Woolsey −0.081 to −0.130,
+  Meckwell −0.046 to −0.060 per kept board, every lower bound below −δ). On
+  PD, DONT and Woolsey beat natural at both/ns/ew (+0.03 to +0.09) and
+  straddle at none; Meckwell loses on both scorers (−0.07 to −0.10 PD). The
+  shipped default is the plain-DD winner against the anchor.
+- **Against natural on BEN:** DONT and Meckwell wash on plain DD except at
+  both (−0.10) and lose on PD everywhere (−0.16 to −0.34); Woolsey loses or
+  washes on plain DD (−0.02 to −0.07) and wins on PD (+0.07 to +0.17). The July self-play finding (Woolsey's
+  wide overcalls are PD-fragile, natural's penalty-X package PD-robust) does
+  not transfer to BEN: BEN doubles Woolsey less than our counters do, and
+  doubles DONT/Meckwell's artificial calls more.
+- **Woolsey is the least exploitable active row** (its worst cells are the
+  shallowest in six of the eight), but it is the weakest against BBA on plain
+  DD. DONT and Meckwell price an incomplete implementation (the step-2 caveat
+  above) and BBA's natural reading of their calls.
+
+Nothing moves. Step 4 (thresholds inside the card) has no card to work in;
+the next decision is jdh8's: whether the self-play counters are the right
+bound (they are our own book, tuned against these rows), or whether the real
+columns alone should pick the card, in which case plain DD and SD-PD still
+disagree (on SD-PD the only resolved active wins are natural, +0.067 ± 0.022,
+and DONT, +0.022 ± 0.017, both at none against BBA).
+
 
 ## Interpretation
 

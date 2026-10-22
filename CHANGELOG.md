@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of 8–14. `ab-nt-defense-matrix`'s Woolsey row now keeps the
   unusual `2NT`, so it is the shipped Woolsey card. Its July numbers came
   from a Woolsey with no `2NT`. Harness-only; the default system is unchanged.
+  **Measured 2026-10-22 (`ab-results/nt-defense-tournament`; BBA 102,528
+  kept boards per arm per vul, BEN 16,512, self-play 60,000): no card, rule
+  3.** SD-PD resolves to always-pass in all four vuls; plain DD splits (pass
+  at both, Meckwell at none/ew and Woolsey at ns, none resolved). The worst
+  column is a self-play counter in every cell, never BBA or BEN, against
+  whom every active row beats pass on plain DD. Against natural on BBA every
+  alternative loses on plain DD (−0.03 to −0.13 per kept board), so rule 4
+  leaves natural the default. Table and reading in
+  docs/ai-bidder/gto-1nt-defense.md § Step 3.
 
 - **`defense.woolsey_wide_unusual_2nt`, `bba-gen`/`ben-gen
   --ns-woolsey-wide-2nt`, `ab-dump-sd --{on,off}-ns-woolsey-wide-2nt` and
