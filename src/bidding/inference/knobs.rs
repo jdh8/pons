@@ -484,6 +484,21 @@ pub struct ReadingProfile {
     /// setting.
     pub probed_vacuous: bool,
 
+    /// Prior strength κ of the probed boxes, in samples
+    /// (docs/shrinkage-plan.md § A1)
+    ///
+    /// A probed key serves its widened observed box shrunk toward ⊤ by
+    /// `w = n / (n + κ)` per endpoint, so a key at n = κ sits halfway between
+    /// nothing and its measurement and a key at 50κ is 98% measured.  **0 is
+    /// the sample cliff** the probe shipped with — the box at full weight
+    /// from `Partnership::MIN_SAMPLES` on, nothing below it — and reproduces
+    /// the 2026-07-31 arms exactly.  Default **200**, the old cliff's height:
+    /// the A0 ruler read 82–89% of the probe's seed floor as keys flickering
+    /// across that cliff, and the slope is its repair.  Read at serve time, so
+    /// it can change after the probe without a re-harvest.  Inert while the
+    /// probed map is empty — every default-system reading is byte-identical.
+    pub probed_kappa: u32,
+
     /// Fold a second, *agreement* overlay off each rule's `announce_union` —
     /// what a call announces, beside what it projects
     ///
@@ -1280,6 +1295,7 @@ impl ReadingProfile {
             bid_exclusion: false,
             probed: true,
             probed_vacuous: true,
+            probed_kappa: 0,
             announced: true,
             table_alerts: false,
             declared_natural_walk: false,
@@ -1351,6 +1367,7 @@ impl Default for ReadingProfile {
             bid_exclusion: true,
             probed: false,
             probed_vacuous: false,
+            probed_kappa: 200,
             announced: false,
             table_alerts: true,
             declared_natural_walk: false,

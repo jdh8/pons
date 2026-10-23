@@ -814,6 +814,11 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     ns_probe: usize,
 
+    /// Prior strength κ of the probed boxes (`ReadingProfile::probed_kappa`,
+    /// crate default 200; 0 is the sample cliff the 2026-07-31 arms ran under)
+    #[arg(long)]
+    ns_probe_kappa: Option<u32>,
+
     /// Serve the probed boxes through the vacuous-scoped fold instead of the
     /// full one (`ReadingProfile::probed_vacuous`, crate default off): own-side
     /// calls only, and only onto axes the symbolic reading left fully open —
@@ -3741,11 +3746,11 @@ fn main() -> anyhow::Result<()> {
         // are pinned into the partnership at build and are only knowable after it,
         // so each moves on this partnership's own copy.
         our_floor.profile_mut().reading.probed_vacuous = args.ns_probe_vacuous;
+        if let Some(kappa) = args.ns_probe_kappa {
+            our_floor.profile_mut().reading.probed_kappa = kappa;
+        }
         let report = our_floor.probe(args.ns_probe, 0x9B0BE);
-        eprintln!(
-            "probed {} boards: {} keys, {} drifted",
-            args.ns_probe, report.keys, report.drifted
-        );
+        eprintln!("probed {} boards: {report}", args.ns_probe);
         if !args.ns_probe_vacuous {
             our_floor.profile_mut().reading.probed = true;
         }

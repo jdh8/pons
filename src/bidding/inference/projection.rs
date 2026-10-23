@@ -1222,7 +1222,7 @@ impl AuthoringStepCache {
             }
 
             if profile.probed
-                && let Some(&box_) = partnership.probed_box(&auction[..=index])
+                && let Some(box_) = partnership.probed_box(&auction[..=index], profile.probed_kappa)
             {
                 let union = EnvelopeUnion::from(box_);
                 self.probed.push(
@@ -1737,7 +1737,7 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
     {
         for index in 0..len {
             let them = if index % 2 == len % 2 { ours } else { theirs };
-            if let Some(&box_) = them.probed_box(&auction[..=index]) {
+            if let Some(box_) = them.probed_box(&auction[..=index], profile.probed_kappa) {
                 let who = relative_of(len, index) as usize;
                 let union = EnvelopeUnion::from(box_);
                 projection.unions[who].intersect_assign(&union, profile);

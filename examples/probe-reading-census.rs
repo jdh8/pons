@@ -84,6 +84,17 @@ struct Args {
     /// the probed reading on (`Partnership::probe` + `ReadingProfile::probed`)
     #[arg(long, default_value = "0")]
     probe: usize,
+
+    /// Serve the probed boxes through the vacuous-scoped fold instead of the
+    /// full one (`ReadingProfile::probed_vacuous`): the serving the 2026-07-31
+    /// A/B measured, and the one the fixed point runs under
+    #[arg(long)]
+    probe_vacuous: bool,
+
+    /// Prior strength κ of the probed boxes (`ReadingProfile::probed_kappa`,
+    /// crate default 200); 0 is the pre-2026-10-23 sample cliff
+    #[arg(long)]
+    probe_kappa: Option<u32>,
 }
 
 /// How many of the five axes the nets read carry no information
@@ -295,15 +306,19 @@ fn main() {
     }
     let mut partnership = american(&agreements).bind();
     if args.probe > 0 {
+        partnership.profile_mut().reading.probed_vacuous = args.probe_vacuous;
+        if let Some(kappa) = args.probe_kappa {
+            partnership.profile_mut().reading.probed_kappa = kappa;
+        }
         let report = partnership.probe(args.probe, base.wrapping_add(0x9B0BE));
-        eprintln!(
-            "probed {} boards: {} keys stored, {} drifted between iterations",
-            args.probe, report.keys, report.drifted,
-        );
+        eprintln!("probed {} boards: {report}", args.probe);
         // Filling the store and *reading* from it are separate settings, and
         // the second can only be turned on after the probe — so it moves on
-        // this partnership's own pin, without rebuilding the book.
-        partnership.profile_mut().reading.probed = true;
+        // this partnership's own pin, without rebuilding the book.  Under the
+        // vacuous serving the probe left the knob on by itself.
+        if !args.probe_vacuous {
+            partnership.profile_mut().reading.probed = true;
+        }
     }
     let partnership = partnership;
 

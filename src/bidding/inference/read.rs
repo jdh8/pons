@@ -1634,7 +1634,7 @@ impl Inferences {
                 if index % 2 != len % 2 {
                     continue;
                 }
-                let Some(&box_) = them.probed_box(&auction[..=index]) else {
+                let Some(box_) = them.probed_box(&auction[..=index], profile.probed_kappa) else {
                     continue;
                 };
                 let who = relative_of(len, index) as usize;

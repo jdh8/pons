@@ -575,11 +575,14 @@ pub struct Partnership {
     constructive: BoundBook,
     competitive: BoundBook,
     defensive: BoundBook,
-    /// Behaviorally probed readings, keyed by auction prefix with leading
+    /// Behaviorally probed measurements, keyed by auction prefix with leading
     /// passes stripped (dealer rotations merge, as the books fan).  Empty
-    /// until [`probe`][Self::probe] runs; consumed by the projection pass
-    /// under [`probed`][field@crate::bidding::ReadingProfile::probed].
-    probed: HashMap<Vec<Call>, Envelope>,
+    /// until [`probe`][Self::probe] runs; served as boxes by
+    /// [`probed_box`][Self::probed_box] under the reader's
+    /// [`probed_kappa`][field@crate::bidding::ReadingProfile::probed_kappa]
+    /// and consumed by the projection pass under
+    /// [`probed`][field@crate::bidding::ReadingProfile::probed].
+    probed: HashMap<Vec<Call>, Observed>,
     /// The books their calls decode in.  [`None`] — the default — models them
     /// as playing ours, which is exact in self-play.
     ///
@@ -983,6 +986,12 @@ impl Partnership {
 }
 
 /// What one [`Partnership::probe`] run stored, and how stable the fixed point was
+///
+/// The ruler is docs/shrinkage-plan.md § A0: a key count says nothing about
+/// *how far* the boxes moved, so the verdict reads
+/// [`rms`](Self::rms) against [`floor`](Self::floor) — a residual that clears
+/// the seed floor several times over, with a negative [`gain`](Self::gain), is
+/// a real 2-cycle; one at the floor is endpoint jitter.
 #[derive(Clone, Copy, Debug)]
 pub struct ProbeReport {
     /// Prefix keys with a stored box (≥ the sample floor, binding some axis)
@@ -991,10 +1000,59 @@ pub struct ProbeReport {
     /// drift.  A large fraction means the probed readings materially changed
     /// the bidder's own auctions and a third iteration is worth considering.
     pub drifted: usize,
+    /// The residual ‖G(R) − R‖: the traffic-weighted rms move of the served
+    /// endpoints (points, four lengths; `min` and `max`) between the first
+    /// iteration's boxes and the second's, in points / cards, on the same
+    /// deals.  A key stored by only one iteration counts against ⊤.
+    pub rms: f64,
+    /// The seed-noise floor: the same ruler between the second iteration and a
+    /// third harvest under the **same** served boxes on fresh deals.  Unpaired,
+    /// so it bounds the paired residual's noise from above.
+    pub floor: f64,
+    /// The share of the floor's squared move carried by keys served ⊤ in one
+    /// harvest and a box in the other — keys flickering across
+    /// [`MIN_SAMPLES`](Partnership::MIN_SAMPLES).  Near 1 the floor *is* the
+    /// sample cliff, which § A1's κ-slope removes; near 0 it is endpoint
+    /// jitter inside stored keys.
+    pub cliff: f64,
+    /// Gain along the step, `Σ w·ΔG·ΔR / Σ w·ΔR²`: ΔR the first iteration's
+    /// step from ⊤, ΔG the second's response to it.  −1 is a full retreat (the
+    /// bidder served boxes bids its way back out of them: a 2-cycle), 0 a
+    /// fixed point, positive a contraction.  Under a 2-cycle the damped step
+    /// `R + λ(G(R) − R)`, λ = 1/(1 − gain), is the linear fixed point (§ A2).
+    pub gain: f64,
+}
+
+impl ProbeReport {
+    /// The residual in units of the seed floor; `None` when the floor is zero
+    #[must_use]
+    pub fn over_floor(&self) -> Option<f64> {
+        (self.floor > 0.0).then(|| self.rms / self.floor)
+    }
+}
+
+impl std::fmt::Display for ProbeReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} keys, {} drifted; residual rms {:.3} vs seed floor {:.3} (",
+            self.keys, self.drifted, self.rms, self.floor
+        )?;
+        match self.over_floor() {
+            Some(ratio) => write!(f, "{ratio:.1}× noise")?,
+            None => f.write_str("no floor")?,
+        }
+        write!(
+            f,
+            ", cliff share {:.0}%), gain along the step {:+.2}",
+            self.cliff * 100.0,
+            self.gain
+        )
+    }
 }
 
 /// Per-key sample aggregate of the probe harvest: observed per-axis extremes
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Observed {
     count: u64,
     points: Range,
@@ -1068,6 +1126,140 @@ impl Observed {
         }
         (envelope != Envelope::unknown()).then_some(envelope)
     }
+
+    /// The box the bidder serves for this key under prior strength `kappa`
+    /// (docs/shrinkage-plan.md § A1)
+    ///
+    /// `kappa = 0` is the sample cliff: [`boxed`][Self::boxed] once the key
+    /// clears [`Partnership::MIN_SAMPLES`], else nothing (⊤).  Otherwise every
+    /// stored key serves the widened box shrunk toward ⊤ by its evidence,
+    /// `w = n / (n + κ)` on each endpoint — a thin key is wider than the
+    /// cliff ever served, never narrower, and the cliff becomes a slope.  The
+    /// prior is ⊤ rather than the symbolic reading because every consumer
+    /// intersects the served box with that reading anyway, and under the
+    /// vacuous scope only ⊤ axes take it at all.
+    fn served(&self, kappa: u32) -> Option<Envelope> {
+        if kappa == 0 {
+            return if self.count >= Partnership::MIN_SAMPLES {
+                self.boxed()
+            } else {
+                None
+            };
+        }
+        if self.count < Partnership::STORE_FLOOR {
+            return None;
+        }
+        let padded = self.boxed()?;
+        #[allow(clippy::cast_precision_loss)]
+        let weight = self.count as f64 / (self.count as f64 + f64::from(kappa));
+        let shrunk = |range: Range, cap: u8| {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let at = |x: f64| x.round().clamp(0.0, f64::from(cap)) as u8;
+            Range::new(
+                at(weight * f64::from(range.min)),
+                at(f64::from(cap) - weight * f64::from(cap - range.max)),
+            )
+        };
+        let mut envelope = Envelope::unknown();
+        envelope.strength.points = shrunk(padded.strength.points, Range::FULL_POINTS.max);
+        for suit in 0..4 {
+            envelope.lengths[suit] = shrunk(padded.lengths[suit], Range::FULL_LENGTH.max);
+        }
+        (envelope != Envelope::unknown()).then_some(envelope)
+    }
+}
+
+/// The boxes a harvest serves under `kappa`, keyed as stored
+fn served_map(harvest: &Harvest, kappa: u32) -> HashMap<Vec<Call>, Envelope> {
+    harvest
+        .iter()
+        .filter_map(|(key, agg)| agg.served(kappa).map(|envelope| (key.clone(), envelope)))
+        .collect()
+}
+
+/// One probe iteration's harvest: per stripped prefix key, what the actor held
+type Harvest = HashMap<Vec<Call>, Observed>;
+
+/// The served endpoints of a box as one vector — points, then the four suit
+/// lengths, `min` before `max` — in points / cards; the full ranges (⊤) for no box
+const AXES: usize = 10;
+
+fn endpoints(envelope: Option<Envelope>) -> [f64; AXES] {
+    let envelope = envelope.unwrap_or_else(Envelope::unknown);
+    let mut out = [0.0; AXES];
+    let ranges = std::iter::once(envelope.strength.points).chain(envelope.lengths);
+    for (axis, range) in ranges.enumerate() {
+        out[2 * axis] = f64::from(range.min);
+        out[2 * axis + 1] = f64::from(range.max);
+    }
+    out
+}
+
+/// Every key either harvest serves a box for under `kappa`, with its traffic
+/// weight (the larger of the two counts) and the two served endpoint vectors
+fn paired<'a>(
+    a: &'a Harvest,
+    b: &'a Harvest,
+    kappa: u32,
+) -> impl Iterator<Item = (f64, [f64; AXES], [f64; AXES])> + 'a {
+    a.keys()
+        .chain(b.keys().filter(|key| !a.contains_key(*key)))
+        .filter_map(move |key| {
+            let (x, y) = (a.get(key), b.get(key));
+            let (served_x, served_y) = (
+                x.and_then(|agg| agg.served(kappa)),
+                y.and_then(|agg| agg.served(kappa)),
+            );
+            if served_x.is_none() && served_y.is_none() {
+                return None;
+            }
+            #[allow(clippy::cast_precision_loss)]
+            let weight = x
+                .map_or(0, |agg| agg.count)
+                .max(y.map_or(0, |agg| agg.count)) as f64;
+            Some((weight, endpoints(served_x), endpoints(served_y)))
+        })
+}
+
+/// The traffic-weighted rms move of the served endpoints from `a` to `b`, in
+/// points / cards — [`ProbeReport::rms`]'s ruler — and the share of its
+/// squared mass on keys one side serves ⊤ for ([`ProbeReport::cliff`])
+fn residual(a: &Harvest, b: &Harvest, kappa: u32) -> (f64, f64) {
+    #[allow(clippy::cast_precision_loss)]
+    const AXES_F: f64 = AXES as f64;
+    let top = endpoints(None);
+    let (num, cliff, den) =
+        paired(a, b, kappa).fold((0.0, 0.0, 0.0), |(num, cliff, den), (weight, ea, eb)| {
+            let squares: f64 = ea.iter().zip(eb).map(|(x, y)| (y - x).powi(2)).sum();
+            let flicker = (ea == top) != (eb == top);
+            (
+                num + weight * squares,
+                cliff + if flicker { weight * squares } else { 0.0 },
+                den + weight * AXES_F,
+            )
+        });
+    if den == 0.0 || num == 0.0 {
+        (0.0, 0.0)
+    } else {
+        ((num / den).sqrt(), cliff / num)
+    }
+}
+
+/// [`ProbeReport::gain`]: the response from `first` to `second` projected on
+/// the step from ⊤ to `first`, over that step's squared length
+fn gain(first: &Harvest, second: &Harvest, kappa: u32) -> f64 {
+    let top = endpoints(None);
+    let (num, den) =
+        paired(first, second, kappa).fold((0.0, 0.0), |(num, den), (weight, e1, e2)| {
+            let (mut dot, mut squares) = (0.0, 0.0);
+            for ((t, r), g) in top.iter().zip(e1).zip(e2) {
+                let step = r - t;
+                dot += (g - r) * step;
+                squares += step * step;
+            }
+            (num + weight * dot, den + weight * squares)
+        });
+    if den == 0.0 { 0.0 } else { num / den }
 }
 
 /// A prefix key with its leading passes stripped — dealer rotations merge,
@@ -1078,12 +1270,16 @@ fn stripped(prefix: &[Call]) -> Option<&[Call]> {
 }
 
 impl Partnership {
-    /// The probed box for a prefix, if [`probe`][Self::probe] stored one
-    pub(crate) fn probed_box(&self, prefix: &[Call]) -> Option<&Envelope> {
+    /// The probed box for a prefix, if [`probe`][Self::probe] stored a
+    /// measurement that serves one under `kappa` — the **reader's**
+    /// [`probed_kappa`][field@crate::bidding::ReadingProfile::probed_kappa],
+    /// not this book's: an undeclared mirror carries a copy of the map with
+    /// its own profile, and the two must serve the same box.
+    pub(crate) fn probed_box(&self, prefix: &[Call], kappa: u32) -> Option<Envelope> {
         if self.probed.is_empty() {
             return None;
         }
-        self.probed.get(stripped(prefix)?)
+        self.probed.get(stripped(prefix)?)?.served(kappa)
     }
 
     /// Probe this partnership's own behavior and store the answers as readings
@@ -1091,8 +1287,11 @@ impl Partnership {
     /// The sampled-projection derivation
     /// (docs/ai-bidder/sampled-projection.md), keyed by **traffic** rather
     /// than authorship: bid `boards` deals in self-play, record the actor's
-    /// hand at every decision, and store a widened bounding box per prefix
-    /// key with at least [`MIN_SAMPLES`](Self::MIN_SAMPLES) observations.
+    /// hand at every decision, and store the observed extremes per prefix
+    /// key with at least [`STORE_FLOOR`](Self::STORE_FLOOR) observations;
+    /// `probed_box` turns them into boxes at serve time
+    /// under the profile's `probed_kappa` (κ = 0: the
+    /// [`MIN_SAMPLES`](Self::MIN_SAMPLES) cliff).
     /// This reaches what no symbolic projection can: the floor's calls (a
     /// net's pass has no rule to project), rule competition, and off-axis
     /// shadows.  Consumed by [`Inferences::read`] only under
@@ -1100,8 +1299,11 @@ impl Partnership {
     ///
     /// Runs **two** iterations: the first probes the bidder under the current
     /// (symbolic) readings, the second re-probes with the first pass's boxes
-    /// installed — the fixed-point check the design demands.  The returned
-    /// [`ProbeReport`] counts the keys that moved between the two.
+    /// installed — the fixed-point check the design demands — and then a
+    /// **third harvest** under the second pass's served boxes on fresh deals,
+    /// the seed-noise floor.  The returned [`ProbeReport`] counts the keys
+    /// that moved between the two iterations and measures the move with the
+    /// § A0 ruler (docs/shrinkage-plan.md): residual rms, floor, gain.
     ///
     /// Probes at no vulnerability, the census methodology; vulnerability-gated
     /// ranges (the weak-two bands) are pooled, which the widening slack
@@ -1126,7 +1328,7 @@ impl Partnership {
             }
             into
         };
-        let harvest = |partnership: &Self| -> HashMap<Vec<Call>, Observed> {
+        let harvest = |partnership: &Self, seed: u64| -> Harvest {
             let one = |board: usize| {
                 let deal = contract_bridge::deck::full_deal(&mut {
                     use rand::SeedableRng as _;
@@ -1147,11 +1349,12 @@ impl Partnership {
                 (0..boards).map(one).fold(HashMap::new(), absorb)
             }
         };
-        let boxed = |observed: HashMap<Vec<Call>, Observed>| -> HashMap<Vec<Call>, Envelope> {
+        let kappa = self.profile().reading.probed_kappa;
+        let stored = |observed: &Harvest| -> Harvest {
             observed
-                .into_iter()
-                .filter(|(_, agg)| agg.count >= Self::MIN_SAMPLES)
-                .filter_map(|(key, agg)| agg.boxed().map(|envelope| (key, envelope)))
+                .iter()
+                .filter(|(_, agg)| agg.count >= Self::STORE_FLOOR)
+                .map(|(key, agg)| (key.clone(), *agg))
                 .collect()
         };
 
@@ -1168,26 +1371,42 @@ impl Partnership {
         let was = self.agreements.decision.reading.probed;
         let vacuous = self.agreements.decision.reading.probed_vacuous;
         self.profile_mut().reading.probed = false;
-        let first = boxed(harvest(self));
-        self.set_probed(first);
+        let first = harvest(self, seed);
+        self.set_probed(stored(&first));
         self.profile_mut().reading.probed = !vacuous;
-        let second = boxed(harvest(self));
+        let second = harvest(self, seed);
+        // The noise floor: the same served boxes, the next `boards` seeds — a
+        // disjoint deal set, since the first two harvests share one.  The
+        // bidder is deterministic, so the same deals would read zero.
+        let again = harvest(self, seed.wrapping_add(boards as u64));
         self.profile_mut().reading.probed = was;
 
-        let drifted = second
+        let (rms, _) = residual(&first, &second, kappa);
+        let (floor, cliff) = residual(&second, &again, kappa);
+        let ruler = ProbeReport {
+            keys: 0,
+            drifted: 0,
+            rms,
+            floor,
+            cliff,
+            gain: gain(&first, &second, kappa),
+        };
+        let second = stored(&second);
+        let (before, after) = (served_map(&self.probed, kappa), served_map(&second, kappa));
+        let drifted = after
             .iter()
-            .filter(|(key, envelope)| self.probed.get(*key) != Some(envelope))
+            .filter(|(key, envelope)| before.get(*key) != Some(envelope))
             .count()
-            + self
-                .probed
+            + before
                 .keys()
-                .filter(|key| !second.contains_key(*key))
+                .filter(|key| !after.contains_key(*key))
                 .count();
         self.set_probed(second);
         self.invalidate_cache_identity();
         ProbeReport {
-            keys: self.probed.len(),
+            keys: after.len(),
             drifted,
+            ..ruler
         }
     }
 
@@ -1197,7 +1416,7 @@ impl Partnership {
     /// calls decode through [`opponents`][Self::opponents], so without the copy
     /// a mirror would read no probed box at all.  A declared foreign card
     /// keeps its own (empty) map, as before.
-    fn set_probed(&mut self, probed: HashMap<Vec<Call>, Envelope>) {
+    fn set_probed(&mut self, probed: Harvest) {
         if !self.opponents_declared
             && let Some(mirror) = self.opponents.as_mut()
         {
@@ -1208,8 +1427,12 @@ impl Partnership {
         self.probed = probed;
     }
 
-    /// The sample floor under which a key stores nothing
+    /// The sample cliff under `probed_kappa = 0`: a key below it serves nothing
     pub const MIN_SAMPLES: u64 = 200;
+
+    /// The storage floor: a key below it is not kept at all (map size only —
+    /// under a positive `probed_kappa` every stored key serves a sound box)
+    pub const STORE_FLOOR: u64 = 20;
 
     /// One self-play board's harvest: `(stripped key → actor's hand)` per call
     fn harvest_board(&self, board: usize, deal: &FullDeal) -> HashMap<Vec<Call>, Observed> {

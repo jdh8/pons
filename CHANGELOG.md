@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Probe ruler and shrunk pools (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
+  A0 + C — the poker R-loop's lessons, measured here)**: `ProbeReport` gains
+  `rms` (traffic-weighted rms move of the served endpoints between the two
+  probe iterations, in points / cards), `floor` (the same ruler against a
+  third harvest under the same boxes on fresh deals), `cliff` (the share of
+  the floor on keys flickering across `MIN_SAMPLES`) and `gain` (the
+  response projected on the step; −1 a 2-cycle, 0 a fixed point), plus a
+  `Display`; `probe-reading-census --probe N` prints it and gains
+  `--probe-vacuous`. Read on the default system at 100k boards: **residual
+  1.49 vs floor 1.44, gain −0.01, cliff share 88%** (vacuous 0.32 / 1.47 /
+  −0.00 / 89%; a second seed and a 400k run agree) — the 241/520 "fixed-point
+  drift" was the 200-sample cliff, never a cycle, so the plan's damped step
+  (A2) is dropped and the κ-slope (A1) is next. `scripts/shrunk-pools.py`
+  ranks each anchor bucket's nodes on empirical-Bayes-shrunk pools: on
+  `3debdd0f` no top-10 node of any top-5 bucket moves (κ 2–8, every node
+  n ≥ 150); the unweighted τ² estimator misreads one thin-node floor bucket
+  (choice owed, see the plan). **A1 the same day**: the probe now stores the
+  raw per-key measurement from 20 samples and `ReadingProfile::probed_kappa`
+  (default **200**; `0` is the old 200-sample cliff, byte for byte) shrinks
+  each served endpoint toward ⊤ by `n / (n + κ)` at read time — κ is the
+  reader's knob, passed into `probed_box`, so an undeclared mirror serves
+  the same box. Re-read: cliff share 88% → 17%, floor 1.44 → 0.47, gain
+  still 0; `probe-reading-census --probe-kappa` and `bba-gen
+  --ns-probe-kappa` set it (the 2026-07-31 arms reproduce at 0). No bidding
+  change: the probe map is off the default path and the script ranks, it
+  does not bid; A3's A/B (κ 0 vs 200 under `probed_vacuous`) is the first
+  step of the plan that can move an IMP.
+
 - **BBA re-anchor (2026-10-23, `3debdd0f`)**: shipping `american()` scores
   **−0.3013 plain / −0.0542 perfect-defense IMPs/board** (none −0.2904 /
   −0.0392, both −0.3121 / −0.0691); `american_instinct()` −0.9186 / −0.9435.

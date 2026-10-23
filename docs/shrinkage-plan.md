@@ -1,6 +1,10 @@
 # Shrinkage and damped fixed points — what the poker R-loop taught, applied here
 
-**Status (2026-10-23): PLAN, nothing built.** Written after the poker-trainer
+**Status (2026-10-23): A0, A1 and C built and read, same day — the probe's
+drift is the sample cliff, not a cycle (A2 dropped); the κ-slope removes the
+cliff (`probed_kappa`, default 200, κ = 0 the old behaviour byte for byte);
+A3's A/B is next and is the first step that can move an IMP; see "Measured
+so far".** Written after the poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -18,6 +22,92 @@ step sized by the measured gain** (λ), plus **a seed-noise floor for the
 ruler**. All three port to the probe without changing what consumers read.
 Two smaller ports follow: a seed-noise ruler for retrains, and shrunk
 per-node pools for the bucket ranking.
+
+## Measured so far (2026-10-23)
+
+**A0, the ruler.** `ProbeReport` now carries `rms`, `floor`, `cliff` and
+`gain` (`Partnership::probe` runs three harvests: the second iteration's
+served boxes are re-harvested on the next `boards` seeds for the floor, so
+the floor is unpaired and bounds the paired residual's noise from above).
+`probe-reading-census --probe N [--probe-vacuous]` prints it. Default
+`american()`, the v2 census's probe seed (`1785200001 + 0x9B0BE`), `-c 100`:
+
+| serving | boards | keys | drifted | rms | floor | rms / floor | cliff share | gain |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| full fold | 100k | 508 | 187 | 1.494 | 1.437 | 1.0 | 88% | −0.01 |
+| vacuous | 100k | 471 | 14 | 0.324 | 1.468 | 0.2 | 89% | −0.00 |
+| full fold, seed + 1 | 100k | 511 | 207 | 1.634 | 1.258 | 1.3 | 85% | −0.02 |
+| full fold | 400k | 2,414 | 1,403 | 1.942 | 1.094 | 1.8 | 82% | −0.03 |
+
+The pre-registered reading resolves to the second branch: **the 241/520
+drift was never a 2-cycle.** The gain along the step is zero in every cell
+(the poker loop read −0.87), so the served boxes neither push the
+measurement back toward ⊤ nor contract it; the residual sits at the seed
+floor; and 82–89% of that floor is keys flickering across `MIN_SAMPLES` — ⊤
+in one harvest, a box in the other — not endpoint jitter inside stored keys.
+The 400k row's 1.8× is the same mechanism, paired: installing boxes shifts
+traffic and keys near the cliff cross it. Consequences: **A2 (damping) is
+dropped** — λ = 1/(1 − 0) is today's full step; **A1 is the whole of this
+plan's prize for the probe**, and it should lower the floor itself, which is
+its gate when it lands (pre-registered: cliff share well under 80% at
+κ = 200, the floor under 1.0). The v2 loss stays what
+[sampled-projection.md](ai-bidder/sampled-projection.md) named it — the net
+served boxes it did not train under — and A4's lap structure stands without
+the damping.
+
+**A1, the κ-slope.** `ReadingProfile::probed_kappa` (default 200; `κ = 0`
+is the cliff). The probe stores the raw `Observed` per key from 20 samples
+(`Partnership::STORE_FLOOR`) and `probed_box` estimates at serve time:
+each endpoint of the slack-padded box shrunk toward ⊤ by `w = n / (n + κ)`,
+rounded to nearest, so a thin key is never narrower than the cliff served.
+Two deviations from the text below, both deliberate: the prior is **⊤**, not
+the symbolic reading — identical under the vacuous scope (only ⊤ axes take a
+box) and equivalent under the full fold, which intersects the served box
+with the symbolic reading anyway — and κ is the **reader's** knob, passed
+into `probed_box`, because an undeclared mirror carries its own copy of the
+map and profile (the first build read κ off the serving book, and `κ = 0`
+reproduced A0 only after the fix). The same command as A0, by κ:
+
+| κ | serving | boards | keys served | drifted | rms | floor | rms / floor | cliff share | gain |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | full | 100k | 508 | 187 | 1.494 | 1.437 | 1.0 | 88% | −0.01 |
+| 50 | full | 100k | 5,745 | 4,854 | 0.984 | 0.757 | 1.3 | 52% | −0.01 |
+| 200 | full | 100k | 5,709 | 3,860 | 0.462 | 0.472 | 1.0 | 17% | −0.00 |
+| 200 | vacuous | 100k | 5,748 | 1,027 | 0.153 | 0.469 | 0.3 | 18% | +0.00 |
+| 200 | full | 400k | 16,373 | 15,335 | 0.702 | 0.453 | 1.5 | 10% | −0.01 |
+| 1000 | full | 100k | 4,676 | 1,627 | 0.212 | 0.332 | 0.6 | 4% | −0.00 |
+
+The pre-registered gate passes at κ = 200 (cliff share 88% → 17%, floor
+1.44 → 0.47), with two honest caveats. The floor falling with κ is partly
+tautological — a box nearer ⊤ has less room to move, and κ → ∞ reads 0 —
+so the **cliff share** is the signal, not the floor. And `drifted` is now a
+count of thin keys moving by a rounding step (3,860 of 5,709), so the key
+count is retired as a reading; the ruler is the reading. Every stored key
+serves from n = 20 on: the sub-`MIN_SAMPLES` tail that
+[sampled-projection.md](ai-bidder/sampled-projection.md) called "a
+boards-count dial" now serves wide, sound boxes instead of nothing. None of
+this is an IMP: the 2026-07-31 arms reproduce with `--ns-probe-kappa 0`,
+and whether κ = 200 (or an interior λ) turns the v2 loss into a slope is
+A3's cell.
+
+**C, the shrunk pools.** `scripts/shrunk-pools.py` (node = bucket ×
+(rule, our call); κ = σ²/τ² by the unweighted method of moments written
+below). On `3debdd0f`, both arms: **no top-10 node of any top-5 bucket
+moves**. Every one has n ≥ 150 and κ is 2–8 in the big buckets (median 4.1
+across buckets), so n + κ ≈ n. The thin-and-huge lane this plan imagined is
+not in the current anchor — the thinnest high-loss nodes are n 18–45 at
+−150 to −250 IMPs, nowhere near a top 10. Membership moves at rank 10 only
+(shipping `Defensive / floor / round-2` demotes `5♦` n 39 for `2NT` n 294;
+instinct opening demotes `3♦` n 721 for `1♣` n 1,167). The one bucket where
+shrinkage bites is an estimator defect, not an insight: `Defensive / floor /
+round-1` (27 nodes, most n ≈ 10–100) reads PD τ² = 0, κ = ∞, and the
+*resolved* `2♥` node (n 716, −1,024 plain) is halved, because the unweighted
+`mean_j(σ²/n_j)` is dominated by the thin floor nodes and swallows the
+spread of means. **Open (jdh8):** keep the spec's estimator (status quo, the
+defect documented) or switch to the n-weighted DerSimonian–Laird moment,
+three lines in `shrink()`; proposed reversible default: switch, since the
+only bucket it changes is the one it misreads today. Either way the script
+changes no ranking; it is a check to run at each re-anchor, not a lane.
 
 ## What the R-loop taught (the four lessons)
 
@@ -94,6 +184,10 @@ which.
 
 ### A1 — κ-shrunk boxes toward the symbolic reading (one day)
 
+**Built 2026-10-23** as `probed_kappa` ("Measured so far" has the numbers
+and the two deviations: prior ⊤, reader-side κ). The text below is the
+design as planned.
+
 Store the measurement, not the estimate. The probe map becomes
 `HashMap<Vec<Call>, Observed>` (raw spans + count; `Observed` is already the
 aggregate type), and the estimator moves to serve time in the `Inferences::read`
@@ -131,6 +225,10 @@ default); A0's rms at κ = 200 vs κ = 0 (today's behaviour reproduced
 exactly with `κ = 0`, `n ≥ 200`).
 
 ### A2 — damped iteration sized by the measured gain (half a day)
+
+**Dropped 2026-10-23 on A0's reading** (gain −0.03 … −0.00 in every cell;
+"Measured so far"): λ = 1/(1 − 0) is the step the probe already takes. The
+design stays here for a retrain lap (A4) that reads a negative gain.
 
 Iteration `i + 1` serves `R_i + λ (G(R_i) − R_i)` per endpoint, with
 λ = 1/(1 − g) clipped to [0.25, 1] from A0's gain, and runs until
@@ -215,11 +313,11 @@ the campaign's days go.
 
 | step | cost | what it buys | blocks |
 | --- | --- | --- | --- |
-| A0 ruler + floor | ½ day | tells whether 241/520 was ever a real cycle | A1–A4 |
-| C shrunk pools | ½ day | better lane choice from the next re-anchor on | — |
-| A1 κ boxes | 1 day | the sample cliff gone, thin keys sound | A2, A3 |
-| A2 damped iteration | ½ day | a probe map that is actually a fixed point | A3 |
-| A3 λ-serving sweep | 3 bidding runs + 1 DD cell | wall vs slope on the 0.65–1.27 prize | A4's scope |
+| A0 ruler + floor — **done 2026-10-23** | ½ day | told: never a cycle, the floor is the cliff | A1–A4 |
+| C shrunk pools — **done 2026-10-23** | ½ day | told: no lane moves at this anchor; estimator choice owed | — |
+| A1 κ boxes — **done 2026-10-23** | 1 day | the cliff gone (cliff share 88% → 17%); κ = 0 byte-identical | A3 |
+| A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
+| A3 λ-serving sweep — **next** | 3 bidding runs + 1 DD cell | wall vs slope on the 0.65–1.27 prize; κ ∈ {0, 200} is the first pair | A4's scope |
 | B retrain ruler | 1 GPU recipe ×2 + 20k boards | the stop rule for the retrain loop | A4 |
 | A4 retrain lap | the deferred retrain, ×2 | the prize, if A3 says wall | — |
 

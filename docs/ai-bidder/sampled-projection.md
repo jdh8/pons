@@ -600,7 +600,13 @@ at 280 readings, `2♠ (X) XX`, deep competitive keys) — coverage there is a
 boards-count dial, not a design question. The 241/520 drift is the honest
 fixed-point number: probed readings materially move the bidder's own
 auctions, so a consumer that retrains on probed features must retrain on the
-*post-probe* auction distribution.
+*post-probe* auction distribution. **Read with the A0 ruler (2026-10-23,
+[shrinkage-plan.md](../shrinkage-plan.md) "Measured so far"): the drift is
+the sample cliff, not a cycle** — residual rms at the seed floor (1.49 vs
+1.44 points / cards), gain along the step −0.01, and 82–89% of the floor is
+keys flickering across `MIN_SAMPLES`; the κ-slope (A1, `probed_kappa`,
+built the same day: cliff share 17% at κ = 200) is the repair, no damping
+is owed.
 
 A `--probe 100000` sweep is 200k self-play boards (two iterations). Build with
 `--features rayon` and the harvest fans across the pool — a partnership is pinned at

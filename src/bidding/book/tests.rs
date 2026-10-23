@@ -267,6 +267,8 @@ fn probe_stores_and_reads_high_traffic_keys() {
     let report = partnership.probe(2000, 0x9B0BE);
     assert!(report.keys > 0, "probe stored nothing");
     assert!(report.drifted <= report.keys);
+    assert!(report.rms >= 0.0 && report.floor >= 0.0 && report.gain.is_finite());
+    assert!((0.0..=1.0).contains(&report.cliff));
 
     let auction = [bid(1, Strain::Diamonds), Call::Pass];
     // Knob off — byte-identical to an unprobed partnership.
@@ -323,6 +325,100 @@ fn observed_merge_is_order_insensitive() {
     assert_eq!(straight.boxed(), fold(&[2, 0, 3, 1]).boxed());
 }
 
+/// The § A0 ruler (docs/shrinkage-plan.md) on hand-built harvests: identical
+/// maps read zero; a key that falls under the sample floor serves ⊤, which is
+/// a full retreat (gain −1) at a residual computable by hand; a tighter
+/// re-measurement is a contraction (gain > 0); a key only the second harvest
+/// stores counts against ⊤.
+#[test]
+fn probe_ruler_reads_identity_retreat_and_contraction() {
+    use super::{Observed, gain, residual};
+    use crate::bidding::Range;
+    use std::collections::HashMap;
+
+    let observed = |count: u64, points: Range, length: Range| Observed {
+        count,
+        points,
+        lengths: [length; 4],
+    };
+    let key = vec![ONE_DIAMOND, P];
+    let map = |agg: Observed| HashMap::from([(key.clone(), agg)]);
+    // Under the cliff (κ = 0) the served box is points 8..=17, every length
+    // 1..=6 (the widening slack).
+    let served = map(observed(1000, Range::new(10, 15), Range::new(2, 5)));
+    assert_eq!(residual(&served, &served, 0), (0.0, 0.0));
+    assert_eq!(gain(&served, &served, 0), 0.0);
+
+    // Under the floor the key serves ⊤: Δ² = 8² + 20² + 4·(1² + 7²) = 664
+    // over ten axes, and the response is exactly minus the step.
+    let retreat = map(observed(100, Range::new(10, 15), Range::new(2, 5)));
+    let (rms, cliff) = residual(&served, &retreat, 0);
+    assert!((rms - 66.4_f64.sqrt()).abs() < 1e-9);
+    assert_eq!(cliff, 1.0, "a retreat to ⊤ is all cliff");
+    assert!((gain(&served, &retreat, 0) + 1.0).abs() < 1e-9);
+
+    // Points re-measured 11..=14 (served 9..=16): one point in on each end.
+    let tighter = map(observed(1000, Range::new(11, 14), Range::new(2, 5)));
+    let (rms, cliff) = residual(&served, &tighter, 0);
+    assert!((rms - 0.2_f64.sqrt()).abs() < 1e-9);
+    assert_eq!(cliff, 0.0, "a move inside a stored key is not cliff");
+    assert!((gain(&served, &tighter, 0) - 28.0 / 664.0).abs() < 1e-9);
+
+    let mut grown = served.clone();
+    grown.insert(
+        vec![ONE_HEART, P],
+        observed(300, Range::new(0, 11), Range::new(0, 6)),
+    );
+    let (rms, cliff) = residual(&served, &grown, 0);
+    assert!(rms > 0.0 && rms < 66.4_f64.sqrt());
+    assert_eq!(cliff, 1.0);
+
+    // κ turns the cliff into a slope: the same thin key no longer retreats to
+    // ⊤ but serves a wider box, so the residual and the cliff share both fall.
+    let (rms_cliff, _) = residual(&served, &retreat, 0);
+    let (rms_slope, cliff_slope) = residual(&served, &retreat, 200);
+    assert!(rms_slope < rms_cliff && rms_slope > 0.0);
+    assert_eq!(cliff_slope, 0.0);
+}
+
+/// The § A1 serve-time estimator (docs/shrinkage-plan.md): κ = 0 is the
+/// cliff byte for byte; under κ a key at n = κ sits halfway between its
+/// padded box and ⊤ on every endpoint, a thin key is never narrower than the
+/// cliff served, and a key under the storage floor serves nothing.
+#[test]
+fn probed_kappa_shrinks_toward_top_by_evidence() {
+    use super::Observed;
+    use crate::bidding::{Envelope, Range};
+
+    let at = |count: u64| Observed {
+        count,
+        points: Range::new(10, 15),
+        lengths: [Range::new(2, 5); 4],
+    };
+    let mut padded = Envelope::unknown();
+    padded.strength.points = Range::new(8, 17);
+    padded.lengths = [Range::new(1, 6); 4];
+
+    assert_eq!(at(200).served(0), Some(padded));
+    assert_eq!(at(199).served(0), None, "the cliff");
+    assert_eq!(at(19).served(200), None, "under the storage floor");
+    assert!(at(20).served(200).is_some(), "on the slope");
+
+    // n = κ: w = ½ — points ½·8 = 4 .. 37 − ½·20 = 27; lengths ½ → 1 .. 13 − ½·7 = 9.5 → 10.
+    let half = at(200).served(200).expect("serves");
+    assert_eq!(half.strength.points, Range::new(4, 27));
+    assert_eq!(half.lengths, [Range::new(1, 10); 4]);
+
+    // Monotone in evidence, bounded by the cliff's box.
+    let fat = at(1_000_000).served(200).expect("serves");
+    assert_eq!(fat, padded, "a fat key is the measurement");
+    let mid = at(1000).served(200).expect("serves");
+    assert!(mid.strength.points.min >= half.strength.points.min);
+    assert!(mid.strength.points.max <= half.strength.points.max);
+    assert!(mid.strength.points.min <= padded.strength.points.min);
+    assert!(mid.strength.points.max >= padded.strength.points.max);
+}
+
 /// The vacuous-scoped fold serves coverage and nothing else, on the
 /// ledger's own hole (`1♦ (2♣) 2♠` read partner ♠ `0..13`,
 /// docs/reading-drift-handoff.md): partner's contested free bid fills
@@ -335,7 +431,7 @@ fn observed_merge_is_order_insensitive() {
 fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     use contract_bridge::auction::RelativeVulnerability;
 
-    use crate::bidding::{Envelope, Range};
+    use crate::bidding::Range;
 
     let mut partnership =
         crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
@@ -348,11 +444,18 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     // Puppet's `1NT - 2♠` (defect 1 of `nt_structure_artificial`); the gate
     // reads it ♠4+, so pin the pre-gate reading this hole was found under.
     partnership.profile_mut().reading.nt_structure_opening_gate = false;
-    let boxed = |spades: Range, points: Range| {
-        let mut envelope = Envelope::unknown();
-        envelope.lengths[Suit::Spades as usize] = spades;
-        envelope.strength.points = points;
-        envelope
+    // Serve the stored measurements at the cliff, so each box below is exact.
+    partnership.profile_mut().reading.probed_kappa = 0;
+    // The stored measurement whose served box is exactly `spades` × `points`
+    // (the widening slack un-padded; the other suits stay ⊤).
+    let boxed = |spades: Range, points: Range| super::Observed {
+        count: crate::bidding::Partnership::MIN_SAMPLES,
+        points: Range::new(points.min + 2, points.max - 2),
+        lengths: {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[Suit::Spades as usize] = Range::new(spades.min + 1, spades.max - 1);
+            lengths
+        },
     };
     // Partner's free bid in a contested prefix — the served key.
     partnership.probed.insert(
