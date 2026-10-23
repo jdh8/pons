@@ -1,12 +1,16 @@
 # Shrinkage and damped fixed points — what the poker R-loop taught, applied here
 
-**Status (2026-10-23, evening): A0, A1, A3 and C built and read in one day.
-The probe's drift is the sample cliff, not a cycle (A2 dropped); the κ-slope
-removes the cliff (`probed_kappa`, default 200, κ = 0 the old behaviour byte
-for byte); A3 read the probed serving's loss as a **slope in κ toward the
-base arm that never crosses it** — no κ ships, the retrain lap (A4, deferred
-by jdh8) is the one lever left; Plan C's estimator is settled by a split-half
-check (DerSimonian–Laird). See "Measured so far".** Written after the poker-trainer
+**Status (2026-10-24): A0, A1, A3, B, C and A4 lap 1 built and read in two
+days. The probe's drift is the sample cliff, not a cycle (A2 dropped); the
+κ-slope removes the cliff (`probed_kappa`, default 200, κ = 0 the old
+behaviour byte for byte); A3 read the probed serving's loss as a **slope in
+κ toward the base arm that never crosses it** — no κ ships; A4's retrain lap
+under the probed boxes **stopped at lap 1**: the retrained floor, served
+matched, is still −0.010 / −0.007 plain under the shipped floor, its gain in
+its own regime (a4 − k200) sits inside ±0.008 of zero, and the probe's
+residual and gain under the new net read a fixed point. The probe stays off
+the default path; Plan C's estimator is settled by a split-half check
+(DerSimonian–Laird). See "Measured so far".** Written after the poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -25,7 +29,7 @@ ruler**. All three port to the probe without changing what consumers read.
 Two smaller ports follow: a seed-noise ruler for retrains, and shrunk
 per-node pools for the bucket ranking.
 
-## Measured so far (2026-10-23)
+## Measured so far (2026-10-23 → 24)
 
 **A0, the ruler.** `ProbeReport` now carries `rms`, `floor`, `cliff` and
 `gain` (`Partnership::probe` runs three harvests: the second iteration's
@@ -124,6 +128,85 @@ never seen a served box, which is A4's job. Disposition: **no κ ships**
 below, and the PD both-vul win is the artifact the decision table discounts;
 **A4 is the one lever left**, and it runs as a lap with this ruler (A0) and
 this estimator (A1), no damping (A2).
+
+**A4, lap 1 (read 2026-10-24).** `ab-results/probe-retrain`, `SEED_BASE`
+1792774741138280180, 96 × 2,136 boards per arm per vulnerability, arms
+plain / k200 / a4 / a4off as § A4 defines them (the probed arms
+`--ns-probe 100000 --ns-probe-vacuous`, κ 200); direct A/B at table A,
+δ = 0.002:
+
+| pair | vul | fired | plain IMPs/board | verdict | PD IMPs/board | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| a4 − plain | none | 8.31% | −0.0101 ±0.0074 | loss | −0.0016 ±0.0081 | inconclusive |
+| a4 − plain | both | 7.34% | −0.0071 ±0.0089 | inconclusive | −0.0037 ±0.0099 | inconclusive |
+| a4 − k200 | none | 8.83% | +0.0037 ±0.0075 | inconclusive | −0.0011 ±0.0083 | inconclusive |
+| a4 − k200 | both | 7.87% | −0.0002 ±0.0090 | inconclusive | −0.0124 ±0.0101 | loss |
+| a4off − plain | none | 8.68% | −0.0111 ±0.0075 | loss | −0.0087 ±0.0083 | loss |
+| a4off − plain | both | 7.65% | −0.0072 ±0.0090 | inconclusive | −0.0097 ±0.0100 | inconclusive |
+| a4 − a4off | none | 2.56% | +0.0010 ±0.0037 | inconclusive | +0.0075 ±0.0042 | win |
+| a4 − a4off | both | 2.34% | −0.0002 ±0.0046 | inconclusive | +0.0060 ±0.0053 | win |
+| k200 − plain | none | 2.86% | −0.0136 ±0.0039 | loss | −0.0003 ±0.0043 | inconclusive |
+| k200 − plain | both | 2.57% | −0.0065 ±0.0047 | loss | +0.0091 ±0.0054 | win |
+
+Single-dummy (`ab-dump-sd`, 16 worlds) agrees in every cell: a4 − plain
+−0.0098 ±0.0077 loss / −0.0061 ±0.0092 inconclusive on plain SD; a4 − k200
++0.0070 ±0.0078 non-inferior / +0.0052 ±0.0093 inconclusive on plain SD,
++0.0013 / −0.0075 inconclusive on SD-PD; a4 − a4off plain-flat with the same
+SD-PD win (+0.0058 ±0.0042 / +0.0037 ±0.0053).
+
+Ruler (`scripts/ruler-tv.py`, reach-weighted TV, NV / both; depth 3 first,
+full depth in brackets; Plan B's K = 8 floor is 0.0169 / 0.0150
+[0.049 / 0.043]):
+
+| pair | depth 3 | full | reads as |
+| --- | --- | --- | --- |
+| a4off vs plain (the retrain alone) | 0.0195 / 0.0183 | 0.053 / 0.047 | **1.1–1.2× the K = 8 floor** |
+| a4 vs plain (the candidate) | 0.0184 / 0.0172 | 0.051 / 0.045 | same |
+| k200 vs plain (the serving under the shipped net) | 0.0059 / 0.0053 | 0.016 / 0.014 | a third of the floor |
+| a4 vs a4off (the serving under the new net) | 0.0053 / 0.0050 | 0.014 / 0.013 | same third |
+
+(The 01:30 partial read quoted 0.053 "at depth 3" against the 0.017 floor,
+≈ 3×; that number was the full-depth read — the script's default depth is
+0 — and the apples-to-apples ratio is the 1.1–1.2× above.) The retrain's
+top keys are the floor's own: their opening and response with us in fourth
+seat (`1♦ - 1♥` TV 0.05 at 10k visits, `1♥ - 1♠` 0.07–0.09, `1♠ - 2♠` 0.19,
+`1♠ - 2♦` 0.31–0.33 at 1.3k), where two reseeds also disagree; the serving's
+top keys are advancer's and the doubler's (`1♦ 1♠ -` 0.10–0.16, `1♣ 1♦ X`
+0.21–0.23), the positions where a served box changes what the net sees. The
+probe's own report under each net (identical in both cells, the probe seed
+being fixed): shipped net 5,650 keys, 1,110 drifted, residual rms 0.160 vs
+floor 0.451 (0.4×), cliff share 20%, gain 0.00; a4 net 5,654 / 952 / 0.137
+vs 0.459 (0.3×) / 19% / −0.00.
+
+Four readings. **The first branch fails**: a4 loses to plain on plain DD at
+`none` (−0.0101, lower bound −0.0175) with PD inconclusive in both cells, so
+the serving does not ship with the retrained floor. **The lap did not move
+the wall**: a4 − k200, the retrain's gain in its own regime, is +0.0037 /
+−0.0002 on plain DD with ±0.008 intervals and a PD loss in the both-vul
+cell — "a4 above k200" is not established by any verdict, which is the
+third branch, **stop**. **The residual rule says the same**: the probe
+under the new net reads rms 0.160 → 0.137 (14% lower), cliff share
+20% → 19%, gain 0.00 → 0.00 — a fixed point, not a step toward one, so no
+second lap is owed by the plan's own rule, and the ruler agrees: the whole
+corpus change (features moved in 23% of rows, labels fixed) moved the
+policy by 1.1–1.2× what two reseeds do, at the same keys. **The one
+mechanism the lap did isolate**: the serving's plain-DD cost is a
+train/serve mismatch and the retrain removed it — under the shipped net the
+probed serving loses −0.0136 / −0.0065 on plain, under the retrained net the
+same serving is flat (+0.0010 / −0.0002) and wins PD in both cells (the
+PD-only win the decision table discounts as doubling-priced) — but the
+retrained net served without the boxes is the mismatch the other way and
+costs the same (a4off − plain −0.0111 / −0.0072 plain, −0.0087 / −0.0097
+PD), so the two matched regimes, (⊤ trained, ⊤ served) and (probed trained,
+probed served), end −0.0101 / −0.0071 apart on plain DD in the symbolic
+regime's favour. Served matched, the shrunk boxes are not better
+information than ⊤ for this net; the information they add is
+doubling-priced. Disposition: **lap 1 stops; nothing ships; the probe stays
+off the default path** (A3's verdict stands). The lap-1 nets stay in
+`ab-results/a4/nets/` (not in the repo); `dump-teacher --ns-probe` and the
+runner stay as built for any later lap. Not owed, but cheap if the question
+is ever asked: a4off against Plan B's `k8new` (same init seeds 9–16) on
+paired deals would read the corpus effect net of seed noise.
 
 **C, the shrunk pools.** `scripts/shrunk-pools.py` (node = bucket ×
 (rule, our call); κ = σ²/τ², first by the unweighted method of moments the
@@ -310,10 +393,11 @@ pre-registered readings:
 
 Negative control: λ_serve = 0 must reproduce the base arm byte-for-byte.
 
-### A4 — the probe-first retrain, now as a lap (owed; retrains deferred by jdh8)
+### A4 — the probe-first retrain, now as a lap (lap 1 read 2026-10-24: stop)
 
-**Lap 1 built and launched 2026-10-23 ~22:50 (in flight; read owed).** The
-build, so the read can be reproduced:
+**Lap 1 built and launched 2026-10-23 ~22:50, read 2026-10-24 ("Measured
+so far", A4): the third pre-registered branch, stop.** The build, so the
+read can be reproduced:
 
 - **Corpus** (`target/corpus-a4-chunks` → `target/corpus-a4`): the M32 recipe's
   188 fleet windows re-walked at HEAD by `scripts/relabel-worker.sh`
@@ -490,7 +574,7 @@ the campaign's days go.
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
 | B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
-| A4 retrain lap — **lap 1 in flight 2026-10-23** (build record under § A4) | the deferred retrain as K = 8, ×2 | the prize; the one lever A3 left; stop rule = B's floor | — |
+| A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; residual at a fixed point; the net moved 1.1–1.2× the K = 8 floor | — |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.

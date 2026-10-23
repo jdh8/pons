@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **A4 lap 1 — the floor retrained under the probed boxes, built and in
-  flight (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md) § A4)**:
+- **A4 lap 1 — the floor retrained under the probed boxes, built 2026-10-23
+  and read 2026-10-24: stop, nothing ships ([docs/shrinkage-plan.md](docs/shrinkage-plan.md)
+  § A4 and "Measured so far")**:
   `dump-teacher --ns-probe N [--ns-probe-kappa κ] [--ns-probe-vacuous]` arms the
   probed overlay on the reader partnerships exactly as `bba-gen --ns-probe`
   arms its floor (same fixed seed), so a corpus's `Inferences` block is read
@@ -23,8 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the same deal under another cell or table) to the old row of the same
   rebuilt identity instead of dropping it — the lap's axis shards, keyed
   rather than positional, had 98.5% such rows and transplanted under 1% of
-  their M32 labels before the fix (2026-10-24); after it 99%. No bidding
-  change until the A/B reads.
+  their M32 labels before the fix (2026-10-24); after it 99%. The read
+  (`ab-results/probe-retrain`, 96 × 2,136 boards per arm per vul, K = 8 vs
+  K = 8 on one seed): the candidate (retrained floor + probed serving) vs the
+  shipped floor −0.0101 ±0.0074 plain loss / −0.0016 ±0.0081 PD at `none`,
+  −0.0071 ±0.0089 / −0.0037 ±0.0099 inconclusive at `both`; its gain in its
+  own regime (vs the shipped floor served probed) +0.0037 ±0.0075 /
+  −0.0002 ±0.0090 plain, PD −0.0011 / −0.0124 ±0.0101 loss at `both` — the
+  third pre-registered branch, stop. The retrain did remove the serving's
+  plain-DD cost (under it the probed serving is plain-flat with a
+  doubling-priced PD win), but served matched the probed regime still trails
+  the symbolic one. Ruler: the retrain moved the policy 0.0195 / 0.0183 TV
+  at depth 3 against the K = 8 seed floor 0.017 / 0.015, at the floor's own
+  keys; the probe's residual under the new net 0.137 (0.3× its floor), gain
+  0 — a fixed point. The probe stays off the default path; **no bidding
+  change**.
 - **Seed-noise ruler for floor retrains (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
   Plan B)**: `scripts/ruler-tv.py` reads two or more `ab-lib` arm directories
   bid over the same deals and reports the reach-weighted per-prefix-key total
