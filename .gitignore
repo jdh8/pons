@@ -39,3 +39,7 @@
 
 # Proptest failure-case seeds: regenerable by re-running the property tests.
 /proptest-regressions/
+
+# Python bytecode caches from running scripts/*.py: never source.
+__pycache__/
+*.pyc
