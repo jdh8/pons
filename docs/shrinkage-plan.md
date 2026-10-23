@@ -10,7 +10,10 @@ matched, is still −0.010 / −0.007 plain under the shipped floor, its gain in
 its own regime (a4 − k200) sits inside ±0.008 of zero, and the probe's
 residual and gain under the new net read a fixed point. The probe stays off
 the default path; Plan C's estimator is settled by a split-half check
-(DerSimonian–Laird). See "Measured so far".** Written after the poker-trainer
+(DerSimonian–Laird). See "Measured so far". **Re-read 2026-10-24 (jdh8:
+LGTM): under transplanted labels the residual rule was not a live test, and
+the next lever is the reading's encoding, not another lap — see "Next: what
+lap 2 owes".** Written after the poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -246,6 +249,72 @@ Under DL the thin-node bucket reads κ 119 plain / 58 PD and the resolved
 −191, which is what this plan promised and MoM never delivered. The script
 still changes no top-10 of a top-5 bucket; it is a check to run at each
 re-anchor, not a lane.
+
+## Next: what lap 2 owes (2026-10-24, agreed with jdh8)
+
+Two questions asked of lap 1's stop — does more compute change it, and is
+the data structure the problem — and the answers, with the three changes
+they make to this plan.
+
+**Why lap 1 could not have moved.** The a4 corpus moved the features (23%
+of rows) and transplanted the M32 labels unchanged
+([features-v8.md §2](ai-bidder/features-v8.md), the stale-label caveat).
+A BBA one-hot label depends on BBA's hand and BBA's reading of *its*
+partner, never on our box; only the EV-argmax rows (the M32 cut, 460,341 of
+6,766,821) can express what a tighter reading of partner is worth, and those
+were rolled out under the ⊤ readings of 2026-09-13. The retrained net could
+therefore learn at most that the moved columns are uninformative about a
+fixed target: "a4 ≈ plain in the matched regime" and the residual's fixed
+point are partly by construction. The "stop on the residual" row in "Order
+and cost" was not a live test in lap 1.
+
+**The encoding is the data structure that bit, not the rung overload.** The
+precedence/logit overload of the `i16` weight is audited and harmless here
+([logit-calibration.md §2](ai-bidder/logit-calibration.md): nothing on the
+default path reads a book rung as a magnitude, book and net logits never
+share a `Logits`); splitting it is a KR2 refactor with no KR1 effect. What
+the v6 floor receives is each hidden seat's box as **hull endpoints**
+(`min/13`, `max/13` per suit, `push_inference_v6` in
+`src/bidding/features.rs`), and the encoder's own doc says why that is the
+wrong shape: `♥5..13` and `♥5..8` are the same claim to four digits of mass
+yet the max column moves 1.00 → 0.62, "which is why every hull-tightening
+chop has had to buy a retrain before it could be judged on merit". A
+κ-shrunk probed box is exactly such a chop, served live, at endpoint values
+the net saw rarely, and in the disjunctive positions (Or walls, rule
+competition) where a single hull is the loosest summary. The distributional
+twin exists for the evaluator net — `push_shape_dist` conditions a per-suit
+length distribution on the *union* of boxes (mean, sd, marginal histogram,
+log-mass), so a box that excludes no hands moves no column, and the probe
+could serve a union of clusters instead of one hull
+([sampled-projection.md](ai-bidder/sampled-projection.md), the cap table).
+
+**The three changes, in order:**
+
+1. **`features_v9` for the policy floor, before any lap 2** — the hull
+   endpoints replaced by the shape-distribution block. A feature bump under
+   transplanted labels, the v8 pipeline
+   ([features-v8.md §4](ai-bidder/features-v8.md)): minutes to re-walk and
+   splice, ~10 min to train K = 8 on dl02, no relabel. Gate it first under
+   ⊤ readings (v9 non-inferior to v6 on both scorers, read K = 8 vs K = 8
+   on paired deals against Plan B's floor), then re-run A4's four arms
+   under v9. This tests lap 1's mechanism directly and costs hours.
+2. **If a4 − k200 turns positive under v9, the relabel at HEAD under the
+   probed reading** — the only way the labels can carry the box, and the
+   deferred 2026-09-26 "megachonk" and v8's lever list in one job. ≈ 170M
+   DD tables: **≈ 2 days on a free box** (10 × `DDSS_THREADS=64`), ≈ 8
+   occupied ([shared-machine-data-gen.md](shared-machine-data-gen.md)
+   "Sizing the solver"). Detached, state in memory.
+3. **Size branch-2 reads at ≈ 3M boards per arm per vulnerability.** Lap
+   1's a4 − k200 was read at ±0.0075, four times δ; resolving it needs
+   ≈ 14× the boards. The lap-1 arms took ≈ 1.6 h per arm pair at
+   `JOBS=96`, so that is a few hours per pair on the whole box. More boards
+   cannot flip a4 − plain (−0.0101, a clear loss); they are the only way
+   branch 2 can be read at all. Lap 1's branch 2 was **unresolvable at
+   204,800, not refuted**.
+
+Not worth the compute: the floor sweep's closed axes (width, epochs, lr,
+`--dd-weight`; [archive/floor-sweep.md](archive/floor-sweep.md)) and A2's
+damping (gain ≈ 0 measured).
 
 ## What the R-loop taught (the four lessons)
 
@@ -574,7 +643,7 @@ the campaign's days go.
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
 | B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
-| A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; residual at a fixed point; the net moved 1.1–1.2× the K = 8 floor | — |
+| A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; residual at a fixed point; the net moved 1.1–1.2× the K = 8 floor. **Caveat (2026-10-24):** under transplanted labels the residual could not move, so the residual rule was not a live test; branch 2 unresolvable at this size (±0.0075 vs δ 0.002) | "Next: what lap 2 owes" |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.

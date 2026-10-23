@@ -38,7 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at depth 3 against the K = 8 seed floor 0.017 / 0.015, at the floor's own
   keys; the probe's residual under the new net 0.137 (0.3× its floor), gain
   0 — a fixed point. The probe stays off the default path; **no bidding
-  change**.
+  change**. **Re-read the same day (jdh8: LGTM)**: under transplanted labels
+  the residual could not move (only the 460k EV-labelled rows can carry a
+  reading of partner; a BBA one-hot cannot), so the residual rule was not a
+  live test, and branch 2 was unresolvable at ±0.0075 vs δ 0.002. The next
+  lever is the reading's encoding — the v6 floor reads hull endpoints, which
+  a κ-shrunk box displaces by multiple σ without moving mass — so the plan
+  now owes, in order: a `features_v9` policy floor on the shape-distribution
+  block (transplanted labels, hours), then the relabel under the probed
+  reading only if a4 − k200 turns positive (≈ 2 days on a free box), with
+  branch-2 reads sized at ≈ 3M boards per arm per vul
+  ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "Next: what lap 2 owes").
 - **Seed-noise ruler for floor retrains (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
   Plan B)**: `scripts/ruler-tv.py` reads two or more `ab-lib` arm directories
   bid over the same deals and reports the reach-weighted per-prefix-key total
