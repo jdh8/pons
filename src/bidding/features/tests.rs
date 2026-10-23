@@ -1565,3 +1565,134 @@ fn trainer_board_scan_offsets_hold() {
     let context = Context::new(RelativeVulnerability::NONE, &[]);
     assert_eq!(features_v3(cards, &context)[..46], head(&[], false)[..46]);
 }
+
+// ── v9: the length hull swapped for the shape distribution ──────────────────
+
+/// v9 keeps every v8 column but each seat's eight length endpoints, which the
+/// [`LEN_SHAPE`] block replaces: hand and context lead, the points and support
+/// endpoints survive in place, and vulnerability, compact and artificial
+/// blocks follow at the offsets the splice keys on.
+#[test]
+fn features_v9_swaps_the_length_hull_for_the_shape_reading() {
+    assert_eq!(LEN_INFERENCE_V9, 75);
+    assert_eq!(OFFSET_VUL_V9, 346);
+    assert_eq!(FEATURES_LEN_V9, 416);
+
+    let cards = hand(SPREAD_HAND);
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
+    let partnership = crate::american(&agreements).bind();
+    let auction = [
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(2, Strain::Diamonds),
+        Call::Pass,
+    ];
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::WE, &auction)
+        .with_compact(&compact);
+    let v8 = features_v8(cards, &context);
+    let v9 = features_v9(cards, &context);
+    assert_eq!(v9.len(), FEATURES_LEN_V9);
+
+    let head = LEN_HAND_V3 + LEN_CONTEXT;
+    assert_eq!(v9[..head], v8[..head], "hand and context");
+    for seat in 0..4 {
+        let from = head + seat * LEN_INFERENCE_V9 + LEN_SHAPE;
+        let was = head + seat * LEN_INFERENCE_V6 + 8;
+        assert_eq!(
+            v9[from..from + LEN_POINTS + LEN_SUPPORT_POINTS],
+            v8[was..was + LEN_POINTS + LEN_SUPPORT_POINTS],
+            "seat {seat} points and support"
+        );
+    }
+    assert_eq!(
+        v9[OFFSET_VUL_V9..OFFSET_VUL_V9 + LEN_VUL],
+        [1.0, 0.0],
+        "vul"
+    );
+    assert_eq!(
+        v9[OFFSET_VUL_V9..],
+        v8[OFFSET_INFERENCES + LEN_INFERENCES_V6..],
+        "vul, compact and artificial tails"
+    );
+    // The transfer named diamonds only artificially, as v8 flags it.
+    assert_eq!(
+        v9[FEATURES_LEN_V9 - LEN_ARTIFICIAL + Strain::Diamonds as usize],
+        1.0
+    );
+}
+
+/// Shows nothing: the own seat reads the whole-deck prior (`E[len] = 13/4`
+/// per suit), each hidden seat the hypergeometric prior over the 39 cards
+/// this hand does not hold, and every mass column is 0.
+#[test]
+fn features_v9_top_reading_is_the_shape_prior() {
+    let cards = hand(SPREAD_HAND);
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
+    let partnership = crate::american(&agreements).bind();
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &[])
+        .with_compact(&compact);
+    let v9 = features_v9(cards, &context);
+    let head = LEN_HAND_V3 + LEN_CONTEXT;
+    let seat = |n: usize| &v9[head + n * LEN_INFERENCE_V9..head + (n + 1) * LEN_INFERENCE_V9];
+    for s in 0..4 {
+        assert!((seat(0)[s] - 0.25).abs() < 1e-6, "own E[len_{s}]");
+    }
+    for n in 1..4 {
+        for (s, unseen) in [12.0, 10.0, 9.0, 8.0].into_iter().enumerate() {
+            assert!(
+                (f64::from(seat(n)[s]) - unseen / 3.0 / 13.0).abs() < 1e-6,
+                "seat {n} E[len_{s}]"
+            );
+        }
+    }
+    for n in 0..4 {
+        assert!(seat(n)[LEN_SHAPE - 1].abs() < 1e-6, "seat {n} mass");
+    }
+}
+
+/// The property the bump exists for: two boxes admitting the same hands write
+/// the same v9 seat block, where the v6 block moves.
+#[test]
+fn v9_seat_block_is_invariant_to_the_sum_closure() {
+    let open = lengths([(0, 13), (0, 13), (5, 13), (5, 13)]);
+    let closed = lengths([(0, 3), (0, 3), (5, 8), (5, 8)]);
+    let blind = DecisionProfile::default().blind_inference;
+    let block = |unseen: &Unseen, player: &Envelope| {
+        let mut out = Vec::new();
+        push_inference_v9(
+            &mut out,
+            blind,
+            unseen,
+            player,
+            &EnvelopeUnion::from(*player),
+        );
+        assert_eq!(out.len(), LEN_INFERENCE_V9);
+        out
+    };
+    let mut v6 = (Vec::new(), Vec::new());
+    push_inference_v6(&mut v6.0, blind, &open);
+    push_inference_v6(&mut v6.1, blind, &closed);
+    assert_ne!(v6.0, v6.1, "the closure moves the v6 endpoints");
+    for unseen in [Unseen::whole_deck(), Unseen::new(hand(SPREAD_HAND))] {
+        assert_eq!(block(&unseen, &open), block(&unseen, &closed));
+        assert_ne!(block(&unseen, &open), block(&unseen, &Envelope::unknown()));
+    }
+}
+
+/// `scripts/splice-labels.py` keys the label transplant on the hand, context
+/// and vulnerability columns at per-version offsets (`VUL_OFFSET`); the two
+/// layouts it names are pinned here.
+#[test]
+fn splice_key_offsets_hold() {
+    assert_eq!(LEN_HAND_V3 + LEN_CONTEXT, 46);
+    assert_eq!(
+        OFFSET_INFERENCES + LEN_INFERENCES_V6,
+        118,
+        "v6 and v8 vul offset"
+    );
+    assert_eq!(OFFSET_VUL_V9, 346, "v9 vul offset");
+}

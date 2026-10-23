@@ -147,15 +147,16 @@ enum Net {
     /// reads only the v8 vector), so the shell never pairs a blob with the
     /// wrong width.
     Embedded(fn(Hand, &Context<'_>) -> Logits),
-    /// A logit mean over run-time v6 blobs — the floor sweep's candidate arm.
-    Mean(Arc<[Vec<f32>]>),
+    /// A logit mean over run-time blobs — the floor sweep's candidate arm —
+    /// with the extractor their input width names (v6 or v9).
+    Mean(Arc<[Vec<f32>]>, fn(Hand, &Context<'_>) -> Vec<f32>),
 }
 
 impl std::fmt::Debug for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Embedded(_) => f.write_str("Embedded"),
-            Self::Mean(blobs) => write!(f, "Mean({})", blobs.len()),
+            Self::Mean(blobs, _) => write!(f, "Mean({})", blobs.len()),
         }
     }
 }
@@ -185,23 +186,36 @@ impl ConfiguredFloorV6 {
         )
     }
 
-    /// Attach a logit mean over run-time v6 blobs (`K = 1` is one file-loaded
-    /// net), as `docs/archive/floor-sweep.md` measures candidates.
+    /// Attach a logit mean over run-time blobs (`K = 1` is one file-loaded
+    /// net), as `docs/archive/floor-sweep.md` measures candidates.  Every
+    /// blob's length names its input width ([`neural::blob_shape`]), which
+    /// picks the extractor: the v6 vector or the v9 one.
     ///
     /// # Panics
     ///
-    /// When `blobs` is empty or a blob's length names no width in
-    /// [`neural::V6_WIDTHS`].
+    /// When `blobs` is empty, a blob's length names no shape, or the blobs
+    /// disagree on their input width.
     #[must_use]
     pub fn new_mean(compact: CompactConfig, ladder: Arc<Rules>, blobs: Arc<[Vec<f32>]>) -> Self {
         assert!(!blobs.is_empty(), "an ensemble needs a blob");
-        for blob in blobs.iter() {
-            assert!(
-                neural::v6_width(blob.len()).is_some(),
-                "not a v6-shaped blob"
-            );
-        }
-        Self(compact, ladder, Net::Mean(blobs))
+        let inputs: Vec<usize> = blobs
+            .iter()
+            .map(|blob| {
+                neural::blob_shape(blob.len())
+                    .unwrap_or_else(|| panic!("{} floats is no blob shape", blob.len()))
+                    .0
+            })
+            .collect();
+        assert!(
+            inputs.iter().all(|&i| i == inputs[0]),
+            "an ensemble's blobs must share one input width, got {inputs:?}"
+        );
+        let extractor: fn(Hand, &Context<'_>) -> Vec<f32> = match inputs[0] {
+            features::FEATURES_LEN_V6 => features::features_v6,
+            features::FEATURES_LEN_V9 => features::features_v9,
+            other => panic!("no extractor serves {other} inputs"),
+        };
+        Self(compact, ladder, Net::Mean(blobs, extractor))
     }
 
     /// Attach the experimental twin trained on BBA's disclosed readings.
@@ -225,9 +239,7 @@ impl Classifier for ConfiguredFloorV6 {
         let configured = context.clone().with_compact(&self.0);
         let mut logits = match &self.2 {
             Net::Embedded(classify) => classify(hand, &configured),
-            Net::Mean(blobs) => {
-                neural::classify_v6_mean(blobs, &features::features_v6(hand, &configured))
-            }
+            Net::Mean(blobs, extract) => neural::classify_mean(blobs, &extract(hand, &configured)),
         };
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);

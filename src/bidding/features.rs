@@ -296,6 +296,13 @@ impl Unseen {
             std::array::from_fn(|k| f64::from(BINOM[unseen][k]))
         }))
     }
+
+    /// The 52-card prior — what a seat's *own* announced reading describes to
+    /// the table, which sees none of its cards.  `C(13, k)` per suit, so the
+    /// unconditional walk is the 4-3-3-3 … 13-0-0-0 shape prior.
+    fn whole_deck() -> Self {
+        Self::new(Hand::EMPTY)
+    }
 }
 
 /// Weighted sums over the shape lattice, before normalisation
@@ -752,8 +759,45 @@ fn push_bid_encoding(out: &mut impl FeatureSink, bid: Option<contract_bridge::Bi
 /// disclosed agreements (the [`Inferences`] ranges), so it stays in the
 /// restrictive v3 vector unchanged.
 fn push_context(out: &mut impl FeatureSink, context: &Context<'_>, v6: bool) {
-    // ── Context (36 values) ─────────────────────────────────────────────────
+    push_auction_context(out, context);
 
+    // ── Inferences (40 legacy / 72 honest values) ───────────────────────────
+    let inf = context.inferences();
+
+    for who in SEATS {
+        // The *agreement*, not the sound projection: a call is explained by what
+        // the partnership announces, and that is what a reasoning seat should be
+        // fed.  Identical to `get` unless `ReadingProfile::announced` is on and some
+        // rule split the two — a net-decided call, whose sound projection is ⊤.
+        if v6 {
+            push_inference_v6(
+                out,
+                context.decision_profile().blind_inference,
+                inf.announced(who),
+            );
+        } else {
+            push_inference(
+                out,
+                context.decision_profile().blind_inference,
+                inf.announced(who),
+            );
+        }
+    }
+
+    push_vul(out, context);
+}
+
+/// The four seats' reading blocks, in the order every extractor writes them.
+const SEATS: [Relative; 4] = [
+    Relative::Me,
+    Relative::Lho,
+    Relative::Partner,
+    Relative::Rho,
+];
+
+/// Push the auction-context block ([`LEN_CONTEXT`] values): strains named,
+/// the contract to beat, partner's last bid, penalty, phase flags, seat.
+fn push_auction_context(out: &mut impl FeatureSink, context: &Context<'_>) {
     // our_strains: 5 bits
     for strain in Strain::ASC {
         out.push(f32::from(context.we_bid(strain)));
@@ -792,36 +836,10 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>, v6: bool) {
 
     // we-opened bit: 1 value
     out.push(f32::from(context.we_opened()));
+}
 
-    // ── Inferences (40 legacy / 72 honest values) ───────────────────────────
-    let inf = context.inferences();
-
-    for who in [
-        Relative::Me,
-        Relative::Lho,
-        Relative::Partner,
-        Relative::Rho,
-    ] {
-        // The *agreement*, not the sound projection: a call is explained by what
-        // the partnership announces, and that is what a reasoning seat should be
-        // fed.  Identical to `get` unless `ReadingProfile::announced` is on and some
-        // rule split the two — a net-decided call, whose sound projection is ⊤.
-        if v6 {
-            push_inference_v6(
-                out,
-                context.decision_profile().blind_inference,
-                inf.announced(who),
-            );
-        } else {
-            push_inference(
-                out,
-                context.decision_profile().blind_inference,
-                inf.announced(who),
-            );
-        }
-    }
-
-    // ── Vulnerability (2 values) ────────────────────────────────────────────
+/// Push the vulnerability block ([`LEN_VUL`] values): we, they.
+fn push_vul(out: &mut impl FeatureSink, context: &Context<'_>) {
     let v = context.vul();
     out.push(f32::from(v.contains(RelativeVulnerability::WE)));
     out.push(f32::from(v.contains(RelativeVulnerability::THEY)));
@@ -1374,6 +1392,100 @@ pub fn features_v8(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out.reserve(LEN_ARTIFICIAL);
     push_artificial(&mut out, context);
     debug_assert_eq!(out.len(), FEATURES_LEN_V8);
+    out
+}
+
+// ── v9: v8 with each seat's length hull replaced by its shape distribution ───
+//
+// The v6 reading block hands the net each seat's box as hull endpoints
+// (`min/13`, `max/13` per suit), and that encoding is not invariant to
+// information-preserving re-representation: `♥5..13` and `♥5..8` admit the
+// same hands yet the max column moves 1.00 → 0.62, which is why every
+// hull-tightening chop — and the shrinkage probe's κ-shrunk boxes
+// (`docs/shrinkage-plan.md`, "Next: what lap 2 owes") — has had to buy a
+// retrain before it could be judged on merit.  v9 keeps v8's every other
+// column and swaps the eight length endpoints of each seat for the
+// [`push_shape_dist`] block the evaluator ablation built: the per-suit length
+// distribution the seat's announced *union* of boxes describes, so a box that
+// excludes no hands moves no column and a disjunction (a Multi's two majors)
+// reaches the net as a bimodal marginal instead of a `0..13` hull.
+//
+// The three hidden seats condition on the 39 cards this hand does not hold,
+// as the evaluator does.  The own seat conditions on the whole deck
+// ([`Unseen::whole_deck`]): its announced reading describes this hand to a
+// table that sees none of it, and the probe shrinks that reading too.
+//
+// Layout: hand 10 | context 36 | 4 × [`LEN_INFERENCE_V9`] | vul 2 |
+// compact 56 | artificial 12.  The vulnerability block moves from column 118
+// to [`OFFSET_VUL_V9`]; `scripts/splice-labels.py` keys the label transplant
+// on it per feature version.
+
+/// Layout version tag for [`features_v9`].
+pub const FEATURES_VERSION_V9: u32 = 9;
+
+/// Values one seat's v9 reading contributes: the [`LEN_SHAPE`] shape
+/// distribution in place of the eight length endpoints, then raw points and
+/// the four support-point ranges exactly as `push_inference_v6` writes them.
+pub const LEN_INFERENCE_V9: usize = LEN_SHAPE + LEN_POINTS + LEN_SUPPORT_POINTS;
+
+/// Offset of the vulnerability block in a v9 row.
+pub const OFFSET_VUL_V9: usize = LEN_HAND_V3 + LEN_CONTEXT + 4 * LEN_INFERENCE_V9;
+
+/// Number of `f32` values returned by [`features_v9`].
+pub const FEATURES_LEN_V9: usize = OFFSET_VUL_V9 + LEN_VUL + 2 * LEN_COMPACT + LEN_ARTIFICIAL;
+
+/// Push one seat's v9 reading: shape distribution, points, support points.
+fn push_inference_v9(
+    out: &mut impl FeatureSink,
+    blind: bool,
+    unseen: &Unseen,
+    player: &Envelope,
+    union: &EnvelopeUnion,
+) {
+    push_shape_dist(out, &shape_of(unseen, shown_boxes(blind, union)));
+    let player = shown(blind, player);
+    push_range(out, player.strength.points);
+    for range in player.strength.support_points {
+        push_range(out, range);
+    }
+}
+
+/// Extract the v9 vector: v8 with every seat's length hull replaced by its
+/// shape distribution.
+///
+/// Same contract as [`features_v6`]: wants a [`CompactConfig`] attached.
+#[must_use]
+pub fn features_v9(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_V9);
+    push_hand(&mut out, hand);
+    push_auction_context(&mut out, context);
+    let blind = context.decision_profile().blind_inference;
+    let inf = context.inferences();
+    let (own, hidden) = (Unseen::whole_deck(), Unseen::new(hand));
+    for who in SEATS {
+        let unseen = if who == Relative::Me { &own } else { &hidden };
+        push_inference_v9(
+            &mut out,
+            blind,
+            unseen,
+            inf.announced(who),
+            inf.announced_union(who),
+        );
+    }
+    push_vul(&mut out, context);
+    debug_assert!(
+        context.compact().is_some(),
+        "features_v9 wants a CompactConfig attached; see Context::with_compact"
+    );
+    match context.compact() {
+        Some(compact) => {
+            out.extend_from_slice(&compact.ours);
+            out.extend_from_slice(&compact.theirs);
+        }
+        None => out.resize(FEATURES_LEN_V9 - LEN_ARTIFICIAL, 0.0),
+    }
+    push_artificial(&mut out, context);
+    debug_assert_eq!(out.len(), FEATURES_LEN_V9);
     out
 }
 

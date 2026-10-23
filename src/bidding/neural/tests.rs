@@ -377,22 +377,36 @@ fn v6_mean_of_copies_is_the_single_net() {
     }
 }
 
-/// A run-time blob's length names its hidden width, and every width lays out
-/// `b3` last: an all-zero net with only `b3` set returns `b3`.
+/// A run-time blob's length names its shape — no two `(input, hidden)` pairs
+/// share a float count — and every shape lays out `b3` last: an all-zero net
+/// with only `b3` set returns `b3`.
 #[test]
-fn v6_blob_width_is_read_off_its_length() {
-    for h in V6_WIDTHS {
-        let n = total_h(IN_V6, h);
-        assert_eq!(v6_width(n), Some(h));
-        assert_eq!(v6_width(n + 1), None);
-        let mut blob = vec![0.0; n];
-        for (i, b) in blob[n - OUT..].iter_mut().enumerate() {
-            *b = i as f32;
+fn blob_shape_is_read_off_its_length() {
+    let mut seen = std::collections::HashSet::new();
+    for i in BLOB_INPUTS {
+        for h in V6_WIDTHS {
+            let n = total_h(i, h);
+            assert!(seen.insert(n), "{n} floats names two shapes");
+            assert_eq!(blob_shape(n), Some((i, h)));
+            assert_eq!(blob_shape(n + 1), None);
+            assert_eq!(v6_width(n), (i == IN_V6).then_some(h));
+            let mut blob = vec![0.0; n];
+            for (k, b) in blob[n - OUT..].iter_mut().enumerate() {
+                *b = k as f32;
+            }
+            let logits: Vec<f32> = classify_mean(&[blob], &vec![1.0; i])
+                .iter()
+                .map(|(_, l)| *l)
+                .collect();
+            assert_eq!(logits, (0..OUT).map(|k| k as f32).collect::<Vec<_>>());
         }
-        let logits: Vec<f32> = classify_v6_mean(&[blob], &[1.0; IN_V6])
-            .iter()
-            .map(|(_, l)| *l)
-            .collect();
-        assert_eq!(logits, (0..OUT).map(|i| i as f32).collect::<Vec<_>>());
     }
+}
+
+/// A blob never reads a vector of another width.
+#[test]
+#[should_panic(expected = "cannot read")]
+fn blob_refuses_the_wrong_feature_width() {
+    let blob = vec![0.0; total_h(IN_V9, 256)];
+    let _ = classify_mean(&[blob], &[1.0; IN_V6]);
 }

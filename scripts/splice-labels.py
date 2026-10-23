@@ -5,7 +5,8 @@
     scripts/splice-labels.py --validate [--any-identity] NEW_CHUNK_DIR OLD_CHUNK_DIR OLD_CUT_STEM
 
 `NEW_CHUNK_DIR` holds one shard's chunks re-walked at HEAD (`dump-teacher
---relabel --layouts 0`, any feature width, raw teacher one-hot labels);
+--relabel --layouts 0`, any feature version in `VUL_OFFSET`, raw teacher
+one-hot labels);
 `OLD_CHUNK_DIR` the fleet's chunks of that shard (raw one-hot, the labels the
 cut started from); `OLD_CUT_STEM` the shard as `dump-teacher --cut` wrote it
 (the M32 labels).  The cut's label block is written over the new one, into
@@ -62,11 +63,26 @@ def load(stem):
     return meta, rows
 
 
-# v6 layout, which v8 extends at the tail: hand 10 | context 36 | inferences 72 | vul 2 | compact 56.
-HAND_CONTEXT, VUL = slice(0, 46), slice(118, 120)
+# Every layout opens with hand 10 | context 36; the vulnerability pair sits
+# after the inference block, whose width is the feature version's: v6 and v8
+# (which extends v6 at the tail) carry 4 × 18 endpoints, v9 4 × 75 (the shape
+# distribution in place of the length hull).  Pinned by
+# `features::tests::splice_key_offsets_hold`; a version missing here is a
+# refusal, never a guess — a wrong offset keys on reading columns, matches
+# nothing, and every row silently keeps the teacher's one-hot.
+HAND_CONTEXT = slice(0, 46)
+VUL_OFFSET = {6: 118, 8: 118, 9: 346}
 
 
-def reading_free_key(rows, features_len):
+def vul_slice(meta):
+    version = meta["feature_version"]
+    assert version in VUL_OFFSET, f"feature_version {version}: no vulnerability offset known (add it to VUL_OFFSET)"
+    at = VUL_OFFSET[version]
+    assert at + 2 <= meta["features_len"], f"feature_version {version}: vul at {at} outside {meta['features_len']} features"
+    return slice(at, at + 2)
+
+
+def reading_free_key(meta, rows):
     """Hand, auction context, vulnerability, one-hot and DD per row, as bytes.
 
     Not the inference block (readings drift with the book) and not the compact
@@ -74,9 +90,10 @@ def reading_free_key(rows, features_len):
     row).  Leaving the compact block out means the key does not see the cell:
     a walk whose per-board cell rotation changed (the uniform shards' six cells
     → three) can match a row to the same deal and seat under another cell.
-    The identity check in `pair` refuses those.
+    The identity check in `pair` refuses those.  The offsets come from the
+    chunk's own `feature_version`, so a v9 re-walk keys against v6 fleet chunks.
     """
-    key = np.concatenate([rows[:, HAND_CONTEXT], rows[:, VUL], rows[:, features_len:]], axis=1)
+    key = np.concatenate([rows[:, HAND_CONTEXT], rows[:, vul_slice(meta)], rows[:, meta["features_len"] :]], axis=1)
     return [r.tobytes() for r in np.ascontiguousarray(key)]
 
 
@@ -148,9 +165,9 @@ def pair(new_stem, old_stem, any_identity):
         # candidates by the reading-free key; an old key seen twice is dropped.
         c["keyed_chunks"] = 1
         old_rows = {}
-        for j, k in enumerate(reading_free_key(old, of)):
+        for j, k in enumerate(reading_free_key(om, old)):
             old_rows.setdefault(k, []).append(j)
-        new_keys = reading_free_key(new, nf)
+        new_keys = reading_free_key(nm, new)
         uses = {}
         for k in new_keys:
             uses[k] = uses.get(k, 0) + 1

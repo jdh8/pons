@@ -57,9 +57,10 @@ use pons::bidding::card::american_card;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     BOXES_V7, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6,
-    FEATURES_LEN_V8, FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V6,
-    FEATURES_VERSION_V7, FEATURES_VERSION_V8, MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7,
-    call_tokens_v7, features_v3, features_v4, features_v6, features_v8, seq_row_v7,
+    FEATURES_LEN_V8, FEATURES_LEN_V9, FEATURES_VERSION_V3, FEATURES_VERSION_V4,
+    FEATURES_VERSION_V6, FEATURES_VERSION_V7, FEATURES_VERSION_V8, FEATURES_VERSION_V9,
+    MAX_STEPS_V7, SEQ_ROW_BYTES_V7, TOKEN_BYTES_V7, call_tokens_v7, features_v3, features_v4,
+    features_v6, features_v8, features_v9, seq_row_v7,
 };
 use pons::bidding::instinct::forced;
 use pons::bidding::{Bidder, Phase};
@@ -214,6 +215,11 @@ struct Args {
     /// Byte-identity with a `6` dump on the same seed is the point: it gives
     /// the equal-data MLP control. Requires `--configured`, and rejects
     /// `--bare-context`.
+    ///
+    /// `8` is `6` plus the 12-value artificial-call block; `9` is `8` with
+    /// each seat's eight length endpoints swapped for its 65-value shape
+    /// distribution ([`features_v9`][pons::bidding::features::features_v9]).
+    /// Both require `--configured`.
     #[arg(long, default_value_t = 4)]
     feature_version: u8,
     /// Probe the reader partnership over this many self-play boards at startup
@@ -709,7 +715,13 @@ fn run(args: Args) -> anyhow::Result<()> {
         (8, false) => {
             anyhow::bail!("--feature-version 8 reads the configured context — pass --configured")
         }
-        (other, _) => anyhow::bail!("--feature-version must be 4, 6, 7 or 8, got {other}"),
+        // v9 is v8 with each seat's length hull swapped for its shape
+        // distribution; same configured contract.
+        (9, true) => (FEATURES_VERSION_V9, FEATURES_LEN_V9),
+        (9, false) => {
+            anyhow::bail!("--feature-version 9 reads the configured context — pass --configured")
+        }
+        (other, _) => anyhow::bail!("--feature-version must be 4, 6, 7, 8 or 9, got {other}"),
     };
     let seq = args.feature_version == 7;
     // Not a clap `conflicts_with`: the conflict is with a *value* of
@@ -840,7 +852,10 @@ fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    let compact_features = matches!(feature_version, FEATURES_VERSION_V6 | FEATURES_VERSION_V8);
+    let compact_features = matches!(
+        feature_version,
+        FEATURES_VERSION_V6 | FEATURES_VERSION_V8 | FEATURES_VERSION_V9
+    );
     // Per side: its card and the partnership that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
     // v6 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
@@ -1107,10 +1122,10 @@ fn run(args: Args) -> anyhow::Result<()> {
                     let (ours, theirs) = acting.expect("v6 rows are cell rows");
                     context =
                         context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
-                    if feature_version == FEATURES_VERSION_V8 {
-                        features_v8(hand, &context)
-                    } else {
-                        features_v6(hand, &context)
+                    match feature_version {
+                        FEATURES_VERSION_V8 => features_v8(hand, &context),
+                        FEATURES_VERSION_V9 => features_v9(hand, &context),
+                        _ => features_v6(hand, &context),
                     }
                 } else if args.configured {
                     features_v4(hand, &context)

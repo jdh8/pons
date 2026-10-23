@@ -380,6 +380,17 @@ could serve a union of clusters instead of one hull
    (−0.0101, a clear loss); they are the only way branch 2 can be read at
    all. Lap 1's branch 2 was **unresolvable at 204,800, not refuted**.
 
+**Build record, change 1 (2026-10-24).** `features_v9` built as
+[ai-bidder/features-v9.md](ai-bidder/features-v9.md) records: 416 wide, the
+65-column shape-distribution block (histogram included — the union's two
+modes are the case) for all four seats, the own seat on the whole-deck
+prior; the splice keyed per feature version with the transplanted total
+asserted; the lap-1 driver checked in as `scripts/feature-retrain.sh`.
+Pipeline `NAME=v9 FEATURE_VERSION=9` launched the same day (state in
+`/data/public/jdh8/pons/target/v9-pipeline.state`); the four-cell gate
+runs `ab-floor-file.sh` at `VULS="none ns ew both"` with the `NETS=` line it
+prints. Verdict owed.
+
 Not worth the compute: the floor sweep's closed axes (width, epochs, lr,
 `--dd-weight`; [archive/floor-sweep.md](archive/floor-sweep.md)) and A2's
 damping (gain ≈ 0 measured).

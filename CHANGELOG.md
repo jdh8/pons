@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`features_v9` — the shape distribution in place of the length hull
+  (2026-10-24, [docs/ai-bidder/features-v9.md](docs/ai-bidder/features-v9.md))**:
+  the first step of the shrinkage plan's "Next: what lap 2 owes". v9 is v8
+  (416 floats) with each seat's eight length endpoints swapped for the
+  65-value `push_shape_dist` block the evaluator ablation built — the per-suit
+  length distribution the seat's announced union of boxes describes, so a box
+  that excludes no hands moves no column and a disjunction reaches the net as
+  a bimodal marginal; the own seat conditions on the whole-deck prior
+  (`Unseen::whole_deck`). Plumbing: `dump-teacher --feature-version 9`, `9` in
+  the trainer's supported versions, and `--our-floor american-file` serves a
+  v9 ensemble — a blob's length now names its `(input, hidden)` shape
+  (`neural::blob_shape`, `classify_mean`), which picks the extractor.
+  `scripts/splice-labels.py` keys the label transplant's vulnerability pair
+  per feature version (`VUL_OFFSET`; the v6 offset was hard-coded, review
+  finding D2) and `scripts/feature-retrain.sh` is the A4 lap-1 driver checked
+  in and parametrized (walk → splice asserting the transplanted total at
+  424,070 ± 2% → upload → one trainer at a time on dl02 → fold → `NETS=`).
+  No embedded net and no default change: `american()` ships v6 byte-identical.
+  The four-cell gate vs v6 and A4's re-run under v9 are owed.
 - **Shrinkage plan reviewed and its gates corrected (2026-10-24)**
   ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "Review corrections" and
   "Next: what lap 2 owes"): six review findings, each confirmed against the

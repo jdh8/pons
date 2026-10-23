@@ -14,7 +14,9 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_LEN_V8, TOKEN_LEN_V7};
+use super::features::{
+    FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_LEN_V8, FEATURES_LEN_V9, TOKEN_LEN_V7,
+};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -184,25 +186,60 @@ pub fn classify_bba_v6(features: &[f32]) -> Logits {
     classify_v6_mean(&*WEIGHTS_BBA_V6, features)
 }
 
-/// Hidden widths a run-time v6 blob may have (`docs/archive/floor-sweep.md`,
+/// Input width of a v9 blob ([`features_v9`][super::features::features_v9]):
+/// no net is embedded at this width yet, file arms serve it.
+const IN_V9: usize = FEATURES_LEN_V9;
+
+/// Hidden widths a run-time blob may have (`docs/archive/floor-sweep.md`,
 /// the `--hidden` axis); the embedded nets are all 256.
 pub const V6_WIDTHS: [usize; 3] = [128, 256, 512];
 
-/// The hidden width of a v6 blob `floats` long, if it is one of [`V6_WIDTHS`].
+/// Input widths a run-time blob may have: the v6 vector (and v8's, which no
+/// file arm has served) or the v9 vector.
+pub const BLOB_INPUTS: [usize; 2] = [IN_V6, IN_V9];
+
+/// The `(input, hidden)` shape of a blob `floats` long, if its inputs are one
+/// of [`BLOB_INPUTS`] and its width one of [`V6_WIDTHS`].
 ///
-/// The float count is strictly increasing in the width, so it names one.
+/// The float count is strictly increasing in both, and no two shapes collide
+/// (`blob_shape_is_read_off_its_length` checks every pair), so it names one.
 #[must_use]
-pub fn v6_width(floats: usize) -> Option<usize> {
-    V6_WIDTHS.into_iter().find(|&h| total_h(IN_V6, h) == floats)
+pub fn blob_shape(floats: usize) -> Option<(usize, usize)> {
+    BLOB_INPUTS
+        .into_iter()
+        .flat_map(|i| V6_WIDTHS.into_iter().map(move |h| (i, h)))
+        .find(|&(i, h)| total_h(i, h) == floats)
 }
 
-/// One v6 blob's forward pass at the width its length names.
-fn forward_v6(blob: &[f32], features: &[f32]) -> Logits {
-    match v6_width(blob.len()) {
-        Some(128) => forward_h::<IN_V6, 128>(blob, features),
-        Some(256) => forward_h::<IN_V6, 256>(blob, features),
-        Some(512) => forward_h::<IN_V6, 512>(blob, features),
-        _ => panic!("{} floats is no v6 blob of width {V6_WIDTHS:?}", blob.len()),
+/// The hidden width of a v6 blob `floats` long, if it is one of [`V6_WIDTHS`].
+#[must_use]
+pub fn v6_width(floats: usize) -> Option<usize> {
+    blob_shape(floats)
+        .filter(|&(i, _)| i == IN_V6)
+        .map(|(_, h)| h)
+}
+
+/// One blob's forward pass at the shape its length names.
+fn forward_blob(blob: &[f32], features: &[f32]) -> Logits {
+    let shape = blob_shape(blob.len());
+    assert_eq!(
+        shape.map(|(i, _)| i),
+        Some(features.len()),
+        "a blob of {} floats ({shape:?}) cannot read {} features",
+        blob.len(),
+        features.len()
+    );
+    match shape {
+        Some((IN_V6, 128)) => forward_h::<IN_V6, 128>(blob, features),
+        Some((IN_V6, 256)) => forward_h::<IN_V6, 256>(blob, features),
+        Some((IN_V6, 512)) => forward_h::<IN_V6, 512>(blob, features),
+        Some((IN_V9, 128)) => forward_h::<IN_V9, 128>(blob, features),
+        Some((IN_V9, 256)) => forward_h::<IN_V9, 256>(blob, features),
+        Some((IN_V9, 512)) => forward_h::<IN_V9, 512>(blob, features),
+        _ => panic!(
+            "{} floats is no blob of inputs {BLOB_INPUTS:?} and width {V6_WIDTHS:?}",
+            blob.len()
+        ),
     }
 }
 
@@ -214,9 +251,16 @@ fn forward_v6(blob: &[f32], features: &[f32]) -> Logits {
 #[must_use]
 pub fn classify_v6_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
-    let mut mean = forward_v6(&blobs[0], features);
+    classify_mean(blobs, features)
+}
+
+/// [`classify_v6_mean`] for blobs of any [`BLOB_INPUTS`] width: the feature
+/// vector must be the one every blob's length names.
+#[must_use]
+pub fn classify_mean(blobs: &[Vec<f32>], features: &[f32]) -> Logits {
+    let mut mean = forward_blob(&blobs[0], features);
     for blob in &blobs[1..] {
-        for ((_, sum), (_, x)) in mean.iter_mut().zip(forward_v6(blob, features).iter()) {
+        for ((_, sum), (_, x)) in mean.iter_mut().zip(forward_blob(blob, features).iter()) {
             *sum += x;
         }
     }
