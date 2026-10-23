@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Seed-noise ruler for floor retrains (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
+  Plan B)**: `scripts/ruler-tv.py` reads two or more `ab-lib` arm directories
+  bid over the same deals and reports the reach-weighted per-prefix-key total
+  variation of our next-call distributions (depth-capped headline, full-depth
+  ledger number, `--halves` sampling baseline). Read on ten fresh draws of the
+  shipped recipe (dl02, `ab-results/ruler`, 19,200 bd/arm/vul): two single
+  draws differ by **0.044 / 0.039** (NV / both, depth 3), two K = 8 ensembles
+  by **0.017 / 0.015** (≈ 1/√8 of it), the trainer's board-start validation
+  cut (`82d4a60d`) is indistinguishable from a reseed, and the same net on
+  different deals reads 0.15 — so the ruler reads paired deals only. IMP: a
+  reseeded K = 8 vs the shipped K = 8 is a wash (plain −0.0015 ±0.0216 /
+  +0.0190 ±0.0262), every K = 1 draw loses −0.04 to −0.06 plain to it (the
+  ensemble gap, not a retrain effect): **a retrain is read K = 8 vs K = 8**,
+  and it has moved nothing until its TV clears 0.017 / 0.015. No bidding
+  change; the default system is untouched.
+
 - **Probe ruler and shrunk pools (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
   A0 + C — the poker R-loop's lessons, measured here)**: `ProbeReport` gains
   `rms` (traffic-weighted rms move of the served endpoints between the two
@@ -363,6 +379,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   days free, ≈ 8 days occupied; a 64-world batch solves in 28 ms quiet / 74 ms
   occupied against dl02's 400 ms. Tables and rules in
   `docs/shared-machine-data-gen.md` § Sizing the solver; no bidding change.
+
+### Fixed
+
+- `scripts/ab-floor-file.sh` left `PONS_FLOOR_WEIGHTS` exported into the next
+  vulnerability's control arm, whose provenance manifest then listed a weights
+  file the control never used, so every resume of a multi-vul floor-file
+  results dir tripped ab-lib's manifest guard; the variable is unset before
+  the control arm.
 
 ### Changed
 

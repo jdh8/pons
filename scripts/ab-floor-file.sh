@@ -34,6 +34,10 @@ for a; do
     echo "$W" | while read -r line; do log "  blob $line"; done
 done
 for vul in $VULS; do
+    # The control ignores PONS_FLOOR_WEIGHTS, but bba-gen --provenance reports
+    # it whenever it is set, so a stale export from the previous vul's last
+    # file arm would land in the control's arm.meta and trip the resume guard.
+    unset PONS_FLOOR_WEIGHTS
     arm plain "$vul" --our-floor american
     for a; do
         n=${a%%=*}

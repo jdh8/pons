@@ -319,17 +319,72 @@ laps at κ and λ to converge from a 2-cycle; budget for two here and stop on th
 residual rule, not on the A/B alone (lesson 4: the A/B judges the lap, the
 residual says whether another is owed).
 
-## Plan B — a seed-noise ruler for retrains (a script, before any retrain)
+## Plan B — a seed-noise ruler for retrains (built and read 2026-10-23)
 
 Lesson 3, applied to the floor. Before the deferred retrain: train the
 current recipe twice with different training seeds, bid the same 20k boards
 with each, and record per-prefix-key call-frequency total variation between
-them (reach-weighted, fold/call/raise-style collapse is the existing
-`ab-reading-drift` machinery's TV). That number is the floor every retrain's
-movement is read against; the shipped-vs-retrained TV, localized by key, says
-whether a retrain moved macro shape or traded indifferent keys — the
-distinction the poker chart-space check made, and the one the "re-arbitrate
-every rail" criterion cannot make today.
+them, reach-weighted. That number is the floor every retrain's movement is
+read against; the shipped-vs-retrained TV, localized by key, says whether a
+retrain moved macro shape or traded indifferent keys — the distinction the
+poker chart-space check made, and the one the "re-arbitrate every rail"
+criterion cannot make today.
+
+**The ruler is `scripts/ruler-tv.py`** (new; the plan's first draft credited
+the TV to "the existing `ab-reading-drift` machinery", but that runner only
+ever produced IMP diffs — no per-key TV existed before this script). It reads
+two or more `ab-lib` arm directories bid over the **same deals** and, at every
+auction prefix where our side chose the next call (both tables, dealer folded
+out), takes TV_k = ½ Σ|p_k − q_k| of the next-call distributions and sums
+reach_k · TV_k. A key one arm never reached counts TV 1 at its reach, so a
+divergence upstream is charged again at every deeper key: the **depth-3
+number is the headline** (our first three calls), the full-depth number ≈ 3×
+it goes in the ledger beside it. `--halves` is the sampling baseline, and it
+is the first rule: the **same net bid on different deals reads 0.15** at
+19,200 boards, four times any seed effect, so **the ruler reads paired deals
+only** (ab-lib's shared `SEED_BASE` is what makes it a ruler at all).
+
+**Read (`ab-results/ruler`, 19,200 bd/arm/vul, SEED_BASE 1792758002859020831).**
+Ten fresh draws of the shipped recipe on dl02 (CUDA 12.8, trainer `82d4a60d`
+with its board-start validation cut; seeds 2, 3 and 9–16; held-out CE
+0.4165–0.4201, all under the sweep's 0.42632 gate; each 7 min on a 4090,
+folded 30 columns), the shipped recipe's own single draws `american_bba_v6_seed{2,3}`
+from the repo, and the shipped K = 8 mean as control. Reach-weighted TV, depth 3,
+NV / both vul:
+
+| pair | NV | both | reads as |
+| --- | ---: | ---: | --- |
+| two fresh single draws (seed2 vs seed3) | 0.0435 | 0.0388 | the **K = 1 floor** |
+| shipped single draws (s2old vs s3old) | 0.0462 | 0.0421 | same floor, old trainer |
+| fresh seed2 vs shipped seed2 (same init seed, trainer's val cut moved) | 0.0437 | 0.0398 | the val-cut change **is a reseed**, no more |
+| any single draw vs the shipped K = 8 | 0.033–0.034 | 0.030 | ≈ floor/√2: the mean sits at the cloud's centre |
+| **reseeded K = 8 (seeds 9–16) vs shipped K = 8** | **0.0169** | **0.0150** | the **K = 8 floor**, 0.39 of K = 1 ≈ 1/√8 |
+| same net, different deals (`--halves`) | 0.15 | 0.14 | sampling; why only paired deals count |
+
+Full depth: K = 1 floor 0.123 / 0.108, K = 8 floor 0.049 / 0.043, single vs
+shipped 0.097 / 0.085. The top keys everywhere are the second-seat defensive
+positions after their opening and response (`1♥ - 1NT`, `1♣ - 1♦`, `1♦ - 1♥`,
+TV 0.1–0.4 at a few hundred visits) — the contested book the net floors;
+constructive keys do not appear, as the partition says they should not.
+
+**What A4 reads against.** A retrained K = 8 ensemble that differs from the
+shipped one by TV ≈ 0.017 / 0.015 at depth 3 has moved **nothing** — that is
+two ensembles of the same recipe. Movement has to clear that floor, localized
+by key, before the A/B's IMP is even worth reading as a retrain's; and the
+IMP side agrees: the reseeded K = 8 vs the shipped K = 8 is a wash at this
+size (plain −0.0015 ±0.0216 NV / +0.0190 ±0.0262 both; PD +0.0106 ±0.0233 /
++0.0360 ±0.0289), while every K = 1 draw loses −0.04 to −0.06 plain and
+−0.06 to −0.10 PD to it — the ensemble gap the floor sweep measured
+(K = 4 over K = 1: +0.045 / +0.056), not a retrain effect. A retrain **must
+be read as K = 8 vs K = 8**; a single draw against the shipped floor measures
+the ensemble, whatever else it was meant to measure.
+
+Costs: ten draws ≈ 40 GPU-minutes on dl02 (two at a time), the six-arm A/B
+≈ 25 min here at `JOBS=96` under the poker solver, the TV read 10 s per pair.
+The runner fix that fell out: `ab-floor-file.sh` left `PONS_FLOOR_WEIGHTS`
+exported into the next vul's control arm, whose `--provenance` then listed a
+weights file it never used, and every resume of a multi-vul floor-file dir
+tripped the manifest guard; it now unsets the variable before the control.
 
 Then the rails: keep them fixed through the retrain lap (the constant R of a
 solve), re-arbitrate after, and read each rail's flip as a step with a gain.
@@ -379,8 +434,8 @@ the campaign's days go.
 | A1 κ boxes — **done 2026-10-23** | 1 day | the cliff gone (cliff share 88% → 17%); κ = 0 byte-identical | A3 |
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
-| B retrain ruler — **next, before A4** | 1 GPU recipe ×2 + 20k boards | the stop rule for the retrain loop | A4 |
-| A4 retrain lap — **owed** (retrains deferred by jdh8) | the deferred retrain, ×2 | the prize; the one lever A3 left | — |
+| B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
+| A4 retrain lap — **owed** (retrains deferred by jdh8) | the deferred retrain as K = 8, ×2 | the prize; the one lever A3 left; stop rule = B's floor | — |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.
