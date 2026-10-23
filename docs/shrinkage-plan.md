@@ -312,6 +312,61 @@ Negative control: λ_serve = 0 must reproduce the base arm byte-for-byte.
 
 ### A4 — the probe-first retrain, now as a lap (owed; retrains deferred by jdh8)
 
+**Lap 1 built and launched 2026-10-23 ~22:50 (in flight; read owed).** The
+build, so the read can be reproduced:
+
+- **Corpus** (`target/corpus-a4-chunks` → `target/corpus-a4`): the M32 recipe's
+  188 fleet windows re-walked at HEAD by `scripts/relabel-worker.sh`
+  (`LAYOUTS=0`, 24 workers under `idle-run`) with the new
+  `dump-teacher --ns-probe 100000 --ns-probe-vacuous` (κ = crate default 200,
+  probe seed `0x9B0BE`, the same harvest `bba-gen --ns-probe` serves), v6
+  features; labels transplanted from the M32 cut by `scripts/splice-labels.py
+  --any-identity` ([features-v8.md](ai-bidder/features-v8.md) §2, the
+  2026-09-26 choice, so the only thing that moves vs the shipped corpus is the
+  reader's `Inferences` block). The smoke chunk (`axis-0004/chunk-0`): probe on
+  vs off, features moved in 23.45% of 105,876 rows, labels 0; the plain
+  re-walk has 236 more rows than the fleet's chunk (BBA's auctions moved with
+  the card our live knobs generate), so the splice pairs by key, not position.
+  **Splice fixed and the driver relaunched 2026-10-24 00:21 (v2).** The v1
+  splice (23:18–23:19) matched the axis shards at under 1%: every re-walked
+  deal sits under two cells, so its reading-free key is duplicated among the
+  old rows and the splice dropped it as *ambiguous* — a case the shipped
+  corpus's 2026-09-26 splice never met, those shards being positional then.
+  `scripts/splice-labels.py` now pairs a duplicated old key to the one old row
+  of the same rebuilt identity (`resolved` in its report). Audited after the
+  fix, default mode: axis-0004 422,366 of 425,350 rows transplanted (99.3%,
+  28,181 M32 relabels, identity 0); enriched-0 171,021 of 172,771 (99.0%,
+  12,426 relabels; 46 prefix mismatches, which `--any-identity` transplants);
+  uniform-0 165,481 of 332,640 under the default and 279,625 under
+  `--any-identity` (the retired Dutch cells, [features-v8.md](ai-bidder/features-v8.md)
+  §2), 18,505 relabels — on course for ≈ 424k relabels, the 2026-09-26
+  splice's total. The v1 driver also audited under `--any-identity`, whose
+  exit 1 fires on any identity mismatch, so the uniform shards would have
+  stopped it even with the pairing right; v2 audits in the default mode
+  (features-v8.md's pipeline, exit 1 = a tag mismatch) and splices under
+  `--any-identity` as pre-registered. Per-shard record:
+  `target/corpus-a4/<shard>.{validate,splice}`.
+  The reader's own probe report under the shipped net: 5,725 keys, 1,124
+  drifted, residual 0.4× the seed floor, cliff share 20%, gain 0.00.
+- **Nets**: eight draws of the Plan B recipe (`--arch mlp --hidden 256
+  --epochs 300 --lr 0.001 --wd 0 --batch 4096 --val-frac 0.10 --dd-weight 0`),
+  init seeds 9–16 — the reseeded ensemble's twin, so a4off vs Plan B's `k8new`
+  is the corpus effect net of seed noise — trained on dl02 (two per GPU on the 4090 and
+  the 4070 Ti SUPER, CUDA 12.8, trainer at `fabcb6fe`), folded in scan mode over the lap corpus;
+  blobs in `ab-results/a4/nets/`.
+- **A/B** `scripts/ab-probe-retrain.sh ab-results/probe-retrain`, 204,800
+  bd/arm/vul: plain (shipped K = 8) / k200 (shipped + probed serving, A3's
+  arm paired on this seed) / a4 (new K = 8 + probed serving, the candidate) /
+  a4off (new K = 8, map empty). Pre-registered: a4 non-inferior to plain on
+  plain DD in every cell and a PD win ships the serving default-on with the
+  retrained floor; a4 above k200 but under plain is the wall moved, not
+  passed — lap 2 owed, stop rule Plan B's floor; a4 at or under k200 stops
+  the lap. Ruler read: a4off vs plain with `scripts/ruler-tv.py` against
+  0.017 / 0.015; each probed arm's stderr carries A0's report under its net
+  (the residual the lap stops on).
+- Driver: `/data/public/jdh8/pons/target/a4-pipeline.sh` (state and log
+  beside it).
+
 When the deferred retrain runs, it is lap 1 of a loop, not a one-shot: probe
 under the shipped net → shrunk boxes → retrain the floor under them → re-probe
 under the new net → read A0's `rms / floor` and gain. The R-loop needed five
@@ -435,7 +490,7 @@ the campaign's days go.
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
 | B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
-| A4 retrain lap — **owed** (retrains deferred by jdh8) | the deferred retrain as K = 8, ×2 | the prize; the one lever A3 left; stop rule = B's floor | — |
+| A4 retrain lap — **lap 1 in flight 2026-10-23** (build record under § A4) | the deferred retrain as K = 8, ×2 | the prize; the one lever A3 left; stop rule = B's floor | — |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.

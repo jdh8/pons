@@ -73,9 +73,14 @@ was checked rather than assumed:
    prove an equal auction prefix or table configuration. Under a cell
    rotation that changed (six cells → three), a key can match the same deal
    and seat played under another cell (the DD block pins deal and seat, not
-   cell). The keyed path also drops every old key that occurs twice (those
-   rows keep the teacher's one-hot) and gives one old label to every new row
-   sharing its key. `splice-labels.py --validate NEW_CHUNKS OLD_CHUNKS
+   cell). An old key that occurs twice — the same deal and seat walked under
+   another cell (an axis shard's two cells) or again as a later table — pairs
+   the one old row of the same rebuilt identity (`resolved` in the report;
+   since 2026-10-24, when A4's re-walk met it: the axis shards were no longer
+   positional and 98.5% of their rows were duplicated keys, so the old rule,
+   drop the key, transplanted under 1% of them); a key no identity or several
+   identities settle is dropped (`ambiguous`, those rows keep the teacher's
+   one-hot), and one old label goes to every new row sharing its key. `splice-labels.py --validate NEW_CHUNKS OLD_CHUNKS
    CUT_STEM` counts all of this, comparing each transplant's (table, cell,
    auction prefix) rebuilt from the chunks.
 

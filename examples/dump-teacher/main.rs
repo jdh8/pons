@@ -216,6 +216,23 @@ struct Args {
     /// `--bare-context`.
     #[arg(long, default_value_t = 4)]
     feature_version: u8,
+    /// Probe the reader partnership over this many self-play boards at startup
+    /// and extract features with the probed boxes on — `Partnership::probe`
+    /// armed exactly as `bba-gen --ns-probe` arms its floor (same fixed seed,
+    /// so every chunk of a corpus reads the identical map).  A floor retrained
+    /// on these rows has trained under the boxes serving will feed it
+    /// ([docs/shrinkage-plan.md](../../docs/shrinkage-plan.md) § A4).  0 = off.
+    #[arg(long, default_value_t = 0, requires = "configured")]
+    ns_probe: usize,
+    /// Prior strength κ of the probed boxes (`ReadingProfile::probed_kappa`,
+    /// crate default 200; 0 is the sample cliff the 2026-07-31 arms ran under)
+    #[arg(long, requires = "ns_probe")]
+    ns_probe_kappa: Option<u32>,
+    /// Serve the probed boxes through the vacuous-scoped fold instead of the
+    /// full one (`ReadingProfile::probed_vacuous`): own-side calls only, onto
+    /// axes the symbolic reading left fully open.  Requires `--ns-probe`.
+    #[arg(long, default_value_t = false, requires = "ns_probe")]
+    ns_probe_vacuous: bool,
     /// Read opponents as BBA's disclosed 1NT defenses while extracting features
     ///
     /// Applies `common::vs_bba_agreements` and arms the two corrected Multi
@@ -618,6 +635,29 @@ const VULS: [AbsoluteVulnerability; 4] = [
     AbsoluteVulnerability::ALL,
 ];
 
+/// The fixed probe seed `bba-gen --ns-probe` harvests under, so a corpus's
+/// training map and an arm's served map are the same harvest of the same net.
+const PROBE_SEED: u64 = 0x9B0BE;
+
+/// `--ns-probe`: arm the probed overlay on a reader partnership the way
+/// `bba-gen` arms its floor.  Both settings are pinned into the partnership at
+/// build, so each moves on this partnership's own copy; the harvest is
+/// order-insensitive, so a rayon build (`--features rayon`) reads the same map.
+fn probe_reader(partnership: &mut Partnership, args: &Args) {
+    if args.ns_probe == 0 {
+        return;
+    }
+    partnership.profile_mut().reading.probed_vacuous = args.ns_probe_vacuous;
+    if let Some(kappa) = args.ns_probe_kappa {
+        partnership.profile_mut().reading.probed_kappa = kappa;
+    }
+    let report = partnership.probe(args.ns_probe, PROBE_SEED);
+    eprintln!("probed {} boards: {report}", args.ns_probe);
+    if !args.ns_probe_vacuous {
+        partnership.profile_mut().reading.probed = true;
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     run(Args::parse())
 }
@@ -821,7 +861,8 @@ fn run(args: Args) -> anyhow::Result<()> {
                 pons::bidding::features::ConventionCard::capture(&agreements),
             );
         }
-        let partnership = american(&agreements).bind();
+        let mut partnership = american(&agreements).bind();
+        probe_reader(&mut partnership, &args);
         per_side.insert(side.label(), (card, partnership));
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
@@ -944,7 +985,11 @@ fn run(args: Args) -> anyhow::Result<()> {
         // for the same reason the card is: rule presence is decided at build.
         let reader: Option<Partnership> =
             (args.configured && cells.is_empty() && !args.bare_context)
-                .then(|| -> anyhow::Result<Partnership> { Ok(american(&regime_agreements).bind()) })
+                .then(|| -> anyhow::Result<Partnership> {
+                    let mut reader = american(&regime_agreements).bind();
+                    probe_reader(&mut reader, &args);
+                    Ok(reader)
+                })
                 .transpose()?;
         let teacher = teachers[regime].as_ref();
         // The table(s) this board is played at.  The dealer's side plays
@@ -1248,6 +1293,14 @@ fn run(args: Args) -> anyhow::Result<()> {
 
     let metadata = serde_json::json!({
         "feature_version": feature_version,
+        // The probed overlay the reader extracted under (null = none): a
+        // corpus pins the serving regime its features were read in.
+        "probe": (args.ns_probe > 0).then(|| serde_json::json!({
+            "boards": args.ns_probe,
+            "seed": PROBE_SEED,
+            "kappa": args.ns_probe_kappa,
+            "vacuous": args.ns_probe_vacuous,
+        })),
         "features_len": features_len,
         "softmax_len": SOFTMAX_LEN,
         "dd_len": dd_len,

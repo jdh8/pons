@@ -29,6 +29,7 @@
 #              DRAW_ONLY to price from them); default 0
 #   DUMP_COMMON  override the recipe's common flags (default: the v6 recipe's)
 #   RECIPE_FILE  override the shard recipe with a file of `name skip boards seed [flags]` lines
+#   DUMP_TEACHER override the binary (a glibc-wrapped dump-teacher where EPBot needs one)
 #
 # SIGHUP drains: the current chunk finishes, then the script exits 0.
 # SIGTERM stops now (the unit SIGKILLs the binary; tmp+rename keeps the tree clean).
@@ -44,7 +45,7 @@ CHUNK=${CHUNK:-5000}
 REVERSE=${REVERSE:-0}
 EXTRA_OUT=${EXTRA_OUT:-}
 DRAW_ONLY=${DRAW_ONLY:-0}
-BIN=target/release/examples/dump-teacher
+BIN=${DUMP_TEACHER:-target/release/examples/dump-teacher}
 COMMON=${DUMP_COMMON:-"--deals $BANK --teacher bba --configured --feature-version 6"}
 
 drain=0

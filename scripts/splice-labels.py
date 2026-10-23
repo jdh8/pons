@@ -17,9 +17,11 @@ Otherwise rows are paired on the *reading-free key* (hand summary, auction
 context, vulnerability, one-hot, DD).  Neither proves the row is the same
 decision: the context block is a summary — strains bid, last bid, partner's
 last bid, penalty, seat — not the auction, and the key leaves out the cell (the
-compact block).  A key that occurs more than once among the old rows is dropped
-(those new rows keep the teacher's one-hot); a key that occurs more than once
-among the new rows sends the one old label to each of them.
+compact block).  A key that occurs more than once among the old rows (the same
+deal and seat walked under another cell, or again as a later table) pairs the
+one old row of the same identity, below, and is dropped when none or several
+match (those new rows keep the teacher's one-hot); a key that occurs more than
+once among the new rows sends the one old label to each of them.
 
 So every pair must also agree on **identity**, reconstructed from each chunk
 alone: the table ordinal (a table starts at an opening row, as the trainer's
@@ -32,9 +34,9 @@ retired Dutch cells (features-v8.md §2).  `--any-identity` transplants them
 anyway, reproducing the 2026-09-26 v8 splice.
 
 `--validate` writes nothing and reports, per chunk and in total: rows paired
-positionally or by key, new rows with no old key, new rows dropped as ambiguous
-(and how many of those one identity would resolve), new rows sharing one old
-row, pairs refused, labels transplanted and how many of them the cut had
+positionally or by key, new rows with no old key, new rows whose duplicated
+old key one identity resolved, new rows dropped as ambiguous, new rows sharing
+one old row, pairs refused, labels transplanted and how many of them the cut had
 changed, and pairs whose identity differs (`cell` and `prefix` count each
 part).  It exits 1 when a transplanted row's identity or a paired row's tag
 differs — under the default, a tag alone.
@@ -158,8 +160,14 @@ def pair(new_stem, old_stem, any_identity):
             if not js:
                 c["unmatched"] += 1
             elif len(js) > 1:
-                c["ambiguous"] += 1
-                c["resolvable"] += sum(old_id[j] == new_id[i] for j in js) == 1
+                # A duplicated old key (the same deal and seat under another
+                # cell or table): the one old row of the same identity, if any.
+                same = [j for j in js if old_id[j] == new_id[i]]
+                if len(same) == 1:
+                    c["resolved"] += 1
+                    candidates.append((i, same[0]))
+                else:
+                    c["ambiguous"] += 1
             else:
                 c["shared"] += uses[k] > 1
                 candidates.append((i, js[0]))
@@ -178,7 +186,7 @@ def pair(new_stem, old_stem, any_identity):
     return (nm, new, new_tags), (om, old), pairs, c
 
 
-FIELDS = ("rows", "positional", "keyed_chunks", "unmatched", "ambiguous", "resolvable", "shared", "refused", "transplanted", "relabelled", "identity", "cell", "prefix", "tag")
+FIELDS = ("rows", "positional", "keyed_chunks", "unmatched", "ambiguous", "resolved", "shared", "refused", "transplanted", "relabelled", "identity", "cell", "prefix", "tag")
 
 
 def main(any_identity, new_dir, old_dir, cut_stem, out_stem):
@@ -246,8 +254,8 @@ def validate(any_identity, new_dir, old_dir, cut_stem):
     print(f"{new_dir}: {len(new_stems)} chunks; " + ", ".join(f"{k} {v}" for k, v in total.items()))
     print(
         "  positional = chunk rows paired by position; transplanted = rows taking an old label (relabelled:"
-        " the cut had changed it); unmatched/ambiguous/refused keep the teacher's one-hot (resolvable ="
-        " ambiguous rows one identity would match; refused = pairs whose identity differs); shared = rows"
+        " the cut had changed it); unmatched/ambiguous/refused keep the teacher's one-hot (resolved ="
+        " duplicated old keys one identity settled; refused = pairs whose identity differs); shared = rows"
         " sharing one old row; identity = pairs whose (table, cell, prefix) differs, of which cell and"
         " prefix count each part; tag = pairs whose phase tag differs"
     )

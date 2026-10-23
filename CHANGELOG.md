@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A4 lap 1 — the floor retrained under the probed boxes, built and in
+  flight (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md) § A4)**:
+  `dump-teacher --ns-probe N [--ns-probe-kappa κ] [--ns-probe-vacuous]` arms the
+  probed overlay on the reader partnerships exactly as `bba-gen --ns-probe`
+  arms its floor (same fixed seed), so a corpus's `Inferences` block is read
+  under the boxes serving will feed the net; the sidecar pins the regime in a
+  `probe` block. `scripts/relabel-worker.sh` takes `DUMP_TEACHER` (a
+  glibc-wrapped binary where EPBot needs one). `scripts/ab-probe-retrain.sh`
+  reads the lap K = 8 vs K = 8 (Plan B's rule): plain / k200 / a4 / a4off on
+  one seed. Smoke on `axis-0004/chunk-0`: the probe moved features in 23.45%
+  of rows, labels 0. `scripts/splice-labels.py` pairs a duplicated old key
+  (the same deal under another cell or table) to the old row of the same
+  rebuilt identity instead of dropping it — the lap's axis shards, keyed
+  rather than positional, had 98.5% such rows and transplanted under 1% of
+  their M32 labels before the fix (2026-10-24); after it 99%. No bidding
+  change until the A/B reads.
 - **Seed-noise ruler for floor retrains (2026-10-23, [docs/shrinkage-plan.md](docs/shrinkage-plan.md)
   Plan B)**: `scripts/ruler-tv.py` reads two or more `ab-lib` arm directories
   bid over the same deals and reports the reach-weighted per-prefix-key total
