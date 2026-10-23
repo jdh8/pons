@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shrinkage plan reviewed and its gates corrected (2026-10-24)**
+  ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "Review corrections" and
+  "Next: what lap 2 owes"): six review findings, each confirmed against the
+  code and folded in. Paired IMP intervals at all four vulnerability cells
+  decide a retrain; the TV ruler is a diagnostic read at matched deals and
+  counts (the lap-1 ruler read compared 204,800 boards against a 19,200-board
+  floor); branch-2 reads are sized on the limiting cell (PD, both vul:
+  ≈ 5.2M boards for ±0.002) with "a4 above k200" pre-registered as a lower
+  bound above 0; the relabel is piloted on one shard instead of gated on
+  a4 − k200; the label splice owes version-aware key offsets before any v9
+  splice (`VUL = slice(118, 120)` is the v6 layout); and the lap-1 "residual
+  at a fixed point" is withdrawn — `ProbeReport` measures the inner reading
+  iteration, and the outer residual (the training map against the re-probed
+  map) is owed before any lap 2. Documentation only; no bidding behaviour
+  changes.
 - **A4 lap 1 — the floor retrained under the probed boxes, built 2026-10-23
   and read 2026-10-24: stop, nothing ships ([docs/shrinkage-plan.md](docs/shrinkage-plan.md)
   § A4 and "Measured so far")**:

@@ -8,12 +8,17 @@ behaviour byte for byte); A3 read the probed serving's loss as a **slope in
 under the probed boxes **stopped at lap 1**: the retrained floor, served
 matched, is still −0.010 / −0.007 plain under the shipped floor, its gain in
 its own regime (a4 − k200) sits inside ±0.008 of zero, and the probe's
-residual and gain under the new net read a fixed point. The probe stays off
+*inner* residual fell 14% under the new net (the outer one was never
+measured; see "Review corrections"). The probe stays off
 the default path; Plan C's estimator is settled by a split-half check
 (DerSimonian–Laird). See "Measured so far". **Re-read 2026-10-24 (jdh8:
 LGTM): under transplanted labels the residual rule was not a live test, and
 the next lever is the reading's encoding, not another lap — see "Next: what
-lap 2 owes".** Written after the poker-trainer
+lap 2 owes". Reviewed the same day (Codex, six findings, each confirmed
+against the code and folded in under "Review corrections"): paired IMP
+intervals at four cells decide, TV is a diagnostic, the residual rule needs
+the outer residual, the relabel is piloted, the splice offsets go
+version-aware.** Written after the poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -187,12 +192,18 @@ the serving does not ship with the retrained floor. **The lap did not move
 the wall**: a4 − k200, the retrain's gain in its own regime, is +0.0037 /
 −0.0002 on plain DD with ±0.008 intervals and a PD loss in the both-vul
 cell — "a4 above k200" is not established by any verdict, which is the
-third branch, **stop**. **The residual rule says the same**: the probe
-under the new net reads rms 0.160 → 0.137 (14% lower), cliff share
-20% → 19%, gain 0.00 → 0.00 — a fixed point, not a step toward one, so no
-second lap is owed by the plan's own rule, and the ruler agrees: the whole
-corpus change (features moved in 23% of rows, labels fixed) moved the
-policy by 1.1–1.2× what two reseeds do, at the same keys. **The one
+third branch, **stop**. **The residual did not decide this** (corrected 2026-10-24, review
+D3 and S1): the probe under the new net reads rms 0.160 → 0.137 (14%
+lower), cliff share 20% → 19%, gain 0.00 → 0.00 — but every number in
+`ProbeReport` is the *inner* iteration (the ⊤ harvest against the harvest
+serving its own boxes, under one fixed net); the *outer* residual, the map
+lap 1 trained under against the map the retrained net re-probes, was never
+computed, so "a fixed point" was not established. The ruler read — the
+whole corpus change (features moved in 23% of rows, labels fixed) moved the
+policy by 1.1–1.2× what two reseeds do, at the same keys — compared a
+204,800-board TV against a floor read at 19,200; a finite-sample TV is
+biased upward, more at the smaller count, so that ratio understates the
+move. Both are owed a re-read at matched counts before any lap 2. **The one
 mechanism the lap did isolate**: the serving's plain-DD cost is a
 train/serve mismatch and the retrain removed it — under the shipped net the
 probed serving loses −0.0136 / −0.0065 on plain, under the retrained net the
@@ -256,17 +267,24 @@ Two questions asked of lap 1's stop — does more compute change it, and is
 the data structure the problem — and the answers, with the three changes
 they make to this plan.
 
-**Why lap 1 could not have moved.** The a4 corpus moved the features (23%
-of rows) and transplanted the M32 labels unchanged
-([features-v8.md §2](ai-bidder/features-v8.md), the stale-label caveat).
-A BBA one-hot label depends on BBA's hand and BBA's reading of *its*
-partner, never on our box; only the EV-argmax rows (the M32 cut, 460,341 of
-6,766,821) can express what a tighter reading of partner is worth, and those
-were rolled out under the ⊤ readings of 2026-09-13. The retrained net could
-therefore learn at most that the moved columns are uninformative about a
-fixed target: "a4 ≈ plain in the matched regime" and the residual's fixed
-point are partly by construction. The "stop on the residual" row in "Order
-and cost" was not a live test in lap 1.
+**Why lap 1 was unlikely to move, and what that does not prove.** The a4
+corpus moved the features (23% of rows) and transplanted the M32 labels
+unchanged ([features-v8.md §2](ai-bidder/features-v8.md), the stale-label
+caveat). A BBA one-hot label depends on BBA's hand and BBA's reading of
+*its* partner, never on our box; only the EV-argmax rows (the M32 cut,
+460,341 of 6,766,821) can express what a tighter reading of partner is
+worth, and those were rolled out under the ⊤ readings of 2026-09-13. Fixed
+labels bound what the lap could *test*, not what the net could *learn*
+(review D1): the probed box is a function of the auction the context block
+already carries, so it adds no information about a fixed target, but a
+finite net can still fit the same target better from a better basis —
+"uninformative by construction" overstated it, and "a4 ≈ plain in the
+matched regime" is an empirical result, not a corollary. What the
+transplant does establish is that lap 1 never tested whether stale targets
+are the bottleneck; that test is the relabel, so the relabel cannot be
+gated on this lap's contrast (change 2 below). The "stop on the residual"
+row in "Order and cost" was not a live test in lap 1 for a second reason
+too: the residual it read was the inner one (change 3).
 
 **The encoding is the data structure that bit, not the rung overload.** The
 precedence/logit overload of the `i16` weight is audited and harmless here
@@ -288,33 +306,104 @@ log-mass), so a box that excludes no hands moves no column, and the probe
 could serve a union of clusters instead of one hull
 ([sampled-projection.md](ai-bidder/sampled-projection.md), the cap table).
 
-**The three changes, in order:**
+**The four changes, in order** (revised 2026-10-24 after the review):
 
 1. **`features_v9` for the policy floor, before any lap 2** — the hull
    endpoints replaced by the shape-distribution block. A feature bump under
    transplanted labels, the v8 pipeline
    ([features-v8.md §4](ai-bidder/features-v8.md)): minutes to re-walk and
-   splice, ~10 min to train K = 8 on dl02, no relabel. Gate it first under
-   ⊤ readings (v9 non-inferior to v6 on both scorers, read K = 8 vs K = 8
-   on paired deals against Plan B's floor), then re-run A4's four arms
-   under v9. This tests lap 1's mechanism directly and costs hours.
-2. **If a4 − k200 turns positive under v9, the relabel at HEAD under the
-   probed reading** — the only way the labels can carry the box, and the
-   deferred 2026-09-26 "megachonk" and v8's lever list in one job. ≈ 170M
-   DD tables: **≈ 2 days on a free box** (10 × `DDSS_THREADS=64`), ≈ 8
-   occupied ([shared-machine-data-gen.md](shared-machine-data-gen.md)
-   "Sizing the solver"). Detached, state in memory.
-3. **Size branch-2 reads at ≈ 3M boards per arm per vulnerability.** Lap
-   1's a4 − k200 was read at ±0.0075, four times δ; resolving it needs
-   ≈ 14× the boards. The lap-1 arms took ≈ 1.6 h per arm pair at
-   `JOBS=96`, so that is a few hours per pair on the whole box. More boards
-   cannot flip a4 − plain (−0.0101, a clear loss); they are the only way
-   branch 2 can be read at all. Lap 1's branch 2 was **unresolvable at
-   204,800, not refuted**.
+   splice, ~10 min to train K = 8 on dl02, no relabel. **Before the
+   splice** (review D2): `scripts/splice-labels.py` hard-codes the v6
+   layout (`VUL = slice(118, 120)`); a v9 inference block of another width
+   shifts the vulnerability columns, keys stop matching, and the row
+   silently keeps its BBA one-hot — the label mix moves in an experiment
+   meant to hold it fixed. The chunk metadata carries `feature_version`, so
+   the offsets come from a per-version table, and the run asserts the
+   transplanted total at ≈ 424k (the count the 2026-09-26 and lap-1 splices
+   both reached; the per-shard `.splice` tail prints it). Gate v9 under ⊤
+   readings — non-inferior to v6 on both scorers at **four cells**
+   (`VULS="none ns ew both"`, [measurement.md](measurement.md#the-checklist)
+   item 8: the contested floor is a doubling treatment, and the runner's
+   inherited `none both` is not "every cell"; review S2), read K = 8 vs K = 8
+   on paired deals with the **paired IMP intervals deciding** and the TV
+   ruler a diagnostic read at the same deals and count (review S1) — then
+   re-run A4's four arms under v9 at the same four cells. This tests lap 1's
+   mechanism directly and costs hours.
+2. **The relabel, piloted rather than gated** (review D1). One shard
+   relabelled at HEAD under the probed reading — ≈ 1/20 of the ≈ 170M DD
+   tables, ≈ 2.5 h on a free box (10 × `DDSS_THREADS=64`), ≈ 10 h occupied
+   ([shared-machine-data-gen.md](shared-machine-data-gen.md) "Sizing the
+   solver") — and its EV-argmax labels diffed against the M32 cut: the share
+   of labels the reading changes is the test of the stale-target hypothesis
+   lap 1 could not run. A share near zero closes the relabel; otherwise the
+   full relabel (the deferred 2026-09-26 "megachonk" and v8's lever list in
+   one job, ≈ 2 days free, ≈ 8 occupied; detached, state in memory)
+   follows, **independently of the sign of a4 − k200 under v9**.
+3. **The outer residual before any lap 2** (review D3). `ProbeReport`'s
+   `rms` / `floor` / `drifted` all compare the ⊤ harvest with the harvest
+   serving its own boxes under one fixed net — the inner reading iteration,
+   which a probe `G_θ(R) = c_θ` passes after one step for every θ while
+   successive retrains keep moving `c_θ`. The loop's residual is the
+   **outer** one: the served map a lap trained under (the walk's probe under
+   the old net) against the map the new net re-probes, at the same seed and
+   board count, against a floor from two reseeded nets of the same recipe.
+   Neither map is saved today: a `--probe-dump` on the probe examples
+   (`dump-teacher`, `probe-reading-census`) and a public path to the harvest
+   and `residual`, ~100 lines. Lap 1's pair is reproducible — the probe is
+   seeded (`0x9B0BE`) and byte-deterministic — from the shipped K = 8 and
+   `ab-results/a4/nets/` at 100k boards, minutes each. The inner rms stays
+   as a diagnostic; neither it nor the TV ruler decides whether a lap is
+   owed.
+4. **Branch-2 reads: define the decision, size on the limiting cell, prune
+   the pairs** (review S3). Lap 1 read a4 − k200 at ±0.0075 / ±0.0090 on
+   plain DD and ±0.0101 on PD (both vul) from 205,056 boards per arm per
+   cell; the half-width scales as the inverse square root, so ±0.002 needs
+   ≈ 2.9M boards (plain, none), ≈ 4.2M (plain, both), ≈ 5.2M (PD, both) —
+   3M was sized on the narrowest interval. "a4 above k200" is now
+   pre-registered as **the plain-DD lower bound above 0 in every cell with
+   PD non-inferior**; a positive point estimate is not a verdict, and a
+   half-width equal to δ is a precision target, not power. Size the
+   extension on the PD-both cell and declare it before reading. Runtime
+   from lap 1's log (generation ≈ 1 min per arm, the plain diff 1–2 min per
+   pair off the shared DD cache, the 16-world single-dummy diff ≈ 20 min per
+   pair, so the single-dummy diffs are ≈ 80% of a cell's ≈ 95 min):
+
+   | at 3M boards per arm per cell, four cells | wall at `JOBS=96` |
+   | --- | ---: |
+   | as scripted (five pairs per cell) | ≈ 4 days |
+   | a4 vs plain and a4 vs k200 only | ≈ 1.7 days |
+   | the same, the four cells as parallel processes on a free box | under a day |
+
+   The runner takes its cells and its diff pairs as parameters; the cells
+   run as separate processes, since the single-dummy harness is one `Solver`
+   and does not scale past ~64 threads. More boards cannot flip a4 − plain
+   (−0.0101, a clear loss); they are the only way branch 2 can be read at
+   all. Lap 1's branch 2 was **unresolvable at 204,800, not refuted**.
 
 Not worth the compute: the floor sweep's closed axes (width, epochs, lr,
 `--dd-weight`; [archive/floor-sweep.md](archive/floor-sweep.md)) and A2's
 damping (gain ≈ 0 measured).
+
+## Review corrections (2026-10-24)
+
+Codex reviewed this plan at `adb957bc` (read-only: the TV cancellation was
+checked against `ruler-tv.py` and the sample-size arithmetic recomputed; no
+run). Each finding was checked against the code the same day and confirmed.
+The review itself is not tracked; this table is its record — what the plan
+claimed, what is true, and where the plan now says so.
+
+| # | the plan said | what is true | where it now lands |
+| --- | --- | --- | --- |
+| S1 | movement must clear the TV floor before the IMP is worth reading | `ruler-tv.py` compares aggregate next-call distributions per prefix: two policies choosing different hands at the same frequencies read TV 0 while IMPs move; and Plan B's floor is one K = 8 pair at 19,200 boards, compared against a 204,800-board read of a finite-sample statistic | IMP intervals decide; TV is a diagnostic read at the same deals and count ("What A4 reads against"; the lap-1 read) |
+| S2 | "every cell" non-inferior | `ab-probe-retrain.sh` inherits ab-lib's `none both`; the contested floor is a doubling treatment, checklist item 8 wants `none ns ew both` | every v9 and serving confirmation at four cells; the runner parametrized (changes 1, 4) |
+| S3 | ≈ 3M boards resolves branch 2 | sized on the narrowest interval; the limiting cell is PD/both (±0.0101 → ≈ 5.2M); "above" was undefined; runtime unstated | decision defined, sized on PD/both, runtime table, pairs pruned (change 4) |
+| D1 | fixed labels make the moved columns uninformative "by construction" | fixed labels bound the test, not what a finite net can fit; gating the relabel on a4 − k200 blocks the test of stale targets | one-shard relabel pilot, ungated (change 2); the "why lap 1 could not have moved" paragraph rewritten |
+| D2 | the v8 transplant pipeline is reusable unchanged | `VUL = slice(118, 120)` hard-codes the v6 layout; a v9 block shifts it; mismatches silently keep BBA one-hots | version-aware offsets + transplanted-count assertion before the v9 splice (change 1) |
+| D3 | residual at a fixed point, no lap 2 owed | `ProbeReport` measures the inner iteration (⊤ harvest vs served harvest under one net); the outer residual (training map vs re-probed map) was never computed | outer residual owed before any lap 2 (change 3); lap-1 read and status corrected |
+
+What the review did not change: the lap-1 disposition (a4 − plain is a loss
+at `none` on plain DD at any cell count), the probe staying off the default
+path, A3's verdict, and v9 as the first step.
 
 ## What the R-loop taught (the four lessons)
 
@@ -525,7 +614,10 @@ under the shipped net → shrunk boxes → retrain the floor under them → re-p
 under the new net → read A0's `rms / floor` and gain. The R-loop needed five
 laps at κ and λ to converge from a 2-cycle; budget for two here and stop on the
 residual rule, not on the A/B alone (lesson 4: the A/B judges the lap, the
-residual says whether another is owed).
+residual says whether another is owed). The residual that rule reads is the
+**outer** one — the map the lap trained under against the map its net
+re-probes — not `ProbeReport`'s inner rms (review D3, "Next" change 3); and
+the A/B that judges the lap reads four cells (review S2).
 
 ## Plan B — a seed-noise ruler for retrains (built and read 2026-10-23)
 
@@ -577,9 +669,12 @@ constructive keys do not appear, as the partition says they should not.
 
 **What A4 reads against.** A retrained K = 8 ensemble that differs from the
 shipped one by TV ≈ 0.017 / 0.015 at depth 3 has moved **nothing** — that is
-two ensembles of the same recipe. Movement has to clear that floor, localized
-by key, before the A/B's IMP is even worth reading as a retrain's; and the
-IMP side agrees: the reseeded K = 8 vs the shipped K = 8 is a wash at this
+two ensembles of the same recipe. That floor is a diagnostic, not a gate
+(corrected 2026-10-24, review S1): TV sees next-call frequencies per prefix,
+not which hands make them, so a retrain can move IMPs at TV ≈ 0; and the
+floor is one pair read at 19,200 boards, a finite-sample statistic that only
+compares at the same deals and count. The paired IMP intervals decide, with
+the TV localizing the move by key. The IMP side agrees: the reseeded K = 8 vs the shipped K = 8 is a wash at this
 size (plain −0.0015 ±0.0216 NV / +0.0190 ±0.0262 both; PD +0.0106 ±0.0233 /
 +0.0360 ±0.0289), while every K = 1 draw loses −0.04 to −0.06 plain and
 −0.06 to −0.10 PD to it — the ensemble gap the floor sweep measured
@@ -643,7 +738,8 @@ the campaign's days go.
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
 | B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
-| A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; residual at a fixed point; the net moved 1.1–1.2× the K = 8 floor. **Caveat (2026-10-24):** under transplanted labels the residual could not move, so the residual rule was not a live test; branch 2 unresolvable at this size (±0.0075 vs δ 0.002) | "Next: what lap 2 owes" |
+| A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; inner residual 0.160 → 0.137; the net moved 1.1–1.2× the K = 8 floor at mismatched counts. **Caveats (2026-10-24):** transplanted labels bound the test; the outer residual was never computed, so "fixed point" is unproven; branch 2 unresolvable at this size (±0.0075 vs δ 0.002) | "Next: what lap 2 owes" |
+| review fold-in — **done 2026-10-24** | — | six gate corrections: IMP intervals at four cells decide, TV a diagnostic, sizing on PD/both with the decision defined, relabel piloted, splice offsets version-aware, outer residual owed | v9 |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.
