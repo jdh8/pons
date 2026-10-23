@@ -350,11 +350,12 @@ bump the same way, but a bump alone does not re-arbitrate the rails.
 
 Near-zero direct IMPs; protects banked wins and unblocks measurement:
 
-- Owed fresh-seed confirmation: N3-fit
-  ([one-notrump-competitive.md](one-notrump-competitive.md) queue; queued
-  2026-10-16 as `ab-nt-high-overcall.sh` Round 10). pass_exclusion's two
-  seeds are not owed: the knob was removed 2026-08-18 (`97206fcc`). (Meckstroth `3m` jumps: confirmed, demoted
-  2026-09-26; forcing-NT two-suiter: not confirmed, stays on —
+- N3-fit's fresh-seed confirmation is done: replicated 2026-10-16 as
+  `ab-nt-high-overcall.sh` Round 10
+  ([one-notrump-competitive.md](one-notrump-competitive.md) § N3).
+  pass_exclusion's two seeds are not owed: the knob was removed 2026-08-18
+  (`97206fcc`). (Meckstroth `3m` jumps: confirmed, demoted 2026-09-26;
+  forcing-NT two-suiter: not confirmed, stays on —
   [bidding-options.md](bidding-options.md).)
 
 ## Deliberately not ranked

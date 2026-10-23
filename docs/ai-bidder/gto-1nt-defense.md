@@ -340,12 +340,17 @@ What the table says beyond the verdict:
   DD. DONT and Meckwell price an incomplete implementation (the step-2 caveat
   above) and BBA's natural reading of their calls.
 
-Nothing moves. Step 4 (thresholds inside the card) has no card to work in;
-the next decision is jdh8's: whether the self-play counters are the right
-bound (they are our own book, tuned against these rows), or whether the real
-columns alone should pick the card, in which case plain DD and SD-PD still
-disagree (on SD-PD the only resolved active wins are natural, +0.067 ± 0.022,
-and DONT, +0.022 ± 0.017, both at none against BBA).
+Nothing moves. Step 4 (thresholds inside the card) has no card to work in.
+
+**Decided 2026-10-23 (jdh8): natural stays; the tournament is closed.** The
+bound question (self-play counters as a strict maximin, or the real columns
+alone) was resolved by keeping the shipped card: against BBA every active
+row loses to natural on plain DD, and under the harsher self-play bound no
+active row resolves either, so both readings keep natural. The self-play
+columns are our own 1NT-side book, so they are not a fixed yardstick: a
+change to our constructive 1NT methods (the opening's shape or range, the
+runout, the double style) moves every self-play column, and the verdict is
+owed a re-run then. Step 4 is not scheduled.
 
 
 ## Interpretation

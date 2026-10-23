@@ -1377,6 +1377,12 @@ names what would close it.
    asks for interfered tails before a convention counts as complete. A
    census of how often they bid there, which is cheap from the run's dumps,
    decides whether it is worth authoring.
+   **Censused 2026-10-23** on the 2× run's `div.longer.vs.off.*.jsonl` (every
+   runout board, 786,432 boards per cell): they bid over our runout on 65 /
+   65 / 52 / 62 boards (none / ns / ew / both), about a fifth of the 320–347
+   runouts; the rest are all-pass (113–123) or doubles only (141–165). That
+   is ≈ 0.008% of boards per cell, below rule 0's 50 divergent boards on any
+   single-seat change, so **not worth authoring**; the net keeps those seats.
 6. **The doubler's pass reads as anything** (owed above): the reused
    `passed_dont_*` catch-all. That is its own change with its own A/B, since
    it moves DONT's lane too.

@@ -31,7 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whom every active row beats pass on plain DD. Against natural on BBA every
   alternative loses on plain DD (−0.03 to −0.13 per kept board), so rule 4
   leaves natural the default. Table and reading in
-  docs/ai-bidder/gto-1nt-defense.md § Step 3.
+  docs/ai-bidder/gto-1nt-defense.md § Step 3. **Closed 2026-10-23 (jdh8):
+  natural stays.** Both bounds (the self-play maximin and the real columns
+  alone) keep it. The self-play columns are our own 1NT-side book, so the
+  verdict is owed a re-run after any change to our constructive 1NT methods.
 
 - **`defense.woolsey_wide_unusual_2nt`, `bba-gen`/`ben-gen
   --ns-woolsey-wide-2nt`, `ab-dump-sd --{on,off}-ns-woolsey-wide-2nt` and
