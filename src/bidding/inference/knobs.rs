@@ -481,7 +481,13 @@ pub struct ReadingProfile {
     /// base arm settles.  Pre-registered reading: a pre-retrain loss is a
     /// floor, not a verdict — the queued path
     /// is the probe-first retrain gate, then the F2b twin served under this
-    /// setting.
+    /// setting.  Re-measured 2026-10-23 with `probed_kappa`
+    /// (docs/shrinkage-plan.md § A3, `SEED_BASE` 1792752006877283681): κ 0
+    /// plain −0.0173 / −0.0089 (none / both, ~3% fired — a third of July's
+    /// size and rate, `ReadingScope::All` having shipped in between), κ 200
+    /// −0.0105 / −0.0044, κ 200 − κ 0 +0.0068 / +0.0046 plain: a slope in κ
+    /// toward the base arm that never crosses it.  No κ ships; the retrain
+    /// stays the lever.
     pub probed_vacuous: bool,
 
     /// Prior strength κ of the probed boxes, in samples

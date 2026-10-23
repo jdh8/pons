@@ -196,7 +196,11 @@ main-thread solver); only the first ever run pays the DD solve of the divergent
 union. Snapshot: `ab-results/anchor/<date>-<sha>/` with `report.md` (instinct),
 `report-american.md` (shipping), `boards.jsonl`, `diff.floor.<vul>.<scorer>.txt`.
 Afterwards: check **both** reports' replay = 100.00% (rule 1); add a row to the
-series table below and a CHANGELOG line; re-rank.
+series table below and a CHANGELOG line; re-rank. `python3 -I
+scripts/shrunk-pools.py <snapshot>/boards.jsonl` prints each bucket's nodes
+on empirical-Bayes-shrunk pools ([shrinkage-plan.md](shrinkage-plan.md)
+Plan C; a null at `3debdd0f` — no top-10 node of a top-5 bucket moved); run
+it when a thin node tops a bucket before working that lane.
 
 Steady-state loop:
 

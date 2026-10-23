@@ -34,8 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still 0; `probe-reading-census --probe-kappa` and `bba-gen
   --ns-probe-kappa` set it (the 2026-07-31 arms reproduce at 0). No bidding
   change: the probe map is off the default path and the script ranks, it
-  does not bid; A3's A/B (κ 0 vs 200 under `probed_vacuous`) is the first
-  step of the plan that can move an IMP.
+  does not bid. **A3 read the same evening** (`scripts/ab-probe-kappa.sh`,
+  `SEED_BASE` 1792752006877283681, 204,800 bd/arm/vul, direct A/B): κ 0 vs
+  base plain **−0.0173 ±0.0040 / −0.0089 ±0.0048** (none / both, ~3% fired;
+  PD −0.0001 / +0.0113), κ 200 vs base **−0.0105 ±0.0038 / −0.0044
+  ±0.0046** (PD +0.0001 / +0.0089), κ 200 vs κ 0 **+0.0068 ±0.0030 /
+  +0.0046 ±0.0036 plain** — the probed serving's loss is a slope in κ toward
+  the base arm that never crosses it; **no κ ships**, the retrain lap (A4)
+  is the one lever left. **Plan C's estimator switched to DerSimonian–Laird**
+  on a split-half predictive check (`--holdout`: DL 0.68–0.70 of raw means'
+  error in all four arm × scorer cells, MoM 0.78, Paule–Mandel 0.75, pooling
+  0.75–0.84); `--tau2 mom|pm` keep the alternatives.
 
 - **BBA re-anchor (2026-10-23, `3debdd0f`)**: shipping `american()` scores
   **−0.3013 plain / −0.0542 perfect-defense IMPs/board** (none −0.2904 /

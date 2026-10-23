@@ -1,10 +1,12 @@
 # Shrinkage and damped fixed points — what the poker R-loop taught, applied here
 
-**Status (2026-10-23): A0, A1 and C built and read, same day — the probe's
-drift is the sample cliff, not a cycle (A2 dropped); the κ-slope removes the
-cliff (`probed_kappa`, default 200, κ = 0 the old behaviour byte for byte);
-A3's A/B is next and is the first step that can move an IMP; see "Measured
-so far".** Written after the poker-trainer
+**Status (2026-10-23, evening): A0, A1, A3 and C built and read in one day.
+The probe's drift is the sample cliff, not a cycle (A2 dropped); the κ-slope
+removes the cliff (`probed_kappa`, default 200, κ = 0 the old behaviour byte
+for byte); A3 read the probed serving's loss as a **slope in κ toward the
+base arm that never crosses it** — no κ ships, the retrain lap (A4, deferred
+by jdh8) is the one lever left; Plan C's estimator is settled by a split-half
+check (DerSimonian–Laird). See "Measured so far".** Written after the poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -90,9 +92,42 @@ this is an IMP: the 2026-07-31 arms reproduce with `--ns-probe-kappa 0`,
 and whether κ = 200 (or an interior λ) turns the v2 loss into a slope is
 A3's cell.
 
+**A3, the κ pair.** `scripts/ab-probe-kappa.sh` → `ab-results/probe-kappa`,
+`SEED_BASE` 1792752006877283681, 96 × 2,136 boards per arm per vulnerability,
+arms base / κ 0 / κ 200, the probed arms `--ns-probe 100000
+--ns-probe-vacuous`; direct A/B at table A, δ = 0.002:
+
+| pair | vul | fired | plain IMPs/board | verdict | PD IMPs/board | verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| κ 0 − base | none | 3.22% | −0.0173 ±0.0040 | loss | −0.0001 ±0.0045 | inconclusive |
+| κ 0 − base | both | 2.91% | −0.0089 ±0.0048 | loss | +0.0113 ±0.0056 | win |
+| κ 200 − base | none | 2.86% | −0.0105 ±0.0038 | loss | +0.0001 ±0.0043 | inconclusive |
+| κ 200 − base | both | 2.56% | −0.0044 ±0.0046 | inconclusive | +0.0089 ±0.0053 | win |
+| κ 200 − κ 0 | none | 1.72% | +0.0068 ±0.0030 | win | +0.0003 ±0.0034 | inconclusive |
+| κ 200 − κ 0 | both | 1.49% | +0.0046 ±0.0036 | win | −0.0022 ±0.0041 | inconclusive |
+
+Three readings. The **negative control holds in kind, not in size**: κ 0 is
+the 2026-07-31 arm and loses on plain with PD flat or a both-vul PD win — the
+doubling artifact, and the worst boards are the July mechanism (the
+contested net doubling, redoubling and driving to `4NT` on partner boxes it
+never trained on) — but at a third the size and a third the fired rate
+(−0.0467 → −0.0173, ~10% → 3%): `ReadingScope::All` shipped in between and
+leaves the vacuous scope fewer ⊤ axes to fill. **The loss is a slope, not a
+wall**: κ 200 beats κ 0 on plain in both cells, the plan's second reading.
+**But the slope points at base and never crosses it**: κ 200 is still a
+plain loss at `none`, the both-vul cell's lower bound (−0.0090) is under
+−δ, and κ = ∞ *is* the base arm. Shrinking toward ⊤ trades information for
+safety one for one; the serving never becomes a win because the net has
+never seen a served box, which is A4's job. Disposition: **no κ ships**
+(the knob stays off the default path; when the probe serves, it serves at
+κ = 200); κ 1000 is not run — on plain it can only approach base from
+below, and the PD both-vul win is the artifact the decision table discounts;
+**A4 is the one lever left**, and it runs as a lap with this ruler (A0) and
+this estimator (A1), no damping (A2).
+
 **C, the shrunk pools.** `scripts/shrunk-pools.py` (node = bucket ×
-(rule, our call); κ = σ²/τ² by the unweighted method of moments written
-below). On `3debdd0f`, both arms: **no top-10 node of any top-5 bucket
+(rule, our call); κ = σ²/τ², first by the unweighted method of moments the
+plan specified below, since switched — see the end of this paragraph). On `3debdd0f`, both arms: **no top-10 node of any top-5 bucket
 moves**. Every one has n ≥ 150 and κ is 2–8 in the big buckets (median 4.1
 across buckets), so n + κ ≈ n. The thin-and-huge lane this plan imagined is
 not in the current anchor — the thinnest high-loss nodes are n 18–45 at
@@ -103,11 +138,31 @@ shrinkage bites is an estimator defect, not an insight: `Defensive / floor /
 round-1` (27 nodes, most n ≈ 10–100) reads PD τ² = 0, κ = ∞, and the
 *resolved* `2♥` node (n 716, −1,024 plain) is halved, because the unweighted
 `mean_j(σ²/n_j)` is dominated by the thin floor nodes and swallows the
-spread of means. **Open (jdh8):** keep the spec's estimator (status quo, the
-defect documented) or switch to the n-weighted DerSimonian–Laird moment,
-three lines in `shrink()`; proposed reversible default: switch, since the
-only bucket it changes is the one it misreads today. Either way the script
-changes no ranking; it is a check to run at each re-anchor, not a lane.
+spread of means. **Resolved the same evening by a split-half check**
+(`--holdout`): every node's boards split in two by deal, each estimator fit
+on one half and scored on the other half's node means by n-weighted squared
+error, both directions, summed over buckets — the way any hyperparameter of
+a hierarchical model is judged. Ratio to raw means, lower is better:
+
+| arm / scorer | unweighted MoM | DerSimonian–Laird | Paule–Mandel | full pooling |
+| --- | --- | --- | --- | --- |
+| shipping / plain | 0.79 | **0.68** | 0.76 | 0.75 |
+| shipping / PD | 0.78 | **0.69** | 0.75 | 0.84 |
+| instinct / plain | 0.78 | **0.68** | 0.76 | 0.84 |
+| instinct / PD | 0.78 | **0.70** | 0.75 | 0.84 |
+
+DL wins every cell, and by the most in the bucket MoM collapsed
+(`Defensive / floor / round-1`: DL 0.57–0.58 of raw, MoM 0.81 plain and 1.10
+PD, worse than not shrinking). Shrinkage is worth ~30% of the estimation
+error even though it moved no top-10 ranking; every shrinker loses in two
+small buckets (17 and 28 nodes) where τ² is underestimated, the known cost
+of empirical Bayes with few groups. **Default is now DL**; `--tau2 mom|pm`
+keep the alternatives, `--holdout` re-asks the question at the next anchor.
+Under DL the thin-node bucket reads κ 119 plain / 58 PD and the resolved
+`2♥` node −1,024 → −906, and the self-test's 12-board node collapses −399 →
+−191, which is what this plan promised and MoM never delivered. The script
+still changes no top-10 of a top-5 bucket; it is a check to run at each
+re-anchor, not a lane.
 
 ## What the R-loop taught (the four lessons)
 
@@ -238,6 +293,10 @@ behaviour. Expected from the poker record: gain negative on the first step,
 
 ### A3 — the λ-serving sweep: is the v2 loss a wall or a slope? (one A/B cell)
 
+**Read 2026-10-23** as the κ pair {0, 200} instead of a λ sweep (A1 made κ
+the serving dial): a slope toward base that never crosses it; no κ ships
+("Measured so far"). The design below stands as written.
+
 The cheapest experiment this whole plan enables, and it needs no retrain.
 Serve `box = symbolic + λ_serve · (shrunk − symbolic)` under the existing
 `probed_vacuous` scope at λ_serve ∈ {0.25, 0.5, 1.0}, on the 200-board smoke
@@ -280,8 +339,10 @@ Flipping rails and retraining in one step is the undamped iteration of lap 2.
 
 Lesson 1, in its textbook form. For a bucket's nodes with per-board means
 `μ̂_j`, counts `n_j`, within-node variance `σ²` (pooled from the dumps) and
-between-node spread `τ²` (method of moments: `var(μ̂_j) − mean(σ²/n_j)`,
-floored at 0):
+between-node spread `τ²` (as specified: method of moments,
+`var(μ̂_j) − mean(σ²/n_j)`, floored at 0; **built as DerSimonian–Laird**
+after the split-half check in "Measured so far" — the same moment with the
+nodes weighted by `n_j / σ²`):
 
 ```
 μ_j^post = (n_j · μ̂_j + κ · μ̄) / (n_j + κ),   κ = σ² / τ²
@@ -317,9 +378,9 @@ the campaign's days go.
 | C shrunk pools — **done 2026-10-23** | ½ day | told: no lane moves at this anchor; estimator choice owed | — |
 | A1 κ boxes — **done 2026-10-23** | 1 day | the cliff gone (cliff share 88% → 17%); κ = 0 byte-identical | A3 |
 | A2 damped iteration — **dropped** | — | gain ≈ 0 measured; kept as design for A4 | — |
-| A3 λ-serving sweep — **next** | 3 bidding runs + 1 DD cell | wall vs slope on the 0.65–1.27 prize; κ ∈ {0, 200} is the first pair | A4's scope |
-| B retrain ruler | 1 GPU recipe ×2 + 20k boards | the stop rule for the retrain loop | A4 |
-| A4 retrain lap | the deferred retrain, ×2 | the prize, if A3 says wall | — |
+| A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
+| B retrain ruler — **next, before A4** | 1 GPU recipe ×2 + 20k boards | the stop rule for the retrain loop | A4 |
+| A4 retrain lap — **owed** (retrains deferred by jdh8) | the deferred retrain, ×2 | the prize; the one lever A3 left | — |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults
 off, and the probe map is not on the default path.
