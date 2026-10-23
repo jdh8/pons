@@ -210,6 +210,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_invite_double_veto: bool,
 
+    /// Keep the declared opponents' unalerted calls on the natural walk and
+    /// decode only their alerted calls in their book
+    /// (`reading.declared_natural_walk`; `bba-gen --ns-declared-natural-walk`).
+    /// Default off: every call of a declared opponent decodes in their book,
+    /// as `ben-gen` has read BEN since 2026-08-13.
+    #[arg(long)]
+    ns_declared_natural_walk: bool,
+
     /// Turn OFF the veto of our silent side's suit bids of five cards or fewer
     /// over the same invitation (default on; see
     /// `InstinctProfile::their_nt_invite_bid_veto`).
@@ -635,6 +643,7 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
         agreements.defense.natural_overcall_hcp_floor = floor;
     }
     agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
+    agreements.decision.reading.declared_natural_walk = args.ns_declared_natural_walk;
     agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
 
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;

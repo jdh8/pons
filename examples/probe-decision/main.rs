@@ -392,12 +392,32 @@ fn main() {
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
     // needs the same floor: under the shipped net floor a `floor#N` row prints
     // `(floor / no rule)` and the forensic stalls (scripts/anchor-diff.py).
+    // `PROBE_DECLARED_NATURAL_WALK=1` keeps a declared opponent's unalerted
+    // calls on the natural walk (`reading.declared_natural_walk`).
+    if std::env::var("PROBE_DECLARED_NATURAL_WALK").as_deref() == Ok("1") {
+        agreements.decision.reading.declared_natural_walk = true;
+    }
     let system = if std::env::var("PROBE_FLOOR").as_deref() == Ok("instinct") {
         american_instinct(&agreements)
     } else {
         american(&agreements)
     };
     let partnership = system.bind();
+    // `PROBE_DECLARE_OPPONENTS=same` declares our own book as the opponents'
+    // (the inertness gate of `docs/declarative-rows.md` §2b: nothing may move);
+    // `=european` mirrors the harnesses' `common::european_minors_opponents`,
+    // what `bba-gen` and `ben-gen` declare by default since 2026-10-20.
+    let partnership = match std::env::var("PROBE_DECLARE_OPPONENTS").as_deref() {
+        Ok("same") => partnership.with_opponents(&american(&agreements).bind()),
+        Ok("european") => {
+            let mut theirs = agreements;
+            theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+            theirs.defense = Agreements::default().defense;
+            theirs.decision.reading = theirs.decision.reading.with_house_defense();
+            partnership.with_opponents(&american(&theirs).bind())
+        }
+        _ => partnership,
+    };
     let inf = partnership.infer(vul, &auction);
     let p = inf.partner();
     println!(

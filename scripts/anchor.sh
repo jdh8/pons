@@ -52,6 +52,10 @@ pin() { # pin NAME FILE DEFAULT [OVERRIDE] — echo the series value of NAME
 JOBS=$(pin JOBS "$R/shards" "$(nproc)" "${JOBS:-}")
 PER_SHARD=$(pin PER_SHARD "$R/per-shard" 6400 "${PER_SHARD:-}")
 export JOBS
+# The series' two cells.  ab-lib.sh defaults this for its runners; this
+# script never sources it, so under `set -u` an unset VULS aborted the
+# 2026-10-23 re-anchor at the first loop.
+VULS=${VULS:-none both}
 
 cargo build --release --features serde \
     --example bba-gen --example bba-decompose --example ab-dump-diff

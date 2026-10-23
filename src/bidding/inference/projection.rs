@@ -1446,6 +1446,7 @@ fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> Author
     let fallback_projection = profile.fallback_projection;
     let announce_split = profile.announced;
     let declared_opponent_all = profile.scope == ReadingScope::All
+        && !profile.declared_natural_walk
         && context
             .own_system()
             .is_some_and(crate::bidding::book::Partnership::has_declared_opponents);

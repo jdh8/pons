@@ -455,7 +455,7 @@ fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BBA")));
     let build =
         |edit: &dyn Fn(&mut pons::bidding::agreements::Agreements)| -> anyhow::Result<Partnership> {
-            let partnership = if landy {
+            let agreements = if landy {
                 let mut agreements =
                     common::vs_bba_agreements(pons::bidding::agreements::Agreements::default());
                 if !args.landy_stack.unwrap_or(true) {
@@ -499,12 +499,13 @@ fn main() -> anyhow::Result<()> {
                     agreements.decision.reading.completion_alerts = alert;
                 }
                 edit(&mut agreements);
-                args.our_floor.with(&agreements)
+                agreements
             } else {
                 let mut agreements = pons::bidding::agreements::Agreements::default();
                 edit(&mut agreements);
-                args.our_floor.with(&agreements)
+                agreements
             };
+            let partnership = args.our_floor.with(&agreements);
 
             // `ben-gen` declares BEN's European minor scheme as the opponent book (one
             // axis only; see its comment).  Reading their `1NT - 2♠`/`3♣` as our Puppet
@@ -514,10 +515,12 @@ fn main() -> anyhow::Result<()> {
                 arms.iter()
                     .any(|arm| arm.declared_european_minors || arm.their_label.contains("BEN"))
             });
+            // The same declaration `bba-gen` and `ben-gen` make, from the same
+            // agreements: a book built from a bare default instead (the
+            // 2026-10-23 anchor's 398 mismatched calls) reads their auctions
+            // through a different counter than the generator did.
             let partnership = if european {
-                let mut theirs = pons::bidding::agreements::Agreements::default();
-                theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
-                partnership.with_opponents(&american(&theirs).bind())
+                common::european_minors_opponents(partnership, &agreements)
             } else {
                 partnership
             };

@@ -349,6 +349,21 @@ Kept as an opt-in constructor per the house rule. The default system is
 byte-identical — `--their-floor american --declare-their-book` reproduces the
 no-flag dump board for board, which is the inertness gate for this channel.
 
+**That gate no longer holds, and the channel is no longer "about zero"
+(2026-10-23).** `ReadingScope::All` became the default on 2026-08-16, and
+under it a declared opponent decodes *every* call of theirs in their book
+(`projection.rs`, `declared_opponent_all`), natural calls included — their
+`1♥` opener reads `9..21` with two cards in each suit where the undeclared
+walk reads five hearts and `0..37`. Declaring our own book is therefore not
+inert any more (the net's logits move: `PROBE_DECLARE_OPPONENTS=same` in
+`probe-decision`), and when `bba-gen` began declaring EPBot's book by default
+(2026-10-20) the BBA anchor lost −0.0168 / −0.0115 plain IMPs/board (none /
+both) to the reading alone — the shipped net was trained on the walk's
+readings ([bba-gap-campaign.md](bba-gap-campaign.md) rule 10).
+`reading.declared_natural_walk` restores the walk for a declared opponent's
+unalerted calls and recovers it (+0.0173 / +0.0122 plain on the same deals);
+the decision on its default is open there.
+
 ## Phase 3 — knob migration (open)
 
 Per-book config structs replacing thread-locals, constructed `::from_ambient()`

@@ -755,6 +755,14 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_completion_alerts: Option<bool>,
 
+    /// With the opponents declared (the default, see
+    /// `--no-declare-their-european-minors`), keep their unalerted calls on
+    /// the natural walk and decode only their alerted calls in their book, as
+    /// an undeclared opponent is read (`reading.declared_natural_walk`).
+    /// Default off: a declared opponent's every call decodes in their book.
+    #[arg(long)]
+    ns_declared_natural_walk: bool,
+
     /// How much of the authored book our projection decodes
     /// (`ReadingProfile::scope`, crate default `all` since 2026-08-16;
     /// `alerted` is the pre-Phase-2 arm and the frozen nets' view).
@@ -3170,6 +3178,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     if let Some(v) = args.ns_completion_alerts {
         agreements.decision.reading.completion_alerts = v;
+    }
+    if args.ns_declared_natural_walk {
+        agreements.decision.reading.declared_natural_walk = true;
     }
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {

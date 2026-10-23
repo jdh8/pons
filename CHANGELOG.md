@@ -9,6 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA re-anchor (2026-10-23, `3debdd0f`)**: shipping `american()` scores
+  **−0.3013 plain / −0.0542 perfect-defense IMPs/board** (none −0.2904 /
+  −0.0392, both −0.3121 / −0.0691); `american_instinct()` −0.9186 / −0.9435.
+  Same seed `1783375064`, all four cells replayed at 100% with zero
+  mismatches. **The first anchor read under the 2026-10-20 declared-opponent
+  default, and it is a loss**: paired to the `16bf52b8` snapshot on the same
+  deals, shipping moved −0.0128 ±0.0051 / −0.0072 ±0.0062 plain and +0.0006 /
+  +0.0041 PD per table (none / both; 8,149 / 7,528 boards fired, seven times
+  the last window). A same-sha arm with `--no-declare-their-european-minors`
+  isolates it: declared − undeclared is **−0.0168 ±0.0050 / −0.0115 ±0.0061
+  plain** (PD −0.0021 / +0.0017; 7,984 / 7,380 fired), and read undeclared
+  the window is the ships' gain: shipping −0.2553 / −0.2796 plain (pooled
+  −0.2675, +0.009 on `16bf52b8`), bucket order unchanged, and paired to
+  `16bf52b8` on the same reading **+0.0040 ±0.0011 / +0.0042 ±0.0012 plain,
+  +0.0027 / +0.0023 PD** per table (172 / 153 fired) — the 1NT-invite
+  rail's A/B size. Mechanism, traced on the worst
+  boards: a declared opponent decodes **every** call of theirs in their book
+  under `ReadingScope::All`, so their natural `1♥` opener reads `9..21` with
+  two cards in each suit where the undeclared walk reads five hearts and
+  `0..37`, and the shipped net, trained on the walk's readings, bids `3NT`
+  on a 4-count over their `1♥ - 2NT - 3♥` (`874.87.9853.A963`, `3NT` 7.96
+  against `P` 7.61; undeclared `P` 7.67 against 7.64). The declaration moves
+  our call on 23,402 table-auctions per 204,800 NV boards, mostly in
+  auctions they opened, in both directions. The 1NT-filtered `read` arm that
+  justified the default could not see this. Snapshot
+  `ab-results/anchor/2026-10-23-3debdd0f/` (`undeclared-*` and
+  `natural-walk-*` arms beside the four cells, `report-undeclared.md`).
+
+- **`reading.declared_natural_walk`, `bba-gen`/`ben-gen
+  --ns-declared-natural-walk` and `PROBE_DECLARED_NATURAL_WALK=1`
+  (2026-10-23).** On, a declared opponent's unalerted calls keep the natural
+  walk and only their alerted calls decode in their book, as an undeclared
+  opponent is read; their `1NT - 2NT` still reads as the European book's
+  invitation (not our Puppet transfer), their `1♥` opener as the walk's
+  five hearts. **Default off** (the declared regime as built), inert on the
+  default system, which declares no opponent. Measured on the anchor deals,
+  same sha: natural-walk − declared **+0.0173 ±0.0049 / +0.0122 ±0.0060
+  plain** (PD +0.0022 / −0.0017; 7,758 / 7,134 fired), natural-walk −
+  undeclared +0.0005 ±0.0011 / +0.0007 ±0.0014 plain, PD +0.0001 / −0.0000,
+  on only 296 / 326 fired boards: the honest minors kept, the regime shift
+  gone. **Fresh-seed confirmation (seed 1792715679,
+  `ab-results/declared-natural-walk/`, 204,800 boards per cell): natural-walk
+  − declared plain +0.0157 ±0.0048 / +0.0160 ±0.0060 (`win` both cells), PD
+  +0.0048 ±0.0053 (`non-inferior`) / +0.0016 ±0.0066 (inconclusive);
+  7,498 / 6,955 fired.** **Decision owed to jdh8**: flip
+  the library default on (then every declared harness — `bba-gen`,
+  `ben-gen`, `ab-dump-sd`, the decompose replay — reads this way without a
+  flag, the BBA anchor series resumes from `16bf52b8`'s reading plus the
+  honest minors, and the BEN series, read declared-all since 2026-08-13,
+  breaks once), or revert `bba-gen`'s declaration default.
+
+- **`bba-decompose` declares the opponents through
+  `common::european_minors_opponents` (2026-10-23).** It built the declared
+  book from a bare `Agreements::default()` with the European minors, where
+  `bba-gen` declares one from our vs-BBA agreements with the house defense
+  pinned (2026-10-20), so the replay gate read 398 of 2,125,484 calls
+  differently on the first declared anchor and refused the report. Same
+  helper, same agreements, 100% again. `scripts/anchor.sh` defaults `VULS`
+  (`none both`): since `4eb0e4f6` it looped over a variable only ab-lib's
+  runners set, and under `set -u` the re-anchor aborted at its first loop.
+
 - **The 1NT-defense tournament, step 3 (2026-10-21):
   `scripts/ab-nt-defense-tournament.sh`, its reader
   `scripts/nt-defense-tournament.py`, `ben-gen --ns-dont-one-suiter-min` and

@@ -1233,3 +1233,20 @@ Also newly filed by the sweep, on the worklist rather than in a queue:
   ask-and-answer ladder) is invisible to the structural witness. Candidate
   hardening — treat a rule set whose calls partition a *relay* node as
   artificial by construction — is unbuilt.
+
+## A fourth case: declaring the opponents' book (2026-10-23)
+
+A declared opponent ([`Partnership::with_opponents`]) under the default
+`ReadingScope::All` decodes every call of theirs in their book, their natural
+calls included, where an undeclared opponent's natural calls read by the
+walk. That is a reading-regime change of exactly this document's kind: the
+shipped net was trained on the walk's readings, and when `bba-gen` began
+declaring EPBot's book by default (2026-10-20) the anchor lost −0.0168 /
+−0.0115 plain IMPs/board (none / both) on the same deals and sha, moving our
+call on 23,402 table-auctions per 204,800 boards — a 4-count bidding `3NT`
+over their `1♥ - 2NT - 3♥` once opener read `9..21` instead of `0..37`.
+`reading.declared_natural_walk` keeps a declared opponent's unalerted calls on
+the walk and recovers it; the honest 1NT minors (the reason for declaring)
+survive, since those calls are alerted and still decode in their book. Full
+record: [bba-gap-campaign.md](bba-gap-campaign.md) rule 10 and the
+2026-10-23 series row; the decision on the default is jdh8's.
