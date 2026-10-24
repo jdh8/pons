@@ -81,6 +81,16 @@ understood, and R is the shipped floor. If they are not, read
 GPU nondeterminism only. TV at the K = 8 floor (0.017) means trainer code
 drift since `32fc876c` is a third factor, to be bisected before going on.
 
+**Step 1 read (2026-10-25): R is the shipped floor.** All eight R blobs,
+trained at `fabcb6fe` (plus the v9 `data.rs` change, which v6 never takes)
+with each seed on its shipped manifest's GPU and folded here, are
+bit-identical to `american_bba_v6{,_seed2..8}.f32`, seed 1's older
+`39318c7f` included. The trainer and the GPUs are deterministic, there is
+no code drift, and the shipped nets are fully reproducible from their
+manifests. k8new therefore differs from shipped in exactly three factors:
+seeds, stem order and the validation cut. Step 2 needs no R arm. Nets in
+`ab-results/reseed-gap/nets/R`.
+
 **Step 2, S and O (about 1 h of GPU time) and one A/B.** Run
 `scripts/ab-floor-file.sh` at four cells with `BOARDS=204800`, the caps in
 CLAUDE.local.md and a fresh `SEED_BASE`. The arms are
