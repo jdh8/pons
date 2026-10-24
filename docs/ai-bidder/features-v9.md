@@ -97,4 +97,15 @@ v9's job is to be the floor A4's four arms are re-run under.
 
 ## 4. Verdict
 
-Owed.
+**Fails the gate (2026-10-24).** Against the shipped K = 8 v6, PD is a loss
+at all four cells (−0.020 to −0.028 IMPs/board) and plain DD a loss at `ew`
+(−0.019). Against a reseeded v6 K = 8 of the same recipe, seeds and trainer
+(the control that removes the reseed cost), plain DD is flat in every cell
+and PD a loss in every cell (−0.022 to −0.031): the shape-distribution
+block, as the 65-column histogram, costs doubling-priced IMPs. The loss is
+diffuse over the defensive lanes, with one hole at `1NT (2♥)` / `1NT (2♠)`.
+Nets in `ab-results/v9/nets/` (not in the repo), A/B in
+`ab-results/v9-floor`. The table and the reseed finding it produced are in
+[shrinkage-plan.md](../shrinkage-plan.md) "Gate read, change 1". The code
+stays as built: the feature version, the trainer support and the
+file-loaded serving are what the Gaussian variant (192 wide) would reuse.

@@ -27,7 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in and parametrized (walk → splice asserting the transplanted total at
   424,070 ± 2% → upload → one trainer at a time on dl02 → fold → `NETS=`).
   No embedded net and no default change: `american()` ships v6 byte-identical.
-  The four-cell gate vs v6 and A4's re-run under v9 are owed.
+  **Gate read the same day: v9 fails** (`ab-results/v9-floor`, 204,800
+  bd/arm/vul, four cells). Against the shipped K = 8, PD loses at every cell
+  (−0.020 to −0.028 IMPs/board). Against a reseeded v6 K = 8 of the same
+  recipe, plain DD is flat and PD loses at every cell (−0.022 to −0.031):
+  the histogram block costs doubling-priced IMPs. The control arm also
+  showed that **any reseed of the shipped recipe loses ≈ 0.012 plain DD to
+  the shipped ensemble at every cell** (flat on PD). Plan B had read that
+  pair as a wash at 19,200 boards. Retrains are read against a reseed from
+  now on, and lap 1's a4off/a4 − plain losses are the size of that reseed
+  cost. Not shipped, no default change.
 - **Shrinkage plan reviewed and its gates corrected (2026-10-24)**
   ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "Review corrections" and
   "Next: what lap 2 owes"): six review findings, each confirmed against the

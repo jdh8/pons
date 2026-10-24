@@ -220,7 +220,12 @@ off the default path** (A3's verdict stands). The lap-1 nets stay in
 `ab-results/a4/nets/` (not in the repo); `dump-teacher --ns-probe` and the
 runner stay as built for any later lap. Not owed, but cheap if the question
 is ever asked: a4off against Plan B's `k8new` (same init seeds 9–16) on
-paired deals would read the corpus effect net of seed noise.
+paired deals would read the corpus effect net of seed noise. *(Correction
+2026-10-24, "Gate read, change 1" below: k8new − plain is itself −0.012
+plain DD at every cell at 204,800 boards, the size of a4off − plain and
+a4 − plain. Read against the reseed, the "mismatch the other way" is not
+established. The disposition stands: nothing in lap 1 beat the reseed
+either.)*
 
 **C, the shrunk pools.** `scripts/shrunk-pools.py` (node = bucket ×
 (rule, our call); κ = σ²/τ², first by the unweighted method of moments the
@@ -389,7 +394,62 @@ asserted; the lap-1 driver checked in as `scripts/feature-retrain.sh`.
 Pipeline `NAME=v9 FEATURE_VERSION=9` launched the same day (state in
 `/data/public/jdh8/pons/target/v9-pipeline.state`); the four-cell gate
 runs `ab-floor-file.sh` at `VULS="none ns ew both"` with the `NETS=` line it
-prints. Verdict owed.
+prints.
+
+**Gate read, change 1 (2026-10-24): v9 fails.** `ab-results/v9-floor`,
+204,800 bd/arm/vul (640 × 320, whole box), SEED_BASE 1792798343882790139,
+three arms on paired deals: plain (shipped K = 8 v6), v9 (K = 8, seeds
+9–16), and **k8new** — Plan B's reseeded v6 K = 8, the same seeds, trainer
+and validation cut as v9, added as the control that separates the feature
+effect from the reseed. IMPs/board, 95% half-widths, δ = 0.002:
+
+| pair | scorer | none | ns | ew | both |
+| --- | --- | ---: | ---: | ---: | ---: |
+| v9 − plain | plain DD | −0.0067 ±0.0080 | −0.0042 ±0.0087 | **−0.0186 ±0.0094** | −0.0094 ±0.0096 |
+| v9 − plain | PD | **−0.0203 ±0.0089** | **−0.0252 ±0.0098** | **−0.0282 ±0.0106** | **−0.0210 ±0.0108** |
+| k8new − plain | plain DD | **−0.0116 ±0.0066** | **−0.0104 ±0.0070** | **−0.0133 ±0.0078** | **−0.0116 ±0.0078** |
+| k8new − plain | PD | +0.0021 ±0.0072 | +0.0034 ±0.0078 | +0.0027 ±0.0087 | +0.0034 ±0.0087 |
+| v9 − k8new | plain DD | +0.0050 ±0.0079 | +0.0066 ±0.0086 | −0.0051 ±0.0093 | +0.0024 ±0.0095 |
+| v9 − k8new | PD | **−0.0223 ±0.0088** | **−0.0282 ±0.0097** | **−0.0305 ±0.0105** | **−0.0247 ±0.0106** |
+
+(bold = loss.) The 16-world single-dummy read agrees: v9 − plain SD-PD
+−0.012 to −0.027, a loss at all four cells; k8new − plain SD-plain −0.015 to
+−0.020, a loss at all four, SD-PD flat. Reach-weighted TV at depth 3 (the
+diagnostic, same deals): v9 − plain 0.021 / 0.019 (none / both), k8new −
+plain 0.013 / 0.012, v9 − k8new 0.019 / 0.018. v9 moves the floor about
+1.5 times as far as a reseed does.
+
+Two readings, one per control:
+
+- **The feature effect (v9 − k8new) is a doubling-priced loss**: plain DD
+  flat in every cell, PD −0.022 to −0.031, a loss in every cell. The
+  decision table discounts a PD-only *win* as a doubling artifact; a
+  PD-only *loss* of this size, at all four cells and in single-dummy too,
+  reads as v9 bidding into contracts that the defenders can double. By lane
+  (`ab-dump-bucket --by lane`, ew): diffuse over the
+  defensive lanes, with one concentrated hole, `1NT (2♥)` and `1NT (2♠)`
+  (BBA's Multi-Landy, artificial), −1,338 of the cell's −6,254 PD IMPs on
+  360 fired boards (−3 to −4.6 PD per fired board). No over-broad trigger
+  to repair. v9 as built (the 65-column histogram) does not ship. Whether
+  A4's arms still run under it is open. The probed v9 nets are trained
+  (`ab-results/v9-probed/nets/`), and a4 vs a4off inside v9 would still
+  test the probe at matched features. The 9-column Gaussian variant
+  (`push_shape_gauss`, 192 wide) is the unmeasured alternative named in the
+  build record.
+- **The reseed costs plain DD at every cell (k8new − plain ≈ −0.012).**
+  Plan B read this pair at 19,200 boards as a wash (±0.02 half-widths); at
+  204,800 it is a loss in all four cells on plain DD and flat on PD. This
+  **revises Plan B's "a retrained K = 8 that differs by TV ≈ 0.017 has moved
+  nothing"** and lap 1's reading in "Measured so far": a4off − plain (−0.0111 / −0.0072)
+  and a4 − plain (−0.0101 / −0.0071) are the size of the reseed cost, so
+  "the retrained net served without the boxes is the mismatch the other
+  way" cannot be told apart from "any retrain of this recipe loses about
+  0.012 to the shipped ensemble". **From here on, a retrain is read against
+  a reseed of the same recipe on paired deals, not against the shipped
+  floor.** Why the shipped K = 8 beats its own recipe's reseeds is open
+  (winner's curse from the sweep that picked it, the val-cut move in trainer
+  `82d4a60d`, or something in how the shipped blobs were produced). Owed
+  before any retrain can ship.
 
 Not worth the compute: the floor sweep's closed axes (width, epochs, lr,
 `--dd-weight`; [archive/floor-sweep.md](archive/floor-sweep.md)) and A2's
