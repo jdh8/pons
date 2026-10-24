@@ -37,6 +37,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pair as a wash at 19,200 boards. Retrains are read against a reseed from
   now on, and lap 1's a4off/a4 − plain losses are the size of that reseed
   cost. Not shipped, no default change.
+- **A4's four arms re-run inside v9 (read 2026-10-25): stop, nothing ships
+  ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "A4's four arms inside
+  v9")**. `scripts/ab-probe-retrain.sh` takes `PLAIN_NETS=` to put the
+  control (plain, k200) on another K = 8 ensemble served through
+  `american-file`; here that is the ⊤-trained v9 nets, so the probed-trained
+  candidate reads against a reseed of its own recipe. Four cells, 204,800
+  bd/arm/vul. a4 against that reseed is inside ±0.007 of zero on both
+  scorers at every cell, and a4 − k200 is likewise inconclusive everywhere.
+  The v9 encoding cuts the probed serving's footprint about 8×
+  (0.33% of boards vs 2.6–2.9% under v6; TV a ninth). The serving's
+  train/serve cost under a ⊤-trained net shrinks with it: −0.0015 to
+  −0.0027 plain DD, a loss at three cells, against −0.014 / −0.007 in lap 1.
+  With the boxes in both training and serving (a4 − a4off), the probe reads
+  flat, and lap 1's PD win does not reproduce. The probe stays off the
+  default path. No bidding behaviour changes.
 - **Shrinkage plan reviewed and its gates corrected (2026-10-24)**
   ([docs/shrinkage-plan.md](docs/shrinkage-plan.md) "Review corrections" and
   "Next: what lap 2 owes"): six review findings, each confirmed against the

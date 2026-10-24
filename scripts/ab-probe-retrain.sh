@@ -26,6 +26,11 @@
 #   setsid nohup scripts/idle-run.sh scripts/ab-probe-retrain.sh \
 #       ab-results/probe-retrain >ab-results/probe-retrain.log 2>&1 &
 #
+# PLAIN_NETS=a.f32,...  re-bases the control: plain and k200 serve that K = 8
+# ensemble through american-file instead of the shipped v6 floor -- lap 1's arms
+# inside another feature version (v9: PLAIN_NETS = the ⊤-trained v9 nets, NETS
+# = the v9-probed ones), so a4 reads against a reseed of its own recipe.
+#
 # A probed arm re-probes 100k boards per shard (~10 min sequential per shard)
 # before its deals.  Resumable; SEED_BASE persists in $R/seed.
 R=${1:?usage: NETS=a.f32,...,h.f32 ab-probe-retrain.sh RESULTS_DIR}
@@ -41,10 +46,21 @@ W=$(echo "$NETS" | tr , '\n' | xargs sha256sum)
 [ -s "$R/weights" ] || echo "$W" >"$R/weights"
 [ "$(cat "$R/weights")" = "$W" ] || { echo "ab-probe-retrain: $R was generated with other blobs (see $R/weights)" >&2; exit 1; }
 echo "$W" | while read -r line; do log "  blob $line"; done
+if [ -n "${PLAIN_NETS:-}" ]; then
+    P=$(echo "$PLAIN_NETS" | tr , '\n' | xargs sha256sum)
+    [ -s "$R/weights.plain" ] || echo "$P" >"$R/weights.plain"
+    [ "$(cat "$R/weights.plain")" = "$P" ] || { echo "ab-probe-retrain: $R's plain was generated with other blobs (see $R/weights.plain)" >&2; exit 1; }
+    echo "$P" | while read -r line; do log "  plain blob $line"; done
+    BASE='--our-floor american-file'
+fi
+[ -z "${PLAIN_NETS:-}" ] && [ -s "$R/weights.plain" ] && { echo "ab-probe-retrain: $R's plain was generated with PLAIN_NETS (see $R/weights.plain)" >&2; exit 1; }
 for vul in $VULS; do
     unset PONS_FLOOR_WEIGHTS
-    arm plain "$vul"
-    arm k200 "$vul" --ns-probe 100000 --ns-probe-vacuous
+    [ -n "${PLAIN_NETS:-}" ] && { PONS_FLOOR_WEIGHTS=$PLAIN_NETS; export PONS_FLOOR_WEIGHTS; }
+    # shellcheck disable=SC2086
+    arm plain "$vul" ${BASE:-}
+    # shellcheck disable=SC2086
+    arm k200 "$vul" ${BASE:-} --ns-probe 100000 --ns-probe-vacuous
     PONS_FLOOR_WEIGHTS=$NETS; export PONS_FLOOR_WEIGHTS
     arm a4 "$vul" --our-floor american-file --ns-probe 100000 --ns-probe-vacuous
     arm a4off "$vul" --our-floor american-file

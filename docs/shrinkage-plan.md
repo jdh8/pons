@@ -18,7 +18,11 @@ lap 2 owes". Reviewed the same day (Codex, six findings, each confirmed
 against the code and folded in under "Review corrections"): paired IMP
 intervals at four cells decide, TV is a diagnostic, the residual rule needs
 the outer residual, the relabel is piloted, the splice offsets go
-version-aware.** Written after the poker-trainer
+version-aware.** **2026-10-24/25: v9 fails its gate, and A4's arms inside
+v9 stop again. The new encoding mostly ignores the probe's boxes, and with
+the boxes in both training and serving the probe reads flat; the relabel
+pilot is the one test left (see the end of "Next").** Written after the
+poker-trainer
 preflop R-loop converged (five laps, 2026-10-14 → 2026-10-23; record in
 `../../poker-trainer/docs/design/07-preflop-solver.md` "Lap 2" … "Lap 5",
 estimator in `../../poker-trainer/scripts/calibrate-r.py`). Every number from
@@ -451,6 +455,89 @@ Two readings, one per control:
   `82d4a60d`, or something in how the shipped blobs were produced). Owed
   before any retrain can ship.
 
+**A4's four arms inside v9 (read 2026-10-25): stop again; nothing ships.**
+Run because jdh8 asked for it anyway: lap 1's mechanism re-tested at v9
+features, with the control a reseed of the candidate's own recipe.
+`ab-results/probe-retrain-v9`, 204,800 bd/arm/vul (640 × 320, whole box),
+SEED_BASE 1792805017620440317. The runner's new `PLAIN_NETS` re-bases
+plain and k200 on the ⊤-trained v9 K = 8 (`ab-results/v9/nets`). So
+**plain** = v9 ⊤ nets with no probe, **k200** = the same nets with the
+probe, **a4** = the v9-probed nets (`ab-results/v9-probed/nets`, the same
+seeds 9–16 and labels) with the probe, and **a4off** = the v9-probed nets
+with an empty map. IMPs/board, 95% half-widths, δ = 0.002:
+
+| pair | scorer | none | ns | ew | both |
+| --- | --- | ---: | ---: | ---: | ---: |
+| a4 − plain | plain DD | −0.0023 ±0.0062 | −0.0002 ±0.0068 | +0.0008 ±0.0073 | −0.0037 ±0.0074 |
+| a4 − plain | PD | +0.0009 ±0.0070 | +0.0043 ±0.0076 | +0.0059 ±0.0082 | +0.0006 ±0.0084 |
+| a4 − k200 | plain DD | −0.0006 ±0.0062 | −0.0004 ±0.0068 | +0.0035 ±0.0073 | −0.0017 ±0.0074 |
+| a4 − k200 | PD | +0.0007 ±0.0070 | +0.0020 ±0.0076 | +0.0066 ±0.0082 | +0.0001 ±0.0084 |
+| a4off − plain | plain DD | −0.0024 ±0.0062 | −0.0013 ±0.0068 | +0.0017 ±0.0073 | −0.0026 ±0.0074 |
+| a4off − plain | PD | +0.0003 ±0.0070 | +0.0026 ±0.0077 | +0.0062 ±0.0082 | +0.0001 ±0.0084 |
+| k200 − plain | plain DD | **−0.0015 ±0.0014** | +0.0002 ±0.0017 | **−0.0027 ±0.0017** | **−0.0020 ±0.0017** |
+| k200 − plain | PD | +0.0003 ±0.0015 | *+0.0021 ±0.0019* | −0.0008 ±0.0018 | +0.0005 ±0.0019 |
+| a4 − a4off | plain DD | +0.0001 ±0.0014 | +0.0010 ±0.0016 | −0.0010 ±0.0017 | −0.0012 ±0.0016 |
+| a4 − a4off | PD | +0.0005 ±0.0015 | +0.0017 ±0.0018 | −0.0005 ±0.0018 | +0.0003 ±0.0018 |
+
+(bold = loss, italic = win; every other cell is inconclusive, except
+a4 − a4off at `none` and `ns`, k200 − plain plain DD at `ns`, and its PD at
+`none` and `both`, which are non-inferior.) Fired rates: a4 − plain,
+a4 − k200 and a4off − plain 5.2–6.1%; k200 − plain 0.32–0.37%; a4 − a4off
+0.30–0.35%. Lap 1 fired 2.6–2.9% on the two serving pairs. The 16-world
+single-dummy read mostly agrees. Its one new loss is a4 − plain plain SD at
+`none` (−0.0073 ±0.0065); the other three cells of that pair also read
+negative (−0.0017, −0.0019, −0.0067). It confirms k200 − plain's plain-SD
+loss at `none`, `ew` and `both`. a4 − a4off is non-inferior on both SD
+scorers at `none` and `ns`, and a plain-SD loss at `both`
+(−0.0018 ±0.0017).
+
+Diagnostics at the same deals. Reach-weighted TV at depth 3 (none / ns / ew
+/ both): the serving under either net is 0.0006–0.0007 at every cell, about
+a ninth of lap 1's 0.0053–0.0059. a4off vs plain (the corpus effect at
+matched seeds) is 0.0100–0.0110. The probe's inner report: under the v9 ⊤
+net 5,579 keys, 160 drifted, rms 0.050 vs floor 0.449 (0.1×), cliff share
+20%; under the v9-probed net 5,658 / 141 / 0.047 vs 0.457 (0.1×) / 19%,
+gain 0.00 both. Lap 1 under v6: 1,110 / 952 drifted, rms 0.160 / 0.137
+(0.4× / 0.3×).
+
+Four readings:
+
+- **The pre-registration stops it again.** a4 is not non-inferior to its
+  matched reseed (plain) on plain DD in any cell. The intervals are
+  ±0.006–0.007, three times δ. "a4 above k200" needs a plain-DD lower bound
+  above 0 at every cell, and every cell straddles zero. v9 itself failed its
+  gate, so nothing in this directory could ship whatever it read.
+- **The encoding did what change 1 predicted for sensitivity.** The
+  distributional block barely reacts to a κ-shrunk box. The serving moves
+  about a ninth as many boards and a ninth of the TV, and the probe's
+  drifted keys fall about 7×. That confirms "a box that excludes no hands
+  moves no column" as a mechanism.
+- **The mismatch survives, smaller, at the same cost per board it touches.**
+  k200 − plain still loses on plain DD at `none`, `ew` and `both`, at
+  −0.45 to −0.74 IMPs per fired board, with PD flat to a win. That is lap 1's
+  doubling-priced shape at an eighth of the footprint.
+- **Served matched, the probe is a no-op.** a4 − a4off is flat at all four
+  cells and non-inferior at `none` and `ns`. Lap 1's PD win (+0.0075 /
+  +0.0060) does not reproduce. Training under the probed boxes (a4off −
+  plain, same seeds and labels) moves the policy two thirds of a v6 reseed
+  floor (0.010–0.011 vs 0.017 / 0.015 at depth 3, a 19,200-board floor) and
+  no IMP interval can see it. The SD lean in a4 − plain is noted, not a
+  verdict.
+
+What this settles: under transplanted labels the probe's boxes carry no
+value the net can use in either encoding. Under v6 they carried a cost, a
+train/serve mismatch, and under v9 most of that cost goes because the net
+stops listening. **Disposition: A4 closes inside v9.** The probe stays off
+the default path. Change 4's branch-2 extension is not worth running at v9,
+a feature version that does not ship. The open questions stay jdh8's: the
+Gaussian v9 variant, why the shipped K = 8 beats its reseeds, and the
+relabel pilot (change 2). The relabel is now the only test left of whether
+a probed reading is worth anything, because fixed labels cannot show it.
+Runner defect found on the way, not fixed: every shard re-probes the same
+100k boards with the fixed seed. At 640 shards that made each probed arm
+≈ 2 h instead of minutes. The fix is to probe once per arm and pass the map
+to the shards.
+
 Not worth the compute: the floor sweep's closed axes (width, epochs, lr,
 `--dd-weight`; [archive/floor-sweep.md](archive/floor-sweep.md)) and A2's
 damping (gain ≈ 0 measured).
@@ -810,6 +897,7 @@ the campaign's days go.
 | A3 κ pair — **done 2026-10-23** | 3 arms × 2 vul | told: a slope toward base, never above it; no κ ships | A4's scope |
 | B retrain ruler — **done 2026-10-23** | 10 draws + 6 arms × 2 vul | told: K = 8 floor TV 0.017 / 0.015 (depth 3), the val cut is a reseed, read retrains K = 8 vs K = 8 on paired deals | A4 |
 | A4 retrain lap — **lap 1 read 2026-10-24, stopped** (build record under § A4) | the deferred retrain as K = 8, ×2 | told: the retrain removes the serving's plain-DD cost but matched-probed still trails matched-⊤ by −0.010 / −0.007 plain; a4 − k200 inside ±0.008 of 0; inner residual 0.160 → 0.137; the net moved 1.1–1.2× the K = 8 floor at mismatched counts. **Caveats (2026-10-24):** transplanted labels bound the test; the outer residual was never computed, so "fixed point" is unproven; branch 2 unresolvable at this size (±0.0075 vs δ 0.002) | "Next: what lap 2 owes" |
+| A4 inside v9 — **read 2026-10-25, stopped** ("Next", after the gate read) | 4 arms × 4 cells, whole box, ≈ 18 h | told: the v9 encoding cuts the serving's footprint ≈ 8× and its plain-DD cost with it; matched, the probe is flat (lap 1's PD win gone); a4 vs its own-recipe reseed inside ±0.007 of 0 | relabel pilot |
 | review fold-in — **done 2026-10-24** | — | six gate corrections: IMP intervals at four cells decide, TV a diagnostic, sizing on PD/both with the decision defined, relabel piloted, splice offsets version-aware, outer residual owed | v9 |
 
 A0 through A3 are KR1-neutral until A3's cell is read: every knob defaults

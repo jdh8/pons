@@ -109,3 +109,9 @@ Nets in `ab-results/v9/nets/` (not in the repo), A/B in
 [shrinkage-plan.md](../shrinkage-plan.md) "Gate read, change 1". The code
 stays as built: the feature version, the trainer support and the
 file-loaded serving are what the Gaussian variant (192 wide) would reuse.
+
+**A4's four arms inside v9 (2026-10-25)**: the v9 net barely reacts to the
+probe's κ-shrunk boxes. The serving changes about an eighth as many boards
+as under v6 (0.33% fired vs 2.6–2.9%). With the boxes in both training and
+serving, they read flat. Nothing ships. The table is in
+[shrinkage-plan.md](../shrinkage-plan.md) "A4's four arms inside v9".
