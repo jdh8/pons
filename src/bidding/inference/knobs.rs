@@ -473,6 +473,14 @@ pub struct ReadingProfile {
     /// reads identically either way; when both probed settings are on, the full
     /// fold wins.
     ///
+    /// **Only this scope is a reading** (jdh8, 2026-10-25;
+    /// docs/shrinkage-plan.md "What the analogy misses").  One hand maps to
+    /// one call and a call means its authored definition, not the frequency
+    /// with which the policy uses parts of it.  The full fold (`probed`)
+    /// narrows an authored axis because the policy did not use part of the
+    /// definition, and partner then misreads the hand when it does.  `probed`
+    /// stays for the 2026-07-31 reproduction; no new arm runs it.
+    ///
     /// **Default off**, opt-in pending a feature retrain: the A/B (2026-07-31,
     /// SEED_BASE 1785493701, 204,800 bd/arm/vul) lost in all four cells —
     /// plain −0.0467/−0.0658, PD −0.1118/−0.1337 at ~10% fired — the worst

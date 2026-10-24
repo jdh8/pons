@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: one hand maps to one call, and a call's definition is
+  deterministic (2026-10-25)**. Poker's chart is a mixed strategy; a bridge
+  bidding policy is not, and the harness never pays for mixing (a
+  common-payoff game against a fixed opponent has an optimal deterministic
+  joint policy; concealment is invisible to double dummy). Recorded in
+  [docs/shrinkage-plan.md](docs/shrinkage-plan.md) "What the analogy
+  misses", [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §6 and
+  the `probed_vacuous` doc: the R-loop's damping never had a cycle to damp
+  (a definition is a set, not a response), the ruler for a retrain is the
+  per-decision disagreement rate on paired deals rather than the frequency
+  TV, only ⊤ axes may take a probed box (the full fold reads a judgment
+  frequency as a boundary; reversible default, the knob stays), label
+  staleness is definition drift, and the reseed gap is not member quality
+  (held-out top-1 flat to the third digit) so the handoff gains a per-board
+  forensic (step 2b). Docs and a doc comment only; no behaviour change.
 - **`features_v9` — the shape distribution in place of the length hull
   (2026-10-24, [docs/ai-bidder/features-v9.md](docs/ai-bidder/features-v9.md))**:
   the first step of the shrinkage plan's "Next: what lap 2 owes". v9 is v8

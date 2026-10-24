@@ -94,6 +94,17 @@ the paired IMP intervals, with TV as a diagnostic:
 | R ≠ shipped | **Production or trainer drift** | Bisect the trainer between `32fc876c` and `fabcb6fe`, then redo step 2 |
 | Neither factor alone | Interaction, or both effects below resolution | Size the next read on the largest interval before spending more |
 
+**Step 2b, the per-board forensic (minutes, no GPU).** The floor serves a
+pure policy, one call per hand (§6), so where two ensembles disagree at a
+decision at most one of them is right. On step 2's paired dump, list the
+boards where shipped and k8new (then S and O) pick different calls at the
+same prefix, score both calls by double dummy under a common continuation,
+and count who was right, by lane. Member quality cannot do this: held-out
+top-1 is flat to the third digit between the two sets (§6), so the gap lives
+in which decisions the two argmaxes pick, or in how the eight members'
+errors correlate, and a shared minibatch sequence is exactly what
+correlates them.
+
 Cost: about 1.5 h on dl02's two GPUs for 24 nets. The A/B is three or four
 arms at four cells. The v9-floor run with three arms had the whole box, so
 expect it to take longer at `JOBS=96`.
@@ -139,3 +150,33 @@ detached, write the state to memory, and end the turn.
 - The probe stays off the default path (A3, A4 lap 1, A4 inside v9).
 - v9 as built (the histogram) does not ship. The Gaussian variant waits on
   §3's recipe and §5's ⊤ number.
+- **One hand maps to one call, and a call's definition is deterministic**
+  (jdh8, 2026-10-25). The floor serves the argmax of the mean logits
+  (`neural::classify_mean`) and trains on one-hot labels, and the harness
+  never pays for mixing: our pair against a fixed opponent is a
+  common-payoff game, which always has an optimal deterministic joint
+  policy, and mixing's one payoff, concealment, is invisible to double
+  dummy. A call means its authored definition, not the frequency with which
+  the policy uses parts of it; at a floor node, where nothing is authored,
+  the de facto definition is the teacher's preimage and partner's model of
+  it is the same teacher. Three readings follow. The ruler for a retrain is
+  the **per-decision disagreement rate** on paired deals, split where a
+  definition is authored into inside it (judgment) and outside it (a
+  misbid); TV stays a diagnostic, since a next-call frequency at a prefix is
+  a marginal and two partitions can share it. Label staleness is
+  **definition drift**, so §5's ⊤ number reads against the book changes
+  since the M32 cut, not against the policy. And the probe's full-fold scope
+  (`probed`) reads a judgment frequency as a boundary; only ⊤ axes take a
+  box (`probed_vacuous`), see
+  [shrinkage-plan.md](shrinkage-plan.md) "What the analogy misses".
+- Member quality does not explain the gap. Held-out top-1 against the
+  teacher labels, from the manifests (the two cuts differ by 186 rows, so
+  this compares to the third digit):
+
+  | ensemble | overall, per member | contested, per member |
+  | --- | --- | --- |
+  | shipped seeds 1–8 | 0.8517–0.8534, mean 0.8527 | 0.8294–0.8312 |
+  | k8new seeds 9–16 | 0.8522–0.8533, mean 0.8528 | 0.8299–0.8311 |
+
+  Ensemble-level agreement is not recorded; step 2b reads the decisions
+  themselves instead.

@@ -599,6 +599,50 @@ R ← G(R).
    chart is a best-responder to R, which is why an undamped loop flips. The
    same is true of any learned policy fed a reading it did not train under.
 
+### What the analogy misses (2026-10-25)
+
+Poker's chart is a mixed strategy; a bridge bidding policy is not (jdh8).
+One hand maps to one call — the floor serves the argmax of the mean logits
+(`neural::classify_mean`) and trains on one-hot labels — and a call's
+**definition** is deterministic: the authored reading at a book node, the
+teacher's preimage at a floor node. The hands a human would mix, the ones
+inside two definitions at once, are few, and the harness never pays for
+mixing: a common-payoff game against a fixed opponent has an optimal
+deterministic joint policy, and concealment is invisible to double dummy.
+Three of the four lessons therefore port differently than this plan
+assumed, and A0–A4's reads are explained by it:
+
+- **Lesson 2 does not port.** A definition is a set, not a response to a
+  response. `Partnership::probe` estimates a fixed set from a finite
+  harvest; there was never a best-responder to overshoot, so there was never
+  a cycle for λ to damp. A0 measured gain 0 and dropped A2; the gain is zero
+  by structure, and κ is a sampling knob (bias against variance) that a
+  split-half check like Plan C's can set offline, without an A/B per κ.
+- **Lesson 3's ruler is the wrong object.** In poker the per-class
+  frequency *is* the strategy. Here the next-call frequency at a prefix is a
+  marginal of the deal distribution through a pure policy, and two partitions
+  can share it (review S1). The ruler for a pure policy on paired deals is
+  the **per-decision disagreement rate**, split where a definition is
+  authored into inside it (judgment) and outside it (a misbid); the paired
+  IMP diff is its cost. Seed noise is not cost-free here as it is at a mixed
+  equilibrium's indifference points: where two nets disagree at a hand, at
+  most one is right, which is what makes the reseed gap readable board by
+  board ([reseed-gap-handoff.md](reseed-gap-handoff.md) step 2b).
+- **Lesson 1's prior is the definition, and only ⊤ axes may take a box.**
+  The full-fold scope (`probed`) narrows an authored axis because the policy
+  did not use part of the definition, so partner misreads the hand when the
+  policy does use it: a judgment frequency read as a boundary. The vacuous
+  scope (`probed_vacuous`) is the only principled one, and every arm since
+  A3 ran it. Reversible default: the knob stays for the 2026-07-31
+  reproduction; no new arm runs the full fold.
+
+Lesson 4 stands and is sharper. The pair's score is piecewise constant in
+the boundaries, so no serving-time knob (κ, λ, a temperature) has a gradient
+to follow — A3's "slope toward base that never crosses it" — and the only
+loop that moves a boundary is a retrain plus an A/B, with partner's model
+trained under the boundary that is served. Label staleness is definition
+drift, not judgment drift: §5 of the handoff's ⊤ arm measures exactly that.
+
 ## Where each lesson lands in pons
 
 | pons mechanism | R-loop analogue | what is wrong today | lesson |
