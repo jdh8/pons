@@ -3,6 +3,9 @@
 **Handoff, 2026-10-25.** This is the next step of the shrinkage plan
 ([shrinkage-plan.md](shrinkage-plan.md)), and it blocks every retrain.
 Nothing is in flight. The relabel pilot runs beside it as a CPU track (§5).
+**Read 2026-10-25 (§3):** seeds about −0.007, order about −0.003, and they
+add up to k8new's −0.011. No lane carries the gap. The axis is pass against
+act.
 
 ## 1. The problem
 
@@ -104,6 +107,43 @@ the paired IMP intervals, with TV as a diagnostic:
 | R ≠ shipped | **Production or trainer drift** | Bisect the trainer between `32fc876c` and `fabcb6fe`, then redo step 2 |
 | Neither factor alone | Interaction, or both effects below resolution | Size the next read on the largest interval before spending more |
 
+**Step 2 read (2026-10-25): neither factor alone; both cost, and they add.**
+`ab-results/reseed-gap/ab`, `SEED_BASE` 1792877109255232112, 205,056
+boards per arm per cell, each arm paired against the shipped floor (`plain`
+is `--our-floor american`). Per cell, plain DD:
+
+| arm | differs from shipped in | none | ns | ew | both | pooled |
+| --- | --- | --- | --- | --- | --- | --- |
+| O | order | −0.0030 ±0.0065 | −0.0007 ±0.0070 | −0.0040 ±0.0077 | −0.0057 ±0.0078 | **−0.0034 ±0.0036** |
+| S | seeds | −0.0059 ±0.0065 | −0.0049 ±0.0071 | −0.0072 ±0.0077 | −0.0093 ±0.0078 | **−0.0068 ±0.0036** |
+| k8new | seeds, order, cut | −0.0103 ±0.0065 | −0.0064 ±0.0071 | −0.0140 ±0.0079 | −0.0133 ±0.0078 | **−0.0110 ±0.0037** |
+
+PD pooled: O +0.0034, S −0.0012, k8new +0.0026 (each ±0.0040).
+Single-dummy plain (16 worlds) pooled: O −0.0043, S −0.0060, k8new −0.0154.
+"Pooled" is the mean of the four cells, with the cells' intervals combined
+in quadrature. Every arm fails non-inferiority to shipped in every cell.
+
+- **k8new reproduces the gap** (−0.011 against v9-floor's −0.012), so the
+  target is real and stable across seed bases.
+- **Seeds are the larger part**, about −0.007, outside its interval. Seeds
+  1–8 are a good draw: a winner's curse on about 60% of the gap.
+- **Order is about −0.003**, and its interval reaches 0. It is unresolved,
+  and §4's lever is worth at most that much.
+- **The two add up**: −0.0068 + −0.0034 = −0.0102 against k8new's −0.0110,
+  which leaves nothing for the validation cut. The cut is not separable from
+  order anyway. `mix` round-robins the stems by progress and never shuffles,
+  so moving each stem's cut by a few rows shifts every block and minibatch
+  boundary. That makes the cut a small, fresh order draw, not a factor of its
+  own.
+- **The four ensembles sit about equally far apart.** Per-decision
+  disagreement on paired deals, as the share of our calls at a shared prefix
+  where the two arms part, is 1.78–1.85% at none and 1.59–1.63% at both for
+  all six pairs. Reach-weighted TV (`ruler-tv.py`, default depth) is
+  0.036–0.038 at none and 0.031–0.033 at both. Shipped–k8new is the widest
+  pair by only 2–3%. S and O are no closer to shipped than to k8new. The gap
+  is in *which* side wins the 1-in-55 disagreements, not in how often they
+  happen.
+
 **Step 2b, the per-board forensic (minutes, no GPU).** The floor serves a
 pure policy, one call per hand (§6), so where two ensembles disagree at a
 decision at most one of them is right. On step 2's paired dump, list the
@@ -114,6 +154,54 @@ top-1 is flat to the third digit between the two sets (§6), so the gap lives
 in which decisions the two argmaxes pick, or in how the eight members'
 errors correlate, and a shared minibatch sequence is exactly what
 correlates them.
+
+**Step 2b read (2026-10-25): no lane, but a pass/act tilt.** `ab-dump-diff
+--jsonl` writes each contract-divergent board with both scorers' swings. It
+reproduces all twelve step 2 headlines exactly.
+`scripts/floor-divergence.py` charges each board to its first divergent call,
+the direct A/B's own attribution rather than a common-continuation
+counterfactual. Outputs are in `ab-results/reseed-gap/forensic/`. Every first
+divergence is our call, as it must be. 37% of the boards diverge in
+competitive auctions (we opened) and 63% in defensive ones (they opened).
+Nothing is constructive.
+
+- **No lane carries the gap.** k8new's worst lane, `1♦ - 1♥` in first seat,
+  is −0.0005 IMPs/board, and the worst twelve sum to about −0.004. The loss
+  is spread over hundreds of prefixes, as a draw-level effect should be.
+- **The axis is pass against act.** Pooled over the four cells, plain then
+  PD, in IMPs/board:
+
+  | arm | ON passes, shipped acts (n) | plain | PD | ON acts, shipped passes (n) | plain | PD | passive share |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | O | 19,105 | −0.0181 | +0.0112 | 18,130 | +0.0141 | −0.0095 | 0.513 |
+  | S | 18,987 | −0.0180 | +0.0114 | 18,521 | +0.0117 | −0.0139 | 0.506 |
+  | k8new | 21,283 | −0.0225 | +0.0115 | 16,875 | +0.0130 | −0.0085 | **0.558** |
+
+  Bidding lower or higher than shipped shows the same sign pattern, at
+  about −0.003 and +0.0035 for every arm. On these boards plain DD pays the
+  side that acts and PD pays the side that passes, which is the familiar
+  doubling bracket. So per board, "who was right" is mostly "who was more
+  aggressive", read through the scorer.
+- **Shipped picks better spots to act.** S and O are balanced on pass
+  against act (share 0.51) and still lose on that axis. Where shipped alone
+  acts it gains 0.78 IMP per board. Where the arm alone acts it gains only
+  0.52 (S) or 0.64 (O). That is the seed and order loss, as a per-board
+  rate.
+- **k8new is also more passive.** Its passive share is 0.55–0.57 in each of
+  the four cells, against S and O's 0.49–0.53, about 4,400 extra passes
+  where shipped competes. This is the most precise statistic in the read
+  (n ≈ 38k per arm). It is k8new-specific: the two arms that share either
+  seeds or order with shipped keep shipped's balance. It is also why
+  k8new's PD reads +0.0026 while its plain reads −0.011. The tilt is a draw
+  of the shared random effects (seeds and order), not a recipe change, so it
+  is not a lever.
+
+**Next, per the "neither factor alone" row** (proposed, jdh8 to decide):
+record the gap as about two-thirds winner's curse and one-third
+unresolved order. Retrains keep reading against shipped, which they must
+beat by about 0.007–0.011. They also read against k8new, as a reseed of
+their own recipe, to separate a recipe effect from a draw. §4 is now a
+cheap optional bet at ≤ 0.003 and is not blocking. §5 can start.
 
 Cost: about 1.5 h on dl02's two GPUs for 24 nets. The A/B is three or four
 arms at four cells. The v9-floor run with three arms had the whole box, so

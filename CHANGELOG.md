@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reseed gap step 2 read: seeds and order both cost, and they add
+  (2026-10-25, [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md)
+  §3)**. A 2 × 2 over init seeds and stem order, 205k boards per cell over
+  four cells, paired against the shipped K = 8. Plain DD pooled:
+  shipped-order seeds 9–16 (S) −0.0068 ±0.0036, seeds 1–8 at alphabetical
+  order (O) −0.0034 ±0.0036, k8new −0.0110 ±0.0037. PD is flat (−0.0012,
+  +0.0034, +0.0026). The seed effect is about two-thirds of the gap, a winner's
+  curse on seeds 1–8. Order is at most −0.003 and unresolved. The validation
+  cut is not separable from order (it shifts every block boundary). The
+  per-board forensic finds no lane. The axis is pass against act: plain DD
+  pays the side that competes and PD the side that passes. Shipped's unique
+  actions are worth 0.78 IMP per board against 0.52–0.64 for a reseed's, and
+  k8new alone is tilted passive (passive share 0.558 against 0.51), which is
+  why its PD reads positive. All four ensembles disagree on about 1.8% of
+  our decisions, pair for pair. No floor change: retrains keep reading
+  against shipped (they must clear about 0.007–0.011) and against a reseed
+  of their own recipe.
+- **`ab-dump-diff --jsonl`**: one record per contract-divergent board (deal,
+  both arms' table-A auctions, each scorer's IMP swing) from the A/B's own
+  solve, and `scripts/floor-divergence.py`, which buckets those records by
+  the first divergent call: side, phase, pass/act/level move, lane and call
+  pair. Example and script only; no behaviour change.
 - **docs: one hand maps to one call, and a call's definition is
   deterministic (2026-10-25)**. Poker's chart is a mixed strategy; a bridge
   bidding policy is not, and the harness never pays for mixing (a

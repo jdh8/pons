@@ -39,6 +39,10 @@
 //! whose trigger is a double.  Direct metric only — the shared prefix is the
 //! two arms' table-A auctions.
 //!
+//! `--jsonl` writes one record per contract-divergent board — the deal, both
+//! arms' table-A auctions and each scorer's IMP swing — for a per-board
+//! forensic (first divergent call, lane) off the same solve.
+//!
 //! ```text
 //! cargo run --release --features serde --example ab-dump-diff -- on.json off.json
 //! cargo run --release --features serde --example ab-dump-diff -- on/ off/ \
@@ -119,6 +123,11 @@ struct Args {
     /// the verdict.  Must be in `(0, 1]`
     #[arg(long, value_parser = common::parse_density)]
     density: Option<f64>,
+    /// Also write one JSON record per contract-divergent board here: `index`,
+    /// `deal`, `dealer`, `on` and `off` (table-A auctions), and one IMP swing
+    /// per scorer (`plain`, `pd`, `pdp`) of the selected metric
+    #[arg(long)]
+    jsonl: Option<String>,
 }
 
 /// Each board's contracts, in the shape its metric scores
@@ -379,19 +388,21 @@ fn main() -> anyhow::Result<()> {
     // so `--score both` costs one DDS fan-out and one parse of the dump, where
     // two single-scorer runs paid for each twice.
     type Scorer = fn(Reached, &ddss::TrickCountTable, AbsoluteVulnerability) -> i64;
-    let (scorers, labels): (Vec<Scorer>, Vec<&str>) = match args.score.as_str() {
-        "plain" => (vec![ns_score_contract], vec!["plain DD"]),
-        "pd" => (vec![ns_score_bid], vec!["PD"]),
+    let (scorers, labels, keys): (Vec<Scorer>, Vec<&str>, Vec<&str>) = match args.score.as_str() {
+        "plain" => (vec![ns_score_contract], vec!["plain DD"], vec!["plain"]),
+        "pd" => (vec![ns_score_bid], vec!["PD"], vec!["pd"]),
         "pdp" => (
             vec![|reached: Reached, table: &ddss::TrickCountTable, vul| {
                 let honored = reached.map_or(Penalty::Undoubled, |(c, _)| c.penalty);
                 ns_score_bid_honoring(reached, honored, table, vul)
             }],
             vec!["PD-P"],
+            vec!["pdp"],
         ),
         "both" => (
             vec![ns_score_contract, ns_score_bid],
             vec!["plain DD", "PD"],
+            vec!["plain", "pd"],
         ),
         other => anyhow::bail!("--score must be plain|pd|pdp|both, got {other:?}"),
     };
@@ -421,6 +432,26 @@ fn main() -> anyhow::Result<()> {
         }
     } else {
         write(&mut std::io::stdout().lock(), &scored[0], labels[0])?;
+    }
+    if let Some(path) = args.jsonl.as_deref() {
+        let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+        // One solve: every scorer shares the divergent set
+        for &i in &scored[0].divergent {
+            let (a, b) = (&on.boards[i], &off.boards[i]);
+            let mut record = serde_json::json!({
+                "index": i,
+                "deal": a.deal.to_string(),
+                "dealer": format!("{:?}", a.dealer),
+                "on": a.table_a,
+                "off": b.table_a,
+            });
+            for (key, scored) in keys.iter().zip(&scored) {
+                record[*key] = scored.board_imps[i].into();
+            }
+            serde_json::to_writer(&mut out, &record)?;
+            writeln!(out)?;
+        }
+        out.flush()?;
     }
     Ok(())
 }
