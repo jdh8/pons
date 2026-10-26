@@ -2,10 +2,12 @@
 
 **Handoff, 2026-10-25.** This is the next step of the shrinkage plan
 ([shrinkage-plan.md](shrinkage-plan.md)), and it blocks every retrain.
-Nothing is in flight. The relabel pilot runs beside it as a CPU track (§5).
+§3 is read (below). The relabel pilot (§5) is in flight from 2026-10-25.
 **Read 2026-10-25 (§3):** seeds about −0.007, order about −0.003, and they
 add up to k8new's −0.011. No lane carries the gap. The axis is pass against
-act.
+act. Recorded as mostly lucky seeds (jdh8). **Read 2026-10-27 (§5):** the
+probe is flat, staleness is 2–3% of decisions beyond the cut's own redraw
+noise, and that noise (≈ 11–13% of decisions at M = 32) is the finding.
 
 ## 1. The problem
 
@@ -196,12 +198,12 @@ Nothing is constructive.
   of the shared random effects (seeds and order), not a recipe change, so it
   is not a lever.
 
-**Next, per the "neither factor alone" row** (proposed, jdh8 to decide):
-record the gap as about two-thirds winner's curse and one-third
-unresolved order. Retrains keep reading against shipped, which they must
-beat by about 0.007–0.011. They also read against k8new, as a reseed of
-their own recipe, to separate a recipe effect from a draw. §4 is now a
-cheap optional bet at ≤ 0.003 and is not blocking. §5 can start.
+**Decided (jdh8, 2026-10-25): the gap is mostly lucky seeds.** It is
+recorded as about two-thirds winner's curse and one-third unresolved order.
+Retrains keep reading against shipped, which they must beat by about
+0.007–0.011. They also read against a reseed of their own recipe (k8new for
+v6), to separate a recipe effect from a draw. §4 stays a cheap optional bet
+at ≤ 0.003: not scheduled, not blocking. §5 started the same day.
 
 Cost: about 1.5 h on dl02's two GPUs for 24 nets. The A/B is three or four
 arms at four cells. The v9-floor run with three arms had the whole box, so
@@ -240,8 +242,60 @@ under whatever order and recipe §3 settles. Each arm takes about 10 h on
 the shared box and about 2.5 h on a free one. Per the global rule, launch
 detached, write the state to memory, and end the turn.
 
+**Read 2026-10-27.** Both arms ran at `d705cc94` (driver and logs in
+`/data/public/jdh8/pons/target/relabel-pilot/`, cuts at `<arm>/cut/axis-0004`;
+the comparison pairs rows by `splice-labels.py`'s key and identity, 422,366 of
+425,350 rows paired, 2,954 unmatched, 30 ambiguous, none refused). Shares are
+of the 204,211 net-served decisions unless said otherwise.
+
+| diff | labels moved | of labels fired by either cut | fired, left vs right |
+| --- | ---: | ---: | --- |
+| probed cut vs ⊤ cut (same walk, same draw) | 2.9% (5,850 rows) | 22% | 23,395 vs 23,703 |
+| ⊤ cut vs M32 cut (HEAD vs `39318c7f`, a new draw) | 14.6% (29,553; 7.1% of rows) | 76% | 23,463 vs 28,181 |
+| **noise floor**: ⊤ re-cut with the pools swapped (`scripts/cut-noise.py`) | 4.7% | 34.5% | 23,703 vs 23,684 |
+| noise floor, M32's own returns swapped | 5.1% | 31.7% | 28,252 vs 28,219 |
+
+A swap shares its 64 layouts between the two cuts; two independent draws
+differ more. At M = 16, where the 64 layouts hold two independent cuts, the
+independent diff is 2.3× the swap (⊤: 11.3% vs 4.9%; M32: 13.3% vs 5.3%), so
+a redraw alone at M = 32 moves ≈ 11–13% of decisions. Three readings:
+
+1. **The probe is flat.** Its 2.9% sits under the swap floor. The probe's
+   last test closes; the labels it would cut are the ⊤ labels.
+2. **Staleness is small.** Of the 14.6% that moved between the M32 cut and
+   the ⊤ cut, ≈ 11–13 points are the redraw; the book's drift since
+   2026-09-13 is ≈ 2–3% of decisions. What is systematic is the firing
+   rate: the gate fires 17% less often at HEAD on the same rows (23.5k vs
+   28.2k), and a swap reproduces a fire count to 0.1%, so the book now
+   agrees with the EV-argmax more often. A full relabel (≈ 170M tables, 2
+   days free, 8 occupied) buys that 2–3% and the fewer firings; the rest of
+   what it changes is dice.
+3. **The gate is the finding.** One label in three that M = 32 fires does not
+   survive a swap of its own layouts, at either commit. That noise is in
+   every label the shipped floor trained on. Depth is the lever (M = 64
+   needs 128 layouts, twice the cost); the cheap read before any 170M-table
+   spend is to **extend the ⊤ arm's four chunks to 128 layouts** (10.7M
+   more tables; the chunk count caps it at four processes, ≈ 4 h on a free
+   box at 4 × `DDSS_THREADS=64`): that gives the true independent noise at
+   M = 32 and the M = 64 gate's self-agreement, and decides M for the
+   relabel if one is run. Decision owed (jdh8).
+
+**Time.** Each arm took 12 h, not 10: a 5,000-deal chunk of this shard
+prices 50.6k decisions at 64 layouts, 2.69M tables (10.7M per arm), and the
+four `DDSS_THREADS=32` workers under `SCHED_IDLE` solved 254 tables/s, the
+occupied-box rate of [shared-machine-data-gen.md](shared-machine-data-gen.md)
+"Sizing the solver". The probed arm's 12 h were avoidable: its draw matched
+the ⊤ arm's to 99.99% (2,685,577 of 2,685,902 layouts of chunk 0), but its
+`.dd` cache lives beside its own chunk and nothing seeded it from the sibling
+arm, so it solved every table again (`0 from .dd`). `scripts/relabel-worker.sh`
+now takes `DD_FROM` (a sibling root whose `.dd` is copied in before the
+binary runs); a second arm of one window is minutes of solving with it.
+
 ## 6. What stays decided
 
+- **The shipped K = 8 is a lucky draw** (jdh8, 2026-10-25, §3 step 2):
+  a retrain ships only if it beats shipped, and it is read against a reseed
+  of its own recipe to tell a recipe effect from a draw.
 - Retrains read K = 8 against K = 8 on paired deals, at four cells. The
   paired IMP intervals decide and TV is a diagnostic
   ([shrinkage-plan.md](shrinkage-plan.md) "Review corrections").

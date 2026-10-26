@@ -481,6 +481,11 @@ write straight into the shared root; the mop-up box lists every other root in
 there short of the requested layouts is left for its owner to extend. A second
 pass (`start 128`, then `collect`, `mopup 128`, `--cut 64`) deepens every
 chunk in place.
+A second **arm** of one window (a probed walk, another commit, a knob) lists
+the first arm's root in `DD_FROM`: the worker copies that chunk's `.dd` in
+before the binary runs, and the binary solves only the layouts its draw
+differs by. The reseed-gap pilot's probed arm matched the ⊤ arm's draw to
+99.99% and re-solved every table (12 h) for want of this.
 
 The unit is [`scripts/pons-worker@.service`](../scripts/pons-worker@.service),
 a copy of the poker worker's: `KillMode=mixed`, so `stop` (SIGTERM) kills the
@@ -552,6 +557,13 @@ and take their gain from the poker solver; `JOBS=96` was set so the spare
 normal priority, 215 under `idle-run.sh`'s `SCHED_IDLE`, 1.7× the single
 96-thread process the cap gives. The M32 relabel at that rate is ≈ 8 days
 (≈ 9 under `SCHED_IDLE`).
+
+Confirmed over 12 h by the reseed-gap relabel pilot (2026-10-25/26,
+[reseed-gap-handoff.md §5](reseed-gap-handoff.md)): 4 × 32 under `SCHED_IDLE`
+held 254 tables/s. A 5,000-deal chunk of an axis shard prices ≈ 50.6k
+decisions at 64 layouts, 2.69M tables, 11.8 h at that rate; a 20,000-deal
+shard is four such chunks, so it can use only four processes — cut `CHUNK`
+to 2,000 to reach the free box's 10 × 64 rule.
 
 One live batch of 64 tables (the M8 per-decision size): median **28 ms** at
 200 threads on the quiet box, **74 ms** at 96 threads on the occupied box;

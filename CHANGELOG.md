@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reseed gap §5 relabel pilot read (2026-10-27,
+  [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5)**. Shard
+  axis-0004 relabelled twice at `d705cc94` (⊤ and probed, 64 layouts, cut at
+  M = 32) and diffed against the M32 cut of 2026-09-13, rows paired by
+  `splice-labels.py`'s key. Probed vs ⊤ moves 2.9% of the 204k net-served
+  decisions; ⊤ vs M32 moves 14.6%. The new `scripts/cut-noise.py` re-cuts a
+  shard's returns with the select/validate pools swapped: a redraw alone
+  moves 4.7% (swap) to ≈ 11–13% (independent draws, scaled from M = 16),
+  and one fired label in three does not survive a swap. So the probe is
+  flat (closes), staleness is 2–3% of decisions plus a 17% lower firing
+  rate at HEAD, and the M = 32 gate's own noise is the larger term; the
+  cheap next read (extend the ⊤ chunks to 128 layouts, ≈ 4 h free) is owed
+  a decision. No floor change. Each arm took 12 h; the probed arm re-solved
+  every table because nothing seeded its `.dd` cache from the ⊤ arm —
+  `scripts/relabel-worker.sh` now takes `DD_FROM` for that.
 - **Reseed gap step 2 read: seeds and order both cost, and they add
   (2026-10-25, [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md)
   §3)**. A 2 × 2 over init seeds and stem order, 205k boards per cell over
@@ -23,9 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actions are worth 0.78 IMP per board against 0.52–0.64 for a reseed's, and
   k8new alone is tilted passive (passive share 0.558 against 0.51), which is
   why its PD reads positive. All four ensembles disagree on about 1.8% of
-  our decisions, pair for pair. No floor change: retrains keep reading
-  against shipped (they must clear about 0.007–0.011) and against a reseed
-  of their own recipe.
+  our decisions, pair for pair. No floor change. Recorded as mostly lucky
+  seeds (jdh8): retrains keep reading against shipped (they must clear
+  about 0.007–0.011) and against a reseed of their own recipe.
 - **`ab-dump-diff --jsonl`**: one record per contract-divergent board (deal,
   both arms' table-A auctions, each scorer's IMP swing) from the A/B's own
   solve, and `scripts/floor-divergence.py`, which buckets those records by

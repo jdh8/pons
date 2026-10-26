@@ -348,6 +348,14 @@ could serve a union of clusters instead of one hull
    full relabel (the deferred 2026-09-26 "megachonk" and v8's lever list in
    one job, ≈ 2 days free, ≈ 8 occupied; detached, state in memory)
    follows, **independently of the sign of a4 − k200 under v9**.
+   **Read 2026-10-27** ([reseed-gap-handoff.md §5](reseed-gap-handoff.md)):
+   run as two arms (⊤ and probed) against the M32 cut. The probe moves 2.9%
+   of decisions, under the cut's own swap noise (4.7%): flat, closed. ⊤ vs
+   M32 moves 14.6%, of which ≈ 11–13 points are a redraw at M = 32
+   (`scripts/cut-noise.py`): staleness is 2–3% plus a 17% lower firing
+   rate. The gate's noise is the larger term; the decision on the full
+   relabel, and on its M, waits on a 128-layout extension of the pilot's
+   ⊤ chunks (jdh8).
 3. **The outer residual before any lap 2** (review D3). `ProbeReport`'s
    `rms` / `floor` / `drifted` all compare the ⊤ harvest with the harvest
    serving its own boxes under one fixed net — the inner reading iteration,

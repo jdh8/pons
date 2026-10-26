@@ -27,6 +27,12 @@
 #              offline split: fill the .dd files anywhere with
 #              `dump-teacher --fill-dd`, then run the worker again without
 #              DRAW_ONLY to price from them); default 0
+#   DD_FROM    colon-separated chunk roots whose .dd sidecar seeds a chunk that
+#              has none here: another arm of the same window (a probed walk,
+#              another commit) is copied in before the binary runs, so only the
+#              layouts the sampler now draws differently are solved.  The
+#              relabel pilot's second arm re-solved every table (12 h) for want
+#              of this; its draw matched the first arm's to 99.99%.
 #   DUMP_COMMON  override the recipe's common flags (default: the v6 recipe's)
 #   RECIPE_FILE  override the shard recipe with a file of `name skip boards seed [flags]` lines
 #   DUMP_TEACHER override the binary (a glibc-wrapped dump-teacher where EPBot needs one)
@@ -45,6 +51,7 @@ CHUNK=${CHUNK:-5000}
 REVERSE=${REVERSE:-0}
 EXTRA_OUT=${EXTRA_OUT:-}
 DRAW_ONLY=${DRAW_ONLY:-0}
+DD_FROM=${DD_FROM:-}
 BIN=${DUMP_TEACHER:-target/release/examples/dump-teacher}
 COMMON=${DUMP_COMMON:-"--deals $BANK --teacher bba --configured --feature-version 6"}
 
@@ -118,6 +125,17 @@ while read -r g name c skip boards seed extra; do
 		continue
 	fi
 	mkdir -p "$OUT/$name"
+	# A sibling arm's tables are a fact about the cards: seed the cache from
+	# them and the binary solves only what its draw differs by.
+	dd=$OUT/$name/chunk-$c.dd
+	if [[ ! -e $dd ]]; then
+		for root in ${DD_FROM//:/ }; do
+			[[ -r $root/$name/chunk-$c.dd ]] || continue
+			echo "chunk $g $name/$c: seeding .dd from $root"
+			cp --reflink=auto "$root/$name/chunk-$c.dd" "$dd.seed" && mv "$dd.seed" "$dd"
+			break
+		done
+	fi
 	echo "chunk $g $name/$c: skip $skip boards $boards seed $seed → $LAYOUTS layouts (have $have)"
 	# shellcheck disable=SC2086
 	$BIN $COMMON --skip "$skip" --boards "$boards" --seed "$seed" \
