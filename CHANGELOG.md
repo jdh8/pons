@@ -25,6 +25,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-10-27, `40847142`)**: shipping `american()` scores
+  **−0.2662 plain / −0.0487 perfect-defense IMPs/board** (none −0.2541 /
+  −0.0305, both −0.2783 / −0.0669), the series' best headline;
+  `american_instinct()` −0.9088 / −0.9323. Same seed `1783375064`, all four
+  cells replayed at 100% with zero mismatches. The first anchor read on the
+  natural walk as the library default: paired to `3debdd0f`'s
+  `natural-walk-*` arms on the same deals, **0 boards fired in either cell**
+  (the default reproduces the 2026-10-23 flag arm bit for bit, so the series
+  is continuous across the flip); paired to its declared-all arms, shipping
+  +0.0173 ±0.0049 / +0.0122 ±0.0060 plain, +0.0022 / −0.0017 PD per table
+  (7,758 / 7,134 fired) and instinct +0.0021 ±0.0024 / +0.0082 ±0.0035
+  plain, +0.0018 / +0.0082 PD (1,577 / 1,978 fired). Bucket order unchanged
+  on both arms; floor paired worth +0.332 plain / +0.450 PD. Snapshot
+  `ab-results/anchor/2026-10-27-155b5cf8-dirty/` (its `window.sh` builds the
+  pairings).
+
 ### Added
 
 - **Reseed gap §5: the ⊤ arm at 128 layouts, M = 64 not worth 2×
