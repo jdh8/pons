@@ -4,9 +4,10 @@
 2026-10-10, 2026-10-16 and 2026-10-23** from the two current anchors — BBA shipping arm at
 `3debdd0f` (2026-10-23; read undeclared the bucket order is unchanged since
 `7838d8c2` but for a #4/#5 swap, opening #1 plain, round-2 #1 PD, so the
-ranking below stands; **the anchor as run reads EPBot declared and is a
+ranking below stands; the anchor as run read EPBot declared-all, a
 −0.013 / −0.007 plain loss on the same deals, all of it the reading — rule 10
-of [bba-gap-campaign.md](bba-gap-campaign.md), decision owed**) and BEN Tier S at
+of [bba-gap-campaign.md](bba-gap-campaign.md); **decided 2026-10-27: the
+natural walk is the library default, re-rank on the re-anchor that follows**) and BEN Tier S at
 `c72dd03e` (2026-10-11, +0.200 plain / +0.343 PD paired since M32; items 3/4
 re-priced on it, [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —

@@ -759,9 +759,13 @@ struct Args {
     /// `--no-declare-their-european-minors`), keep their unalerted calls on
     /// the natural walk and decode only their alerted calls in their book, as
     /// an undeclared opponent is read (`reading.declared_natural_walk`).
-    /// Default off: a declared opponent's every call decodes in their book.
-    #[arg(long)]
-    ns_declared_natural_walk: bool,
+    /// **Engine default ON since 2026-10-27** (fresh seed: +0.0157 / +0.0160
+    /// plain vs declared-all, PD non-inferior / inconclusive); the
+    /// declared-all arm, where every call of a declared opponent decodes in
+    /// their book, is `--ns-declared-natural-walk false`.  Unset = the
+    /// engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_declared_natural_walk: Option<bool>,
 
     /// How much of the authored book our projection decodes
     /// (`ReadingProfile::scope`, crate default `all` since 2026-08-16;
@@ -3184,8 +3188,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.ns_completion_alerts {
         agreements.decision.reading.completion_alerts = v;
     }
-    if args.ns_declared_natural_walk {
-        agreements.decision.reading.declared_natural_walk = true;
+    if let Some(v) = args.ns_declared_natural_walk {
+        agreements.decision.reading.declared_natural_walk = v;
     }
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {

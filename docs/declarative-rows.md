@@ -362,7 +362,7 @@ both) to the reading alone — the shipped net was trained on the walk's
 readings ([bba-gap-campaign.md](bba-gap-campaign.md) rule 10).
 `reading.declared_natural_walk` restores the walk for a declared opponent's
 unalerted calls and recovers it (+0.0173 / +0.0122 plain on the same deals);
-the decision on its default is open there.
+it is the default since 2026-10-27.
 
 ## Phase 3 — knob migration (open)
 

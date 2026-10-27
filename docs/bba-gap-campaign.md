@@ -170,17 +170,20 @@ Each was paid for; the story behind each is in the archive.
    theirs in their book under `ReadingScope::All`, their natural `1♥`
    opener included (`9..21`, two cards in each suit), where the undeclared
    walk reads five hearts and `0..37` — the regime the shipped net was
-   trained on. `reading.declared_natural_walk` (`bba-gen`/`ben-gen
-   --ns-declared-natural-walk`, default off) keeps a declared opponent's
-   unalerted calls on the walk: natural-walk − declared +0.0173 ±0.0049 /
+   trained on. `reading.declared_natural_walk` (**default on since 2026-10-27**; the
+   declared-all arm is `bba-gen`/`ben-gen --ns-declared-natural-walk
+   false`) keeps a declared opponent's unalerted calls on the walk: natural-walk − declared +0.0173 ±0.0049 /
    +0.0122 ±0.0060 plain on the anchor deals, natural-walk − undeclared
    +0.0005 / +0.0007 plain on 296 / 326 fired boards (the honest minors
    alone); fresh seed 1792715679 (`ab-results/declared-natural-walk/`):
    natural-walk − declared plain +0.0157 ±0.0048 / +0.0160 ±0.0060 (`win`
    both cells), PD +0.0048 ±0.0053 (`non-inferior`) / +0.0016 ±0.0066
-   (inconclusive). Which reading the series continues on is jdh8's decision (the
-   CHANGELOG entry lists the two options); until then this snapshot carries
-   `undeclared-*` and `natural-walk-*` arms beside its four cells.
+   (inconclusive). **Decided 2026-10-27 (jdh8): the series continues on
+   the natural-walk reading** — the library default flipped, so every
+   declared harness reads this way without a flag. The `3debdd0f` snapshot
+   carries `undeclared-*` and `natural-walk-*` arms beside its four cells;
+   its `natural-walk-*` arms are the bridge to the next re-anchor, and the
+   undeclared shipping table is the one its ships were ranked on.
 
 ## Runbook
 
@@ -231,8 +234,10 @@ PD columns are on `ns_score_bid` (see the standing note); compare plain across
 snapshots, and PD only back to `494f0c4b`. **This snapshot reads EPBot
 declared** (rule 10, measured a loss there): the tables below are the anchor
 as run; the undeclared shipping table beside them is the same deals read as
-every earlier anchor was, and is the one to rank the ships on until the
-reading decision is taken.
+every earlier anchor was, and is the one the ships are ranked on. The
+reading decision was taken 2026-10-27 (natural walk, the library default):
+the next re-anchor reads that way and pairs to this snapshot's
+`natural-walk-*` arms.
 
 **Instinct arm** — the decompose series (`boards` = contract-divergent; the
 report excludes same-contract divergences, rule 6). Order unchanged from

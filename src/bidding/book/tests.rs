@@ -1166,7 +1166,9 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// and 10+ only off their declared book.  Undeclared, the mirror plays the
 /// house defense (`ReadingProfile::with_house_defense`: our own Gladiator
 /// never leaks into the opponents' model), where the same `3♦` is an alerted
-/// call showing both majors and reads as such.
+/// call showing both majors and reads as such.  This is the declared-all
+/// regime, `declared_natural_walk` off (the default keeps their unalerted
+/// `3♦` on the walk since 2026-10-27).
 #[test]
 fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
     use crate::bidding::american::american_book;
@@ -1182,6 +1184,7 @@ fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.scope = ReadingScope::All;
     agreements.decision.reading.nt_overcall_gladiator = true;
+    agreements.decision.reading.declared_natural_walk = false;
     let their_books = american_book(&agreements).bind();
 
     let read = |partnership: &super::Partnership| {

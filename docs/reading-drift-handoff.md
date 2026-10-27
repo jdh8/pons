@@ -1249,4 +1249,4 @@ over their `1♥ - 2NT - 3♥` once opener read `9..21` instead of `0..37`.
 the walk and recovers it; the honest 1NT minors (the reason for declaring)
 survive, since those calls are alerted and still decode in their book. Full
 record: [bba-gap-campaign.md](bba-gap-campaign.md) rule 10 and the
-2026-10-23 series row; the decision on the default is jdh8's.
+2026-10-23 series row; the default is on since 2026-10-27 (jdh8).

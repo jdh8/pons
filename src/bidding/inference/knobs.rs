@@ -573,12 +573,14 @@ pub struct ReadingProfile {
     /// and only their alerted calls decode in their books, as for an
     /// undeclared opponent.
     ///
-    /// **Default off** (the declared regime as built 2026-08-07).  Inert on the
-    /// default system, which declares no opponent; it moves every harness
-    /// arm that does (`bba-gen` since 2026-10-20, `ben-gen` since
-    /// 2026-08-13).  Built 2026-10-23 for the anchor forensic: the declared
-    /// reading alone cost −0.0168 ±0.0050 plain IMPs/board vs BBA on the
-    /// anchor deals (docs/bba-gap-campaign.md, rule 10).
+    /// **Default on since 2026-10-27** (jdh8; off is the declared regime as
+    /// built 2026-08-07).  Inert on the default system, which declares no
+    /// opponent; it moves every harness arm that does (`bba-gen` since
+    /// 2026-10-20, `ben-gen` since 2026-08-13).  Built 2026-10-23 for the
+    /// anchor forensic: the declared-all reading alone cost −0.0168 ±0.0050
+    /// plain IMPs/board vs BBA on the anchor deals, and on a fresh seed the
+    /// walk reads +0.0157 / +0.0160 plain (win, both cells), PD non-inferior
+    /// / inconclusive (docs/bba-gap-campaign.md, rule 10).
     pub declared_natural_walk: bool,
 
     /// Accept a sampled layout by *replaying the rule* that authored each bid
@@ -1312,7 +1314,7 @@ impl ReadingProfile {
             probed_kappa: 0,
             announced: true,
             table_alerts: false,
-            declared_natural_walk: false,
+            declared_natural_walk: true,
             rule_accept: false,
             point_scale: crate::bidding::constraint::PointScale::Hcp,
             support_points: false,
@@ -1384,7 +1386,7 @@ impl Default for ReadingProfile {
             probed_kappa: 200,
             announced: false,
             table_alerts: true,
-            declared_natural_walk: false,
+            declared_natural_walk: true,
             rule_accept: true,
             point_scale: crate::bidding::constraint::PointScale::PointCount,
             support_points: true,

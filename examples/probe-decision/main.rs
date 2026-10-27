@@ -392,10 +392,13 @@ fn main() {
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
     // needs the same floor: under the shipped net floor a `floor#N` row prints
     // `(floor / no rule)` and the forensic stalls (scripts/anchor-diff.py).
-    // `PROBE_DECLARED_NATURAL_WALK=1` keeps a declared opponent's unalerted
-    // calls on the natural walk (`reading.declared_natural_walk`).
-    if std::env::var("PROBE_DECLARED_NATURAL_WALK").as_deref() == Ok("1") {
-        agreements.decision.reading.declared_natural_walk = true;
+    // `PROBE_DECLARED_NATURAL_WALK=0` decodes a declared opponent's every
+    // call in their book (`reading.declared_natural_walk`, default on since
+    // 2026-10-27: their unalerted calls keep the natural walk); `=1` forces on.
+    match std::env::var("PROBE_DECLARED_NATURAL_WALK").as_deref() {
+        Ok("0") => agreements.decision.reading.declared_natural_walk = false,
+        Ok("1") => agreements.decision.reading.declared_natural_walk = true,
+        _ => {}
     }
     let system = if std::env::var("PROBE_FLOOR").as_deref() == Ok("instinct") {
         american_instinct(&agreements)

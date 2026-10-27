@@ -682,6 +682,17 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
 | 2026-10-11 | `c72dd03e` | **−0.830** (none −0.7210 [−0.810, −0.632], both −0.9397 [−1.056, −0.824]) | **−0.480** (none −0.3495 [−0.453, −0.246], both −0.6102 [−0.744, −0.477]) | Divergence 63.92%/63.30%. Same BEN runtime and conf sha as M32 (PASS-level patch from the start, no recovery needed). Paired to M32 on the same deals: **+0.200 ±0.054 plain / +0.343 ±0.063 PD** pooled (none +0.132 / +0.239, both +0.269 / +0.448; 4,536 boards changed). Covers the floor rails, the K = 8 ensemble, and every constructive ship 2026-09-14 → 10-10. Replay 100.00% both arms; ranking below. |
 
+> **Reading series break owed (2026-10-27).** Every row above read BEN's
+> declared book under `ReadingScope::All` — their natural calls decoded in
+> it, their `1♥` opener as `9..21`. `reading.declared_natural_walk` is the
+> library default since 2026-10-27 (BBA anchor: declared-all cost −0.0168 /
+> −0.0115 plain on the same deals; the walk reads +0.0157 / +0.0160 plain on
+> a fresh seed, [bba-gap-campaign.md](bba-gap-campaign.md) rule 10), so the
+> next Tier-S re-anchor reads BEN's unalerted calls on the walk and its
+> delta to `c72dd03e` carries the reading change as well as the ships. Its
+> declared-all control is `ben-gen --ns-declared-natural-walk false` on the
+> same deals.
+>
 > **Reading the deltas.** Rows share *deals* (`SEED_BASE`), while BEN re-bids
 > each auction and its replies can change. Each window bundles intervening
 > ships; isolated attribution requires the per-fix A/B. The per-vulnerability

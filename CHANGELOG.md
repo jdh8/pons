@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`reading.declared_natural_walk` is on by default (2026-10-27, jdh8).** A
+  declared opponent's unalerted calls keep the natural walk and only their
+  alerted calls decode in their book, as an undeclared opponent is read.
+  Inert on the default system, which declares no opponent; every declared
+  harness (`bba-gen`, `ben-gen`, `ab-dump-sd`, the decompose replay,
+  `probe-decision`) reads this way without a flag. The declared-all arm as
+  built 2026-08-07 is `--ns-declared-natural-walk false`
+  (`PROBE_DECLARED_NATURAL_WALK=0`). Basis: the fresh-seed A/B below, plain
+  +0.0157 ±0.0048 / +0.0160 ±0.0060 (win, both cells), PD +0.0048 ±0.0053
+  (non-inferior) / +0.0016 ±0.0066 (inconclusive) vs declared-all, and
+  +0.0005 / +0.0007 plain vs undeclared with the honest 1NT minors kept. The
+  BBA anchor series resumes from `16bf52b8`'s reading plus the honest
+  minors; the BEN series, read declared-all since 2026-08-13, breaks once at
+  its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
+  rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
+
 ### Added
 
 - **Reseed gap §5: the ⊤ arm at 128 layouts, M = 64 not worth 2×
@@ -272,7 +290,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ab-results/declared-natural-walk/`, 204,800 boards per cell): natural-walk
   − declared plain +0.0157 ±0.0048 / +0.0160 ±0.0060 (`win` both cells), PD
   +0.0048 ±0.0053 (`non-inferior`) / +0.0016 ±0.0066 (inconclusive);
-  7,498 / 6,955 fired.** **Decision owed to jdh8**: flip
+  7,498 / 6,955 fired.** **Decided 2026-10-27 (jdh8): the library default
+  is on** (see the Changed entry at the top of Unreleased). The two options
+  weighed were to flip
   the library default on (then every declared harness — `bba-gen`,
   `ben-gen`, `ab-dump-sd`, the decompose replay — reads this way without a
   flag, the BBA anchor series resumes from `16bf52b8`'s reading plus the
