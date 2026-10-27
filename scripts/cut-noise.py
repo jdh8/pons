@@ -14,6 +14,8 @@ that at half depth, so `independent / swap` at `M/2` scales the swap at `M`.
 
 Reseed-gap pilot, axis-0004 at `d705cc94` (docs/reseed-gap-handoff.md §5):
 M = 32 swap moves 4.7% of decisions, M = 16 independent 11.3%, ratio 2.3.
+Extended to 128 layouts at `f8999e18`: M = 64 swap 4.6%, M = 32 swap 4.7% and
+independent (the two halves) 9.8%, ratio 2.06; depth buys little.
 """
 
 import argparse

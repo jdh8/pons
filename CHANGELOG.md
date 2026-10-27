@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reseed gap §5: the ⊤ arm at 128 layouts, M = 64 not worth 2×
+  (2026-10-27, [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md)
+  §5)**. The pilot's four ⊤ chunks extended in place from 64 to 128 layouts
+  (10.9M more tables, 10 h 16 min occupied; the first 64 came back from
+  `.dd`, and the M = 32 cut on the extended chunks is byte-identical to the
+  64-layout one). Two independent M = 32 cuts move 9.8% of the 204k
+  decisions (measured, against the 11–13% scaled from M = 16), so the book's
+  drift since the M32 cut is ≈ 5% of decisions, not 2–3%. Depth buys little:
+  the swap floor reads 4.9 / 4.7 / 4.6% at M = 16 / 32 / 64 where 1/√M would
+  halve it, and the M = 64 gate disagrees with its own swap on 32% of fired
+  labels against 34.5%. The disagreements are real stakes mostly missed, not
+  wrong: the two labels differ by a median 0.86 IMP on all 128 layouts, an
+  M = 32 firing beats the own call on the unseen 64 layouts 83% of the time,
+  and the firings the other half does not repeat still gain 1.0 IMP there.
+  Recommendation: a relabel, if run, at M = 32; jdh8 decides. No floor
+  change.
 - **Reseed gap §5 relabel pilot read (2026-10-27,
   [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5)**. Shard
   axis-0004 relabelled twice at `d705cc94` (⊤ and probed, 64 layouts, cut at

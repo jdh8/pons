@@ -280,6 +280,64 @@ a redraw alone at M = 32 moves ≈ 11–13% of decisions. Three readings:
    M = 32 and the M = 64 gate's self-agreement, and decides M for the
    relabel if one is run. Decision owed (jdh8).
 
+**Read 2026-10-27, 128 layouts.** The ⊤ arm's four chunks were extended
+from 64 to 128 layouts in place at `f8999e18` (`extend.sh` beside
+`driver.sh`, same `OUT`, `LAYOUTS=128`; 4 × `DDSS_THREADS=32` under the
+poker solver, 10 h 16 min for 10.9M tables, ≈ 298 tables/s). Every worker
+read its first 64 layouts back from `.dd` and solved only the new 64, and
+`dump-teacher --cut 32` on the extended chunks reproduced the 64-layout cut
+byte for byte (`.f32` and `.tags`; the sidecar differs only in `git_sha` and
+`layouts`), as the module doc's extension clause promises. The 128 layouts
+hold one M = 64 cut (`top/cut64`: 25,026 fired on 169,972 eligible, against
+170,051 at 64) and two **independent** M = 32 cuts, on `[0, 64)` and
+`[64, 128)`. `scripts/cut-noise.py -m 64` and the new `scripts/cut-stakes.py`
+(every pair of cuts, the stakes and the held-out test below) over the 204,211
+decisions:
+
+| pair of cuts | labels moved | of labels fired by either | fired, left vs right |
+| --- | ---: | ---: | --- |
+| M = 32, pools swapped, first half (the §5 floor) | 4.7% | 34.5% | 23,703 vs 23,684 |
+| M = 32, pools swapped, second half | 4.8% | 35.1% | 23,641 vs 23,614 |
+| **M = 32, the two independent halves** | **9.8%** | **60.8%** | 23,703 vs 23,641 |
+| M = 64, pools swapped | 4.6% | 32.2% | 25,026 vs 25,018 |
+| M = 64 vs either M = 32 cut | 6.8–7.0% | 45–46% | M = 64 keeps 71% of an M = 32 cut's firings |
+
+The four pairings of an M = 32 half against the other agree to 0.04 points
+(9.79–9.83%). Three more readings:
+
+4. **The independent M = 32 noise is 9.8%**, measured, a little under the
+   11–13% scaled from M = 16. Reading 2 revises upward: the 14.6% that moved
+   between the M32 cut and the ⊤ cut, net of a 9.8% redraw, leaves ≈ 5% of
+   decisions as the book's drift (union-of-moves arithmetic, (14.6 − 9.8) /
+   (1 − 0.098) = 5.3, two moves of one decision counted once), not 2–3%.
+   That plus the 17% lower firing rate is what a full relabel at M = 32 buys.
+5. **Depth buys little.** From M = 16 to 32 to 64 the swap floor reads 4.9%,
+   4.7%, 4.6% and the independent diff 11.3%, 9.8%, ≈ 9.5% (the last scaled
+   by the M = 32 ratio of 2.06; a 1/√M law would read 11.3, 8.0, 5.7). The
+   M = 64 gate fires 5.6% more often than M = 32 and disagrees with its own
+   swap on 32% of fired labels against 34.5%. Doubling the double dummy of a
+   relabel (≈ 340M tables) would shave two points off the noise share.
+6. **The disagreements are real stakes, mostly missed, not wrong.** Where
+   the two independent M = 32 cuts disagree, the two labels' means over all
+   128 layouts differ by a median 0.86 IMP plain (0.77 PD); 44% differ by
+   1 IMP or more and only 13% by under 0.25, so the gate is not breaking
+   ties. Tested on the other half's 64 layouts, which the cut never saw, an
+   M = 32 firing beats the own call on both scorers 83% of the time, clears
+   the margin on both 77%, loses on both 7%, with a mean held-out swing of
+   2.1 IMP plain (2.6 PD). Split by whether the other half's cut repeats
+   the label: the 55% it repeats gain 3.1 / 3.9 IMP held out; the 45% it
+   does not **still gain 1.0 / 1.0 IMP held out** and beat the own call on
+   both scorers 63% of the time. So the one-label-in-three that a swap
+   moves is mostly a real but marginal gain the other draw's gate failed
+   to fire, a recall miss, not a false label; the floor's training labels
+   err by omission at the 1-IMP scale.
+
+Verdict on M (recommendation; the decision is jdh8's): **M = 64 is not
+worth its 2×**, so a relabel, if one runs, runs at M = 32 for ≈ 5% of
+decisions and the lower firing rate, trained under whatever order and recipe
+§3 settles. Pilot data: `top/chunks` at 128 layouts with `.dd`/`.ret`,
+`top/cut` (M = 32, 64-layout) and `top/cut64`.
+
 **Time.** Each arm took 12 h, not 10: a 5,000-deal chunk of this shard
 prices 50.6k decisions at 64 layouts, 2.69M tables (10.7M per arm), and the
 four `DDSS_THREADS=32` workers under `SCHED_IDLE` solved 254 tables/s, the
