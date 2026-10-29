@@ -1,5 +1,6 @@
 use super::*;
 use crate::bidding::constraint::{announced, balanced, hcp, len, pred, support};
+use crate::bidding::trie::classifier;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Mutex;
@@ -412,4 +413,56 @@ fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
         compiled.project_complement_union(&rules, 0, &changed),
         expected
     );
+}
+
+#[test]
+fn choose_by_masks_the_chooser_to_the_admitted_calls() {
+    // The chooser likes 1♠ best, then Pass, then 1NT; the table admits 1NT
+    // and 1♠ for this 16-count but not Pass.
+    let chooser = classifier(|_, _| {
+        let mut logits = Logits::new();
+        *logits.0.get_mut(Call::Bid(Bid::new(1, Strain::Spades))) = 2.0;
+        *logits.0.get_mut(Call::Pass) = 1.0;
+        *logits.0.get_mut(Call::Bid(Bid::new(1, Strain::Notrump))) = 0.5;
+        logits
+    });
+    let rules = Rules::new()
+        .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17))
+        .rule(Bid::new(1, Strain::Spades), 50, hcp(11..=21))
+        .rule(Call::Pass, 0, hcp(..11))
+        .choose_by(Arc::new(chooser));
+    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let hand = "AQ32.K53.QJ4.A92".parse().unwrap();
+    let logits = rules.classify(hand, &context);
+    // The weights would have chosen 1NT; the chooser chooses 1♠.
+    assert_eq!(best_call(&logits), Call::Bid(Bid::new(1, Strain::Spades)));
+    assert_eq!(*logits.0.get(Call::Bid(Bid::new(1, Strain::Notrump))), 0.5);
+    // Pass is not admitted, so the chooser's mass on it is masked away.
+    assert_eq!(*logits.0.get(Call::Pass), f32::NEG_INFINITY);
+    // The compiled path agrees bit for bit.
+    let compiled = rules.compile(&context);
+    assert_logits_bitwise_eq(&compiled.classify(&rules, hand, &context), &logits);
+    // The readers still see the authored table.
+    assert!(rules.as_rules().is_some_and(|r| r.rules().len() == 3));
+    assert!(rules.chooser().is_some());
+}
+
+#[test]
+fn choose_by_rejects_when_the_chooser_has_no_mass_on_the_admitted_set() {
+    // A chooser whose only finite call the table does not admit: no mass, so
+    // the node falls through exactly as a rejecting table does.
+    let chooser = classifier(|_, _| {
+        let mut logits = Logits::new();
+        *logits.0.get_mut(Call::Pass) = 0.0;
+        logits
+    });
+    let rules = Rules::new()
+        .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17))
+        .choose_by(Arc::new(chooser));
+    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let hand = "AQ32.K53.QJ4.A92".parse().unwrap();
+    assert!(!rules.classify(hand, &context).has_mass());
+    // Without a chooser the same table has mass: the chooser only narrows.
+    let plain = Rules::new().rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17));
+    assert!(plain.classify(hand, &context).has_mass());
 }

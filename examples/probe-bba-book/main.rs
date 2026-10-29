@@ -75,6 +75,7 @@ use std::io::Write;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
+use common::bba_book::{Child, Node, Reading, SUIT_KEYS, load_dump, parse_auction};
 use common::oracle::{
     BbaOracle, DEFAULT_LIB, Interpretation, SYSTEM_2_OVER_1, SeatInfo, load_bbsa, next_call,
 };
@@ -214,75 +215,6 @@ struct Args {
     output: Option<String>,
 }
 
-// ───────────────────────────── dump schema ─────────────────────────────
-
-/// One expanded node: its key, its family, and every legal child's reading
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Node {
-    /// `display_calls` of the auction — house format, no parentheses
-    k: String,
-    /// `o` no side has bid, `c` one side has (constructive), `x` both (contested)
-    f: char,
-    /// How often a BBA self-play corpus reached this prefix
-    #[serde(default, skip_serializing_if = "is_zero_u64")]
-    n: u64,
-    c: Vec<Child>,
-}
-
-/// One legal call out of a node
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Child {
-    /// The call itself, `Display`-rendered (`2♦`, `X`, `XX`, `P`)
-    c: String,
-    /// Why the walk stopped here; absent means the subtree is its own node
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    x: Option<String>,
-    #[serde(default, skip_serializing_if = "is_zero_u64")]
-    n: u64,
-    /// One entry per distinct reading, with the vulnerabilities it holds under
-    r: Vec<Reading>,
-}
-
-/// What BBA says the call means, as a delta against the node's own state
-#[derive(serde::Serialize, serde::Deserialize, PartialEq, Eq)]
-struct Reading {
-    /// Bitmask over `AbsoluteVulnerability`: none 1, ns 2, ew 4, both 8
-    v: u8,
-    /// BBA's own name for the rule, or `calculated bid` for the floor
-    l: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    e: String,
-    #[serde(default, skip_serializing_if = "is_zero_i32")]
-    a: i32,
-    /// The caller's HCP band after the call, from `feature[402]`/`[403]`
-    h: [i32; 2],
-    /// Suit length bands the call **changed**, keyed `C`/`D`/`H`/`S`
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    n: BTreeMap<char, [i32; 2]>,
-    /// Stopper flags the call changed
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    st: BTreeMap<char, i32>,
-    /// `feature` slots the call changed, minus the HCP pair carried by `h`
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    f: BTreeMap<u16, i32>,
-    /// Bitmask of the *other* positions whose public block the call moved
-    #[serde(default, skip_serializing_if = "is_zero_u8")]
-    o: u8,
-}
-
-#[allow(clippy::trivially_copy_pass_by_ref)]
-fn is_zero_u64(n: &u64) -> bool {
-    *n == 0
-}
-#[allow(clippy::trivially_copy_pass_by_ref)]
-fn is_zero_u8(n: &u8) -> bool {
-    *n == 0
-}
-#[allow(clippy::trivially_copy_pass_by_ref)]
-fn is_zero_i32(n: &i32) -> bool {
-    *n == 0
-}
-
 // ───────────────────────────── auction facts ─────────────────────────────
 
 /// How many sides have made a non-pass call: 0 opening passes, 1 constructive,
@@ -335,28 +267,6 @@ fn candidates() -> Vec<Call> {
     }
     calls.extend([Call::Double, Call::Redouble, Call::Pass]);
     calls
-}
-
-/// Parse a house-format auction, tolerating the renderer's parentheses
-///
-/// `common::auction_key` is deliberately not used: it strips leading passes, and
-/// `- - 1♠` (a third-seat opening, where Drury lives) is a different node from
-/// `1♠`.
-fn parse_auction(text: &str) -> anyhow::Result<Auction> {
-    let mut auction = Auction::new();
-    for token in text.split_whitespace() {
-        let token = token
-            .strip_prefix('(')
-            .and_then(|token| token.strip_suffix(')'))
-            .unwrap_or(token);
-        let call: Call = token
-            .parse()
-            .map_err(|_| anyhow::anyhow!("`{token}` is not a call"))?;
-        auction
-            .try_push(call)
-            .map_err(|error| anyhow::anyhow!("`{text}`: {error}"))?;
-    }
-    Ok(auction)
 }
 
 /// Opener-anchored rendering: pass as `-`, the non-opening side parenthesized.
@@ -776,9 +686,6 @@ fn feature_delta(slot: u16, value: i32) -> String {
     }
     format!("{name}={value}")
 }
-
-/// EPBot's suit letters, in its own C, D, H, S array order
-const SUIT_KEYS: [char; 4] = ['C', 'D', 'H', 'S'];
 
 /// `!S` → `♠`, and the rest of EPBot's suit escapes
 fn suit_symbols(label: &str) -> String {
@@ -1250,28 +1157,6 @@ fn load_reach(dir: &str) -> anyhow::Result<HashMap<String, u64>> {
 }
 
 // ───────────────────────────── reading a dump back ─────────────────────────────
-
-/// Every node of every `*.jsonl` shard, keyed by auction, plus the byte total
-fn load_dump(dir: &str) -> anyhow::Result<(HashMap<String, Node>, u64)> {
-    let mut nodes = HashMap::new();
-    let mut bytes = 0_u64;
-    for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy();
-        if !name.ends_with(".jsonl") || name.starts_with("reach-") {
-            continue;
-        }
-        let text = std::fs::read_to_string(&path)?;
-        bytes += text.len() as u64;
-        for line in text.lines() {
-            let node: Node = serde_json::from_str(line)
-                .map_err(|error| anyhow::anyhow!("{}: {error}", path.display()))?;
-            nodes.insert(node.k.clone(), node);
-        }
-    }
-    anyhow::ensure!(!nodes.is_empty(), "no nodes found under {dir}");
-    Ok((nodes, bytes))
-}
 
 /// A short English gloss of what the call promised, built from the arrays alone
 fn gloss(read: &Reading) -> String {

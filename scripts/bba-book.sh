@@ -26,7 +26,11 @@
 #
 # Environment: FRONTIER (default 3) how deep the single-process pass goes,
 # JOBS (default nproc) concurrent shards, SKIP_BUILD=1 to use the binary as is
-# — which is what you want if a run is already in flight.
+# — which is what you want if a run is already in flight.  PROBE_BBA_BOOK names
+# the walker binary to pin instead of this checkout's build (the BBA_GEN idiom),
+# and PROBE_BBA_BOOK_LOADER a command every shard is run under — on a box whose
+# glibc is older than libEPBot.so needs, the glibc-2.36 `run` loader
+# (CLAUDE.local.md): PROBE_BBA_BOOK_LOADER=$HOME/.local/opt/glibc-2.36/run.
 set -euo pipefail
 
 if [[ $# -lt 1 || ${1:-} == "-h" || ${1:-} == "--help" ]]; then
@@ -43,11 +47,14 @@ run=$(cd "$(dirname "$run")" && pwd)/$(basename "$run")
 # The default `--card cards/American.bbsa` and `--lib vendor/bba/...` are
 # repo-relative, so every shard has to start here.
 cd "$root"
-bin="$root/target/release/examples/probe-bba-book"
+bin="${PROBE_BBA_BOOK:-$root/target/release/examples/probe-bba-book}"
+# Word-split on purpose: the loader may carry arguments of its own.
+# shellcheck disable=SC2206
+loader=(${PROBE_BBA_BOOK_LOADER:-})
 frontier=${FRONTIER:-3}
 jobs=${JOBS:-$(nproc)}
 
-if [[ ${SKIP_BUILD:-0} != 1 ]]; then
+if [[ ${SKIP_BUILD:-0} != 1 && -z ${PROBE_BBA_BOOK:-} ]]; then
 	cargo build --release --features serde --example probe-bba-book
 elif [[ ! -x $bin ]]; then
 	echo "SKIP_BUILD=1 but the binary is missing: $bin" >&2
@@ -59,7 +66,7 @@ mkdir -p "$run"
 # rebuild mid-run can no longer swap the walker under the shards (the iron rule
 # of docs/shared-machine-data-gen.md, enforced instead of remembered), and the
 # dump ships with the exact program that produced it.
-cp "$bin" "$run/probe-bba-book"
+[[ $bin -ef $run/probe-bba-book ]] || cp "$bin" "$run/probe-bba-book"
 bin="$run/probe-bba-book"
 
 # Provenance beside the dump: which engine, which card, which flags.  A book
@@ -71,11 +78,12 @@ bin="$run/probe-bba-book"
 	echo "frontier $frontier"
 	echo "jobs     $jobs"
 	echo "flags    ${flags[*]-}"
+	echo "loader   ${loader[*]-}"
 } >"$run/RUN"
 
 # 1. The top of the tree, in one process, plus the shard list.
 if [[ ! -f $run/root.jsonl ]]; then
-	"$bin" --frontier "$frontier" --frontier-out "$run/frontier.txt" \
+	"${loader[@]}" "$bin" --frontier "$frontier" --frontier-out "$run/frontier.txt" \
 		--output "$run/root.jsonl.part" "${flags[@]-}"
 	mv "$run/root.jsonl.part" "$run/root.jsonl"
 fi
@@ -96,7 +104,7 @@ while IFS= read -r key; do
 	# with a pass (`- - 1♠`), which a space-separated value would hand to the
 	# argument parser as a flag.
 	{
-		"$bin" --prefix="$key" --output "$out.part" "${flags[@]-}" 2>"$out.log" &&
+		"${loader[@]}" "$bin" --prefix="$key" --output "$out.part" "${flags[@]-}" 2>"$out.log" &&
 			mv "$out.part" "$out"
 	} &
 done <"$run/frontier.txt"

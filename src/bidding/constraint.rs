@@ -542,6 +542,43 @@ impl<T: Constraint> Constraint for Cons<T> {
     }
 }
 
+/// A boxed constraint is a constraint — the dynamic twin of [`Cons`], so a
+/// conjunction whose arity is only known at run time (a band compiled from
+/// data, one term per constrained suit) can fold through `&` one box at a time
+impl Constraint for Box<dyn Constraint> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        (**self).eval(hand, context)
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        (**self).dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        (**self).projection_dependencies()
+    }
+
+    fn describe(&self) -> Description {
+        (**self).describe()
+    }
+
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        (**self).project(context)
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        (**self).project_band(context)
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        (**self).project_complement(context)
+    }
+
+    fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
+        (**self).announce(context)
+    }
+}
+
 /// Sum of two constraints, the logical AND for crisp constraints
 #[derive(Clone, Copy, Debug)]
 pub struct And<A, B>(A, B);

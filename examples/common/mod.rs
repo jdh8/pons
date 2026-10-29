@@ -7,6 +7,8 @@
 //! uses only the subset it needs, hence the `#[allow(dead_code)]` on the `mod`.
 
 #[allow(dead_code)]
+pub mod bba_book;
+#[allow(dead_code)]
 pub mod filters;
 #[allow(dead_code)]
 pub mod mass;
@@ -1387,8 +1389,20 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         "american-file" => {
             pons::bidding::american::american_mean(agreements, floor_blobs()?).bind()
         }
+        // BBA's walked book as a mask over our floor (docs/bba-system.md):
+        // the dump from `BBA_BOOK`, the net choosing at every walked node
+        // (`bba`) or the floor partition's own owner (`bba-ladder`).
+        #[cfg(feature = "serde")]
+        "bba" | "bba-ladder" => {
+            let chooser = bba_book::Chooser::parse(name).expect("matched above");
+            bba_book::BbaBook::shared()?
+                .system(agreements, chooser, bba_book::Mask::from_env())
+                .bind()
+        }
+        #[cfg(not(feature = "serde"))]
+        "bba" | "bba-ladder" => anyhow::bail!("the {name} floor needs --features serde"),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file|bba|bba-ladder, got {other:?}"
         ),
     })
 }
@@ -1424,8 +1438,11 @@ fn floor_blobs() -> anyhow::Result<std::sync::Arc<[Vec<f32>]>> {
 pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
     Ok(match name.split('-').next().unwrap_or_default() {
         "american" => american_card(agreements),
+        // The `bba` pair plays EPBot's own defaults, which is what its card
+        // says: no row moved (docs/bba-system.md, D5).
+        "bba" => bba_book::card(),
         other => anyhow::bail!(
-            "no card generator for system `{other}` (known: american).  \
+            "no card generator for system `{other}` (known: american, bba).  \
              Write one in `src/bidding/card.rs` rather than declaring another \
              system's card."
         ),

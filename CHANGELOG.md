@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The `bba` system — BBA's walked book as a mask over our floor
+  (2026-10-29, [docs/bba-system.md](docs/bba-system.md) §9).** A harness arm,
+  never a default: `--our-floor bba` (and `bba-ladder`) in `bba-gen`,
+  `bba-decompose` and every harness that names a floor, from
+  `BBA_BOOK=<probe-bba-book run>`. At every walked node BBA's bands — its
+  hand-free reader's HCP and suit-length bands, folded cumulatively per
+  caller — are the admissible set, and our own floor chooses among them;
+  off the walk the floors are `american()`'s. Built on one additive core
+  seam, `Rules::choose_by(floor)`: a rule table keeps authoring the
+  admissible set (readings, alerts and fall-through unchanged) while the
+  chooser's logits replace the admitted calls' weights. A table with no
+  chooser is byte-identical, so the default system does not move. Walk at
+  HEAD with `--card none` (56,854 nodes, 23 s on 96 shards); Gate 0 census
+  (`bba-decompose --book-census`) over the 2026-10-27 anchor's shipping
+  arm: the mask reaches 78.4% of our decisions and would change 9.4% of
+  the walked ones, every first-divergence node of the three largest losing
+  buckets is walked and our call is outside BBA's set at 17–49% of them —
+  the kill rule does not fire. Gate 2 (`scripts/ab-bba-system.sh`, three
+  arms × {none, both} × 205,056 boards, every arm replaying at 100.00%):
+  `bba` − `american` **−0.197 / −0.252 plain, −0.175 / −0.209 PD (loss)**,
+  and `bba` against BBA itself −0.634 / −0.729 plain against `american`'s
+  −0.267 / −0.270 — the judgement term at equal rules is larger than the
+  whole gap, so the BBA gap is judgement, not agreements, at this
+  instrument's resolution (bba-book.md §5.6's bet). The ladder chooser
+  (`bba-ladder`, D1's arm B) loses a further 0.44–0.60 plain to the net
+  chooser. Nothing ships; the system stays a harness arm. Owed: the
+  matched retrain on a `bba`-read corpus (the one experiment that can still
+  move the agreements term), the `BBA_BOOK_NO_CEILING_FLOOR=1` cell, and
+  the paired per-node join of §4. `scripts/bba-book.sh` takes
+  `PROBE_BBA_BOOK=` / `PROBE_BBA_BOOK_LOADER=` for a box whose glibc is
+  older than EPBot's.
+
 ### Changed
 
 - **Full relabel at HEAD, M = 32 (2026-10-29).** The v6 recipe's 188 chunks

@@ -2762,15 +2762,10 @@ fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCar
         "generated" if args.our_system.is_some() => return Ok(None),
         "generated" => {
             // The floor names the system; `-book`/`-instinct`/`-floor` variants
-            // differ only in the floor, which no card row can express.
-            let card = match args.our_floor.split('-').next().unwrap_or_default() {
-                "american" => pons::bidding::card::american_card(armed),
-                other => anyhow::bail!(
-                    "--disclose generated: no card generator for system `{other}` \
-                     (known: american).  Write one in `src/bidding/card.rs` \
-                     rather than disclosing another system's card."
-                ),
-            };
+            // differ only in the floor, which no card row can express.  The
+            // `bba` pair's card is EPBot's own defaults, no row moved.
+            let card = floor_card(&args.our_floor, armed)
+                .map_err(|error| anyhow::anyhow!("--disclose generated: {error}"))?;
             EpbotCard {
                 system: card.system,
                 toggles: card
@@ -2933,6 +2928,10 @@ fn their_2d_multi(args: &Args) -> anyhow::Result<bool> {
 /// (see `--no-declare-their-european-minors`)
 fn declares_european_minors(args: &Args) -> bool {
     !args.no_declare_their_european_minors
+        // The `bba` floors read every call, theirs included, off BBA's own
+        // walked book, which already plays EPBot's minors; declaring an
+        // `american` opponent book over it would read them off ours instead.
+        && !args.our_floor.starts_with("bba")
         && args.their_floor.is_none()
         && args.isolate_opening != "pons"
         && args.our_system.is_none()

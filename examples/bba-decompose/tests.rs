@@ -1,7 +1,9 @@
 use super::*;
 
 fn self_play_fixture(floor: OurFloor) -> Arm {
-    let partnership = floor.with(&pons::bidding::agreements::Agreements::default());
+    let partnership = floor
+        .with(&pons::bidding::agreements::Agreements::default())
+        .unwrap();
     let vul = AbsoluteVulnerability::NONE;
     let boards = common::seeded_deals(0xD3C0_5EED, 8)
         .into_iter()
@@ -75,7 +77,9 @@ fn both_floor_selections_replay_their_small_fixture_exactly() {
     for floor in [OurFloor::American, OurFloor::AmericanInstinct] {
         let arm = self_play_fixture(floor);
         let (checked, mismatched) = replay_verify(
-            &floor.with(&pons::bidding::agreements::Agreements::default()),
+            &floor
+                .with(&pons::bidding::agreements::Agreements::default())
+                .unwrap(),
             &arm,
         );
         assert!(checked > 0);

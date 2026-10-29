@@ -21,6 +21,20 @@
 //! [`EnvelopeUnion`] constraint does not, so prefer authoring the union.
 //! Differing weights are the opposite — an authored precedence, where the lower
 //! rule speaks only for hands the higher one rejects.
+//!
+//! # Delegated choice
+//!
+//! A table may author only the **admissible set** and leave the choice among
+//! the admitted calls to another classifier ([`Rules::choose_by`]): the
+//! chooser's logits replace the admitted calls', every other call stays at
+//! `-∞`.  That is the restriction rule of the proposal hook
+//! (`docs/ai-bidder/logit-calibration.md` §4) made a node: the readings,
+//! alerts and the fall-through are the table's as before — a hand the table
+//! rejects, or one the chooser gives no finite mass on any admitted call, has
+//! no mass here and falls through to the floor like any rejected table — and
+//! only the selection is the chooser's.  The `bba` system
+//! (`docs/bba-system.md`) is built from these: BBA's walked bands as the
+//! admissible set, our own floor as the chooser.
 
 use super::Map;
 use super::array::Logits;
@@ -326,13 +340,19 @@ impl fmt::Debug for Rule {
 #[derive(Clone, Debug, Default)]
 pub struct Rules {
     rules: Vec<Rule>,
+    /// Who chooses among the admitted calls, when not the weights
+    /// ([`choose_by`][Self::choose_by])
+    chooser: Option<Arc<dyn Classifier>>,
 }
 
 impl Rules {
     /// Construct an empty rule list
     #[must_use]
     pub const fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::new(),
+            chooser: None,
+        }
     }
 
     /// Wrap one [`Rule`] as a singleton list
@@ -342,7 +362,10 @@ impl Rules {
     /// same rule list.
     #[must_use]
     pub(crate) fn of(rule: Rule) -> Self {
-        Self { rules: vec![rule] }
+        Self {
+            rules: vec![rule],
+            chooser: None,
+        }
     }
 
     /// Append a rule justifying a call (builder style)
@@ -529,10 +552,58 @@ impl Rules {
     }
 
     /// Append another block's rules after this one's
+    ///
+    /// The chooser, if any, stays this block's.
     #[must_use]
     pub fn chain(mut self, other: Rules) -> Self {
         self.rules.extend(other.rules);
         self
+    }
+
+    /// Leave the choice among the admitted calls to `chooser`
+    ///
+    /// The rules keep authoring the admissible set — their constraints, labels,
+    /// alerts and projections are read exactly as before — but a call's logit
+    /// is no longer its best rule's weight: every call some rule admits takes
+    /// the chooser's logit for it, and every other call stays at
+    /// [`f32::NEG_INFINITY`].  The rungs are then an admissibility mask over
+    /// the chooser, which is the restriction rule of the proposal hook
+    /// (`docs/ai-bidder/logit-calibration.md` §4).  Fall-through is unchanged:
+    /// a hand no rule admits, or one the chooser puts no finite mass on inside
+    /// the admitted set, leaves the table without mass, and the resolution
+    /// walks on to the floor as it does for any rejecting table.
+    ///
+    /// The chooser is called with the same hand and context the table was,
+    /// so a floor shell that reads the auction's rails (`forced`) or the
+    /// regime input (`with_compact`) behaves at this node exactly as it does
+    /// off-book.  Its own legality mask is kept; the rules only ever narrow.
+    #[must_use]
+    pub fn choose_by(mut self, chooser: Arc<dyn Classifier>) -> Self {
+        self.chooser = Some(chooser);
+        self
+    }
+
+    /// The classifier that chooses among the admitted calls, if any
+    #[must_use]
+    pub fn chooser(&self) -> Option<&dyn Classifier> {
+        self.chooser.as_deref()
+    }
+
+    /// Apply the delegated choice to the weight-folded logits
+    ///
+    /// Identity without a chooser, so both classify paths stay byte-identical
+    /// for every authored table.
+    fn choose(&self, mut admitted: Logits, hand: Hand, context: &Context<'_>) -> Logits {
+        let Some(chooser) = &self.chooser else {
+            return admitted;
+        };
+        let chosen = chooser.classify(hand, context);
+        for (call, slot) in admitted.iter_mut() {
+            if *slot > f32::NEG_INFINITY {
+                *slot = *chosen.get(call);
+            }
+        }
+        admitted
     }
 
     /// Keep only the rules whose [`alert`][Rule::alert] is in the `active` set
@@ -1407,7 +1478,7 @@ impl CompiledRules {
             let slot = logits.0.get_mut(plan.call);
             *slot = slot.max(plan.eval(rule, hand, context, &mut faces));
         }
-        logits
+        authored.choose(logits, hand, context)
     }
 
     /// Explain through the plan while retaining the earliest authored tie.
@@ -1441,7 +1512,7 @@ impl Classifier for Rules {
             let slot = logits.0.get_mut(rule.call);
             *slot = slot.max(rule.eval(hand, context));
         }
-        logits
+        self.choose(logits, hand, context)
     }
 
     fn as_rules(&self) -> Option<&Rules> {

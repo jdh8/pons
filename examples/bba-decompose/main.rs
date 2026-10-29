@@ -30,6 +30,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Penalty, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::bidding::american::{american, american_instinct, american_v6_their};
+use pons::bidding::array::Logits;
 use pons::bidding::context::relative;
 use pons::bidding::{Partnership, Phase};
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
@@ -45,16 +46,25 @@ enum OurFloor {
     AmericanV6Their,
     /// The deterministic instinct floor used by the BBA anchor series
     AmericanInstinct,
+    /// BBA's walked book (`BBA_BOOK`) as a mask over the v6 floor
+    /// (docs/bba-system.md)
+    Bba,
+    /// The same book over the floor partition's own owners
+    BbaLadder,
 }
 
 impl OurFloor {
-    fn with(self, agreements: &pons::bidding::agreements::Agreements) -> Partnership {
-        match self {
-            Self::American => american(agreements),
-            Self::AmericanV6Their => american_v6_their(agreements),
-            Self::AmericanInstinct => american_instinct(agreements),
-        }
-        .bind()
+    fn with(
+        self,
+        agreements: &pons::bidding::agreements::Agreements,
+    ) -> anyhow::Result<Partnership> {
+        Ok(match self {
+            Self::American => american(agreements).bind(),
+            Self::AmericanV6Their => american_v6_their(agreements).bind(),
+            Self::AmericanInstinct => american_instinct(agreements).bind(),
+            Self::Bba => common::seat_floor("bba", agreements)?,
+            Self::BbaLadder => common::seat_floor("bba-ladder", agreements)?,
+        })
     }
 }
 
@@ -153,6 +163,14 @@ struct Args {
     /// actual result, the other table fixed.  Prints to stdout.
     #[arg(long)]
     demotion_census: bool,
+
+    /// Gate 0 of docs/bba-system.md: score every decision of the dump against
+    /// BBA's walked book (`BBA_BOOK`, the same dump the `bba` floor plays) —
+    /// walked, outside, empty, BBA-only per bucket, the dual on BBA's own
+    /// calls, and the kill rule on the top-three buckets.  No DD beyond what
+    /// the report already solves.
+    #[arg(long)]
+    book_census: bool,
 
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
@@ -505,7 +523,7 @@ fn main() -> anyhow::Result<()> {
                 edit(&mut agreements);
                 agreements
             };
-            let partnership = args.our_floor.with(&agreements);
+            let partnership = args.our_floor.with(&agreements)?;
 
             // `ben-gen` declares BEN's European minor scheme as the opponent book (one
             // axis only; see its comment).  Reading their `1NT - 2♠`/`3♣` as our Puppet
@@ -723,14 +741,6 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Composite buckets: phase / provenance / family, ranked worst-first.
-    struct Bucket {
-        n: usize,
-        plain: i64,
-        pd: i64,
-        plain_swings: Vec<i64>,
-        pd_swings: Vec<i64>,
-        rows: Vec<usize>,
-    }
     let mut buckets: BTreeMap<&str, Bucket> = BTreeMap::new();
     for (index, row) in rows.iter().enumerate() {
         let bucket = buckets.entry(&row.bucket).or_insert_with(|| Bucket {
@@ -852,6 +862,13 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    if args.book_census {
+        let book = common::bba_book::BbaBook::shared()?;
+        let census = book_census(&arms, &partnership, &book, &rows, &ranked);
+        print!("{census}");
+        let _ = writeln!(report, "{census}");
+    }
+
     if let Some(path) = args.report.as_deref() {
         std::fs::write(path, &report)?;
         eprintln!("bba-decompose: report written to {path}");
@@ -884,6 +901,310 @@ fn main() -> anyhow::Result<()> {
         );
     }
     Ok(())
+}
+
+/// One row of the admissibility census: decisions scored against BBA's book
+#[derive(Clone, Copy, Default)]
+struct Census {
+    /// Decisions at this key
+    decisions: u64,
+    /// ... whose prefix is a node of the walk
+    walked: u64,
+    /// ... walked, and the call made is not in BBA's admissible set
+    outside: u64,
+    /// ... walked, and BBA admits nothing for the hand (the epsilon fall-through)
+    empty: u64,
+    /// ... walked, and answered by one of our authored nodes
+    authored: u64,
+    /// ... authored, and BBA admits a call no rule of ours admits
+    bba_only: u64,
+    /// ... the extra calls themselves, summed
+    bba_only_calls: u64,
+}
+
+impl Census {
+    fn add(&mut self, other: Self) {
+        self.decisions += other.decisions;
+        self.walked += other.walked;
+        self.outside += other.outside;
+        self.empty += other.empty;
+        self.authored += other.authored;
+        self.bba_only += other.bba_only;
+        self.bba_only_calls += other.bba_only_calls;
+    }
+
+    fn pct(part: u64, whole: u64) -> String {
+        if whole == 0 {
+            "-".to_owned()
+        } else {
+            format!("{:.1}%", 100.0 * part as f64 / whole as f64)
+        }
+    }
+
+    fn row(&self) -> String {
+        format!(
+            "{} | {} | {} | {} | {} ({})",
+            self.decisions,
+            Self::pct(self.walked, self.decisions),
+            Self::pct(self.outside, self.walked),
+            Self::pct(self.empty, self.walked),
+            Self::pct(self.bba_only, self.authored),
+            self.bba_only_calls,
+        )
+    }
+}
+
+/// Score one decision against the book: `None` when the prefix is off the walk
+fn census_one(
+    book: &common::bba_book::BbaBook,
+    mask: common::bba_book::Mask,
+    prefix: &[Call],
+    hand: contract_bridge::Hand,
+    call: Call,
+    ours: Option<&Logits>,
+) -> Census {
+    let mut census = Census {
+        decisions: 1,
+        ..Census::default()
+    };
+    let Some(admitted) = book.admissible(prefix, hand, mask) else {
+        return census;
+    };
+    census.walked = 1;
+    if admitted.is_empty() {
+        census.empty = 1;
+    } else if !admitted.contains(&call) {
+        census.outside = 1;
+    }
+    if let Some(logits) = ours {
+        census.authored = 1;
+        let extra = admitted
+            .iter()
+            .filter(|&&call| !logits.get(call).is_finite())
+            .count() as u64;
+        census.bba_only = u64::from(extra > 0);
+        census.bba_only_calls = extra;
+    }
+    census
+}
+
+/// Gate 0 of docs/bba-system.md (`--book-census`): every decision of every
+/// arm, ours and BBA's, scored against the walked book
+///
+/// `outside` is where the mask would have changed our call, `empty` the
+/// epsilon fall-through, `BBA-only` where BBA's book is denser than ours
+/// (counted only where one of our authored nodes answered, since the floor
+/// admits everything).  The dual on BBA's own calls is the hand-free
+/// crosscheck re-read on cumulative bands.  The kill rule reads the top three
+/// losing buckets' first-divergence nodes.
+#[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
+fn book_census<B: BucketLike>(
+    arms: &[Arm],
+    partnership: &Partnership,
+    book: &common::bba_book::BbaBook,
+    rows: &[Row],
+    ranked: &[(&str, &B)],
+) -> String {
+    let mask = common::bba_book::Mask::from_env();
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "\n## Gate 0 — admissibility census against BBA's walked book\n\n\
+         book: {} ({} nodes), mask: hcp slack {}, stoppers {}\n",
+        book.source,
+        book.len(),
+        mask.hcp_slack,
+        mask.stoppers,
+    );
+
+    // Per phase/family key: ours and theirs.
+    let pairs: Vec<(&Arm, &common::Board)> = arms
+        .iter()
+        .flat_map(|arm| arm.boards.iter().map(move |board| (arm, board)))
+        .collect();
+    let scanned: Vec<(BTreeMap<String, Census>, BTreeMap<String, Census>)> = pairs
+        .par_iter()
+        .map(|&(arm, board)| {
+            let mut ours: BTreeMap<String, Census> = BTreeMap::new();
+            let mut theirs: BTreeMap<String, Census> = BTreeMap::new();
+            for (auction, ours_ns) in [(&board.table_a, true), (&board.table_b, false)] {
+                for (index, &call) in auction.iter().enumerate() {
+                    let prefix = &auction[..index];
+                    let seat = seat_to_act(board.dealer, index);
+                    let hand = board.deal[seat];
+                    let key = format!("{:?} / {}", Phase::of(prefix), family(prefix, index));
+                    let seat_ns = matches!(seat, Seat::North | Seat::South);
+                    if seat_ns == ours_ns {
+                        let answered = partnership.classify_with_provenance(
+                            hand,
+                            relative(arm.vul, seat),
+                            prefix,
+                        );
+                        let logits = answered
+                            .as_ref()
+                            .filter(|(_, provenance)| provenance.is_authored())
+                            .map(|(logits, _)| logits);
+                        ours.entry(key)
+                            .or_default()
+                            .add(census_one(book, mask, prefix, hand, call, logits));
+                    } else {
+                        theirs
+                            .entry(key)
+                            .or_default()
+                            .add(census_one(book, mask, prefix, hand, call, None));
+                    }
+                }
+            }
+            (ours, theirs)
+        })
+        .collect();
+    let mut ours: BTreeMap<String, Census> = BTreeMap::new();
+    let mut theirs: BTreeMap<String, Census> = BTreeMap::new();
+    for (o, t) in scanned {
+        for (key, census) in o {
+            ours.entry(key).or_default().add(census);
+        }
+        for (key, census) in t {
+            theirs.entry(key).or_default().add(census);
+        }
+    }
+
+    // The bucket IMPs beside each key: every bucket whose phase/family matches,
+    // summed over provenance.
+    let mut imps: BTreeMap<String, (usize, i64)> = BTreeMap::new();
+    for row in rows {
+        let key = format!("{:?} / {}", row.phase, row.family);
+        let entry = imps.entry(key).or_default();
+        entry.0 += 1;
+        entry.1 += row.swing_plain;
+    }
+
+    let _ = writeln!(
+        out,
+        "### Our decisions\n\n\
+         | phase / family | decisions | walked | outside (of walked) | empty (of walked) | BBA-only (of walked & authored) (extra calls) | divergent boards | net plain IMPs |\n\
+         | --- | --- | --- | --- | --- | --- | --- | --- |"
+    );
+    let mut total = Census::default();
+    for (key, census) in &ours {
+        total.add(*census);
+        let (boards, net) = imps.get(key).copied().unwrap_or_default();
+        let _ = writeln!(out, "| {key} | {} | {boards} | {net:+} |", census.row());
+    }
+    let _ = writeln!(
+        out,
+        "| **all** | {} | {} | {:+} |",
+        total.row(),
+        rows.len(),
+        rows.iter().map(|row| row.swing_plain).sum::<i64>()
+    );
+
+    let _ = writeln!(
+        out,
+        "\n### BBA's own decisions (the hand-free crosscheck's dual, on cumulative bands)\n\n\
+         | phase / family | decisions | walked | outside (of walked) | empty (of walked) |\n\
+         | --- | --- | --- | --- | --- |"
+    );
+    let mut total_theirs = Census::default();
+    for (key, census) in &theirs {
+        total_theirs.add(*census);
+        let _ = writeln!(
+            out,
+            "| {key} | {} | {} | {} | {} |",
+            census.decisions,
+            Census::pct(census.walked, census.decisions),
+            Census::pct(census.outside, census.walked),
+            Census::pct(census.empty, census.walked),
+        );
+    }
+    let _ = writeln!(
+        out,
+        "| **all** | {} | {} | {} | {} |",
+        total_theirs.decisions,
+        Census::pct(total_theirs.walked, total_theirs.decisions),
+        Census::pct(total_theirs.outside, total_theirs.walked),
+        Census::pct(total_theirs.empty, total_theirs.walked),
+    );
+
+    // The kill rule (D3): the top three losing buckets' divergence nodes.
+    let _ = writeln!(
+        out,
+        "\n### Kill rule (D3) — the top three losing buckets at their first-divergence nodes\n\n\
+         | bucket | boards | net plain IMPs | walked | outside (of walked) | empty (of walked) |\n\
+         | --- | --- | --- | --- | --- | --- |"
+    );
+    let mut fires = Vec::new();
+    for (name, bucket) in ranked.iter().take(3) {
+        let mut census = Census::default();
+        for &index in bucket.rows() {
+            let row = &rows[index];
+            let arm = &arms[row.arm];
+            let board = &arm.boards[row.board];
+            let prefix = &board.table_a[..row.div_index];
+            let seat = seat_to_act(board.dealer, row.div_index);
+            let ours_at_a = matches!(seat, Seat::North | Seat::South);
+            let call = if ours_at_a {
+                board.table_a[row.div_index]
+            } else {
+                board.table_b[row.div_index]
+            };
+            census.add(census_one(book, mask, prefix, board.deal[seat], call, None));
+        }
+        let walked = 100.0 * census.walked as f64 / census.decisions.max(1) as f64;
+        fires.push(walked < 50.0);
+        let _ = writeln!(
+            out,
+            "| {name} | {} | {:+} | {} | {} | {} |",
+            census.decisions,
+            bucket.plain(),
+            Census::pct(census.walked, census.decisions),
+            Census::pct(census.outside, census.walked),
+            Census::pct(census.empty, census.walked),
+        );
+    }
+    let outside = 100.0 * total.outside as f64 / total.walked.max(1) as f64;
+    let _ = writeln!(
+        out,
+        "\nKill rule: top-three buckets walked under half the time: {}; `outside` {outside:.2}% of our walked decisions (threshold 2%): {} → **{}**",
+        if fires.iter().all(|&f| f) && !fires.is_empty() {
+            "yes"
+        } else {
+            "no"
+        },
+        if outside < 2.0 { "under" } else { "over" },
+        if (fires.iter().all(|&f| f) && !fires.is_empty()) || outside < 2.0 {
+            "the kill rule fires: the mask cannot move the boards that carry the gap"
+        } else {
+            "the kill rule does not fire"
+        },
+    );
+    out
+}
+
+/// One composite bucket of the ranking: phase / provenance / family
+struct Bucket {
+    n: usize,
+    plain: i64,
+    pd: i64,
+    plain_swings: Vec<i64>,
+    pd_swings: Vec<i64>,
+    rows: Vec<usize>,
+}
+
+/// The slice of a ranked bucket the census needs
+trait BucketLike {
+    fn rows(&self) -> &[usize];
+    fn plain(&self) -> i64;
+}
+
+impl BucketLike for Bucket {
+    fn rows(&self) -> &[usize] {
+        &self.rows
+    }
+
+    fn plain(&self) -> i64 {
+        self.plain
+    }
 }
 
 /// Their live undoubled bid at the four-level or higher after `prefix` — the

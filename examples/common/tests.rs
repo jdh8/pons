@@ -1,6 +1,8 @@
 use super::*;
 
 #[cfg(feature = "serde")]
+mod bba_book;
+#[cfg(feature = "serde")]
 mod dumps;
 
 #[test]
