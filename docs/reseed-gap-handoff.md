@@ -378,11 +378,81 @@ stamp should be the build's commit, e.g. `option_env!("PONS_GIT_SHA")` set
 by the launching script or a build script, falling back to the runtime
 `rev-parse`; the cut's `GLOBAL` pin is right as it stands.
 
-**Owed next:** train K = 8 on `relabel-head/cut` under the Plan B recipe on
-dl02, fold, A/B at four cells against the shipped floor **and** against
-k8new (`ab-results/ruler/nets/seed9..16`), `BOARDS=204800`, fresh
-`SEED_BASE`; it ships only if it beats shipped (§6). The Gaussian v9 variant
-cuts from the same `.dd` tables (decision pending, jdh8).
+**Retrain and A/B, read 2026-10-29: a loss, nothing ships.** K = 8 twice on
+`relabel-head/cut` on dl02 (14:15–15:14 +08, 16 nets in 58 min; the trainer
+is the 2026-10-24 `fabcb6fe` build, arm R's recipe: Plan B's flags, the
+shipped stem order, `--row-split`). Seeds 1–8 are arm **new**, 9–16 arm
+**reseed**. Final val top-1 86.4–86.9% overall, 84.8–85.2% contested (a
+row split; the ruler's 85.3/83.1 is a board split and not comparable). The
+nets were scan-folded against the HEAD cut (originals
+`dl02:/mnt/ssd-data/jdh8/pons-relabel-head/nets`, folded
+`…/nets-folded`). A/B: `scripts/ab-floor-file.sh ab-results/relabel-head`
+with new, reseed and **k8new** (`ab-results/ruler/nets/seed9..16`, the M32
+recipe's reseed) as arms against the shipped K = 8 as `plain`, four cells,
+204,800 boards per arm per cell (32 × 6,400), `SEED_BASE=1793264477711196890`,
+on dl02 17:01–21:49 +08. IMPs/board against shipped, plain DD / perfect
+defense (95% CI):
+
+| arm | none | ns | ew | both | mean |
+| --- | --- | --- | --- | --- | --- |
+| new | −0.0320 ±0.0088 / −0.0227 ±0.0095 | −0.0176 ±0.0094 / −0.0104 ±0.0103 | −0.0492 ±0.0105 / −0.0361 ±0.0115 | −0.0293 ±0.0105 / −0.0159 ±0.0115 | **−0.032 / −0.021** |
+| reseed | −0.0323 ±0.0089 / −0.0195 ±0.0095 | −0.0152 ±0.0094 / −0.0108 ±0.0103 | −0.0458 ±0.0105 / −0.0297 ±0.0115 | −0.0285 ±0.0106 / −0.0142 ±0.0115 | **−0.031 / −0.019** |
+| k8new | −0.0136 ±0.0063 / +0.0011 ±0.0069 | −0.0038 ±0.0068 / +0.0068 ±0.0076 | −0.0190 ±0.0074 / −0.0049 ±0.0082 | −0.0133 ±0.0075 / −0.0019 ±0.0082 | −0.012 / +0.000 |
+
+Every new and reseed cell is a loss on both scorers, and on the 16-world
+single-dummy diff (plain and PD) as well. The calls diverge on 10.5% of
+boards against k8new's 5.9%. Three readings:
+
+1. **The harness is sound.** k8new reproduces §1's −0.011 reseed gap.
+2. **The loss is the data, not the draw.** new and reseed agree to 0.002,
+   and both sit ≈ 0.02 below k8new: the relabelled corpus, or something
+   between it and the served net, costs the floor about 0.02 IMPs/board
+   against the M32 corpus under one recipe. The bar was to beat shipped by
+   ≈ 0.007–0.011; the read misses it by ≈ 0.04.
+3. **The largest single piece is a learned 4NT over their game.**
+   `ab-dump-bucket --by side|node` (ew cell, new): boards they open carry
+   −9,134 of −10,067 plain and −7,595 PD against a −7,387 total (boards we
+   open are −933 / +208). The top nodes are our `4NT` where the control passes:
+   `1NT - 2♣ - 2♠ - 4♠ ⟨4NT⟩` in each seat, `1♥ - 3NT - 4♥ - - ⟨4NT⟩`,
+   `2♠ - 2NT ⟨4NT⟩`, `2♥ - 2NT ⟨4NT⟩`, ≈ −11 IMPs a board. Every node whose
+   ON call is 4NT: new 274 boards −1,977 / −2,500 (none), 271 −2,500 /
+   −2,636 (ew); reseed 252 −2,186 / −2,272, 277 −2,458 / −2,589; **k8new 2
+   boards each**. So 25–30% of the loss is one call the HEAD-cut nets learned
+   and the M32 nets never play. Over a game they already reached it is a
+   sacrifice, which double dummy prices, not an obstruction it misses. The
+   rest of the loss is spread thinly over defensive nodes (passing where
+   the control competes over their Jacoby 2NT or a raise).
+
+**Owed next (not started):** the label forensic that separates a corpus
+effect from a pipeline one. Count 4NT labels at their-game positions
+(`… 4M ⟨our turn⟩`, `2M - 2NT ⟨our turn⟩`) in `relabel-head/cut` against
+the M32 cut. More 4NT labels at HEAD means the relabel's rollouts reward
+the sacrifice (a candidate: the rollout's opponents fail to double it,
+where the A/B's do); the same count means the cause sits between the corpus
+and the served net (the fold below, the corpus build). The cut lives on
+Compute-Node02 only. The Gaussian v9 variant stays undecided.
+
+**Flag: slot 0 of the compact agreements is constant in the HEAD cut.** The
+fold took 32 columns where the M32-corpus nets took 30. The two new ones are
+features 120 and 148, slot 0 of each side's compact-agreements block. In
+the M32 corpus (cut at `39318c7f`, 2026-09-13) slot 0 was the `dutch()`
+system, and `dump-teacher`'s `{dutch, kickback}` cells rotated it. On
+2026-09-24 (`13131b2c`) the Dutch system was dropped, slot 0 became
+`opening.wide_one_club` read off the knob, and the dump's cells became
+`kickback` plus the 16 `AXES`, none of them wide 1♣. So every corpus dumped
+since is constant at slot 0, and a net trained on one folds it:
+`wide_one_club = true` becomes invisible to the floor. The shipped K = 8
+still reads the slot, but as the whole Dutch system it trained on. That
+matters because the knob's 2026-09-24 whole-arm win (+0.018 plain, both
+cells) came mostly from boards they open, through this slot moving the
+floor. Under a HEAD-corpus floor that win is gone by construction, and a
+re-measure of the knob would read the floor's blindness, not the opening.
+Harmless for this read (the slot is 0 on the default system, both sides).
+Proposed default, reversible, jdh8's call: **leave the dump as it is and
+treat `wide_one_club`'s floor regime as tied to the shipped K = 8.** The
+knob stays off, and any future corpus that should see it adds a
+`wide_one_club` axis to `AXES` as bit 16. That is cheap, but it only
+matters if wide 1♣ comes back as a candidate.
 
 ## 6. What stays decided
 

@@ -52,6 +52,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **K = 8 retrained on the HEAD relabel: a loss, nothing ships
+  (2026-10-29, [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).**
+  Two K = 8 ensembles on `relabel-head/cut` under arm R's recipe (new: seeds
+  1–8, reseed: 9–16), read against the shipped floor at four cells (204,800
+  boards each, seed 1793264477711196890) with k8new, the M32 recipe's
+  reseed, as the reference. Mean over the cells, plain DD / PD IMPs/board:
+  new **−0.032 / −0.021**, reseed −0.031 / −0.019, k8new −0.012 / +0.000.
+  Every new and reseed cell is a loss on both scorers, so the relabelled
+  corpus costs ≈ 0.02 against the M32 one under the same recipe. A quarter
+  or more of it is one learned call: our `4NT` over their game
+  (`1NT - 2♣ - 2♠ - 4♠ ⟨4NT⟩`, `2♠ - 2NT ⟨4NT⟩`), ≈ 270 boards a cell at
+  ≈ −11 IMPs each, which k8new bids twice. A label count at those positions
+  in the two cuts is owed. Flagged: compact slot 0 (`wide_one_club`) is
+  constant in every corpus dumped since the Dutch system went (2026-09-24),
+  so a floor trained on one cannot see the knob; the proposed default is to
+  leave the dump as it is.
+
 - **Full relabel at HEAD, M = 32 (2026-10-29).** The v6 recipe's 188 chunks
   (20 shards, 6,781,198 rows) relabelled at `54659d41` with 64 layouts per
   decision: 34.3 h on the free box, 156.9M double-dummy tables at 1,270/s,
