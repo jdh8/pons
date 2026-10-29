@@ -51,8 +51,8 @@ use anyhow::{Context as _, bail, ensure};
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, TrickCountRow, TrickCountTable};
-use pons::bidding::Partnership;
 use pons::bidding::array::Logits;
+use pons::bidding::{Bidder, Partnership};
 use pons::pdd;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
@@ -105,6 +105,17 @@ pub struct Knobs {
     pub temperature: f32,
     /// Draw and record the layouts, solve nothing, write no `.ret`
     pub draw_only: bool,
+}
+
+/// Who bids the acting side's opponents during a rollout
+#[derive(Clone, Copy)]
+pub enum Opponents<'a> {
+    /// The walk's own `theirs` partnership — the corpus default, bid out in
+    /// parallel
+    SelfPlay,
+    /// One bidder per acting-side label (BBA told that side's card), bid out
+    /// on this thread: EPBot's FFI is not assumed thread-safe
+    Serial(&'a BTreeMap<String, Box<dyn Bidder>>),
 }
 
 /// The layouts of one chunk, as they sit in the `.dd` file: per decision (by
@@ -172,10 +183,12 @@ pub struct Pricing {
 /// Price every decision: draw, look each new layout up in `tables`, solve
 /// only the misses (and remember them), bid out every candidate, and return
 /// the stored form.  `existing` (an earlier `.ret` of this same chunk, at
-/// this same commit) is extended rather than recomputed.
+/// this same commit) is extended rather than recomputed.  `opponents` picks
+/// who bids the other side; the sampler always draws under our own policy.
 pub fn price<'p>(
     decisions: &[Decision],
     side: impl Fn(&str) -> &'p Partnership + Sync,
+    opponents: Opponents<'_>,
     knobs: Knobs,
     seed: u64,
     existing: Option<Vec<Priced>>,
@@ -290,28 +303,36 @@ pub fn price<'p>(
         .map(|f| f.into_iter().map(|t| t.expect("filled above")).collect())
         .collect();
 
-    // Bid out and price, rayon again.
-    let new_swings: Vec<Vec<Vec<[i64; 2]>>> = decisions
-        .par_iter()
-        .enumerate()
-        .map(|(i, d)| {
-            let layouts = &fresh[i];
-            if layouts.is_empty() {
-                return Vec::new();
-            }
-            swings(
-                &d.candidates,
-                &d.prefix,
-                d.dealer,
-                d.seat,
-                layouts,
-                &tables[i],
-                side(&d.ours),
-                side(&d.theirs),
-                d.vul,
-            )
-        })
-        .collect();
+    // Bid out and price, rayon again unless the opponent is serial.
+    let bid_out = |i: usize, d: &Decision, theirs: &dyn Bidder| {
+        let layouts = &fresh[i];
+        if layouts.is_empty() {
+            return Vec::new();
+        }
+        swings(
+            &d.candidates,
+            &d.prefix,
+            d.dealer,
+            d.seat,
+            layouts,
+            &tables[i],
+            side(&d.ours),
+            theirs,
+            d.vul,
+        )
+    };
+    let new_swings: Vec<Vec<Vec<[i64; 2]>>> = match opponents {
+        Opponents::SelfPlay => decisions
+            .par_iter()
+            .enumerate()
+            .map(|(i, d)| bid_out(i, d, side(&d.theirs)))
+            .collect(),
+        Opponents::Serial(theirs) => decisions
+            .iter()
+            .enumerate()
+            .map(|(i, d)| bid_out(i, d, theirs[&d.ours].as_ref()))
+            .collect(),
+    };
 
     for (p, new) in priced.iter_mut().zip(new_swings) {
         if new.is_empty() {
@@ -731,6 +752,12 @@ pub fn cut(roots: &[PathBuf], out: &Path, m: usize, margin: f64) -> anyhow::Resu
         for (&id, stem) in chunks {
             let meta: serde_json::Value =
                 serde_json::from_str(&std::fs::read_to_string(stem.with_extension("json"))?)?;
+            // A `--price-rows` chunk priced a sample, not the slice.
+            ensure!(
+                meta["relabel"]["price_rows"].is_null(),
+                "{}: priced only --price-rows decisions; it is a probe, not a corpus chunk",
+                stem.display()
+            );
             metas.push((id, meta, stem.clone()));
         }
         // Chunks are bank windows: sort by `skip`, require contiguity.

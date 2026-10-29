@@ -87,6 +87,16 @@ mod relabel;
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
 
+/// `--rollout-opponent`: who bids the acting side's opponents in a rollout
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum RolloutOpponent {
+    /// Our own policy on both sides, the corpus default
+    #[value(name = "self")]
+    SelfPlay,
+    /// BBA's 2/1 card, the A/B's opponent
+    Bba,
+}
+
 #[derive(Parser)]
 #[command(
     about = "Dump (features, teacher_softmax) training rows from american(&pons::bidding::agreements::Agreements::default())"
@@ -330,6 +340,16 @@ struct Args {
     /// then a plain `--relabel` pass prices from it and solves nothing.
     #[arg(long, requires = "relabel")]
     draw_only: bool,
+    /// `--relabel`: who bids the acting side's opponents in the rollout.
+    /// `bba` plays BBA's own 2/1 card told the acting side's card, as
+    /// `bba-gen` seats it in the A/B; it bids out serially.
+    #[arg(long, value_enum, default_value_t = RolloutOpponent::SelfPlay, requires = "relabel")]
+    rollout_opponent: RolloutOpponent,
+    /// `--relabel`: price only the decisions whose row index (one per line)
+    /// is in this file.  A probe of the stored slice — `--cut` refuses the
+    /// chunk it writes, so give it its own `--out`.
+    #[arg(long, value_name = "FILE", requires = "relabel")]
+    price_rows: Option<PathBuf>,
     /// Solve every pending row of these `.dd` sidecars in place, the offline
     /// solver half of `--draw-only`.  Needs no bank, no net and no matching
     /// commit: a table is a fact about 52 cards alone.
@@ -1252,10 +1272,44 @@ fn run(args: Args) -> anyhow::Result<()> {
                 .then(|| relabel::read_dd(Path::new(&dd_path)))
                 .transpose()?
                 .unwrap_or_default();
+            if let Some(path) = &args.price_rows {
+                let rows = std::fs::read_to_string(path)?
+                    .split_whitespace()
+                    .map(str::parse)
+                    .collect::<Result<std::collections::BTreeSet<u32>, _>>()?;
+                decisions.retain(|d| rows.contains(&d.row));
+                anyhow::ensure!(
+                    decisions.len() == rows.len(),
+                    "{}: {} rows listed, {} are net-served decisions of this walk",
+                    path.display(),
+                    rows.len(),
+                    decisions.len()
+                );
+            }
+            // BBA as the rollout's opponent, one bot per acting-side card.
+            let bba: BTreeMap<String, Box<dyn Bidder>> = match args.rollout_opponent {
+                RolloutOpponent::SelfPlay => BTreeMap::new(),
+                RolloutOpponent::Bba => {
+                    let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+                    per_side
+                        .iter()
+                        .map(|(label, (card, _))| {
+                            let bot = BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?
+                                .with_opponents(Some(to_convention_card(card)?));
+                            Ok((label.clone(), Box::new(bot) as Box<dyn Bidder>))
+                        })
+                        .collect::<anyhow::Result<_>>()?
+                }
+            };
+            let opponents = match args.rollout_opponent {
+                RolloutOpponent::SelfPlay => relabel::Opponents::SelfPlay,
+                RolloutOpponent::Bba => relabel::Opponents::Serial(&bba),
+            };
             let started = std::time::Instant::now();
             let (priced, pricing) = relabel::price(
                 &decisions,
                 |label| &per_side[label].1,
+                opponents,
                 knobs,
                 args.seed,
                 existing,
@@ -1288,7 +1342,7 @@ fn run(args: Args) -> anyhow::Result<()> {
                     started.elapsed().as_secs_f64(),
                 );
             }
-            Some(serde_json::json!({
+            let mut meta = serde_json::json!({
                 "layouts": knobs.layouts,
                 "top_k": knobs.top_k,
                 "epsilon": knobs.epsilon,
@@ -1301,7 +1355,16 @@ fn run(args: Args) -> anyhow::Result<()> {
                 "starved": starved,
                 "ret": "sibling .ret file: per net-served decision, [candidate][layout] swings over the own call in IMPs, [plain DD, PD]; cut with --cut M; trusted only at git_sha",
                 "dd": "sibling .dd file: per decision (deal_index, ordinal), every layout solved for it as a .pdd row; reused by any re-price of this window",
-            }))
+            });
+            // Probe-only keys, absent by default so a corpus chunk's sidecar
+            // stays byte-identical and `--cut` keeps pinning it.
+            if args.rollout_opponent == RolloutOpponent::Bba {
+                meta["rollout_opponent"] = "bba".into();
+            }
+            if let Some(path) = &args.price_rows {
+                meta["price_rows"] = path.display().to_string().into();
+            }
+            Some(meta)
         }
         None => None,
     };

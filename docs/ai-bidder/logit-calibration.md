@@ -434,6 +434,17 @@ layouts are shared. **Session 4 does not need to re-litigate self-play versus
 BBA at this `M`** — it is decided by measurement, and cheap enough to re-check
 at whatever `M` the production gate lands on.
 
+**Revised 2026-10-30: the opponent matters where a candidate's value is the
+opponents' answer.** The table above is a 400-deal, neither-vulnerable
+average. A BBA re-price of the HEAD relabel's stored returns
+([reseed-gap-handoff.md](../reseed-gap-handoff.md) §5,
+`dump-teacher --rollout-opponent bba --price-rows`) found the extreme case,
+a 4NT over their game with a weak, flat hand. Under self-play it held out
+at +4.2 plain and became 10,573 labels. Against BBA it is −6.2, and 3% of
+those labels survive. Other labels that pass the gate keep +1.1 of their
++2.5 against BBA, and 45% still pass. So self-play pricing is biased,
+not merely noisy, at the nodes where our own defence is the weak point.
+
 The epsilon census is unchanged in direction: `thin` is 5/638 at `T = 1`,
 1/638 at `T = 1.5`, and 0/638 at `T = 2`. That population requires at least two
 admissible calls; `probe-book-vs-net` also counts single-rung nodes, explaining

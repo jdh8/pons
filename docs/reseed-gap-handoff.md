@@ -423,14 +423,61 @@ boards against k8new's 5.9%. Three readings:
    rest of the loss is spread thinly over defensive nodes (passing where
    the control competes over their Jacoby 2NT or a raise).
 
-**Owed next (not started):** the label forensic that separates a corpus
-effect from a pipeline one. Count 4NT labels at their-game positions
-(`… 4M ⟨our turn⟩`, `2M - 2NT ⟨our turn⟩`) in `relabel-head/cut` against
-the M32 cut. More 4NT labels at HEAD means the relabel's rollouts reward
-the sacrifice (a candidate: the rollout's opponents fail to double it,
-where the A/B's do); the same count means the cause sits between the corpus
-and the served net (the fold below, the corpus build). The cut lives on
-Compute-Node02 only. The Gaussian v9 variant stays undecided.
+**The label forensic (2026-10-30): the rollouts reward a 4NT that BBA
+punishes.** It ran on dl02 against the two trainer corpora, then against the
+chunks' stored returns. Scripts and outputs are in
+`dl02:/mnt/ssd-data/jdh8/pons-relabel-head/` (`count4nt`, `profile4nt`,
+`ret4nt`, `bba-reprice/`).
+
+1. **The HEAD labels carry the 4NT.** Where we have named no strain and they
+   have, labels of 4NT over their 4♠ number 6,944 at HEAD against 597 in the
+   M32 cut (4♥ 3,678 vs 644, 4♣/4♦ about 3×, 2NT 822 vs 440; 3NT fell from
+   1,854 to 804) on the same ~104k positions. So the labels moved, not the
+   walk. The hands are junk: a median of 7 HCP, 5-5 or longer in the minors
+   only 2% of the time, the modal minors 4-3.
+2. **Candidacy is the multiplier.** The relabel rolls out the floor's top 3
+   beside BBA's call. Over their 4M with us silent the shipped K = 8 puts
+   4NT in its top 3 at 75–78% of decisions, where the M32 walk's floor did at
+   12%. Over all candidacies 4NT averages −6 to −8 IMPs in both cuts, and
+   §4c's gate passes ~9% of them at HEAD against ~5% in M32. The ones that
+   pass are not noise: on the held-out pool they average +3.7 IMPs (median),
+   about 2.5 standard errors.
+3. **The gain belongs to the self-play opponent.** `dump-teacher` now takes
+   `--rollout-opponent bba` (BBA's 2/1 card told our card, as `bba-gen`
+   seats it) and `--price-rows` (price only the listed decisions). A
+   re-price of 24 of the 188 chunks, at HEAD from the stored `.dd`
+   (nothing solved), covered three groups of 1,387 decisions each. Its
+   self-play arm reproduced all 4,161 stored returns byte for byte:
+
+   | group | self-play plain / PD | BBA plain / PD | still passes vs BBA |
+   | --- | --- | --- | --- |
+   | 4NT over their 4M, passed the gate | +4.17 / +5.29 | **−6.19 / −7.52** | 43 (3%) |
+   | 4NT there, failed the gate | −8.89 / −9.19 | −6.23 / −7.30 | 23 |
+   | any other label that passed | +2.54 / +2.88 | +1.08 / +1.30 | 630 (45%) |
+
+   Each mean is over all 64 layouts, ±0.11–0.27 at 95%. The self-play
+   column includes the pool the gate selected on, so it is biased upward;
+   the BBA column was never selected on. The 4NT is an exploit of our own
+   defence. With us bidding their side the 4NT wins, but BBA turns it into
+   the −6 it costs at every other candidacy, and the A/B (against BBA) paid
+   −11 a board. It is the extreme case of a general effect: fewer than half
+   of all other labels survive BBA as the opponent, though the survivors
+   still gain.
+
+This revises §4a of
+[logit-calibration.md](ai-bidder/logit-calibration.md) ("the opponent
+does not move the finding"). That held as a 400-deal, neither-vulnerable
+average. It fails where a candidate's value comes from how the opponents
+answer it, and the floor's top 3 brings such a candidate to the gate at
+three quarters of a common position.
+
+**Owed (decision, jdh8):** relabel with BBA as the opponent. The `.dd` of
+every chunk is stored, so a full re-price of the 3.24M HEAD decisions
+solves nothing. It costs only BBA's serial bid-out (~0.4 s a decision on
+one core, ≈ 12 h on dl02 at 30 processes), then the cut, the retrain
+(≈ 1 h) and the four-cell A/B. The trade-off is that labels priced against
+BBA tune the floor to BBA, the exploit guard, rather than to BEN, the north
+star. The Gaussian v9 variant stays undecided.
 
 **Flag: slot 0 of the compact agreements is constant in the HEAD cut.** The
 fold took 32 columns where the M32-corpus nets took 30. The two new ones are

@@ -335,3 +335,45 @@ fn the_diff_counts_moved_rows_and_lost_decisions() {
     assert!(err.to_string().contains("not of one window"), "{err}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A `--price-rows` probe walks the whole window but prices only its rows:
+/// from the native chunk's `.dd` it solves nothing, its swings are the
+/// native ones row for row, and `--cut` refuses it as a corpus chunk.
+#[test]
+fn a_price_rows_probe_reprices_its_rows_and_cannot_be_cut() {
+    let dir = scratch("rows");
+    let native = dir.join("native/s/chunk-0");
+    dump(&native, 0, 8, 4, 11);
+    let all = relabel::read_ret(&native.with_extension("ret")).expect("ret");
+    assert!(all.len() >= 3, "enough decisions to sample");
+    let picked: Vec<_> = all.iter().step_by(2).cloned().collect();
+    let rows = dir.join("rows.txt");
+    let list: String = picked.iter().map(|p| format!("{}\n", p.row)).collect();
+    std::fs::write(&rows, list).expect("write");
+
+    let probe = dir.join("probe/s/chunk-0");
+    std::fs::create_dir_all(probe.parent().expect("dir")).expect("mkdir");
+    std::fs::copy(native.with_extension("dd"), probe.with_extension("dd")).expect("copy");
+    dump_with(
+        &probe,
+        0,
+        8,
+        4,
+        11,
+        &["--price-rows", rows.to_str().expect("utf-8")],
+    );
+    let json = probe.with_extension("json");
+    assert_eq!(
+        relabel_meta(json.clone(), "solved"),
+        0,
+        "priced from the .dd"
+    );
+    assert_eq!(
+        relabel::read_ret(&probe.with_extension("ret")).expect("ret"),
+        picked,
+        "the native swings, row for row"
+    );
+    let err = cut(&[&dir.join("probe")], &dir.join("cut"), 2).expect_err("a probe");
+    assert!(err.to_string().contains("--price-rows"), "{err}");
+    let _ = std::fs::remove_dir_all(dir);
+}

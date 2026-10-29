@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`dump-teacher --rollout-opponent bba` and `--price-rows`: the relabel's
+  4NT is an exploit of our own defence (2026-10-30,
+  [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** The first
+  flag seats BBA (its 2/1 card, told our card) as the rollout's opponents,
+  bid out serially. The second prices only the listed decisions of a walk,
+  and `--cut` refuses the chunk it writes. Both default off, so corpus
+  chunks and their sidecars are byte-identical. The forensic behind the
+  HEAD relabel's loss: its labels carry 10,573 4NTs over their 4M with us
+  silent, against 910 in the M32 cut, on weak, flat hands. The shipped
+  floor proposes 4NT there at 75–78% of decisions, against 12% in the M32
+  walk, and under self-play the labels that pass hold out at +3.7 IMPs. A
+  BBA re-price of 4,161 sampled decisions from the stored `.dd` (nothing
+  solved; the self-play arm reproduced every stored return byte for byte)
+  turns those 4NTs from **+4.17 / +5.29 to −6.19 / −7.52** (plain / PD),
+  and 3% of them still pass the gate. Other labels go from +2.54 to +1.08,
+  and 45% survive. Self-play pricing is biased where our defence is weak,
+  which revises §4a of `logit-calibration.md`. A full BBA-opponent relabel
+  (3.24M decisions, ≈ 12 h on dl02, no solving) is owed a decision.
+
 - **The `bba` system — BBA's walked book as a mask over our floor
   (2026-10-29, [docs/bba-system.md](docs/bba-system.md) §9).** A harness arm,
   never a default: `--our-floor bba` (and `bba-ladder`) in `bba-gen`,
