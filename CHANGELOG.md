@@ -34,10 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whole gap, so the BBA gap is judgement, not agreements, at this
   instrument's resolution (bba-book.md §5.6's bet). The ladder chooser
   (`bba-ladder`, D1's arm B) loses a further 0.44–0.60 plain to the net
-  chooser. Nothing ships; the system stays a harness arm. Owed: the
-  matched retrain on a `bba`-read corpus (the one experiment that can still
-  move the agreements term), the `BBA_BOOK_NO_CEILING_FLOOR=1` cell, and
-  the paired per-node join of §4. `scripts/bba-book.sh` takes
+  chooser. Nothing ships; the system stays a harness arm. The two
+  follow-up cells (§9.4, same deals): dropping the bilans' ceiling glosses
+  (`BBA_BOOK_NO_CEILING_FLOOR=1`) loses −0.045 / −0.064 plain, −0.028 /
+  −0.045 PD to `bba`, so trap 11's default stands; and the §4 per-node join
+  (new `scripts/bba-node-join.py`, fed by `DIFF_JSONL=1 diffpair`) puts 97%
+  of the divergent boards at a walked node on our call, with only four
+  nodes winning above the ~3.7 chance ceiling on |z|, each ≤ 0.001
+  IMPs/board. The one pooled lead holding on both scorers is responder's
+  `X`-or-not over `1x (overcall)`, +0.004 IMPs/board. The book is not
+  where the gap is. Owed: the matched retrain on a `bba`-read corpus (the
+  one experiment that can still move the agreements term). `ab-lib.sh`'s
+  arm fingerprint now records the `BBA_BOOK_*` mask knobs when set (every
+  other arm's manifest is unchanged). `scripts/bba-book.sh` takes
   `PROBE_BBA_BOOK=` / `PROBE_BBA_BOOK_LOADER=` for a box whose glibc is
   older than EPBot's.
 

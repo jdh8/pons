@@ -335,7 +335,8 @@ here: the continuations on both arms are ours.
     free as it is off-book, while dropping them would also take the contested
     four-level, the accountant's own ground, out of every walked node whose
     `4M` BBA reads as its floor's. `BBA_BOOK_NO_CEILING_FLOOR=1` is the
-    reversible other arm (`Mask::no_ceiling_floor`), and the census's
+    reversible other arm (`Mask::no_ceiling_floor`), measured in §9.4: it
+    loses 0.045 / 0.064 plain to the default, so the default stands; and the census's
     `BBA-only` column is inflated by this class until it is read under it.
     `Not defined` (44 children: `5NT` as an opening and the like) is neither
     a rule nor a reading and is never admitted.
@@ -494,8 +495,8 @@ and nothing here splits "the band admitted the wrong set" from "the net
 read the band wrong". The split needs the matched retrain on a `bba`-read
 corpus (§6 trap 5; the M5.3 second-system corpus), which is now the one
 experiment that could still move the agreements term. Trap 11's ceiling
-glosses are the other, cheaper arm (`BBA_BOOK_NO_CEILING_FLOOR=1`, owed as
-a follow-up cell), and the mask's epsilon is not the cause: `empty` is 0.3%
+glosses are the other, cheaper arm (`BBA_BOOK_NO_CEILING_FLOOR=1`, read in
+§9.4: dropping them loses), and the mask's epsilon is not the cause: `empty` is 0.3%
 of the `bba` arm's walked decisions, `outside` 0.4% (the §6 trap-4 threshold
 is 10%). Top `bba` buckets vs BBA: `Constructive / book / round-2` −85,250
 (−2.07 per divergent board), `Defensive / book / round-1` −38,187,
@@ -503,13 +504,69 @@ is 10%). Top `bba` buckets vs BBA: `Constructive / book / round-2` −85,250
 −28,880 — opener's rebid under BBA's 12+ two-over-one and 5–12 forcing
 `1NT` bands is where our judgement inside BBA's agreements fails worst.
 
-**§4 mining.** Not run: the paired per-node join (`bba` − `american` at every
-walked prefix) is the owed follow-up, and the buckets `bba` wins are the
-only ones worth it. The paired diffs' per-board swings are one
-`ab-dump-diff --jsonl` away; the join by first-divergence prefix is the
-script to write.
+**§4 mining.** Read in §9.4.
 
-### 9.4 Cost, measured
+### 9.4 Follow-up cells — trap 11 and the §4 join (2026-10-29)
+
+Same deals, seed and walk as §9.3; `scripts/ab-bba-system.sh` now carries
+both cells, so the dir resumes into them.
+
+**Trap 11, `bba-noceil`** (`bba` under `BBA_BOOK_NO_CEILING_FLOOR=1`;
+replays at 100.00%):
+
+| pair | vul | plain DD | PD | verdict |
+| --- | --- | --- | --- | --- |
+| `bba-noceil` − `bba` | none | −0.0453 ±0.0056 | −0.0279 ±0.0058 | loss |
+| `bba-noceil` − `bba` | both | −0.0643 ±0.0070 | −0.0448 ±0.0073 | loss |
+| `bba-noceil` − `american` | none | −0.2431 ±0.0159 | −0.2040 ±0.0180 | loss |
+| `bba-noceil` − `american` | both | −0.3177 ±0.0201 | −0.2556 ±0.0228 | loss |
+
+Against BBA it reads −0.726 / −0.857 plain, −0.419 / −0.519 PD. The ceiling
+glosses cost nothing to admit and something to drop, on both scorers, so
+**trap 11's default (admitted) is confirmed** and the judgement term of §9.3
+is not inflated by them. The census under the knob matches §9.2's re-read
+(`outside` 0.4%, `empty` 0.3% of the arm's walked decisions).
+
+**The §4 per-node join** (`scripts/bba-node-join.py` over the paired diffs'
+`--jsonl`; `join.bba.vs.american.md` and `join.bba-noceil.vs.american.md`
+in the results dir). The join reconciles exactly to the headline (Σ −91,988
+plain over 156,364 contract-divergent boards, both vuls), and **97% of the
+divergent boards first split at a walked node, on our call** (−94,845; the
+off-walk rest is +3,006). The 12,371 first-divergence nodes hold 552 with
+30 or more boards, so a node's |z| reaches ~3.7 by chance alone.
+
+- **The losses are §9.3's, node by node**: opener's rebid after a 2/1
+  (`1♠ - 2♣ -` −6.26 per board, z −16.5, and its seat and suit siblings),
+  responder over our `1NT` (`1NT -` −2.39, z −14.8), the `2♣ - 2♦ -`
+  rebid, and the opening call itself (−5,367 at the dealer's first call).
+  Under the same chooser BBA's bands lose most where our book is most
+  structured, which is trap 5 as much as agreements and is not an
+  authoring queue for `american`.
+- **The wins are thin.** Four nodes clear the chance ceiling: `1♥ - 1♠ -
+  2♥ -` (+3.28 per board, z +5.3, PD +350; responder's `2NT` → `-` the top
+  swap at 30%), `- 1♥ 1♠` (+1.81, z +4.3, PD +554; `3♥` → `2♥` at 20%),
+  `- - 1♣ - 1♦ -` (z +3.9) and `- 1♥ - 1♠ - 2♦ -` (z +3.6). Each is worth
+  +165 to +416 IMPs over 410,112 boards, ≤ 0.001 IMPs/board, under δ.
+- **The families the top of the table suggests dissolve when pooled by
+  board** (the swap at the first divergent call, both vuls): `american`
+  raising partner's weak two or preempt where `bba` passes reads −440 plain
+  (z −1.8) and +1,262 PD, a PD-only (doubling) read; responder's `3M`
+  over an overcall where `bba` bids `2M` reads +18 (z +0.1); a negative `X`
+  over `1x (1y/2y)` where we pass reads +574 plain (z +3.4) but −335 PD.
+  The one pooled family that holds on both scorers is **every `X`-or-not
+  decision of responder over `1x (overcall)`**: 3,110 boards, +1,692 plain
+  (z +4.8), +2,381 PD, ≈ +0.004 IMPs/board — a lead for
+  [competitive-book.md](competitive-book.md), its composition (which
+  direction, which overcall) not yet read. It shrinks to +516 plain (z +1.4)
+  in the `bba-noceil` join, so part of it rides on a ceiling gloss.
+
+**Reading.** §4's price list confirms §9.3 from the other side: BBA's
+agreements, swapped in under our judgement, win almost nowhere that noise
+cannot explain, and the one pooled lead is a few thousandths of an IMP.
+The book is not where the gap is; the matched retrain (trap 5) remains the
+only experiment that could still move the agreements term.
+
+### 9.5 Cost, measured
 
 | step | wall |
 | --- | --- |
@@ -521,3 +578,4 @@ script to write.
 | Gate 2: one arm-vul of 205,056 boards at `JOBS=96` | ≈ 2 min |
 | Gate 2: one paired `ab-dump-diff` cell, plain + PD | ≈ 3–4 min |
 | Gate 2: the three decomposes on a shared DD cache | ≈ 12 min together |
+| §9.4: one arm, five diff cells and a decompose, four at a time at `DDSS_THREADS=64` (free box) | ≈ 11 min |

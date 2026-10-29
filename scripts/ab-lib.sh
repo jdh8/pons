@@ -199,6 +199,11 @@ EOF
         fingerprint_file servers "$BEN_META" || return 1
     fi
     echo "flags: $*"
+    # The bba system's mask knobs (examples/common/bba_book.rs, Mask::from_env)
+    # change what an arm bids with the same binary and flags; printed only when
+    # set, so every other arm's fingerprint is what it always was.
+    mask=$(env | grep -E '^BBA_BOOK_(SLACK|STOPPERS|NO_CEILING_FLOOR)=' | sort || :)
+    [ -z "$mask" ] || echo "env: $mask"
     for a in "$@"; do
         f=${a#*=}
         if [ -f "$f" ]; then fingerprint_file "file $f" "$f" || return 1; fi
@@ -326,16 +331,20 @@ diffpair() {
     plain="$R/diff.$on.vs.$off.$vul.plain.txt"
     pd="$R/diff.$on.vs.$off.$vul.pd.txt"
     stamp="$R/diff.$on.vs.$off.$vul.inputs"
+    # DIFF_JSONL=1 also writes the per-board records ($DIFF --jsonl) off the
+    # same solve, for a per-node join (scripts/bba-node-join.py)
+    jsonl=${DIFF_JSONL:+$R/diff.$on.vs.$off.$vul.jsonl}
     # shellcheck disable=SC2086
     inputs=$(report_inputs "$DIFF" "$on" "$off" "$vul" --score both --show "$SHOW" \
-        ${DENSITY:+--density $DENSITY})
-    [ -s "$plain" ] && [ -s "$pd" ] && fresh_report "$stamp" "$inputs" \
+        ${DENSITY:+--density $DENSITY} ${jsonl:+--jsonl})
+    [ -s "$plain" ] && [ -s "$pd" ] && { [ -z "$jsonl" ] || [ -s "$jsonl" ]; } \
+        && fresh_report "$stamp" "$inputs" \
         && { log "skip $plain + $pd (exist, inputs unchanged)"; return 0; }
-    log "diff $on vs $off ($vul, plain+pd${DENSITY:+, density $DENSITY})"
+    log "diff $on vs $off ($vul, plain+pd${DENSITY:+, density $DENSITY}${jsonl:+, jsonl})"
     # shellcheck disable=SC2086
     "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
         --out-plain "$plain" --out-pd "$pd" --show "$SHOW" \
-        ${DENSITY:+--density $DENSITY} >>"$R/log" 2>&1
+        ${DENSITY:+--density $DENSITY} ${jsonl:+--jsonl $jsonl} >>"$R/log" 2>&1
     printf '%s\n' "$inputs" >"$stamp"
 }
 
