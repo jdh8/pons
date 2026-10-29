@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Full relabel at HEAD, M = 32 (2026-10-29).** The v6 recipe's 188 chunks
+  (20 shards, 6,781,198 rows) relabelled at `54659d41` with 64 layouts per
+  decision: 34.3 h on the free box, 156.9M double-dummy tables at 1,270/s,
+  377,516 labels moved (14.4% of the 2.62M eligible decisions, 5.6% of rows).
+  Nothing ships yet: the cut at
+  `/data/public/jdh8/pons/target/relabel-head/cut` is the corpus for the
+  K = 8 retrain read against the shipped floor and k8new
+  ([docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5). Found on the
+  way: `dump-teacher` stamps its sidecar `git_sha` from the checkout at run
+  time, so two docs-only commits during the run failed the cut's same-commit
+  pin until the stamps were unified; the build-time stamp is flagged in §5.
+
 - **`reading.declared_natural_walk` is on by default (2026-10-27, jdh8).** A
   declared opponent's unalerted calls keep the natural walk and only their
   alerted calls decode in their book, as an undeclared opponent is read.

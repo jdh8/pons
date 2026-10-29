@@ -349,6 +349,41 @@ arm, so it solved every table again (`0 from .dd`). `scripts/relabel-worker.sh`
 now takes `DD_FROM` (a sibling root whose `.dd` is copied in before the
 binary runs); a second arm of one window is minutes of solving with it.
 
+**Full relabel, read 2026-10-29.** The whole v6 recipe (20 shards, 188
+chunks, 6,781,198 rows against the M32 cut's 6,766,821) relabelled at
+`54659d41`, M = 32 (64 layouts), from 2026-10-28 00:10 to 2026-10-29 10:29
+(+08): 34.3 h, 156.9M tables, 1,270 tables/s from 10 workers ×
+`DDSS_THREADS=64` on the free box (the poker solver was down; the ≈ 1,150
+tables/s forecast held). Driver, logs and data:
+`/data/public/jdh8/pons/target/relabel-head/{driver.sh,driver.log,worker-*.log,chunks,cut,cut.log}`.
+axis-0004's `.dd` was seeded from the pilot's ⊤ arm through `DD_FROM`, and
+its cut reproduces the pilot's byte for byte (398,127,600 bytes, 23,703
+fired). The cut: 3,244,804 decisions, 2,620,106 at ≥ 64 layouts, **377,516
+relabelled** (14.4% of the eligible, 11.6% of decisions, 5.6% of rows). Per
+shard the axis shards fire 23.2–23.9k of ≈ 169–170k eligible, the uniform
+18.4–18.7k of ≈ 133k, the enriched 10.2–10.3k of ≈ 50–51k.
+
+One stumble. The driver's own cut exited 1 on `axis-0002: chunk 2's sidecar
+disagrees with chunk 0's`. `dump-teacher` stamps `git_sha` by running
+`git rev-parse HEAD` **at run time**, not from the build, so the two
+docs-only commits that landed during the run (`99509eea`, `8530e82c`) split
+the 188 sidecars 17 / 136 / 35 while the binary (built 00:10 at `54659d41`,
+never rebuilt) and the walk never changed. The sidecars as written are kept
+in `relabel-head/sidecars-as-written/`; the 188 live ones were stamped
+`54659d41` and the cut rerun (5 s: pure file work, zero pending solves).
+The same stamp gates `.ret` reuse (a worker at another sha re-prices from
+`.dd`), so a run that straddles any commit, even a docs one, forfeits its
+returns on a resume. **Discrepancy flagged, not fixed** (jdh8's call): the
+stamp should be the build's commit, e.g. `option_env!("PONS_GIT_SHA")` set
+by the launching script or a build script, falling back to the runtime
+`rev-parse`; the cut's `GLOBAL` pin is right as it stands.
+
+**Owed next:** train K = 8 on `relabel-head/cut` under the Plan B recipe on
+dl02, fold, A/B at four cells against the shipped floor **and** against
+k8new (`ab-results/ruler/nets/seed9..16`), `BOARDS=204800`, fresh
+`SEED_BASE`; it ships only if it beats shipped (§6). The Gaussian v9 variant
+cuts from the same `.dd` tables (decision pending, jdh8).
+
 ## 6. What stays decided
 
 - **The shipped K = 8 is a lucky draw** (jdh8, 2026-10-25, §3 step 2):
