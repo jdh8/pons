@@ -66,8 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ≈ −11 IMPs each, which k8new bids twice. A label count at those positions
   in the two cuts is owed. Flagged: compact slot 0 (`wide_one_club`) is
   constant in every corpus dumped since the Dutch system went (2026-09-24),
-  so a floor trained on one cannot see the knob; the proposed default is to
-  leave the dump as it is.
+  so a floor trained on one cannot see the knob; decided (jdh8): leave the
+  dump as it is, and add a wide 1♣ axis only if the knob returns as a
+  candidate.
 
 - **Full relabel at HEAD, M = 32 (2026-10-29).** The v6 recipe's 188 chunks
   (20 shards, 6,781,198 rows) relabelled at `54659d41` with 64 layouts per

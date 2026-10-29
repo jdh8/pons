@@ -448,7 +448,7 @@ cells) came mostly from boards they open, through this slot moving the
 floor. Under a HEAD-corpus floor that win is gone by construction, and a
 re-measure of the knob would read the floor's blindness, not the opening.
 Harmless for this read (the slot is 0 on the default system, both sides).
-Proposed default, reversible, jdh8's call: **leave the dump as it is and
+**Decided (jdh8, 2026-10-29): leave the dump as it is and
 treat `wide_one_club`'s floor regime as tied to the shipped K = 8.** The
 knob stays off, and any future corpus that should see it adds a
 `wide_one_club` axis to `AXES` as bit 16. That is cheap, but it only
@@ -495,3 +495,6 @@ matters if wide 1♣ comes back as a candidate.
 
   Ensemble-level agreement is not recorded; step 2b reads the decisions
   themselves instead.
+- **`wide_one_club`'s floor regime belongs to the shipped K = 8** (jdh8,
+  2026-10-29, §5). Corpora keep slot 0 constant; a `wide_one_club` axis
+  joins `AXES` as bit 16 only if wide 1♣ returns as a candidate.
