@@ -794,7 +794,10 @@ pub fn sd_declarer_ns_score(
 /// the leader (docs/research-method-review.md §4).  A disclosed reader
 /// therefore declares the other pair's partnership as its opponent
 /// ([`Partnership::with_opponents`]), which decodes their calls at the full
-/// reading scope through their books.
+/// reading scope through their books.  It reads in the declared-all regime
+/// (`reading.declared_natural_walk` off) whatever the bidding default: the
+/// walk sends a declared opponent's unalerted calls back to the natural
+/// walk, which is the very defect this reader exists to close.
 ///
 /// Two table shapes:
 ///
@@ -840,11 +843,19 @@ impl LeaderReading {
     }
 }
 
+/// `reader` with `them` declared, decoding every one of their calls off its
+/// authoring rule (see [`TableReader`])
+fn disclosed(reader: &Partnership, them: &Partnership) -> Partnership {
+    let mut reader = reader.clone().with_opponents(them);
+    reader.profile_mut().reading.declared_natural_walk = false;
+    reader
+}
+
 impl TableReader {
     /// Read a `bba-gen` dump's `table_a` with our partnership disclosed to
     /// East–West
     pub fn new(ours: Partnership) -> Self {
-        let ew = ours.clone().with_opponents(&ours);
+        let ew = disclosed(&ours, &ours);
         Self {
             ns: ours,
             ew,
@@ -879,8 +890,8 @@ impl TableReader {
             }
         } else {
             Self {
-                ns: ns.clone().with_opponents(ew),
-                ew: ew.clone().with_opponents(ns),
+                ns: disclosed(ns, ew),
+                ew: disclosed(ew, ns),
                 mode: LeaderReading::SelfPlay,
             }
         }

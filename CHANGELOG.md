@@ -133,6 +133,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ab-results/anchor/2026-10-27-155b5cf8-dirty/` (its `window.sh` builds the
   pairings).
 
+### Fixed
+
+- **The disclosed single-dummy leader reads every call again (2026-10-30).**
+  `40847142` flipped `reading.declared_natural_walk` on, and it also reached
+  `common::TableReader`, whose disclosed reader works by declaring the other
+  pair. That sent their unalerted calls (the `(1NT) 2♥` overcall band, a
+  weak two's range) back to the natural walk, so from 2026-10-27 every SD
+  harness on it (`ab-dump-sd` and the self-play `ab-*` runners) read as the
+  pre-2026-10-16 legacy reader while its header still said `disclosed`.
+  The three `ab-dump-sd` disclosure tests had failed on every CI cell since
+  then. The disclosed reader now pins the declared-all regime. Bidding and
+  the `bba-gen`/`ben-gen` reading are unchanged. The one SD number in that
+  window, the relabel read's 16-world column (`7333275a`, via
+  `scripts/ab-floor-file.sh`), was read by the legacy reader. Its verdict
+  stands on the plain-DD and PD cells, which both lose.
+
 ### Added
 
 - **Reseed gap §5: the ⊤ arm at 128 layouts, M = 64 not worth 2×
