@@ -43,3 +43,6 @@
 # Python bytecode caches from running scripts/*.py: never source.
 __pycache__/
 *.pyc
+
+# Machine-local notes (host names, colleagues, directory layouts); CLAUDE.local.md is the index.
+/docs/local/

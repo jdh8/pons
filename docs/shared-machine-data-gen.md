@@ -71,6 +71,65 @@ Because of (1) and (2), prefer to **scale the thread/core count to the current
 load** and run off-hours when you can, rather than assuming priority makes a
 flat-out box invisible.
 
+### Measured: priority is not isolation (2026-10-31)
+
+A sibling project's solver confirmed (1) and (2) on a 640-thread EPYC box
+whose other users run few-thread, latency-bound jobs. A colleague's
+single-process compile ran about 3× slower while eight 64-thread
+`SCHED_IDLE` jobs ran, and recovered the minute they stopped. A one-thread
+probe pinned to an otherwise free core (ALU clock from a dependent add
+chain, DRAM latency from a 1 GiB pointer chase, sequential read bandwidth)
+measured, idle versus under those 8 × 64:
+
+| | idle | 8 × 64 under `SCHED_IDLE` |
+|---|---|---|
+| ALU clock on a free core | 3.7 GHz | 2.1 GHz |
+| DRAM latency | 150 ns | 250 ns |
+| one-thread read bandwidth | 27.5 GB/s | 9–19 GB/s |
+| neighbour cores above base clock | 12 of 18 | 0 of 18 |
+| neighbour threads sharing a core with one of ours | 0 | 444 |
+| disk utilization, major faults | 0 %, 0/s | ≤ 10 %, 0/s |
+
+Clock × latency ≈ 2.9×, the 3× the colleague felt. Disk and page cache were
+not it. Three mechanisms, all invisible to the scheduler: the package drops
+to base clock with every core busy (every neighbour on every core runs
+1.75× slower, however idle our class is); `SCHED_IDLE` frees the core, not
+its SMT sibling, so a co-scheduled neighbour shares our execution units;
+and a memory-bound job saturates the channels. Bidding and DD are
+compute-bound with a small footprint, so the bandwidth term is smaller for
+us, but the clock and SMT terms apply in full. `ionice -c3` is a no-op under
+`mq-deadline`, which ignores IO classes.
+
+What fixed it was **halving the thread count**: 8 × 32 gave the solver the
+same throughput as 8 × 64 (SMT bought a memory-bound job nothing), the
+free-core clock recovered to 2.4–2.8 GHz and latency to 212–242 ns, and
+16–17 of 18 neighbour cores stayed boosted. Pinning every job to one socket
+isolated the other socket on the probe but failed in use: `SCHED_IDLE`
+threads carry almost no load weight, so the kernel places new processes on
+the socket that *looks* idle, which is ours. Pinning helps only if the
+neighbours pin too.
+
+Rules that follow, for any shared box:
+
+- **Budget threads, not priority.** Keep `idle-run.sh` (it is free), but cap
+  total threads at about one per physical core across all jobs; measure
+  1 and 2 threads per core and take 1 unless 2 pays clearly, since each
+  extra thread costs a neighbour more than it gains us.
+- **Check the class took.** `ps -o pid,cls,comm -u $USER` must show `IDL`; a
+  lap that ran at `TS` is what draws the first complaint.
+- **Probe before and during.** If the free-core clock is below 3 GHz or DRAM
+  latency above 200 ns, drop threads. A probe is a few hundred lines of C
+  plus a shell loop: launch a config, warm 150 s, probe three times, stop,
+  cool 60 s, probe idle, next config.
+- **Page cache is not headroom.** Every page we allocate evicts someone's
+  cached file; keep scratch output off the shared home filesystem.
+- **Stop cleanly.** `kill -TERM` the driver before its workers so a `wait`
+  cannot log a false completion, and never `pkill -f <script>` from an ssh
+  `bash -c`, which matches its own command line.
+
+The box-specific record (hardware, who runs what, where the probe sources
+live) is machine-local and untracked: see the host's `CLAUDE.local.md`.
+
 ## Do not run your own idle-run jobs in parallel
 
 Each such job already spins **one worker per hardware thread**

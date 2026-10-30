@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: `SCHED_IDLE` is not isolation, measured (2026-10-31,
+  [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) § "What
+  this does NOT cover").** A sibling project's 8 × 64-thread idle-class run
+  slowed a neighbour's single-process compile 3×: the package fell from
+  3.7 to 2.1 GHz and DRAM latency rose 150 → 250 ns, with disk and page
+  faults flat. Halving the threads fixed it at no throughput cost; pinning
+  to one socket did not. The section records the probe, the numbers and
+  the thread-budget rules. Host-specific notes now live in the gitignored
+  `docs/local/`, indexed from `CLAUDE.local.md`.
+
 - **`dump-teacher --rollout-opponent bba` and `--price-rows`: the relabel's
   4NT is an exploit of our own defence (2026-10-30,
   [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** The first
