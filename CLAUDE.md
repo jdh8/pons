@@ -1,211 +1,194 @@
 # pons
 
-This crate provides tools for analyzing and simulating hands in contract bridge.
-Compared to [dds-bridge](https://crates.io/crates/dds-bridge), `pons` focuses on
-higher-level abstractions — most development goes into the `bidding` module:
-a 2/1 game-forcing system (`american()`), a deterministic instinct floor, an
-inference/constrained-sampling engine, and the AI-bidder effort that learns to
-replace the floor.
+Tools for analyzing and simulating contract bridge hands. Compared to
+[dds-bridge](https://crates.io/crates/dds-bridge), `pons` is the higher-level
+layer; most development goes into the `bidding` module: a 2/1 game-forcing
+system (`american()`), a deterministic instinct floor, an inference /
+constrained-sampling engine, and the AI bidder that learns to replace the floor.
 
-Feel free to search online for authoritative sources on bridge bidding, and to
-ask me questions about bidding theory. I am not an expert (yet), but I have
-played a long time and read a lot. For 5-card major systems, see my
+Search online for authoritative bidding sources, and ask me about bidding
+theory. For 5-card major systems see my
 [Strawberry Polish Club](https://polish.club/).
 
 ## Objective
 
 Make `pons` the best open-source bridge engine. Key results, in order:
 
-1. **KR1 — bridge score** (IMPs, measured per [docs/measurement.md](docs/measurement.md)).
+1. **KR1 — bridge score** (IMPs, per [docs/measurement.md](docs/measurement.md)).
 2. **KR2 — clean software architecture.**
 3. **KR3 — acceptable performance.**
 
-KR1 is the objective's direct proxy and outranks the rest: a KR2 or KR3 win
-ships only with a KR1 **non-inferiority proof** — a seeded `smoke-default`
-byte-identity of the default system, or an A/B that is **non-inferior** on
-both scorers — every vulnerability cell's 95% lower bound above −δ, δ = 0.002
-IMPs/board (measurement.md, the decision table and checklist item 12). A CI
-that merely straddles 0 is not a proof.
+KR1 outranks the rest: a KR2 or KR3 win ships only with a KR1
+**non-inferiority proof** — a seeded `smoke-default` byte-identity of the
+default system, or an A/B non-inferior on both scorers (every vulnerability
+cell's 95% lower bound above −δ, δ = 0.002 IMPs/board). A CI that merely
+straddles 0 is not a proof.
 
 ## Read before working
 
 | Task | Read first |
 | --- | --- |
 | Any change to `src/bidding` | [docs/bidding-architecture.md](docs/bidding-architecture.md) — the book/floor/inference layer cake and its invariants |
-| **What BBA's book actually says** — the meaning of any call by its rules, and where its bilans floor takes over | [docs/ai-bidder/bba-book.md](docs/ai-bidder/bba-book.md) — the interpretation walk, the book/floor boundary and the two caveats that bound it, and the dictionaries (convention ids, `feature` slots, the Polish glossary). Look a lane up with `probe-bba-book --render <run> --prefix "1♠ (2♥)"` |
-| Closing the gap vs BBA (the anchor, its rules, the bucket ranking) | [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) — protocol, rules, runbook, current ranking, headline trail; run `scripts/anchor.sh`, work the report's buckets. History in `docs/archive/bba-gap-*.md` |
-| Splitting the BBA gap into **agreements vs judgement**, or pricing BBA's agreements node by node — the `bba` system (BBA's walked book as a mask over our floor; `--our-floor bba`, `BBA_BOOK=`) | [docs/bba-system.md](docs/bba-system.md) — the design, the gates, the mining loop, the build record (§9: the walk, the Gate 0 read, the Gate 2 run); the seam is `Rules::choose_by`, the code `examples/common/bba_book.rs` |
-| Closing the gap vs BEN (the new north star; BBA = exploit guard) | [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), harness built (`examples/ben-gen`, design in [docs/ben-gen-design.md](docs/ben-gen-design.md)); how BEN bids in [docs/ben-architecture.md](docs/ben-architecture.md) |
-| Disclosing our system to BBA (`.bbsa` cards) | [src/bidding/card.rs](src/bidding/card.rs) — cards are **generated** from the live knob state; `cards/*.bbsa` are golden snapshots, re-blessed with `cargo run --example bba-card` |
-| A knob A/B moves the floor's regime input, or a floor swap needs its siblings moved | [docs/ai-bidder/card-manifold.md](docs/ai-bidder/card-manifold.md) — the compact regime input reads **`Agreements`, not card rows**. Phase 5's v6 retrain is the shipped floor; the document holds the v4/v5 history, bias fold, and sibling-factory rule — a system name must reach the same net on its declared and undeclared paths |
+| What BBA's book says about a call, and where its bilans floor takes over | [docs/ai-bidder/bba-book.md](docs/ai-bidder/bba-book.md); look a lane up with `probe-bba-book --render <run> --prefix "1♠ (2♥)"` |
+| Closing the gap vs BBA (the anchor, its rules, the bucket ranking) | [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); run `scripts/anchor.sh`, work the report's buckets. History in `docs/archive/bba-gap-*.md` |
+| Splitting the BBA gap into agreements vs judgement — the `bba` system (`--our-floor bba`, `BBA_BOOK=`) | [docs/bba-system.md](docs/bba-system.md); the seam is `Rules::choose_by`, the code `examples/common/bba_book.rs` |
+| Closing the gap vs BEN (the north star; BBA = exploit guard) | [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), harness design [docs/ben-gen-design.md](docs/ben-gen-design.md), how BEN bids [docs/ben-architecture.md](docs/ben-architecture.md) |
+| Disclosing our system to BBA (`.bbsa` cards) | [src/bidding/card.rs](src/bidding/card.rs) — cards are generated from the knob state; `cards/*.bbsa` are snapshots re-blessed with `cargo run --example bba-card` |
+| A knob A/B moves the floor's regime input, or a floor swap needs its siblings moved | [docs/ai-bidder/card-manifold.md](docs/ai-bidder/card-manifold.md) — the regime input reads `Agreements`, not card rows; the sibling-factory rule |
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
-| Tuning an existing convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic; classify constructive/competitive first |
-| Retraining the floor after a **feature bump** (a new `features_vN`), or reusing the M32 labels without a relabel | [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md) — the zero-layout re-walk is the only walk that aligns with the fleet chunks, the splice's key, the uniform shards' retired cells, and the pipeline commands; [docs/ai-bidder/features-v9.md](docs/ai-bidder/features-v9.md) — the shape distribution in place of the length hull, the per-version splice key, and `scripts/feature-retrain.sh` (the whole pipeline as one driver) |
-| **Any retrain that must ship** — why the shipped K = 8 beats every reseed of its recipe (−0.012 plain DD), the stem order the trainer never shuffles, the relabel pilot's two arms | [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) — the 2 × 2 over data order and seeds, its reading table, and the per-member order lever |
-| Retraining the floor **without** a dump or relabel — seed noise, a logit ensemble, or any trainer flag (`--wd`, `--hidden`, `--dd-weight`, epochs, lr) | [docs/archive/floor-sweep.md](docs/archive/floor-sweep.md) — **closed 2026-09-30** (K = 8 shipped); rules, closed axes (do not retry), wiring, runbook and the ledger; verdict narratives in [docs/archive/floor-sweep-verdicts.md](docs/archive/floor-sweep-verdicts.md). The four big ideas weighed 2026-09-28 and the three parked: [docs/next-steps.md § Parked big ideas](docs/next-steps.md#parked-big-ideas) |
+| Tuning a convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic |
+| Retraining the floor after a feature bump, or reusing the M32 labels | [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md), [docs/ai-bidder/features-v9.md](docs/ai-bidder/features-v9.md) — the zero-layout re-walk, the splice key, `scripts/feature-retrain.sh` |
+| Any retrain that must ship — why the shipped K = 8 beats every reseed of its recipe | [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) — the unshuffled stem order, the 2 × 2 over data order and seeds |
+| Retraining without a dump or relabel — seeds, ensembles, trainer flags | [docs/archive/floor-sweep.md](docs/archive/floor-sweep.md) — **closed 2026-09-30**; its closed axes are not retried. Parked big ideas: [docs/next-steps.md](docs/next-steps.md#parked-big-ideas) |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
-| Anything that reads a rule weight or a `Logits` value as a **probability** — a softmax on book logits, the replay sampler's margin, a temperature, a demotion "in nats" | [docs/ai-bidder/logit-calibration.md](docs/ai-bidder/logit-calibration.md) — a book weight is **precedence**, not odds; the consumer inventory, the three coarsenings, and the settled design (net-restricted odds at authored nodes, ladder vs masked-softmax displays) |
-| A call reads as nothing, or an `Or` projects to `0..=37` | [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md) — read a call off the *bidder*, not its rules; includes the measured 2/1 reading bug |
-| The Watermelon Dutch Doubleton knobs (5542, the wide non-forcing 1♣ + `1♦!` relay, Odwrotka, the Multi `2♦`) | The book **is** the spec: <https://jdh8.github.io/watermelon-dutch/> (raw markdown in the `jdh8/watermelon-dutch` repo); code in `src/bidding/american/{openings,wide_one_club,multi}.rs` and `rebids/odwrotka.rs`, knobs `opening.five_five_four_two` / `opening.wide_one_club` / `rebid.odwrotka` / `opening.multi_two_diamonds`, all default off (5542, wide 1♣ and the Multi measured 2026-09-24/25, see CHANGELOG; Odwrotka's A/B owed). The retired `dutch()` system's ledger and verdicts: [docs/archive/dutch-system.md](docs/archive/dutch-system.md) |
-| Envelope-union readings (the historical DNF campaign; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |
-| Retiring a hand-written convention reader (`inference/readers.rs`) | [docs/reader-retirement.md](docs/reader-retirement.md) — inventory, per-reader migration rule, ledger |
-| A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — the three reading regimes, why the historical DNF campaign left one uncovered, and why a reading knob is a bidding knob under a neural floor |
-| An authored call reads as less than its rule says (a natural bid reads as nothing, a weak call reads as unlimited); anything touching `ReadingScope`, `Points::project`, or the walk's blankets | [docs/authored-reading-handoff.md](docs/authored-reading-handoff.md) — alert is disclosure, not the reading switch; the floor-only ceilings; the phased program (ceilings → `All` → substitute → retrain) with N2 as the testbed |
-| A **fourth-suit** call in any lane — is 4SF system-wide, what a reverse's responder has, how BBA/BEN read it | [docs/fourth-suit.md](docs/fourth-suit.md) — authored in `1♥ - 1♠` only; XYZ owns the one-level prefixes; the reverses measured a wash (`park/reverse-weak-responses`) because the net floor already plays BBA's structure; the partial-table guard idiom it produced |
-| Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
-| Our 1NT constructive (opening shape/range, Stayman family, transfers, Puppet, slam structure, the invite/GF seams and their evaluator verdicts) | [docs/one-notrump-constructive.md](docs/one-notrump-constructive.md) — the shipped structure, its knobs, and the A/Bs that chose them; the flat-4333 curse; the BBA comparison |
-| Our 1NT contested (`1NT (2x)`, `1NT - resp (..)`) | [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) — **their overcalls are artificial** (BBA plays Woolsey Multi-Landy); per-call cost census, book/floor line, each lane's state today, package queue, ledger. Verdicts and build records in `docs/archive/one-notrump-competitive-{closed,landy}.md` |
-| The `1NT (2♦)` Multi lane specifically — which seat is authored, what each call reads as | [docs/one-notrump-multi.md](docs/one-notrump-multi.md) — the tree map (regenerate with `render-book --their-2d-multi --prefix "1NT 2♦"`), their pass-or-correct ladder, and the floor-owned holes; verdicts stay in §N4 of the campaign |
-| A **minor-suit transfer** in any lane — ours, a counter-table's — or anything above its completion | [docs/minor-transfer-slam.md](docs/minor-transfer-slam.md) — the cross-lane census and the rule it produced: **an uncapped minor transfer owes a `4m` rung above its `3NT`, and that rung owes an authored answer**, because an unauthored `4m` reads as nothing and the floor's keycard ask is gated on `undisturbed` |
-| **How BBA and BEN bid defensive auctions** — BBA's balancing/advance/preempt ladders with decompile lines, BEN's passout and penalty-X patches, the per-lane gap and ranked levers | [docs/defensive-auctions-reference.md](docs/defensive-auctions-reference.md) |
-| Defensive round-1 redesign (they open, we act: overcalls, 1NT, takeout X) | [docs/defensive-overcalls.md](docs/defensive-overcalls.md) — 1NT + suit overcalls, first package; then [docs/takeout-double-layers.md](docs/takeout-double-layers.md) — the 4-4-major rung table and doubler rebids |
-| Opener's answer to the K–K doubler's natural other major; the both-vul PD cell `multi_doubler_major` shipped with open | [docs/multi-doubler-answer-handoff.md](docs/multi-doubler-answer-handoff.md) — the measured hole is an **incomplete answer table** (no notrump rung, no escape, so a maximum with a stopper and short support passes `2♠` in a 4-2), not the rung; the repair is built behind `multi_px_split` and its unconditional arm is owed |
-| Pass/double inversion — a penalty-oriented double or a converting pass flips the meaning of our later `X` and `P` | [docs/pdi.md](docs/pdi.md) — the trigger set (`grep '.penalty()'` is the live inventory), the tag + structural-conversion mechanism, the `pdi_latch` knob, and why the alert cannot carry this |
-| Competitive/sacrifice accountant (the contested 5-level decision; P(double), q) | [docs/ai-bidder/competitive-accountant.md](docs/ai-bidder/competitive-accountant.md) — the floor-side gate design; evidence + q calibration in [docs/ai-bidder/doubling-calibration.md](docs/ai-bidder/doubling-calibration.md) |
-| Porting a book section to rows, or the open Phases 2/3 | [docs/declarative-rows.md](docs/declarative-rows.md) — status ledger, escape-hatch inventory, the floor/knob coupling; grammar lives in `rows.rs`'s module doc |
-| Kickback / Redwood (relocating the keycard ask below 4NT) | [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7 — BBA's next-suit-up ladder (the walk-up retired 2026-08-02), the three-arm A/B design, the two build traps (structural `alerted`, 4NT-as-answer), and the 4NT question deferred to control bids |
-| The decision cache, the compiled rule path, or anything in `Context` beyond the mechanical facts | [docs/bidding-performance-handoff.md](docs/bidding-performance-handoff.md) — ~690 lines that landed in two commits with empty bodies and no CHANGELOG; this is their only design record |
+| Reading a rule weight or `Logits` as a probability (softmax on book logits, a temperature, a demotion "in nats") | [docs/ai-bidder/logit-calibration.md](docs/ai-bidder/logit-calibration.md) — a book weight is precedence, not odds |
+| A call reads as nothing, or an `Or` projects to `0..=37` | [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md) — read a call off the bidder, not its rules |
+| The Watermelon Dutch Doubleton knobs (5542, wide 1♣ + `1♦!` relay, Odwrotka, Multi `2♦`) | The book is the spec: <https://jdh8.github.io/watermelon-dutch/>; code in `src/bidding/american/{openings,wide_one_club,multi}.rs`, `rebids/odwrotka.rs`; all knobs default off, Odwrotka's A/B owed. Retired `dutch()`: [docs/archive/dutch-system.md](docs/archive/dutch-system.md) |
+| Envelope-union readings (the historical DNF campaign) | [docs/dnf-migration.md](docs/dnf-migration.md) |
+| Retiring a hand-written reader (`inference/readers.rs`) | [docs/reader-retirement.md](docs/reader-retirement.md) |
+| A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — a reading knob is a bidding knob under a neural floor |
+| An authored call reads as less than its rule says; anything touching `ReadingScope`, `Points::project`, or the walk's blankets | [docs/authored-reading-handoff.md](docs/authored-reading-handoff.md) — alert is disclosure, not the reading switch |
+| A fourth-suit call in any lane | [docs/fourth-suit.md](docs/fourth-suit.md) — authored in `1♥ - 1♠` only; XYZ owns the one-level prefixes |
+| Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) |
+| Our 1NT constructive | [docs/one-notrump-constructive.md](docs/one-notrump-constructive.md) |
+| Our 1NT contested (`1NT (2x)`, `1NT - resp (..)`) | [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) — their overcalls are artificial (BBA plays Woolsey Multi-Landy). Verdicts in `docs/archive/one-notrump-competitive-*.md` |
+| The `1NT (2♦)` Multi lane | [docs/one-notrump-multi.md](docs/one-notrump-multi.md); regenerate the tree with `render-book --their-2d-multi --prefix "1NT 2♦"` |
+| A minor-suit transfer in any lane, or anything above its completion | [docs/minor-transfer-slam.md](docs/minor-transfer-slam.md) — an uncapped minor transfer owes a `4m` rung with an authored answer |
+| How BBA and BEN bid defensive auctions | [docs/defensive-auctions-reference.md](docs/defensive-auctions-reference.md) |
+| Defensive round 1 (they open, we act) | [docs/defensive-overcalls.md](docs/defensive-overcalls.md), then [docs/takeout-double-layers.md](docs/takeout-double-layers.md) |
+| Opener's answer to the K–K doubler's natural other major | [docs/multi-doubler-answer-handoff.md](docs/multi-doubler-answer-handoff.md) — built behind `multi_px_split`, unconditional arm owed |
+| Pass/double inversion (a penalty double or converting pass flips our later `X` and `P`) | [docs/pdi.md](docs/pdi.md) — `grep '.penalty()'` is the live trigger inventory |
+| The contested 5-level decision (P(double), q) | [docs/ai-bidder/competitive-accountant.md](docs/ai-bidder/competitive-accountant.md), calibration in [docs/ai-bidder/doubling-calibration.md](docs/ai-bidder/doubling-calibration.md) |
+| Porting a book section to rows | [docs/declarative-rows.md](docs/declarative-rows.md); grammar in `rows.rs`'s module doc |
+| Kickback / Redwood | [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7 |
+| The decision cache, the compiled rule path, or `Context` beyond the mechanical facts | [docs/bidding-performance-handoff.md](docs/bidding-performance-handoff.md) — the only design record of those commits |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
-| Training any net, or drawing a corpus | [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) — **corpus from `/nfs2/jdh8/pons/`, test on fresh deals**; slice ledger + remaining-rows warning |
-| Hand valuation, point counts, or "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) — additive (μ, σ²) per holding; the gauge statement, and why an additive table sees only ~24% of the pair-level spread |
-| Exact probabilities over a hidden hand — the web Odds/Partner counter, a mass oracle, belief features, an evidence gate on a reading, a reply lookahead — or how other engines (GIB, BEN, poker, Hanabi, Skat) infer hands | [docs/exact-posterior.md](docs/exact-posterior.md) — what is **closed** (exact distributions as net inputs: MARG, MASS, v4), the literature survey with per-claim verification marks, and the phased plan with a kill gate before each build |
-| A **game gate** — how many points (support, HCP or Fifths) for 4M, 5m or 3NT, what a trump beyond eight or a long suit is worth, 5m vs 3NT | [docs/major-game-threshold.md](docs/major-game-threshold.md), [docs/minor-game-threshold.md](docs/minor-game-threshold.md), [docs/notrump-game-threshold.md](docs/notrump-game-threshold.md) — double-dummy censuses over ~102M deals, break-even on three point scales; a major needs ~25 support points with eight trumps (1 less per extra trump, floor 23), a minor ~3 more; 3NT 24 HCP, a five-card suit worth only ~0.4 HCP |
-| **NLTC** or any losing-trick count — as a gate, against a point count, adjusted for the trump suit, or as losers against cover cards | [docs/nltc.md](docs/nltc.md) — double-dummy census over ~102M deals: with a fit NLTC beats raw HCP but not support points or Zar, is worst with a void or a 7+ card suit and at slam; the trump suit owes it three terms (count trumps as if three long, ½ loser for the 9th trump only, ⅓ for the trump jack), and even adjusted it trails support points + trumps; counting losers in the long-trump hand and cover cards in the other fixes the double-counted shortness (blind: still behind the gate; with both hands matched: ahead of every blind scale, most at slam) |
-| **Zar points** — against a point count, as an opening rule, its honour scale or controls on another count, or **wasted values** (a short honour, an honour facing partner's shortness) | [docs/zar.md](docs/zar.md) — double-dummy census over ~102M deals: with a fit Zar ties support points and trails the gate, wins with no singleton and at slam, loses at notrump and with a void; its 6-4-2-1 honours are right in a suit contract and its distribution count is not; an honour facing partner's shortness is the waste it misses (suit contracts only); "support points + controls + trumps" beats both (slam-gate candidate, A/B owed) |
-| A **slam gate** — how many points for 6M, 6m, 6NT or a grand slam, which count to gauge it on, what a keycard check is worth, a void or an honour facing shortness at slam level | [docs/suit-slam.md](docs/suit-slam.md), [docs/notrump-slam.md](docs/notrump-slam.md) — double-dummy census over ~102M deals: in a suit each honour is worth half the one above it (4-2-1-½ beats the gate and Zar), the 9th/10th/11th trump is worth 1, ½, ¼, a keycard check is worth more than any count and makes the blind counts equal, an honour facing a void is nearly wasted and a shown void works as a keycard; at notrump 6NT pays from 31 HCP on actual holdings, Fifths + length is the count, and no waste adjustment is needed |
-| **System variants** — a `basic` (beginner card, natural) and `advanced` (champion) profile of `american()`, IntoBridge's split | [docs/system-variants.md](docs/system-variants.md) — a variant is an `Agreements` value, not a factory; `advanced` ≡ `default()`; the knob partition, the folded-slot floor caveat, the three A/Bs and the decisions owed |
+| Training any net, or drawing a corpus | [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) — corpus from `/nfs2/jdh8/pons/`, test on fresh deals |
+| Hand valuation, point counts, "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) |
+| Exact probabilities over a hidden hand; how other engines infer hands | [docs/exact-posterior.md](docs/exact-posterior.md) — what is closed, the survey, the phased plan |
+| A game gate (points for 4M, 5m, 3NT; a 9th trump; 5m vs 3NT) | [docs/major-game-threshold.md](docs/major-game-threshold.md), [docs/minor-game-threshold.md](docs/minor-game-threshold.md), [docs/notrump-game-threshold.md](docs/notrump-game-threshold.md) |
+| NLTC or any losing-trick count | [docs/nltc.md](docs/nltc.md) |
+| Zar points, or wasted values | [docs/zar.md](docs/zar.md) |
+| A slam gate (6M, 6m, 6NT, a grand; a keycard check's worth) | [docs/suit-slam.md](docs/suit-slam.md), [docs/notrump-slam.md](docs/notrump-slam.md) |
+| System variants (`basic` / `advanced` profiles of `american()`) | [docs/system-variants.md](docs/system-variants.md) — a variant is an `Agreements` value, not a factory |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |
 
-Repo skills: `author-convention` (end-to-end checklist for a new convention or
-treatment) and `measure-ab` (running and interpreting an A/B). Use them.
+The point-count and slam docs are double-dummy censuses over ~102M deals; take
+the numbers from them, not from memory.
+
+Repo skills: `author-convention` (a new convention or treatment, end to end)
+and `measure-ab` (running and interpreting an A/B). Use them.
 
 ## Workflow (non-negotiable)
 
-- Develop and commit **directly on `main`** — every win, however small,
-  lands on `main`, and a shipped win **stands** even if later parts of its
-  plan fail. A feature branch has exactly one use: to **park a whole idea**
-  that starts as a non-win (measured loss or wash) when a credible follow-up
-  plan (a retrain, unauthored siblings, a redesign) could flip it to a win.
-  Name it `park/<slug>`, push it, put the numbers and the flip plan in its
-  last commit plus one row in the owning campaign doc; `git branch --list
-  'park/*'` is the whole index. Rebase onto `main` before re-measuring
-  (control = `main` HEAD, same `SEED_BASE`); it merges when the A/B reads a
-  win.
+- Develop and commit **directly on `main`**; a shipped win stands even if later
+  parts of its plan fail. A feature branch has one use: **parking a whole
+  idea** that measured a non-win when a credible follow-up (a retrain,
+  unauthored siblings, a redesign) could flip it. Name it `park/<slug>`, push
+  it, put the numbers and the flip plan in its last commit plus one row in the
+  owning campaign doc; `git branch --list 'park/*'` is the index. Rebase onto
+  `main` before re-measuring (control = `main` HEAD, same `SEED_BASE`).
 - Only commit or push when asked.
 - After updating the codebase:
   1. `cargo fmt`
   2. `cargo test --all-features`
-  3. Reproduce the CI gates locally — CI runs **floating latest stable** under
-     `-D warnings`, often newer than the local toolchain, so use the strictest
-     available: `cargo +nightly clippy --all-targets --all-features -- -D warnings`
-     and `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`.
-  4. **If the change touches the public API, `cd web && cargo test`.**  `web/` is
-     its own workspace, so *nothing* above compiles it — not `--all-targets`, not
-     `--all-features` — and it links pons with `default-features = false`.  CI's
-     `web` job catches a break; no local command will unless you run this one.
-     It consumes each reading knob as a **setter/getter pair**, so narrowing a
-     `pub` getter that `src/` never reads still breaks the build.
+  3. Reproduce the CI gates with the strictest local toolchain (CI runs
+     floating stable under `-D warnings`):
+     `cargo +nightly clippy --all-targets --all-features -- -D warnings` and
+     `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`.
+  4. **If the change touches the public API, `cd web && cargo test`.** `web/`
+     is its own workspace with `default-features = false`; nothing above
+     compiles it. It consumes each reading knob as a setter/getter pair, so
+     narrowing a `pub` getter that `src/` never reads still breaks it.
   5. Update [CHANGELOG.md](CHANGELOG.md) with the change and its user impact
      (measured IMPs where applicable).
-  6. Propose a commit message: a **one-sentence subject line** (≤ 72
-     characters, `area: what changed`), blank line, then the body carries the
-     auction, the knob, the numbers and the verdict. Never pack those into
-     the subject.
+  6. Propose a commit message: a one-sentence subject (≤ 72 characters,
+     `area: what changed`), blank line, then a body with the auction, the
+     knob, the numbers and the verdict.
 
 ## Iron rules
 
-Each of these was paid for with a real regression or a wrong conclusion. The
-two docs above hold the full story; the rules survive summarizing:
+Each was paid for with a real regression or a wrong conclusion.
 
-### Measurement (details: [docs/measurement.md](docs/measurement.md))
+### Measurement ([docs/measurement.md](docs/measurement.md))
 
-- Never ship a bidding change on analysis alone — run the A/B, score with
-  **both** plain DD and perfect-defense, and read the verdict from the decision
-  table. A PD-only win is a doubling artifact; a plain-DD **non-inferior**
-  (lower bound above −δ) + PD win is shippable default-on. A wash whose lower
-  bound reaches −δ is *inconclusive* — insufficient data, never "no loss"; a
-  default kept on one is a recorded trade-off with its basis in the ledger.
-- DD is blind to obstruction and concealment. Preemptive ideas measuring
-  negative is the harness, not the idea. **Right-siding is half-visible**: DD
-  prices the lead direction (a different declarer puts a different defender on
-  lead), not the concealment, so it sees a right-siding idea iff declarer
-  actually moves — if it doesn't, measuring zero is real.
-- Before declaring a measured loss dead, trace the worst divergent boards —
-  the usual culprits are an unauthored continuation or an over-broad trigger.
-- Measure against the **real routing** (the contract those hands actually
-  reach), and complete the convention first — both sides' continuations
-  **and the interfered tails** (they double it, they overcall it): an
-  artificial call with only constructive responses authored is not complete.
+- Never ship a bidding change on analysis alone. Run the A/B, score with
+  **both** plain DD and perfect-defense, read the verdict from the decision
+  table. A PD-only win is a doubling artifact; plain-DD non-inferior + PD win
+  ships default-on. A wash whose lower bound reaches −δ is *inconclusive*,
+  never "no loss"; a default kept on one is a recorded trade-off.
+- DD is blind to obstruction and concealment: a preemptive idea measuring
+  negative is the harness. Right-siding is half-visible: DD prices the lead
+  direction, not the concealment, so it sees a right-siding idea only when
+  declarer actually moves.
+- Before declaring a measured loss dead, trace the worst divergent boards; the
+  usual culprits are an unauthored continuation or an over-broad trigger.
+- Measure against the real routing, and complete the convention first — both
+  sides' continuations **and the interfered tails** (they double it, they
+  overcall it).
 
-### Architecture (details: [docs/bidding-architecture.md](docs/bidding-architecture.md))
+### Architecture ([docs/bidding-architecture.md](docs/bidding-architecture.md))
 
 - Every artificial call carries an `.alert(...)` and an `Inferences` reading;
-  the invariant test `artificial_calls_are_alerted` enforces the alert half.
-  An unread artificial call becomes a phantom-suit disaster in competition.
-- Learned floors wrap **contested/defensive books only**; the constructive
-  book is floored by deterministic `instinct()`. Keep the partition.
-- A book node with finite mass **shadows** the floor. To give the floor a
-  position, delete the node; to smarten deep continuations, improve the floor
-  rather than authoring a node per bid.
-- Every rule table needs a finite catch-all; a table that rejects a hand
-  (all-−∞) falls through to the floor.
+  `artificial_calls_are_alerted` enforces the alert half. An unread
+  artificial call is a phantom-suit disaster in competition.
+- Learned floors wrap contested/defensive books only; the constructive book is
+  floored by deterministic `instinct()`.
+- A book node with finite mass shadows the floor. To give the floor a
+  position, delete the node; to smarten deep continuations, improve the floor.
+- Every rule table needs a finite catch-all; an all-−∞ table falls through to
+  the floor.
 
 ### Operations
 
-- Heavy runs: `scripts/idle-run.sh`, arms **sequential** (one run saturates
-  the box), fresh `SEED_BASE=$(date +%s)` per experiment shared across its
-  arms, and **never rebuild binaries while an A/B is in flight**.
+- Heavy runs: `scripts/idle-run.sh`, arms **sequential**, one fresh
+  `SEED_BASE=$(date +%s)` per experiment shared across its arms, and never
+  rebuild binaries while an A/B is in flight.
 - The ddss `Solver` runs on the main thread only; parallelize bidding with
   rayon, never the solver.
 
 ### Conventions of the house
 
-- Human-authored auctions are space-delimited: `1NT - 2♣ (X) XX -`.  Write
-  every pass as `-`, parenthesize only opponents' non-pass calls, and expand
-  implied passes (`1NT - 2♦ - 2♥`).  `P*` remains the row grammar's
-  leading-pass fan; use `P`/`(P)` only when discussing legacy input or quoting
-  an external format.  Probe/render binaries ignore parentheses in auction
-  input; only the row grammar (`rows.rs`) seat-checks them.
-- A **shape** is suit-fixed (♠♥♦♣), a **pattern** suit-interchangeable.  WBF
+- Auctions are space-delimited: `1NT - 2♣ (X) XX -`. Every pass is `-`,
+  only opponents' non-pass calls are parenthesized, implied passes are
+  expanded (`1NT - 2♦ - 2♥`). `P*` is the row grammar's leading-pass fan;
+  `P`/`(P)` only when quoting legacy or external input. Probe/render binaries
+  ignore parentheses; only the row grammar (`rows.rs`) seat-checks them.
+- A **shape** is suit-fixed (♠♥♦♣), a **pattern** suit-interchangeable. WBF
   form: shape `5431`, pattern `(5431)`, partial permutation `(54)(31)`.
-  Informal form, the only one that carries a 10+ card suit: shape `5=4=3=1`,
-  pattern `5-4-3-1` — never mix `-` and `=`, and no partial permutations.
-  In either form `x` is any number of cards (`54xx`, `5-5-x-x`).
+  Informal form, the only one for a 10+ card suit: shape `5=4=3=1`, pattern
+  `5-4-3-1`; never mix `-` and `=`. In either form `x` is any count.
 - Never alias `ddss_sys` (`use ddss_sys as dds;` collides with `dds-bridge`).
-- The distributed data-gen fleet is called the **fleet** (`scripts/fleet/` on
-  its machines), never a "botnet".
+- The distributed data-gen fleet is the **fleet** (`scripts/fleet/`).
 - Rejected-but-interesting treatments stay as opt-in `set_*` knobs with the
-  default system byte-identical — many are single-dummy re-measure candidates.
-  The split with a `park/` branch: **finished code, owed measurement → knob**;
-  **unfinished idea, owed work → branch**. A knob that exists only to
-  neutralise another knob is scaffolding — the smell that says "branch".
+  default byte-identical. **Finished code, owed measurement → knob; unfinished
+  idea, owed work → `park/` branch.** A knob that exists only to neutralise
+  another knob is scaffolding: branch it.
 - Visibility: plain `pub` by default; `pub(crate)`/`pub(super)` only for a
-  genuine implementation detail that must cross a module boundary (widening
-  to `pub` so `web/` can reach an item is the expected move, not a concession).
-- Tests live in their own file (`foo/tests.rs` beside `foo.rs`, declared
-  `mod tests;`) — never a new inline `mod tests { … }`; move one out when met.
-- In a `//!` module doc whose `pub mod` line the parent also documents, the two
+  genuine implementation detail. Widening so `web/` can reach an item is the
+  expected move.
+- Tests live in their own file (`foo/tests.rs` beside `foo.rs`, `mod tests;`),
+  never an inline `mod tests { … }`; move one out when met.
+- In a `//!` module doc whose `pub mod` line the parent also documents, the
   blocks merge and resolve in the **parent** scope: fully qualify intra-doc
-  links (`` [`x`][crate::bidding::neural::x] ``) or the rustdoc gate fails
-  without a file:line (grep the quoted text). Links on private items are
-  unchecked. The CI `test` matrix pins stable + 1.93 on ubuntu/macos/windows;
-  a proptest can fail on one cell by RNG luck.
+  links or the rustdoc gate fails without a file:line (grep the quoted text).
+  The CI `test` matrix pins stable + 1.93 on ubuntu/macos/windows; a proptest
+  can fail on one cell by RNG luck.
 
 ## Working with me
 
 I am expert in bridge, math, and low-level programming, and I am **learning
-ML** — teach ML concepts grounded in those (inference = matmuls in Rust;
-softmax/logits already live in `src/bidding/array.rs`). Divide big tasks into
-small well-specified chunks for cheaper subagents; keep design and integration
-in the main loop. Repetitive, well-specified edits (the same change across N
-files, bulk ledger rows) go to `codex exec` (my Codex subscription), one
-invocation per file, every diff reviewed — Claude subagents are for reasoning,
-not transcription.
+ML**: teach ML concepts grounded in those (inference = matmuls in Rust;
+softmax/logits live in `src/bidding/array.rs`). Divide big tasks into small
+well-specified chunks for cheaper subagents; keep design and integration in
+the main loop. Repetitive, well-specified edits (the same change across N
+files, bulk ledger rows) go to `codex exec`, one invocation per file, every
+diff reviewed; Claude subagents are for reasoning, not transcription.
 
-Flag dead/unreachable code and doc/spec/code discrepancies explicitly, with a
-proposed reversible default — never silently resolve or ship them. I may need
-time, or a discussion with other players, to decide; keep authoring the rest.
+Flag dead code and doc/spec/code discrepancies explicitly, with a proposed
+reversible default; never silently resolve or ship them. I may need time to
+decide; keep authoring the rest.
 
-Memory discipline: durable facts (verdicts, numbers, mechanisms, reference
-distillations, rules) belong in these checked-in docs; Claude's memory holds
-only transient state (in flight, owed) plus pointers into the docs.
+Memory discipline: durable facts (verdicts, numbers, mechanisms, rules) belong
+in the checked-in docs; Claude's memory holds only transient state (in flight,
+owed) plus pointers into the docs.
