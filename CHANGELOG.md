@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: the neighbour-facing cost of each DD layout, measured
+  (2026-10-31, [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md)
+  § "Measured: the neighbour-facing cost of each layout").** `dd-bench`
+  under `idle-run.sh` against a one-thread probe of the neighbours' clock,
+  with the same-box sibling solver running at 8 × 32 or frozen. 128 threads
+  (4 × 32) are invisible to the neighbours at 616 tables/s; 256 (4 × 64 or
+  8 × 32) in place of the solver reproduce its footprint at ≈ 950; stacking
+  on the running solver drops every neighbour to base clock for 183–362.
+  Rule: a pons run replaces the solver at 4 × 64 (the host's
+  `idle-run.local.sh` hook freezes and thaws it); 4 × 32 is the lighter
+  option and the 10 × 64 "free box" rule is retired. No code changed.
+
 - **docs: `SCHED_IDLE` is not isolation, measured (2026-10-31,
   [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) § "What
   this does NOT cover").** A sibling project's 8 × 64-thread idle-class run

@@ -588,7 +588,7 @@ Quiet box (poker solver frozen with `SIGSTOP`), 32,000 tables per row:
 | 20 × 32 | 640 | 612–870 | 2,499 |
 | 64 × 10 | 640 | 822 | 4,639 |
 
-**Rule, free box: 10 processes × `DDSS_THREADS=64`, ≈ 1,150 tables/s** —
+**Throughput ceiling, empty box: 10 processes × `DDSS_THREADS=64`, ≈ 1,150 tables/s** (retired as a rule 2026-10-31, see [the neighbour-facing table](#measured-the-neighbour-facing-cost-of-each-layout-2026-10-31): it costs every neighbour its turbo) —
 about 7× dl02's 137 (7.29 ms/layout at 32 cores). The M32 relabel
 (≈ 170M tables, 14.6 dl02 box-days) is **≈ 2 days** here, M64 ≈ 4.
 
@@ -615,20 +615,80 @@ and take their gain from the poker solver; `JOBS=96` was set so the spare
 **Rule, occupied box: 4 processes × `DDSS_THREADS=32`** — 257 tables/s at
 normal priority, 215 under `idle-run.sh`'s `SCHED_IDLE`, 1.7× the single
 96-thread process the cap gives. The M32 relabel at that rate is ≈ 8 days
-(≈ 9 under `SCHED_IDLE`).
+(≈ 9 under `SCHED_IDLE`). Superseded 2026-10-31: stacking on the solver
+costs the neighbours more than freezing it does (table below).
 
 Confirmed over 12 h by the reseed-gap relabel pilot (2026-10-25/26,
 [reseed-gap-handoff.md §5](reseed-gap-handoff.md)): 4 × 32 under `SCHED_IDLE`
 held 254 tables/s. A 5,000-deal chunk of an axis shard prices ≈ 50.6k
 decisions at 64 layouts, 2.69M tables, 11.8 h at that rate; a 20,000-deal
 shard is four such chunks, so it can use only four processes — cut `CHUNK`
-to 2,000 to reach the free box's 10 × 64 rule.
+to 2,000 to reach eight or ten processes.
 
 One live batch of 64 tables (the M8 per-decision size): median **28 ms** at
 200 threads on the quiet box, **74 ms** at 96 threads on the occupied box;
 dl02 recorded 400 ms (64 × 5.9 ms). An A/B is not DD-bound at all: in the
 2026-10-18 `runout-4cell` run each arm's generation (EPBot bidding, 96
 shards, 2.4M boards) took 9 minutes and the DD diff 30 seconds.
+
+### Measured: the neighbour-facing cost of each layout (2026-10-31)
+
+The 2026-10-19 tables rank layouts by our throughput alone. This one adds
+the neighbours' clock as the second axis, with the probe of [§ Measured:
+priority is not isolation](#measured-priority-is-not-isolation-2026-10-31)
+(free-core ALU clock, DRAM latency, and the mean clock of the cores running
+the neighbours' busy normal-class tasks). `examples/dd-bench` under
+`idle-run.sh`, 200 tables per thread per process, two probes per layout
+mid-run; the same-box sibling solver ran at 8 × 32 (256 threads) or was
+`SIGSTOP`ped for the layout; the idle row has nothing of ours running.
+Run-to-run noise is about 10 % on every column.
+
+| ours | threads | tables/s | free-core clock | DRAM latency | neighbour cores, mean clock |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| nothing (idle) | 0 | — | 3.71 GHz | 151 ns | 3.10 GHz |
+| sibling solver 8 × 32 alone | 256 | — | 2.56–2.76 GHz | 227–252 ns | 2.45–2.69 GHz |
+| **pons 4 × 32, solver frozen** | 128 | **616** | 3.23–3.36 GHz | 160–166 ns | 3.23–3.35 GHz |
+| pons 8 × 32, solver frozen | 256 | 980 | 2.51–2.57 GHz | 213–272 ns | 2.67–2.83 GHz |
+| **pons 4 × 64, solver frozen** | 256 | **932** | 2.50–2.78 GHz | 201–247 ns | 2.82–2.92 GHz |
+| pons 10 × 32, solver frozen | 320 | 1,092 | 2.39–2.59 GHz | 212–227 ns | 2.46–2.53 GHz |
+| pons 5 × 64, solver frozen | 320 | 1,025 | 2.38–2.69 GHz | 199–211 ns | 2.49–2.60 GHz |
+| solver 8 × 32 + pons 1 × 64 | 320 | 183 | 2.28–2.40 GHz | 237–256 ns | 2.33–2.51 GHz |
+| solver 8 × 32 + pons 2 × 32 | 320 | 199 | 2.24–2.39 GHz | 242–275 ns | 2.31–2.42 GHz |
+| solver 8 × 32 + pons 2 × 64 | 384 | 312 | 2.29–2.32 GHz | 250–264 ns | 2.32–2.35 GHz |
+| solver 8 × 32 + pons 4 × 32 | 384 | 362 | 2.19–2.30 GHz | 228–259 ns | 2.31–2.32 GHz |
+
+Three readings:
+
+- **128 threads is invisible.** At 4 × 32 the neighbours' cores read at or
+  above the idle sample and the free core keeps 90 % of its turbo. 616
+  tables/s is 2.4× the old occupied-box rule (257) and 54 % of the 640-thread
+  ceiling, at a footprint nobody notices. Per thread it is also the most
+  efficient layout measured (4.8 tables/s per thread against 3.8 at 256 and
+  3.4 at 320): the clock it runs at is the clock it leaves to everyone else.
+- **256 threads reproduces the sibling solver's own footprint.** pons at
+  8 × 32 or 4 × 64 *in place of* the solver puts the probe where the solver
+  alone puts it (2.5–2.8 GHz free core, 200–270 ns). The two shapes are a
+  wash inside the 10 % run-to-run noise; 4 × 64 read a little gentler on the
+  neighbours and needs half the shards. 320 threads (one per core) buys
+  +10 % tables/s for another 0.3 GHz off every neighbour's core: not worth it.
+- **Never stack on the solver.** Every stacked layout pushed the neighbours
+  to base clock (2.3 GHz, 15 % below what they get under the solver alone)
+  and returned 183–362 tables/s, a third of what the same threads do with the
+  solver frozen. Time-share instead: `kill -STOP -- -<pgid>` the solver's
+  process group for the pons run, `kill -CONT` after.
+
+**Rules, superseding the 2026-10-19 ones above wherever neighbours run
+long latency-bound jobs (on this box: always):** a pons run replaces the
+sibling solver, never joins it, and takes the solver's footprint:
+**4 × `DDSS_THREADS=64`** (≈ 950 tables/s, the M32 relabel ≈ 2.1 days;
+jdh8, 2026-10-31). The host's `idle-run.local.sh` hook does the freeze and
+the thaw and exports that budget (`DDSS_THREADS=64`, 256 threads for rayon
+and `JOBS`), so every `idle-run.sh` job inherits it. 4 × 32 (616 tables/s)
+is the lighter option when the neighbours' day matters more than ours;
+never 10 × 64 (640 threads is base clock on every neighbour core; its 1,150
+tables/s is 5 % more than 320 threads for a 3× slower neighbour).
+Bidding-only work (rayon) was not measured; it gets the same 256-thread
+budget, since clock droop is per busy thread, not per kind of work.
 
 ### Re-pricing a chunk, and the drift census (2026-09-16)
 
