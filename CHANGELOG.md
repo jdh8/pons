@@ -29,8 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new's. The candidate outbids BEN into undoubled contracts (≈ 1,000 more
   boards of 102,400 where we take the contract from them: plain +2.3k, PD
   −5.9k IMPs), the competitive temperature of labels priced against an
-  opponent who does not punish it. KR1 needs both scorers, so the shipped
-  K = 8 stays; the flip would be a re-price against BEN or scored PD.
+  opponent who does not punish it. Read under the rule then in force (both
+  scorers), the shipped K = 8 stayed. Under the rule revised the same day
+  (below) the PD loss is the recorded bracket end and only plain against
+  BEN, inconclusive in seven of eight cells, still blocks: the 51,200-board
+  plain extension is owed before the reseed ensemble ships.
 
 - **`ben-gen --our-floor american-file` and `scripts/ab-ben-floor-file.sh`
   (2026-10-31).** `ben-gen` seats the same `PONS_FLOOR_WEIGHTS` file-loaded
@@ -121,6 +124,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   older than EPBot's.
 
 ### Changed
+
+- **Measurement rule: plain DD is the verdict scorer, perfect defence the
+  guard (jdh8, 2026-11-01,
+  [docs/measurement.md](docs/measurement.md) "Which end is the verdict" and
+  the decision table; CLAUDE.md KR1 and the `measure-ab` /
+  `author-convention` skills follow).** PD stays where it is needed
+  internally — the relabel gate moves a label only when both scorers agree,
+  and every A/B still reports both — but it is too pessimistic to judge a
+  system: an omniscient doubler who never pays for a wrong double is nobody's
+  opponent, and the equilibrium bidder gambles on "no double, no trouble". A
+  plain win with a PD loss, previously "suspect, don't ship", is now an
+  NDNT-suspect: from self-play it is confirmed by plain against BBA (the
+  opponent that does double); against BBA or BEN the real doubles are already
+  in plain, so the PD loss is recorded as the bracket's pessimistic end,
+  never a veto. KR1 non-inferiority is plain-DD every cell. The SD pair reads
+  the same way (plain SD verdict, SD-PD guard). No code changed; the
+  `ab-ben-floor-file.sh` header returns to "PD reported, not required".
 
 - **K = 8 retrained on the HEAD relabel: a loss, nothing ships
   (2026-10-29, [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).**

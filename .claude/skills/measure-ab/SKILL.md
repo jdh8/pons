@@ -51,7 +51,10 @@ read it now if this session hasn't. This skill is the run procedure.
    against δ = 0.002 IMPs/board, worst vulnerability cell). A CI straddling 0
    is `non-inferior` only if its lower bound is above −δ; otherwise it is
    insufficient data, never "no loss". On a `--filter-*` dump pass
-   `--density` (accepted ÷ drawn) or the verdict is withheld. Remember the
+   `--density` (accepted ÷ drawn) or the verdict is withheld. **Plain DD is
+   the verdict, PD the guard** (2026-11-01): a plain win with a PD loss is
+   NDNT-suspect — from self-play, confirm plain against BBA (`bba-gen`);
+   against BBA or BEN the PD loss is recorded, not a veto. Remember the
    two big artifacts: PD-only win = doubling artifact; DD loss on an
    obstructive/concealment idea = harness blindness, park it opt-in for a
    single-dummy re-measure (`single_dummy_leads` prices the blind-lead seam).
@@ -60,11 +63,11 @@ read it now if this session hasn't. This skill is the run procedure.
    branch, not as scaffolding on `main` (CLAUDE.md § Workflow).
    **The SD bracket is a pair too** — plain (`ns_score_tricks`) *and* SD-PD
    (`ns_score_pd_tricks`, failures doubled), exactly as DD pairs plain with PD.
-   Quote both, read the verdict from SD-PD: plain SD relaxes the lead *and*
-   drops the doubling, so it flatters aggression and cannot overrule a PD loss
-   on its own (docs/measurement.md §"Plain SD is not an arbiter"). SD-PD is a
-   real arbiter below slam; at slam, and wherever both arms reach the *same*
-   contract, it is only a stress-test.
+   Quote both; plain SD is the SD verdict and SD-PD the guard, as on the DD
+   side. Plain SD relaxes the lead *and* drops the doubling, so a plain-SD win
+   never discharges an NDNT-suspect by itself (docs/measurement.md §"Plain SD
+   is not an arbiter"). SD-PD is a real guard below slam; at slam, and
+   wherever both arms reach the *same* contract, it is only a stress-test.
 7. **Losing? Trace the worst divergent boards before declaring dead.** Look
    for: an unauthored continuation (passed-out cue, unanswered doubled
    transfer), an over-broad trigger (fires outside its hand class — dilution

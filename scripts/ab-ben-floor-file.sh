@@ -22,13 +22,13 @@
 #
 # PRE-REGISTERED 2026-10-31, before any number exists.  NAME − plain per
 # cell, IMPs/board, δ = 0.002, density 1 (docs/measurement.md, decision table):
-#   1. CONFIRMED = plain AND PD non-inferior in every cell (95% lower bound
-#      above −δ); the BBA verdict stands and the candidate may ship.
-#      (Amended 2026-11-01: the 10-31 text read "PD reported, not required",
-#      against CLAUDE.md's KR1; the relabel-bba-ben run lost PD outright.)
+#   1. CONFIRMED = plain non-inferior in every cell (95% lower bound above
+#      −δ); the BBA verdict stands and the candidate may ship.  PD is
+#      reported, not required: plain is the verdict and PD the guard
+#      (measurement.md "Which end is the verdict", 2026-11-01; a 2026-11-01
+#      morning amendment had briefly required PD and is reversed).
 #   2. A plain LOSS in any cell (upper bound below 0) → the BBA win is an
-#      exploit of BBA; trace the worst boards, nothing ships.  A PD loss in
-#      any cell also stops the ship.
+#      exploit of BBA; trace the worst boards, nothing ships.
 #   3. Inconclusive (lower bound at or below −δ, no loss): extend to
 #      BOARDS=51200 with the same SEED_BASE before any verdict, in a fresh
 #      results dir (ab-lib refuses a per-shard change on resume).

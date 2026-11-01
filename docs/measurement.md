@@ -146,7 +146,7 @@ the parts that do not churn: protocol, interpretation, and ship rules.
     cull's `announced()` overlay was inert only because an unrelated global
     split happened to be off ([bba-kickback.md](ai-bidder/bba-kickback.md)
     ledger). The same bar covers a **performance** change: if it moves any
-    call it needs the A/B non-inferior on both scorers (worst cell's lower
+    call it needs the A/B non-inferior on plain DD (worst cell's lower
     bound above −δ, [decision table](#the-decision-table)), not a speed number
     (CLAUDE.md § Objective — KR2/KR3 wins prove KR1 non-inferiority).
 
@@ -310,6 +310,34 @@ ON in 4♥ down one and OFF in 3NT down one, the plain delta and the PD delta ar
 both zero, yet an imperfect doubler who doubles only ON makes the delta −50
 (−2 IMPs), outside both.
 
+**Which end is the verdict** (jdh8, 2026-11-01; the [decision
+table](#the-decision-table) and CLAUDE.md § Objective follow it): **plain DD is
+the verdict scorer, PD is a guard.** PD is needed *internally* — the label gate
+moves a label only when the same call wins on both scorers
+(`examples/dump-teacher/relabel.rs`, `relabel`), and PD is reported beside
+every plain number — because a price that assumes nobody ever doubles teaches
+crazy overbids. It is too pessimistic to *judge a system*: an omniscient doubler
+who never pays for a wrong double is not an opponent anyone faces, and the
+equilibrium bidder does gamble on "no double, no trouble" (NDNT). The guard
+fires in one case, the **NDNT-suspect**: plain `win` or `non-inferior` with a
+resolved PD `loss` — the candidate buys more failing contracts that went
+undoubled. Who left them undoubled decides what it means:
+
+- **Self-play** (`examples/ab-*`): the only doubler at the table is our own
+  system, which may be lax, so the plain verdict is *unconfirmed*. Confirm
+  against BBA (`bba-gen`, an opponent that does double) and read plain there.
+  A plain-SD win does not discharge the suspect; only the BBA plain does.
+- **Against BBA or BEN**: the opponent's real doubles are already in plain.
+  The plain verdict stands; the PD loss is recorded beside it as the
+  pessimistic end of the bracket, never a veto. The guard against learning one
+  engine's non-doubles is the two-opponent anchor (BEN the north star, BBA the
+  exploit guard), not PD.
+
+Before this date the table read a plain win with a PD loss as "suspect, don't
+ship" and KR1 asked for non-inferiority on both scorers; the first case decided
+under the revised rule is the BBA-relabel K = 8
+([reseed-gap-handoff.md](reseed-gap-handoff.md) §5).
+
 **Plain SD is not an arbiter — it is half a bracket** (2026-07-25). The DD
 scorers come in pairs for a reason, and so must the SD ones. Plain SD relaxes
 the defenders' opening lead (which *helps declarer*) **and** keeps every failing
@@ -323,13 +351,14 @@ The fix is the pair **[SD-PD, plain SD]**, exactly mirroring **[PD, plain DD]**:
 `ns_score_pd_tricks` keeps the realistic lead but restores the doubled downside,
 so the two SD numbers bracket each arm the same way the two DD numbers do (and,
 like them, do not bound the paired delta).
-**Quote both or quote neither**, and read the verdict from SD-PD. A plain-SD win
-with an SD-PD loss is the same doubling artifact the decision table already names
-on the DD side — not a rehabilitation.
+**Quote both or quote neither.** The pair reads as the DD pair does (above):
+plain SD is the SD verdict, SD-PD the guard, and a plain-SD win with an SD-PD
+loss is the same NDNT-suspect — discharged by a BBA plain confirmation, never
+by the plain-SD number itself, which is how the old rehabilitations went wrong.
 
 Two caveats on SD-PD. *Level realism*: doubling a failing contract is what a real
 opponent does at partscore and game, and is not what happens at slam — nobody
-doubles a voluntarily bid six — so SD-PD is a genuine arbiter below slam and a
+doubles a voluntarily bid six — so SD-PD is a genuine guard below slam and a
 pessimism stress-test above it. *Identical contracts*: where an A/B's arms reach
 the **same** contract and differ only in the cards played (the sd-declarer
 playouts, and `ab-dnf-sd-lead`, whose arms vary only the leader's sampled model),
@@ -598,17 +627,21 @@ Each `Verdict` line reads its scorer against:
 - **PD's verdict is PD's.** A PD `non-inferior` is no proof for plain DD;
   each column of the table below reads its own scorer.
 
+Plain DD is the verdict column and PD the guard (2026-11-01, ["Which end is
+the verdict"](#scorers-srcscoringrs)); rows marked † changed that day.
+
 | Plain DD | PD | Verdict |
 | --- | --- | --- |
 | win | win | Real. Ship default-on. |
-| non-inferior | win | **Shippable default-on**: plain DD has ruled out a loss beyond δ, and PD gains when opponents punish. |
+| win | non-inferior / inconclusive | † Real: plain DD is the verdict. Ship default-on. |
+| win or non-inferior | **loss** | † **NDNT-suspect** — the candidate buys more failing contracts that went undoubled. *Self-play*: unconfirmed; re-read plain against BBA (`bba-gen`) and read that column's row. *Against BBA or BEN*: the plain verdict stands (read its row below), the PD loss is the recorded bracket end, not a veto. |
+| non-inferior | win | **Shippable default-on**: plain DD has ruled out a loss beyond δ, and the change trims the contracts a punishing opponent doubles. |
 | inconclusive | win | **Insufficient data**: a plain-DD loss beyond δ is still possible. Run the pre-declared extension on fresh deals; shipping without one is a [recorded trade-off](#recorded-trade-offs), not a proof. |
-| win | non-inferior/inconclusive/loss (PD *erases* a plain win) | Doubling artifact — the "win" is reaching contracts a competent doubler would slaughter. Suspect; don't ship on this evidence. |
 | loss | win | Artifact of PD's synthetic X (it credits phantom doubles of contracts we no longer bid). Not a win. |
-| loss | loss | Loss — but trace worst boards before declaring dead (step 9). |
+| loss | anything else | Loss — but trace worst boards before declaring dead (step 9). |
 | non-inferior | non-inferior, treatment is *additive* (repurposes a useless call, sacrifices nothing) | May ship default-on if its value is DD-invisible (obstruction, lead-direction) — precedent: Unusual 2NT over their 1NT. |
 | non-inferior | non-inferior, two methods that *push each other* | Break the tie by **naturalness** (ship rules): a move *toward* established natural theory ships default-on; a *convention* trialled against natural stays opt-in. |
-| inconclusive | anything but loss | **Insufficient data** for every row above that asks for non-inferior. Extend, or record the trade-off. |
+| inconclusive | anything | **Insufficient data** for every row above that asks for non-inferior. Extend, or record the trade-off. |
 
 #### Recorded trade-offs
 
@@ -1000,7 +1033,10 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   additive + DD-invisible value on a plain non-inferior (table above) — every
   vulnerability cell's lower bound above −δ. **Plain-DD loss never ships
   default-on.** A plain `inconclusive` ships only as a
-  [recorded trade-off](#recorded-trade-offs).
+  [recorded trade-off](#recorded-trade-offs). A PD loss is never a veto on
+  its own (2026-11-01): from self-play it sends the plain win to BBA for
+  confirmation; against BBA or BEN it is recorded as the bracket's
+  pessimistic end.
 - **Park branch** (`park/<slug>`, CLAUDE.md § Workflow): a non-win whose flip
   needs more *work* — a retrain, unauthored siblings, a redesign — parks the
   whole idea on a branch instead of shipping scaffolding on `main`. Finished

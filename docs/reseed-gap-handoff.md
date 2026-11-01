@@ -552,7 +552,9 @@ calls diverge on 9.3–11.3% of boards (k8new 5.1–6.1%). Readings:
    the SD-PD column, which wins every cell at +0.018 to +0.044, is
    descriptive there. Resolving PD at the observed means needs ≈ 3× the
    boards (a pre-declared 2× extension on a fresh seed, plain + PD diffs
-   only, ≈ 1.5 h of dl02). Moot: the BEN guard below loses PD outright.
+   only, ≈ 1.5 h of dl02). Moot twice over: the BEN guard below loses PD
+   outright, and under the rule revised 2026-11-01 (below) a plain win reads
+   `Real` whatever the PD column says.
 4. **Which ensemble.** reseed is ahead of new in every cell on every
    scorer (plain by 0.004–0.008, PD by 0.002–0.011) and wins PD in three
    cells to new's two; picking it is a best-of-two with a winner's curse of
@@ -584,7 +586,9 @@ cell a PD `loss`). Single-dummy, plain / PD: reseed +0.009, +0.007, +0.001,
    The extension was not run (jdh8, 2026-11-01): KR1 wants non-inferiority on
    both scorers, and reseed's PD is a resolved loss in all four cells, so no
    plain outcome ships it. The header's "PD reported, not required" was
-   wrong against KR1 and is amended.
+   wrong against KR1 and is amended. *(Reversed the same day: the rule
+   itself was revised — see "Decided" below — and the 10-31 header was
+   right.)*
 2. **The BBA gain does not transfer.** +0.05 plain against BBA is +0.002
    (reseed) / +0.012 (new) against BEN.
 3. **The PD loss is one shift, not a lane: the new floor buys the contract.**
@@ -606,12 +610,18 @@ cell a PD `loss`). Single-dummy, plain / PD: reseed +0.009, +0.007, +0.001,
 
 The nets stay where they are (`dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/
 {nets,nets-folded}`), nothing enters `src/bidding/weights/`, and the shipped
-K = 8 stays. **Open (jdh8, 2026-11-01):** jdh8 leans toward accepting PD
-as the cost. On that view PD is an internal guard against overbids that
-assume nobody doubles, too pessimistic to judge a system, and winning bridge
-gambles on "no double, no trouble". Shipping on that basis is a recorded
-trade-off (measurement.md), and plain DD against BEN is still inconclusive
-in seven of eight cells, so the 51,200-board extension comes first.
+K = 8 stays for now. **Decided (jdh8, 2026-11-01): revise the rule, not the
+one case.** PD is an internal guard against overbids that assume nobody
+doubles (it stays in the label gate) and too pessimistic to judge a system;
+winning bridge gambles on "no double, no trouble". The measurement doc now
+reads plain DD as the verdict and PD as the guard (measurement.md "Which end
+is the verdict"; CLAUDE.md KR1 asks plain only). Under it the BEN PD loss is
+the recorded pessimistic end, not a veto, and `ab-ben-floor-file.sh`'s
+header is back to "PD reported, not required". What still blocks the ship is
+plain itself: against BEN it is inconclusive in seven of eight cells, so the
+pre-declared 51,200-board extension (fresh seed, reseed arm) comes first; a
+plain non-inferior there, with the BBA win as the gain, ships the reseed
+ensemble. Reading 4 above is then the label-side question only.
 
 ## 6. What stays decided
 

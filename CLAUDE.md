@@ -20,9 +20,9 @@ Make `pons` the best open-source bridge engine. Key results, in order:
 
 KR1 outranks the rest: a KR2 or KR3 win ships only with a KR1
 **non-inferiority proof** — a seeded `smoke-default` byte-identity of the
-default system, or an A/B non-inferior on both scorers (every vulnerability
-cell's 95% lower bound above −δ, δ = 0.002 IMPs/board). A CI that merely
-straddles 0 is not a proof.
+default system, or an A/B non-inferior on plain DD (every vulnerability
+cell's 95% lower bound above −δ, δ = 0.002 IMPs/board; PD reported beside it).
+A CI that merely straddles 0 is not a proof.
 
 ## Read before working
 
@@ -114,9 +114,12 @@ Each was paid for with a real regression or a wrong conclusion.
 
 - Never ship a bidding change on analysis alone. Run the A/B, score with
   **both** plain DD and perfect-defense, read the verdict from the decision
-  table. A PD-only win is a doubling artifact; plain-DD non-inferior + PD win
-  ships default-on. A wash whose lower bound reaches −δ is *inconclusive*,
-  never "no loss"; a default kept on one is a recorded trade-off.
+  table: **plain DD is the verdict, PD the guard.** A PD-only win is a
+  doubling artifact. A plain win with a PD loss is NDNT-suspect: from
+  self-play it needs a BBA plain confirmation; against BBA or BEN the real
+  doubles are already in plain, so the PD loss is recorded, never a veto. A
+  wash whose lower bound reaches −δ is *inconclusive*, never "no loss"; a
+  default kept on one is a recorded trade-off.
 - DD is blind to obstruction and concealment: a preemptive idea measuring
   negative is the harness. Right-siding is half-visible: DD prices the lead
   direction, not the concealment, so it sees a right-siding idea only when
