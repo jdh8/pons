@@ -1,6 +1,7 @@
 # Portable judgement — does the chooser survive a change of book?
 
-**Status: planned 2026-11-01, nothing built, nothing launched.** Each phase
+**Status: planned 2026-11-01; Phase 0's build done the same day
+(`dump-teacher --system bba`), its re-walks and probe not run.** Each phase
 below is one piece, with its build, its run, its read and its stop rule;
 later phases wait on the earlier read. Decisions in §7 were taken at their
 defaults to write the plan and are one line to overturn.
@@ -101,7 +102,7 @@ A **domain** is a book that projects readings. Three are cheap:
 | domain | book | teacher | cost to stand up |
 | --- | --- | --- | --- |
 | `american` | authored 2/1 | BBA on its 2/1 defaults (the shipped corpus) | exists |
-| `bba` | BBA's 2/1 compiled from the `--card none` walk | the same BBA; **its book is the bands**, so teacher and reader finally match | the walk exists (`ab-results/bba-book/2026-10-29-8fb078de-none`); the reader needs `dump-teacher --system bba` (Phase 1 build) |
+| `bba` | BBA's 2/1 compiled from the `--card none` walk | the same BBA; **its book is the bands**, so teacher and reader finally match | the walk exists (`ab-results/bba-book/2026-10-29-8fb078de-none`); the reader is `dump-teacher --system bba` (built 2026-11-01) |
 | `bba-pc` | BBA's Polish Club (EPBot system 2) compiled from a second walk | BBA playing system 2 (`dump-teacher --card`, `deviation-panel.md` row 2) | a walk (23 s) and a reach corpus (7 s) under the Polish card, plus the same loader; **no authoring** |
 
 The third domain is the point of the plan: a system no one here authored,
@@ -130,12 +131,28 @@ chooser can hold two books at once and whether that buys anything on a third.
 
 ### Phase 0 — the shift, measured without DD (≈ half a day, no boards)
 
-**Build.** `dump-teacher --system bba`: the reader partnership built from
-`BbaBook::system` (the `serde` seat in `examples/common::seat_floor`) instead
-of `american()`, the card from `bba_book::card()`, the sidecar recording
-`our_system: "bba"`. The teacher, the deal bank, the feature version and
-every other flag stay. The chooser attached to the reader is irrelevant for
-the dump: a floor projects nothing, and the bands do the reading.
+**Build (done 2026-11-01).** `dump-teacher --system bba`: the reader
+partnership is `common::seat_floor("bba")` (`BbaBook::system` over the
+walk `BBA_BOOK` names; build with `--features serde`) instead of
+`american()`, the BBA teacher plays `bba_book::card()` on both sides, and
+the sidecar records `our_system: "bba"` and `bba_book`. The walk was
+`--card none` with no kickback, so `--system bba` takes the one cell
+`a-off/a-off` and refuses a kickback or flipped cell, a bare context and
+the v4 card block. The deal bank, the feature version and every other flag
+stay. The chooser attached to the reader is irrelevant for the dump: a
+floor projects nothing, and the bands do the reading. The `american` side
+of the pair is the same command with `--cell a-off/a-off`, so the two
+corpora share dealer, vulnerability and cell on every board.
+
+    BBA_BOOK=ab-results/bba-book/2026-10-29-8fb078de-none \
+      dump-teacher --deals <bank> --skip S --boards N --teacher bba \
+      --configured --feature-version 6 --seed 7 --system bba --out <stem>
+
+Smoke, 300 deals of bank 22 at skip 0: 2,761 of the `american` reader's
+3,126 rows pair (same hand, auction-context block and DD table), 83% of
+paired rows move at least one inference float, the compact block is
+identical on every pair, and the teacher's argmax agrees on 97.7%. Not a
+Phase 0 read, only the check that the channel moves.
 
 **Run.** One re-walk of the fleet's 188 chunk windows under each reader
 (`feature-retrain.sh`'s stage 1, no DD, ≈ 10 min on 20 cores per domain),
@@ -154,10 +171,13 @@ differently.
    indistinguishable and Phase 1 will read flat; AUROC near 1 says the
    shift is large and the shipped net had every chance to learn a shortcut.
    Report it per phase (constructive, contested, defensive).
-3. **Label drift**: BBA's teacher call is the same on both corpora (same
-   deal, same auction prefix as long as the two books agree); so where the
-   rows pair, p(call) is identical and only x moved. That makes Phase 1 a
-   pure covariate-shift test, which is the cleanest kind.
+3. **Label drift**: the teacher's argmax agreement on paired rows. The
+   plan first assumed 100% (same engine, same deal, same prefix), but the
+   matched teacher plays EPBot's defaults where the `american` corpus's
+   teacher plays `american_card`, so the labels move where the card's
+   rows do (97.7% agreement on the smoke). Phase 1 is therefore a
+   covariate-shift test with a small, measured label shift on top; report
+   the agreement per phase beside the AUROC.
 
 **Stop rule.** None; Phase 0 cannot fail, it sizes Phase 1's expectation.
 If the discriminator's AUROC is under ~0.6 everywhere, pre-register Phase 1
@@ -356,6 +376,22 @@ Taken at their defaults to write the plan.
 
 ## 8. Discrepancies flagged, not resolved
 
+- **Phase 0 promised paired labels it cannot have** (found building it,
+  2026-11-01): see read 3 above. Proposed reversible default: keep the
+  teacher matched to the reader (the bba-system D5 disclosure) and report
+  the label agreement. The other choice, the `bba` corpus's teacher on
+  `american_card`, pairs the labels exactly but trains `bba-d` on a
+  teacher that plays a different card from the book it reads, which is
+  the mismatch §3 exists to remove.
+- **`dump-teacher`'s per-board `config`/`reader` are dead under
+  `--configured`** (found the same day): both are built only when
+  `cells.is_empty()`, but `--configured` with no `--cell` takes
+  `DEFAULT_CELLS`, so `cells` is never empty there, and a bare dump builds
+  neither. The `--their-system` flag's only effect is inside that branch,
+  so it is a no-op too. Proposed reversible default: leave it; a cleanup
+  commit deletes the branch and the flag, with a seeded byte-identity of a
+  `--configured` and a bare dump as its proof.
+
 - **`vendor/bba/WJ.bbsa` does not exist** (checked 2026-11-01: `vendor/bba`
   holds the engine and `cards/` holds `American.bbsa`, `American-Basic.bbsa`),
   while [next-steps.md](next-steps.md) "Add Polish Club", `deviation-panel.md`
@@ -363,10 +399,9 @@ Taken at their defaults to write the plan.
   doc all name it as a machine teacher. Proposed reversible default: D2 walks
   EPBot's built-in system 2 with no card file; if a `.bbsa` is wanted, the
   BBA GUI exports one and it goes under `cards/` like the other two.
-- **`dump-teacher --system` accepts only `american`** (the `value_parser`),
-  and the module doc says the reader is `american()` by design "because a
-  floor projects nothing". Phase 0's build widens it; the doc's invariant
-  holds for `bba` too (the bands read, the chooser does not).
+- ~~**`dump-teacher --system` accepts only `american`**~~ Resolved
+  2026-11-01: it accepts `bba`, and the module doc now says the bands
+  read for `bba` as the authored rules do for `american`.
 - **The collar re-tune has been owed since 2026-09-03** (the v7 finding) and
   is parked with M5.2's flip plan; Phase 4 takes it out of the LSTM's
   shadow because every retrain, not only a sequence floor, moves the

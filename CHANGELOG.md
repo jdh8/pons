@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`dump-teacher --system bba` (2026-11-01, portable-judgement Phase 0
+  build, [docs/portable-judgement.md](docs/portable-judgement.md) §4).**
+  The reader partnership becomes BBA's walked book (`BBA_BOOK=<run>`,
+  `--features serde`) and the BBA teacher plays that book's card,
+  EPBot's 2/1 defaults, so reader and teacher are one system. Pinned to
+  the one cell `a-off/a-off` and a compact feature version (6–9); the
+  sidecar records `bba_book`. `--system american` is unchanged (same
+  reader, same card; the sidecar gains no key). A 300-deal smoke
+  (bank 22, skip 0, seed 7, v6): 2,761 of 3,126 rows pair across the two
+  readers; 83% of paired rows move at least one inference float, the
+  compact block is identical, and the teacher's argmax agrees on 97.7%
+  (the card changed, so the labels are not exactly paired). No bidding
+  change.
+
 - **docs: the portable-judgement plan (2026-11-01,
   [docs/portable-judgement.md](docs/portable-judgement.md)).** Asks
   whether the chooser (the K = 8 net, the accountants, the collar)

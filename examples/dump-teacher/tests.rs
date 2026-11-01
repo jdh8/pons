@@ -377,3 +377,33 @@ fn a_price_rows_probe_reprices_its_rows_and_cannot_be_cut() {
     assert!(err.to_string().contains("--price-rows"), "{err}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// `--system bba` refusals, each raised before a book or an engine loads
+fn bba_system_refuses(extra: &[&str]) -> String {
+    let out = scratch("bba-system").join("dump");
+    let mut argv = vec![
+        "dump-teacher",
+        "--teacher",
+        "american",
+        "--system",
+        "bba",
+        "--boards",
+        "1",
+        "--out",
+        out.to_str().expect("utf-8 path"),
+    ];
+    argv.extend_from_slice(extra);
+    run(Args::parse_from(argv))
+        .expect_err("the dump refuses")
+        .to_string()
+}
+
+#[test]
+fn the_bba_system_needs_the_configured_compact_none_card_cell() {
+    assert!(bba_system_refuses(&[]).contains("--configured"));
+    assert!(bba_system_refuses(&["--configured", "--cell", "a-on/a-on"]).contains("a-off/a-off"));
+    assert!(
+        bba_system_refuses(&["--configured", "--cell", "a-off+0001/a-off"]).contains("a-off/a-off")
+    );
+    assert!(bba_system_refuses(&["--configured"]).contains("compact feature version"));
+}

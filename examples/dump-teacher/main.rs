@@ -10,7 +10,9 @@
 //! output. `american()` does appear here, as the *reader* partnership that builds the
 //! prefixed context, but a floor projects nothing (`Classifier::as_rules` is
 //! `None`), so which floor is attached cannot reach the features.  Note that
-//! stops being true the day the floor gains a reading.
+//! stops being true the day the floor gains a reading.  `--system bba` swaps
+//! the reader for BBA's walked book, whose bands read the calls the same way
+//! (the net only chooses among them).
 //!
 //! - **features** — the restrictive *disclosable-only* v3 vector for the hand
 //!   to act ([`features_v3`][pons::bidding::features::features_v3]): 88 floats
@@ -258,7 +260,15 @@ struct Args {
     #[arg(long, requires = "configured")]
     vs_bba: bool,
     /// `--configured` only: which system *we* are declared to play
-    #[arg(long, default_value = "american", value_parser = ["american"])]
+    ///
+    /// `bba` reads every auction through BBA's walked book (`BBA_BOOK=<run>`,
+    /// `docs/bba-system.md`) instead of `american()`, and the BBA teacher
+    /// plays that book's card, EPBot's 2/1 defaults with no row moved, so
+    /// reader and teacher are one system (`docs/portable-judgement.md`
+    /// Phase 0).  The walk was `--card none` with no kickback, so `bba` takes
+    /// the one cell `a-off/a-off` and a compact feature version.  Needs
+    /// `--features serde`.
+    #[arg(long, default_value = "american", value_parser = ["american", "bba"])]
     system: String,
     /// `--configured` only: extract from a **bare** context, as v3 dumps do
     ///
@@ -816,8 +826,20 @@ fn run(args: Args) -> anyhow::Result<()> {
     // per *ordered* side pair.  Built once here rather than per board: a Partnership
     // bakes in rule presence at construction, so each must be built with its own
     // cell's knobs armed.
+    let bba_system = args.system == "bba";
+    if bba_system && !args.configured {
+        anyhow::bail!("--system bba reads the configured context — pass --configured");
+    }
+    if bba_system && args.cells.iter().any(|&(a, b)| a != A_OFF || b != A_OFF) {
+        anyhow::bail!(
+            "--system bba plays the `--card none` walk, which has no kickback and \
+             no flipped axis: the only cell is a-off/a-off"
+        );
+    }
     let cells: Vec<(SideConfig, SideConfig)> = if !args.cells.is_empty() {
         args.cells.clone()
+    } else if bba_system {
+        vec![(A_OFF, A_OFF)]
     } else if args.configured {
         DEFAULT_CELLS.to_vec()
     } else {
@@ -876,6 +898,11 @@ fn run(args: Args) -> anyhow::Result<()> {
         feature_version,
         FEATURES_VERSION_V6 | FEATURES_VERSION_V8 | FEATURES_VERSION_V9
     );
+    // The v4 card block would publish an empty card for the `bba` side, a
+    // regime input no serving net reads.
+    if bba_system && !compact_features {
+        anyhow::bail!("--system bba needs a compact feature version (6, 7, 8 or 9)");
+    }
     // Per side: its card and the partnership that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
     // v6 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
@@ -889,6 +916,8 @@ fn run(args: Args) -> anyhow::Result<()> {
         // value.
         let mut agreements = feature_agreements(side.flips, args.vs_bba);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
+        // The card feeds `Config`, which only v4 reads; under `--system bba`
+        // the teacher plays the book's own card instead (per pair, below).
         let card = card_for(&agreements)?;
         if compact_features {
             per_side_agreements.insert(
@@ -896,7 +925,8 @@ fn run(args: Args) -> anyhow::Result<()> {
                 pons::bidding::features::ConventionCard::capture(&agreements),
             );
         }
-        let mut partnership = american(&agreements).bind();
+        // `american()` itself for `american`, so its corpora stay byte-identical.
+        let mut partnership = common::seat_floor(&args.system, &agreements)?;
         probe_reader(&mut partnership, &args);
         per_side.insert(side.label(), (card, partnership));
     }
@@ -930,6 +960,14 @@ fn run(args: Args) -> anyhow::Result<()> {
             "american" => Box::new(american_instinct(&agreements).bind()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+                // The teacher plays what the reader reads: under `--system bba`
+                // both sides are the walk's card, EPBot's defaults.
+                let (ours, theirs) = if bba_system {
+                    let card = common::floor_card(&args.system, &agreements)?;
+                    (card.clone(), card)
+                } else {
+                    (ours, theirs)
+                };
                 let ours = to_convention_card(&ours)?;
                 let theirs = to_convention_card(&theirs)?;
                 Box::new(
@@ -1369,7 +1407,7 @@ fn run(args: Args) -> anyhow::Result<()> {
         None => None,
     };
 
-    let metadata = serde_json::json!({
+    let mut metadata = serde_json::json!({
         "feature_version": feature_version,
         // The probed overlay the reader extracted under (null = none): a
         // corpus pins the serving regime its features were read in.
@@ -1446,6 +1484,11 @@ fn run(args: Args) -> anyhow::Result<()> {
         "forced_pass_decisions": forced_pass,
         "relabel": relabel_meta,
     });
+    // The walk a `bba` reader compiled, so the corpus names its book.  Added
+    // only then: an `american` sidecar stays byte-identical.
+    if bba_system {
+        metadata["bba_book"] = std::env::var("BBA_BOOK").ok().into();
+    }
     std::fs::write(tmp(&json_path), format!("{metadata:#}\n"))?;
     for (path, live) in [
         (&f32_path, true),
