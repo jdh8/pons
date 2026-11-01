@@ -245,9 +245,20 @@ flat line in constructive auctions.
 
 ### Phase 1 — the matched retrain (the owed experiment)
 
-**Build.** A `bba-file` chooser: `Chooser::Net` with the blobs from
-`PONS_FLOOR_WEIGHTS`, mirroring `american-file` (`bba-gen`, `bba-decompose`
-and `ben-gen` already take `--our-floor`). One name, one match arm.
+**Build (done 2026-11-01).** `--our-floor bba-file` is `bba` with the
+net a logit mean over `PONS_FLOOR_WEIGHTS`, as `american-file` is to
+`american`: `bba_book::Chooser::File`, on every walked node and on both
+contested roots (`BbaBook::system_with` takes the blobs directly, for
+tests). `bba-gen` takes it as a name; `bba-decompose --our-floor` gained
+`american-file` and `bba-file`, so both file arms replay. `ben-gen` still
+takes only `american` and `american-file`; Phase 1 runs against BBA.
+The runner is `scripts/ab-portable-judgement.sh` (the four arms below,
+the four paired diffs, the four decomposes); it pins each file arm's
+blobs like `ab-floor-file.sh`. Proof: a test that `bba-file` over the
+eight shipped blobs gives `bba`'s logits bit for bit (a single blob fails
+it at `1♠ -`), and a 64-board smoke of the runner with both file arms on
+the shipped blobs: both file-vs-shipped diffs read 0 on every board,
+every arm replays at 100.00%.
 
 **Train.** Two K = 8 ensembles under arm R's recipe and seeds 9–16
 (the reseed row of the 2026-10-31 retrain, [reseed-gap-handoff.md §5](reseed-gap-handoff.md#5-the-parallel-cpu-track-the-relabel-pilot-two-arms)),
@@ -258,6 +269,25 @@ on dl02's GPUs, one trainer at a time:
   the shipped K = 8 carries the M32 relabel and a lucky draw, and neither
   is available to the `bba` arm yet.
 - `bba-d`: the same recipe on the `bba`-read corpus.
+
+**Corpora (built 2026-11-01).** The two Phase 0 re-walks, cut by
+`dump-teacher --cut 0` (the chunks concatenated, teacher labels kept) into
+20 stems each at
+`/data/public/jdh8/pons/target/phase0-{american,bba}-corpus` (4.72M /
+4.70M rows, `SHA256SUMS` beside them; both `a-off/a-off`, §8). They go to
+dl02 once its BEN extension is done. Arm R's recipe is Plan B's flags in the
+shipped stem order with `--row-split`, which `feature-retrain.sh`'s
+`ls` order does not give (reseed-gap-handoff.md §2):
+
+    STEMS=$(for s in uniform-0 uniform-1 uniform-2 uniform-3 uniform-4 \
+        uniform-5 uniform-6 uniform-7 enriched-0 enriched-1 enriched-2 \
+        enriched-3 axis-0004 axis-1000 axis-2000 axis-0002 axis-4000 \
+        axis-0800 axis-8000 axis-0020; do printf -- '--data %s/%s ' "$D" "$s"; done)
+    pons-trainer --arch mlp --cuda --device-index $GPU --hidden 256 \
+        --epochs 300 --lr 0.001 --wd 0 --batch 4096 --val-frac 0.10 \
+        --dd-weight 0 --row-split --init-seed $SEED $STEMS --weights-out $N/seed$SEED
+
+then `scripts/fold-constant-inputs.py` per net against the same stems.
 
 **Run.** `scripts/ab-bba-system.sh` extended with the two file-loaded arms,
 fresh `SEED_BASE`, the two vulnerability cells bba-system.md used (`none`,
@@ -410,7 +440,7 @@ asserted so by construction; no work.
 | Phase 0 build (`--system bba`, sidecar) | half a day | dl02 |
 | Phase 0 re-walks, two domains, no DD | 6 + 2.5 min on 20 workers (measured) | Compute-Node02 |
 | Phase 0 probe (numpy, logistic regressions) | 25 s (measured) | Compute-Node02 |
-| Phase 1 build (`bba-file` chooser, runner arms) | half a day | dl02 |
+| Phase 1 build (`bba-file` chooser, runner arms) | done 2026-11-01 | Compute-Node02 |
 | Phase 1 training, two K = 8, one trainer at a time | 2 × 8 × ≈ 10 min | dl02 GPUs |
 | Phase 1 A/B, four arms × two cells, both scorers, decomposes | ≈ 40 min | dl02, or here with the box |
 | Phase 2 walk + reach corpus (Polish card) | ≈ 1 min | either |
@@ -471,6 +501,19 @@ Taken at their defaults to write the plan.
   "engine defaults", and only `our_system` tells them apart. Proposed
   reversible default: leave it (the key has always meant the flag), and
   read `our_system` as the teacher's card under `--configured`.
+- **D1's premise reads the other way in the relabel hook's count**
+  (found cutting the Phase 0 corpora, 2026-11-01). D1 says that under
+  `bba` "nearly every decision is net-served through `choose_by`". But the
+  `.ret` sidecars of the two `--layouts 0` re-walks count 2,259,559
+  net-served decisions under `american` (48% of rows) and 899,421 under
+  `bba` (19%). So either the hook does not count a `choose_by` delegation
+  as net-served, or the bands leave a single admitted call at most nodes.
+  Either way, the M32 splice key would cover less of `bba` than of
+  `american`, not a different slice of the same size. D1's default
+  (distillation only) does not depend on this. Proposed reversible
+  default: leave D1 as it is, and measure which reading holds (a census
+  of admitted-call counts per walked node) only if D1's transplant row is
+  ever run.
 - **`vendor/bba/WJ.bbsa` does not exist** (checked 2026-11-01: `vendor/bba`
   holds the engine and `cards/` holds `American.bbsa`, `American-Basic.bbsa`),
   while [next-steps.md](next-steps.md) "Add Polish Club", `deviation-panel.md`

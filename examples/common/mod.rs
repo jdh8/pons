@@ -1402,18 +1402,21 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         }
         // BBA's walked book as a mask over our floor (docs/bba-system.md):
         // the dump from `BBA_BOOK`, the net choosing at every walked node
-        // (`bba`) or the floor partition's own owner (`bba-ladder`).
+        // (`bba`), the floor partition's own owner (`bba-ladder`), or the
+        // `PONS_FLOOR_WEIGHTS` logit mean in the net's place (`bba-file`).
         #[cfg(feature = "serde")]
-        "bba" | "bba-ladder" => {
+        "bba" | "bba-ladder" | "bba-file" => {
             let chooser = bba_book::Chooser::parse(name).expect("matched above");
             bba_book::BbaBook::shared()?
-                .system(agreements, chooser, bba_book::Mask::from_env())
+                .system(agreements, chooser, bba_book::Mask::from_env())?
                 .bind()
         }
         #[cfg(not(feature = "serde"))]
-        "bba" | "bba-ladder" => anyhow::bail!("the {name} floor needs --features serde"),
+        "bba" | "bba-ladder" | "bba-file" => {
+            anyhow::bail!("the {name} floor needs --features serde")
+        }
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file|bba|bba-ladder, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file|bba|bba-ladder|bba-file, got {other:?}"
         ),
     })
 }
@@ -1425,7 +1428,7 @@ fn floor_blobs() -> anyhow::Result<std::sync::Arc<[Vec<f32>]>> {
         return Ok(blobs.clone());
     }
     let paths = std::env::var("PONS_FLOOR_WEIGHTS")
-        .map_err(|_| anyhow::anyhow!("american-file needs PONS_FLOOR_WEIGHTS=a.f32,b.f32,..."))?;
+        .map_err(|_| anyhow::anyhow!("a -file floor needs PONS_FLOOR_WEIGHTS=a.f32,b.f32,..."))?;
     let mut blobs = Vec::new();
     for path in paths.split(',') {
         let blob = pons::bidding::neural::decode(&std::fs::read(path)?);

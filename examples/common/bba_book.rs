@@ -393,6 +393,10 @@ pub enum Chooser {
     /// precedence, so it may put no mass on BBA's admitted calls and fall
     /// through; that rate is a number this arm measures
     Partition,
+    /// [`Net`][Self::Net] with the net a logit mean over the v6 blobs in
+    /// `PONS_FLOOR_WEIGHTS` (`bba-file`), as `american-file` is to `american`:
+    /// the matched retrain's arm (docs/portable-judgement.md Phase 1)
+    File,
 }
 
 impl Chooser {
@@ -402,6 +406,7 @@ impl Chooser {
         match self {
             Self::Net => "bba",
             Self::Partition => "bba-ladder",
+            Self::File => "bba-file",
         }
     }
 
@@ -411,6 +416,7 @@ impl Chooser {
         match name {
             "bba" => Some(Self::Net),
             "bba-ladder" => Some(Self::Partition),
+            "bba-file" => Some(Self::File),
             _ => None,
         }
     }
@@ -569,15 +575,54 @@ impl BbaBook {
     /// tables are routed into the three books by [`Phase::of`] exactly as the
     /// authored book's keys are, and the root fallbacks are the ones
     /// `with_floors` attaches (`src/bidding/common.rs`): the v6 shell on both
-    /// contested books, the instinct ladder on the constructive one.
+    /// contested books, the instinct ladder on the constructive one.  Under
+    /// [`Chooser::File`] the net is the logit mean over `PONS_FLOOR_WEIGHTS`,
+    /// on the nodes and on both contested roots.
+    ///
+    /// # Errors
+    ///
+    /// Under [`Chooser::File`], when `PONS_FLOOR_WEIGHTS` is unset or names a
+    /// file that is unreadable or no v6 blob.
+    pub fn system(
+        &self,
+        agreements: &Agreements,
+        chooser: Chooser,
+        mask: Mask,
+    ) -> anyhow::Result<System> {
+        let blobs = match chooser {
+            Chooser::File => Some(super::floor_blobs()?),
+            Chooser::Net | Chooser::Partition => None,
+        };
+        Ok(self.system_with(agreements, chooser, mask, blobs))
+    }
+
+    /// [`system`][Self::system] with the net's blobs passed in: `Some` puts
+    /// their logit mean where the embedded v6 net would choose, `None` keeps
+    /// the embedded net.  [`Chooser::File`] is [`Chooser::Net`] here; the
+    /// blobs are what make it a file arm.
+    ///
+    /// # Panics
+    ///
+    /// When a blob names no v6 or v9 shape ([`ConfiguredFloorV6::new_mean`]).
     #[must_use]
-    pub fn system(&self, agreements: &Agreements, chooser: Chooser, mask: Mask) -> System {
+    pub fn system_with(
+        &self,
+        agreements: &Agreements,
+        chooser: Chooser,
+        mask: Mask,
+        blobs: Option<Arc<[Vec<f32>]>>,
+    ) -> System {
         let agreements = *agreements;
         let ladder = Arc::new(instinct(&agreements));
-        let net: Arc<dyn Classifier> = Arc::new(ConfiguredFloorV6::new(
-            CompactConfig::symmetric(&ConventionCard::capture(&agreements)),
-            Arc::clone(&ladder),
-        ));
+        let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements));
+        let net: Arc<dyn Classifier> = match blobs {
+            Some(blobs) => Arc::new(ConfiguredFloorV6::new_mean(
+                compact,
+                Arc::clone(&ladder),
+                blobs,
+            )),
+            None => Arc::new(ConfiguredFloorV6::new(compact, Arc::clone(&ladder))),
+        };
         let ladder: Arc<dyn Classifier> = ladder;
 
         let mut constructive = Constructive::new();

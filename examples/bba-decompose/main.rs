@@ -51,6 +51,11 @@ enum OurFloor {
     Bba,
     /// The same book over the floor partition's own owners
     BbaLadder,
+    /// `american` with the net a logit mean over `PONS_FLOOR_WEIGHTS`
+    AmericanFile,
+    /// `bba` with the net a logit mean over `PONS_FLOOR_WEIGHTS`
+    /// (docs/portable-judgement.md Phase 1)
+    BbaFile,
 }
 
 impl OurFloor {
@@ -64,6 +69,8 @@ impl OurFloor {
             Self::AmericanInstinct => american_instinct(agreements).bind(),
             Self::Bba => common::seat_floor("bba", agreements)?,
             Self::BbaLadder => common::seat_floor("bba-ladder", agreements)?,
+            Self::AmericanFile => common::seat_floor("american-file", agreements)?,
+            Self::BbaFile => common::seat_floor("bba-file", agreements)?,
         })
     }
 }

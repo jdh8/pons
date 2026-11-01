@@ -657,7 +657,8 @@ pub fn read_ret(path: &Path) -> anyhow::Result<Vec<Priced>> {
 /// the independent pool `[M, 2M)`.  `None` when it does not fire.
 pub fn relabel(p: &Priced, m: usize, margin: f64) -> Option<u8> {
     let stored = usize::from(p.layouts);
-    if stored < 2 * m {
+    // No pool at `M = 0`: the means below would be 0 / 0.
+    if m == 0 || stored < 2 * m {
         return None;
     }
     let own = p.candidates[0];
@@ -704,8 +705,10 @@ const GLOBAL: [&str; 7] = [
 
 /// The cut: `roots/<shard>/chunk-<c>.{f32,tags,seq,json,ret}` →
 /// `out/<shard>.{f32,tags,seq,json}`, labels overwritten where the gate fires.
+///
+/// `m = 0` keeps every label: the concatenation alone, with the same sidecar
+/// and tiling checks.
 pub fn cut(roots: &[PathBuf], out: &Path, m: usize, margin: f64) -> anyhow::Result<()> {
-    ensure!(m > 0, "--cut M must be positive");
     // shard -> chunk id -> stem
     let mut shards: BTreeMap<String, BTreeMap<u64, PathBuf>> = BTreeMap::new();
     for root in roots {
@@ -906,7 +909,11 @@ pub fn cut(roots: &[PathBuf], out: &Path, m: usize, margin: f64) -> anyhow::Resu
                 "decisions": decisions,
                 "eligible": eligible,
                 "fired": fired,
-                "note": "labels cut by dump-teacher --cut: pools [0,M) select, [M,2M) validate, same winner on both scorers clearing margin held out",
+                "note": if m == 0 {
+                    "labels kept: dump-teacher --cut 0 concatenates the chunks with the teacher's own labels"
+                } else {
+                    "labels cut by dump-teacher --cut: pools [0,M) select, [M,2M) validate, same winner on both scorers clearing margin held out"
+                },
             }),
         );
         std::fs::write(stem.with_extension("json.tmp"), format!("{meta:#}\n"))?;

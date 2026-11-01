@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--our-floor bba-file` and `scripts/ab-portable-judgement.sh`
+  (2026-11-01, portable-judgement Phase 1 build,
+  [docs/portable-judgement.md](docs/portable-judgement.md) §4).** `bba-file`
+  is the `bba` system with the net a logit mean over the
+  `PONS_FLOOR_WEIGHTS` blobs, as `american-file` is to `american`.
+  `bba-decompose --our-floor` now also takes `american-file` and
+  `bba-file`, so file-loaded arms replay. The runner plays the four Phase 1
+  arms (`american`, `american-d`, `bba`, `bba-d`) against BBA on paired
+  deals, with the four paired diffs and decomposes. Proven inert on the
+  shipped blobs: `bba-file` over the eight shipped nets matches `bba`
+  logit for logit, and a 64-board runner smoke reads Δ = 0 on both
+  file-vs-shipped pairs with a 100.00% replay. No bidding change.
+
+- **`dump-teacher --cut 0` (2026-11-01).** Concatenates a re-walk's
+  chunks into per-shard trainer stems with the teacher's own labels, under
+  the same sidecar and tiling checks as a relabel cut. Before this, `M = 0`
+  was refused. Builds the Phase 1 distillation-only corpora (20 stems
+  each, 4.72M rows `american`, 4.70M `bba`). No bidding change.
+
 - **Portable-judgement Phase 0 read, and `scripts/domain-shift-probe.py`
   (2026-11-01, [docs/portable-judgement.md](docs/portable-judgement.md)
   §4).** The fleet's 188 windows were re-walked under the `american`

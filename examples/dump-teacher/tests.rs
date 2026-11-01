@@ -123,6 +123,25 @@ fn split_then_cut_equals_whole_then_cut() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+/// `--cut 0` is the concatenation alone: a `--layouts 0` re-walk cut at
+/// `M = 0` is its chunks' rows and tags back to back, labels untouched.
+#[test]
+fn a_zero_cut_concatenates_the_chunks() {
+    let dir = scratch("zero");
+    dump(&dir.join("walk/s/chunk-0"), 0, 6, 0, 7);
+    dump(&dir.join("walk/s/chunk-1"), 6, 6, 0, 7);
+    cut(&[&dir.join("walk")], &dir.join("cut"), 0).expect("cut at M = 0");
+    let mut rows = bytes(dir.join("walk/s/chunk-0.f32"));
+    rows.extend(bytes(dir.join("walk/s/chunk-1.f32")));
+    assert!(!rows.is_empty(), "twelve boards wrote no rows");
+    assert_eq!(bytes(dir.join("cut/s.f32")), rows);
+    let mut tags = bytes(dir.join("walk/s/chunk-0.tags"));
+    tags.extend(bytes(dir.join("walk/s/chunk-1.tags")));
+    assert_eq!(bytes(dir.join("cut/s.tags")), tags);
+    assert_eq!(fired(dir.join("cut/s.json")), 0);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
 /// A chunk stored at 4 layouts and extended to 8 cuts identically to a native
 /// 8-layout draw at `M = 4`, and identically to its own pre-extension cut at
 /// `M = 2` — no solve is repeated and no label moves.

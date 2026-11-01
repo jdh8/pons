@@ -380,7 +380,9 @@ struct Args {
     /// each `<root>/<shard>/chunk-<c>` set becomes `<out>/<shard>.{f32,tags,seq,json}`.
     /// Sidecars must agree (same commit, walk and geometry), chunks must tile
     /// their shard's window contiguously, and every chunk must store `≥ 2M`
-    /// layouts.
+    /// layouts.  `--cut 0` relabels nothing: the chunks concatenated with the
+    /// teacher's own labels, the distillation-only corpus of a
+    /// `--layouts 0` re-walk (docs/portable-judgement.md Phase 1).
     #[arg(long, value_name = "M", conflicts_with = "relabel")]
     cut: Option<usize>,
     /// `--cut`: roots holding `<shard>/chunk-<c>.*` (repeatable; a shard's

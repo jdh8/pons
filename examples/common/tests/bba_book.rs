@@ -9,6 +9,7 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::{Bidder, Partnership};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 const S1: Call = Call::Bid(Bid::new(1, Strain::Spades));
 const NT1: Call = Call::Bid(Bid::new(1, Strain::Notrump));
@@ -33,6 +34,7 @@ fn fixture() -> BbaBook {
 fn bound(chooser: Chooser) -> Partnership {
     fixture()
         .system(&Agreements::default(), chooser, Mask::default())
+        .unwrap()
         .bind()
 }
 
@@ -182,8 +184,11 @@ fn partner_reads_the_band_and_the_alert() {
 fn the_chooser_names_are_the_floor_names() {
     assert_eq!(Chooser::parse("bba"), Some(Chooser::Net));
     assert_eq!(Chooser::parse("bba-ladder"), Some(Chooser::Partition));
+    assert_eq!(Chooser::parse("bba-file"), Some(Chooser::File));
     assert_eq!(Chooser::parse("american"), None);
-    assert_eq!(Chooser::Net.name(), "bba");
+    for chooser in [Chooser::Net, Chooser::Partition, Chooser::File] {
+        assert_eq!(Chooser::parse(chooser.name()), Some(chooser));
+    }
     // The partition chooser builds too.
     let partnership = bound(Chooser::Partition);
     assert!(
@@ -191,4 +196,39 @@ fn the_chooser_names_are_the_floor_names() {
             .classify(eight_count(), RelativeVulnerability::NONE, &[S1, P])
             .is_some()
     );
+}
+
+/// `bba-file` over the eight shipped blobs is `bba`, logit for logit: the
+/// file arm differs from the shipped arm by its blobs alone, as
+/// `american-file` does from `american`.
+#[test]
+fn the_file_chooser_over_the_shipped_blobs_is_the_net() {
+    let shipped: Arc<[Vec<f32>]> = [
+        &include_bytes!("../../../src/bidding/weights/american_bba_v6.f32")[..],
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed2.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed3.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed4.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed5.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed6.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed7.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed8.f32"),
+    ]
+    .map(pons::bidding::neural::decode)
+    .into();
+    let book = fixture();
+    let agreements = Agreements::default();
+    let net = book
+        .system_with(&agreements, Chooser::Net, Mask::default(), None)
+        .bind();
+    let file = book
+        .system_with(&agreements, Chooser::File, Mask::default(), Some(shipped))
+        .bind();
+    // A walked node, an off-walk contested auction and the constructive root.
+    for auction in [&[S1, P][..], &[S1, S2][..], &[][..]] {
+        let logits = |p: &Partnership| {
+            p.classify(eight_count(), RelativeVulnerability::NONE, auction)
+                .map(|l| l.into_iter().collect::<Vec<_>>())
+        };
+        assert_eq!(logits(&file), logits(&net), "{auction:?}");
+    }
 }
