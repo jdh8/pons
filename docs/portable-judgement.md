@@ -183,6 +183,66 @@ differently.
 If the discriminator's AUROC is under ~0.6 everywhere, pre-register Phase 1
 as "expected flat" and treat a win there as a draw until reseeded.
 
+**Read (2026-11-01, d1323fa3, Compute-Node02).** Both re-walks of the 188
+windows, `--feature-version 6`, every shard pinned to `--cell a-off/a-off`
+(§8: the stock recipe's cells are refused under `bba`), 20 workers: 6 min
+for `american`, 2.5 min for `bba`. Corpora at
+`/data/public/jdh8/pons/target/phase0-{american,bba}-chunks`; probe
+`scripts/domain-shift-probe.py` (numbers below from its seeded run; the
+AUROCs move ±0.01 across samplings), JSON beside the chunks.
+
+| phase | rows `american` / `bba` | paired | paired rows moved | label agreement | AUROC paired / all |
+| --- | --- | --- | --- | --- | --- |
+| constructive | 1.759M / 1.747M | 1.577M (89.7%) | 72.4% | 95.4% | **0.81** / 0.84 |
+| contested | 2.964M / 2.950M | 2.493M (84.1%) | 91.7% | 98.6% | **0.89** / 0.90 |
+
+1. **Column drift.** The columns that move most are the point ceilings,
+   and `bba` always reads them tighter. In constructive auctions RHO's
+   `points.max` drops from 24.2 to 21.1 (mean |Δ| 4.5 HCP per paired row)
+   and LHO's from 29.5 to 27.5. In contested auctions partner's drops from
+   23.4 to 19.1 (|Δ| 5.8) and our own from 25.8 to 23.0. Next come the
+   floors: under `bba` every support-point floor rises to the HCP floor
+   (partner 4.2 → 5.4 constructive). Length ceilings move about 1 card,
+   in the same direction.
+2. **The discriminator is high, and one gauge pair carries it.** The paired
+   AUROC is 0.81 constructive and 0.89 contested, so it is well clear of
+   the 0.6 line. Fitting each column family alone shows where the
+   separation comes from:
+
+   | paired AUROC on | constructive | contested |
+   | --- | --- | --- |
+   | lengths (32) | 0.59 | 0.62 |
+   | points (8) | 0.59 | 0.66 |
+   | support points (32) | 0.59 | 0.63 |
+   | lengths + points (40) | 0.62 | 0.69 |
+   | lengths + support (64) | 0.65 | 0.66 |
+   | **points + support (40)** | **0.82** | **0.88** |
+   | all 72 | 0.81 | 0.89 |
+
+   Points plus support points reproduces the whole block; every other
+   family stays near 0.6. The separating direction is the contrast
+   between the two gauges. The walked bands are HCP-only
+   (`hcp(lo..=hi)` in `examples/common/bba_book.rs`), so under `bba`
+   `Hcp::project` and `canonicalize` floor `points` and all four
+   `support_points` at the same HCP floor. Under `american`, the
+   fit-showing rules give support points a range of their own. On the
+   first 20 `uniform` chunks, 74% of `american` rows have some seat whose
+   support floor differs from its points floor, against 46% of `bba`
+   rows. Without that contrast the shift is modest: 0.62 / 0.69 on
+   lengths plus points.
+3. **Label drift is small.** The teacher's argmax agrees on 95.4% of
+   paired constructive rows and 98.6% of paired contested rows. The card
+   change (EPBot defaults against `american_card`) moves constructive
+   labels more than contested ones.
+
+**What it sizes.** Phase 1 is not pre-registered as flat. The shift is
+large, but most of it sits in one structural feature: support points are
+missing from the `bba` reading. What the shipped net does with a raise
+when no seat shows support points is the first place to look if `bba-d`
+beats the shipped floor on `bba`. A band-content shift on its own (the
+tighter point ceilings) would have read about 0.6 / 0.7, close to the
+flat line in constructive auctions.
+
 ### Phase 1 — the matched retrain (the owed experiment)
 
 **Build.** A `bba-file` chooser: `Chooser::Net` with the blobs from
@@ -348,8 +408,8 @@ asserted so by construction; no work.
 | step | wall | where |
 | --- | --- | --- |
 | Phase 0 build (`--system bba`, sidecar) | half a day | dl02 |
-| Phase 0 re-walks, two domains, no DD | 2 × 10 min on 20 cores | dl02 |
-| Phase 0 probe (pandas + one logistic regression) | minutes | dl02 |
+| Phase 0 re-walks, two domains, no DD | 6 + 2.5 min on 20 workers (measured) | Compute-Node02 |
+| Phase 0 probe (numpy, logistic regressions) | 25 s (measured) | Compute-Node02 |
 | Phase 1 build (`bba-file` chooser, runner arms) | half a day | dl02 |
 | Phase 1 training, two K = 8, one trainer at a time | 2 × 8 × ≈ 10 min | dl02 GPUs |
 | Phase 1 A/B, four arms × two cells, both scorers, decomposes | ≈ 40 min | dl02, or here with the box |
@@ -392,6 +452,25 @@ Taken at their defaults to write the plan.
   commit deletes the branch and the flag, with a seeded byte-identity of a
   `--configured` and a bare dump as its proof.
 
+- **The fleet recipe cannot be walked under `bba` as written** (found
+  running Phase 0, 2026-11-01). `relabel-worker.sh`'s recipe gives some
+  shards their own cells: `enriched-*` runs `--cell a-on/a-on --cell
+  a-off/a-off --replay` and `axis-*` runs `a-off+<bit>/a-off`.
+  `--system bba` refuses both, so Phase 0 walked a `RECIPE_FILE` with the
+  same windows, skips, seeds and `--enrich 28:9`, `--replay` dropped, and
+  every shard pinned to `--cell a-off/a-off`, under both readers so the
+  rows pair. As a result, the `american` corpus here is not the shipped
+  corpus's cell mix (uniform shards take `DEFAULT_CELLS` there). Proposed
+  reversible default: Phase 1's control `american-d` trains on this
+  pinned corpus too, so `american-d` and `bba-d` differ only by reader.
+  The shipped floor's mix stays the reference it is compared to.
+- **The sidecar's `card` key names the flag, not the teacher's card**
+  (found the same day). `dump-teacher` writes `"card": "engine
+  defaults"` whenever `--card` is absent, but under `--system american`
+  the teacher plays `american_card`. Both Phase 0 corpora therefore say
+  "engine defaults", and only `our_system` tells them apart. Proposed
+  reversible default: leave it (the key has always meant the flag), and
+  read `our_system` as the teacher's card under `--configured`.
 - **`vendor/bba/WJ.bbsa` does not exist** (checked 2026-11-01: `vendor/bba`
   holds the engine and `cards/` holds `American.bbsa`, `American-Basic.bbsa`),
   while [next-steps.md](next-steps.md) "Add Polish Club", `deviation-panel.md`

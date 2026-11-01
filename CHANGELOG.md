@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Portable-judgement Phase 0 read, and `scripts/domain-shift-probe.py`
+  (2026-11-01, [docs/portable-judgement.md](docs/portable-judgement.md)
+  §4).** The fleet's 188 windows were re-walked under the `american`
+  reader and the `bba` reader (v6, `a-off/a-off`, no DD), giving 4.72M and
+  4.70M rows. On paired rows, a logistic discriminator on the inference
+  block tells the readers apart with AUROC 0.81 (constructive) and 0.89
+  (contested). Points plus support points reproduce that alone (0.82 /
+  0.88), while every other column family stays near 0.6. The walked BBA
+  bands are HCP-only, so they floor support points at the HCP floor and
+  never show support separately. Under `bba` the point ceilings are
+  tighter (partner's in contested auctions 23.4 → 19.1 HCP). The
+  teacher's argmax agrees on 95.4% / 98.6% of paired rows. Phase 1 is
+  not pre-registered as flat. The new probe computes all three numbers
+  for any two re-walks of the same windows. No bidding change.
+
 - **`dump-teacher --system bba` (2026-11-01, portable-judgement Phase 0
   build, [docs/portable-judgement.md](docs/portable-judgement.md) §4).**
   The reader partnership becomes BBA's walked book (`BBA_BOOK=<run>`,
