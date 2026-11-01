@@ -39,7 +39,7 @@ A CI that merely straddles 0 is not a proof.
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
 | Tuning a convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic |
 | Retraining the floor after a feature bump, or reusing the M32 labels | [docs/ai-bidder/features-v8.md](docs/ai-bidder/features-v8.md), [docs/ai-bidder/features-v9.md](docs/ai-bidder/features-v9.md) — the zero-layout re-walk, the splice key, `scripts/feature-retrain.sh` |
-| Any retrain that must ship — why the shipped K = 8 beats every reseed of its recipe | [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) — the unshuffled stem order, the 2 × 2 over data order and seeds |
+| Any retrain that must ship — why the M32 K = 8 beat every reseed of its recipe, and the BBA-relabel K = 8 that replaced it | [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) — the unshuffled stem order, the 2 × 2 over data order and seeds |
 | Retraining without a dump or relabel — seeds, ensembles, trainer flags | [docs/archive/floor-sweep.md](docs/archive/floor-sweep.md) — **closed 2026-09-30**; its closed axes are not retried. Parked big ideas: [docs/next-steps.md](docs/next-steps.md#parked-big-ideas) |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
 | Reading a rule weight or `Logits` as a probability (softmax on book logits, a temperature, a demotion "in nats") | [docs/ai-bidder/logit-calibration.md](docs/ai-bidder/logit-calibration.md) — a book weight is precedence, not odds |

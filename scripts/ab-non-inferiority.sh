@@ -120,7 +120,7 @@ for vul in $VULS; do
     case $E in
     k8-floor)
         W=src/bidding/weights
-        PONS_FLOOR_WEIGHTS=$W/american_bba_v6.f32,$W/american_bba_v6_seed2.f32,$W/american_bba_v6_seed3.f32,$W/american_bba_v6_seed4.f32
+        PONS_FLOOR_WEIGHTS=$W/american_bba_v6_relabel_seed9.f32,$W/american_bba_v6_relabel_seed10.f32,$W/american_bba_v6_relabel_seed11.f32,$W/american_bba_v6_relabel_seed12.f32
         export PONS_FLOOR_WEIGHTS
         arm k4 "$vul" --our-floor american-file
         diffpair shipped k4 "$vul"

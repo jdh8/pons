@@ -204,14 +204,14 @@ fn the_chooser_names_are_the_floor_names() {
 #[test]
 fn the_file_chooser_over_the_shipped_blobs_is_the_net() {
     let shipped: Arc<[Vec<f32>]> = [
-        &include_bytes!("../../../src/bidding/weights/american_bba_v6.f32")[..],
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed2.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed3.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed4.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed5.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed6.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed7.f32"),
-        include_bytes!("../../../src/bidding/weights/american_bba_v6_seed8.f32"),
+        &include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed9.f32")[..],
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed10.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed11.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed12.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed13.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed14.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed15.f32"),
+        include_bytes!("../../../src/bidding/weights/american_bba_v6_relabel_seed16.f32"),
     ]
     .map(pons::bidding::neural::decode)
     .into();

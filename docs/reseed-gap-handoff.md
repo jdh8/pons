@@ -656,6 +656,27 @@ resolved +0.050 with BEN plain positive but unresolved (mean +0.010, PD
 resolve the ns/ew cells at their means needs ≈ 19× / ≈ 5× the boards
 (≈ 10 / 2.6 days of dl02) and is not proposed.
 
+**Shipped 2026-11-02 (jdh8: "Ship reseed"), a recorded trade-off.** Basis:
+the resolved +0.050 plain win against BBA; against BEN plain is +0.010,
+positive and unresolved in every cell, with PD −0.030 the accepted
+pessimistic end (lower bounds −0.003 / −0.016 / −0.012 / −0.002 none / ns /
+ew / both). The eight folded reseed blobs are embedded as
+`src/bidding/weights/american_bba_v6_relabel_seed{9..16}.{f32,json,fixture.json}`
+in that order (sha256 prefixes `13316914`, `8c894ac2`, `3b4efc14`,
+`37d2d751`, `37270067`, `b440ae3d`, `05428ba7`, `5b6822c2`, the A/B's
+blobs), and the M32 eight are gone from the tree. The embedded default bids
+byte-identically to the `american-file` arm on 4,000 boards. With the M32
+nets, `wide_one_club`'s floor regime (below, §6) goes too: the shipped floor
+folds slot 0, so the knob reads only its book.
+
+**Owed from the ship: the runout of our doubled 1NT overcall.** `1♠ 1NT X`
+has no book node, and the shipped floor bids 3♦ there on heart hands
+(`J.T86432.QJ62.AQ`, `AK72.JT873.A7.T9`, `K43.K6532.AJT4.2`) that the
+natural walk reads as ♦5+, a phantom suit; the M32 floor never chose it on
+`readings_admit_the_bidder`'s 260 hands. The test exempts exactly that call
+at that node. Author the runout (calls and readings), A/B it, and drop the
+exemption.
+
 ## 6. What stays decided
 
 - **The shipped K = 8 is a lucky draw** (jdh8, 2026-10-25, §3 step 2):
@@ -697,6 +718,7 @@ resolve the ns/ew cells at their means needs ≈ 19× / ≈ 5× the boards
 
   Ensemble-level agreement is not recorded; step 2b reads the decisions
   themselves instead.
-- **`wide_one_club`'s floor regime belongs to the shipped K = 8** (jdh8,
-  2026-10-29, §5). Corpora keep slot 0 constant; a `wide_one_club` axis
-  joins `AXES` as bit 16 only if wide 1♣ returns as a candidate.
+- **`wide_one_club`'s floor regime belonged to the M32 K = 8** (jdh8,
+  2026-10-29, §5) and retired with it on 2026-11-02: the shipped floor folds
+  slot 0. Corpora keep slot 0 constant; a `wide_one_club` axis joins `AXES`
+  as bit 16 only if wide 1♣ returns as a candidate.

@@ -148,23 +148,25 @@ pub fn classify_bba_v4(features: &[f32]) -> Logits {
 
 // ── The honest-reading compact floor: v6 features ────────────────────────────
 
-/// Input width of `american_bba_v6`, pinned to the artifact.
+/// Input width of `american_bba_v6_relabel_seed*`, pinned to the artifact.
 const IN_V6: usize = FEATURES_LEN_V6;
 
 /// Compact-config weights retrained on the live authored reading.  Whole-hand
 /// points and the four fit-specific support ranges are separate inputs.
 ///
-/// Eight draws of one recipe (`--init-seed 1..=8`, seed 1 first): the shipped
-/// floor is their logit mean (`docs/archive/floor-sweep.md` Phase 3).
+/// Eight draws of one recipe (`--init-seed 9..=16`, seed 9 first) on the
+/// BBA-opponent relabel of the HEAD corpus: the shipped floor is their logit
+/// mean (`docs/reseed-gap-handoff.md` §5, shipped 2026-11-02; the M32 K = 8
+/// it replaced is in git history).
 static RAW_BBA_V6: [&[u8]; 8] = [
-    include_bytes!("weights/american_bba_v6.f32"),
-    include_bytes!("weights/american_bba_v6_seed2.f32"),
-    include_bytes!("weights/american_bba_v6_seed3.f32"),
-    include_bytes!("weights/american_bba_v6_seed4.f32"),
-    include_bytes!("weights/american_bba_v6_seed5.f32"),
-    include_bytes!("weights/american_bba_v6_seed6.f32"),
-    include_bytes!("weights/american_bba_v6_seed7.f32"),
-    include_bytes!("weights/american_bba_v6_seed8.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed9.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed10.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed11.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed12.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed13.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed14.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed15.f32"),
+    include_bytes!("weights/american_bba_v6_relabel_seed16.f32"),
 ];
 const _: () = {
     let mut i = 0;

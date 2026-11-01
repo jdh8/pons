@@ -194,6 +194,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The default floor is the BBA-relabel K = 8 (reseed, seeds 9–16),
+  replacing the M32 K = 8 (jdh8, 2026-11-02,
+  [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** Every
+  `american()` contested off-book decision now reads the logit mean of
+  `src/bidding/weights/american_bba_v6_relabel_seed{9..16}.f32`; the eight
+  `american_bba_v6{,_seed2..8}` blobs are deleted (git history keeps them).
+  Measured gain: against BBA plain DD **+0.050** IMPs/board, a resolved win in
+  all four cells (PD +0.016); against BEN (51,200 boards a cell) plain
+  +0.010, positive but `inconclusive` in all four cells, PD −0.030 — shipped
+  as a **recorded trade-off** on the BBA win, the BEN PD loss its pessimistic
+  end. The embedded default bids byte-identically to the measured
+  `american-file` arm (4,000 boards, seed 1793459254). Side effects: the
+  floor now folds 32 constant inputs (was 30), so slot 0 of each compact
+  agreements block is inert and the opt-in `wide_one_club` knob no longer
+  moves the floor (its 2026-09-24 win came mostly through that slot; a revival
+  needs a `wide_one_club` axis in the dump first); and
+  `scripts/ab-non-inferiority.sh k8-floor` now takes its K = 4 subset from
+  seeds 9–12.
+
 - **Measurement rule: plain DD is the verdict scorer, perfect defence the
   guard (jdh8, 2026-11-01,
   [docs/measurement.md](docs/measurement.md) "Which end is the verdict" and

@@ -65,14 +65,14 @@ fn matches_candle_fixture_bba_v4() {
 #[test]
 fn matches_candle_fixture_bba_v6() {
     let fixtures = [
-        include_str!("../weights/american_bba_v6.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed2.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed3.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed4.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed5.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed6.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed7.fixture.json"),
-        include_str!("../weights/american_bba_v6_seed8.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed9.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed10.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed11.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed12.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed13.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed14.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed15.fixture.json"),
+        include_str!("../weights/american_bba_v6_relabel_seed16.fixture.json"),
     ];
     for (fixture, blob) in fixtures.into_iter().zip(WEIGHTS_BBA_V6.iter()) {
         check_fixture(fixture, |x| {
@@ -111,7 +111,9 @@ fn folded_v8_columns_are_exactly_zero() {
     );
 }
 
-/// Export gate: the full corpus scan found and folded exactly 30 constants.
+/// Export gate: the full corpus scan found and folded exactly 32 constants
+/// (the M32 corpus's 30 plus slot 0 of each compact-agreements block, constant
+/// since `wide_one_club` replaced `dutch()` there; `docs/reseed-gap-handoff.md` §5).
 #[test]
 fn folded_v6_columns_are_exactly_zero() {
     for blob in WEIGHTS_BBA_V6.iter() {
@@ -119,7 +121,7 @@ fn folded_v6_columns_are_exactly_zero() {
         let zero = (0..IN_V6)
             .filter(|&i| (0..HID).all(|h| w1[h * IN_V6 + i].to_bits() == 0))
             .count();
-        assert_eq!(zero, 30, "v6 artifact was not folded against its corpus");
+        assert_eq!(zero, 32, "v6 artifact was not folded against its corpus");
     }
 }
 
@@ -352,8 +354,10 @@ fn v7_later_calls_change_the_answer() {
 /// sweep's `american-file` arm is inert on a single artifact.
 #[test]
 fn v6_mean_of_copies_is_the_single_net() {
-    let fx: serde_json::Value =
-        serde_json::from_str(include_str!("../weights/american_bba_v6.fixture.json")).unwrap();
+    let fx: serde_json::Value = serde_json::from_str(include_str!(
+        "../weights/american_bba_v6_relabel_seed9.fixture.json"
+    ))
+    .unwrap();
     let seed1 = &WEIGHTS_BBA_V6[0];
     let blobs = [seed1.clone(), seed1.clone()];
     for row in fx["features"].as_array().unwrap() {
