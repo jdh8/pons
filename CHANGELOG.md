@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **docs: the portable-judgement plan (2026-11-01,
+  [docs/portable-judgement.md](docs/portable-judgement.md)).** Asks
+  whether the chooser (the K = 8 net, the accountants, the collar)
+  survives a change of book. A census of the channels the system
+  reaches the chooser through (the inference block in distribution,
+  the compact block by design, the labels, the collar's constants),
+  the already-measured answer to "would arithmetic port better" (the
+  ladder lost 0.32–0.40 under our book and 0.44–0.60 under BBA's, so
+  no), and five phases: a no-DD covariate-shift probe, the matched
+  `bba`-read retrain against a distillation-only `american` control,
+  a union chooser read on a third compiled domain (EPBot's Polish
+  Club, no authoring), representation levers behind that read, and
+  the collar re-tune as a pipeline step. Nothing built or launched.
+  Flags `vendor/bba/WJ.bbsa` as cited in four places but absent.
+
 - **K = 8 retrained on the BBA-opponent relabel: a win against BBA, a
   perfect-defence loss against BEN, not shipped (2026-10-31/11-01,
   [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** The 3.24M
