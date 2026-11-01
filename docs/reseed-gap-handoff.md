@@ -623,6 +623,39 @@ pre-declared 51,200-board extension (fresh seed, reseed arm) comes first; a
 plain non-inferior there, with the BBA win as the gain, ships the reseed
 ensemble. Reading 4 above is then the label-side question only.
 
+**The plain extension, read 2026-11-02: positive in every cell, resolved in
+none.** Run 2026-11-01 17:23 → 11-02 05:55 +08 on dl02
+(`…/pons-relabel-bba/ab-ben-ext.sh`): reseed against shipped, the guard's
+16 Tier-F servers (manifest sha `b2c5d197…`), 51,200 boards per arm per cell
+(16 × 3,200), results `ab-results/relabel-bba-ben-ext`. It ran on the
+guard's `SEED_BASE=1793459254720349418`, as the script header's rule 3
+pre-registered, so each shard's first 1,600 deals are the guard's; the
+"fresh seed" in the paragraph above was a slip against that header. Reseed −
+shipped, IMPs/board:
+
+| scorer | none | ns | ew | both | mean |
+| --- | --- | --- | --- | --- | --- |
+| plain DD | +0.0132 ± 0.0162 | +0.0022 ± 0.0184 | +0.0067 ± 0.0188 | +0.0180 ± 0.0201 | +0.010 |
+| PD | **−0.0290** | **−0.0456** | **−0.0239** | −0.0203 | −0.030 |
+| SD plain | **+0.0199** | **+0.0198** | +0.0118 | **+0.0340** | +0.022 |
+| SD-PD | −0.0130 | −0.0181 | −0.0139 | +0.0010 | −0.011 |
+
+Bold is a resolved verdict (SD plain `win`; PD `loss`); every unbolded cell
+is `inconclusive`. Plain's lower bounds are −0.0030, −0.0162, −0.0121,
+−0.0021: all below −δ, so rule 1 (CONFIRMED) is not met, and no cell is a
+loss, so rule 2 (exploit) does not fire. both and none miss by 0.0001 and
+0.0010. The second 25,600 deals of each shard read more positive than the
+guard's first (implied +0.022, +0.008, +0.015, +0.026 against the guard's
++0.005, −0.004, −0.002, +0.010), so the extension moved toward a win, not
+toward zero. Pooling the four cells as if independent gives +0.010 ± 0.009,
+but the cells deal the same boards and the rule is per cell, so that number
+is a reading, not a verdict. **Decision owed (jdh8):** the header leaves an
+inconclusive extension to a recorded trade-off. Ship reseed on BBA's
+resolved +0.050 with BEN plain positive but unresolved (mean +0.010, PD
+−0.030 the bracket end), or keep the shipped K = 8. A further extension to
+resolve the ns/ew cells at their means needs ≈ 19× / ≈ 5× the boards
+(≈ 10 / 2.6 days of dl02) and is not proposed.
+
 ## 6. What stays decided
 
 - **The shipped K = 8 is a lucky draw** (jdh8, 2026-10-25, §3 step 2):

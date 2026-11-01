@@ -96,7 +96,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scorers), the shipped K = 8 stayed. Under the rule revised the same day
   (below) the PD loss is the recorded bracket end and only plain against
   BEN, inconclusive in seven of eight cells, still blocks: the 51,200-board
-  plain extension is owed before the reseed ensemble ships.
+  plain extension is owed before the reseed ensemble ships. The extension
+  (read 2026-11-02, reseed only, guard's seed) is plain DD **+0.013 /
+  +0.002 / +0.007 / +0.018** (none/ns/ew/both, mean +0.010), positive in
+  every cell and `inconclusive` in all four (lower bounds −0.003 to −0.016),
+  PD −0.030 (loss in three cells), single-dummy plain +0.022 (win in three).
+  Neither the ship rule nor the exploit rule fires; the trade-off is
+  jdh8's.
 
 - **`ben-gen --our-floor american-file` and `scripts/ab-ben-floor-file.sh`
   (2026-10-31).** `ben-gen` seats the same `PONS_FLOOR_WEIGHTS` file-loaded

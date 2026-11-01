@@ -31,7 +31,9 @@
 #      exploit of BBA; trace the worst boards, nothing ships.
 #   3. Inconclusive (lower bound at or below −δ, no loss): extend to
 #      BOARDS=51200 with the same SEED_BASE before any verdict, in a fresh
-#      results dir (ab-lib refuses a per-shard change on resume).
+#      results dir (ab-lib refuses a per-shard change on resume).  seed_for
+#      ignores an exported SEED_BASE: carry the seed by copying
+#      $OLD/ben-floor-file.seed into the new dir before launching.
 #   4. SD (sddiff, 16 worlds) is descriptive.
 #
 # Resumable; SEED_BASE persists in $R/ben-floor-file.seed.  Iron rule: do NOT
