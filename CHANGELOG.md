@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **K = 8 retrained on the BBA-opponent relabel: a win against BBA, a
+  perfect-defence loss against BEN, not shipped (2026-10-31/11-01,
+  [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** The 3.24M
+  HEAD decisions re-priced from their stored `.dd` with BBA as the rollout
+  opponent (29.2 h on dl02, nothing solved; 380,714 labels moved), two K = 8
+  ensembles on the cut under arm R's recipe (new: seeds 1–8, reseed: 9–16),
+  read against the shipped floor at four cells (204,800 boards each, seed
+  1793436510760817347) with k8new as the reference. Mean over the cells,
+  plain DD / PD IMPs/board: new **+0.044 / +0.010**, reseed **+0.050 /
+  +0.016**, k8new −0.017 / −0.005. Every new and reseed cell is a plain-DD
+  win (lower bounds +0.023 to +0.051, 4–5× the ≈ 0.007–0.011 ship bar), and
+  a win on the 16-world single-dummy diff with either defence; PD is positive
+  in every cell but `inconclusive` at none/ns (new) and ns (reseed). The same
+  walk, recipe and seeds lost ≈ 0.03 on self-play labels, so the 4NT exploit
+  was the whole story. The BEN guard (25,600 boards a cell, Tier F) does not
+  hold it: plain DD +0.002 (reseed) / +0.012 (new), no cell a loss, but PD
+  **−0.043 / −0.033**, a resolved loss in all four reseed cells and two of
+  new's. The candidate outbids BEN into undoubled contracts (≈ 1,000 more
+  boards of 102,400 where we take the contract from them: plain +2.3k, PD
+  −5.9k IMPs), the competitive temperature of labels priced against an
+  opponent who does not punish it. KR1 needs both scorers, so the shipped
+  K = 8 stays; the flip would be a re-price against BEN or scored PD.
+
+- **`ben-gen --our-floor american-file` and `scripts/ab-ben-floor-file.sh`
+  (2026-10-31).** `ben-gen` seats the same `PONS_FLOOR_WEIGHTS` file-loaded
+  floor `bba-gen` does, reported by `--provenance`, and the new runner is
+  the Tier-F sibling of `ab-floor-file.sh` (pre-registered verdict in its
+  header). Default `american` is unchanged.
+
 - **docs: the neighbour-facing cost of each DD layout, measured
   (2026-10-31, [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md)
   § "Measured: the neighbour-facing cost of each layout").** `dd-bench`

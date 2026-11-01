@@ -501,6 +501,118 @@ knob stays off, and any future corpus that should see it adds a
 `wide_one_club` axis to `AXES` as bit 16. That is cheap, but it only
 matters if wide 1♣ comes back as a candidate.
 
+**BBA-opponent relabel, retrain and A/B, read 2026-10-31: a win against
+BBA, a PD loss against BEN (below).** jdh8 chose the full re-price. All 3.24M HEAD
+decisions were priced again from the stored `.dd` with BBA as the rollout
+opponent (`dump-teacher --rollout-opponent bba`, 64 layouts, nothing solved:
+every chunk reports `0 layouts solved`), 32 workers under `idle-run.sh` on
+dl02, 01:46 → 07:00 +08 on 2026-10-30/31 (29.2 h wall; the 17 axis chunks of
+≈ 106k rows took 13.0–13.3 h each). Cut: `dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/cut`
+(6,781,198 rows = HEAD's, 20 stems, **380,714** labels moved against HEAD's
+377,516). `--cut` writes the trainer stems directly, so there is no corpus
+step. K = 8 twice on it, 14:39–15:37 +08 (16 nets, 58 min, the 2026-10-24
+trainer, arm R's recipe as above): val top-1 86.3–86.6% overall, 84.4–84.7%
+contested. Seeds 1–8 are arm **new**, 9–16 **reseed**; scan-folded against
+the cut (32 columns, the same set as HEAD, so the `wide_one_club` flag below
+applies unchanged; originals `…/pons-relabel-bba/nets`, folded
+`…/nets-folded`). A/B: `scripts/ab-floor-file.sh ab-results/relabel-bba`
+(`…/pons-relabel-bba/ab.sh`), new, reseed and k8new against the shipped K = 8
+as `plain`, four cells, 204,800 boards per arm per cell,
+`SEED_BASE=1793436510760817347`, at `e92c635b`, dl02 16:48–21:41 +08.
+IMPs/board against shipped, plain DD / perfect defense (95% CI):
+
+| arm | none | ns | ew | both | mean |
+| --- | --- | --- | --- | --- | --- |
+| new | +0.0399 ±0.0085 / +0.0030 ±0.0093 | +0.0326 ±0.0091 / +0.0020 ±0.0102 | +0.0533 ±0.0102 / +0.0145 ±0.0112 | +0.0506 ±0.0102 / +0.0191 ±0.0113 | **+0.044 / +0.010** |
+| reseed | +0.0471 ±0.0086 / +0.0098 ±0.0094 | +0.0364 ±0.0092 / +0.0044 ±0.0103 | +0.0608 ±0.0102 / +0.0250 ±0.0113 | +0.0542 ±0.0103 / +0.0229 ±0.0114 | **+0.050 / +0.016** |
+| k8new | −0.0189 ±0.0063 / −0.0068 ±0.0069 | −0.0155 ±0.0069 / −0.0023 ±0.0076 | −0.0194 ±0.0073 / −0.0055 ±0.0082 | −0.0150 ±0.0076 / −0.0035 ±0.0084 | −0.017 / −0.005 |
+
+Single-dummy (16 worlds), plain / PD: new +0.0477 / +0.0183, +0.0440 /
++0.0212, +0.0502 / +0.0203, +0.0608 / +0.0371; reseed +0.0577 / +0.0280,
++0.0531 / +0.0286, +0.0612 / +0.0332, +0.0673 / +0.0441 (none, ns, ew, both;
+half-widths 0.009–0.012); k8new −0.016 to −0.023 / −0.007 to −0.013. The
+calls diverge on 9.3–11.3% of boards (k8new 5.1–6.1%). Readings:
+
+1. **The harness is sound.** k8new reproduces the reseed gap again (−0.017
+   this seed base, against −0.011 and −0.012 before; the cells' half-widths
+   are 0.006–0.008).
+2. **The labels were the loss, and now they are the gain.** The same walk,
+   the same recipe and the same seeds that lost ≈ 0.03 a board on self-play
+   labels win ≈ 0.04–0.06 on BBA-priced ones: 4–5× the ≈ 0.007–0.011 bar
+   of §3, a win in every cell of both arms on plain DD and on the
+   single-dummy diff with either defence. The §3 step-2 decision rule (the
+   paired plain interval against shipped, read against a reseed of the
+   recipe) is met by both draws; the draw is worth ≈ 0.006 (reseed over
+   new, inside one cell's interval), the recipe ≈ 0.045.
+3. **Perfect defence is positive in every cell but short of resolution in
+   some.** PD's lower bound sits below −δ at none and ns for new (−0.006,
+   −0.008) and at ns for reseed (−0.006), each a `win` or `non-inferior` in
+   the other cells. The measurement table reads a plain win with a PD
+   `inconclusive` as *suspect* (a doubling artifact is not ruled out), and
+   the SD-PD column, which wins every cell at +0.018 to +0.044, is
+   descriptive there. Resolving PD at the observed means needs ≈ 3× the
+   boards (a pre-declared 2× extension on a fresh seed, plain + PD diffs
+   only, ≈ 1.5 h of dl02). Moot: the BEN guard below loses PD outright.
+4. **Which ensemble.** reseed is ahead of new in every cell on every
+   scorer (plain by 0.004–0.008, PD by 0.002–0.011) and wins PD in three
+   cells to new's two; picking it is a best-of-two with a winner's curse of
+   at most the draw's ≈ 0.006. The recommendation is reseed (seeds 9–16).
+
+**The BEN guard, read 2026-11-01: plain flat, perfect defence a loss; nothing
+ships.** Labels priced against BBA tune the floor to the exploit guard, and
+BEN is the north star. `ben-gen` now takes `--our-floor american-file` (the
+same `PONS_FLOOR_WEIGHTS` arm as `bba-gen`, reported by `--provenance`), and
+`scripts/ab-ben-floor-file.sh` is the Tier-F sibling of `ab-floor-file.sh`.
+Run 2026-10-31 23:07 → 11-01 08:55 +08 on dl02 (`…/pons-relabel-bba/ab-ben.sh`):
+reseed and new against shipped, 16 Tier-F servers, 25,600 boards per arm per
+cell, `SEED_BASE=1793459254720349418`, results `ab-results/relabel-bba-ben`.
+IMPs/board against shipped, plain DD / PD (95% half-widths 0.023–0.033):
+
+| arm | none | ns | ew | both | mean |
+| --- | --- | --- | --- | --- | --- |
+| reseed | +0.0048 / **−0.0455** | −0.0040 / **−0.0580** | −0.0017 / **−0.0314** | +0.0098 / **−0.0356** | +0.002 / −0.043 |
+| new | **+0.0234** / −0.0241 | +0.0134 / **−0.0405** | −0.0068 / **−0.0376** | +0.0190 / −0.0306 | +0.012 / −0.033 |
+
+Bold is a resolved verdict (a plain win for new at none; every other bold
+cell a PD `loss`). Single-dummy, plain / PD: reseed +0.009, +0.007, +0.001,
++0.024 / −0.033 (loss), −0.036 (loss), −0.022, −0.013; new +0.025 (win),
++0.009, −0.002, +0.028 (non-inferior) / −0.013, −0.033 (loss), −0.026,
+−0.011. Readings:
+
+1. **No plain loss, so the header's exploit rule (2) did not fire; plain is
+   inconclusive in seven of eight cells, which the header extends to 51,200.**
+   The extension was not run (jdh8, 2026-11-01): KR1 wants non-inferiority on
+   both scorers, and reseed's PD is a resolved loss in all four cells, so no
+   plain outcome ships it. The header's "PD reported, not required" was
+   wrong against KR1 and is amended.
+2. **The BBA gain does not transfer.** +0.05 plain against BBA is +0.002
+   (reseed) / +0.012 (new) against BEN.
+3. **The PD loss is one shift, not a lane: the new floor buys the contract.**
+   Bucketing reseed's 10,920 divergent boards (four cells pooled) by the
+   final contract, shipped → candidate: *they declare → we declare*
+   undoubled, 2,072 boards, plain +2,298 / PD −5,859 IMPs; the reverse,
+   *we declare → they declare*, 1,040 boards, plain −1,223 / PD +3,496; *we
+   declare higher*, 1,959 boards, +306 / −1,504. Net ≈ 1,000 more boards
+   where we outbid BEN, and BEN leaves them undoubled: plain pays, a doubling
+   opponent would not. The first divergent call is diffuse (no prefix
+   carries more than 37 boards), so no rule or rail fixes it; it is the
+   labels' competitive temperature. The `new` arm buckets the same way.
+   Script and per-board records: rerun `ab-dump-diff … --jsonl` on the arm
+   dirs; the bucketing is a 40-line parse of the final contract.
+4. **What would flip it.** A label price that does not pay for bidding over
+   an opponent who never doubles: rollouts against BEN, or BBA rollouts
+   scored PD (the relabel's `.ret` priced with the doubling scorer). Either
+   is a full re-price (≈ 29 h dl02) + retrain + both A/Bs. Not started.
+
+The nets stay where they are (`dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/
+{nets,nets-folded}`), nothing enters `src/bidding/weights/`, and the shipped
+K = 8 stays. **Open (jdh8, 2026-11-01):** jdh8 leans toward accepting PD
+as the cost. On that view PD is an internal guard against overbids that
+assume nobody doubles, too pessimistic to judge a system, and winning bridge
+gambles on "no double, no trouble". Shipping on that basis is a recorded
+trade-off (measurement.md), and plain DD against BEN is still inconclusive
+in seven of eight cells, so the 51,200-board extension comes first.
+
 ## 6. What stays decided
 
 - **The shipped K = 8 is a lucky draw** (jdh8, 2026-10-25, §3 step 2):

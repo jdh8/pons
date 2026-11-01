@@ -110,11 +110,13 @@ struct Args {
     #[arg(short, long, default_value = "f")]
     tier: String,
 
-    /// Our system, using its shipped neural floor
+    /// Our system: `american` serves its shipped neural floor, `american-file`
+    /// the same book with the net a logit mean over the `PONS_FLOOR_WEIGHTS`
+    /// blobs (the BEN guard of `scripts/ab-floor-file.sh`)
     #[arg(
         long,
         default_value = "american",
-        value_parser = ["american"],
+        value_parser = ["american", "american-file"],
         conflicts_with_all = ["calibrate_epbot", "self_play"]
     )]
     our_floor: String,

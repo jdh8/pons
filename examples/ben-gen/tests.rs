@@ -33,6 +33,8 @@ fn floor_selection_defaults_to_american() {
     );
     let args = Args::try_parse_from(["ben-gen", "--our-floor", "american"]).unwrap();
     assert_eq!(args.our_floor, "american");
+    let args = Args::try_parse_from(["ben-gen", "--our-floor", "american-file"]).unwrap();
+    assert_eq!(args.our_floor, "american-file");
     let error = Args::try_parse_from(["ben-gen", "--our-floor", "american-instinct"])
         .err()
         .expect("only the shipped system is supported");
