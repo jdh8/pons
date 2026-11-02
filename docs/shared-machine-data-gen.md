@@ -690,6 +690,39 @@ tables/s is 5 % more than 320 threads for a 3× slower neighbour).
 Bidding-only work (rayon) was not measured; it gets the same 256-thread
 budget, since clock droop is per busy thread, not per kind of work.
 
+### Measured: a relabel's neighbour cost against its load (2026-11-03)
+
+A `dump-teacher --relabel --rollout-opponent bba` chunk is not DD-shaped:
+it walks and draws on one thread, makes one `solve_deals` call over every
+miss, then bids out against EPBot on one thread
+(`examples/dump-teacher/relabel.rs`). So a process holding
+`DDSS_THREADS=d` keeps far fewer than `d` cores busy: the Phase 1 run
+(64 × 1 `american` + 48 × 4 `bba`, 256 threads allotted) kept **≈ 120
+cores busy**, the `bba` processes at 1.4 each. A 40-deal `bba` pilot
+window with seeded tables took 311 s wall, 893 CPU-s and 4,343 tables, so
+a 5,000-deal `uniform` or `axis` chunk is ≈ 31 core-hours, ≈ 11 h of wall
+time at `d = 4`, about 13 % of it serial.
+
+Its footprint per busy core is heavier than `dd-bench`'s. The same probe,
+run with a fraction of the live run's processes `SIGSTOP`ped (nothing
+lost; node 1's latency is quoted, since a neighbour's job held node 0 at
+230–260 ns even with ours frozen):
+
+| ours busy | free-core clock | DRAM latency (node 1) | clock × latency slowdown | per busy core |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 (frozen) | 3.70 GHz | 153 ns | 1.00 | — |
+| 29 | 3.67 GHz | 172 ns | 1.13 | 0.0046 |
+| 61 | 3.53 GHz | 179 ns | 1.23 | 0.0037 |
+| 119 | 3.21 GHz | 210 ns | 1.58 | 0.0049 |
+
+At 119 cores this matches what `dd-bench` costs at 256 threads (latency;
+the clock is gentler). Read per unit of work, the latency term is about
+linear in our load, so its integral over a run is fixed by the work, and
+the clock term is convex (0.3 ‰ per core at 29, 1.3 ‰ at 119). **Running
+a fixed job harder does not shorten the total disturbance; it costs at
+least as much, more above ≈ 120 cores.** What changes who pays is when the
+load runs, not how dense it is.
+
 ### Re-pricing a chunk, and the drift census (2026-09-16)
 
 The fleet-week is the double dummy, and a double-dummy table is a fact about
