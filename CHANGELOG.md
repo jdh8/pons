@@ -324,6 +324,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`dump-teacher --relabel --rollout-opponent bba` tells BBA the card
+  `--system` plays (2026-11-03).** Under `--system bba` the rollout's BBA
+  opponents were told the American card, while `bba-gen` tells them
+  EPBot's defaults (`floor_card`). A `bba` relabel would have priced its
+  labels against an opponent the A/B never seats. The path had never
+  run. `--system american` is unchanged (the same card). Found before the
+  D1 relabel ([docs/portable-judgement.md](docs/portable-judgement.md)
+  §4) launched. No bidding change.
+
 - **`scripts/bba-gen-parallel.sh` takes `PAR`, a cap on concurrent
   workers (2026-11-02).** A `--our-floor bba` worker peaks near 1.6 GB, so
   32 at once OOM-killed 5 workers of the Phase 1 A/B on dl02's 61 GiB.

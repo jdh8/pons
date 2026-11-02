@@ -436,6 +436,25 @@ On G, `american-s` reads −0.403 / −0.470 plain (−0.234 / −0.366 PD).
 D1 is reopened for jdh8 (§7). Two premises of its row have moved, and
 both are flagged in §8.
 
+**D1 decided (jdh8, 2026-11-03): relabel both pinned walks under their
+own reader.** The transplant is skipped. Its coverage hinges on the
+cell-refusal rule, and on the `bba` side its labels would be priced under
+`american`'s continuations. Both Phase 0 walks (the 188 windows,
+`a-off/a-off`, `--replay` dropped) are instead relabelled as the shipped
+relabel-bba was: `--rollout-opponent bba`, M = 32 (64 layouts), with
+`.dd` seeded from the HEAD relabel, and each arm is cut at M = 32. The
+`american` walk mostly reuses those tables, so its cost is BBA's serial
+bid-out. The `bba` walk diverges, so it solves most of its own layouts.
+Before launch, one defect was found and fixed: the rollout told BBA the
+American card under `--system bba` (CHANGELOG, Fixed). Run on
+Compute-Node02 with poker drained, at fe5eae10 plus that fix
+(`/data/public/jdh8/pons/target/phase1-relabel/{driver.sh,recipe,driver.log}`).
+The `american` arm has 64 workers × 1 solver thread and the `bba` arm
+48 × 4, which is the box's 256-thread budget. Next come two K = 8
+(`american-r`, `bba-r`) under arm R's recipe on the two cuts, and Phase
+1's A/B re-read with those two as the arms. Row 3 then asks whether
+`american-r` sits near shipped.
+
 ### Phase 2 — one chooser, two books, a third never seen
 
 **Build.** The `bba-pc` domain: `scripts/bba-book.sh` under the Polish
@@ -580,7 +599,7 @@ Taken at their defaults to write the plan.
 
 | # | decision | default | why |
 | --- | --- | --- | --- |
-| D1 | Phase 1 labels: distillation only, or the M32/BBA-opponent relabel transplanted onto both arms | **distillation only** | the transplant's splice key is the net-served slice under `american`'s book; under `bba` nearly every decision is net-served through `choose_by`, so the key covers a different slice. A relabel *under* `bba` is a 29 h re-price per domain and is Phase 1's third row only if the control falls too far below shipped |
+| D1 | Phase 1 labels: distillation only, or the M32/BBA-opponent relabel transplanted onto both arms | **distillation only** for the first lap; **decided 2026-11-03: a fresh BBA-opponent relabel of both pinned walks** (§4, after the Phase 1 read) | the transplant's splice key is the net-served slice under `american`'s book; under `bba` nearly every decision is net-served through `choose_by`, so the key covers a different slice. A relabel *under* `bba` is a 29 h re-price per domain and is Phase 1's third row only if the control falls too far below shipped |
 | D2 | the third domain's card | **EPBot system 2 (Polish Club) with no `.bbsa`**, walked with the walker's card argument once it accepts a bare system id | `vendor/bba/WJ.bbsa` is cited by `next-steps.md`, `deviation-panel.md` and `dump-teacher`'s help but **is not in the tree** (§8); `cards/American-Basic.bbsa` is the other option and is the weak `basic`-like test |
 | D3 | union corpus stem order | `american` stems first, then `bba`, unshuffled | matches the reseed handoff's recipe; the reverse order is one more ensemble if D4 fires |
 | D4 | if the union net loses on both training domains | widen once (the v6 widths × 1.5), one ensemble | the cheapest capacity test; the LSTM is parked and stays so |

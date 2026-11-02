@@ -1334,8 +1334,15 @@ fn run(args: Args) -> anyhow::Result<()> {
                     per_side
                         .iter()
                         .map(|(label, (card, _))| {
+                            // Told what `bba-gen` discloses: under `--system
+                            // bba` that is EPBot's defaults, not `card`, which
+                            // stays American for `Config`'s schema.
+                            let card = match bba_system {
+                                true => common::floor_card(&args.system, &Agreements::default())?,
+                                false => card.clone(),
+                            };
                             let bot = BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?
-                                .with_opponents(Some(to_convention_card(card)?));
+                                .with_opponents(Some(to_convention_card(&card)?));
                             Ok((label.clone(), Box::new(bot) as Box<dyn Bidder>))
                         })
                         .collect::<anyhow::Result<_>>()?
