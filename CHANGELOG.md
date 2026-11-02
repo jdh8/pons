@@ -294,6 +294,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`scripts/bba-gen-parallel.sh` takes `PAR`, a cap on concurrent
+  workers (2026-11-02).** A `--our-floor bba` worker peaks near 1.6 GB, so
+  32 at once OOM-killed 5 workers of the Phase 1 A/B on dl02's 61 GiB.
+  Workers now run in waves of `PAR` (default: all at once, as before).
+  Shard `i` still seeds `SEED_BASE + i`, so the deal set is unchanged and
+  a failed worker is still reported by pid. No bidding change.
+
 - **The disclosed single-dummy leader reads every call again (2026-10-30).**
   `40847142` flipped `reading.declared_natural_walk` on, and it also reached
   `common::TableReader`, whose disclosed reader works by declaring the other

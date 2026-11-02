@@ -102,20 +102,26 @@ fi
 mkdir -p "$outdir"
 find "$outdir" -maxdepth 1 \( -name 'shard-*.json' -o -name '.shard-*.tmp' \) -exec rm -f {} +
 
+# PAR caps how many workers run at once without touching the shard layout
+# (shard i still seeds SEED_BASE+i).  A `--our-floor bba` worker peaks near
+# 1.6 GB, so 32 at once OOM a 61 GiB box that others share.
+# ponytail: waves of PAR, a slot pool if the stragglers ever matter.
+par=${PAR:-$n}
+# Wait on each worker by pid: a bare `wait` returns 0 even when one died.
+failed=0
 pids=
 for i in $(seq 0 $((n - 1))); do
     "$bin" --count "$count" --seed "$((seed_base + i))" --output "$outdir/shard-$i.json" "$@" &
-    pids="$pids $!"
-done
-# Wait on each worker by pid: a bare `wait` returns 0 even when one died.
-failed=0
-i=0
-for pid in $pids; do
-    if ! wait "$pid"; then
-        echo "bba-gen-parallel: worker $i (seed $((seed_base + i))) failed" >&2
-        failed=$((failed + 1))
+    pids="$pids $!:$i"
+    if [ $(((i + 1) % par)) = 0 ] || [ "$i" = $((n - 1)) ]; then
+        for p in $pids; do
+            if ! wait "${p%:*}"; then
+                echo "bba-gen-parallel: worker ${p#*:} (seed $((seed_base + ${p#*:}))) failed" >&2
+                failed=$((failed + 1))
+            fi
+        done
+        pids=
     fi
-    i=$((i + 1))
 done
 if [ "$failed" != 0 ]; then
     echo "bba-gen-parallel: $failed of $n workers failed; $outdir is incomplete (SEED_BASE=$seed_base)" >&2
