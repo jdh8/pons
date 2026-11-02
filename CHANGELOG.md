@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Portable-judgement Phase 1 attribution arm: the labels are the whole
+  gap (2026-11-02, [docs/portable-judgement.md](docs/portable-judgement.md)
+  §4).** `ab-portable-judgement.sh` takes an optional fifth arm,
+  `AMERICAN_S`. Here it is the shipped K = 8's recipe (same walk, stem
+  order, seeds and fold) with teacher labels instead of the BBA-opponent
+  relabel. On the same deals it loses −0.109 / −0.151 IMPs/board plain to
+  the shipped floor in the paired diff, so that relabel is worth 0.11–0.15
+  against pure distillation. It also loses −0.026 / −0.032 to `american-d`
+  on the pinned `a-off/a-off` corpus. So the corpus is not the control's
+  gap; the pinned corpus is the better one. Why is not isolated: cells,
+  `--replay` rows and row count differ together. The code version is
+  ruled out (the walks share rows byte for byte). D1, the label
+  transplant, is the right lever, with its coverage still to check. No
+  bidding change.
+
 - **Portable-judgement Phase 1 read: no verdict, the control is too weak
   (2026-11-02, [docs/portable-judgement.md](docs/portable-judgement.md)
   §4).** Two distillation-only K = 8 were trained, `american-d` and

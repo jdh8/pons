@@ -375,6 +375,64 @@ G against BBA (`decompose.<arm>.txt`), plain / PD:
    better of two draws by ≈ 0.006. Only (a) is what D1's transplant
    restores.
 
+**Attribution arm `american-s` (2026-11-02, dl02): the labels
+are the whole gap.** This is a fifth arm on the same deals and on
+Phase 1's 3a084f04 binaries (`AMERICAN_S` in the runner; driver and nets in
+`/mnt/ssd-data/jdh8/pons-phase1/stock/`). It is a distillation-only K = 8
+trained on the shipped cut's own walk: `dump-teacher --cut 0` of the HEAD
+relabel chunks, 6,781,198 rows of the stock cell mix, with teacher labels.
+It uses the same stem order, seeds 9–16, trainer and 32-column fold. So it
+is the shipped K = 8 with the BBA-opponent relabel taken out, and nothing
+else changed. It replays at 100.00%. Paired diff, plain / PD
+(half-width on plain):
+
+| diff | none | both |
+| --- | --- | --- |
+| `american-s` − `american` | **−0.109** ±0.009 / −0.108 | **−0.151** ±0.011 / −0.171 |
+| `american-s` − `american-d` | **−0.026** ±0.006 / −0.010 | **−0.032** ±0.008 / −0.022 |
+
+On G, `american-s` reads −0.403 / −0.470 plain (−0.234 / −0.366 PD).
+
+5. **The relabel is worth 0.11–0.15 a board on its own recipe.**
+   `american-s` − `american` isolates it. The labels also move the
+   training trajectory, so the draw (≈ 0.006–0.012) is inside this
+   number, not added to it. This is the first measure of the
+   BBA-opponent relabel against pure distillation. The +0.044 / +0.050
+   of reseed-gap-handoff.md §5 measured it against the M32 labels.
+6. **The corpus is not the gap; the pinned corpus is better.** The
+   stock cell mix, with 44% more rows, loses 0.026 / 0.032 to the pinned
+   `a-off/a-off` corpus under the same labels. Point 4's (b) therefore
+   works in the control's favour, and all of its gap, and more, is (a).
+   *Why* the pinned corpus wins is not isolated. The two corpora differ
+   in three ways at once:
+   - **Cells.** `a-off/a-off` is the served cell (`american()` plays
+     plain RKCB). The stock mix also trains on kickback cells
+     (uniform, enriched) and flipped regime bits (axis), which the A/B
+     never serves.
+   - **Replay rows.** The stock enriched shards run `--replay`, and the
+     pinned ones dropped it (§8).
+   - **Row count.** 6.78M against 4.72M.
+
+   The code version is ruled out. The walks are at 54659d41 (stock) and
+   d1323fa3 (pinned), and the only `src/` commit between them, 342b7f11,
+   is byte-identical for the default system by its own proof. On
+   `uniform-0`, 33.1% of the pinned rows occur byte for byte in the stock
+   corpus. That is the one stock table in three whose cell is
+   `a-off/a-off`, walked identically.
+7. **For D1.** The table's third row asked for a control near shipped.
+   On this evidence, only labels can put it there, so the transplant is
+   the right lever. But its value depends entirely on how many of the
+   380,714 moved labels land on the pinned chunks (§8), and on the `bba`
+   side they are priced under `american`'s continuations.
+8. **A possible KR1 lever, not measured.** If 6 holds under relabel
+   labels too, the shipped recipe on an `a-off/a-off`-only relabel cut
+   could beat shipped by ≈ 0.03. That has not been tested. The 0.03 is
+   a distillation-label number, the relabel may interact with the cell
+   mix, and 6 leaves cells, replay rows and row count confounded. A
+   clean test pins one factor at a time on one walk: `a-off/a-off` with
+   `--replay` kept, then the same with the replay rows dropped.
+   Recorded here, not in next-steps, until jdh8 rules on it.
+
 D1 is reopened for jdh8 (§7). Two premises of its row have moved, and
 both are flagged in §8.
 

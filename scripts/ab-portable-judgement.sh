@@ -24,6 +24,11 @@
 #       setsid nohup scripts/idle-run.sh scripts/ab-portable-judgement.sh \
 #       ab-results/portable-judgement >ab-results/portable-judgement.log 2>&1 &
 #
+# Optional AMERICAN_S adds a fifth arm, american-s: american-file over a
+# distillation-only K = 8 on the stock-cell corpus (the shipped cut's walk,
+# teacher labels), diffed against american and american-d.  It splits the
+# control's gap to shipped into labels vs corpus (Phase 1 read, D1).
+#
 # Resumable; SEED_BASE persists in $R/seed (a NEW dir → a new seed).
 R=${1:?usage: ab-portable-judgement.sh RESULTS_DIR}
 : "${BBA_BOOK:?set BBA_BOOK to the walked book the bba arms play}"
@@ -37,7 +42,8 @@ echo "$BBA_BOOK" >"$R/bba-book"
 
 # Pin each file arm's blobs as ab-floor-file.sh does: a resume with other
 # weights would diff an arm drawn from two different nets.
-for a in american-d="$AMERICAN_D" bba-d="$BBA_D"; do
+ARMS="american american-d bba bba-d${AMERICAN_S:+ american-s}"
+for a in american-d="$AMERICAN_D" bba-d="$BBA_D" ${AMERICAN_S:+american-s=$AMERICAN_S}; do
     n=${a%%=*}
     f=$R/weights.$n
     W=$(echo "${a#*=}" | tr , '\n' | xargs sha256sum)
@@ -51,12 +57,13 @@ weights_of() {
     case $1 in
         american-d) echo "$AMERICAN_D" ;;
         bba-d) echo "$BBA_D" ;;
+        american-s) echo "$AMERICAN_S" ;;
     esac
 }
 # floor_of ARM — the --our-floor name an arm generates and replays under
 floor_of() {
     case $1 in
-        american-d) echo american-file ;;
+        american-d | american-s) echo american-file ;;
         bba-d) echo bba-file ;;
         *) echo "$1" ;;
     esac
@@ -64,7 +71,7 @@ floor_of() {
 
 log "=== portable judgement start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul, BBA_BOOK=$BBA_BOOK"
 for vul in $VULS; do
-    for a in american american-d bba bba-d; do
+    for a in $ARMS; do
         # bba-gen --provenance reports PONS_FLOOR_WEIGHTS whenever it is set,
         # so a shipped arm must not inherit the previous file arm's export.
         unset PONS_FLOOR_WEIGHTS
@@ -77,11 +84,15 @@ for vul in $VULS; do
     diffpair bba-d      bba        "$vul"
     diffpair bba        american   "$vul"
     diffpair bba-d      american-d "$vul"
+    if [ -n "${AMERICAN_S:-}" ]; then
+        diffpair american-s american   "$vul"
+        diffpair american-s american-d "$vul"
+    fi
 done
 
 # Each arm against BBA: G(arm), the bucket ranking and the replay check.  One
-# DD cache for the four, since the deals are shared.
-for a in american american-d bba bba-d; do
+# DD cache for all, since the deals are shared.
+for a in $ARMS; do
     out="$R/decompose.$a.md"
     [ -s "$out" ] && { log "skip $out (exists)"; continue; }
     log "decompose $a vs BBA (all vuls, book census)"
