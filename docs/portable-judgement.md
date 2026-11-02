@@ -314,6 +314,70 @@ BBA is BBA's bilans judging *its own* bands, which is search-priced
 judgement, and the plan hands over to the search road
 ([ben-gap-campaign.md](ben-gap-campaign.md)).
 
+**Read (2026-11-02, 3a084f04, dl02): row 3, no verdict.** Driver and
+nets are in `/mnt/ssd-data/jdh8/pons-phase1/`, and the A/B is in
+`ab-results/portable-judgement/` (`SEED_BASE=1793603525228576315`,
+204,800 boards per arm per cell). The two K = 8 trained side by side in
+40 min. The first A/B attempt died when 5 of the 32 `bba` workers were
+OOM-killed (≈ 1.6 GB each on a 61 GiB box shared with other users). The
+rerun used `PAR=16` on the same seed base (`scripts/bba-gen-parallel.sh`)
+and kept the two verified `american` arms. Every arm replays at 100.00%.
+The shipped arms (`american`, `bba`) run the BBA-relabel K = 8 shipped
+at 3a084f04.
+
+Every arm bids against BBA on the same deals, and the numbers below score
+those same games in two ways. The **paired diff** (`ab-dump-diff`) IMPs one
+arm's score directly against the other's on each board. **G**
+(`bba-decompose`) IMPs each arm against BBA's own result at the other table,
+and is quoted per arm. A difference of two G values is not the paired diff:
+IMPs are not linear, so the two scales disagree (about 2× here).
+
+Paired diff, IMPs/board, plain DD / PD (95% half-width on plain):
+
+| diff | none | both | fired |
+| --- | --- | --- | --- |
+| `american-d` − `american` | **−0.083** ±0.009 / −0.098 | **−0.120** ±0.011 / −0.150 | 13.0% / 11.2% |
+| `bba-d` − `bba` | −0.003 ±0.011 / −0.006 | −0.011 ±0.014 / −0.029 | 19.4% / 18.4% |
+| `bba` − `american` | −0.192 ±0.016 / −0.193 | −0.251 ±0.020 / −0.233 | 39.6% / 38.0% |
+| `bba-d` − `american-d` | −0.114 ±0.015 / −0.100 | −0.142 ±0.019 / −0.111 | 36.9% / 35.7% |
+
+G against BBA (`decompose.<arm>.txt`), plain / PD:
+
+| arm | none | both |
+| --- | --- | --- |
+| `american` | −0.180 / −0.016 | −0.183 / −0.039 |
+| `american-d` | −0.355 / −0.219 | −0.411 / −0.330 |
+| `bba` | −0.564 / −0.411 | −0.666 / −0.502 |
+| `bba-d` | −0.576 / −0.430 | −0.699 / −0.565 |
+
+1. **Row 3 fires.** On the same book, the control loses 0.08–0.12 a board
+   to the shipped floor in the paired diff, and 0.18–0.23 in G. The
+   threshold was ≈ 0.05, so this lap gives no verdict.
+2. **T is positive, but the control's collapse supplies it.** T against
+   BBA is +0.163 / +0.195 plain (+0.184 / +0.227 PD), and the paired
+   form is +0.080 / +0.109. Almost all of it is `american-d` − `american`;
+   `bba-d` sits at or below `bba` in every reading. T as defined charges
+   the control's own loss to the `bba` side, so it measures nothing until
+   the control stands near shipped.
+3. **Row 2's reading, if the control held.** `bba-d` − `bba` is inside
+   the draw noise in both cells (and slightly negative against BBA). The
+   same recipe costs 0.08–0.12 under `american` but ≈ 0.01 under `bba`,
+   which fits §8's count: the net serves 48% of decisions under
+   `american` and 19% under `bba`. A weaker chooser costs less where it
+   chooses less. This leans toward "the agreements are the problem", but
+   it is not read as that until a control stands near shipped.
+4. **What the control lacks.** Against the shipped K = 8, `american-d`
+   differs in three ways. (a) Labels: the shipped cut carries the
+   BBA-opponent relabel (380,714 labels moved; that relabel alone won
+   +0.044 / +0.050 over the M32-labelled K = 8, reseed-gap-handoff.md
+   §5). (b) Corpus: 4.72M rows pinned to `a-off/a-off`, against 6.78M
+   rows of the stock cell mix (§8). (c) Draw: the shipped reseed is the
+   better of two draws by ≈ 0.006. Only (a) is what D1's transplant
+   restores.
+
+D1 is reopened for jdh8 (§7). Two premises of its row have moved, and
+both are flagged in §8.
+
 ### Phase 2 — one chooser, two books, a third never seen
 
 **Build.** The `bba-pc` domain: `scripts/bba-book.sh` under the Polish
@@ -514,6 +578,22 @@ Taken at their defaults to write the plan.
   default: leave D1 as it is, and measure which reading holds (a census
   of admitted-call counts per walked node) only if D1's transplant row is
   ever run.
+- **D1's transplant is no longer "M32", and the pinned corpora refuse
+  most of it** (found reading Phase 1, 2026-11-02). The shipped labels
+  are now the BBA-opponent relabel cut
+  (`dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/cut`), not M32's. Also,
+  `splice-labels.py` refuses any pair whose cell differs, and the Phase 1
+  chunks are all `a-off/a-off`. The cut's uniform tables cycle
+  `DEFAULT_CELLS` (three cells), its axis tables run `a-off+<bit>`, and
+  its enriched tables run two cells under `--replay`. By that rule, a
+  default splice carries the relabel only on the cut's `a-off/a-off`
+  tables, which is roughly a third of the uniform shards and none of the
+  axis shards. `--any-identity` carries more of it, at the price of
+  labels priced under another cell's continuations. Proposed reversible
+  default: before any transplant retrain, run `splice-labels.py
+  --validate` per shard on both arms and record the share of the 380,714
+  moved labels that land. The Phase 0 chunks it needs are on
+  Compute-Node02 only.
 - **`vendor/bba/WJ.bbsa` does not exist** (checked 2026-11-01: `vendor/bba`
   holds the engine and `cards/` holds `American.bbsa`, `American-Basic.bbsa`),
   while [next-steps.md](next-steps.md) "Add Polish Club", `deviation-panel.md`

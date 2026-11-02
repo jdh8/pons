@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Portable-judgement Phase 1 read: no verdict, the control is too weak
+  (2026-11-02, [docs/portable-judgement.md](docs/portable-judgement.md)
+  §4).** Two distillation-only K = 8 were trained, `american-d` and
+  `bba-d` (arm R's recipe, seeds 9–16), on the Phase 0 corpora, and the
+  four arms played BBA on paired deals (204,800 boards per arm, `none`
+  and `both`). The control `american-d` loses −0.083 / −0.120 IMPs/board
+  plain to the shipped floor in the paired diff (arm against arm on the
+  same deals). The difference of the two arms' IMPs against BBA's table
+  is −0.18 / −0.23.
+  That is past the plan's ≈ 0.05 line, so row 3 fires and the lap gives
+  no verdict. `bba-d` − `bba` is flat (−0.003 / −0.011, inside the
+  noise). The positive T (+0.16 / +0.20 against BBA) is almost entirely
+  the control's own loss. D1, the label transplant, is reopened for
+  jdh8; two of its premises moved (§8). No bidding change.
+
 - **`--our-floor bba-file` and `scripts/ab-portable-judgement.sh`
   (2026-11-01, portable-judgement Phase 1 build,
   [docs/portable-judgement.md](docs/portable-judgement.md) §4).** `bba-file`
