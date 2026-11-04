@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Portable-judgement Phase 1 re-read: the chooser is a quarter of the
+  `bba` gap (2026-11-04, [docs/portable-judgement.md](docs/portable-judgement.md)
+  §4).** Both pinned Phase 0 walks were relabelled under their own reader
+  (`--rollout-opponent bba`, M = 32; D1), and K = 8 `american-r` / `bba-r`
+  were trained with arm R's recipe. The control now matches shipped:
+  `american-r` − `american` is −0.002 / −0.004 IMPs/board plain (±0.007 /
+  ±0.009), PD +0.006 / +0.008. `bba-r` − `bba` wins +0.045 / +0.036 plain
+  (PD +0.049 / +0.021). T = +0.10 on G against BBA, which gives back
+  22–27% of the `bba` arm's 0.39 / 0.47 extra loss. The read falls between
+  the table's rows 1 and 2: the agreements are most of the gap, and Phase 2
+  is next. A `bba`-own default net is left to jdh8 (D6). No bidding change.
+
 - **Portable-judgement Phase 1 attribution arm: the labels are the whole
   gap (2026-11-02, [docs/portable-judgement.md](docs/portable-judgement.md)
   §4).** `ab-portable-judgement.sh` takes an optional fifth arm,

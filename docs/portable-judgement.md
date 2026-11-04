@@ -455,6 +455,55 @@ The `american` arm has 64 workers × 1 solver thread and the `bba` arm
 1's A/B re-read with those two as the arms. Row 3 then asks whether
 `american-r` sits near shipped.
 
+**Read (2026-11-04, f24c6656, dl02): the chooser is a quarter of the
+gap.** Relabel done 2026-11-04 (slurm 626, 188/188 chunks per arm, cut
+at M = 32; cuts and sha256 in `/mnt/ssd-data/jdh8/pons-phase1/{american,bba}-r/`).
+`american-r` and `bba-r` were trained with arm R's recipe, seeds 9–16,
+and folded (`pons-phase1/driver-r.sh`, 40 min). They went into the
+`american-d` / `bba-d` slots of `ab-results/portable-judgement-r/`
+(`SEED_BASE=1793777022241251944`, 204,800 boards per arm per cell,
+`PAR=16`, `BBA_BOOK` 2026-10-29-8fb078de-none). Every arm replays at
+100.00%. Paired diff, IMPs/board, plain DD / PD (95% half-width on
+plain):
+
+| diff | none | both | fired |
+| --- | --- | --- | --- |
+| `american-r` − `american` | −0.002 ±0.007 / +0.006 | −0.004 ±0.009 / +0.008 | 8.8% / 7.2% |
+| `bba-r` − `bba` | **+0.045** ±0.011 / +0.049 | **+0.036** ±0.014 / +0.021 | |
+| `bba` − `american` | −0.200 ±0.016 / −0.204 | −0.242 ±0.020 / −0.235 | |
+| `bba-r` − `american-r` | −0.152 ±0.016 / −0.159 | −0.203 ±0.020 / −0.220 | 39.7% / 38.0% |
+
+G against BBA, plain / PD:
+
+| arm | none | both |
+| --- | --- | --- |
+| `american` | −0.180 / −0.020 | −0.191 / −0.036 |
+| `american-r` | −0.191 / −0.015 | −0.209 / −0.029 |
+| `bba` | −0.565 / −0.414 | −0.660 / −0.489 |
+| `bba-r` | −0.474 / −0.306 | −0.576 / −0.414 |
+
+1. **Row 3 is cleared.** The control is within noise of shipped in
+   both cells and both scorers. (Its lower bounds, −0.010 / −0.012, do
+   not prove non-inferiority, but nothing here ships `american-r`.)
+   The 2026-11-02 control lost 0.08–0.12, so the relabel under the
+   control's own reader closes that gap, as points 5 and 7 predicted.
+2. **T = +0.103 / +0.102 plain on G** (+0.103 / +0.069 PD). The paired
+   form is +0.048 / +0.038. The `bba` arm's extra loss on G is
+   0.386 / 0.469, so a matched chooser gives back **22–27%** of it.
+3. **The read falls between rows 1 and 2.** `bba-r` − `bba` is a real
+   win: both cells clear zero on plain, and PD agrees. But it is under
+   row 1's 0.1, and T recovers a quarter, not "most". The table has no
+   row for this (§8). The reading: the chooser is part of the problem,
+   and the agreements are the larger part. `bba-r` still loses
+   0.15–0.20 a board to `american-r` in the paired diff.
+4. **Next: Phase 2.** Rows 1 and 2 both lead there, so the middle does
+   too. The stop rule does not fire, since it needs row 2.
+5. **Not decided: a `bba`-own net.** `bba-r` beats the net that `bba`
+   serves today (the shipped `american` K = 8) by 0.036–0.045. Giving
+   the `bba` system its own default net is a KR1 change to a research
+   system and is jdh8's call (§7 D6). Default: no change; `bba-r` stays
+   at `pons-phase1/bba-r/nets-folded`.
+
 ### Phase 2 — one chooser, two books, a third never seen
 
 **Build.** The `bba-pc` domain: `scripts/bba-book.sh` under the Polish
@@ -604,6 +653,7 @@ Taken at their defaults to write the plan.
 | D3 | union corpus stem order | `american` stems first, then `bba`, unshuffled | matches the reseed handoff's recipe; the reverse order is one more ensemble if D4 fires |
 | D4 | if the union net loses on both training domains | widen once (the v6 widths × 1.5), one ensemble | the cheapest capacity test; the LSTM is parked and stays so |
 | D5 | vulnerability cells | two (`none`, `both`) as bba-system.md ran, four for any ship candidate | transfer reads need the pair, a ship needs the house four |
+| D6 | give the `bba` system its own default net (`bba-r`, +0.036 / +0.045 over the shared shipped K = 8, §4 Phase 1 read 2026-11-04) | **no change**; the nets stay in `pons-phase1/bba-r/` | `bba` is a research system; a swap moves every later `bba` read, and a ship needs the house four cells (D5) |
 
 ## 8. Discrepancies flagged, not resolved
 
@@ -685,6 +735,11 @@ Taken at their defaults to write the plan.
   is parked with M5.2's flip plan; Phase 4 takes it out of the LSTM's
   shadow because every retrain, not only a sequence floor, moves the
   distribution it was tuned to.
+- **Phase 1's read table has no middle row** (found 2026-11-04). The
+  matched retrain read a real win of 0.036–0.045 with T recovering a
+  quarter, between row 1 (≥ 0.1, most) and row 2 (flat). Default: read
+  it as "chooser part, agreements most" and go to Phase 2, where both
+  rows lead; the table is left as written.
 
 ## 9. Glossary for this plan, in the house framing
 
