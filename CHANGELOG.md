@@ -415,6 +415,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-06, `07864122`)**: shipping `american()` scores
+  **−0.1609 plain / −0.0170 perfect-defense IMPs/board** (none −0.1600 /
+  −0.0103, both −0.1617 / −0.0237), the series' best headline by 0.105
+  plain; `american_instinct()` −0.9095 / −0.9322, unchanged. Same seed
+  `1783375064`, all four cells replayed at 100% with zero mismatches, 233
+  new DD tables. The window since `40847142` is the BBA-relabel K = 8 floor
+  (`3a084f04`) and the doubled-`1NT`-overcall runout (`ceb1ba5a`). The
+  shipping bucket order changed for the first time since `494f0c4b`: the
+  net's off-book calls net **+1,473 IMPs (were −17,466)**, Constructive /
+  book / round-2 (−17,711) is #1, opening (−14,531, PD +13,139) #2,
+  Defensive / book / round-1 falls from #3 to #5 (−12,671 → −7,365);
+  no bucket regressed beyond churn (`anchor-diff.py`). Paired to
+  `40847142` on the same deals, shipping +0.0465 ±0.0086 / +0.0610 ±0.0103
+  plain, +0.0109 / +0.0223 PD per table (22,475 / 19,637 fired), instinct
+  19 / 24 boards fired, non-inferior. Floor paired worth
+  +0.383 plain / +0.465 PD (was +0.332 / +0.450). Ranking and series row in
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-05-07864122/` on Compute-Node02 (UTC date; its
+  `window.sh` builds the pairings).
 - **BBA re-anchor (2026-10-27, `40847142`)**: shipping `american()` scores
   **−0.2662 plain / −0.0487 perfect-defense IMPs/board** (none −0.2541 /
   −0.0305, both −0.2783 / −0.0669), the series' best headline;
