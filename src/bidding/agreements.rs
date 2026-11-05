@@ -2742,6 +2742,24 @@ pub struct DefenseKnobs {
     /// --ns-xx-dont-major-first`, `ab-dump-sd
     /// --on-ns-xx-dont-major-first`/`--off-ns-xx-dont-major-first`).
     pub xx_dont_major_first: XxMajorFirst,
+    // --- defense/nt_doubled_runout.rs
+    /// Author the natural runout after they double our `1NT` overcall
+    ///
+    /// **Default on** (shipped 2026-11-05: won 4/4 cells plain and PD vs
+    /// BBA, +0.0012…+0.0024 plain IMPs/board, `scripts/ab-nt-doubled-runout.sh`;
+    /// `docs/defensive-overcalls.md`).  At `(1t) 1NT (X)` the advancer
+    /// runs to a five-plus suit or the longer minor of a 4-4 bust under 8
+    /// HCP, redoubles on 7+, else passes; the overcaller passes the escape,
+    /// sits for their double of it, and runs to its own five-plus suit in the
+    /// balancing seat.  The mirror of the instinct floor's runout of our
+    /// doubled `1NT` opening, which the net-floored defensive lane never
+    /// reaches (the BBA-relabel net bids a phantom `3♦` there).  Off, every
+    /// node belongs to the floor.  Reading-active: the escapes and the
+    /// redouble publish their constraints.  An A/B knob (`bba-gen`/`ben-gen
+    /// --no-ns-nt-doubled-runout`, `ab-dump-sd --on-no-ns-nt-doubled-runout`/
+    /// `--off-no-ns-nt-doubled-runout`).  Code in
+    /// `american/defense/nt_doubled_runout.rs`.
+    pub nt_overcall_doubled_runout: bool,
     // --- defense/leaping_michaels.rs
     /// Author Leaping Michaels over their weak two
     ///
@@ -3412,6 +3430,7 @@ impl Default for DefenseKnobs {
             natural_overcall_advance_enabled: true,
             xx_dont_runout: true,
             xx_dont_major_first: XxMajorFirst::Longer,
+            nt_overcall_doubled_runout: true,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,

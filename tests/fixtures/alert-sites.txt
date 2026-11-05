@@ -42,6 +42,7 @@ jacoby-2nt 8
 jacoby-transfer 56
 leaping-michaels 24
 michaels 16
+nt-overcall:runout-minors 24
 ogust 84
 opener-jump-shift 48
 opener-reverse 20

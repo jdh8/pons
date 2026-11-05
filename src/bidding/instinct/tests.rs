@@ -3537,14 +3537,17 @@ fn one_nt_overcall_runout_escapes_and_redoubles() {
 
 #[test]
 fn one_nt_overcall_runout_is_floor_territory() {
-    // In the full system the doubled 1NT overcall reaches the instinct floor
-    // (no book node shadows it), so the generalized runout actually fires.
+    // With the book's runout off (`defense.nt_overcall_doubled_runout`,
+    // default on since 2026-11-05) the doubled 1NT overcall reaches the
+    // instinct floor, so the generalized runout actually fires.
+    let mut agreements = Agreements::default();
+    agreements.defense.nt_overcall_doubled_runout = false;
     let doubled = [
         call(1, Strain::Hearts),
         call(1, Strain::Notrump),
         Call::Double,
     ];
-    let (call_made, floored) = american_floored(&doubled, "QJ763.32.9742.83");
+    let (call_made, floored) = american_floored_with(&agreements, &doubled, "QJ763.32.9742.83");
     assert!(floored, "the doubled 1NT overcall is floor territory");
     assert_eq!(call_made, call(2, Strain::Spades));
 }

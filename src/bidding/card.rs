@@ -250,6 +250,13 @@ const fn not_defined() -> usize {
 // `1NT`, a different agreement.  Recorded at build time so a ship needs no
 // new decision here (shipped 2026-10-21: the slugs are now in the default
 // fixture).
+//
+// `nt-overcall:runout-minors` (the 4-4 minor bust's `2♣`/`2♦` in the natural
+// runout after they double our `1NT` overcall,
+// `defense.nt_overcall_doubled_runout`, default on since 2026-11-05): no
+// schema name.  EPBot's list has no row for the advances of a doubled `1NT`
+// overcall; the escapes are otherwise natural five-plus suits and the `XX`
+// is the ordinary values redouble.
 const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bid"];
 
 /// The value of a [`PONS_SCHEMA`] row under the live knob state

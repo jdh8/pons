@@ -155,6 +155,16 @@ struct Args {
     /// Read the OFF arm without the DONT-style runout after `(1NT) X (XX)`.
     #[arg(long, default_value_t = false)]
     off_no_ns_xx_dont_runout: bool,
+    /// Read the ON arm without the natural runout after they double our 1NT
+    /// overcall (`defense.nt_overcall_doubled_runout`, shipped on;
+    /// `bba-gen --no-ns-nt-doubled-runout`): on, its escapes and redouble
+    /// publish their constraints.
+    #[arg(long, default_value_t = false)]
+    on_no_ns_nt_doubled_runout: bool,
+    /// Read the OFF arm without the natural runout after they double our 1NT
+    /// overcall.
+    #[arg(long, default_value_t = false)]
+    off_no_ns_nt_doubled_runout: bool,
     /// Read the ON arm with this major-first mode of the `(1NT) X (XX)` runout
     /// (`defense.xx_dont_major_first`, `bba-gen --ns-xx-dont-major-first`).
     #[arg(long, value_enum, default_value = "longer")]
@@ -379,6 +389,7 @@ fn main() {
     on_arm.defense.natural_overcall_hcp_floor = args.on_ns_nt_overcall_hcp_floor;
     on_arm.defense.natural_overcall_advance_enabled = !args.on_no_ns_nt_overcall_advance;
     on_arm.defense.xx_dont_runout = !args.on_no_ns_xx_dont_runout;
+    on_arm.defense.nt_overcall_doubled_runout = !args.on_no_ns_nt_doubled_runout;
     on_arm.defense.xx_dont_major_first = args.on_ns_xx_dont_major_first.into();
     on_arm.defense.suppress_long_minor_takeout = args.on_ns_suppress_long_minor_takeout;
     on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
@@ -442,6 +453,7 @@ fn main() {
     off_arm.defense.natural_overcall_hcp_floor = args.off_ns_nt_overcall_hcp_floor;
     off_arm.defense.natural_overcall_advance_enabled = !args.off_no_ns_nt_overcall_advance;
     off_arm.defense.xx_dont_runout = !args.off_no_ns_xx_dont_runout;
+    off_arm.defense.nt_overcall_doubled_runout = !args.off_no_ns_nt_doubled_runout;
     off_arm.defense.xx_dont_major_first = args.off_ns_xx_dont_major_first.into();
     off_arm.defense.suppress_long_minor_takeout = args.off_ns_suppress_long_minor_takeout;
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;

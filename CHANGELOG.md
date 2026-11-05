@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A natural runout after they double our `1NT` overcall, default-on
+  (2026-11-05, [docs/defensive-overcalls.md](docs/defensive-overcalls.md)
+  § "The natural runout after they double our `1NT` overcall").**
+  `defense.nt_overcall_doubled_runout` authors `(1t) 1NT (X)`
+  in every seat: the advancer runs to a five-plus suit or the longer minor of
+  a 4-4 bust under 8 HCP, redoubles on 7+, else passes; the overcaller
+  passes the escape, sits for their double of it, and balances to its own
+  five-plus suit. The mirror of the instinct runout of our doubled `1NT`
+  opening, which the net-floored defensive lane never reached: the
+  BBA-relabel floor bids a phantom `3♦` there, the leak
+  `readings_admit_the_bidder` had exempted since the 2026-11-02 ship (the
+  exemption is dropped). Only the 4-4 bust's minor escape is alerted
+  (`nt-overcall:runout-minors`); readings come off the constraints. Measured vs BBA (`scripts/ab-nt-doubled-runout.sh`,
+  204,800 boards per arm per cell): a win in every cell on every scorer,
+  plain +0.0012 / +0.0017 / +0.0018 / +0.0024 IMPs/board (none / ns / ew /
+  both, every 95% lower bound above 0), PD +0.0011 / +0.0015 / +0.0018 /
+  +0.0023, SD-PD +0.0009…+0.0019; fires on 64–76 boards per cell (0.03–0.04%),
+  +3.8 to +6.6 IMPs per fired board. The off arm mostly sat for the double.
+  Control flag `bba-gen`/`ben-gen --no-ns-nt-doubled-runout`, `ab-dump-sd
+  --on-no-ns-nt-doubled-runout`/`--off-no-ns-nt-doubled-runout`.
 - **Portable-judgement Phase 2: judgement trained on BBA's 2/1 book ports
   to its Polish Club, and a second training book adds nothing (2026-11-05,
   [docs/portable-judgement.md](docs/portable-judgement.md) §4).** There is

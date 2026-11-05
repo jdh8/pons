@@ -23,6 +23,7 @@
 //! | [`nt_defense`] | defending their `1NT` — the bundle and the natural chain |
 //! | [`nt_landy`], [`nt_dont`], [`nt_meckwell`], [`nt_woolsey`] | the four systems' calls and advances |
 //! | [`nt_xx_runout`] | the DONT-style runout after their redouble of our penalty `X` of their `1NT` |
+//! | [`nt_doubled_runout`] | the natural runout after they double our `1NT` overcall |
 //! | [`nt_their_conventions`] | defending their Stayman and transfers |
 
 use super::super::agreements::Agreements;
@@ -63,6 +64,7 @@ mod leaping_michaels;
 mod michaels;
 mod nt_defense;
 mod nt_dont;
+mod nt_doubled_runout;
 mod nt_landy;
 mod nt_meckwell;
 mod nt_their_conventions;
@@ -81,6 +83,7 @@ use leaping_michaels::leaping_michaels_package;
 use michaels::unusual_notrump_advance_package;
 use nt_defense::{natural_overcall_advance_package, notrump_defense_package};
 use nt_dont::direct_dont_advance_package;
+use nt_doubled_runout::nt_doubled_runout_package;
 use nt_landy::{both_majors_double_package, landy_advance_package};
 use nt_meckwell::meckwell_advance_package;
 use nt_their_conventions::{
@@ -369,6 +372,10 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
         agreements,
         &[gladiator_package(), gladiator_sohl_package()],
     );
+
+    // The natural runout after they double our 1NT overcall, when on (default
+    // off; the graft above authors no `(X)` key, so off it is the floor's).
+    compile_into(&mut d, agreements, &[nt_doubled_runout_package()]);
 
     // Responsive doubles: partner acted (double or overcall) and they raised.
     compile_into(

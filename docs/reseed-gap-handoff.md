@@ -676,6 +676,11 @@ natural walk reads as ♦5+, a phantom suit; the M32 floor never chose it on
 `readings_admit_the_bidder`'s 260 hands. The test exempts exactly that call
 at that node. Author the runout (calls and readings), A/B it, and drop the
 exemption.
+**Done 2026-11-05:** `defense.nt_overcall_doubled_runout` shipped
+default-on (won 4/4 cells plain and PD vs BBA, +0.0012…+0.0024 plain
+IMPs/board) and the exemption is dropped —
+[defensive-overcalls.md](defensive-overcalls.md) § "The natural runout after
+they double our `1NT` overcall".
 
 ## 6. What stays decided
 

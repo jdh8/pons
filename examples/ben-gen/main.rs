@@ -240,6 +240,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xx_dont_runout: bool,
 
+    /// Turn OFF the natural runout after BEN doubles our 1NT overcall
+    /// (`defense.nt_overcall_doubled_runout`, shipped on 2026-11-05).
+    #[arg(long, default_value_t = false)]
+    no_ns_nt_doubled_runout: bool,
+
     /// Which weak two-suiters run to a five-card major first in the
     /// `(1NT) X (XX)` runout (`defense.xx_dont_major_first`, crate default
     /// `longer`; see `bba-gen --ns-xx-dont-major-first`).
@@ -655,6 +660,7 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
+    agreements.defense.nt_overcall_doubled_runout = !args.no_ns_nt_doubled_runout;
     common::set_notrump_defense(
         &mut agreements,
         args.ns_notrump_defense,

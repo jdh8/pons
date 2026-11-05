@@ -1438,6 +1438,73 @@ or snippet only):
   Hinden's "1NTX must remain available" objection, void here);
   Celestial "Chapter 9" ~ (pass for a one-suiter, then `XX` to learn it).
 
+## The natural runout after they double our `1NT` overcall (built and shipped 2026-11-05)
+
+`(1t) 1NT (X)`, every seat, knob `defense.nt_overcall_doubled_runout`
+(**default on**), code `src/bidding/american/defense/nt_doubled_runout.rs`,
+runner `scripts/ab-nt-doubled-runout.sh`.
+
+**Why.** The systems-on graft below our `1NT` overcall authors only
+uncontested keys, so the double leaves the whole lane to the net floor, and
+the BBA-relabel K = 8 shipped 2026-11-02 bids a phantom `3♦` there on
+five-card heart hands (`J.T86432.QJ62.AQ`, `AK72.JT873.A7.T9`,
+`K43.K6532.AJT4.2`), which the natural walk reads as ♦5+;
+`readings_admit_the_bidder` exempts exactly that call at that node
+([reseed-gap-handoff.md](reseed-gap-handoff.md) §5 "Owed from the ship").
+BBA's own book plays full systems on over the double (`2♦` transfer to
+hearts, `2♠`/`3♣` minor transfers, `2NT` 8–9, `XX` 6+, pass ≤ 6; the
+overcaller's `XX` after `X - -` is SOS), which is what the relabel net was
+taught and mis-serves.
+
+**What.** The mirror of the instinct floor's runout of our doubled `1NT`
+*opening* (`one_nt_runout`, default on, +0.039 / +0.053 plain), which is
+already overcall-aware but never reached from the net-floored defensive book:
+
+| Seat, node | Call | Shows | Weight |
+| --- | --- | --- | --- |
+| advancer, `(1t) 1NT (X)` | `2x`, x ≠ t | five-plus x, under 8 HCP | 100 (+5 major), 110 (+5) on six-plus |
+| advancer | `2♦` / `2♣` | 4-4+ minors, no five-card major, under 8 HCP: the longer minor, ties to diamonds; over their minor the other one | 100 |
+| advancer | `XX` | 7+ HCP (the instinct `runout_xx_min`) | 120 |
+| advancer | `-` | the rest | 0, the catch-all |
+| overcaller, `… 2x -` / `… 2x (X)` | `-` | sits the escape | catch-all |
+| overcaller, `(1t) 1NT (X) - -` | `2x` / `-` | balances to its own five-plus suit, else sits | 100/110, catch-all |
+| either, their later double of an escape | `-` | sits | catch-all |
+
+The 4-4 bust's `2♣`/`2♦` is alerted (`nt-overcall:runout-minors`: it floors
+the other minor at four); every call reads off its constraint through
+the projection overlay (the walk strips their opening and reads the rest as
+an opening-`1NT` runout). The advancer's table is total, so the node is the
+book's whenever the knob is on.
+
+**Left to the floor, deliberately:** every node after `XX` (their runout
+from `1NTxx`, our doubles of it — the floor reads the `XX` as 7+), their
+bids over an escape, the overcaller's SOS redouble in the balancing seat
+(instinct has it; it needs an alert and a reading), and the `2NT` minor
+scramble (the house default is the direct longer minor).
+
+**Alternative not built:** BBA-style systems on over the double. A knob for
+it would be the graft's `(X)` key; worth a second arm only if this one
+measures a loss on the values hands.
+
+**Verdict (2026-11-05, `ab-results/nt-doubled-runout` on dl02, seed
+1793866199902140248, 204,800 boards per arm per cell, on − off):**
+**SHIPPED DEFAULT-ON**, a win in every cell on every scorer.
+
+| cell | fired | plain IMPs/board | PD | SD-PD | plain per fired |
+| --- | --- | --- | --- | --- | --- |
+| none | 64 | +0.0012 ± 0.0005 | +0.0011 ± 0.0005 | +0.0009 | +3.75 |
+| ns | 67 | +0.0017 ± 0.0007 | +0.0015 ± 0.0006 | +0.0011 | +5.22 |
+| ew | 74 | +0.0018 ± 0.0006 | +0.0018 ± 0.0006 | +0.0015 | +4.97 |
+| both | 76 | +0.0024 ± 0.0008 | +0.0023 ± 0.0008 | +0.0019 | +6.55 |
+
+Isolation gate: 0 foreign boards in every cell. The off arm's divergent
+auctions are nearly all `(1t) 1NT (X) - - -`: the net sat for the double on
+the hands the book now runs or redoubles. The worst boards for the feature
+are a runout they then outbid (`(1♥) 1NT (X) 2♠ (3♣) - (3♥) - (4♥)`) and a
+balancing run doubled (`(1♣) 1NT (X) 2♦ - - (3♣) - - (3♥) - - X`); both are
+the unauthored post-escape floor, −7 to −12 IMPs each, and small beside the
+pool. The `3♦` exemption in `readings_admit_the_bidder` is dropped.
+
 ## Ledger (memory compaction, 2026-08-16)
 
 - **Strong-double gauge, 2026-07-29:** `StrongDoubleEdge::Points(18)` stays

@@ -382,6 +382,15 @@ jdh8: "Go" on the recommended defaults below, plus an `american_basic()`
 factory and `american_advanced()` as the alias of `american` (the shipped
 default under its IntoBridge name).  Kept here as the record.
 
+**2026-11-05, flagged, not yet decided by jdh8:** the natural runout after
+they double our `1NT` overcall (`defense.nt_overcall_doubled_runout`,
+[defensive-overcalls.md](defensive-overcalls.md)) stays **on** in `basic`
+and its one alert, `nt-overcall:runout-minors` (the 4-4 minor bust's
+escape), joined the whitelist. Reasoning: a runout from a doubled `1NT` is
+plain system, not a gadget, and the alert says only "may be four-four in
+the minors". The reversible default is one line in `basic()`
+(`a.defense.nt_overcall_doubled_runout = false`) plus the whitelist row.
+
 1. **Which conventions to drop.** §4 is the candidate list ranked by
    tree size; the **line call** rows (inverted minors, splinters, Ogust vs
    feature, Texas, Jordan 2NT) are the ones a reasonable player keeps or

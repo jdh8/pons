@@ -2338,6 +2338,15 @@ struct Args {
     #[arg(long, value_enum, default_value = "longer")]
     ns_xx_dont_major_first: XxMajorFirstArg,
 
+    /// Turn OFF the natural runout after BBA doubles our 1NT overcall
+    /// (`defense.nt_overcall_doubled_runout`, **shipped on** 2026-11-05, so
+    /// this is the control arm's flag): the advancer's five-plus escapes and
+    /// 4-4 minor bust under 8 HCP, `XX` on 7+, the overcaller's pass of the
+    /// escape and its balancing run.  The `off` arm of
+    /// `scripts/ab-nt-doubled-runout.sh`.
+    #[arg(long, default_value_t = false)]
+    no_ns_nt_doubled_runout: bool,
+
     /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
     /// `natural`).
     ///
@@ -3426,6 +3435,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;
     agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
+    agreements.defense.nt_overcall_doubled_runout = !args.no_ns_nt_doubled_runout;
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
     agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;
