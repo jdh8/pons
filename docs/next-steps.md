@@ -343,6 +343,11 @@ as a batch, not as separate efforts:
 - per [floor-rail-campaign.md](floor-rail-campaign.md) stop-criterion 5, the
   retrain also re-arbitrates every shipped rail.
 
+**2026-11-05:** the BBA-relabel K = 8 shipped 2026-11-02 without this batch.
+B2.5 and the `1♦ ♦3` atom are now built as reading knobs (default off) and
+ride one matched retrain of the shipped recipe (CHANGELOG 2026-11-05);
+the phantom-suit input fix and the rail re-arbitration still wait.
+
 ~~Blocked on the M5.3 corpus question~~ — **unblocked 2026-09-26** by the
 label transplant ([ai-bidder/features-v8.md](ai-bidder/features-v8.md)): a
 feature bump no longer needs a relabel. v8 itself measured *suspect* (plain

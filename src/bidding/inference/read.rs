@@ -746,17 +746,21 @@ impl Inferences {
         // walk as it always did, but its *strength* is the exclusion fold's to
         // state (`CallMasks::walk_shape`): the walk's guess is rolled back at
         // the top of the next iteration, which is where every `continue` in
-        // the arms below lands.
-        let mut roll_back: Option<(usize, Strength)> = None;
+        // the arms below lands.  `walk_roll_back` names the axes (four suits,
+        // then strength); knob off it is strength alone.
+        let mut roll_back: Option<(usize, Envelope, u8)> = None;
 
         for (index, &call) in auction.iter().enumerate() {
-            if let Some((seat, strength)) = roll_back.take() {
-                players[seat].strength = strength;
+            if let Some((seat, before, axes)) = roll_back.take() {
+                roll_back_axes(&mut players[seat], &before, axes);
             }
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
             if index < 64 && masks.walk_shape >> index & 1 != 0 {
-                roll_back = Some((who, players[who].strength));
+                let axes = (0..5).fold(0u8, |mask, axis| {
+                    mask | u8::from(masks.walk_roll_back[axis] >> index & 1 != 0) << axis
+                });
+                roll_back = Some((who, players[who], axes));
             }
             let is_opening_side = lane % 2 == opener_lane % 2;
             let first_action_of_side = !side_acted[lane % 2];
@@ -1534,8 +1538,8 @@ impl Inferences {
             }
         }
 
-        if let Some((seat, strength)) = roll_back {
-            players[seat].strength = strength;
+        if let Some((seat, before, axes)) = roll_back {
+            roll_back_axes(&mut players[seat], &before, axes);
         }
 
         // Record what the suppressed conventional calls genuinely showed.  The
@@ -2076,3 +2080,17 @@ const fn cheapest_level(highest: Option<Bid>, strain: Strain) -> u8 {
 
 #[cfg(test)]
 mod tests;
+
+/// Undo a `walk_shape` call's walk guess on `axes` (bits 0–3 the suits in
+/// `Suit::ASC` order, bit 4 strength), restoring the seat as it was before
+/// the call; the fold's projection supplies those axes instead.
+fn roll_back_axes(player: &mut Envelope, before: &Envelope, axes: u8) {
+    for suit in 0..4 {
+        if axes >> suit & 1 != 0 {
+            player.lengths[suit] = before.lengths[suit];
+        }
+    }
+    if axes >> 4 & 1 != 0 {
+        player.strength = before.strength;
+    }
+}

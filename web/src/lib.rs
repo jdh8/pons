@@ -1087,6 +1087,8 @@ knob!(set_penalty_latch, penalty_latch, decision.reading.penalty_latch: bool);
 knob!(set_pdi_latch, pdi_latch, decision.reading.pdi_latch: bool);
 knob!(set_union_hull, union_hull, decision.reading.union_hull: bool);
 knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
+knob!(set_walk_axes, walk_axes, decision.reading.walk_axes: bool);
+knob!(set_one_diamond_floor, one_diamond_floor, decision.reading.one_diamond_floor: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
 knob!(set_strength_ceilings, strength_ceilings, decision.reading.strength_ceilings: bool);
@@ -1711,6 +1713,8 @@ static SETTINGS: &[Setting] = &[
     // Inference (auction reading)
     gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "opponent:notrump_defense=woolsey"),
     toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),
+    toggle("walk_axes", INFERENCE, "Natural walk fills the axes an authored reading leaves open (B2.5)", false, set_walk_axes, walk_axes),
+    toggle("one_diamond_floor", INFERENCE, "1♦ opening reads its implied 3+ diamonds (B2.4)", false, set_one_diamond_floor, one_diamond_floor),
     toggle("pdi_latch", INFERENCE, "Pass/double inversion: our post-trigger pass denies a trump stack", false, set_pdi_latch, pdi_latch),
     toggle("union_hull", INFERENCE, "Recompute each seat's hull from its union after the walk", false, set_union_hull, union_hull),
     gated("rubens_transfer_reading", INFERENCE, "", true, set_rubens_transfer, rubens_transfer, "rubens_advances"),

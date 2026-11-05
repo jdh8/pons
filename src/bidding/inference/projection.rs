@@ -6,8 +6,8 @@
 //! the per-auction memo that keeps the replay affordable.
 
 #[cfg(test)]
-use super::envelope::{Envelope, Range};
-use super::envelope::{EnvelopeUnion, relative_of};
+use super::envelope::Envelope;
+use super::envelope::{EnvelopeUnion, Range, Strength, relative_of};
 use super::knobs::*;
 use crate::bidding::constraint::ProjectionKind;
 use crate::bidding::context::Context;
@@ -291,6 +291,13 @@ pub(super) struct CallMasks {
     /// the strength it guesses on the way is rolled back afterwards, leaving
     /// the fold — which knows what the heavier siblings deny — to say it.
     pub(super) walk_shape: u64,
+    /// Per axis (clubs, diamonds, hearts, spades, strength), the
+    /// [`walk_shape`][Self::walk_shape] calls whose walk guess is rolled back
+    /// on that axis because the fold bounds it.  Knob off, every such call
+    /// rolls back strength alone; under
+    /// [`walk_axes`][field@ReadingProfile::walk_axes] the fold's hull decides
+    /// axis by axis.
+    pub(super) walk_roll_back: [u64; 5],
     /// Calls a live authored rule tags **penalty-oriented** ([`Rule::penalty_oriented`]
     /// [crate::bidding::rules::Rule::penalty_oriented]) — the pass/double-inversion
     /// triggers this side of the mechanism can see from the rules.  Recorded
@@ -326,6 +333,11 @@ impl CallMasks {
         }
         if effect.walk_shape {
             self.walk_shape |= bit;
+            for (axis, mask) in self.walk_roll_back.iter_mut().enumerate() {
+                if effect.walk_roll_back >> axis & 1 != 0 {
+                    *mask |= bit;
+                }
+            }
         }
         if effect.suppresses_natural {
             self.suppressed |= bit;
@@ -338,6 +350,9 @@ impl CallMasks {
         self.substituted |= other.substituted;
         self.artificial |= other.artificial;
         self.walk_shape |= other.walk_shape;
+        for (mine, theirs) in self.walk_roll_back.iter_mut().zip(other.walk_roll_back) {
+            *mine |= theirs;
+        }
         self.penalty_trigger |= other.penalty_trigger;
         for (mine, theirs) in self.length_floor.iter_mut().zip(other.length_floor) {
             for (mine, theirs) in mine.iter_mut().zip(theirs) {
@@ -411,6 +426,9 @@ struct AuthoredEffect<'a> {
     authored: bool,
     artificial: bool,
     walk_shape: bool,
+    /// Axes (bits 0–3 the suits in `Suit::ASC` order, bit 4 strength) on
+    /// which a `walk_shape` call's walk guess is rolled back to the fold
+    walk_roll_back: u8,
     substitutes_natural: bool,
     suppresses_natural: bool,
 }
@@ -616,7 +634,26 @@ fn authored_effect<'a>(
     // `(1♥) 2♥ - 2♠` read ♠0+, and the keycard ladder keyed a void.  Such a
     // call is natural (`artificial_calls_are_alerted`), so the walk reads its
     // shape and the fold keeps the strength it alone knows.
-    let walk_shape = informative && positive_top && !alerted;
+    const STRENGTH_AXIS: u8 = 1 << 4;
+    let (walk_shape, walk_roll_back) = if profile.walk_axes && informative && !alerted {
+        // B2.5: the fold's hull decides axis by axis.  A bounded axis is the
+        // fold's to state and the walk's guess there is rolled back; an open
+        // one keeps the walk, so `♠4+` from the rule no longer erases the
+        // other three suits and the strength the walk reads off the call.
+        let hull = projection.as_union().hull();
+        let mut roll_back = Suit::ASC
+            .into_iter()
+            .filter(|&suit| hull.length(suit) != Range::FULL_LENGTH)
+            .fold(0u8, |mask, suit| mask | 1 << suit as u8);
+        if hull.strength != Strength::unknown() {
+            roll_back |= STRENGTH_AXIS;
+        }
+        // Every axis bounded: the fold says it all, substitute as before.
+        (roll_back != 0b1_1111, roll_back)
+    } else {
+        let walk_shape = informative && positive_top && !alerted;
+        (walk_shape, if walk_shape { STRENGTH_AXIS } else { 0 })
+    };
     let substitutes_natural = informative && !walk_shape;
     Some(AuthoredEffect {
         projection,
@@ -624,6 +661,7 @@ fn authored_effect<'a>(
         authored: !is_pass,
         artificial: alerted,
         walk_shape,
+        walk_roll_back,
         substitutes_natural,
         suppresses_natural: alerted || substitutes_natural,
     })
@@ -1233,6 +1271,7 @@ impl AuthoringStepCache {
                         authored: false,
                         artificial: false,
                         walk_shape: false,
+                        walk_roll_back: 0,
                         substitutes_natural: false,
                         suppresses_natural: false,
                     },

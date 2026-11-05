@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
+  and ride one matched retrain (2026-11-05,
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**
+  Both were "retrain-gated" and the retrain they waited for shipped on
+  2026-11-02 without them. `reading.walk_axes` (B2.5) widens the
+  `walk_shape` bit to an axis mask: for an unalerted authored call the
+  natural walk now runs and is rolled back only on the axes the folded
+  projection bounds, so `floor#64`'s `1♠` keeps its other three suits and
+  the walk's strength beside the rule's `♠4+`, and `floor#20`'s balancing
+  `2♣` reads the walk where the rule says nothing. A fold that bounds
+  every axis still substitutes. `reading.one_diamond_floor` (B2.4) states
+  the better-minor `1♦`'s implied `len(♦, 3..)` in its rule; bidding is
+  byte-identical, the reading moves from `♦0..13` to `♦3..13`. Both move a
+  net input, so they are measured only with nets trained under them: a
+  re-walk of the BBA-relabel chunks with both on, the cut's labels
+  transplanted, sixteen draws of the shipped recipe (seeds 1–8 and 9–16),
+  each K = 8 paired against the shipped floor at four cells, plain the
+  verdict and PD the guard, the sibling draw read for draw luck
+  (docs/reseed-gap-handoff.md §6). Ships only if a draw beats the shipped
+  floor; the knobs then flip on with its nets. Flags `bba-gen`/`dump-teacher
+  --ns-walk-axes --ns-one-diamond-floor`; `ab-floor-file.sh` takes
+  `ARM_EXTRA` for the nets arms; `feature-retrain.sh` takes `DL=local` and
+  the relabel-bba roots by env (its defaults still name the M32 recipe).
+  Defaults off are smoke byte-identical (`smoke-default --count 20000
+  --seed 1`). Verdict owed.
 - **A natural runout after they double our `1NT` overcall, default-on
   (2026-11-05, [docs/defensive-overcalls.md](docs/defensive-overcalls.md)
   § "The natural runout after they double our `1NT` overcall").**

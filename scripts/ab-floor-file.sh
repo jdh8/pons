@@ -8,6 +8,9 @@
 #           file-loaded net); every candidate diffs against plain
 #
 # One binary serves the whole sweep: candidates are files, never builds.
+# ARM_EXTRA (default empty) is appended to every nets arm and never to the
+# plain control — the reading knobs a candidate's nets were trained under,
+# e.g. ARM_EXTRA='--ns-walk-axes --ns-one-diamond-floor'.
 # Arms are NAME=a.f32,b.f32,...; with none, one arm `file` from
 # PONS_FLOOR_WEIGHTS (the Phase 0/1 form).  All arms share one SEED_BASE.
 #
@@ -42,7 +45,8 @@ for vul in $VULS; do
     for a; do
         n=${a%%=*}
         PONS_FLOOR_WEIGHTS=${a#*=}; export PONS_FLOOR_WEIGHTS
-        arm "$n" "$vul" --our-floor american-file
+        # shellcheck disable=SC2086
+        arm "$n" "$vul" --our-floor american-file ${ARM_EXTRA:-}
         diffpair "$n" plain "$vul"
         sddiff "$n" plain "$vul"
     done

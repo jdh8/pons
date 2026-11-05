@@ -208,6 +208,25 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
             minor,
             len(Suit::Clubs, 2..) & len(Suit::Diamonds, ..4) & no_major(),
         );
+    } else if agreements.decision.reading.one_diamond_floor {
+        // Byte-identical bidding: `prefers_diamonds & no_major` already
+        // implies three diamonds; the atom only makes the reading say so.
+        rules = one_level(
+            rules,
+            Bid::new(1, Strain::Diamonds),
+            100,
+            wide,
+            minor,
+            len(Suit::Diamonds, 3..) & prefers_diamonds() & no_major(),
+        );
+        rules = one_level(
+            rules,
+            Bid::new(1, Strain::Clubs),
+            100,
+            wide,
+            minor,
+            len(Suit::Clubs, 3..) & !prefers_diamonds() & no_major(),
+        );
     } else {
         rules = one_level(
             rules,

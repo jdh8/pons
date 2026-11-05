@@ -251,6 +251,14 @@ struct Args {
     /// axes the symbolic reading left fully open.  Requires `--ns-probe`.
     #[arg(long, default_value_t = false, requires = "ns_probe")]
     ns_probe_vacuous: bool,
+    /// B2.5: the natural walk fills the axes an authored reading leaves open
+    /// (`ReadingProfile::walk_axes`) while extracting features
+    #[arg(long, default_value_t = false)]
+    ns_walk_axes: bool,
+    /// B2.4: the better-minor 1♦ reads its implied 3+ diamonds
+    /// (`ReadingProfile::one_diamond_floor`) while extracting features
+    #[arg(long, default_value_t = false)]
+    ns_one_diamond_floor: bool,
     /// Read opponents as BBA's disclosed 1NT defenses while extracting features
     ///
     /// Applies `common::vs_bba_agreements` and arms the two corrected Multi
@@ -682,6 +690,8 @@ const PROBE_SEED: u64 = 0x9B0BE;
 /// build, so each moves on this partnership's own copy; the harvest is
 /// order-insensitive, so a rayon build (`--features rayon`) reads the same map.
 fn probe_reader(partnership: &mut Partnership, args: &Args) {
+    partnership.profile_mut().reading.walk_axes = args.ns_walk_axes;
+    partnership.profile_mut().reading.one_diamond_floor = args.ns_one_diamond_floor;
     if args.ns_probe == 0 {
         return;
     }

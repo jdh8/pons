@@ -27,7 +27,12 @@
 #                    spare — keep 1 above 200 columns                      (default 1)
 #   DUMP_TEACHER     the walk's binary, default the release dump-teacher under
 #                    ~/.local/opt/glibc-2.36/run (EPBot's glibc)
-#   ROOT, FLEET, CUT, BANK   data roots (defaults below)
+#   ROOT, FLEET, CUT, BANK   data roots (defaults below: the M32 fleet and cut,
+#                    the recipe the floor shipped until 2026-11-02; the shipped
+#                    BBA-relabel K = 8 trains on dl02:/mnt/ssd-data/jdh8/
+#                    pons-relabel-bba/{chunks,cut}, EXPECT_RELABELLED=380714)
+#   DL               the training box (default dl02); `local` when this script
+#                    already runs there: no upload, the trainer runs here
 set -uo pipefail
 cd "$(dirname "$0")/.."
 NAME=${NAME:?set NAME}
@@ -51,14 +56,26 @@ CH=$ROOT/corpus-$NAME-chunks
 OUT=$ROOT/corpus-$NAME
 STATE=$ROOT/$NAME-pipeline.state
 LOG=$ROOT/$NAME-pipeline.log
-DL=dl02
+DL=${DL:-dl02}
 B=/mnt/ssd-data/jdh8/pons-$NAME
+# rdo CMD / rcp SRC... DST: on the training box, over ssh unless DL=local.
+if [ "$DL" = local ]; then
+    rdo() { bash -c "$1"; }
+    rcp() { cp "$@"; }
+else
+    rdo() { ssh -o BatchMode=yes "$DL" "$1"; }
+    rcp() { scp -q "$@"; }
+fi
+rpath() { if [ "$DL" = local ]; then echo "$1"; else echo "$DL:$1"; fi; }
 NETS_DIR=ab-results/$NAME/nets
 SHARDS="axis-0002 axis-0004 axis-0020 axis-0800 axis-1000 axis-2000 axis-4000 axis-8000 enriched-0 enriched-1 enriched-2 enriched-3 uniform-0 uniform-1 uniform-2 uniform-3 uniform-4 uniform-5 uniform-6 uniform-7"
 
 log() { echo "$(date -Is) $*" >>"$LOG"; }
-stage() { echo "$1" >"$STATE"; log "stage $1"; }
-die() { log "FAILED: $*"; echo "failed: $*" >"$STATE"; exit 1; }
+CUR=
+stage() { CUR=$1; echo "$1" >"$STATE"; log "stage $1"; }
+# The state file names the *stage* that failed, so a relaunch restarts it;
+# the reason goes to the log only.
+die() { log "FAILED: $*"; echo "failed: $CUR" >"$STATE"; exit 1; }
 # Resume: skip every stage before the one recorded (a failed state restarts its stage).
 reached() { local s; s=$(cat "$STATE" 2>/dev/null || true); s=${s#failed: }; [ -n "$s" ] && [ "$s" != "$1" ] && after "$s" "$1"; }
 after() { local order="walk splice upload train fold nets-ready" a b; a=${order%%$1*}; b=${order%%$2*}; [ ${#a} -gt ${#b} ]; }
@@ -116,17 +133,17 @@ fi
 
 if ! reached upload; then
     stage upload
-    ssh -o BatchMode=yes $DL "mkdir -p $B/corpus $B/nets" || die "ssh $DL"
-    scp -q "$OUT"/*.f32 "$OUT"/*.json "$OUT"/*.tags "$OUT"/SHA256SUMS $DL:$B/corpus/ || die "scp"
-    ssh -o BatchMode=yes $DL "cd $B/corpus && sha256sum -c --quiet SHA256SUMS" || die "upload checksum"
+    rdo "mkdir -p $B/corpus $B/nets" || die "mkdir on $DL"
+    rcp "$OUT"/*.f32 "$OUT"/*.json "$OUT"/*.tags "$OUT"/SHA256SUMS "$(rpath "$B/corpus/")" || die "copy corpus"
+    rdo "cd $B/corpus && sha256sum -c --quiet SHA256SUMS" || die "upload checksum"
 fi
 
 if ! reached train; then
     stage train
     # The trainer must know this feature version: sync its source and rebuild
     # (CUDA 12.8 on the path; the system nvcc rejects the 4090).
-    rsync -a --delete trainer/src/ $DL:src/pons/trainer/src/ || die "rsync trainer source"
-    ssh -o BatchMode=yes $DL "export PATH=/usr/local/cuda-12.8/bin:\$PATH LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:\${LD_LIBRARY_PATH:-}; cd src/pons/trainer && cargo build --release --features cuda 2>&1 | tail -2" >>"$LOG" 2>&1 || die "trainer build"
+    [ "$DL" = local ] || rsync -a --delete trainer/src/ $DL:src/pons/trainer/src/ || die "rsync trainer source"
+    rdo "export PATH=/usr/local/cuda-12.8/bin:\$PATH LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:\${LD_LIBRARY_PATH:-}; cd \$HOME/src/pons/trainer && cargo build --release --features cuda 2>&1 | tail -2" >>"$LOG" 2>&1 || die "trainer build"
     {
         echo '#!/bin/bash'
         echo "# $NAME retrain: eight draws of the shipped v6 recipe (Plan B README), $TRAIN_PAR at a time."
@@ -146,20 +163,20 @@ if ! reached train; then
         echo wait
         echo 'echo "train.sh done $(date -Is)" >> $N/README'
     } >"$ROOT/$NAME-train.sh"
-    scp -q "$ROOT/$NAME-train.sh" $DL:$B/train.sh || die "scp train.sh"
-    ssh -o BatchMode=yes $DL "chmod +x $B/train.sh; rm -f $B/nets/README; setsid nohup $B/train.sh >$B/train.log 2>&1 </dev/null & echo started" || die "train start"
-    while ! ssh -o BatchMode=yes $DL "grep -q 'train.sh done' $B/nets/README 2>/dev/null"; do
-        ssh -o BatchMode=yes $DL "pgrep -f pons-trainer >/dev/null || grep -q 'train.sh done' $B/nets/README 2>/dev/null" || die "trainer died (see dl02:$B/train.log, nets/*.log)"
+    rcp "$ROOT/$NAME-train.sh" "$(rpath "$B/train.sh")" || die "copy train.sh"
+    rdo "chmod +x $B/train.sh; rm -f $B/nets/README; setsid nohup $B/train.sh >$B/train.log 2>&1 </dev/null & echo started" || die "train start"
+    while ! rdo "grep -q 'train.sh done' $B/nets/README 2>/dev/null"; do
+        rdo "pgrep -f pons-trainer >/dev/null || grep -q 'train.sh done' $B/nets/README 2>/dev/null" || die "trainer died (see $DL:$B/train.log, nets/*.log)"
         sleep 300
     done
     want=$(for s in $SEEDS; do printf "seed%s.f32 " "$s"; done)
-    ssh -o BatchMode=yes $DL "cd $B/nets && ls $want >/dev/null && grep -h 'final val top1\|calibration' seed*.log" >>"$LOG" 2>&1 || die "nets incomplete"
+    rdo "cd $B/nets && ls $want >/dev/null && grep -h 'final val top1\|calibration' seed*.log" >>"$LOG" 2>&1 || die "nets incomplete"
 fi
 
 if ! reached fold; then
     stage fold
     mkdir -p "$NETS_DIR"
-    scp -q "$DL:$B/nets/*" "$NETS_DIR/" || die "scp nets"
+    rcp "$(rpath "$B/nets")"/* "$NETS_DIR/" || die "copy nets"
     STEMS=$(ls "$OUT"/*.f32 | sed 's/\.f32$//' | sed 's/^/--data /' | tr '\n' ' ')
     for s in $SEEDS; do
         # shellcheck disable=SC2086

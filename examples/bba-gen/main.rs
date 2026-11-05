@@ -2306,6 +2306,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_nt_overcall_gladiator: bool,
 
+    /// B2.5: the natural walk fills the axes an authored reading leaves open
+    /// (`ReadingProfile::walk_axes`). Off by default — retrain-gated, serve
+    /// only with nets trained under it.
+    #[arg(long, default_value_t = false)]
+    ns_walk_axes: bool,
+
+    /// B2.4: the better-minor 1♦ opening reads its implied 3+ diamonds
+    /// (`ReadingProfile::one_diamond_floor`; bidding byte-identical). Off by
+    /// default — retrain-gated, serve only with nets trained under it.
+    #[arg(long, default_value_t = false)]
+    ns_one_diamond_floor: bool,
+
     /// Extend our 1NT defense to the balancing seat `(1NT) - - ?` (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
@@ -3022,6 +3034,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.natural_double_floor = args.ns_double_floor;
     agreements.decision.reading.nt_overcall_systems_on = !args.no_ns_nt_overcall_systems_on;
     agreements.decision.reading.nt_overcall_gladiator = args.ns_nt_overcall_gladiator;
+    agreements.decision.reading.walk_axes = args.ns_walk_axes;
+    agreements.decision.reading.one_diamond_floor = args.ns_one_diamond_floor;
     agreements.decision.reading.natural_overcall_points = (oc_lo, oc_hi);
     agreements.decision.reading.garbage_stayman = !args.no_ns_garbage_stayman;
     agreements.decision.reading.crawling_stayman = !args.no_ns_crawling_stayman;

@@ -768,6 +768,31 @@ pub struct ReadingProfile {
     /// the minor branch.  `bba-gen --ns-nt-overcall-gladiator` is the on arm.
     pub nt_overcall_gladiator: bool,
 
+    /// Let the natural walk fill the axes an authored reading leaves open
+    ///
+    /// **Default off** — B2.5 of `docs/bba-gap-campaign.md`, retrain-gated:
+    /// a net input moves, so it is read only with nets trained under it.
+    /// Off, an unalerted authored call whose folded projection is not ⊤ on
+    /// every axis *replaces* the walk, and the axes its rule never bounded
+    /// (`floor#64`'s `1♠` reads `♠4+` and nothing else) are lost.  On, the
+    /// walk runs for every such call and is rolled back only on the axes
+    /// the fold bounds: the authored bound stands where it exists, the
+    /// walk's guess where it does not.  A fold that bounds every axis still
+    /// substitutes; a ⊤ positive whose fold bounds only strength reads as
+    /// before, and one whose fold leaves strength open now keeps the walk's.
+    pub walk_axes: bool,
+
+    /// State the `1♦` opening's implied three-card floor in its rule
+    ///
+    /// **Default off** — B2.4 of `docs/bba-gap-campaign.md`, retrain-gated
+    /// (measured a plain loss on the nets of its day, twice).  The better-minor
+    /// `1♦` is an opaque comparator (`prefers_diamonds`) that projects no
+    /// diamond axis, so under [`ReadingScope::All`] the opening reads `♦0..13`
+    /// and `3+ ♦ shown by partner` never gates a raise.  On, the rule carries
+    /// `len(♦, 3..)`, which the comparator already implies: bidding is
+    /// byte-identical, only the reading moves.
+    pub one_diamond_floor: bool,
+
     /// Author responder's `1NT - 3M` splinter
     ///
     /// **Default on** since 2026-07-28: 5M boards per vulnerability, positive
@@ -1324,6 +1349,8 @@ impl ReadingProfile {
             pdi_latch: true,
             nt_overcall_systems_on: false,
             nt_overcall_gladiator: true,
+            walk_axes: true,
+            one_diamond_floor: true,
             nt_splinter: false,
             opener_extras_ladder: false,
             xyz: false,
@@ -1396,6 +1423,8 @@ impl Default for ReadingProfile {
             pdi_latch: false,
             nt_overcall_systems_on: true,
             nt_overcall_gladiator: false,
+            walk_axes: false,
+            one_diamond_floor: false,
             nt_splinter: true,
             opener_extras_ladder: true,
             xyz: true,

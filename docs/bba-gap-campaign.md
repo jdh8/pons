@@ -541,6 +541,10 @@ In bucket order; each item is its own fresh-seed A/B per
    the `walk_shape` bit to an axis mask so the natural walk survives only on the
    axes the authored union leaves open (`floor#64`'s 1♠ and `floor#20`'s
    balancing 2♣ read sound but loose under `ReadingScope::All`).
+   **Built 2026-11-05** as `reading.walk_axes` (default off), with B2.4's
+   atom as `reading.one_diamond_floor`; the 2026-11-02 BBA-relabel retrain
+   had shipped without either. One matched retrain of the shipped recipe
+   with both on is the measurement (CHANGELOG 2026-11-05); verdict owed.
 8. **Owed measurements:** disclosure's isolated cost against the *generated*
    card (`ab-disclose.sh`; −0.009/bd was the static card); ~~a fresh-seed
    confirmation of the series (protocol asks for one every ~3rd re-anchor; none

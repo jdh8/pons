@@ -249,6 +249,72 @@ fn top_authored_projection_falls_back_to_the_walk() {
     );
 }
 
+/// B2.5: under `walk_axes` an authored rule that bounds one axis keeps the
+/// walk on the others, instead of replacing the walk wholesale.
+#[test]
+fn walk_axes_keeps_the_walk_on_the_axes_the_rule_leaves_open() {
+    let one_spade = bid(1, Strain::Spades);
+    let auction = [one_spade, Call::Pass];
+    let read = |walk_axes: bool| {
+        let mut system = System {
+            agreements: Agreements::default(),
+            ..Default::default()
+        };
+        system.agreements.decision.reading.walk_axes = walk_axes;
+        system.constructive.insert(
+            &[],
+            Rules::new()
+                .rule(one_spade, 100, len(Suit::Spades, 4..))
+                .rule(Call::Pass, 0, hcp(0..)),
+        );
+        let inf = system.bind().infer(RelativeVulnerability::NONE, &auction);
+        (
+            inf.partner().length(Suit::Spades),
+            inf.partner().strength.points,
+        )
+    };
+
+    let (spades, points) = read(false);
+    assert_eq!(spades, Range::new(4, 13), "knob off: the rule's floor");
+    assert_eq!(
+        points.min, 0,
+        "knob off: the rule's silence on strength is the reading"
+    );
+
+    let (spades, points) = read(true);
+    assert_eq!(
+        spades,
+        Range::new(4, 13),
+        "knob on: the bounded axis is still the rule's"
+    );
+    assert!(
+        points.min > 0,
+        "knob on: the open strength axis keeps the walk's opening values, read {points:?}"
+    );
+}
+
+/// B2.4: the better-minor `1♦` reads its implied three-card floor only with
+/// `one_diamond_floor`; the opaque comparator alone projects `♦0..13`.
+#[test]
+fn one_diamond_floor_reads_three_diamonds() {
+    let auction = [bid(1, Strain::Diamonds), Call::Pass];
+    let mut agreements = Agreements::default();
+    assert_eq!(
+        read_booked_with(&agreements, &auction)
+            .partner()
+            .length(Suit::Diamonds)
+            .min,
+        0
+    );
+    agreements.decision.reading.one_diamond_floor = true;
+    assert_eq!(
+        read_booked_with(&agreements, &auction)
+            .partner()
+            .length(Suit::Diamonds),
+        Range::new(3, 13)
+    );
+}
+
 /// A two-over-one denies four-card support, and the reading now says so.
 ///
 /// `Flip` had no projection at all, so `!support(4..)` — a plain box, "at
