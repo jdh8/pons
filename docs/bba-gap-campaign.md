@@ -544,7 +544,11 @@ In bucket order; each item is its own fresh-seed A/B per
    **Built 2026-11-05** as `reading.walk_axes` (default off), with B2.4's
    atom as `reading.one_diamond_floor`; the 2026-11-02 BBA-relabel retrain
    had shipped without either. One matched retrain of the shipped recipe
-   with both on is the measurement (CHANGELOG 2026-11-05); verdict owed.
+   with both on is the measurement (CHANGELOG 2026-11-05). **Read
+   2026-11-06: no ship, the knobs stay off.** Both draws win plain when NS
+   are non-vulnerable (+0.014..+0.021) and wash plain with a resolved PD loss
+   when NS are vulnerable (−0.016..−0.021). The pattern repeats across
+   draws, so it is not draw luck. Table in CHANGELOG.
 8. **Owed measurements:** disclosure's isolated cost against the *generated*
    card (`ab-disclose.sh`; −0.009/bd was the static card); ~~a fresh-seed
    confirmation of the series (protocol asks for one every ~3rd re-anchor; none

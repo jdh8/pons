@@ -33,7 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ARM_EXTRA` for the nets arms; `feature-retrain.sh` takes `DL=local` and
   the relabel-bba roots by env (its defaults still name the M32 recipe).
   Defaults off are smoke byte-identical (`smoke-default --count 20000
-  --seed 1`). Verdict owed.
+  --seed 1`). **Verdict 2026-11-06: no ship, the knobs stay off.** Neither
+  draw beats the shipped floor in all four cells (vs BBA, 204,800 bd/cell,
+  `SEED_BASE` 1793878010868161276), IMPs/board, plain / PD:
+
+  | draw | none | ns | ew | both |
+  | --- | --- | --- | --- | --- |
+  | seeds 1–8 | **+0.0139** ±0.0067 / −0.0089 ±0.0073 | +0.0004 ±0.0073 / −0.0207 ±0.0082 | **+0.0207** ±0.0076 / −0.0029 ±0.0084 | +0.0044 ±0.0078 / −0.0179 ±0.0087 |
+  | seeds 9–16 | **+0.0151** ±0.0066 / −0.0023 ±0.0073 | +0.0025 ±0.0073 / −0.0157 ±0.0082 | **+0.0171** ±0.0075 / +0.0008 ±0.0083 | +0.0011 ±0.0078 / −0.0168 ±0.0086 |
+
+  Both draws repeat one pattern, so it is not draw luck: a plain win
+  when NS are non-vulnerable, and a plain wash plus a resolved PD loss when
+  NS are vulnerable. SD-lead (16 worlds) agrees: plain wins at none and ew,
+  inconclusive at ns; SD-PD loses at ns for both draws. Against BBA the PD
+  loss is recorded, not a veto; the ns and both plain washes are what block
+  the ship. Results in `dl02:ab-results/b25/`, nets in `ab-results/b25/nets`.
 - **A natural runout after they double our `1NT` overcall, default-on
   (2026-11-05, [docs/defensive-overcalls.md](docs/defensive-overcalls.md)
   § "The natural runout after they double our `1NT` overcall").**

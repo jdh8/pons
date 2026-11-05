@@ -347,6 +347,9 @@ as a batch, not as separate efforts:
 B2.5 and the `1♦ ♦3` atom are now built as reading knobs (default off) and
 ride one matched retrain of the shipped recipe (CHANGELOG 2026-11-05);
 the phantom-suit input fix and the rail re-arbitration still wait.
+**Read 2026-11-06: no ship.** Both draws win plain when NS are
+non-vulnerable and wash plain with a PD loss when NS are vulnerable, so the
+knobs stay off (CHANGELOG 2026-11-05 entry).
 
 ~~Blocked on the M5.3 corpus question~~ — **unblocked 2026-09-26** by the
 label transplant ([ai-bidder/features-v8.md](ai-bidder/features-v8.md)): a
@@ -474,8 +477,8 @@ group waits on that decision, the second group does not.
 - `features_v8`'s three levers — the v8-only keycard-ask rail, re-sampling
   the retired Dutch rows, a relabel at HEAD
   ([ai-bidder/features-v8.md](ai-bidder/features-v8.md) §5).
-- The retrain batch of §5 above (B2.5 axis mask, the `1♦ ♦3` atom, the
-  phantom-suit input fix).
+- The retrain batch of §5 above (the phantom-suit input fix; B2.5 axis mask
+  and the `1♦ ♦3` atom measured 2026-11-06, no ship).
 - The floor-rail residue: the long "we act / BBA passes" tail at `7e0bc648`
   (no lane at 0.5k PD). The `1NT - 2♣ - 2♥ - 2NT` `3♣` lane (38 bd, −410 PD,
   once left here as one exact sequence) is now inside the parametric
