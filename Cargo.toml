@@ -19,7 +19,9 @@ keywords = ["bridge"]
 # harness (`scripts`), the tracked leftover result files (`ab-results`, mostly
 # gitignored but a pre-ignore subset is still tracked), and the Claude skill
 # docs (`.claude`, `.agents`).
-exclude = ["trainer", "vendor", "web", "docs", "ab-results", "scripts", ".claude", ".agents", "CHANGELOG.md"]
+# `examples/common/weights` holds the `bba` system's own net (3.9 MB), which
+# only the examples serve; with it the tarball would pass crates.io's 10 MiB.
+exclude = ["trainer", "vendor", "web", "docs", "ab-results", "scripts", ".claude", ".agents", "CHANGELOG.md", "examples/common/weights"]
 
 [package.metadata.docs.rs]
 all-features = true

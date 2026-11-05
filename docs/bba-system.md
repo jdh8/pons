@@ -1,6 +1,8 @@
 # The `bba` system — BBA's book over our floor
 
-**Status: built and read 2026-10-29.** Gate 0 did not fire the kill rule;
+**Status: built and read 2026-10-29.** Since 2026-11-05, `bba` has served its own net, `bba-r`
+([portable-judgement.md](portable-judgement.md) §4 D6 read). Every number in this document is against
+the shipped `american()` net it replaced. Gate 0 did not fire the kill rule;
 Gate 2 read **`bba` loses to `american`** (−0.197 / −0.252 plain, −0.175 /
 −0.209 PD) and **loses to BBA by more than `american` does** (−0.634 /
 −0.729 plain against −0.267 / −0.270): at this instrument's resolution the

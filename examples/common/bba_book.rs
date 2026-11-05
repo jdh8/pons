@@ -386,7 +386,8 @@ impl Entry {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Chooser {
     /// The v6 floor shell everywhere (`bba`): our judgement, one net, at
-    /// every walked node
+    /// every walked node.  The net is [`bba_r`], the `bba` system's own
+    /// (docs/portable-judgement.md §7 D6)
     Net,
     /// The floor partition's own owner (`bba-ladder`): the instinct ladder at
     /// constructive nodes, the net elsewhere.  The ladder is a natural
@@ -577,7 +578,8 @@ impl BbaBook {
     /// `with_floors` attaches (`src/bidding/common.rs`): the v6 shell on both
     /// contested books, the instinct ladder on the constructive one.  Under
     /// [`Chooser::File`] the net is the logit mean over `PONS_FLOOR_WEIGHTS`,
-    /// on the nodes and on both contested roots.
+    /// on the nodes and on both contested roots; under [`Chooser::Net`] it is
+    /// [`bba_r`], and under [`Chooser::Partition`] the shipped `american()` net.
     ///
     /// # Errors
     ///
@@ -591,7 +593,8 @@ impl BbaBook {
     ) -> anyhow::Result<System> {
         let blobs = match chooser {
             Chooser::File => Some(super::floor_blobs()?),
-            Chooser::Net | Chooser::Partition => None,
+            Chooser::Net => Some(bba_r()),
+            Chooser::Partition => None,
         };
         Ok(self.system_with(agreements, chooser, mask, blobs))
     }
@@ -656,6 +659,33 @@ impl BbaBook {
         constructive.fallback_at(&[], Always, Fallback::Classify(ladder));
         System::new(constructive, competitive, defensive, agreements)
     }
+}
+
+/// The `bba` system's own net: K = 8 retrained on the `bba` pair's BBA-relabeled
+/// corpus (`bba-r`, docs/portable-judgement.md Phase 1), decoded once
+///
+/// It replaced the shipped `american()` net under `bba` on D6's four-cell A/B
+/// (2026-11-05, won 4/4 plain and PD).  The blobs are kept out of the published
+/// crate (`Cargo.toml` `exclude`): only examples serve the `bba` system.
+#[must_use]
+pub fn bba_r() -> Arc<[Vec<f32>]> {
+    static BLOBS: std::sync::OnceLock<Arc<[Vec<f32>]>> = std::sync::OnceLock::new();
+    BLOBS
+        .get_or_init(|| {
+            [
+                &include_bytes!("weights/bba_r_seed9.f32")[..],
+                include_bytes!("weights/bba_r_seed10.f32"),
+                include_bytes!("weights/bba_r_seed11.f32"),
+                include_bytes!("weights/bba_r_seed12.f32"),
+                include_bytes!("weights/bba_r_seed13.f32"),
+                include_bytes!("weights/bba_r_seed14.f32"),
+                include_bytes!("weights/bba_r_seed15.f32"),
+                include_bytes!("weights/bba_r_seed16.f32"),
+            ]
+            .map(pons::bidding::neural::decode)
+            .into()
+        })
+        .clone()
 }
 
 /// The card the `bba` pair plays: the walk's EPBot system, no row moved

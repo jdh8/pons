@@ -32,8 +32,6 @@
 //! ungated and always builds.
 
 use super::context::DecisionProfile;
-#[cfg(any(test, feature = "bench-internals"))]
-use super::features::FEATURES_LEN_EVAL_V3;
 use super::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V4, FEATURES_LEN_EVAL_V5, features_eval, features_eval_on,
     features_eval_v4_on, features_eval_v5_on,
@@ -87,30 +85,6 @@ static WEIGHTS: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW));
 
 /// [`RAW_UNION_READING`] decoded once, on first use.
 static WEIGHTS_UNION_READING: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_UNION_READING));
-
-/// Input width of the v3 (calls-tail) artifact.
-#[cfg(any(test, feature = "bench-internals"))]
-const IN_V3: usize = FEATURES_LEN_EVAL_V3;
-
-/// Float count of the v3 MLP — same architecture, wider first layer.
-#[cfg(any(test, feature = "bench-internals"))]
-const TOTAL_V3: usize = HID * IN_V3 + HID + HID * HID + HID + OUT * HID + OUT;
-
-/// The calls-tail evaluator (`features_eval_v3`), trained on the envelope-union
-/// reading regime — the only regime it serves; see
-/// [`trick_estimates_with_auction`].
-#[cfg(any(test, feature = "bench-internals"))]
-static RAW_V3_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v3_dnf.f32");
-#[cfg(any(test, feature = "bench-internals"))]
-const _: () = assert!(
-    RAW_V3_UNION_READING.len() == TOTAL_V3 * 4,
-    "v3 evaluator weights artifact size mismatch"
-);
-
-/// [`RAW_V3_UNION_READING`] decoded once, on first use.
-#[cfg(any(test, feature = "bench-internals"))]
-static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
-    LazyLock::new(|| decode(RAW_V3_UNION_READING));
 
 /// Input width of the v4 (shape-reading) artifact.
 const IN_V4: usize = FEATURES_LEN_EVAL_V4;
@@ -341,18 +315,18 @@ fn forward_on(union_reading: bool, x: &[f32]) -> [f32; OUT] {
     forward_with::<IN>(weights, x)
 }
 
-/// Benchmark-only forward half of the v3 calls-tail evaluator.
-#[cfg(feature = "bench-internals")]
-pub(super) fn forward_v3(x: &[f32]) -> [f32; OUT] {
-    assert_eq!(x.len(), IN_V3, "v3 evaluator feature width");
-    forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, x)
-}
-
 /// Benchmark-only forward half of the active v4 shape evaluator.
 #[cfg(feature = "bench-internals")]
 pub(super) fn forward_v4(x: &[f32]) -> [f32; OUT] {
     assert_eq!(x.len(), IN_V4, "v4 evaluator feature width");
     forward_with::<IN_V4>(&WEIGHTS_V4_UNION_READING, x)
+}
+
+/// Benchmark-only forward half of the shipped v5 honest evaluator.
+#[cfg(feature = "bench-internals")]
+pub(super) fn forward_v5(x: &[f32]) -> [f32; OUT] {
+    assert_eq!(x.len(), IN_V5, "v5 evaluator feature width");
+    forward_with::<IN_V5>(&WEIGHTS_V5_HONEST, x)
 }
 
 /// One forward pass of the shared architecture at input width `IN_DIM`, over

@@ -991,7 +991,7 @@ fn a_convention_knob_moves_the_card_block() {
 ///
 /// `dump-teacher` extracts from a bare [`Context::new`], which carries no
 /// trie prefixes, so `Inferences::read` skips `project_authored` entirely.
-/// Serving does not: `ConfiguredFloorBba::classify` gets the trie context. This
+/// Serving does not: `ConfiguredFloorV6::classify` gets the trie context. This
 /// pins **how much** of the vector that costs, so a corpus is never dumped
 /// through the wrong extractor by accident.
 ///

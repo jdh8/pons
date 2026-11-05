@@ -7,8 +7,8 @@
 use super::array::Logits;
 use super::context::Context;
 use super::features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
-    features_eval_v4,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V4, FEATURES_LEN_EVAL_V5, features_eval, features_eval_v4,
+    features_eval_v5,
 };
 use super::inference::Inferences;
 use super::rules::Rules;
@@ -66,10 +66,10 @@ pub fn is_deterministic_instinct_floor(
 pub enum ActiveEvaluatorFeatures {
     /// Legacy v2 hull features.
     V2([f32; FEATURES_LEN_EVAL]),
-    /// Shipped v3 calls-tail features.
-    V3([f32; FEATURES_LEN_EVAL_V3]),
     /// Optional v4 shape-reading features.
     V4([f32; FEATURES_LEN_EVAL_V4]),
+    /// Shipped v5 honest calls-tail features.
+    V5([f32; FEATURES_LEN_EVAL_V5]),
 }
 
 impl ActiveEvaluatorFeatures {
@@ -78,8 +78,8 @@ impl ActiveEvaluatorFeatures {
     pub const fn variant(&self) -> &'static str {
         match self {
             Self::V2(_) => "v2",
-            Self::V3(_) => "v3",
             Self::V4(_) => "v4",
+            Self::V5(_) => "v5",
         }
     }
 }
@@ -103,7 +103,7 @@ pub fn active_evaluator_features(
     } else if !profile.eval_auction {
         ActiveEvaluatorFeatures::V2(features_eval(hand, inferences))
     } else {
-        ActiveEvaluatorFeatures::V3(features_eval_v3(hand, inferences, auction))
+        ActiveEvaluatorFeatures::V5(features_eval_v5(hand, inferences, auction))
     }
 }
 
@@ -112,8 +112,8 @@ pub fn active_evaluator_features(
 pub fn active_evaluator_forward(features: &ActiveEvaluatorFeatures) -> [f32; 40] {
     match features {
         ActiveEvaluatorFeatures::V2(features) => super::evaluator::forward(features),
-        ActiveEvaluatorFeatures::V3(features) => super::evaluator::forward_v3(features),
         ActiveEvaluatorFeatures::V4(features) => super::evaluator::forward_v4(features),
+        ActiveEvaluatorFeatures::V5(features) => super::evaluator::forward_v5(features),
     }
 }
 

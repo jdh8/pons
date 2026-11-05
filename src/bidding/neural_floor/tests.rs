@@ -24,29 +24,13 @@ fn shelled(auction: &[Call], hand: &str) -> Logits {
     shelled_with(&Agreements::default(), auction, hand)
 }
 
+/// The shipped v6 shell: [`ConfiguredFloorV6`] over the card `agreements` captures
 fn shelled_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let floor = ConfiguredFloorBba::new(
-        Config::symmetric(&crate::bidding::card::american_card(agreements)),
-        Arc::new(crate::bidding::instinct(agreements)),
-    );
-    let context =
-        Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision);
-    floor.classify(hand, &context)
-}
-
-/// The same, through the **shipped v6 shell**
-///
-/// `shelled_with` builds the v4 `ConfiguredFloorBba`.  The two classify bodies
-/// carry the same stage list by hand, so a stage added to one and not the other
-/// is a silent divergence no v4 test can see — this is what pins the shipped
-/// side of that pair.
-fn shelled_v6_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits {
-    let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorV6::new(
-        crate::bidding::features::CompactConfig::symmetric(
-            &crate::bidding::features::ConventionCard::capture(agreements),
-        ),
+        CompactConfig::symmetric(&crate::bidding::features::ConventionCard::capture(
+            agreements,
+        )),
         Arc::new(crate::bidding::instinct(agreements)),
     );
     let context =
@@ -64,7 +48,7 @@ fn configured_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Vec
 /// The card block reaches the net: flipping one row moves the logits.
 ///
 /// The in-crate echo of `scripts/pair-flip-diagnostic.py`, and the check
-/// that would have caught a v4 floor wired to a config it never attaches —
+/// that would have caught a floor wired to a config it never attaches —
 /// which would look exactly like "the convention is worth nothing" at gate
 /// 2, with no other symptom.  It asserts the logits *move*, not that the
 /// chosen call does: `Kickback 1430` decides about one auction in 700, so a
@@ -107,8 +91,8 @@ fn the_configured_floor_answers_off_its_own_ladder() {
         Call::Pass,
     ];
     let hand: Hand = "432.K765.5432.3".parse().expect("valid test hand");
-    let card = Config::symmetric(&crate::bidding::card::american_card(
-        &crate::bidding::agreements::Agreements::default(),
+    let card = CompactConfig::symmetric(&crate::bidding::features::ConventionCard::capture(
+        &Agreements::default(),
     ));
 
     let mut relocated_agreements = Agreements::default();
@@ -123,7 +107,7 @@ fn the_configured_floor_answers_off_its_own_ladder() {
     let context = Context::new(RelativeVulnerability::NONE, &auction)
         .with_profile(relocated_agreements.decision);
     let answer = |ladder: Arc<Rules>| {
-        let logits = ConfiguredFloorBba::new(card.clone(), ladder).classify(hand, &context);
+        let logits = ConfiguredFloorV6::new(card.clone(), ladder).classify(hand, &context);
         (&logits.0)
             .into_iter()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -149,9 +133,9 @@ fn the_configured_floor_answers_off_its_own_ladder() {
 fn configured_floor_clone_reuses_the_decision_cache() {
     let auction = [call(1, Strain::Spades), Call::Pass];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let floor = ConfiguredFloorBba::new(
-        Config::symmetric(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::default(),
+    let floor = ConfiguredFloorV6::new(
+        CompactConfig::symmetric(&crate::bidding::features::ConventionCard::capture(
+            &Agreements::default(),
         )),
         Arc::new(crate::bidding::instinct(&Agreements::default())),
     );
@@ -186,43 +170,6 @@ fn best(auction: &[Call], hand: &str) -> Call {
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
         .map(|(call, _)| call)
         .expect("array is never empty")
-}
-
-/// The board that priced the whole kickback campaign.  After `1♦ - 1♠ - 2♦`
-/// the ladder claims 4♥ as the diamond keycard ask — and responder here is
-/// 6-6 in the majors and **void in diamonds**, so a 4♥ from this hand can
-/// only mean hearts.  The kickback-blind net jumped to 4♥ anyway (it had
-/// never seen 4♥ mean keycards), partner answered the phantom ask, and the
-/// auction was passed out in a 4-1 fit on 171 of 2090 divergent boards.
-///
-/// BBA escapes by bidding the second suit cheaply instead, and the
-/// mixed-regime net was distilled from a teacher that does exactly that.
-/// The fix is not that 4♥ became legal-but-unattractive; it is that the net
-/// stops offering it at all once the readings say the suit is spoken for.
-#[test]
-fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
-    let auction = [
-        call(1, Strain::Diamonds),
-        Call::Pass,
-        call(1, Strain::Spades),
-        Call::Pass,
-        call(2, Strain::Diamonds),
-        Call::Pass,
-    ];
-    let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
-    let mut agreements = Agreements::default();
-    agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Kickback;
-    let logits = shelled_with(&agreements, &auction, hand);
-    let with_kickback = (&logits.0)
-        .into_iter()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-        .map(|(call, _)| call)
-        .expect("array is never empty");
-    assert_ne!(
-        with_kickback,
-        call(4, Strain::Hearts),
-        "4♥ is the diamond ask on this face — the net must not bid it naturally"
-    );
 }
 
 // The five §0.4 safety properties, enforced by the shell against the learned
@@ -519,9 +466,9 @@ fn top_call(logits: &Logits) -> Call {
 /// The phantom-suit rail takes away the cue nobody has the cards for, and
 /// leaves the natural bid alone
 ///
-/// `1♠ (2♥)` to the responder holding `86` in their suit: partner opened
+/// `1♠ (2♥)` to the responder holding `864` in their suit: partner opened
 /// spades and has announced no hearts, so the net's `3♥` cue names a trump
-/// suit the table has promised two cards in.  The rail masks it and the
+/// suit the table has promised three cards in.  The rail masks it and the
 /// takeout `X` — already in the net's own ranking — replaces it.  That is the
 /// §N1-lia forensic's worst class in miniature, and the reason the rail is
 /// output-side: `features_v6` sets a we-bid-this-strain bit for artificial
@@ -534,7 +481,7 @@ fn top_call(logits: &Logits) -> Call {
 #[test]
 fn the_new_suit_gate_takes_the_phantom_cue() {
     let auction = [call(1, Strain::Spades), call(2, Strain::Hearts)];
-    let hand = "K3.86.AQ932.KQ84";
+    let hand = "Q3.864.AKJ3.KQ84";
     let cue = call(3, Strain::Hearts);
     let mut agreements = Agreements::default();
     assert!(
@@ -582,17 +529,14 @@ fn the_new_suit_gate_takes_the_phantom_cue() {
     );
 }
 
-/// The rail is scoped off agreed fits by its predicate alone, and it is wired
-/// into the **shipped v6 shell**, not just the v4 twin the other tests build
+/// The rail is scoped off agreed fits by its predicate alone
 ///
 /// Partner opened `1♠`, so their announced spade minimum is five; three cards
 /// opposite that already reaches eight and the sum can never fall to five.  No
 /// separate `has_fit` test does this work — the arithmetic does — which is the
 /// one load-bearing claim behind "scoped off agreed fits" in the design doc.
-/// The same rows run through `ConfiguredFloorV6`, because the two shells
-/// duplicate their stage list by hand and only this pins the shipped one.
 #[test]
-fn the_new_suit_gate_spares_an_announced_fit_in_both_shells() {
+fn the_new_suit_gate_spares_an_announced_fit() {
     let auction = [call(1, Strain::Spades), call(2, Strain::Hearts)];
     // 3=2=4=4: three spades opposite partner's announced five, and hearts,
     // diamonds and clubs all inside the predicate.
@@ -602,22 +546,18 @@ fn the_new_suit_gate_spares_an_announced_fit_in_both_shells() {
     let mut agreements = Agreements::default();
     agreements.decision.instinct.new_suit_veto = true;
 
-    for (label, logits) in [
-        ("v4", shelled_with(&agreements, &auction, hand)),
-        ("v6", shelled_v6_with(&agreements, &auction, hand)),
-    ] {
-        assert!(
-            logits.0[raise].is_finite(),
-            "{label}: a raise of partner's announced suit is never a phantom"
-        );
-        assert_eq!(
-            logits.0[cue],
-            f32::NEG_INFINITY,
-            "{label}: the unannounced side suit still is one"
-        );
-        assert!(logits.0[Call::Pass].is_finite(), "{label}: Pass is legal");
-        assert!(logits.has_mass(), "{label}: a distribution survives");
-    }
+    let logits = shelled_with(&agreements, &auction, hand);
+    assert!(
+        logits.0[raise].is_finite(),
+        "a raise of partner's announced suit is never a phantom"
+    );
+    assert_eq!(
+        logits.0[cue],
+        f32::NEG_INFINITY,
+        "the unannounced side suit still is one"
+    );
+    assert!(logits.0[Call::Pass].is_finite(), "Pass is legal");
+    assert!(logits.has_mass(), "a distribution survives");
 }
 
 /// The phantom-suit rail masks a suit bid nobody has the cards for, and only
@@ -704,27 +644,27 @@ fn the_their_contract_gate_masks_the_silent_pull() {
         "the rail ships default on"
     );
     agreements.decision.instinct.their_3nt_pull_veto = false;
-    let off = shelled_v6_with(&agreements, &silent, "532.Q74.T943.J63");
+    let off = shelled_with(&agreements, &silent, "532.Q74.T943.J63");
     assert!(
         off.0[four_spades].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.their_3nt_pull_veto = true;
-    let on = shelled_v6_with(&agreements, &silent, "532.Q74.T943.J63");
+    let on = shelled_with(&agreements, &silent, "532.Q74.T943.J63");
     assert_eq!(on.0[four_spades], f32::NEG_INFINITY, "the pull is masked");
     assert_eq!(on.0[call(4, Strain::Clubs)], f32::NEG_INFINITY);
     assert!(on.0[Call::Pass].is_finite() && on.0[Call::Double].is_finite());
 
     let doubled = [call(2, Strain::Notrump), pass, nt3, Call::Double, pass];
-    let pulled = shelled_v6_with(&agreements, &doubled, "9832.A973.4.6543");
+    let pulled = shelled_with(&agreements, &doubled, "9832.A973.4.6543");
     assert_eq!(
         pulled.0[call(4, Strain::Clubs)],
         f32::NEG_INFINITY,
         "partner's X keeps it live"
     );
 
-    let long = shelled_v6_with(&agreements, &silent, "5.Q74.KQT9843.J6");
+    let long = shelled_with(&agreements, &silent, "5.Q74.KQT9843.J6");
     assert!(
         long.0[call(4, Strain::Diamonds)].is_finite(),
         "a six-card suit is outside the rail"
@@ -737,7 +677,7 @@ fn the_their_contract_gate_masks_the_silent_pull() {
         pass,
         nt3,
     ];
-    let ours = shelled_v6_with(&agreements, &overcalled, "532.Q74.T943.J63");
+    let ours = shelled_with(&agreements, &overcalled, "532.Q74.T943.J63");
     assert!(
         ours.0[four_spades].is_finite(),
         "a side that bid is outside the rail"
@@ -762,14 +702,14 @@ fn the_their_2nt_gate_masks_the_silent_double() {
     for response in [call(3, Strain::Notrump), call(3, Strain::Clubs)] {
         let silent = [pass, nt2, pass, response];
         agreements.decision.instinct.their_2nt_double_veto = false;
-        let off = shelled_v6_with(&agreements, &silent, "QT9852.A84.T2.J2");
+        let off = shelled_with(&agreements, &silent, "QT9852.A84.T2.J2");
         assert!(
             off.0[Call::Double].is_finite(),
             "knob-off leaves the net alone"
         );
 
         agreements.decision.instinct.their_2nt_double_veto = true;
-        let on = shelled_v6_with(&agreements, &silent, "QT9852.A84.T2.J2");
+        let on = shelled_with(&agreements, &silent, "QT9852.A84.T2.J2");
         assert_eq!(
             on.0[Call::Double],
             f32::NEG_INFINITY,
@@ -779,7 +719,7 @@ fn the_their_2nt_gate_masks_the_silent_double() {
     }
 
     let overcalled = [nt2, call(3, Strain::Spades), call(3, Strain::Notrump)];
-    let ours = shelled_v6_with(&agreements, &overcalled, "QT9852.A84.T2.J2");
+    let ours = shelled_with(&agreements, &overcalled, "QT9852.A84.T2.J2");
     assert!(
         ours.0[Call::Double].is_finite(),
         "a side that bid is outside the rail"
@@ -791,7 +731,7 @@ fn the_their_2nt_gate_masks_the_silent_double() {
         pass,
         call(3, Strain::Notrump),
     ];
-    let other = shelled_v6_with(&agreements, &one_nt, "QT9852.A84.T2.J2");
+    let other = shelled_with(&agreements, &one_nt, "QT9852.A84.T2.J2");
     assert!(
         other.0[Call::Double].is_finite(),
         "a 1NT opening is outside the rail"
@@ -822,15 +762,15 @@ fn the_their_contract_gate_masks_the_junk_unusual_4nt() {
         "the rail ships default on"
     );
     agreements.decision.instinct.their_3nt_unusual_veto = false;
-    let off = shelled_v6_with(&agreements, &silent, "T65.JT97.JT64.63");
+    let off = shelled_with(&agreements, &silent, "T65.JT97.JT64.63");
     assert!(off.0[nt4].is_finite(), "knob-off leaves the net alone");
 
     agreements.decision.instinct.their_3nt_unusual_veto = true;
-    let on = shelled_v6_with(&agreements, &silent, "T65.JT97.JT64.63");
+    let on = shelled_with(&agreements, &silent, "T65.JT97.JT64.63");
     assert_eq!(on.0[nt4], f32::NEG_INFINITY, "the junk 4NT is masked");
     assert!(on.0[Call::Pass].is_finite());
 
-    let two_suiter = shelled_v6_with(&agreements, &silent, "5.6.KJ975.QT9843");
+    let two_suiter = shelled_with(&agreements, &silent, "5.6.KJ975.QT9843");
     assert!(
         two_suiter.0[nt4].is_finite(),
         "a 5-5 hand is outside the rail"
@@ -863,14 +803,14 @@ fn the_their_contract_gate_masks_the_short_game_pull() {
         "the rail ships default on"
     );
     agreements.decision.instinct.their_game_pull_veto = false;
-    let off = shelled_v6_with(&agreements, &smolen, "T87.65.J8542.873");
+    let off = shelled_with(&agreements, &smolen, "T87.65.J8542.873");
     assert!(
         off.0[four_spades].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.their_game_pull_veto = true;
-    let on = shelled_v6_with(&agreements, &smolen, "T87.65.J8542.873");
+    let on = shelled_with(&agreements, &smolen, "T87.65.J8542.873");
     assert_eq!(
         on.0[four_spades],
         f32::NEG_INFINITY,
@@ -898,16 +838,16 @@ fn the_their_contract_gate_masks_the_junk_4nt_over_2nt() {
         !agreements.decision.instinct.their_2nt_unusual_veto,
         "the rail ships default off"
     );
-    let off = shelled_v6_with(&agreements, &ogust, "762.96.9.KT98652");
+    let off = shelled_with(&agreements, &ogust, "762.96.9.KT98652");
     assert!(off.0[nt4].is_finite(), "knob-off leaves the net alone");
 
     agreements.decision.instinct.their_2nt_unusual_veto = true;
-    let on = shelled_v6_with(&agreements, &ogust, "762.96.9.KT98652");
+    let on = shelled_with(&agreements, &ogust, "762.96.9.KT98652");
     assert_eq!(on.0[nt4], f32::NEG_INFINITY, "the junk 4NT is masked");
     assert!(on.0[Call::Pass].is_finite());
     assert!(on.0[call(3, Strain::Clubs)].is_finite());
 
-    let two_suiter = shelled_v6_with(&agreements, &ogust, "7.96.KJ975.QT984");
+    let two_suiter = shelled_with(&agreements, &ogust, "7.96.KJ975.QT984");
     assert!(
         two_suiter.0[nt4].is_finite(),
         "a 5-5 hand is outside the rail"
@@ -936,14 +876,14 @@ fn the_silent_cue_gate_masks_the_junk_cue() {
         !agreements.decision.instinct.silent_cue_veto,
         "the rail ships default off"
     );
-    let off = shelled_v6_with(&agreements, &two_over_one, junk);
+    let off = shelled_with(&agreements, &two_over_one, junk);
     assert!(
         off.0[two_spades].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.silent_cue_veto = true;
-    let on = shelled_v6_with(&agreements, &two_over_one, junk);
+    let on = shelled_with(&agreements, &two_over_one, junk);
     for cue in [
         two_spades,
         call(3, Strain::Diamonds),
@@ -955,13 +895,13 @@ fn the_silent_cue_gate_masks_the_junk_cue() {
     assert!(on.0[Call::Double].is_finite());
     assert!(on.0[call(2, Strain::Hearts)].is_finite());
 
-    let values = shelled_v6_with(&agreements, &two_over_one, "65.AQ976.K6.KT74");
+    let values = shelled_with(&agreements, &two_over_one, "65.AQ976.K6.KT74");
     assert!(
         values.0[two_spades].is_finite(),
         "a 12-count is outside the rail"
     );
 
-    let lone = shelled_v6_with(&agreements, &[call(1, Strain::Spades)], junk);
+    let lone = shelled_with(&agreements, &[call(1, Strain::Spades)], junk);
     assert!(
         lone.0[two_spades].is_finite(),
         "one opponent bidding is outside the rail"
@@ -992,14 +932,14 @@ fn the_their_2nt_gate_masks_the_junk_bid() {
         "the rail ships default on"
     );
     agreements.decision.instinct.their_2nt_bid_veto = false;
-    let off = shelled_v6_with(&agreements, &stayman, junk);
+    let off = shelled_with(&agreements, &stayman, junk);
     assert!(
         off.0[three_hearts].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.their_2nt_bid_veto = true;
-    let on = shelled_v6_with(&agreements, &stayman, junk);
+    let on = shelled_with(&agreements, &stayman, junk);
     assert!(
         on.0.iter()
             .all(|(call, logit)| !matches!(call, Call::Bid(_)) || *logit == f32::NEG_INFINITY),
@@ -1007,7 +947,7 @@ fn the_their_2nt_gate_masks_the_junk_bid() {
     );
     assert!(on.0[Call::Pass].is_finite());
 
-    let values = shelled_v6_with(&agreements, &stayman, "9642.AJ742.K3.52");
+    let values = shelled_with(&agreements, &stayman, "9642.AJ742.K3.52");
     assert!(
         values.0[three_hearts].is_finite(),
         "an 8-count is outside the rail"
@@ -1039,25 +979,23 @@ fn the_their_nt_invite_gate_masks_the_silent_double() {
     // Each half alone: the bid veto (also default on) stays off throughout.
     agreements.decision.instinct.their_nt_invite_double_veto = false;
     agreements.decision.instinct.their_nt_invite_bid_veto = false;
-    let off = shelled_v6_with(&agreements, &balancing, hand);
+    let off = shelled_with(&agreements, &balancing, hand);
     assert!(
         off.0[Call::Double].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.their_nt_invite_double_veto = true;
-    for shell in [shelled_v6_with, shelled_with] {
-        let on = shell(&agreements, &balancing, hand);
-        assert_eq!(on.0[Call::Double], f32::NEG_INFINITY, "the X is masked");
-        assert!(on.0[Call::Pass].is_finite());
-        assert!(
-            on.0[call(3, Strain::Hearts)].is_finite(),
-            "the X veto leaves bids alone"
-        );
-    }
+    let on = shelled_with(&agreements, &balancing, hand);
+    assert_eq!(on.0[Call::Double], f32::NEG_INFINITY, "the X is masked");
+    assert!(on.0[Call::Pass].is_finite());
+    assert!(
+        on.0[call(3, Strain::Hearts)].is_finite(),
+        "the X veto leaves bids alone"
+    );
 
     let third_seat = auction_of("P 1NT P 2NT");
-    let on = shelled_v6_with(&agreements, &third_seat, hand);
+    let on = shelled_with(&agreements, &third_seat, hand);
     assert_eq!(
         on.0[Call::Double],
         f32::NEG_INFINITY,
@@ -1082,14 +1020,14 @@ fn the_their_nt_invite_gate_masks_the_short_suit_bid() {
     // Each half alone: the double veto (also default on) stays off throughout.
     agreements.decision.instinct.their_nt_invite_double_veto = false;
     agreements.decision.instinct.their_nt_invite_bid_veto = false;
-    let off = shelled_v6_with(&agreements, &invite, hand);
+    let off = shelled_with(&agreements, &invite, hand);
     assert!(
         off.0[call(3, Strain::Hearts)].is_finite(),
         "knob-off leaves the net alone"
     );
 
     agreements.decision.instinct.their_nt_invite_bid_veto = true;
-    let on = shelled_v6_with(&agreements, &invite, hand);
+    let on = shelled_with(&agreements, &invite, hand);
     for short in [
         call(3, Strain::Hearts),
         call(3, Strain::Clubs),
@@ -1127,7 +1065,7 @@ fn the_their_nt_invite_gate_reads_only_a_true_raise() {
     // `3NT`; off here, so what is read is this rail alone.
     agreements.decision.instinct.their_3nt_pull_veto = false;
 
-    let raise = shelled_v6_with(&agreements, &auction_of("1NT P 2C P 2H P 3H"), hand);
+    let raise = shelled_with(&agreements, &auction_of("1NT P 2C P 2H P 3H"), hand);
     assert_eq!(
         raise.0[Call::Double],
         f32::NEG_INFINITY,
@@ -1135,7 +1073,7 @@ fn the_their_nt_invite_gate_reads_only_a_true_raise() {
     );
     assert_eq!(raise.0[call(4, Strain::Clubs)], f32::NEG_INFINITY);
 
-    let stayman_invite = shelled_v6_with(&agreements, &auction_of("1NT P 2C P 2H P 2NT P P"), hand);
+    let stayman_invite = shelled_with(&agreements, &auction_of("1NT P 2C P 2H P 2NT P P"), hand);
     assert_eq!(
         stayman_invite.0[Call::Double],
         f32::NEG_INFINITY,
@@ -1152,7 +1090,7 @@ fn the_their_nt_invite_gate_reads_only_a_true_raise() {
         "1NT 2C 2NT",
         "1NT X 2NT",
     ] {
-        let logits = shelled_v6_with(&agreements, &auction_of(outside), hand);
+        let logits = shelled_with(&agreements, &auction_of(outside), hand);
         assert!(
             logits.0[Call::Double].is_finite(),
             "`{outside}` is outside the rail"

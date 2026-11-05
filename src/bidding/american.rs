@@ -62,8 +62,8 @@
 
 use super::agreements::Agreements;
 use super::common::{
-    call, other_major, with_floor, with_floor_mean, with_floor_v6, with_floor_v6_their,
-    with_floor_v8, with_instinct_floor,
+    call, other_major, with_floor_mean, with_floor_v6, with_floor_v6_their, with_floor_v8,
+    with_instinct_floor,
 };
 use super::{Competitive, Constructive, Defensive, System};
 
@@ -126,8 +126,7 @@ pub use responses::{
 /// one value serves the card, the books, and — since the system carries it —
 /// the classify-time half that [`System::bind`] pins.  Opponents are modeled as playing our own
 /// agreements, matching every other undeclared-opposition default in the
-/// crate; a genuinely mixed table wants [`american_with_config`], which also
-/// remains the card-input v4 floor's entry point. The honest-reading v6 floor
+/// crate; a declared opposition wants [`american_with_card`]. The honest-reading v6 floor
 /// became the default on its 2026-08-18 held-out and playing gates.
 ///
 /// ```
@@ -159,38 +158,11 @@ pub fn american(agreements: &Agreements) -> System {
     )
 }
 
-/// [`american`] against a **declared** opponent — the mixed table
-///
-/// The two arms of an A/B *play each other*, so at every table one side
-/// relocates its asks and the other does not.  That asymmetric cell is in the
-/// v4 corpus, and this is how a harness reaches it: build each arm's card from
-/// its own knob state, then hand each side both.
-///
-/// `config` is taken verbatim while the **book comes from `agreements`**, so
-/// make them match — a card claiming an agreement the rules do not play is a
-/// misdisclosure to the net, and nothing checks it.  [`american`] cannot make
-/// that mistake (it derives regime and book from one value in one expression);
-/// this entry point can, which is the price of declaring an opponent that value
-/// cannot describe.
-///
-/// Since the 2026-08-08 default-floor swap this is also the only entry point
-/// that still builds the 2/1 book over the card-input **v4** floor
-/// ([`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]);
-/// `american_with_config(Config::symmetric(&american_card()))` reproduces the
-/// pre-swap [`american`] exactly.  A declared opponent on the *shipped* floor
-/// wants [`american_with_card`] instead — an arm built here and compared
-/// against one built by [`american`] measures the two nets, not the declaration.
-#[must_use]
-pub fn american_with_config(agreements: &Agreements, config: super::features::Config) -> System {
-    with_floor(book(agreements), config, agreements)
-}
-
 /// [`american`] against a **declared** opponent, on the shipped v6 floor
 ///
-/// The compact-config twin of [`american_with_config`], and a strictly narrower seam: only
-/// `theirs` is declared, while our own half is captured from the live knobs in
-/// the same expression as the book.  So unlike the v4 entry point this *cannot*
-/// misdisclose our own side — the mistake it warns about is unavailable here —
+/// Only `theirs` is declared, while our own half is captured from the live
+/// knobs in the same expression as the book.  So this *cannot* misdisclose our
+/// own side — the mistake it warns about is unavailable here —
 /// and the only judgement left to the caller is what the opposition plays.
 ///
 /// Build `theirs` with [`ConventionCard::capture`][super::features::ConventionCard::capture]
@@ -285,7 +257,7 @@ pub fn american_v6_their(agreements: &Agreements) -> System {
 /// The 2/1 system with the deterministic **instinct** floor (the pre-BBA default)
 ///
 /// Exactly [`american`] but for the floor: the learned
-/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
+/// [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6]
 /// gives way to
 /// the deterministic [`instinct`][crate::bidding::instinct()] ladder.  This is the
 /// fully-disclosable reference system — every off-book call is a described,

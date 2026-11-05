@@ -2,7 +2,7 @@
 
 **Status: planned 2026-11-01; Phases 0–2 read (Phase 2 on 2026-11-05):
 the union chooser ties `bba-d` on the held-out book, so Phase 3 does not
-fire; D6 awaits jdh8; Phase 4 stays owed.** Each phase
+fire; D6 shipped 2026-11-05 (`bba` serves `bba-r`, won four cells); Phase 4 stays owed.** Each phase
 below is one piece, with its build, its run, its read and its stop rule;
 later phases wait on the earlier read. Decisions in §7 were taken at their
 defaults to write the plan and are one line to overturn.
@@ -636,6 +636,38 @@ G against BBA, plain / PD:
    as a plain wash, with a PD loss on `american`. Proposed default:
    `bba-r`, after a four-cell run (D5).
 
+#### D6 read — `bba` gets its own net (2026-11-05)
+
+`scripts/ab-bba-own-net.sh ab-results/bba-own-net` compares two arms on
+paired deals against BBA, which is told the arm's own card. `bba` serves the
+shipped K = 8. `bba-own` is `bba-file` over the eight `bba-r` blobs. Built
+at `13560068`, `BBA_BOOK=ab-results/bba-book/2026-10-29-8fb078de-none`,
+`SEED_BASE` 1793836935556905108, 204,800 boards per cell. The delta is
+`bba-own` − `bba` in IMPs/board, ±95% CI:
+
+| vul | plain DD | PD | fired |
+| --- | --- | --- | --- |
+| none | +0.0352 ±0.0110 | +0.0397 ±0.0123 | 18.7% |
+| ns | +0.0453 ±0.0132 | +0.0406 ±0.0149 | 18.0% |
+| ew | +0.0146 ±0.0122 | +0.0139 ±0.0137 | 18.5% |
+| both | +0.0421 ±0.0138 | +0.0332 ±0.0154 | 17.8% |
+
+A win in all four cells on both scorers. Every lower bound is above 0, and
+the thinnest is plain `ew` at +0.0024. In plain G against BBA, `bba` reads
+−0.582 / −0.523 / −0.515 / −0.688 and `bba-own` reads −0.496 / −0.452 /
+−0.430 / −0.592. Divergence from BBA's auction falls from about 71% to 62%.
+The worst losing boards are slam tries that stop at the five level where
+the control bid `4NT` and the slam, plus a few competitive doubles. No
+trigger is over-broad: the whole floor moves, by design.
+
+**Shipped.** `--our-floor bba` serves `bba-r`
+(`examples/common/bba_book.rs` `bba_r`, the blobs in
+`examples/common/weights/`, kept out of the published crate). `bba-ladder`
+keeps the shipped net. Its constructive nodes are the instinct ladder, and
+it was not measured with `bba-r`. Default: unchanged, one A/B to overturn.
+Phase 1's `bba` numbers above are against the shipped net. Every later
+`bba` read is against `bba-r`.
+
 ### Phase 3 — if, and only if, the held-out read is a loss
 
 The representation levers, each a separate knob and a separate retrain,
@@ -742,7 +774,7 @@ Taken at their defaults to write the plan.
 | D3 | union corpus stem order | `american` stems first, then `bba`, unshuffled | matches the reseed handoff's recipe; the reverse order is one more ensemble if D4 fires |
 | D4 | if the union net loses on both training domains | widen once (the v6 widths × 1.5), one ensemble | the cheapest capacity test; the LSTM is parked and stays so |
 | D5 | vulnerability cells | two (`none`, `both`) as bba-system.md ran, four for any ship candidate | transfer reads need the pair, a ship needs the house four |
-| D6 | give the `bba` system its own default net (`bba-r`, +0.036 / +0.045 over the shared shipped K = 8, §4 Phase 1 read 2026-11-04) | **no change**; the nets stay in `pons-phase1/bba-r/`. **jdh8 2026-11-04: Phase 2 first, revisit after** (if `union-d` holds both domains it is the natural `bba` default; if not, `bba-r` after a four-cell run). **Phase 2 read 2026-11-05: `union-d` holds both only as a plain wash, with a PD loss on `american`; proposed `bba-r` after a four-cell run. Awaits jdh8** | `bba` is a research system; a swap moves every later `bba` read, and a ship needs the house four cells (D5) |
+| D6 | give the `bba` system its own default net (`bba-r`, +0.036 / +0.045 over the shared shipped K = 8, §4 Phase 1 read 2026-11-04) | **no change**; the nets stay in `pons-phase1/bba-r/`. **jdh8 2026-11-04: Phase 2 first, revisit after** (if `union-d` holds both domains it is the natural `bba` default; if not, `bba-r` after a four-cell run). **Phase 2 read 2026-11-05: `union-d` holds both only as a plain wash, with a PD loss on `american`; proposed `bba-r` after a four-cell run. **jdh8 2026-11-05: decided, `bba-r` after a four-cell run. SHIPPED 2026-11-05: won 4/4 plain and PD (§4 D6 read)** | `bba` is a research system; a swap moves every later `bba` read, and a ship needs the house four cells (D5) |
 
 ## 8. Discrepancies flagged, not resolved
 

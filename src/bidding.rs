@@ -34,8 +34,8 @@ pub mod instinct;
 pub mod map;
 /// Hand-rolled forward pass for the distilled neural floor
 ///
-/// Always compiled: the configured BBA-distilled net
-/// ([`neural::classify_bba_v4`]) backs the default
+/// Always compiled: the honest-reading compact net
+/// ([`neural::classify_bba_v6`]) backs the default
 /// [`american`][american::american] floor.
 pub mod neural;
 /// Deterministic safety shell over the distilled neural floor
@@ -56,7 +56,7 @@ pub mod verify;
 pub use american::{
     american, american_advanced, american_basic, american_book, american_book_default,
     american_default, american_floor, american_floor_default, american_instinct,
-    american_instinct_default, american_with_card, american_with_config,
+    american_instinct_default, american_with_card,
 };
 pub use array::Array;
 pub use book::{

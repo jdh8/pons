@@ -54,7 +54,7 @@
 use super::Rules;
 use super::array::Logits;
 use super::context::Context;
-use super::features::{CompactConfig, Config};
+use super::features::CompactConfig;
 use super::instinct::{
     competitive_gate, forced, new_suit_gate, silent_cue_gate, their_2nt_gate, their_contract_gate,
     their_nt_invite_gate,
@@ -64,77 +64,6 @@ use super::{features, neural};
 use contract_bridge::Hand;
 use contract_bridge::auction::{Auction, Call};
 use std::sync::Arc;
-
-/// The **configured** BBA-distilled floor — the card-input (v4) floor
-///
-/// The shipped default until the compact v5 floor won its 2026-08-08 gate A/B.
-/// It stays reachable through
-/// [`american_with_config`][super::american::american_with_config].
-///
-/// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
-/// learned net in the judgement middle, the deterministic rails preserved by
-/// delegation.  Distilled from the vendored **EPBot 2/1** oracle
-/// ([`neural::classify_bba_v4`]) — a stronger learned prior than the
-/// deterministic ladder it floors (EPBot clears our instinct floor by ~1.9
-/// IMPs/board).  See the [module docs][self].
-///
-/// It is fed [`features_v4`][super::features::features_v4], whose last 280
-/// floats are **both partnerships' convention cards**.  So the regime is an
-/// *input* rather than a choice of artifact, and an A/B arm differs by a card
-/// row instead of by a separately trained net — the confound
-/// `docs/ai-bidder/configured-net.md` exists to remove.  It replaced the v3
-/// twin scheme on gate 1's verdict: +0.1933/+0.2469 plain DD and
-/// +0.5256/+0.5358 PD at 2,000,000 fresh boards per cell.
-///
-/// The [`Config`] is captured **once, when the floor is built**, from whatever
-/// the knobs said at that moment (see
-/// [`american`][super::american::american]).  A partnership is
-/// built per A/B arm and a card is an agreement, not a per-call decision, so
-/// this is the right granularity — and it keeps the per-decision path from
-/// reading ambient state that could silently change what a feature vector
-/// means.
-///
-/// The deterministic ladder the forced path delegates to is captured the same
-/// way, as a constructor argument rather than a process-wide `LazyLock`:
-/// [`instinct()`][super::instinct::instinct] reads the pinned profile at build
-/// time too (its RKCB fields pick the kickback ladder over the plain one), so
-/// a process that builds two differently-knobbed systems must not share one ladder
-/// frozen at whichever came first.
-/// `common::with_floor` builds it once per system and gives the same `Arc` to the
-/// constructive book.
-#[derive(Clone, Debug)]
-pub struct ConfiguredFloorBba(Config, Arc<Rules>);
-
-impl ConfiguredFloorBba {
-    /// Attach the floor to one configuration cell — what each side is declared
-    /// to play — over one deterministic ladder for the forced rails
-    #[must_use]
-    pub const fn new(config: Config, ladder: Arc<Rules>) -> Self {
-        Self(config, ladder)
-    }
-}
-
-impl Classifier for ConfiguredFloorBba {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return self.1.classify(hand, context);
-        }
-        // The context arrives from the trie without a config — only this floor
-        // knows the cell — so attach ours for the extractor to read.  The clone
-        // copies scalars and borrows; the auction and prefixes are not copied.
-        let configured = context.clone().with_config(&self.0);
-        let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
-        mask_illegal(&mut logits, context.auction());
-        competitive_gate(&mut logits, hand, context);
-        new_suit_gate(&mut logits, hand, context);
-        their_contract_gate(&mut logits, hand, context);
-        their_2nt_gate(&mut logits, hand, context);
-        their_nt_invite_gate(&mut logits, hand, context);
-        silent_cue_gate(&mut logits, hand, context);
-        logits
-    }
-}
 
 /// The shipped compact-config floor retrained on the live authored reading.
 #[derive(Clone, Debug)]

@@ -7,9 +7,9 @@
 
 use super::agreements::{Agreements, OpeningKnobs, RebidKnobs, TheirDisclosures};
 use super::fallback::{Always, Fallback, Guard};
-use super::features::{CompactConfig, Config};
+use super::features::CompactConfig;
 use super::instinct::instinct;
-use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV6};
+use super::neural_floor::ConfiguredFloorV6;
 use super::{Rules, System, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -75,7 +75,7 @@ pub(in crate::bidding) fn fallback_all_seats(
 /// slam on those sequences.
 ///
 /// `ladder` is a parameter rather than a fresh [`instinct()`] because the
-/// contested floor needs the *same* one: [`ConfiguredFloorBba`] delegates forced
+/// contested floor needs the *same* one: [`ConfiguredFloorV6`] delegates forced
 /// situations to it, and [`instinct()`] itself reads the pinned profile at
 /// build time (its RKCB fields pick the kickback ladder over the plain one).
 /// Two independent builds could disagree; one `Arc` cannot.
@@ -88,20 +88,6 @@ fn with_floors(mut system: System, ladder: &Arc<Rules>, contested: Fallback) -> 
         .constructive
         .fallback_at(&[], Always, Fallback::Classify(ladder.clone()));
     system
-}
-
-/// Attach the card-input (v4) BBA-distilled floor to a system's contested books
-///
-/// This remains the explicit card-input v4 entry point behind
-/// [`american_with_config`][super::american::american_with_config].
-pub(in crate::bidding) fn with_floor(
-    system: System,
-    config: Config,
-    agreements: &Agreements,
-) -> System {
-    let ladder = Arc::new(instinct(agreements));
-    let contested = Fallback::classify(ConfiguredFloorBba::new(config, Arc::clone(&ladder)));
-    with_floors(system, &ladder, contested)
 }
 
 /// Attach the shipped compact-config v6 floor and honest evaluator twin.

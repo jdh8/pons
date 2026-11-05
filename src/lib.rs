@@ -36,8 +36,7 @@ pub use bidding::{
     Alert, Bidder, Competitive, Constructive, Context, Defensive, OrElse, Partnership, Phase,
     Rules, System, Table, Trie, Versus, american, american_advanced, american_basic, american_book,
     american_book_default, american_default, american_floor, american_floor_default,
-    american_instinct, american_instinct_default, american_with_card, american_with_config,
-    instinct,
+    american_instinct, american_instinct_default, american_with_card, instinct,
 };
 #[cfg(feature = "dd")]
 pub use single_dummy::{

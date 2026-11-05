@@ -3,7 +3,7 @@
 //! and `1♠ -`, every other expanded child marked a dead end) — the pinned
 //! node of docs/bba-system.md Gate 1.
 
-use super::super::bba_book::{BbaBook, Chooser, Mask, Node, is_calculated, run_system};
+use super::super::bba_book::{BbaBook, Chooser, Mask, Node, bba_r, is_calculated, run_system};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use pons::bidding::agreements::Agreements;
@@ -198,8 +198,8 @@ fn the_chooser_names_are_the_floor_names() {
     );
 }
 
-/// `bba-file` over the eight shipped blobs is `bba`, logit for logit: the
-/// file arm differs from the shipped arm by its blobs alone, as
+/// `bba-file` over the eight shipped blobs is the embedded-net build, logit
+/// for logit: a file arm differs from the embedded net by its blobs alone, as
 /// `american-file` does from `american`.
 #[test]
 fn the_file_chooser_over_the_shipped_blobs_is_the_net() {
@@ -230,6 +230,38 @@ fn the_file_chooser_over_the_shipped_blobs_is_the_net() {
                 .map(|l| l.into_iter().collect::<Vec<_>>())
         };
         assert_eq!(logits(&file), logits(&net), "{auction:?}");
+    }
+}
+
+/// `bba` serves `bba-r`: logit for logit the `bba-file` arm over its eight
+/// blobs, the arm D6's A/B measured.
+#[test]
+fn the_net_chooser_serves_bba_r() {
+    let book = fixture();
+    let agreements = Agreements::default();
+    let blobs = bba_r();
+    assert_eq!(blobs.len(), 8);
+    let net = book
+        .system(&agreements, Chooser::Net, Mask::default())
+        .expect("the net chooser reads no environment")
+        .bind();
+    let file = book
+        .system_with(&agreements, Chooser::File, Mask::default(), Some(blobs))
+        .bind();
+    let shipped = book
+        .system_with(&agreements, Chooser::Net, Mask::default(), None)
+        .bind();
+    let logits = |p: &Partnership, auction: &[Call]| {
+        p.classify(eight_count(), RelativeVulnerability::NONE, auction)
+            .map(|l| l.into_iter().collect::<Vec<_>>())
+    };
+    for auction in [&[S1, P][..], &[S1, S2][..]] {
+        assert_eq!(logits(&file, auction), logits(&net, auction), "{auction:?}");
+        assert_ne!(
+            logits(&shipped, auction),
+            logits(&net, auction),
+            "{auction:?}"
+        );
     }
 }
 

@@ -14,9 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{
-    FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_LEN_V8, FEATURES_LEN_V9, TOKEN_LEN_V7,
-};
+use super::features::{FEATURES_LEN_V6, FEATURES_LEN_V8, FEATURES_LEN_V9, TOKEN_LEN_V7};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -99,51 +97,6 @@ fn forward_h<const IN: usize, const H: usize>(weights: &[f32], x: &[f32]) -> Log
         *slot = value;
     }
     logits
-}
-
-// ── The configured floor: v4 features, one net for every regime ──────────────
-// `docs/ai-bidder/configured-net.md`.  The convention card is an *input* here,
-// so a regime needs no weights artifact of its own.  That is what retired the v3
-// twin pair — one net per kickback partnership, selected per decision by the knob —
-// on gate 1's verdict (configured-net.md phase 6).
-
-/// Input width of `american_bba_v4`, pinned to the artifact (= [`FEATURES_LEN_V4`]).
-const IN_V4: usize = FEATURES_LEN_V4;
-
-/// Embedded configured weights: v4 layout (88 disclosable inputs + both cards),
-/// EPBot 2/1 teacher, corpus rotating through six `{American, Dutch} ×
-/// {kickback off, on}` table configurations plus an enriched slam slice.
-static RAW_BBA_V4: &[u8] = include_bytes!("weights/american_bba_v4.f32");
-const _: () = assert!(
-    RAW_BBA_V4.len() == total(IN_V4) * 4,
-    "configured BBA weights artifact size mismatch"
-);
-
-/// [`RAW_BBA_V4`] decoded to `f32` once, on first use.
-static WEIGHTS_BBA_V4: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V4));
-
-/// Evaluate the **configured** BBA-distilled floor: 368 features → 38 logits.
-///
-/// The shipped floor's net, and the only one left: it retired the v3 twin pair
-/// (`american_bba` + `american_bba_kickback`, selected per call by the kickback
-/// knob) on gate 1's verdict.  It reads no
-/// ambient knob state at all: the regime arrives in the feature vector as both
-/// partnerships' convention cards ([`features_v4`][super::features::features_v4]),
-/// so one artifact serves every cell and an A/B arm differs by a card row
-/// rather than by a separately trained net.  Deterministic — fixed weights, no
-/// RNG.
-///
-/// This is the raw net output; legality masking and the forced-situation
-/// overrides belong to the shell
-/// ([`ConfiguredFloorBba`][super::neural_floor::ConfiguredFloorBba]).
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v4 [`FEATURES_LEN_V4`] (368).
-#[must_use]
-pub fn classify_bba_v4(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V4, "expected {IN_V4} features");
-    forward::<IN_V4>(&WEIGHTS_BBA_V4, features)
 }
 
 // ── The honest-reading compact floor: v6 features ────────────────────────────

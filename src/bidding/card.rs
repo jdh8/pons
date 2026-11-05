@@ -33,9 +33,10 @@
 //! # The card is also the floor's input
 //!
 //! The card describes the **authored book**, and since the configured net
-//! shipped it is *also* what the default floor reads: `american()` encodes this
-//! card into [`Config`] and hands it to
-//! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba].  So
+//! shipped it is *also* what the default floor reads: `american()` captures the
+//! agreements behind this card into a
+//! [`CompactConfig`][crate::bidding::features::CompactConfig] and hands it to
+//! [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6].  So
 //! a row here moves three things at once — what we disclose, what the rules
 //! play, and what the net is told it is playing.  That is the point: a knob
 //! cannot change the system without the disclosure and the net following.

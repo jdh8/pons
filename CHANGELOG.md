@@ -257,6 +257,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `bba` system serves its own net, `bba-r` (D6, jdh8 2026-11-05,
+  [docs/portable-judgement.md](docs/portable-judgement.md) §4, §7).**
+  `--our-floor bba` used the shipped `american()` K = 8. It now uses `bba-r`,
+  the Phase 1 K = 8 retrained on the `bba` pair's own BBA relabel. The blobs
+  are embedded in the examples (`examples/common/weights/`) and kept out of
+  the published crate. `bba-ladder` keeps the shipped net. Four cells on
+  paired deals against BBA (`scripts/ab-bba-own-net.sh`, 204,800 boards per
+  cell, `SEED_BASE` 1793836935556905108), `bba-r` − shipped in IMPs/board,
+  plain DD / PD: none +0.035 ±0.011 / +0.040 ±0.012, ns +0.045 ±0.013 /
+  +0.041 ±0.015, ew +0.015 ±0.012 / +0.014 ±0.014, both +0.042 ±0.014 /
+  +0.033 ±0.015. A win in all four cells on both scorers. The plain gap to
+  BBA narrows from −0.582 / −0.523 / −0.515 / −0.688 to −0.496 / −0.452 /
+  −0.430 / −0.592. Every later `bba` read is against this net. `american()`
+  is unchanged.
+
 - **The default floor is the BBA-relabel K = 8 (reseed, seeds 9–16),
   replacing the M32 K = 8 (jdh8, 2026-11-02,
   [docs/reseed-gap-handoff.md](docs/reseed-gap-handoff.md) §5).** Every
@@ -355,7 +370,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ab-results/anchor/2026-10-27-155b5cf8-dirty/` (its `window.sh` builds the
   pairings).
 
+### Removed
+
+- **The card-input v4 floor and the v3 evaluator, two nets with no live path
+  (2026-11-05).** `american_with_config`, `ConfiguredFloorBba`,
+  `neural::classify_bba_v4` and `weights/american_bba_v4` are gone (breaking).
+  The v4 floor was replaced on 2026-08-08, and nothing in `src/`, the
+  examples, the scripts or `web/` built it. A declared opponent goes through
+  `american_with_card` on the shipped v6 floor. The `neural_floor` gate tests
+  that ran through the v4 shell now run through the shipped v6 shell. Two
+  tests were net-specific. The phantom-cue test moves to a hand the v6 net
+  cues on. The kickback six-six test is deleted, because in `american()`
+  that auction is decided by `instinct()`, bit for bit, not by the net.
+  `weights/evaluator_v3_dnf` is gone too, since only tests and benchmarks
+  compiled it. The packaged crate goes from 8.76 MB to 7.98 MB. No bidding
+  change.
+
 ### Fixed
+
+- **The evaluator benchmark times the evaluator that serves (2026-11-05).**
+  `benchmark::active_evaluator_features` claims to select "through the same
+  variant selection as serving", but on the default profile it ran
+  `evaluator_v3_dnf` where serving runs `evaluator_v5_honest`. It now runs v5
+  (`ActiveEvaluatorFeatures::V5` replaces `V3`, breaking under
+  `bench-internals`).
 
 - **`dump-teacher --relabel --rollout-opponent bba` tells BBA the card
   `--system` plays (2026-11-03).** Under `--system bba` the rollout's BBA

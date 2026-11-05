@@ -30,18 +30,6 @@ fn union_reading_matches_candle_fixture() {
     );
 }
 
-/// The v3 calls-tail artifact against its own fixture — served directly,
-/// no knobs, since the weight set is explicit.
-#[test]
-fn v3_matches_candle_fixture() {
-    check_fixture(
-        include_str!("../weights/evaluator_v3_dnf.fixture.json"),
-        3,
-        IN_V3,
-        |x| forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, x),
-    );
-}
-
 /// The v4 shape-reading artifact against its own fixture.
 #[test]
 fn v4_matches_candle_fixture() {
