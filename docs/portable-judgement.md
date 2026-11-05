@@ -579,8 +579,9 @@ case.
 **Read (2026-11-05).** The A/B ended 2026-11-04 23:19 +08
 (`SEED_BASE=1793799266423355794`, 204,800 boards per arm per cell,
 `PAR=16` after an OOM at `PAR` unset). All nine arms and seven diffs are
-in. The script then aborted at `decompose american-d-pc` on a replay
-mismatch (§8), so the `pc` arms have no G. Paired diff, IMPs/board,
+in. The script aborted at `decompose american-d-pc` on a replay mismatch
+(§8, fixed 2026-11-06; the three `pc` decomposes were re-run on dl02 and
+replay at 100.00%). Paired diff, IMPs/board,
 plain DD (95% half-width) / PD:
 
 | diff | served on | none | both | fired |
@@ -595,11 +596,17 @@ plain DD (95% half-width) / PD:
 
 G against BBA, plain / PD:
 
-| arm | `american` none | `american` both | `bba` none | `bba` both |
-| --- | --- | --- | --- | --- |
-| `american-d` | −0.177 / −0.001 | −0.199 / −0.030 | −0.591 / −0.399 | −0.700 / −0.487 |
-| `bba-d` | −0.451 / −0.222 | −0.517 / −0.316 | −0.482 / −0.322 | −0.591 / −0.440 |
-| `union-d` | −0.187 / −0.039 | −0.214 / −0.098 | −0.497 / −0.275 | −0.599 / −0.367 |
+| arm | `american` none | `american` both | `bba` none | `bba` both | `pc` none | `pc` both |
+| --- | --- | --- | --- | --- | --- | --- |
+| `american-d` | −0.177 / −0.001 | −0.199 / −0.030 | −0.591 / −0.399 | −0.700 / −0.487 | −0.961 / −0.748 | −1.136 / −0.884 |
+| `bba-d` | −0.451 / −0.222 | −0.517 / −0.316 | −0.482 / −0.322 | −0.591 / −0.440 | −0.849 / −0.618 | −0.995 / −0.739 |
+| `union-d` | −0.187 / −0.039 | −0.214 / −0.098 | −0.497 / −0.275 | −0.599 / −0.367 | −0.859 / −0.598 | −1.006 / −0.710 |
+
+The `pc` columns were read 2026-11-06, after the replay fix. They agree
+with the paired diffs: `union-d` and `bba-d` within 0.01 of each other,
+both 0.11–0.14 plain and 0.13–0.17 PD ahead of `american-d`; and every
+net loses 0.3–0.5 more on `pc` than on `bba`, the book none of them
+trained on, against opponents playing WJ.
 
 1. **The stop rule does not fire.** `union-d` is a plain wash on both
    training books, so D4 is not triggered. It is not proven
@@ -891,13 +898,17 @@ Taken at their defaults to write the plan.
   reverse it, walk with `BbaOracle::with_opponents` (our side WJ, theirs
   2/1) and merge the two seatings by whose turn it is, which is a walker
   change.
-- **`bba-decompose` fails replay on the `pc` arms** (found reading Phase 2,
-  2026-11-05). `american-d-pc` at none: 129 of 2,031,176 of our calls
-  mismatched. The `am`/`bba` arms replay at 100.00%. Suspect: the
-  replay rebuilds our partnership from the gen args without what the
-  `--system 2` opponents changed. Not diagnosed. Paired diffs come
-  straight from `bba-gen` and do not depend on it. Default: no `pc` G.
-  Fix the replay before any read that needs one.
+- **`bba-decompose` failed replay on the `pc` arms** (found reading Phase
+  2, 2026-11-05; fixed 2026-11-06). `american-d-pc` at none: 129 of
+  2,031,176 of our calls mismatched. Cause: `bba-gen` derives the Landy
+  and Multi counters (`their.two_clubs_landy`, `two_diamonds_multi`) from
+  `--system` when no card row says otherwise, so a `--system 2` arm
+  played them off; the decomposer armed both for any dump whose opponent
+  label contains "BBA". It now reads the dump's recorded `--system` and
+  arms them only for 2/1 (`gen_system`). The three `pc` arms replay at
+  100.00% and their G is in the §4 table. A `--their-card`/`--their-conv`
+  row that overrides the derivation is still not read: pass
+  `--landy-counter`/`--multi-counter` for such a dump.
 - **Phase 2's held-out read has no branch for "union ties one single-book
   net and both beat the other"** (2026-11-05). Default: read as "the
   BBA-compiled training book carries the transfer". The branches are

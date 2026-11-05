@@ -468,6 +468,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`bba-decompose` replays dumps whose BBA opponents played another system
+  (2026-11-06).** It armed our Landy and Multi counters for every
+  BBA-labelled dump, but `bba-gen` derives them from `--system` and arms
+  neither for a `--system 2` (WJ) opponent, so the Phase 2 `pc` arms of
+  [docs/portable-judgement.md](docs/portable-judgement.md) failed replay
+  (129 of 2,031,176 calls). The decomposer now reads the dump's recorded
+  `--system` and arms the counters only for 2/1. The three `pc` decomposes
+  re-run at 100.00% replay; their G against BBA is in the doc's §4 table
+  and confirms the paired read (`union-d` ties `bba-d`, both ahead of
+  `american-d` by 0.11–0.14 plain). No bidding change.
 - **The evaluator benchmark times the evaluator that serves (2026-11-05).**
   `benchmark::active_evaluator_features` claims to select "through the same
   variant selection as serving", but on the default profile it ran

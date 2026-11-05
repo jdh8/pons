@@ -25,6 +25,7 @@
 mod common;
 
 use clap::{Parser, ValueEnum};
+use common::oracle::SYSTEM_2_OVER_1;
 use common::{Dump, Reached, mean_with_ci, next_call, seat_to_act};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Penalty, Seat, Strain};
@@ -327,6 +328,25 @@ struct Arm {
     declared_european_minors: bool,
 }
 
+/// The system `bba-gen` seated BBA on (`--system`, default 2/1): the Landy and
+/// Multi counters it armed are derived from that, so the replay derives them
+/// the same way.
+/// shortcut: a `--their-card`/`--their-conv` row that overrides the
+/// derivation is not read; pass `--landy-counter`/`--multi-counter` for such
+/// a dump, and parse the rows here if one is ever decomposed.
+fn gen_system(gen_args: &[String]) -> std::ffi::c_int {
+    gen_args
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(i, arg)| match arg.strip_prefix("--system=") {
+            Some(value) => value.parse().ok(),
+            None if arg == "--system" || arg == "-s" => gen_args.get(i + 1)?.parse().ok(),
+            None => None,
+        })
+        .unwrap_or(SYSTEM_2_OVER_1)
+}
+
 /// Everything the report needs about one contract-divergent board
 struct Row {
     arm: usize,
@@ -475,9 +495,11 @@ fn main() -> anyhow::Result<()> {
     // 2026-08-14); BEN and fixture dumps replay the plain defaults.  Derived
     // from the dump's own opponent label, `--landy-counter` to override —
     // pass `false` to replay BBA dumps generated before the ship.
-    let landy = args
-        .landy_counter
-        .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BBA")));
+    let landy = args.landy_counter.unwrap_or_else(|| {
+        arms.iter().any(|arm| {
+            arm.their_label.contains("BBA") && gen_system(&arm.gen_args) == SYSTEM_2_OVER_1
+        })
+    });
     let build =
         |edit: &dyn Fn(&mut pons::bidding::agreements::Agreements)| -> anyhow::Result<Partnership> {
             let agreements = if landy {

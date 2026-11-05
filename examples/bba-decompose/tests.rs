@@ -136,3 +136,16 @@ fn live_game_bid_is_their_undoubled_four_plus() {
     assert!(live_game_bid(&[bid(4, Strain::Hearts), Call::Pass]).is_none());
     assert!(live_game_bid(&[bid(1, Strain::Spades), bid(3, Strain::Hearts)]).is_none());
 }
+
+#[test]
+fn gen_system_reads_the_opponent_system_as_bba_gen_armed_it() {
+    let args = |a: &[&str]| a.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+    assert_eq!(gen_system(&args(&["--count", "6400"])), SYSTEM_2_OVER_1);
+    // The Phase 2 `pc` arms: BBA seated on WJ, so no Landy/Multi counter.
+    assert_eq!(
+        gen_system(&args(&["--our-floor", "bba-file", "--system", "2"])),
+        2
+    );
+    assert_eq!(gen_system(&args(&["--system=2"])), 2);
+    assert_eq!(gen_system(&args(&["-s", "2", "--system", "0"])), 0);
+}
