@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Portable-judgement Phase 2: judgement trained on BBA's 2/1 book ports
+  to its Polish Club, and a second training book adds nothing (2026-11-05,
+  [docs/portable-judgement.md](docs/portable-judgement.md) §4).** There is
+  now a third book: BBA's Polish Club (EPBot system 2, WJ), walked as
+  `ab-results/bba-book/2026-11-04-93ec168e-pc`. `probe-bba-book --card`
+  takes a bare EPBot system id, and the `bba` card discloses the walk's
+  system read off its `RUN` (a `--card none` walk is byte-identical). The
+  union K = 8 `union-r` trains on both relabel cuts.
+  `scripts/ab-portable-judgement-2.sh` runs three nets × three books on
+  paired deals. The `pc` arms face BBA on WJ, because the walk reads the
+  opponents' calls too (§8). Read, paired plain DD IMPs/board (none /
+  both), 204,800 boards per cell. `union-d` is a wash against each
+  single-book net on its own book (−0.004 / −0.004 on `american`, −0.007 /
+  −0.005 on `bba`). PD loses on `american` (−0.016 / −0.031). Transfer is
+  asymmetric: `bba-d` on `american` loses 0.136 / 0.155, and `american-d`
+  on `bba` loses 0.052 / 0.052. On the held-out `pc`, `union-d` ties
+  `bba-d` (−0.002 / −0.000), and both beat `american-d` (+0.048 / +0.059).
+  Phase 3 does not fire. Whether `bba` gets its own default net (D6) awaits
+  jdh8. `bba-decompose` fails replay on the `pc` arms (129 of 2.0M calls,
+  §8). No bidding change.
+
 - **Portable-judgement Phase 1 re-read: the chooser is a quarter of the
   `bba` gap (2026-11-04, [docs/portable-judgement.md](docs/portable-judgement.md)
   §4).** Both pinned Phase 0 walks were relabelled under their own reader

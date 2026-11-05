@@ -1,7 +1,8 @@
 # Portable judgement — does the chooser survive a change of book?
 
-**Status: planned 2026-11-01; Phase 0's build done the same day
-(`dump-teacher --system bba`), its re-walks and probe not run.** Each phase
+**Status: planned 2026-11-01; Phases 0–2 read (Phase 2 on 2026-11-05):
+the union chooser ties `bba-d` on the held-out book, so Phase 3 does not
+fire; D6 awaits jdh8; Phase 4 stays owed.** Each phase
 below is one piece, with its build, its run, its read and its stop rule;
 later phases wait on the earlier read. Decisions in §7 were taken at their
 defaults to write the plan and are one line to overturn.
@@ -548,6 +549,93 @@ or the recipe is wrong for mixed stems, and nothing is learned about
 transfer until that is fixed (D4). Do not read the held-out cell in that
 case.
 
+**Build record (2026-11-04).**
+
+- **The `pc` walk**: `ab-results/bba-book/2026-11-04-93ec168e-pc`, `--card 2
+  --vuls none --corpus <96 × 1,250 self-play boards, card 2> --min-reach 2`,
+  1,118 shards, 71 s on dl02; 56,840 nodes, the same shape as the `none`
+  walk's 56,854. The root reads as WJ: `1♣(11+)[Polish 1C]!`, a
+  precision-style `2♣`, Multi `2♦`, Polish two-suiters on `2♥`/`2♠`. The
+  walker's `--card` now takes a bare EPBot system id (D2's "once it accepts
+  one"), and `bba_book::card()` discloses the walk's system, read off its
+  `RUN`; a `none` walk still says 2/1, byte for byte.
+- **No `pc` corpus.** The held-out book needs a walk, not a dump, since no
+  net trains on it. `dump-teacher --system bba-pc` is not built.
+- **Opponents on `pc` play WJ, not 2/1** (§8, against trap 5).
+- **`union-r`**: K = 8, seeds 9–16, arm R's recipe, on `american-r`'s 20
+  cut stems then `bba-r`'s (D3), one trainer at a time on the 4090 (9.9 GB
+  RSS, 9.2 GB GPU, ≈ 12 min a seed), scan-folded against all 40 stems.
+  Driver `dl02:/mnt/ssd-data/jdh8/pons-phase2/driver.sh`.
+- **The A/B**: `scripts/ab-portable-judgement-2.sh`, nine arms
+  `<net>-<domain>` (nets `american-d` = `american-r`, `bba-d` = `bba-r`,
+  `union-d` = `union-r`; domains `am`, `bba`, `pc`), two cells, 204,800
+  boards, a fresh `SEED_BASE`, in `ab-results/portable-judgement-2`. All nine
+  are re-run on one deal set rather than borrowing Phase 1's arms, so every
+  read is paired. Seven diff pairs, one per read above, and a
+  `decompose.<arm>.md` per arm for G. A 64-board smoke replayed 100.00% on
+  all nine, and a `union-d` stand-in equal to `bba-d` came out
+  byte-identical (0 fired).
+
+**Read (2026-11-05).** The A/B ended 2026-11-04 23:19 +08
+(`SEED_BASE=1793799266423355794`, 204,800 boards per arm per cell,
+`PAR=16` after an OOM at `PAR` unset). All nine arms and seven diffs are
+in. The script then aborted at `decompose american-d-pc` on a replay
+mismatch (§8), so the `pc` arms have no G. Paired diff, IMPs/board,
+plain DD (95% half-width) / PD:
+
+| diff | served on | none | both | fired |
+| --- | --- | --- | --- | --- |
+| `union-d` − `american-d` | `american` | −0.004 ±0.007 / **−0.016** | −0.004 ±0.009 / **−0.031** | 8.5% / 7.0% |
+| `union-d` − `bba-d` | `bba` | −0.007 ±0.007 / +0.024 | −0.005 ±0.009 / +0.037 | 8.2% / 7.5% |
+| `bba-d` − `american-d` | `american` | **−0.136** ±0.010 / −0.104 | **−0.155** ±0.011 / −0.141 | 15.4% / 12.9% |
+| `american-d` − `bba-d` | `bba` | **−0.052** ±0.011 / −0.039 | **−0.052** ±0.014 / −0.019 | 18.5% / 17.6% |
+| `bba-d` − `american-d` | `pc` | **+0.050** ±0.011 / +0.061 | **+0.058** ±0.014 / +0.058 | 18.5% / 17.6% |
+| `union-d` − `american-d` | `pc` | **+0.048** ±0.010 / +0.073 | **+0.059** ±0.013 / +0.077 | 16.3% / 15.6% |
+| `union-d` − `bba-d` | `pc` | −0.002 ±0.008 / +0.012 | −0.000 ±0.010 / +0.019 | 10.6% / 9.8% |
+
+G against BBA, plain / PD:
+
+| arm | `american` none | `american` both | `bba` none | `bba` both |
+| --- | --- | --- | --- | --- |
+| `american-d` | −0.177 / −0.001 | −0.199 / −0.030 | −0.591 / −0.399 | −0.700 / −0.487 |
+| `bba-d` | −0.451 / −0.222 | −0.517 / −0.316 | −0.482 / −0.322 | −0.591 / −0.440 |
+| `union-d` | −0.187 / −0.039 | −0.214 / −0.098 | −0.497 / −0.275 | −0.599 / −0.367 |
+
+1. **The stop rule does not fire.** `union-d` is a plain wash on both
+   training books, so D4 is not triggered. It is not proven
+   non-inferior: the lower bounds, −0.011 / −0.012 on `american` and
+   −0.014 / −0.014 on `bba`, reach past −δ. PD splits: a loss on
+   `american` and a win on `bba`.
+2. **Transfer is asymmetric.** `bba-d` served on `american` loses
+   0.136–0.155, which is 2.6–3× what `american-d` loses served on `bba`
+   (0.052 in both cells). G says the same: 0.27 / 0.32 against 0.11 /
+   0.11. The cost of a mismatch depends on its direction, so it is not
+   only "how much data". Not diagnosed. One candidate: `american` keeps
+   authored nodes and readings that a `bba`-trained net never saw, while
+   under `bba` nearly every decision is net-served (Phase 1).
+3. **The union's price: a plain wash on both books, a PD loss on
+   `american`.** One chooser holds two books at plain resolution. Its
+   PD G on `american` is 0.04 / 0.07 worse than `american-d`'s, so the
+   union doubles or gets doubled differently there. That is the PD
+   guard's signal, recorded, not a veto on a research arm.
+4. **The held-out read fits neither pre-registered branch** (§8). On
+   `pc`, `union-d` ties `bba-d` (plain within ±0.010, PD +0.012 /
+   +0.019), and both beat `american-d` by about 0.05 on plain and PD. A
+   second training book buys nothing over `bba-d` on the held-out book,
+   and the three nets do not tie. What ports to Polish Club is training
+   on a BBA-compiled book, not training on more books. Caveat: `pc` is
+   itself a BBA walk, so it is a new system in a familiar book format,
+   not a foreign book. Question 1's answer at this resolution: judgement
+   ports between two systems compiled by one engine. The cost against
+   a `pc`-matched net is unmeasured, because there is no `pc` corpus.
+5. **Phase 3 does not fire.** Its trigger is a held-out loss, and
+   `union-d` loses to neither net. `union-d-nobit` ("only if `union-d`
+   reads something") is not run: on the held-out book it reads the same
+   as `bba-d`. Default: not run. One ensemble to overturn.
+6. **D6 is back with jdh8.** "`union-d` holds both domains" is true only
+   as a plain wash, with a PD loss on `american`. Proposed default:
+   `bba-r`, after a four-cell run (D5).
+
 ### Phase 3 — if, and only if, the held-out read is a loss
 
 The representation levers, each a separate knob and a separate retrain,
@@ -613,7 +701,8 @@ asserted so by construction; no work.
    does not change with our book. Under `bba-pc` our opponents are still
    2/1 BBA; the Polish domain is ours only. Fine for a transfer read, and
    the deviation panel's row 2 is the reference if a Polish *opponent* is
-   ever wanted.
+   ever wanted. **Superseded for the A/B 2026-11-04**: the `bba` floors read
+   their calls off the walk, so `pc` arms face WJ (§8).
 6. **The BEN guard** applies only to a ship. Nothing in Phases 0–2 ships;
    the union chooser becomes a ship candidate for the default floor only if
    it is non-inferior on `american` under the house rule (plain verdict, PD
@@ -653,7 +742,7 @@ Taken at their defaults to write the plan.
 | D3 | union corpus stem order | `american` stems first, then `bba`, unshuffled | matches the reseed handoff's recipe; the reverse order is one more ensemble if D4 fires |
 | D4 | if the union net loses on both training domains | widen once (the v6 widths × 1.5), one ensemble | the cheapest capacity test; the LSTM is parked and stays so |
 | D5 | vulnerability cells | two (`none`, `both`) as bba-system.md ran, four for any ship candidate | transfer reads need the pair, a ship needs the house four |
-| D6 | give the `bba` system its own default net (`bba-r`, +0.036 / +0.045 over the shared shipped K = 8, §4 Phase 1 read 2026-11-04) | **no change**; the nets stay in `pons-phase1/bba-r/` | `bba` is a research system; a swap moves every later `bba` read, and a ship needs the house four cells (D5) |
+| D6 | give the `bba` system its own default net (`bba-r`, +0.036 / +0.045 over the shared shipped K = 8, §4 Phase 1 read 2026-11-04) | **no change**; the nets stay in `pons-phase1/bba-r/`. **jdh8 2026-11-04: Phase 2 first, revisit after** (if `union-d` holds both domains it is the natural `bba` default; if not, `bba-r` after a four-cell run). **Phase 2 read 2026-11-05: `union-d` holds both only as a plain wash, with a PD loss on `american`; proposed `bba-r` after a four-cell run. Awaits jdh8** | `bba` is a research system; a swap moves every later `bba` read, and a ship needs the house four cells (D5) |
 
 ## 8. Discrepancies flagged, not resolved
 
@@ -740,6 +829,28 @@ Taken at their defaults to write the plan.
   quarter, between row 1 (≥ 0.1, most) and row 2 (flat). Default: read
   it as "chooser part, agreements most" and go to Phase 2, where both
   rows lead; the table is left as written.
+- **Trap 5's "under `bba-pc` our opponents are still 2/1 BBA" contradicts
+  the floor** (found building Phase 2, 2026-11-04). The walk seats the card
+  on all four seats, and the `bba` floors read every call, theirs included,
+  off the walk (`bba-gen::declares_european_minors`). Against 2/1 opponents
+  the `pc` book would read their natural `1♣` as a Polish club. Under the
+  `none` walk the two agree, so Phase 1 never saw this. Default taken:
+  `pc` arms play BBA on WJ (`bba-gen --system 2`), so the domain is
+  self-consistent and all three nets on `pc` face the same opponents. To
+  reverse it, walk with `BbaOracle::with_opponents` (our side WJ, theirs
+  2/1) and merge the two seatings by whose turn it is, which is a walker
+  change.
+- **`bba-decompose` fails replay on the `pc` arms** (found reading Phase 2,
+  2026-11-05). `american-d-pc` at none: 129 of 2,031,176 of our calls
+  mismatched. The `am`/`bba` arms replay at 100.00%. Suspect: the
+  replay rebuilds our partnership from the gen args without what the
+  `--system 2` opponents changed. Not diagnosed. Paired diffs come
+  straight from `bba-gen` and do not depend on it. Default: no `pc` G.
+  Fix the replay before any read that needs one.
+- **Phase 2's held-out read has no branch for "union ties one single-book
+  net and both beat the other"** (2026-11-05). Default: read as "the
+  BBA-compiled training book carries the transfer". The branches are
+  left as written.
 
 ## 9. Glossary for this plan, in the house framing
 

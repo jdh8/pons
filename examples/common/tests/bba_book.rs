@@ -3,7 +3,7 @@
 //! and `1♠ -`, every other expanded child marked a dead end) — the pinned
 //! node of docs/bba-system.md Gate 1.
 
-use super::super::bba_book::{BbaBook, Chooser, Mask, Node, is_calculated};
+use super::super::bba_book::{BbaBook, Chooser, Mask, Node, is_calculated, run_system};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use pons::bidding::agreements::Agreements;
@@ -231,4 +231,14 @@ fn the_file_chooser_over_the_shipped_blobs_is_the_net() {
         };
         assert_eq!(logits(&file), logits(&net), "{auction:?}");
     }
+}
+
+#[test]
+fn run_system_reads_the_walks_card() {
+    let run = |flags: &str| run_system(&format!("sha      x\nflags    {flags}\nloader   \n"));
+    assert_eq!(run("--card none --vuls none --min-reach 2"), Some(0));
+    assert_eq!(run("--vuls none --card 2 --min-reach 2"), Some(2));
+    assert_eq!(run("--card=2"), Some(2));
+    assert_eq!(run("--card cards/American.bbsa"), None);
+    assert_eq!(run("--vuls none"), None);
 }

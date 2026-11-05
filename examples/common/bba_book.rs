@@ -658,16 +658,45 @@ impl BbaBook {
     }
 }
 
-/// The card the `bba` pair plays: EPBot's own 2/1 defaults, no row moved
+/// The card the `bba` pair plays: the walk's EPBot system, no row moved
 ///
 /// The truthful disclosure (design D5): the walk that compiled the book was
-/// `--card none`, so BBA reading us as a stock BBA is reading us right.
+/// `--card none` (EPBot's 2/1 defaults) or `--card <system id>` (that
+/// system's defaults, the Polish domain of docs/portable-judgement.md
+/// Phase 2), so BBA reading us as a stock BBA of that system is reading us
+/// right.  The walk's `RUN` says which; no `RUN`, or a `.bbsa` walk, is 2/1.
 #[must_use]
 pub fn card() -> Card {
+    let system = std::env::var("BBA_BOOK")
+        .ok()
+        .and_then(|dir| std::fs::read_to_string(std::path::Path::new(&dir).join("RUN")).ok())
+        .and_then(|run| run_system(&run))
+        .unwrap_or(SYSTEM_2_OVER_1);
     Card {
-        system: SYSTEM_2_OVER_1,
+        system,
         rows: Vec::new(),
     }
+}
+
+/// The bare EPBot system id a walk's `RUN` names in its `--card` flag, if any
+///
+/// `--card none` is [`SYSTEM_2_OVER_1`]; a `.bbsa` path is [`None`].
+#[must_use]
+pub fn run_system(run: &str) -> Option<i32> {
+    let flags = run.lines().find_map(|line| line.strip_prefix("flags"))?;
+    let mut words = flags.split_whitespace();
+    while let Some(word) = words.next() {
+        let value = match word.strip_prefix("--card") {
+            Some("") => words.next()?,
+            Some(rest) => rest.strip_prefix('=')?,
+            None => continue,
+        };
+        return match value {
+            "none" => Some(SYSTEM_2_OVER_1),
+            id => id.parse().ok(),
+        };
+    }
+    None
 }
 
 /// Whether a reading's label is BBA's floor rather than a rule

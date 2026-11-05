@@ -99,8 +99,9 @@ struct Args {
     #[arg(long, value_delimiter = ',', default_value = "none,ns,ew,both")]
     vuls: Vec<AbsoluteVulnerability>,
 
-    /// Convention card to put on **all four** EPBot seats, or `none` for the
-    /// engine's own 2/1 defaults
+    /// Convention card to put on **all four** EPBot seats, `none` for the
+    /// engine's own 2/1 defaults, or a bare EPBot system id (`2` = WJ, the
+    /// Polish Club) for that system's defaults
     #[arg(long, default_value = "cards/American.bbsa")]
     card: String,
 
@@ -1715,6 +1716,8 @@ fn main() -> anyhow::Result<()> {
 
     let (system, mut overrides) = if args.card == "none" {
         (SYSTEM_2_OVER_1, Vec::new())
+    } else if let Ok(system) = args.card.parse() {
+        (system, Vec::new())
     } else {
         let card = load_bbsa(&args.card)?;
         (card.system, card.toggles)
