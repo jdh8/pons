@@ -4768,6 +4768,37 @@ pub struct RebidKnobs {
     /// responder passes it — off, the floor jumps to `4♠` on a weak hand with
     /// an ace and a shortness (`97652.A854.J54.T`), after either correction.
     pub xyz_weak_spade_preference: bool,
+    /// Responder's points floor for inviting through the relay after `1x - 1y - 1NT`
+    ///
+    /// **Default 11** since 2026-11-06 (10 is the old relay, `points(10..=12)`).
+    /// Above 10, a hand
+    /// under the floor relays only when it has a suit invite to show after
+    /// `2♣ - 2♦` (a five-card major, the 5♠4♥ `2♥`, a minor); the rest, which
+    /// would land on the `2NT` catch-all, pass `1NT`.  The suit rebids
+    /// (`1x - 1y - 1z`, `z` a suit) keep the 10 floor: passing there plays a
+    /// one-level suit contract.  The 2026-11-06 re-anchor priced the 10-count
+    /// `2NT` invite at −1,441 plain over 1,125 boards vs BBA, which passes
+    /// `1NT` on 90% of them.  Swept {10, 11} × [`Self::xyz_notrump_accept`]
+    /// {13, 14} vs BBA by `scripts/ab-xyz-2nt-invite.sh` (204,800 boards per
+    /// cell): 11 alone won 4/4 (plain +0.0015..+0.0020, PD +0.0027..+0.0039),
+    /// with accept 13 won 4/4 on every scorer (plain +0.0021 / +0.0042 / +0.0021
+    /// / +0.0040 none/ns/ew/both, PD +0.0019..+0.0037, SD-PD +0.0026..+0.0051),
+    /// shipped as the pair.  `--ns-xyz-notrump-invite-floor 10` in `bba-gen` is
+    /// the old arm.
+    pub xyz_notrump_invite_floor: u8,
+    /// Opener's points floor for accepting XYZ's `2NT` invite with `3NT`
+    ///
+    /// **Default 13** since 2026-11-06 (14 is the old
+    /// [`Self::xyz_invite_judgment`] table).  Moves
+    /// only the `2NT` invite's acceptance; the suit invites keep 14.  Inert when
+    /// [`Self::xyz_invite_judgment`] is off.  The 25-combined gate
+    /// (docs/notrump-game-threshold.md) says 13 facing a 12-count bids game;
+    /// declining cost −520 plain over 217 boards vs BBA (2026-11-06 re-anchor).
+    /// Alone, 13 lost PD in every cell (−0.0018..−0.0021, plain wash/win): it
+    /// accepted the 10-count invites.  It ships only with
+    /// [`Self::xyz_notrump_invite_floor`] 11, which removes them.
+    /// `--ns-xyz-notrump-accept 14` in `bba-gen` is the old arm.
+    pub xyz_notrump_accept: u8,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
     ///
@@ -5117,6 +5148,8 @@ impl Default for RebidKnobs {
             xyz_second_major_first: true,
             xyz_invite_spade_preference: true,
             xyz_weak_spade_preference: true,
+            xyz_notrump_invite_floor: 11,
+            xyz_notrump_accept: 13,
             new_minor_forcing: false,
             strong_two_positive: true,
             strong_two_grand: true,

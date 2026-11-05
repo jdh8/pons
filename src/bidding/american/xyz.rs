@@ -24,7 +24,7 @@
 
 use super::call;
 use crate::bidding::agreements::{Agreements, RebidKnobs};
-use crate::bidding::constraint::{balanced, len, points};
+use crate::bidding::constraint::{Cons, Constraint, balanced, len, points};
 use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
@@ -50,13 +50,30 @@ const XYZ_COMPLETION: Alert = Alert("xyz-completion");
 ///
 /// Under [`RebidKnobs::xyz_second_major_first`] (default on) the 5♠4♥ / 5-5
 /// `2♥` (spades capped at five) outranks the `2♠` rebid at 1.12.
-fn xyz_responder(response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
-    let mut rules = Rules::new()
-        .rule(
+///
+/// Under [`RebidKnobs::xyz_notrump_invite_floor`] above 10, on the `1NT` rebid
+/// only, a hand below the floor relays only to show a suit invite (see
+/// [`notrump_suit_invites`]); the rest pass `1NT`.
+fn xyz_responder(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
+    let floor = knobs.xyz_notrump_invite_floor;
+    let lifted = rebid == Strain::Notrump && floor > 10;
+    let weak_diamonds = len(Suit::Diamonds, 6..) & points(..=9);
+    let mut rules = if lifted {
+        Rules::new().rule(
             Bid::new(2, Strain::Clubs),
             150,
-            points(10..=12) | (len(Suit::Diamonds, 6..) & points(..=9)),
+            points(floor..=12)
+                | (points(10..floor) & notrump_suit_invites(opening, response, knobs))
+                | weak_diamonds,
         )
+    } else {
+        Rules::new().rule(
+            Bid::new(2, Strain::Clubs),
+            150,
+            points(10..=12) | weak_diamonds,
+        )
+    };
+    rules = rules
         .alert(XYZ_RELAY)
         .rule(Bid::new(2, Strain::Diamonds), 140, points(13..))
         .alert(XYZ_FORCE);
@@ -88,7 +105,47 @@ fn xyz_responder(response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Rules {
             )
         };
     }
-    rules.rule(Call::Pass, 0, points(..=9))
+    if lifted {
+        rules.rule(
+            Call::Pass,
+            0,
+            points(..=9) | (points(10..floor) & !notrump_suit_invites(opening, response, knobs)),
+        )
+    } else {
+        rules.rule(Call::Pass, 0, points(..=9))
+    }
+}
+
+/// The suit invites [`xyz_after_relay`] makes after `1x - 1y - 1NT - 2♣ - 2♦`
+///
+/// Mirrors that table's suit rules, minus their point bands: a hand matching
+/// none of these lands on the `2NT` catch-all.  Keep the two in step.
+fn notrump_suit_invites(
+    opening: Suit,
+    response: Suit,
+    knobs: &RebidKnobs,
+) -> Cons<Box<dyn Constraint>> {
+    let mut terms: Vec<Box<dyn Constraint>> = Vec::new();
+    if response != Suit::Diamonds {
+        terms.push(Box::new(len(response, 5..)));
+    }
+    if response == Suit::Spades {
+        terms.push(if knobs.xyz_second_major_first {
+            Box::new(len(Suit::Hearts, 4..) & len(Suit::Spades, ..=5))
+        } else {
+            Box::new(len(Suit::Hearts, 4..))
+        });
+    }
+    for minor in [Suit::Clubs, Suit::Diamonds] {
+        let long = if minor == opening { 5 } else { 6 };
+        terms.push(Box::new(len(minor, long..)));
+    }
+    let first = terms.remove(0);
+    Cons(
+        terms
+            .into_iter()
+            .fold(first, |a, b| Box::new(Cons(a) | Cons(b))),
+    )
 }
 
 /// Opener completes the puppet: `2♦`, always
@@ -155,11 +212,16 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
 /// documented fall-through, so the node lands on the floor without the
 /// registration sites needing to know.
 fn accept_or_decline(game: Bid, knobs: &RebidKnobs) -> Rules {
+    accept_or_decline_from(game, 14, knobs)
+}
+
+/// [`accept_or_decline`] with the acceptance at `accept`+ points
+fn accept_or_decline_from(game: Bid, accept: u8, knobs: &RebidKnobs) -> Rules {
     if !knobs.xyz_invite_judgment {
         return Rules::new();
     }
     Rules::new()
-        .rule(game, 100, points(14..))
+        .rule(game, 100, points(accept..))
         .rule(Call::Pass, 0, points(0..))
 }
 
@@ -213,7 +275,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
     // Responder's XYZ round, the forced completion, and the game force.
     entries.extend(rows_of(
         Pattern::node(&prefix),
-        xyz_responder(response, rebid, knobs),
+        xyz_responder(opening, response, rebid, knobs),
     ));
     entries.extend(rows_of(
         Pattern::node(&format!("{prefix} 2♣ -")),
@@ -333,7 +395,11 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
     }
     accept(
         call(2, Strain::Notrump),
-        accept_or_decline(Bid::new(3, Strain::Notrump), knobs),
+        accept_or_decline_from(
+            Bid::new(3, Strain::Notrump),
+            knobs.xyz_notrump_accept,
+            knobs,
+        ),
     );
 
     // Responder's invitation is spent: pass opener's spade preference (the

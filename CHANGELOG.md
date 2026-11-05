@@ -316,6 +316,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **XYZ's `2NT` invite tightens: a balanced 10-count passes `1x - 1y - 1NT`,
+  and opener accepts `2NT` on 13 (2026-11-06).** The re-anchor at
+  `07864122` put `… 1z - 2♣ - 2♦ - 2NT` atop the Constructive / book /
+  round-2 bucket (−2,251 plain over 2,332 boards vs BBA). Two knobs,
+  `RebidKnobs::xyz_notrump_invite_floor` (responder: below the floor, a hand
+  with no suit invite to show passes `1NT`; suit invites at 10 still relay;
+  suit rebids keep 10) and `RebidKnobs::xyz_notrump_accept` (opener's `3NT`
+  over the `2NT` invite), were swept vs BBA by `scripts/ab-xyz-2nt-invite.sh`
+  (SEED_BASE 1793912710052222453, 204,800 boards per cell). The pair (11, 13)
+  won all four cells on every scorer: plain DD +0.0021 / +0.0042 / +0.0021 /
+  +0.0040 IMPs/board none/ns/ew/both (each lower bound > 0), PD +0.0019 to
+  +0.0037, SD-PD +0.0026 to +0.0051. Floor 11 alone also won 4/4 (plain
+  +0.0015 to +0.0020); accept 13 alone lost PD in every cell (−0.0018 to
+  −0.0021), because it accepted the 10-count invites the floor removes.
+  Shipped as the pair; `--ns-xyz-notrump-invite-floor 10
+  --ns-xyz-notrump-accept 14` in `bba-gen` is the old book.
+
 - **The `bba` system serves its own net, `bba-r` (D6, jdh8 2026-11-05,
   [docs/portable-judgement.md](docs/portable-judgement.md) §4, §7).**
   `--our-floor bba` used the shipped `american()` K = 8. It now uses `bba-r`,

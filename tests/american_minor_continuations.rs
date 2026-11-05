@@ -652,3 +652,79 @@ fn responder_passes_the_weak_spade_correction() {
         assert_eq!(best_call(&partnership(), &auction, weak), P, "{weak}");
     }
 }
+
+// --- XYZ: the `2NT` invite sweep (`RebidKnobs::xyz_notrump_invite_floor`,
+// `RebidKnobs::xyz_notrump_accept`; shipped 11 and 13 on 2026-11-06, 10 and 14 is the old book)
+
+fn xyz_invite_sweep(floor: u8, accept: u8) -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.xyz_notrump_invite_floor = floor;
+    agreements.rebid.xyz_notrump_accept = accept;
+    american(&agreements).bind()
+}
+
+#[test]
+fn xyz_invite_floor_eleven_passes_the_balanced_ten_count() {
+    let auction = xyz_auction(Strain::Hearts, &[]);
+    let balanced_ten = "KQx.Qxxx.Kxxx.xx";
+    let relay = call(2, Strain::Clubs);
+    assert_eq!(
+        best_call(&xyz_invite_sweep(10, 14), &auction, balanced_ten),
+        relay
+    );
+    assert_eq!(
+        best_call(&xyz_invite_sweep(11, 14), &auction, balanced_ten),
+        P
+    );
+    // A ten-count with a suit to show still relays.
+    let five_hearts = "Kx.KQxxx.Qxx.xxx";
+    assert_eq!(
+        best_call(&xyz_invite_sweep(11, 14), &auction, five_hearts),
+        relay
+    );
+    let five_clubs = "Kx.Qxxx.xx.KQxxx";
+    assert_eq!(
+        best_call(&xyz_invite_sweep(11, 14), &auction, five_clubs),
+        relay
+    );
+    // Eleven still invites.
+    assert_eq!(
+        best_call(&xyz_invite_sweep(11, 14), &auction, "KQx.Qxxx.Kxxx.Jx"),
+        relay,
+    );
+    // A suit rebid keeps the 10 floor: never pass a one-level suit contract.
+    let one_spade = [
+        call(1, Strain::Clubs),
+        P,
+        call(1, Strain::Hearts),
+        P,
+        call(1, Strain::Spades),
+        P,
+    ];
+    assert_eq!(
+        best_call(&xyz_invite_sweep(11, 14), &one_spade, "Qxx.KQxx.Kxxx.xx"),
+        relay,
+    );
+}
+
+#[test]
+fn xyz_accept_thirteen_bids_game_over_two_notrump() {
+    let auction = xyz_auction(
+        Strain::Hearts,
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Notrump),
+        ],
+    );
+    let thirteen = "Kxx.Qx.AJx.Kxxx";
+    assert_eq!(best_call(&xyz_invite_sweep(10, 14), &auction, thirteen), P);
+    assert_eq!(
+        best_call(&xyz_invite_sweep(10, 13), &auction, thirteen),
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&xyz_invite_sweep(10, 13), &auction, "Kxx.Qx.Axx.Kxxx"),
+        P,
+    );
+}

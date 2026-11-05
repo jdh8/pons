@@ -1705,6 +1705,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xyz_weak_spade_preference: bool,
 
+    /// Responder's points floor for the XYZ relay invite after `1x - 1y - 1NT`
+    /// (`rebid.xyz_notrump_invite_floor`); below it, a hand with no suit
+    /// invite passes `1NT`.  11 is shipped (2026-11-06); 10 is the old relay.
+    #[arg(long, default_value_t = 11)]
+    ns_xyz_notrump_invite_floor: u8,
+
+    /// Opener's points floor for accepting XYZ's `2NT` invite
+    /// (`rebid.xyz_notrump_accept`).  13 is shipped (2026-11-06); 14 is the old table.
+    #[arg(long, default_value_t = 13)]
+    ns_xyz_notrump_accept: u8,
+
     /// Withhold responder's invitational `3♥` after `1♠ - 1NT`
     /// (`rebid.forcing_notrump_suit_invite`, **shipped default-on
     /// 2026-10-05**: six hearts and 10–12 HCP over any rebid but `2♥`; this is
@@ -3552,6 +3563,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.xyz_second_major_first = !args.no_ns_xyz_second_major_first;
     agreements.rebid.xyz_invite_spade_preference = !args.no_ns_xyz_invite_spade_preference;
     agreements.rebid.xyz_weak_spade_preference = !args.no_ns_xyz_weak_spade_preference;
+    agreements.rebid.xyz_notrump_invite_floor = args.ns_xyz_notrump_invite_floor;
+    agreements.rebid.xyz_notrump_accept = args.ns_xyz_notrump_accept;
     agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
     agreements.response.major_game_tries = !args.no_ns_major_game_tries;
     agreements.response.major_raise_slam_try = !args.no_ns_major_raise_slam_try;

@@ -1875,7 +1875,12 @@ fn authored_calls_read_what_they_gate() {
         // at `(1NT) X (XX)` exclude the major-first hands, a negated
         // disjunction past the legacy hull, in the american defensive try.
         // Knob-on stays 0.
-        ("length", 96, 0),
+        // 96 → 120 when `rebid.xyz_notrump_invite_floor` 11 shipped
+        // (2026-11-06): XYZ's `2♣` and `Pass` at the six `1x - 1y - 1NT`
+        // nodes split the 10-count on a disjunction of suit invites, `Pass`
+        // on its negation, past the legacy hull, in the american and
+        // Watermelon constructive tries.  Knob-on stays 0.
+        ("length", 120, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
