@@ -295,7 +295,10 @@ nine "regressed" buckets, all under 2k and churn-dominated (the largest
 By phase: Constructive −46,346 (126,867 bd) > Competitive −12,599 (45,932) >
 Defensive −6,930 (85,360); by provenance `book` −64,122, `floor` +1,473,
 `floor#3` −1,129, `floor#61` −1,043, `fallback@3` −1,005. Auction divergence
-vs BBA: 85 / 84%. The `40847142` tables are in its series row and
+vs BBA: 85 / 84%. Bucket #1's top node, responder's XYZ `2♣` relay (3,847 bd,
+−0.49/bd), was worked after this snapshot: the `2NT` invite sweep shipped
+`4e9e2ba9` (worked-buckets table). Nodes #2 (`2♦` 5+♦) and #3 (`2♠` 6+♠)
+are the next drill. The `40847142` tables are in its series row and
 `ab-results/anchor/2026-10-27-155b5cf8-dirty/`.
 
 **The window, paired** (`ab-dump-diff` direct A/B at table A, new snapshot −
@@ -504,6 +507,7 @@ retrain A/B or a new ship verdict. BBA submodule `2969bbf9`; generated disclosur
 | Const / book / r2 | opener's extras ladder (minor openings) | shipped default-on | [ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) |
 | Const / book / r2 | opener's major jump-rebid 3M + responder continuation | shipped (the bare rung lost) | 21gf-ledger.md |
 | Const / book / opening | Rule-of-20 light openings; flat-4333 1NT | shipped | CHANGELOG |
+| Const / book / r2 | XYZ `2NT` invite after the `2♣` relay: responder's floor 11 (a balanced 10 passes `1NT`), opener accepts on 13 (`xyz_notrump_invite_floor`, `xyz_notrump_accept`) — the `07864122` shipping arm's top node, `… 1z - 2♣ - 2♦ - 2NT` −2,251 plain / −3,324 PD on 2,332 bd | shipped `4e9e2ba9` — won 4/4 cells, plain +0.0021 to +0.0042, PD and SD-PD agree | CHANGELOG, `scripts/ab-xyz-2nt-invite.sh` |
 | Comp / fallback@1,@2 / r1 | Fix 1: Modern negative doubles + forcing free bids + `answer_free_bid` | shipped; ~26k cashed | [competitive-book.md](competitive-book.md) |
 | Comp / fallback / r1 | school tournament (Modern / Cachalot / Sputnik; Forcing / NFB / transfers) | Modern + Forcing keep the defaults; Cachalot, Sputnik opt-in | competitive-book.md |
 | Comp / book / r1 | 1NT contested: N1c–N1j, N4 v7, N4b | shipped in the `53a3c254` window | [one-notrump-competitive.md](one-notrump-competitive.md) |
