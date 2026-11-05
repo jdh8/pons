@@ -262,7 +262,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--our-floor bba` used the shipped `american()` K = 8. It now uses `bba-r`,
   the Phase 1 K = 8 retrained on the `bba` pair's own BBA relabel. The blobs
   are embedded in the examples (`examples/common/weights/`) and kept out of
-  the published crate. `bba-ladder` keeps the shipped net. Four cells on
+  the published crate. `bba-ladder` keeps the shipped net: serving it
+  `bba-r` measured mixed (plain ew −0.019 ±0.010 loss, ns +0.011 win; PD
+  losses at ew and both; `scripts/ab-bba-ladder-r.sh`). Four cells on
   paired deals against BBA (`scripts/ab-bba-own-net.sh`, 204,800 boards per
   cell, `SEED_BASE` 1793836935556905108), `bba-r` − shipped in IMPs/board,
   plain DD / PD: none +0.035 ±0.011 / +0.040 ±0.012, ns +0.045 ±0.013 /

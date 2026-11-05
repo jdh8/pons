@@ -664,7 +664,26 @@ trigger is over-broad: the whole floor moves, by design.
 (`examples/common/bba_book.rs` `bba_r`, the blobs in
 `examples/common/weights/`, kept out of the published crate). `bba-ladder`
 keeps the shipped net. Its constructive nodes are the instinct ladder, and
-it was not measured with `bba-r`. Default: unchanged, one A/B to overturn.
+there the net serves only the contested books. Serving it `bba-r` measured
+mixed (`scripts/ab-bba-ladder-r.sh ab-results/bba-ladder-r`, both arms
+`--our-floor bba-ladder`, the control a binary built at `e42e6e74`,
+`SEED_BASE` 1793846066365090932, same `BBA_BOOK`, 204,800 boards per cell).
+`bba-r` − shipped in IMPs/board, ±95% CI:
+
+| vul | plain DD | PD | fired | plain verdict |
+| --- | --- | --- | --- | --- |
+| none | +0.0082 ±0.0088 | +0.0047 ±0.0097 | 13.1% | non-inferior |
+| ns | +0.0109 ±0.0099 | −0.0081 ±0.0112 | 11.8% | win |
+| ew | −0.0188 ±0.0102 | −0.0226 ±0.0114 | 12.8% | loss |
+| both | −0.0084 ±0.0107 | −0.0282 ±0.0120 | 11.6% | inconclusive |
+
+A plain loss at `ew` and a PD loss at `ew` and `both`, so the edit was
+reverted. `ew` was also D6's thinnest cell (+0.015). The worst boards are judgement swings (a
+`6♦` sacrifice doubled, a `5m` jump over `4m`, slam tries that stop short),
+no single over-broad trigger. In plain G against BBA, `ladder` reads −1.385 /
+−1.460 / −1.469 / −1.753 and `ladder-r` reads −1.366 / −1.462 / −1.477 /
+−1.768. Default: unchanged. `bba-ladder` is a diagnostic arm (D1's B), so a
+retrain is not owed for it.
 Phase 1's `bba` numbers above are against the shipped net. Every later
 `bba` read is against `bba-r`.
 
