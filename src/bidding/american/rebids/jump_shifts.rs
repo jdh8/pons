@@ -122,20 +122,43 @@ fn five_five_invite() -> Cons<impl Constraint + Clone> {
 /// table (all-−∞) and falls through to the floor by the documented escape
 /// hatch — a `Pass` here shadowed the floor's own tries (measured −242 IMPs
 /// on 47 boards in 200k).
-fn opener_after_preference() -> Rules {
-    Rules::new()
+///
+/// Under [`RebidKnobs::forcing_nt_six_four_hearts`] a 6♠4♥ minimum reaches
+/// this node too and passes, as it passes `1♠ - 1NT - 2♠` facing the same
+/// hand; the floor's game jump there lost.
+fn opener_after_preference(six_four_hearts: bool) -> Rules {
+    let rules = Rules::new()
         .rule(Bid::new(3, Strain::Hearts), 100, five_five_invite())
-        .alert(FIVE_FIVE_INVITE)
+        .alert(FIVE_FIVE_INVITE);
+    if six_four_hearts {
+        rules.rule(Call::Pass, 50, len(Suit::Spades, 6..) & hcp(..=14))
+    } else {
+        rules
+    }
 }
 
 /// Opener after responder's notrump invite (`1♠ - 1NT - 2♥ - 2NT`)
 ///
 /// The generic accept-or-pass table, plus the 5-5 15–17's `4♥` — the invite
 /// found values, and a 5-5 wants the suit game, not `3NT`.
-fn opener_after_invite() -> Rules {
-    opener_accept_notrump_invite()
+///
+/// Under [`RebidKnobs::forcing_nt_six_four_hearts`] six spades play the 6-2
+/// fit: `4♠` on 14+ points (the doubleton raise's acceptance), else `3♠`.
+fn opener_after_invite(six_four_hearts: bool) -> Rules {
+    let rules = opener_accept_notrump_invite()
         .rule(Bid::new(4, Strain::Hearts), 110, five_five_invite())
-        .alert(FIVE_FIVE_INVITE)
+        .alert(FIVE_FIVE_INVITE);
+    if six_four_hearts {
+        rules
+            .rule(
+                Bid::new(4, Strain::Spades),
+                105,
+                len(Suit::Spades, 6..) & points(14..),
+            )
+            .rule(Bid::new(3, Strain::Spades), 50, len(Suit::Spades, 6..))
+    } else {
+        rules
+    }
 }
 
 /// Responder's game-forcing placement — shared by the natural jump shift and the
@@ -311,7 +334,7 @@ pub(crate) fn forcing_nt_jump_shift_continuations() -> Package {
     Package {
         name: "forcing-nt-jump-shift-continuations",
         gate: |a| forcing_nt_jump_shifts_on(&a.rebid),
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let base = format!("P* {} - 1NT -", call(1, Strain::from(major)));
@@ -354,7 +377,7 @@ pub(crate) fn forcing_nt_jump_shift_continuations() -> Package {
             // The displaced two-suiter's invite one round later.
             entries.extend(rows_of(
                 Pattern::node("P* 1♠ - 1NT - 2♥ - 2♠ -"),
-                opener_after_preference(),
+                opener_after_preference(agreements.rebid.forcing_nt_six_four_hearts),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1♠ - 1NT - 2♥ - 2♠ - 3♥ -"),
@@ -362,7 +385,7 @@ pub(crate) fn forcing_nt_jump_shift_continuations() -> Package {
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1♠ - 1NT - 2♥ - 2NT -"),
-                opener_after_invite(),
+                opener_after_invite(agreements.rebid.forcing_nt_six_four_hearts),
             ));
             entries
         },

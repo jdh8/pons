@@ -4642,7 +4642,7 @@ pub struct RebidKnobs {
     pub forcing_nt_two_suiter: bool,
     /// Show four hearts before the sixth spade after `1♠ - 1NT`
     ///
-    /// **Default off** (measuring).  Off, opener's six-card `2♠` (weight 1.0)
+    /// **Default on** (shipped 2026-11-06).  Off, opener's six-card `2♠` (weight 1.0)
     /// outranks the new-suit `2♥` (0.9), so a minimum 6♠4♥ or 6♠5♥ rebids
     /// spades and responder's four hearts are never found.  On, a hand with
     /// six-plus spades and four-plus hearts that would rebid `2♠` bids `2♥`
@@ -4651,7 +4651,15 @@ pub struct RebidKnobs {
     /// `2♥` on every ≤14-HCP 6♠4♥ (298/298) and 6♠5♥ (83/83); the shipping
     /// rows price our `2♠` against its `2♥` at 200 boards, −377 plain /
     /// −257 PD (jdh8 picked BBA's style, 2026-11-06).  Natural, so
-    /// unalerted; responder's tables over `2♥` already exist.
+    /// unalerted; responder's tables over `2♥` already exist, and opener's
+    /// third call is authored: over `2♥ - 2NT` six spades bid `4♠` on 14+
+    /// points or `3♠`, over `2♥ - 2♠` they pass on ≤14 HCP.  Without those
+    /// two rows the rebid lost about 0.4 IMPs/fired.  Vs BBA (819,200 boards
+    /// per cell, `SEED_BASE` 1793929388758490793) plain DD +0.0002 / +0.0003
+    /// / +0.0002 / +0.0003 IMPs/board none/ns/ew/both, each a win; PD
+    /// +0.0002 to +0.0003 (a win at ew, non-inferior elsewhere).  Off-switch
+    /// `bba-gen --no-ns-forcing-nt-six-four-hearts`
+    /// (`scripts/ab-forcing-nt-six-four.sh`).
     pub forcing_nt_six_four_hearts: bool,
     /// Let responder's `4♥` over the `1♥ - 1NT - 2♠` reverse take a doubleton
     ///
@@ -5153,7 +5161,7 @@ impl Default for RebidKnobs {
             meckstroth_adjunct: false,
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
-            forcing_nt_six_four_hearts: false,
+            forcing_nt_six_four_hearts: true,
             forcing_nt_reverse_heart_game: false,
             forcing_nt_reverse_five_hearts: true,
             forcing_nt_reverse_hcp_floor: true,

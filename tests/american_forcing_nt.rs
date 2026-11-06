@@ -614,23 +614,23 @@ fn long_major_three_notrump_is_corrected_on_a_doubleton() {
 // `forcing_nt_six_four_hearts`: 6♠4♥ shows the hearts first
 // ---------------------------------------------------------------------------
 
-/// The knob on, everything else default
+/// The shipped default (the knob is on since 2026-11-06)
 fn six_four_hearts() -> Partnership {
-    let mut agreements = Agreements::default();
-    agreements.rebid.forcing_nt_six_four_hearts = true;
-    american(&agreements).bind()
+    partnership()
 }
 
 #[test]
 fn opener_shows_hearts_before_the_sixth_spade() {
-    // AQJ962.KJ74.T.54 — 11 HCP, 6=4=1=2: `2♠` by default, `2♥` with the knob.
+    // AQJ962.KJ74.T.54 — 11 HCP, 6=4=1=2: `2♥` by default, `2♠` with the knob off.
     let hand = "AQJ962.KJ74.T.54";
+    let mut agreements = Agreements::default();
+    agreements.rebid.forcing_nt_six_four_hearts = false;
     assert_eq!(
-        best_call(&partnership(), &after_1s_1nt(), hand),
+        best_call(&american(&agreements).bind(), &after_1s_1nt(), hand),
         call(2, Strain::Spades),
     );
     assert_eq!(
-        best_call(&six_four_hearts(), &after_1s_1nt(), hand),
+        best_call(&partnership(), &after_1s_1nt(), hand),
         call(2, Strain::Hearts),
     );
 }
@@ -659,5 +659,21 @@ fn opener_passes_the_spade_preference_on_a_minimum() {
     assert_eq!(
         best_call(&six_four_hearts(), &auction, "AQJ962.KJ74.T.54"),
         Call::Pass,
+    );
+}
+
+#[test]
+fn opener_plays_the_six_two_spade_fit_over_the_notrump_invite() {
+    let system = six_four_hearts();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Hearts), call(2, Strain::Notrump)]);
+    // AQJ962.KJ74.T.54 — 11 HCP: sign off in 3♠.
+    assert_eq!(
+        best_call(&system, &auction, "AQJ962.KJ74.T.54"),
+        call(3, Strain::Spades),
+    );
+    // AKQ962.KJ74.T.54 — 13 HCP, 6-4: accept in 4♠.
+    assert_eq!(
+        best_call(&system, &auction, "AKQ962.KJ74.T.54"),
+        call(4, Strain::Spades),
     );
 }

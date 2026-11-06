@@ -9,18 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Opener shows four hearts before the sixth spade after `1♠ - 1NT`,
-  opt-in, A/B owed (2026-11-06).** `RebidKnobs::forcing_nt_six_four_hearts`
-  (`bba-gen --ns-forcing-nt-six-four-hearts`): a 6+♠ 4+♥ hand that would
-  rebid the six-card `2♠` bids `2♥` instead; the `3♠` jump and the `3♥`
-  rungs keep their hands, and responder's tables over `2♥` already exist.
-  The re-anchor at `07864122` priced our `2♠` against BBA's `2♥` on this
-  shape at 200 boards, −377 plain / −257 PD, plus 74 boards (−212 / −232)
-  over `1♠ - 2♣` and `1♠ - 2♦`, which this knob does not touch. BBA rebids
-  `2♥` on every ≤14-HCP 6♠4♥ (298/298) and 6♠5♥ (83/83). Default off adds no
-  rule (byte-identical by construction); runner `scripts/ab-forcing-nt-six-four.sh` (vs BBA, four
-  cells).
-
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**
@@ -327,6 +315,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   older than EPBot's.
 
 ### Changed
+
+- **Opener shows four hearts before the sixth spade after `1♠ - 1NT`
+  (jdh8's pick of BBA's style, 2026-11-06).** `RebidKnobs::forcing_nt_six_four_hearts`,
+  now default on: a 6+♠ 4+♥ hand that would rebid the six-card `2♠` bids
+  `2♥`; the `3♠` jump and the `3♥` rungs keep their hands. Node #3 of the
+  `07864122` re-anchor's Constructive / book / round-2 bucket: our `2♠`
+  against BBA's `2♥` on this shape, 200 boards, −377 plain / −257 PD; BBA
+  rebids `2♥` on every ≤14-HCP 6♠4♥ (298/298) and 6♠5♥ (83/83). Opener's
+  third call is authored too: over `2♥ - 2NT` six spades bid `4♠` on 14+
+  points or `3♠`, and over `2♥ - 2♠` they pass on ≤14 HCP. The bare rebid
+  measured non-inferior but negative in every cell (−0.14 to −0.54
+  IMPs/fired plain, `SEED_BASE` 1793928790672211553), and the trace found
+  exactly those two holes. With them, vs BBA on a pre-declared fresh run
+  (`SEED_BASE` 1793929388758490793, 819,200 boards per cell,
+  `scripts/ab-forcing-nt-six-four.sh`), IMPs/board none/ns/ew/both: plain
+  DD +0.0002 ±0.0001 / +0.0003 ±0.0002 / +0.0002 ±0.0001 / +0.0003 ±0.0002,
+  a win in all four cells (+0.63 to +0.95 IMPs/fired, 235–280 fired); PD
+  +0.0002 / +0.0003 / +0.0002 / +0.0002, a win at ew and non-inferior
+  elsewhere; plain SD a win at none, ns and both, SD-PD non-inferior. The
+  pilot at 204,800 boards (`SEED_BASE` 1793929160112958448) agreed
+  (+0.0002 to +0.0004 plain, every scorer positive). Off-switch
+  `bba-gen --no-ns-forcing-nt-six-four-hearts`.
 
 - **XYZ's `2NT` invite tightens: a balanced 10-count passes `1x - 1y - 1NT`,
   and opener accepts `2NT` on 13 (2026-11-06).** The re-anchor at
