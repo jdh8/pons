@@ -5015,7 +5015,7 @@ pub struct RebidKnobs {
     pub two_over_one_reverse_extras: bool,
     /// Show four hearts before the sixth spade after `1♠ - 2m`
     ///
-    /// **Default off** (measuring).  Off, opener's six-card `2♠` (weight 1.4)
+    /// **Default on** (shipped 2026-11-06).  Off, opener's six-card `2♠` (weight 1.4)
     /// outranks the new-suit `2♥` (1.0), so a 6♠4♥ or 6♠5♥ that neither
     /// raises responder's minor nor jumps rebids spades and responder's four
     /// hearts are never found.  On, that hand bids `2♥` (weight 1.41); the
@@ -5024,7 +5024,12 @@ pub struct RebidKnobs {
     /// node #3 of the `07864122` anchor priced our `2♠` against BBA's `2♥`
     /// over `1♠ - 2♣/2♦` at 74 boards, −212 plain / −232 PD.  Opener's third
     /// call over `2♥ - 3NT` is authored: six spades bid `4♠`, the contract the
-    /// `2♠` route reached facing a doubleton.  Natural, so unalerted.
+    /// `2♠` route reached facing a doubleton.  Natural, so unalerted.  Vs
+    /// BBA (819,200 boards per cell, `SEED_BASE` 1793933900766892928) plain
+    /// DD +0.0004 / +0.0005 / +0.0004 / +0.0005 IMPs/board none/ns/ew/both,
+    /// PD +0.0004 to +0.0006, each a win.  Off-switch `bba-gen
+    /// --no-ns-two-over-one-six-four-hearts`
+    /// (`scripts/ab-two-over-one-six-four.sh`).
     pub two_over_one_six_four_hearts: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
@@ -5194,7 +5199,7 @@ impl Default for RebidKnobs {
             forcing_notrump_heart_raise: true,
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
-            two_over_one_six_four_hearts: false,
+            two_over_one_six_four_hearts: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,

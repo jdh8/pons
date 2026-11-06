@@ -13,7 +13,7 @@
 # the 2/1 slice, 6♠4-5♥ over `1♠ - 2♣/2♦` where BBA rebids `2♥`, is 74
 # boards, −212 plain / −232 PD.
 #
-#   on   rebid.two_over_one_six_four_hearts: a 6+♠ 4+♥ that would rebid `2♠`
+#   on   rebid.two_over_one_six_four_hearts (default on since 2026-11-06): a 6+♠ 4+♥ that would rebid `2♠`
 #        bids `2♥` (weight 1.41 over the six-card `2♠`'s 1.40), and over
 #        `2♥ - 3NT` a <15-point six spades bids `4♠`
 #
@@ -21,6 +21,14 @@
 # boards change, +472 IMPs on − off; the `2♥ - 3NT` node was −174 on 113
 # until opener's `4♠` was authored (opener passed 3NT on six spades).
 #
+# READ 2026-11-06 (vs BBA, on − base, IMPs/board ±95%, none / ns / ew / both):
+#   r1 16235691, SEED 1793933900766892928, 819,200/cell: plain +0.0004
+#      +0.0005 +0.0004 +0.0005 (±0.0003), win 4/4; PD +0.0004 +0.0006
+#      +0.0004 +0.0006, win 4/4; SD-PD +0.0003 +0.0002 +0.0003 +0.0002
+#      (±0.0003); fired 175 / 184 / 174 / 182 (+2.0 to +2.4 IMPs/fired
+#      plain); isolation gate passed every cell.  Shipped default-on;
+#      `base` is now `--no-ns-two-over-one-six-four-hearts`.
+
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; δ = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
@@ -35,12 +43,12 @@ SEED_BASE=$(seed_for two-over-one-six-four)
 
 log "=== two-over-one-six-four A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul vuls=$VULS"
 for vul in $VULS; do
-    arm base "$vul"
-    arm on "$vul" --ns-two-over-one-six-four-hearts
+    arm base "$vul" --no-ns-two-over-one-six-four-hearts
+    arm on "$vul"
     gatepair on base "$vul"
     diffpair on base "$vul"
     fired=$(sed -n 's/.*: \([0-9]*\) fired (.*/\1/p' "$R/diff.on.vs.base.$vul.plain.txt")
     log "pre-count on vs base $vul: ${fired:-0} contract-divergent boards$([ "${fired:-0}" -lt 50 ] && echo ' (< 50): INSUFFICIENT DATA for this cell')"
-    sddiff on base "$vul" --on-ns-two-over-one-six-four-hearts
+    sddiff on base "$vul" --off-no-ns-two-over-one-six-four-hearts
 done
 log "=== two-over-one-six-four A/B done"

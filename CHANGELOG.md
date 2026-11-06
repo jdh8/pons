@@ -9,21 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Opener shows four hearts before the sixth spade after `1♠ - 2♣` and
-  `1♠ - 2♦`, opt-in, A/B owed (2026-11-06).**
-  `RebidKnobs::two_over_one_six_four_hearts`
-  (`bba-gen --ns-two-over-one-six-four-hearts`), the 2/1 sibling of
-  `forcing_nt_six_four_hearts`: a 6+♠ 4+♥ hand that would rebid the
-  six-card `2♠` bids `2♥` instead (the 15+ side-suit-first `2♥` and the
-  minor raise keep their hands), and over `2♥ - 3NT` a six-spade hand
-  under 15 points bids `4♠`. The `07864122` re-anchor priced our `2♠`
-  against BBA's `2♥` here at 74 boards, −212 plain / −232 PD. Uncontested
-  self-play probe (2M deals, none vul): 417 boards change, +472 IMPs; the
-  `2♥ - 3NT` node was −174 on 113 until opener's `4♠` (opener passed 3NT
-  on six spades). Default off adds no rule (byte-identical by
-  construction); runner `scripts/ab-two-over-one-six-four.sh` (vs BBA,
-  four cells).
-
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**
@@ -330,6 +315,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   older than EPBot's.
 
 ### Changed
+
+- **Opener shows four hearts before the sixth spade after `1♠ - 2♣` and
+  `1♠ - 2♦` (2026-11-06).** `RebidKnobs::two_over_one_six_four_hearts`,
+  default on, the 2/1 sibling of `forcing_nt_six_four_hearts`: a 6+♠ 4+♥
+  hand that would rebid the six-card `2♠` bids `2♥` instead (the 15+
+  side-suit-first `2♥` and the minor raise keep their hands), and over
+  `2♥ - 3NT` a six-spade hand under 15 points bids `4♠`. The `07864122`
+  re-anchor priced our `2♠` against BBA's `2♥` here at 74 boards, −212
+  plain / −232 PD. An uncontested self-play probe found the `4♠` row's
+  hole (opener passed `2♥ - 3NT` on six spades: −174 IMPs on 113 of 2M
+  deals). Vs BBA, 819,200 boards per cell, `SEED_BASE`
+  1793933900766892928, IMPs/board none/ns/ew/both: plain DD +0.0004 /
+  +0.0005 / +0.0004 / +0.0005 (±0.0003), win 4/4; PD +0.0004 / +0.0006 /
+  +0.0004 / +0.0006, win 4/4; SD-PD +0.0002 to +0.0003; 174–184 boards
+  fired per cell, +2.0 to +2.4 IMPs/fired plain. Off-switch
+  `bba-gen --no-ns-two-over-one-six-four-hearts`
+  (`scripts/ab-two-over-one-six-four.sh`).
 
 - **Opener shows four hearts before the sixth spade after `1♠ - 1NT`
   (jdh8's pick of BBA's style, 2026-11-06).** `RebidKnobs::forcing_nt_six_four_hearts`,

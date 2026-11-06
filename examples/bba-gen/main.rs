@@ -1669,10 +1669,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_forcing_nt_six_four_hearts: bool,
 
-    /// Rebid `2♥` before the sixth spade on 6♠4♥ after `1♠ - 2m`, and `4♠`
-    /// over `2♥ - 3NT` (`rebid.two_over_one_six_four_hearts`, default off)
+    /// Withhold opener's `2♥` before the sixth spade on 6♠4♥ after
+    /// `1♠ - 2m` and the `4♠` over `2♥ - 3NT`
+    /// (`rebid.two_over_one_six_four_hearts`, shipped default-on; the control
+    /// arm of `scripts/ab-two-over-one-six-four.sh`)
     #[arg(long, default_value_t = false)]
-    ns_two_over_one_six_four_hearts: bool,
+    no_ns_two_over_one_six_four_hearts: bool,
 
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
@@ -3568,7 +3570,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_spade_jump_shift = !args.no_ns_heart_spade_jump_shift;
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
     agreements.rebid.forcing_nt_six_four_hearts = !args.no_ns_forcing_nt_six_four_hearts;
-    agreements.rebid.two_over_one_six_four_hearts = args.ns_two_over_one_six_four_hearts;
+    agreements.rebid.two_over_one_six_four_hearts = !args.no_ns_two_over_one_six_four_hearts;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

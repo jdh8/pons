@@ -126,11 +126,14 @@ pub(super) fn opener_rebid(
         );
     // 6♠4♥: show the hearts first, just above the six-card `2♠`.
     if six_four_hearts && major == Suit::Spades {
-        rules = rules.rule(
-            call(2, Strain::Hearts),
-            141,
-            len(Suit::Spades, 6..) & len(Suit::Hearts, 4..),
-        );
+        rules = rules
+            .rule(
+                call(2, Strain::Hearts),
+                141,
+                len(Suit::Spades, 6..) & len(Suit::Hearts, 4..),
+            )
+            // Natural: the spade floor is the opening's suit, not a redirect.
+            .natural();
     }
 
     // Assign new-suit weights: 1.0 / 0.95 when at the 2 level, 0.9 at the 3
