@@ -609,3 +609,55 @@ fn long_major_three_notrump_is_corrected_on_a_doubleton() {
         Call::Pass,
     );
 }
+
+// ---------------------------------------------------------------------------
+// `forcing_nt_six_four_hearts`: 6♠4♥ shows the hearts first
+// ---------------------------------------------------------------------------
+
+/// The knob on, everything else default
+fn six_four_hearts() -> Partnership {
+    let mut agreements = Agreements::default();
+    agreements.rebid.forcing_nt_six_four_hearts = true;
+    american(&agreements).bind()
+}
+
+#[test]
+fn opener_shows_hearts_before_the_sixth_spade() {
+    // AQJ962.KJ74.T.54 — 11 HCP, 6=4=1=2: `2♠` by default, `2♥` with the knob.
+    let hand = "AQJ962.KJ74.T.54";
+    assert_eq!(
+        best_call(&partnership(), &after_1s_1nt(), hand),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&six_four_hearts(), &after_1s_1nt(), hand),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn responder_finds_the_heart_fit_over_six_four() {
+    let system = six_four_hearts();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Hearts)]);
+    // 4.QT85.KJ63.KQ72 — 11 HCP, four hearts: the invitational raise.
+    assert_eq!(
+        best_call(&system, &auction, "4.QT85.KJ63.KQ72"),
+        call(3, Strain::Hearts),
+    );
+    // 4.QT85.KJ63.J972 — 7 HCP, four hearts: play the 4-4 fit.
+    assert_eq!(best_call(&system, &auction, "4.QT85.KJ63.J972"), Call::Pass,);
+    // 84.Q85.KJ63.J972 — 7 HCP, 2=3=4=4: preference to spades.
+    assert_eq!(
+        best_call(&system, &auction, "84.Q85.KJ63.J972"),
+        call(2, Strain::Spades),
+    );
+}
+
+#[test]
+fn opener_passes_the_spade_preference_on_a_minimum() {
+    let auction = after_1s_1nt_then(&[call(2, Strain::Hearts), call(2, Strain::Spades)]);
+    assert_eq!(
+        best_call(&six_four_hearts(), &auction, "AQJ962.KJ74.T.54"),
+        Call::Pass,
+    );
+}

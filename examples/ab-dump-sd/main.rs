@@ -265,6 +265,13 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_no_ns_woolsey_tails: bool,
+    /// Read the ON arm with opener's `1♠ - 1NT - 2♥` on 6♠4♥
+    /// (`rebid.forcing_nt_six_four_hearts`, `bba-gen --ns-forcing-nt-six-four-hearts`)
+    #[arg(long, default_value_t = false)]
+    on_ns_forcing_nt_six_four_hearts: bool,
+    /// Same for the OFF arm
+    #[arg(long, default_value_t = false)]
+    off_ns_forcing_nt_six_four_hearts: bool,
     /// Read the ON arm with this XYZ relay-invite floor after `1x - 1y - 1NT`
     /// (`rebid.xyz_notrump_invite_floor`, `bba-gen --ns-xyz-notrump-invite-floor`).
     #[arg(long, default_value_t = 11)]
@@ -420,6 +427,7 @@ fn main() {
     on_arm.defense.woolsey_muiderberg_sit = !args.on_no_ns_woolsey_muiderberg_sit;
     on_arm.defense.woolsey_tails = !args.on_no_ns_woolsey_tails;
     on_arm.rebid.xyz_notrump_invite_floor = args.on_ns_xyz_notrump_invite_floor;
+    on_arm.rebid.forcing_nt_six_four_hearts = args.on_ns_forcing_nt_six_four_hearts;
     on_arm.rebid.xyz_notrump_accept = args.on_ns_xyz_notrump_accept;
     on_arm.defense.woolsey_wide_unusual_2nt = args.on_ns_woolsey_wide_2nt;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
@@ -475,6 +483,7 @@ fn main() {
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.rebid.xyz_notrump_invite_floor = args.off_ns_xyz_notrump_invite_floor;
+    off_arm.rebid.forcing_nt_six_four_hearts = args.off_ns_forcing_nt_six_four_hearts;
     off_arm.rebid.xyz_notrump_accept = args.off_ns_xyz_notrump_accept;
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     common::set_notrump_defense(

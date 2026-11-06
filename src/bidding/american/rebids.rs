@@ -169,6 +169,14 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
         );
     }
     rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
+    // 6♠4♥: show the hearts first, just above the six-card `2♠`.
+    if major == Suit::Spades && agreements.rebid.forcing_nt_six_four_hearts {
+        rules = rules.rule(
+            Bid::new(2, Strain::Hearts),
+            101,
+            len(Suit::Spades, 6..) & len(Suit::Hearts, 4..),
+        );
+    }
     // Natural strong jump shifts and the long-major 3NT! (default off).
     rules = with_forcing_nt_jump_shifts(rules, major, &agreements.rebid);
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.

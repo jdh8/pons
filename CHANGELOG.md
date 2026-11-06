@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener shows four hearts before the sixth spade after `1♠ - 1NT`,
+  opt-in, A/B owed (2026-11-06).** `RebidKnobs::forcing_nt_six_four_hearts`
+  (`bba-gen --ns-forcing-nt-six-four-hearts`): a 6+♠ 4+♥ hand that would
+  rebid the six-card `2♠` bids `2♥` instead; the `3♠` jump and the `3♥`
+  rungs keep their hands, and responder's tables over `2♥` already exist.
+  The re-anchor at `07864122` priced our `2♠` against BBA's `2♥` on this
+  shape at 200 boards, −377 plain / −257 PD, plus 74 boards (−212 / −232)
+  over `1♠ - 2♣` and `1♠ - 2♦`, which this knob does not touch. BBA rebids
+  `2♥` on every ≤14-HCP 6♠4♥ (298/298) and 6♠5♥ (83/83). Default off adds no
+  rule (byte-identical by construction); runner `scripts/ab-forcing-nt-six-four.sh` (vs BBA, four
+  cells).
+
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**

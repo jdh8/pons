@@ -114,6 +114,43 @@ fn one_diamond_two_clubs_knob_shows_the_second_suit() {
     assert_eq!(best(&on, one_d_one_s, six_four), call(2, Strain::Diamonds));
 }
 
+/// After `1♠ - 1NT`, a minimum 6♠4♥ rebids `2♠` by default but `2♥` once
+/// `forcing_nt_six_four_hearts` is on; 6♠3♥ keeps `2♠`, and a hand strong
+/// enough for a jump keeps its jump.
+#[test]
+fn forcing_nt_six_four_hearts_knob_shows_hearts_first() {
+    let one_s_one_nt = &[
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(1, Strain::Notrump),
+        Call::Pass,
+    ];
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.forcing_nt_six_four_hearts = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    // ♠AQJ962 ♥KJ74 ♦T ♣54 — 6=4=1=2, 11 HCP.
+    let six_four = "AQJ962.KJ74.T.54";
+    assert_eq!(best(&off, one_s_one_nt, six_four), call(2, Strain::Spades));
+    assert_eq!(best(&on, one_s_one_nt, six_four), call(2, Strain::Hearts));
+    // ♠AQJ962 ♥KJ952 ♦- ♣T4 — 6=5=0=2, 11 HCP.
+    let six_five = "AQJ962.KJ952..T4";
+    assert_eq!(best(&on, one_s_one_nt, six_five), call(2, Strain::Hearts));
+    // ♠AQJ962 ♥KJ7 ♦T4 ♣54 — 6=3=2=2.
+    let six_three = "AQJ962.KJ7.T4.54";
+    assert_eq!(best(&on, one_s_one_nt, six_three), call(2, Strain::Spades));
+    // ♠AKQJ62 ♥AQ74 ♦K ♣54 — 6=4=1=2, 19 HCP: the strong rung is untouched.
+    let strong = "AKQJ62.AQ74.K.54";
+    assert_eq!(
+        best(&on, one_s_one_nt, strong),
+        best(&off, one_s_one_nt, strong)
+    );
+}
+
 /// `passed_hand_major_pass`: opener passes a passed hand's `1M` response on a
 /// balanced minimum with exactly three-card support — and only there.
 #[test]

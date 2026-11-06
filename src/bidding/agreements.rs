@@ -4640,6 +4640,19 @@ pub struct RebidKnobs {
     /// continuations — the seam between the minimum natural rebids and the 18+
     /// game force ([`meckstroth_adjunct`][Self::meckstroth_adjunct]).
     pub forcing_nt_two_suiter: bool,
+    /// Show four hearts before the sixth spade after `1♠ - 1NT`
+    ///
+    /// **Default off** (measuring).  Off, opener's six-card `2♠` (weight 1.0)
+    /// outranks the new-suit `2♥` (0.9), so a minimum 6♠4♥ or 6♠5♥ rebids
+    /// spades and responder's four hearts are never found.  On, a hand with
+    /// six-plus spades and four-plus hearts that would rebid `2♠` bids `2♥`
+    /// instead (weight 1.01); the invitational `3♠` jump and the `3♥` rungs
+    /// keep their hands.  BBA's book: at the `07864122` anchor BBA rebid
+    /// `2♥` on every ≤14-HCP 6♠4♥ (298/298) and 6♠5♥ (83/83); the shipping
+    /// rows price our `2♠` against its `2♥` at 200 boards, −377 plain /
+    /// −257 PD (jdh8 picked BBA's style, 2026-11-06).  Natural, so
+    /// unalerted; responder's tables over `2♥` already exist.
+    pub forcing_nt_six_four_hearts: bool,
     /// Let responder's `4♥` over the `1♥ - 1NT - 2♠` reverse take a doubleton
     ///
     /// **Default off** (measuring).  Off, `4♥` needs three hearts, so a hand
@@ -5140,6 +5153,7 @@ impl Default for RebidKnobs {
             meckstroth_adjunct: false,
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
+            forcing_nt_six_four_hearts: false,
             forcing_nt_reverse_heart_game: false,
             forcing_nt_reverse_five_hearts: true,
             forcing_nt_reverse_hcp_floor: true,
