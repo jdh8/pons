@@ -299,8 +299,9 @@ vs BBA: 85 / 84%. Bucket #1's top node, responder's XYZ `2♣` relay (3,847 bd,
 −0.49/bd), was worked after this snapshot: the `2NT` invite sweep shipped
 `4e9e2ba9` (worked-buckets table). Node #2 (`2♦` 5+♦, −1,306) is the measured-wash
 `rebid.one_diamond_two_clubs` lane; node #3 (`2♠` 6+♠, −1,053) gave the
-6♠4♥ `2♥` rebid (worked-buckets table), its 2/1 slices (`1♠ - 2m`, 74 bd)
-unworked. The `40847142` tables are in its series row and
+6♠4♥ `2♥` rebid (worked-buckets table); its 2/1 slices (`1♠ - 2m`, 74 bd)
+are built behind `rebid.two_over_one_six_four_hearts`, A/B owed
+(`scripts/ab-two-over-one-six-four.sh`). The `40847142` tables are in its series row and
 `ab-results/anchor/2026-10-27-155b5cf8-dirty/`.
 
 **The window, paired** (`ab-dump-diff` direct A/B at table A, new snapshot −

@@ -288,3 +288,36 @@ fn reverse_extras_sends_the_minimum_to_2nt() {
     assert_eq!(best_call(&off, &minor, minimum), call(2, Strain::Hearts));
     assert_eq!(best_call(&on, &minor, minimum), notrump);
 }
+
+// --- 6♠4♥ shows the hearts first (`two_over_one_six_four_hearts`) ----------
+
+/// On, a minimum 6♠4♥ rebids `2♥` over `1♠ - 2m` and bids `4♠` over
+/// responder's `3NT`; off, it rebids `2♠`.  6♠3♥ keeps `2♠` either way.
+#[test]
+fn six_four_hearts_shows_hearts_then_spades() {
+    use pons::bidding::agreements::Agreements;
+
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.two_over_one_six_four_hearts = on;
+        american(&agreements).bind()
+    };
+    let (off, on) = (arm(false), arm(true));
+    let p = Call::Pass;
+    let six_four = "AQJ962.KJ74.T.54"; // 6=4=1=2, 11 HCP
+    for minor in [Strain::Clubs, Strain::Diamonds] {
+        let auction = [call(1, Strain::Spades), p, call(2, minor), p];
+        assert_eq!(best_call(&off, &auction, six_four), call(2, Strain::Spades));
+        assert_eq!(best_call(&on, &auction, six_four), call(2, Strain::Hearts));
+        assert_eq!(
+            best_call(&on, &auction, "AQJ962.KJ7.T4.54"),
+            call(2, Strain::Spades),
+        );
+        let notrump = [
+            auction.as_slice(),
+            &[call(2, Strain::Hearts), p, call(3, Strain::Notrump), p],
+        ]
+        .concat();
+        assert_eq!(best_call(&on, &notrump, six_four), call(4, Strain::Spades));
+    }
+}

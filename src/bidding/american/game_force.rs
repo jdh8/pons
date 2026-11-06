@@ -69,12 +69,17 @@ pub(super) use second_suit::second_suit_agreement_continuations;
 /// a two-level new suit above the major (`1♥ - 2m - 2♠`) needs `points(15..)`,
 /// and the minimum it leaves behind rebids `2NT`.
 ///
+/// `six_four_hearts`
+/// ([`RebidKnobs::two_over_one_six_four_hearts`][crate::bidding::agreements::RebidKnobs::two_over_one_six_four_hearts]):
+/// after `1♠ - 2m`, 6+♠ 4+♥ bids `2♥` just above the six-card `2♠`.
+///
 /// No [`Pass`][Call::Pass] rule: the auction is game forcing.
 pub(super) fn opener_rebid(
     major: Suit,
     resp: Suit,
     side_suit_first: bool,
     reverse_extras: bool,
+    six_four_hearts: bool,
 ) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
@@ -119,6 +124,14 @@ pub(super) fn opener_rebid(
             120,
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         );
+    // 6♠4♥: show the hearts first, just above the six-card `2♠`.
+    if six_four_hearts && major == Suit::Spades {
+        rules = rules.rule(
+            call(2, Strain::Hearts),
+            141,
+            len(Suit::Spades, 6..) & len(Suit::Hearts, 4..),
+        );
+    }
 
     // Assign new-suit weights: 1.0 / 0.95 when at the 2 level, 0.9 at the 3
     // level.
@@ -218,6 +231,20 @@ fn opener_after_spades() -> Rules {
             no_fit.clone() & len(Suit::Hearts, 6..),
         )
         .rule(call(3, Strain::Notrump), 80, no_fit)
+}
+
+/// Opener's third call after `1♠ - 2m - 2♥ - 3NT`
+/// ([`RebidKnobs::two_over_one_six_four_hearts`][crate::bidding::agreements::RebidKnobs::two_over_one_six_four_hearts])
+///
+/// The minimum 6♠4♥ that showed hearts first bids `4♠`, the 6-2 game its
+/// `2♠` rebid reached facing a doubleton.  Every other hand is all-−∞ and
+/// falls through to the floor, as it did before the table existed.
+fn opener_after_heart_notrump() -> Rules {
+    Rules::new().rule(
+        call(4, Strain::Spades),
+        100,
+        len(Suit::Spades, 6..) & points(..15),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -346,6 +373,7 @@ pub(super) fn base() -> Package {
                         resp,
                         agreements.rebid.two_over_one_side_suit_first,
                         agreements.rebid.two_over_one_reverse_extras,
+                        agreements.rebid.two_over_one_six_four_hearts,
                     );
                     let rebid_calls = distinct_calls(&rebid);
                     entries.extend(rows_of(node(&prefix), rebid));
@@ -389,6 +417,12 @@ pub(super) fn base() -> Package {
                                 format!("{after_rebid} {} -", call(3, Strain::from(major)),);
                             entries.extend(super::slam::rkcb_rows(&agreed, major));
                         }
+                    }
+                    if agreements.rebid.two_over_one_six_four_hearts && major == Suit::Spades {
+                        entries.extend(rows_of(
+                            node(&format!("{prefix} 2♥ - 3NT -")),
+                            opener_after_heart_notrump(),
+                        ));
                     }
                 }
             }
