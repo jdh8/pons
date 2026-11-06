@@ -386,7 +386,7 @@ above, and those of [notrump-slam.md](notrump-slam.md), from it.
 cargo build --release --example probe-slam
 RAYON_NUM_THREADS=8 nice -n 19 target/release/examples/probe-slam \
     /nfs2/jdh8/pons/22.pdd /nfs2/jdh8/pons/24.pdd /nfs2/jdh8/pons/shard-*.pdd \
-    /mnt/hdd-data/jdh8/shards/shard-*.pdd > slam.tsv
+    > slam.tsv   # the census also read dl02:/mnt/hdd-data/jdh8/shards/shard-*.pdd, left on dl02 2026-11-07
 python3 scripts/slam-report.py slam.tsv
 ```
 

@@ -1386,7 +1386,7 @@ seed 424242, for each system in each binary. The restored default's 20k-board
 seed-1 smoke hash is `38ee1e21…`; the candidate's is `7b854b38…`.
 
 The run is `ab-results/relabel-m32-20260913` on dl02, backed by
-`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-20260913`. Its `manifest.json`
+`~/pons-data/pons-ab-results/relabel-m32-20260913`. Its `manifest.json`
 pins the source, artifacts, frozen binaries, scratch runner and preflight.
 `run.py` runs under `scripts/idle-run.sh` in the transient user unit
 `pons-ab-relabel-m32-20260913`: **32 × 6,400 = 204,800 boards per arm/cell**,
@@ -1429,7 +1429,7 @@ run on dl02 completed from **15:29:55 to 21:31:36 Taipei** (6h01m41s):
 American/Dutch × none/both vulnerability, **16 × 1,600 = 25,600 paired
 boards per cell**, eight generation arms. Fresh shard seeds are
 **1789283437 through 1789283452**. The run lives at
-`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-ben-20260913` on
+`~/pons-data/pons-ab-results/relabel-m32-ben-20260913` on
 `dl02.skymizer.com`; development continues on `main` in
 `/home/jdh8/src/pons-dev` there. Its manifest pins the source snapshot at
 `e82327e2` plus the BEN selector patch, exact artifacts,

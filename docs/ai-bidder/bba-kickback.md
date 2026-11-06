@@ -1557,7 +1557,7 @@ lane's grand blasts are mechanism findings, and the fair-cell rescore ran on
 The no-ask bucket's −0.19/bd (PD-positive) remains the headline's bulk and is
 the card row perturbing the net — part of the knob's price under the
 configured-net design, but not evidence about relocation mechanics. Artifacts:
-dumps and rescore logs under `/mnt/hdd-data/jdh8/pons-ab-results/`
+dumps and rescore logs under `~/src/pons/ab-results/`
 (`kickback-fair-cell-{none,both}/`, `kickback-rescore-{none,both}.log`).
 
 ### 7.16 Re-measured on the v6 floor: the rules are a wash with no room (2026-09-27)
@@ -1569,7 +1569,7 @@ a retired net. Fixed: arms now build on v6 through `american_with_compact`, and
 relocate while every net input stays the baseline's (the no-ask bucket empties
 by construction). One 200k-board NV sizing cell per arm, seed 1790508128,
 `kickback` vs `minors` (the shipped default), dumps under
-`/mnt/hdd-data/jdh8/pons-ab-results/kickback-{v4,v6}-sizing*/`:
+`~/src/pons/ab-results/kickback-{v4,v6}-sizing*/`:
 
 | cell | divergent | plain DD /board | PD /board | where it lives |
 | --- | ---: | ---: | ---: | --- |

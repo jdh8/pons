@@ -11,6 +11,24 @@ doc that has since been archived
 (`docs/archive/point-count-threshold-campaign.md`), which left `scripts/*.sh`
 pointing at a path that no longer exists.
 
+## Where the data lives (zoo, since 2026-11-07)
+
+Development moved dl02 → zoo on 2026-11-06/07; every path below is on zoo
+unless it names another host. Older docs and `CHANGELOG.md` entries still cite
+the historical paths; read them with this table.
+
+| on zoo | holds | historical path in older docs |
+| --- | --- | --- |
+| `/nfs2/jdh8/pons/` | the `.pdd` banks (unchanged) | same |
+| `~/pons-data/pons-*` | corpora, nets, relabel/phase/sweep scratch (175 GB) | dl02 `/mnt/ssd-data/jdh8/pons-*` |
+| `~/src/pons/ab-results/` | every A/B result dir (gitignored) | dl02 `/mnt/hdd-data/jdh8/pons-ab-results` |
+| — | the extra census shards | dl02 `/mnt/hdd-data/jdh8/shards/` (left there) |
+| — | Compute-Node02 scratch: its A/B results, `.dd` tables, `corpus-a4/v8/v9` | `/data/public/jdh8/pons/` — unreachable since 2026-11-06; the verdicts are in `docs/` and `CHANGELOG.md` |
+| — | the BEN checkout | dl02 `~/ben` (deleted); reinstall per [ben-gen-design.md](ben-gen-design.md) |
+
+zoo has 16 threads and no working GPU, so a 204,800-board arm needs
+`PER_SHARD=12800` and a retrain runs on CPU (`DL=local`, the default now).
+
 ## The standing rule (every training run, no exceptions)
 
 > **Draw the corpus from `/nfs2/jdh8/pons/`. Test on freshly generated deals.**
@@ -39,12 +57,11 @@ Every `scripts/dump-*.sh` writes to **`target/corpus-*`** (`DUMP_OUT`
 overrides), and recorded stem paths cite that path. A mixture dump is 6-14 GB,
 so on a box where `/` is tight the corpus does not actually live there: make
 `target/corpus-<name>` a **symlink** to a data disk before dumping. That is how
-this box is set up — all four corpora sit under `/mnt/ssd-data/jdh8/pons-corpora/`
+this box is set up — all four corpora sit under `~/pons-data/pons-corpora/`
 (moved 2026-09-03, `/` being at 99%) with symlinks in `target/` — and it keeps
 the scripts portable to a box where no such disk exists. `/nfs2/jdh8` is **not**
-a candidate: it is read-only from this box — the tree is owned by jdh8's LDAP
-uid (133017) and this host runs him as uid 1016 — so the banks read fine and
-nothing writes back there.
+a candidate even though zoo exports it itself (`/srv/nfs2`, writable): the
+banks must stay byte-stable, and nothing else belongs beside them.
 
 ### Training draws do not advance the never-replay cursor
 

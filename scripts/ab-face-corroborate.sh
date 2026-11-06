@@ -34,8 +34,8 @@
 # rebuilt from `main`.
 #
 #   setsid nohup scripts/idle-run.sh scripts/ab-face-corroborate.sh \
-#       /mnt/hdd-data/jdh8/pons-ab-results/p4-face-corroborate \
-#       >/mnt/hdd-data/jdh8/pons-ab-results/p4-face-corroborate.log 2>&1 </dev/null &
+#       ~/src/pons/ab-results/p4-face-corroborate \
+#       >~/src/pons/ab-results/p4-face-corroborate.log 2>&1 </dev/null &
 #
 # PRE-REGISTERED (before the numbers): this is a floor change, NOT a soundness
 # correction — it takes the standard bar, **a win on both scorers ships it**, a

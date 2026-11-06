@@ -316,7 +316,7 @@ judgement, and the plan hands over to the search road
 ([ben-gap-campaign.md](ben-gap-campaign.md)).
 
 **Read (2026-11-02, 3a084f04, dl02): row 3, no verdict.** Driver and
-nets are in `/mnt/ssd-data/jdh8/pons-phase1/`, and the A/B is in
+nets are in `~/pons-data/pons-phase1/`, and the A/B is in
 `ab-results/portable-judgement/` (`SEED_BASE=1793603525228576315`,
 204,800 boards per arm per cell). The two K = 8 trained side by side in
 40 min. The first A/B attempt died when 5 of the 32 `bba` workers were
@@ -379,7 +379,7 @@ G against BBA (`decompose.<arm>.txt`), plain / PD:
 **Attribution arm `american-s` (2026-11-02, dl02): the labels
 are the whole gap.** This is a fifth arm on the same deals and on
 Phase 1's 3a084f04 binaries (`AMERICAN_S` in the runner; driver and nets in
-`/mnt/ssd-data/jdh8/pons-phase1/stock/`). It is a distillation-only K = 8
+`~/pons-data/pons-phase1/stock/`). It is a distillation-only K = 8
 trained on the shipped cut's own walk: `dump-teacher --cut 0` of the HEAD
 relabel chunks, 6,781,198 rows of the stock cell mix, with teacher labels.
 It uses the same stem order, seeds 9–16, trainer and 32-column fold. So it
@@ -458,7 +458,7 @@ The `american` arm has 64 workers × 1 solver thread and the `bba` arm
 
 **Read (2026-11-04, f24c6656, dl02): the chooser is a quarter of the
 gap.** Relabel done 2026-11-04 (slurm 626, 188/188 chunks per arm, cut
-at M = 32; cuts and sha256 in `/mnt/ssd-data/jdh8/pons-phase1/{american,bba}-r/`).
+at M = 32; cuts and sha256 in `~/pons-data/pons-phase1/{american,bba}-r/`).
 `american-r` and `bba-r` were trained with arm R's recipe, seeds 9–16,
 and folded (`pons-phase1/driver-r.sh`, 40 min). They went into the
 `american-d` / `bba-d` slots of `ab-results/portable-judgement-r/`
@@ -565,7 +565,7 @@ case.
 - **`union-r`**: K = 8, seeds 9–16, arm R's recipe, on `american-r`'s 20
   cut stems then `bba-r`'s (D3), one trainer at a time on the 4090 (9.9 GB
   RSS, 9.2 GB GPU, ≈ 12 min a seed), scan-folded against all 40 stems.
-  Driver `dl02:/mnt/ssd-data/jdh8/pons-phase2/driver.sh`.
+  Driver `dl02:~/pons-data/pons-phase2/driver.sh`.
 - **The A/B**: `scripts/ab-portable-judgement-2.sh`, nine arms
   `<net>-<domain>` (nets `american-d` = `american-r`, `bba-d` = `bba-r`,
   `union-d` = `union-r`; domains `am`, `bba`, `pc`), two cells, 204,800
@@ -855,7 +855,7 @@ Taken at their defaults to write the plan.
 - **D1's transplant is no longer "M32", and the pinned corpora refuse
   most of it** (found reading Phase 1, 2026-11-02). The shipped labels
   are now the BBA-opponent relabel cut
-  (`dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/cut`), not M32's. Also,
+  (`dl02:~/pons-data/pons-relabel-bba/cut`), not M32's. Also,
   `splice-labels.py` refuses any pair whose cell differs, and the Phase 1
   chunks are all `a-off/a-off`. The cut's uniform tables cycle
   `DEFAULT_CELLS` (three cells), its axis tables run `a-off+<bit>`, and

@@ -235,13 +235,13 @@ If Phase 2 found nothing, Phase 1's ensemble alone is the deliverable.
 cd trainer && cargo run --release --features cuda -- --arch mlp --cuda --device-index 0 \
   --data ../target/corpus-relabel-m32/<stem>... \
   --hidden 256 --epochs 300 --lr 0.001 --wd 0 --batch 4096 --val-frac 0.10 \
-  --dd-weight 0 --init-seed 2 --weights-out /mnt/ssd-data/jdh8/pons-sweep/seed2
+  --dd-weight 0 --init-seed 2 --weights-out ~/pons-data/pons-sweep/seed2
 # 2. fold (features-v8.md §3) — shape-identical to the shipped artifact afterwards;
 #    from the repo root, one --data per stem, expect "folded 30 columns"
-python3 scripts/fold-constant-inputs.py /mnt/ssd-data/jdh8/pons-sweep/seed2 \
+python3 scripts/fold-constant-inputs.py ~/pons-data/pons-sweep/seed2 \
   --data target/corpus-relabel-m32/<stem>...
 # 3. A/B, shipped control vs the file-loaded candidate
-PONS_FLOOR_WEIGHTS=/mnt/ssd-data/jdh8/pons-sweep/seed2.f32 BOARDS=204800 setsid nohup \
+PONS_FLOOR_WEIGHTS=~/pons-data/pons-sweep/seed2.f32 BOARDS=204800 setsid nohup \
   scripts/idle-run.sh scripts/ab-floor-file.sh ab-results/sweep-seed2 \
   >ab-results/sweep-seed2.log 2>&1 &
 ```

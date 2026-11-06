@@ -403,7 +403,7 @@ cut from — 8 seats in 21,151 replayed decisions, and 1,264 in 2.14M on the
 
 `scripts/precount-union-hull.sh`, `SEED_BASE=1787700673` (the arm-1 pre-count's
 seed, so the two are board-for-board comparable), 204,800 bd/arm/vul vs BBA,
-results in `/mnt/hdd-data/jdh8/pons-ab-results/union-hull-precount`.
+results in `~/src/pons/ab-results/union-hull-precount`.
 
 | | none | both |
 | --- | --- | --- |

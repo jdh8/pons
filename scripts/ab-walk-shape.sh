@@ -31,8 +31,8 @@
 #   git stash pop
 #
 #   setsid nohup scripts/idle-run.sh scripts/ab-walk-shape.sh \
-#       /mnt/hdd-data/jdh8/pons-ab-results/p4-walk-shape \
-#       >/mnt/hdd-data/jdh8/pons-ab-results/p4-walk-shape.log 2>&1 </dev/null &
+#       ~/src/pons/ab-results/p4-walk-shape \
+#       >~/src/pons/ab-results/p4-walk-shape.log 2>&1 </dev/null &
 #
 # PRE-REGISTERED (before the numbers): this is a precision correction on the
 # same soundness ledger as Phase 4 itself, so it takes the reading-drift bar —

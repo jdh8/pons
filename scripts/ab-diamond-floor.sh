@@ -21,8 +21,8 @@
 #   git stash pop
 #
 #   setsid nohup scripts/idle-run.sh scripts/ab-diamond-floor.sh \
-#       /mnt/hdd-data/jdh8/pons-ab-results/b2-4-diamond-floor \
-#       >/mnt/hdd-data/jdh8/pons-ab-results/b2-4-diamond-floor.log 2>&1 </dev/null &
+#       ~/src/pons/ab-results/b2-4-diamond-floor \
+#       >~/src/pons/ab-results/b2-4-diamond-floor.log 2>&1 </dev/null &
 #
 # PRE-REGISTERED (before the numbers): B2.4 is a soundness correction on the
 # same ledger as Phases 1–4, so it takes the reading-drift bar — non-loss ships

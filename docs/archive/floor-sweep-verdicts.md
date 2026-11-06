@@ -350,7 +350,7 @@ logit mean of seeds 1–4 at width 512. Both use the same book and rails.
 The frozen M32 corpus, its 20 stems in manifest order, 300 epochs, learning
 rate 0.001, zero weight decay / DD weight, batch 4096 and validation
 fraction 0.10 are unchanged. All eight width artifacts fold 30 columns.
-Blobs and sidecars: `/mnt/ssd-data/jdh8/pons-sweep/h{128,512}-s{1..4}`;
+Blobs and sidecars: `~/pons-data/pons-sweep/h{128,512}-s{1..4}`;
 the runner pins the measured 512 blob hashes in `sweep-hid/weights.h512`.
 
 | hidden width | seed 1 CE | seed 2 CE | seed 3 CE | seed 4 CE | gate |
@@ -489,7 +489,7 @@ comparison on 2026-09-30 verifies exactly one changed float per blob:
 index 120832, `b3[0]`, with the expected f32 rounding of −0.0205. All four
 SHA256 hashes still match `sweep-ep150/weights.ep600p`. No new environment
 flag or library setting was needed: the existing `PONS_FLOOR_WEIGHTS`
-loader consumed `/mnt/ssd-data/jdh8/pons-sweep/ep600p-s{1..4}.f32`.
+loader consumed `~/pons-data/pons-sweep/ep600p-s{1..4}.f32`.
 
 **Calibration discrepancy:** the plan called for matching Pass rate at
 served floor nodes. The recorded calibration instead matched the net's
@@ -583,7 +583,7 @@ done
 ### 150 epochs: training gate only
 
 All four 150-epoch seeds finished training and folded 30 constant columns.
-Validation CE from `/mnt/ssd-data/jdh8/pons-sweep/ep150-sN.json`, rounded
+Validation CE from `~/pons-data/pons-sweep/ep150-sN.json`, rounded
 here to nine decimals:
 
 | seed | validation CE | gate |
@@ -595,7 +595,7 @@ here to nine decimals:
 
 The predeclared per-draw gate is shipped seed-1 CE + 0.010 =
 **0.42631942987442017**. The launcher's rounded 0.4263 threshold makes the
-same decisions. `/mnt/ssd-data/jdh8/pons-sweep/launch-ep150.sh` drops the
+same decisions. `~/pons-data/pons-sweep/launch-ep150.sh` drops the
 whole K = 4 arm when any seed fails; `ab-results/sweep-ep150.log` records
 seeds 3 and 4 being rejected before bidding. Thus **150 epochs has no IMP
 verdict**, and dropping the two weak draws to measure a selected K = 2
@@ -638,14 +638,14 @@ No corpus dump, relabel or new bank slice was needed.
 
 The interrupted attempt had stopped seeds 1 and 2 before export. Its logs
 and provenance were preserved under
-`/mnt/ssd-data/jdh8/pons-sweep/lr3e4-interrupted-20260929T183033Z/`.
+`~/pons-data/pons-sweep/lr3e4-interrupted-20260929T183033Z/`.
 The existing `train-lr3e4.py` was rerun under `scripts/idle-run.sh`, one
 draw on each GPU at a time (seeds 1/2, then 3/4). The restart's four
 commands, trainer binary hash and all **60 corpus-file hashes** matched
 the interrupted attempt. No checkpoint was available, so these were fresh
 draws from the same initial seeds. The runner completed with exit 0.
 
-Artifacts are `/mnt/ssd-data/jdh8/pons-sweep/lr3e4-s{1..4}` with `.f32`,
+Artifacts are `~/pons-data/pons-sweep/lr3e4-s{1..4}` with `.f32`,
 `.json`, `.fixture.json` and `.log` siblings. `ab-results/sweep-lr/README`
 records the disposition; `training-provenance.json` holds the exact four
 commands, corpus/trainer hashes, gate and SHA; `training-summary.json`

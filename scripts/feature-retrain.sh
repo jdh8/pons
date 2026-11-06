@@ -3,18 +3,18 @@
 # M32 labels transplanted (docs/ai-bidder/features-v8.md §4, as the A4 lap-1
 # driver ran it): re-walk the fleet's 188 chunk windows through the new
 # extractor, splice the M32 cut's labels onto them, train eight draws of the
-# shipped recipe on dl02's GPUs, fold the constant inputs, and stop with the
+# shipped recipe on the training box, fold the constant inputs, and stop with the
 # NETS line the A/B runner takes.  Every stage verifies before the next; a
 # failure stops the chain with its reason in the log, and the state file names
 # the stage reached (a relaunch resumes from it).
 #
 #   NAME=v9 FEATURE_VERSION=9 setsid nohup scripts/feature-retrain.sh \
-#       >/data/public/jdh8/pons/target/v9-pipeline.out 2>&1 </dev/null &
+#       >target/v9-pipeline.out 2>&1 </dev/null &
 #
 # Environment:
 #   NAME             run name; chunks at $ROOT/corpus-$NAME-chunks, the spliced
 #                    corpus at $ROOT/corpus-$NAME, nets at ab-results/$NAME/nets,
-#                    dl02 scratch at /mnt/ssd-data/jdh8/pons-$NAME     (required)
+#                    training-box scratch at $HOME/pons-data/pons-$NAME
 #   FEATURE_VERSION  the extractor the re-walk dumps through               (required)
 #   WALK_EXTRA       extra dump-teacher flags for the walk, e.g. the probed
 #                    reading: "--ns-probe 100000 --ns-probe-vacuous"      (default none)
@@ -22,17 +22,17 @@
 #   EXPECT_RELABELLED  the labels the splice must transplant in total, ±TOLERANCE_PCT:
 #                    the count the 2026-09-26 and lap-1 splices reached (default 424070, 2)
 #   SEEDS            trainer init seeds, one net each (default "9 10 11 12 13 14 15 16")
-#   TRAIN_PAR        trainers at once on dl02; a v9 corpus (416 wide) peaks at ≈ 2×13 GB
+#   TRAIN_PAR        trainers at once; a v9 corpus (416 wide) peaks at ≈ 2×13 GB
 #                    per process while its stems concatenate, and the box has ≈ 39 GB
 #                    spare — keep 1 above 200 columns                      (default 1)
 #   DUMP_TEACHER     the walk's binary, default the release dump-teacher under
 #                    ~/.local/opt/glibc-2.36/run (EPBot's glibc)
 #   ROOT, FLEET, CUT, BANK   data roots (defaults below: the M32 fleet and cut,
 #                    the recipe the floor shipped until 2026-11-02; the shipped
-#                    BBA-relabel K = 8 trains on dl02:/mnt/ssd-data/jdh8/
+#                    BBA-relabel K = 8 trains on zoo (ex-dl02):$HOME/pons-data/
 #                    pons-relabel-bba/{chunks,cut}, EXPECT_RELABELLED=380714)
-#   DL               the training box (default dl02); `local` when this script
-#                    already runs there: no upload, the trainer runs here
+#   DL               the training box (default `local`); a host name when this script
+#                    should upload and train there over ssh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 NAME=${NAME:?set NAME}
@@ -43,21 +43,21 @@ EXPECT_RELABELLED=${EXPECT_RELABELLED:-424070}
 TOLERANCE_PCT=${TOLERANCE_PCT:-2}
 SEEDS=${SEEDS:-"9 10 11 12 13 14 15 16"}
 TRAIN_PAR=${TRAIN_PAR:-1}
-ROOT=${ROOT:-/data/public/jdh8/pons/target}
+ROOT=${ROOT:-$PWD/target}   # was Compute-Node02 /data/public/jdh8/pons/target, gone 2026-11-06
 FLEET=${FLEET:-$ROOT/fleet-m32}
 CUT=${CUT:-$ROOT/corpus-relabel-m32}
 BANK=${BANK:-/nfs2/jdh8/pons/22.pdd}
-# EPBot needs glibc ≥ 2.34; this box is RHEL 8 (CLAUDE.local.md), so the walk
-# runs dump-teacher under the unpacked loader.  Two words, as relabel-worker
+# EPBot needs glibc ≥ 2.34; on RHEL 8 (Compute-Node02, gone) the walk
+# ran dump-teacher under an unpacked loader; zoo (Fedora) needs none.  Two words, as relabel-worker
 # expands $BIN unquoted.
-DUMP_TEACHER=${DUMP_TEACHER:-"$HOME/.local/opt/glibc-2.36/run target/release/examples/dump-teacher"}
+DUMP_TEACHER=${DUMP_TEACHER:-"target/release/examples/dump-teacher"}
 export DUMP_TEACHER
 CH=$ROOT/corpus-$NAME-chunks
 OUT=$ROOT/corpus-$NAME
 STATE=$ROOT/$NAME-pipeline.state
 LOG=$ROOT/$NAME-pipeline.log
-DL=${DL:-dl02}
-B=/mnt/ssd-data/jdh8/pons-$NAME
+DL=${DL:-local}   # was dl02; its GPUs are gone, zoo trains locally (CPU; its NVIDIA driver is mismatched)
+B=$HOME/pons-data/pons-$NAME
 # rdo CMD / rcp SRC... DST: on the training box, over ssh unless DL=local.
 if [ "$DL" = local ]; then
     rdo() { bash -c "$1"; }

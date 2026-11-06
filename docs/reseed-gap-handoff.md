@@ -385,7 +385,7 @@ shipped stem order, `--row-split`). Seeds 1–8 are arm **new**, 9–16 arm
 **reseed**. Final val top-1 86.4–86.9% overall, 84.8–85.2% contested (a
 row split; the ruler's 85.3/83.1 is a board split and not comparable). The
 nets were scan-folded against the HEAD cut (originals
-`dl02:/mnt/ssd-data/jdh8/pons-relabel-head/nets`, folded
+`dl02:~/pons-data/pons-relabel-head/nets`, folded
 `…/nets-folded`). A/B: `scripts/ab-floor-file.sh ab-results/relabel-head`
 with new, reseed and **k8new** (`ab-results/ruler/nets/seed9..16`, the M32
 recipe's reseed) as arms against the shipped K = 8 as `plain`, four cells,
@@ -426,7 +426,7 @@ boards against k8new's 5.9%. Three readings:
 **The label forensic (2026-10-30): the rollouts reward a 4NT that BBA
 punishes.** It ran on dl02 against the two trainer corpora, then against the
 chunks' stored returns. Scripts and outputs are in
-`dl02:/mnt/ssd-data/jdh8/pons-relabel-head/` (`count4nt`, `profile4nt`,
+`dl02:~/pons-data/pons-relabel-head/` (`count4nt`, `profile4nt`,
 `ret4nt`, `bba-reprice/`).
 
 1. **The HEAD labels carry the 4NT.** Where we have named no strain and they
@@ -507,7 +507,7 @@ decisions were priced again from the stored `.dd` with BBA as the rollout
 opponent (`dump-teacher --rollout-opponent bba`, 64 layouts, nothing solved:
 every chunk reports `0 layouts solved`), 32 workers under `idle-run.sh` on
 dl02, 01:46 → 07:00 +08 on 2026-10-30/31 (29.2 h wall; the 17 axis chunks of
-≈ 106k rows took 13.0–13.3 h each). Cut: `dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/cut`
+≈ 106k rows took 13.0–13.3 h each). Cut: `dl02:~/pons-data/pons-relabel-bba/cut`
 (6,781,198 rows = HEAD's, 20 stems, **380,714** labels moved against HEAD's
 377,516). `--cut` writes the trainer stems directly, so there is no corpus
 step. K = 8 twice on it, 14:39–15:37 +08 (16 nets, 58 min, the 2026-10-24
@@ -608,7 +608,7 @@ cell a PD `loss`). Single-dummy, plain / PD: reseed +0.009, +0.007, +0.001,
    scored PD (the relabel's `.ret` priced with the doubling scorer). Either
    is a full re-price (≈ 29 h dl02) + retrain + both A/Bs. Not started.
 
-The nets stay where they are (`dl02:/mnt/ssd-data/jdh8/pons-relabel-bba/
+The nets stay where they are (`dl02:~/pons-data/pons-relabel-bba/
 {nets,nets-folded}`), nothing enters `src/bidding/weights/`, and the shipped
 K = 8 stays for now. **Decided (jdh8, 2026-11-01): revise the rule, not the
 one case.** PD is an internal guard against overbids that assume nobody

@@ -400,7 +400,7 @@ renderer walks it from the root with **0 dangling children**, so every expanded
 call has its node. 1 375 446 readings, **156 distinct labels**.
 
 `ab-results/bba-book/2026-08-23-08c54312-dirty` (the tree is outside git — the
-`/mnt/hdd-data` symlink). Look a lane up rather than reading tables:
+directory is gitignored). Look a lane up rather than reading tables:
 
 ```sh
 probe-bba-book --render "$RUN" --prefix="1♠ (2♥)"      # note --prefix=, see below

@@ -316,6 +316,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Docs and scripts cite zoo's paths (2026-11-07).** Development moved
+  dl02 → zoo; the dl02 scratch (`/mnt/ssd-data/jdh8/pons-*`) is now
+  `~/pons-data/pons-*`, its A/B results are `~/src/pons/ab-results/`, and
+  Compute-Node02's `/data/public/jdh8/pons/` is unreachable. The host map is
+  in `docs/pdd-bank-ledger.md`; `scripts/feature-retrain.sh` defaults to a
+  local CPU train (`DL=local`, `ROOT=$PWD/target`, no glibc loader).
+  No bidding change.
 - **Opener shows four hearts before the sixth spade after `1♠ - 2♣` and
   `1♠ - 2♦` (2026-11-06).** `RebidKnobs::two_over_one_six_four_hearts`,
   default on, the 2/1 sibling of `forcing_nt_six_four_hearts`: a 6+♠ 4+♥

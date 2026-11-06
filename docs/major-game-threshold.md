@@ -215,7 +215,7 @@ prints every table above from it.
 cargo build --release --example probe-game-threshold
 RAYON_NUM_THREADS=8 nice -n 19 target/release/examples/probe-game-threshold \
     /nfs2/jdh8/pons/22.pdd /nfs2/jdh8/pons/24.pdd /nfs2/jdh8/pons/shard-*.pdd \
-    /mnt/hdd-data/jdh8/shards/shard-*.pdd > major.tsv
+    > major.tsv   # the census also read dl02:/mnt/hdd-data/jdh8/shards/shard-*.pdd, left on dl02 2026-11-07
 python3 scripts/game-threshold-report.py major.tsv
 ```
 

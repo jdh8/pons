@@ -415,7 +415,7 @@ arms, and seeds **1789283437..1789283452** shared across every cell. It ran on
 dl02 from **15:29:55 to 21:31:36 Taipei** under
 `pons-ab-m32-ben-20260913.service` and exited 0 with `SUCCESS`; artifacts,
 source, runtime configuration, process identities and preflight are pinned in
-`/mnt/ssd-data/jdh8/pons-ab-results/relabel-m32-ben-20260913/manifest.json`.
+`~/pons-data/pons-ab-results/relabel-m32-ben-20260913/manifest.json`.
 Positive means candidate minus the previous shared v6 on `table_a`; plain DD
 and PD score the same changed contracts. Intervals are 95% CI half-widths
 (`1.96·SE`). Do not pool the cells as independent deal sets; the sample was

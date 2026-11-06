@@ -3,8 +3,8 @@
 Reference for the **distillation phase** of the [BEN gap
 campaign](ben-gap-campaign.md): a source-verified map of how BEN turns
 `(hand, auction, vul)` into a call. Pinned at lorserker/ben **v0.8.8.4**, the
-**21GF** (2/1 Game-Forcing) config. Checkout at `/mnt/ssd-data/jdh8/ben`
-(symlink `~/ben`). File:line refs are into that checkout unless prefixed
+**21GF** (2/1 Game-Forcing) config. Checkout at `~/ben` (deleted with the dl02 move,
+2026-11-07; reinstall per [ben-gen-design.md](ben-gen-design.md)). File:line refs are into that checkout unless prefixed
 `pons/`.
 
 > **GPL boundary.** BEN is GPL-3.0. This document is *analysis of behaviour*

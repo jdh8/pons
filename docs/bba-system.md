@@ -76,7 +76,7 @@ the data supports without a second source. §3's arm B adds the second source
 (BBA's empirical precedence from its own dealt calls) *after* arm A reads.
 
 **Which walk.** The shipped dump
-(`/data/public/jdh8/pons/dl02/hdd-data/pons-ab-results/bba-book/2026-08-23-08c54312-dirty`)
+(`~/src/pons/ab-results/bba-book/2026-08-23-08c54312-dirty`)
 is BBA playing **our** card on all four seats — the right column for reading
 BBA's view of our agreements, the wrong one here. At the anchor BBA's own
 pair plays EPBot's 2/1 defaults (`bba-gen` with no `--their-card`, system 0;

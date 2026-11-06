@@ -16,8 +16,8 @@
 # board.
 #
 #   setsid nohup scripts/idle-run.sh scripts/precount-union-hull.sh \
-#       /mnt/hdd-data/jdh8/pons-ab-results/union-hull-precount \
-#       >/mnt/hdd-data/jdh8/pons-ab-results/union-hull-precount.log 2>&1 &
+#       ~/src/pons/ab-results/union-hull-precount \
+#       >~/src/pons/ab-results/union-hull-precount.log 2>&1 &
 R=${1:?usage: precount-union-hull.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-union-hull'
 . "$(dirname "$0")/ab-lib.sh"
