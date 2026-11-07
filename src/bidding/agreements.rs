@@ -5168,16 +5168,19 @@ pub struct RebidKnobs {
     /// Responder's answers to opener's `1m - 1M - 3x` jump shift (the extras
     /// ladder's 18+ game force) and opener's rebids over them
     ///
-    /// **Off by default:** the repaired round 2 read non-inferior on both
-    /// scorers in both cells (plain +0.0004 ±0.0016 / ±0.0020 IMPs/board,
-    /// none / both); the default flip is a naturalness call.  Off, the node
-    /// is the floor's, which passes the jump shift on a weak hand and bids `3NT` on a singleton,
+    /// **On by default (2026-11-07, naturalness — jdh8):** the repaired
+    /// round 2 read non-inferior on both scorers in both cells (plain
+    /// +0.0004 ±0.0016 / ±0.0020 IMPs/board, none / both), so the flip is a
+    /// recorded trade-off accepting a worst-cell lower bound of −0.0016;
+    /// authored natural answers that never pass a game force are the move
+    /// toward established theory.  Off, the node is the floor's, which
+    /// passes the jump shift on a weak hand and bids `3NT` on a singleton,
     /// and opener's `3NT` pass is the floor's too — the `6141cdb2` anchor's
     /// `3♦` cluster (321 boards, −1.90/bd).  On, `4m` (13+, 4+ support: a
-    /// keycard ask follows), `4s`, the own-major rebid, `5m`, `3NT`; opener
-    /// raises the major on 3+ and pulls `3NT` to `4m` on a 6-5.  On-switch
-    /// `bba-gen --ns-minor-jump-shift-answers`
-    /// (`scripts/ab-strong-jump-rebids.sh`).
+    /// keycard ask follows), `4NT` (11+, 4+ in a major second suit), `4s`,
+    /// the own-major rebid, `5m`, `3NT`; opener raises the major on 3+ and
+    /// pulls `3NT` to `4m` on a 6-5.  Off-switch
+    /// `bba-gen --no-ns-minor-jump-shift-answers`.
     pub minor_jump_shift_answers: bool,
 
     // --- rebids/major_jump_rebid.rs
@@ -5237,7 +5240,7 @@ impl Default for RebidKnobs {
             diamond_rebid_fourth_suit: true,
             fourth_suit_keycard: false,
             heart_spade_jump_shift: true,
-            minor_jump_shift_answers: false,
+            minor_jump_shift_answers: true,
             major_jump_rebid_shape: true,
         }
     }

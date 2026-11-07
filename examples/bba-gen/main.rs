@@ -1657,11 +1657,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_heart_spade_jump_shift: bool,
 
-    /// Author responder's answers to opener's `1m - 1M - 3x` jump shift and
-    /// opener's rebids over them (`rebid.minor_jump_shift_answers`, default
-    /// off; an arm of `scripts/ab-strong-jump-rebids.sh`)
+    /// Withhold responder's answers to opener's `1m - 1M - 3x` jump shift and
+    /// opener's rebids over them (`rebid.minor_jump_shift_answers`, shipped
+    /// default-on 2026-11-07; the control arm of
+    /// `scripts/ab-strong-jump-rebids.sh`)
     #[arg(long, default_value_t = false)]
-    ns_minor_jump_shift_answers: bool,
+    no_ns_minor_jump_shift_answers: bool,
 
     /// Withhold opener's `4M` on a seven-card major and the `3NT` pull on a
     /// six-card major with a singleton over the `3M` jump rebid
@@ -3581,7 +3582,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.diamond_rebid_fourth_suit = !args.no_ns_diamond_rebid_fourth_suit;
     agreements.rebid.fourth_suit_keycard = args.ns_fourth_suit_keycard;
     agreements.rebid.heart_spade_jump_shift = !args.no_ns_heart_spade_jump_shift;
-    agreements.rebid.minor_jump_shift_answers = args.ns_minor_jump_shift_answers;
+    agreements.rebid.minor_jump_shift_answers = !args.no_ns_minor_jump_shift_answers;
     agreements.rebid.major_jump_rebid_shape = !args.no_ns_major_jump_rebid_shape;
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
     agreements.rebid.forcing_nt_six_four_hearts = !args.no_ns_forcing_nt_six_four_hearts;

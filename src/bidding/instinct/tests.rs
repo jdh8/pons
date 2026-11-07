@@ -50,6 +50,20 @@ fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
     american_floored_with(&Agreements::default(), auction, hand)
 }
 
+/// The defaults with `rebid.minor_jump_shift_answers` off: the fit-sum
+/// tests read the floor over `- 1♣ - 1♥ - 2♠ -`, which the shipped default
+/// authors
+fn jump_shift_floor() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.rebid.minor_jump_shift_answers = false;
+    agreements
+}
+
+/// [`american_floored`] under [`jump_shift_floor`]
+fn jump_shift_floored(auction: &[Call], hand: &str) -> (Call, bool) {
+    american_floored_with(&jump_shift_floor(), auction, hand)
+}
+
 /// The same, built from an explicit [`Agreements`] rather than this thread's
 ///
 /// The tests that delete a book node to hand the position to the floor arm the
@@ -829,7 +843,7 @@ fn fit_sum_reads_a_four_four_major_fit() {
         Call::Pass,
     ];
     let south = "JT87.AQT2.A75.86";
-    let (bid, from_floor) = american_floored(&auction, south);
+    let (bid, from_floor) = jump_shift_floored(&auction, south);
     assert!(
         from_floor,
         "South's continuation is off-book (floor territory)"
@@ -847,7 +861,7 @@ fn fit_sum_reads_a_four_four_major_fit() {
     // under this partnership's readings), the slam is claimed *through RKCB*
     // rather than blind — 66.3% includes the boards off two keycards.
     assert_eq!(bid, call(4, Strain::Notrump));
-    let mut legacy_agreements = Agreements::default();
+    let mut legacy_agreements = jump_shift_floor();
     legacy_agreements.decision.reading.envelope_union = false;
     let (legacy, _) = american_floored_with(&legacy_agreements, &auction, south);
     assert_eq!(legacy, call(4, Strain::Notrump));
@@ -856,13 +870,13 @@ fn fit_sum_reads_a_four_four_major_fit() {
     // (2 + 0 < 3), so the step is exact: five keycards, small slam.
     let asked = [auction.as_slice(), &[call(4, Strain::Notrump), Call::Pass]].concat();
     assert_eq!(
-        american_floored(&asked, "AK92.7.K84.AKQ93").0,
+        jump_shift_floored(&asked, "AK92.7.K84.AKQ93").0,
         call(5, Strain::Diamonds),
         "the jump-shifter answers 1430"
     );
     let answered = [asked.as_slice(), &[call(5, Strain::Diamonds), Call::Pass]].concat();
     assert_eq!(
-        american_floored(&answered, south).0,
+        jump_shift_floored(&answered, south).0,
         call(6, Strain::Spades),
         "the exact decode claims the vetted slam"
     );
@@ -884,7 +898,7 @@ fn fit_sum_leaves_a_flat_4333_in_notrump() {
     ];
     let south = "KT87.AQ2.Q75.J82"; // 4=3=3=3, 11 HCP
     assert_eq!(
-        american_floored(&auction, south).0,
+        jump_shift_floored(&auction, south).0,
         call(3, Strain::Notrump)
     );
 }
@@ -969,7 +983,7 @@ fn accountant_floor_still_bids_the_known_fit_game() {
         call(2, Strain::Spades),
         Call::Pass,
     ];
-    let (bid, from_floor) = american_floored(&auction, "JT87.AQT2.A75.86");
+    let (bid, from_floor) = jump_shift_floored(&auction, "JT87.AQT2.A75.86");
     assert!(
         from_floor,
         "South's continuation is off-book (floor territory)"

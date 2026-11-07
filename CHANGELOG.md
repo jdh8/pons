@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Continuations over opener's strong jump rebids: `major_jump_rebid_shape`
-  shipped default-on, `minor_jump_shift_answers` repaired and re-measuring
-  (2026-11-07,
+- **Continuations over opener's strong jump rebids: both knobs shipped
+  default-on (2026-11-07,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) next lane).** The
   `6141cdb2` anchor's sharpest round-2 cluster (1,198 boards, −2,035 plain
   / −2,359 PD) traced to the continuations, not the jumps: over the
@@ -40,8 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   15+ HCP), raises a major second suit with `4NT` keycards on 11+ points
   (18 + 11 = 29, `docs/suit-slam.md`), and opener asks over the 6–10 `4M`
   on 21+. Round 2 (fresh seed) reads **non-inferior** on both scorers in
-  both cells: plain +0.0004 ±0.0016 / +0.0004 ±0.0020 IMPs/board. Still
-  default off pending the naturalness call.
+  both cells: plain +0.0004 ±0.0016 / +0.0004 ±0.0020 IMPs/board, and
+  **ships default-on on naturalness** (jdh8; a recorded trade-off, worst-cell
+  lower bound −0.0016; off-switch `--no-ns-minor-jump-shift-answers`). The
+  floor's fit-sum tests over `- 1♣ - 1♥ - 2♠ -` now arm the knob off;
+  `alert-sites.txt` re-blessed (`rkcb` +3,696 sites). Round 3 (the unauthored
+  rungs the round-2 worst boards point at) is handed off in
+  [docs/strong-jump-rebids-handoff.md](docs/strong-jump-rebids-handoff.md).
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**

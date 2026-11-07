@@ -1885,7 +1885,12 @@ fn authored_calls_read_what_they_gate() {
         // or void (`7+ | 6+ & shortness_outside`), is a disjunction past the
         // legacy hull, in the american and Watermelon constructive tries.
         // Knob-on stays 0.
-        ("length", 124, 0),
+        // 124 → 128 when `rebid.minor_jump_shift_answers` shipped
+        // (2026-11-07): responder's `5m` over `1m - 1M - 3x` (`4+ m &
+        // shortness_outside`, a singleton or void in any side suit) is a
+        // disjunction past the legacy hull, in the american and Watermelon
+        // constructive tries.  Knob-on stays 0.
+        ("length", 128, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

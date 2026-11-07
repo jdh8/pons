@@ -314,8 +314,10 @@ After the repair (responder's `3NT` pull to `4M` on six or `6NT` on 15+ HCP,
 an 11+ `4NT` keycard raise of a major second suit, opener's 21+ ask over the
 6–10 `4M`), round 2 read **non-inferior on both scorers in both cells**
 (plain +0.0004 ±0.0016 / +0.0004 ±0.0020, PD +0.0003 ±0.0018 / +0.0004
-±0.0021; seed 1794059060547829818). It stays default off pending the
-naturalness call. Its worst boards are the still-unauthored rungs: a
+±0.0021; seed 1794059060547829818), and it **shipped default-on on
+naturalness** (jdh8 2026-11-07; recorded trade-off, worst-cell lower bound
+−0.0016). Round 3 is handed off in
+[strong-jump-rebids-handoff.md](strong-jump-rebids-handoff.md). Its worst boards are the still-unauthored rungs: a
 direct `3NT` on 14 HCP that the floor took to `6NT`, and a 4-card raise of
 a minor second suit on 11–12 that `4s`'s 13+ floor sends to `3NT`. The
 `3♠` jump raise's slam tools (170 bd, −434) are not built.
