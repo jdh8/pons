@@ -24,28 +24,42 @@
 # ranges are --no-ns-spade-raise-ladder.  Re-running needs the arms below
 # re-pointed (base = --no-ns-spade-raise-ladder).
 #
-# Arm 2 (opener splinters, sub-arms 2a/2b on singleton honours) is measured
-# on top of this one only if it ships.
+# Round 3 (2026-11-08) re-measures both knobs under `--filter-spade-raise`
+# (density ~9.5%, 100% coverage of round 2's divergent boards), 4x round 2's
+# boards, to resolve what round 2 could only bound:
 #
-#   setsid nohup scripts/idle-run.sh \
-#       scripts/ab-spade-raise-ladder.sh ab-results/spade-raise-ladder-r2 \
-#       >ab-results/spade-raise-ladder-r2.log 2>&1 < /dev/null &
+#   base     the shipped ranges
+#   old      --no-ns-spade-raise-ladder (the 12–15 / 16–18 / 19+ ladder)
+#   answers  --ns-spade-raise-answers on top of the shipped ranges
+#
+# Read base vs old (does the shipped ladder win?) and answers vs base.  The
+# verdict is per *accepted* board; DENSITY rescales it to all boards, so
+# δ = 0.002 holds per board of the whole draw.
+#
+# Arm 2 (opener splinters, sub-arms 2a/2b on singleton honours) is measured
+# on top of the shipped ranges under the same filter.
+#
+#   BOARDS=409600 setsid nohup scripts/idle-run.sh \
+#       scripts/ab-spade-raise-ladder.sh ab-results/spade-raise-ladder-r3 \
+#       >ab-results/spade-raise-ladder-r3.log 2>&1 < /dev/null &
 #
 # Each new seed wants a fresh results dir.
 R=${1:?usage: ab-spade-raise-ladder.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for spade-raise-ladder)
+F=--filter-spade-raise
 
 log "=== spade-raise-ladder A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in $VULS; do
-    arm base "$vul"
-    arm ranges "$vul" --ns-spade-raise-ladder
-    arm answers "$vul" --ns-spade-raise-answers
-    arm full "$vul" --ns-spade-raise-ladder --ns-spade-raise-answers
-    for on in ranges answers full; do
-        gatepair "$on" base "$vul" || log "isolation gate $on vs base ($vul) FAILED, scoring anyway"
-        diffpair "$on" base "$vul"
-    done
+    arm base "$vul" $F
+    arm old "$vul" $F --no-ns-spade-raise-ladder
+    arm answers "$vul" $F --ns-spade-raise-answers
+    DENSITY=$(density_of "$R/base-$vul")
+    log "density ($vul) = $DENSITY"
+    gatepair base old "$vul" || log "isolation gate base vs old ($vul) FAILED, scoring anyway"
+    diffpair base old "$vul"
+    gatepair answers base "$vul" || log "isolation gate answers vs base ($vul) FAILED, scoring anyway"
+    diffpair answers base "$vul"
 done
 log "=== spade-raise-ladder A/B done"
