@@ -135,6 +135,14 @@ notes ([`bidding-theorems.md`](docs/bidding-theorems.md)), and how to run
 heavy data generation on a shared machine
 ([`shared-machine-data-gen.md`](docs/shared-machine-data-gen.md)).
 
+## Acknowledgements
+
+- [Edward Piwowar][bba], author of BBA/EPBot, for permission to use BBA as
+  the reference engine and to carry it as a git submodule (`vendor/bba`) of
+  this open-source project.
+- [Skymizer](https://skymizer.com/) for the computing power that trained the
+  earlier neural networks.
+
 [`Call`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/enum.Call.html
 [`Auction`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/struct.Auction.html
 [`Trie`]: https://docs.rs/pons/latest/pons/bidding/trie/struct.Trie.html
