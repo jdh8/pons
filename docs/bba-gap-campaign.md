@@ -316,11 +316,23 @@ an 11+ `4NT` keycard raise of a major second suit, opener's 21+ ask over the
 (plain +0.0004 ±0.0016 / +0.0004 ±0.0020, PD +0.0003 ±0.0018 / +0.0004
 ±0.0021; seed 1794059060547829818), and it **shipped default-on on
 naturalness** (jdh8 2026-11-07; recorded trade-off, worst-cell lower bound
-−0.0016). Round 3 is handed off in
-[strong-jump-rebids-handoff.md](strong-jump-rebids-handoff.md). Its worst boards are the still-unauthored rungs: a
-direct `3NT` on 14 HCP that the floor took to `6NT`, and a 4-card raise of
-a minor second suit on 11–12 that `4s`'s 13+ floor sends to `3NT`. The
-`3♠` jump raise's slam tools (170 bd, −434) are not built.
+−0.0016). **Round 3** authored the rungs the round-2 worst boards
+pointed at as `rebid.minor_jump_shift_slam`. Opener's HCP at the jump
+shift runs 16–21 (median 18, 32% at 16–17), so responder's direct `6NT`
+and the `6NT` pull of opener's `3NT` start at 14 HCP. The `4m` raise and a
+minor second suit's `4s` start at 11 points, not 13 (the minor census's
+28–29). A flat 4333 with 11–12 bids `3NT` rather than the `4NT` major
+raise, which keeps the floor's own carve. Opener asks keycards over `3M` on
+3+ and 21+ instead of raising, and opener's ask over a raise carries the
+grand rung. It **won 4/4** (seed 1794063398144400977, 28 boards fired per
+cell): plain +0.0015 ±0.0011 / +0.0018 ±0.0013, PD +0.0015 / +0.0018. It
+**shipped default-on**. The worst boards are tails of positive-EV rungs: a
+grand off a finesse, and a 14-HCP `6NT` pull opposite a 16-count. Residues,
+none measured: the round-2 `7NT` board (opener ♣KT52 opposite ♣AJ84)
+misses the trump queen, so the grand rung stays in six by design; a
+quantitative `4NT` for 12–13 HCP in the lanes where `4NT` is not the major
+raise (second suit a minor) is not built. The jump raise is filed as *Open
+work* item 9.
 
 The `07864122` tables are in its series row.
 
@@ -622,3 +634,15 @@ In bucket order; each item is its own fresh-seed A/B per
    each pair is a tie. Snapshot in
    `ab-results/anchor-confirm-2026-10/2026-10-05-25aea82c/`. Next one due
    around the third re-anchor from here.
+9. **Opener's raise structure after `1x - 1♠`** (Const / book / round-2;
+   170 boards, −434 plain on the `6141cdb2` anchor). The handoff called it
+   slam tools over our `3♠` (16–18), but the divergent call is opener's
+   rebid. Where we bid `3♠`, BBA bids `4♠` or splinters `4♣`/`4♦`. In
+   `boards-american.jsonl` (rule text `16–18`), `4♠` is 65 + 39 + 14
+   boards (−138 / −29 / −77) on the `4+ support & 16–18` rule and 24 + 24
+   + 21 (−114 / −36 / −19) on the support-points rule. The lever is a
+   redesign of opener's raise ladder: splinter raises, and the `3♠` / `4♠`
+   ranges. That is a bidding-theory call for jdh8 before authoring, with
+   its own knob, `-` and `(X)` tails, and A/B. The current responder table
+   is `responder_after_spade_jump` in `rebids/major_tails.rs` (`4NT` on
+   14+, `4♠` on 8+).

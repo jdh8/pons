@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Slam rungs over the `1m - 1M - 3x` jump-shift answers, shipped
+  default-on (2026-11-07,
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) "That lane,
+  worked").** This is round 3 of the strong-jump-rebids lane. The round-2
+  worst boards were missed slams. `rebid.minor_jump_shift_slam` adds:
+  - responder's direct `6NT`, and the `6NT` pull of opener's `3NT`, on 14+
+    HCP (opener's jump shift runs 16–21 HCP, median 18);
+  - the `4m` raise and a minor second suit's `4s` on 11+ points, not 13;
+  - `3NT`, not the `4NT` keycard raise, on a flat 4333 with 11–12;
+  - opener's `4NT` keycard ask over `3M` on 3+ and 21+, instead of `4M`;
+  - the grand rung (`slam::grand_rkcb_rows`) on opener's ask over a raise;
+  - opener's pass over `6NT`.
+
+  Measured against BBA (102,400 boards per cell, none / both, 28 fired):
+  **won 4/4**, plain +0.0015 ±0.0011 / +0.0018 ±0.0013 IMPs/board, with PD
+  agreeing. Off-switch `bba-gen --no-ns-minor-jump-shift-slam`.
+  `alert-sites.txt` re-blessed (`rkcb` +4,416 sites). The
+  `authored_calls_read_what_they_gate` length leak is re-pinned 128 → 132
+  (the `4NT` raise's `not 4333`). The `3♠` jump raise is filed as bba-gap
+  *Open work* item 9 (opener's raise structure), not built.
 - **Continuations over opener's strong jump rebids: both knobs shipped
   default-on (2026-11-07,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) next lane).** The
@@ -44,8 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lower bound −0.0016; off-switch `--no-ns-minor-jump-shift-answers`). The
   floor's fit-sum tests over `- 1♣ - 1♥ - 2♠ -` now arm the knob off;
   `alert-sites.txt` re-blessed (`rkcb` +3,696 sites). Round 3 (the unauthored
-  rungs the round-2 worst boards point at) is handed off in
-  [docs/strong-jump-rebids-handoff.md](docs/strong-jump-rebids-handoff.md).
+  rungs the round-2 worst boards point at) is the next entry.
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**

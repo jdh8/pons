@@ -18,8 +18,17 @@
 //! | `3M`  | 5+ in responder's own major: opener raises on 3+, else `3NT`; responder pulls `3NT` to `4M` on six, to `6NT` on 15+ HCP |
 //! | `5m`  | 4+ in opener's minor and a singleton or void outside it |
 //! | `3NT` | everything else; opener pulls to `4m` on a 6-5 |
+//!
+//! [`RebidKnobs::minor_jump_shift_slam`] adds the slam rungs (round 3).
+//! Opener's HCP at the jump shift runs 16–21 (median 18, 32% at 16–17), so a
+//! direct `6NT` and the `6NT` pull of opener's `3NT` both start at 14 HCP; the
+//! minor raises (`4m`, and `4s` of a minor second suit) start at 11 points
+//! (the minor census's 28–29, `docs/suit-slam.md`); a flat 4333 with 11–12
+//! bids `3NT`, not `4NT`; opener asks over `3M` on 3+ and 21+; opener's ask
+//! over a minor raise carries the grand rung.
 
 use super::*;
+use crate::bidding::american::notrump::flat_4333;
 use crate::bidding::american::slam;
 
 /// One jump-shift lane: opener's minor, responder's major, opener's second
@@ -69,23 +78,47 @@ impl Lane {
     }
 
     /// Responder's answers: the table in the module doc
-    fn responder(&self) -> Rules {
+    fn responder(&self, slam: bool) -> Rules {
         let m = Strain::from(self.minor);
         let s = Strain::from(self.second);
         let second_is_major = matches!(self.second, Suit::Hearts | Suit::Spades);
-        let mut rules = Rules::new().rule(Bid::new(4, m), 150, len(self.minor, 4..) & points(13..));
+        let raise = if slam { 11 } else { 13 };
+        let mut rules =
+            Rules::new().rule(Bid::new(4, m), 150, len(self.minor, 4..) & points(raise..));
         rules = if second_is_major {
-            rules
-                .rule(
+            rules = if slam {
+                rules.rule(
+                    Bid::new(4, Strain::Notrump),
+                    155,
+                    len(self.second, 4..) & (points(13..) | (points(11..) & !flat_4333())),
+                )
+            } else {
+                rules.rule(
                     Bid::new(4, Strain::Notrump),
                     155,
                     len(self.second, 4..) & points(11..),
                 )
-                .alert(slam::RKCB)
-                .rule(Bid::new(4, s), 145, len(self.second, 4..))
+            }
+            .alert(slam::RKCB);
+            if slam {
+                // The flat 4-4 stays in notrump (the floor's own carve).
+                // Natural: a balanced game whose four-card floor only keeps
+                // it out of the keycard raise.
+                rules = rules
+                    .rule(
+                        Bid::new(3, Strain::Notrump),
+                        150,
+                        len(self.second, 4..) & flat_4333() & points(11..=12),
+                    )
+                    .natural();
+            }
+            rules.rule(Bid::new(4, s), 145, len(self.second, 4..))
         } else {
-            rules.rule(Bid::new(4, s), 145, len(self.second, 4..) & points(13..))
+            rules.rule(Bid::new(4, s), 145, len(self.second, 4..) & points(raise..))
         };
+        if slam {
+            rules = rules.rule(Bid::new(6, Strain::Notrump), 125, hcp(14..));
+        }
         // Own major: the cheapest rebid of it above the jump shift.
         let own = cheapest_level_over(Bid::new(self.level, s), Strain::from(self.major));
         rules
@@ -102,9 +135,20 @@ impl Lane {
             .rule(Bid::new(3, Strain::Notrump), 0, hcp(0..))
     }
 
-    /// Opener over responder's major rebid: raise on 3+, else `3NT`
-    fn opener_over_major(&self) -> Rules {
-        Rules::new()
+    /// Opener over responder's major rebid: raise on 3+, else `3NT`; under
+    /// the slam rungs, keycards on 3+ and 21+
+    fn opener_over_major(&self, slam: bool) -> Rules {
+        let mut rules = Rules::new();
+        if slam {
+            rules = rules
+                .rule(
+                    Bid::new(4, Strain::Notrump),
+                    110,
+                    len(self.major, 3..) & points(21..),
+                )
+                .alert(slam::RKCB);
+        }
+        rules
             .rule(
                 Bid::new(4, Strain::from(self.major)),
                 100,
@@ -116,9 +160,13 @@ impl Lane {
     /// Responder over opener's `3NT` after the own-major rebid: six pull to
     /// `4M`, 15+ HCP opposite the 18+ jump shift is the 31 of `6NT`
     /// (`docs/notrump-slam.md`)
-    fn responder_over_notrump(&self) -> Rules {
+    fn responder_over_notrump(&self, slam: bool) -> Rules {
         Rules::new()
-            .rule(Bid::new(6, Strain::Notrump), 110, hcp(15..))
+            .rule(
+                Bid::new(6, Strain::Notrump),
+                110,
+                hcp(if slam { 14.. } else { 15.. }),
+            )
             .rule(
                 Bid::new(4, Strain::from(self.major)),
                 100,
@@ -161,7 +209,18 @@ pub(crate) fn minor_jump_shift_continuations() -> Package {
     Package {
         name: "minor-jump-shift-answers",
         gate: |a| a.rebid.minor_jump_shift_answers,
-        entries: |_| {
+        entries: |agreements| {
+            let slam = agreements.rebid.minor_jump_shift_slam;
+            // The asker's subtree over a raise: the grand rung under `slam`.
+            let ask = |prefix: &str, trump| {
+                if slam {
+                    slam::grand_rkcb_rows(prefix, trump)
+                } else {
+                    slam::rkcb_rows(prefix, trump)
+                }
+            };
+            // A placement is a contract: opener passes responder's `6NT`.
+            let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
             let mut entries = Vec::new();
             for lane in Lane::all() {
                 let m = Strain::from(lane.minor);
@@ -169,31 +228,45 @@ pub(crate) fn minor_jump_shift_continuations() -> Package {
                 let own = cheapest_level_over(Bid::new(lane.level, s), Strain::from(lane.major));
                 for tail in ["-", "(X)"] {
                     let node = format!("{} {tail}", lane.node());
-                    entries.extend(rows_of(Pattern::node(&node), lane.responder()));
+                    entries.extend(rows_of(Pattern::node(&node), lane.responder(slam)));
                     if matches!(lane.second, Suit::Hearts | Suit::Spades) {
                         entries.extend(slam::rkcb_rows(&node, lane.second));
                     }
                     for answer in ["-", "(X)"] {
                         let raise = format!("{node} 4{m} {answer}");
                         entries.extend(rows_of(Pattern::node(&raise), opener_over_raise()));
-                        entries.extend(slam::rkcb_rows(&raise, lane.minor));
+                        entries.extend(ask(&raise, lane.minor));
                         if matches!(lane.second, Suit::Clubs | Suit::Diamonds) {
                             let raise = format!("{node} 4{s} {answer}");
                             entries.extend(rows_of(Pattern::node(&raise), opener_over_raise()));
-                            entries.extend(slam::rkcb_rows(&raise, lane.second));
+                            entries.extend(ask(&raise, lane.second));
                         } else {
                             let game = format!("{node} 4{s} {answer}");
                             entries.extend(rows_of(Pattern::node(&game), opener_over_major_game()));
                             entries.extend(slam::rkcb_rows(&game, lane.second));
                         }
                         let major = format!("{node} {own}{} {answer}", Strain::from(lane.major));
-                        entries.extend(rows_of(Pattern::node(&major), lane.opener_over_major()));
+                        entries
+                            .extend(rows_of(Pattern::node(&major), lane.opener_over_major(slam)));
+                        if slam {
+                            entries.extend(slam::rkcb_rows(&major, lane.major));
+                        }
                         for again in ["-", "(X)"] {
                             let pull = format!("{major} 3NT {again}");
                             entries.extend(rows_of(
                                 Pattern::node(&pull),
-                                lane.responder_over_notrump(),
+                                lane.responder_over_notrump(slam),
                             ));
+                            if slam {
+                                for doubled in ["-", "(X)"] {
+                                    let six = format!("{pull} 6NT {doubled}");
+                                    entries.extend(rows_of(Pattern::node(&six), pass()));
+                                }
+                            }
+                        }
+                        if slam {
+                            let six = format!("{node} 6NT {answer}");
+                            entries.extend(rows_of(Pattern::node(&six), pass()));
                         }
                         let notrump = format!("{node} 3NT {answer}");
                         entries

@@ -1890,7 +1890,12 @@ fn authored_calls_read_what_they_gate() {
         // shortness_outside`, a singleton or void in any side suit) is a
         // disjunction past the legacy hull, in the american and Watermelon
         // constructive tries.  Knob-on stays 0.
-        ("length", 128, 0),
+        // 128 → 132 when `rebid.minor_jump_shift_slam` shipped (2026-11-07):
+        // responder's `4NT` raise of a major second suit (`4+ M & (13+ |
+        // 11+ & not 4333)`) negates the flat shape past the legacy hull, in
+        // the ♥ and ♠ lanes of the american and Watermelon constructive
+        // tries.  Knob-on stays 0.
+        ("length", 132, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

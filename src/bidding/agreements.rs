@@ -5183,6 +5183,24 @@ pub struct RebidKnobs {
     /// `bba-gen --no-ns-minor-jump-shift-answers`.
     pub minor_jump_shift_answers: bool,
 
+    /// The slam rungs over [`minor_jump_shift_answers`][Self::minor_jump_shift_answers]
+    /// (round 3 of the strong-jump-rebids lane; inert without it)
+    ///
+    /// **On by default (2026-11-07):** won 4/4 against BBA
+    /// (`scripts/ab-strong-jump-rebids.sh` round 3, seed 1794063398144400977,
+    /// 102,400 boards per cell, 28 fired), plain +0.0015 ±0.0011 / +0.0018
+    /// ±0.0013 IMPs/board (none / both) with PD agreeing.  Opener's HCP at the jump shift runs 16–21 (median 18,
+    /// 32% at 16–17), so on: responder's direct `6NT` and the `6NT` pull of
+    /// opener's `3NT` both start at 14 HCP (32 on average, `docs/notrump-slam.md`
+    /// wants 31); the `4m` raise and a minor second suit's `4s` start at 11
+    /// points, not 13 (18 + 11 = 29, the minor census's 28–29); a flat 4333
+    /// with 11–12 bids `3NT`, not the `4NT` major raise; opener asks keycards
+    /// over responder's `3M` on 3+ support and 21+ points instead of raising,
+    /// and opener's keycard ask over a raise carries the grand rung
+    /// (`slam::grand_rkcb_rows`).  Opener passes responder's `6NT`.
+    /// Off-switch `bba-gen --no-ns-minor-jump-shift-slam`.
+    pub minor_jump_shift_slam: bool,
+
     // --- rebids/major_jump_rebid.rs
     /// Shape over strength on opener's `3M` jump rebid: a seven-card major
     /// jumps straight to `4M`, and a six-card major with a singleton pulls
@@ -5241,6 +5259,7 @@ impl Default for RebidKnobs {
             fourth_suit_keycard: false,
             heart_spade_jump_shift: true,
             minor_jump_shift_answers: true,
+            minor_jump_shift_slam: true,
             major_jump_rebid_shape: true,
         }
     }

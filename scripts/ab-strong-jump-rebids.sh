@@ -17,9 +17,17 @@
 # default-on 2026-11-07 on naturalness.  Kept for the record: re-running it
 # measures the shipped default against the floor.
 #
+# Round 3 (`rebid.minor_jump_shift_slam`) measured the slam rungs over the
+# shipped answers: won 4/4 (seed 1794063398144400977), shipped default-on
+# 2026-11-07, so `base` is now the control with the rungs withheld:
+#
+#   slam     (off = --no-ns-minor-jump-shift-slam)  direct `6NT` and the `6NT` pull
+#            on 14+ HCP, 11+ minor raises, a flat 4333 kept in `3NT`,
+#            opener's 21+ ask over `3M`, the grand rung over a minor raise.
+#
 #   setsid nohup scripts/idle-run.sh \
-#       scripts/ab-strong-jump-rebids.sh ab-results/strong-jump-rebids-r2 \
-#       >ab-results/strong-jump-rebids-r2.log 2>&1 < /dev/null &
+#       scripts/ab-strong-jump-rebids.sh ab-results/strong-jump-rebids-r3 \
+#       >ab-results/strong-jump-rebids-r3.log 2>&1 < /dev/null &
 #
 # Each new seed wants a fresh results dir.
 R=${1:?usage: ab-strong-jump-rebids.sh RESULTS_DIR}
@@ -29,9 +37,9 @@ SEED_BASE=$(seed_for strong-jump-rebids)
 
 log "=== strong-jump-rebids A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in $VULS; do
-    arm off "$vul" --no-ns-minor-jump-shift-answers
-    arm answers "$vul"
-    gatepair answers off "$vul"
-    diffpair answers off "$vul"
+    arm base "$vul" --no-ns-minor-jump-shift-slam
+    arm slam "$vul"
+    gatepair slam base "$vul"
+    diffpair slam base "$vul"
 done
 log "=== strong-jump-rebids A/B done"

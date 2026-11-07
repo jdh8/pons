@@ -13,6 +13,15 @@ fn build(on: bool) -> Trie {
     trie
 }
 
+/// The answers without the round-3 slam rungs
+fn build_no_slam() -> Trie {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.minor_jump_shift_slam = false;
+    let mut trie = Trie::new();
+    register(&mut trie, &agreements);
+    trie
+}
+
 fn over(extra: &[Call]) -> Vec<Call> {
     let mut auction = vec![
         call(1, Strain::Clubs),
@@ -165,5 +174,58 @@ fn minor_jump_shift_six_card_major_pulls_notrump() {
     assert_eq!(
         best(&trie, &hearts, "J8.KJ87643.K9.87"),
         call(4, Strain::Hearts)
+    );
+}
+
+/// Round 3: the round-2 A/B's worst boards, one rung each, under
+/// `rebid.minor_jump_shift_slam`.
+#[test]
+fn minor_jump_shift_slam_rungs() {
+    let trie = build(true);
+    // A direct 14-count without a fit: `6NT` (the floor's, made).
+    assert_eq!(
+        best(&trie, &auction("1♣ - 1♥ - 2♠ -"), "K86.KQT2.AQT63.T"),
+        call(6, Strain::Notrump)
+    );
+    // Six spades and 14 HCP pull opener's `3NT` to `6NT`.
+    assert_eq!(
+        best(
+            &trie,
+            &auction("1♦ - 1♠ - 3♣ - 3♠ - 3NT -"),
+            "AKT743.K8.T2.KJ3"
+        ),
+        call(6, Strain::Notrump)
+    );
+    // An 11-count with five clubs raises the minor second suit.
+    assert_eq!(
+        best(&trie, &auction("1♦ - 1♠ - 3♣ -"), "9873.AQ4.J.AJT92"),
+        call(4, Strain::Clubs)
+    );
+    // 21 HCP and three hearts ask over `3♥` instead of raising.
+    assert_eq!(
+        best(&trie, &auction("1♦ - 1♥ - 2♠ - 3♥ -"), "AK76.AQ3.AK852.T"),
+        call(4, Strain::Notrump)
+    );
+    // A flat 4333 with 11 stays in notrump.
+    assert_eq!(
+        best(&trie, &auction("1♣ - 1♥ - 2♠ -"), "KT87.AQ2.Q75.J82"),
+        call(3, Strain::Notrump)
+    );
+    // Opener passes `6NT`.
+    assert_eq!(
+        best(&trie, &auction("1♣ - 1♥ - 2♠ - 6NT -"), "A742.A9.K2.AQJ83"),
+        Call::Pass
+    );
+    // The grand rung over the minor raise: 5♦ shows three keycards, opener
+    // holds the other two, the ♣Q and two side kings (♥K, ♦K): seven.  The
+    // round-2 board itself (opener ♣KT52) misses the queen and stays in six.
+    let answered = auction("1♦ - 1♠ - 3♣ - 4♣ - 4NT - 5♦ -");
+    assert_eq!(
+        best(&trie, &answered, ".KQ87.AKQT4.KQ52"),
+        call(7, Strain::Clubs)
+    );
+    assert_eq!(
+        best(&build_no_slam(), &answered, ".KQ87.AKQT4.KQ52"),
+        call(6, Strain::Clubs)
     );
 }
