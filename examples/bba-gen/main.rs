@@ -1677,6 +1677,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_major_jump_rebid_shape: bool,
 
+    /// Restore opener's old spade raise ladder after `1x - 1♠` (12–15 /
+    /// 16–18 / 19+) instead of 12–14 / 15–16 / 17+
+    /// (`rebid.spade_raise_ladder`, shipped default-on 2026-11-08; the
+    /// control arm of `scripts/ab-spade-raise-ladder.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_spade_raise_ladder: bool,
+
+    /// Author responder's `3♠` / `4♠` answers after `1x - 1♠`
+    /// (`rebid.spade_raise_answers`, default off; a test arm of
+    /// `scripts/ab-spade-raise-ladder.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_spade_raise_answers: bool,
+
     /// Withhold opener's invitational 15–17 two-suiter rebids over the forcing
     /// `1NT` (`rebid.forcing_nt_two_suiter`, shipped default-on; the control
     /// arm of the issue #7 re-measure in `scripts/ab-non-inferiority.sh`)
@@ -3591,6 +3604,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.minor_jump_shift_answers = !args.no_ns_minor_jump_shift_answers;
     agreements.rebid.minor_jump_shift_slam = !args.no_ns_minor_jump_shift_slam;
     agreements.rebid.major_jump_rebid_shape = !args.no_ns_major_jump_rebid_shape;
+    agreements.rebid.spade_raise_ladder = !args.no_ns_spade_raise_ladder;
+    agreements.rebid.spade_raise_answers = args.ns_spade_raise_answers;
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;
     agreements.rebid.forcing_nt_six_four_hearts = !args.no_ns_forcing_nt_six_four_hearts;
     agreements.rebid.two_over_one_six_four_hearts = !args.no_ns_two_over_one_six_four_hearts;

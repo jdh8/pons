@@ -5214,6 +5214,36 @@ pub struct RebidKnobs {
     /// anchor; BBA bids `4♥` on the same hands).  Off-switch
     /// `bba-gen --no-ns-major-jump-rebid-shape`.
     pub major_jump_rebid_shape: bool,
+
+    // --- rebids/spade_raise_ladder.rs
+    /// Opener's spade raises after `1♣` / `1♦` / `1♥ - 1♠` move down a rung:
+    /// `2♠` 12–14, `3♠` 15–16, `4♠` 17+ points (default 12–15 / 16–18 / 19+)
+    ///
+    /// **On by default (2026-11-08)** on non-inferiority: *Open work* item 9
+    /// of `docs/bba-gap-campaign.md`, `scripts/ab-spade-raise-ladder.sh`
+    /// round 2 (seed 1794073969209614479, 102,400 boards per cell, 87 / 91
+    /// fired), plain +0.0007 ±0.0015 / +0.0013 ±0.0018 IMPs/board (none /
+    /// both) with PD agreeing (+0.0008 / +0.0011).  BBA raises on ≤14 /
+    /// 15–16 / 17+ of our points (89.9% of 38k sampled hands), and the
+    /// double-dummy census over 5.4M raises puts the IMP optimum there.
+    /// Hearts over `1m - 1♥` keep the old ladder.  Off-switch
+    /// `bba-gen --no-ns-spade-raise-ladder`.
+    pub spade_raise_ladder: bool,
+
+    /// Responder's `3♠` (`4♠` on 7+, RKCB on 14+) and `4♠` (RKCB on 12+)
+    /// nodes after `1♣` / `1♦` / `1♥ - 1♠`, `-` and `(X)` tails, and `4♠`
+    /// over their overcall of `3♠`
+    ///
+    /// Off by default: the second half of [`Self::spade_raise_ladder`]'s
+    /// arm, split off to attribute its first A/B (none cell −0.0017 plain,
+    /// the responder calls about −110 of the −175 IMPs).  Alone, over the
+    /// old ranges, it read −0.0009 / −0.0013 plain (inconclusive): its slam
+    /// asks (12+ over `4♠`, 14+ over `3♠`) are too high opposite 19+ and
+    /// 16–18.  With the ranges it washed (−0.0003 / +0.0001).  Off, the minor
+    /// lanes are the instinct floor's and `1♥ - 1♠ - 3♠` keeps
+    /// `responder_after_spade_jump`.  On-switch
+    /// `bba-gen --ns-spade-raise-answers`.
+    pub spade_raise_answers: bool,
 }
 
 impl Default for RebidKnobs {
@@ -5261,6 +5291,8 @@ impl Default for RebidKnobs {
             minor_jump_shift_answers: true,
             minor_jump_shift_slam: true,
             major_jump_rebid_shape: true,
+            spade_raise_ladder: true,
+            spade_raise_answers: false,
         }
     }
 }

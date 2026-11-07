@@ -635,14 +635,47 @@ In bucket order; each item is its own fresh-seed A/B per
    `ab-results/anchor-confirm-2026-10/2026-10-05-25aea82c/`. Next one due
    around the third re-anchor from here.
 9. **Opener's raise structure after `1x - 1♠`** (Const / book / round-2;
-   170 boards, −434 plain on the `6141cdb2` anchor). The handoff called it
-   slam tools over our `3♠` (16–18), but the divergent call is opener's
-   rebid. Where we bid `3♠`, BBA bids `4♠` or splinters `4♣`/`4♦`. In
-   `boards-american.jsonl` (rule text `16–18`), `4♠` is 65 + 39 + 14
-   boards (−138 / −29 / −77) on the `4+ support & 16–18` rule and 24 + 24
-   + 21 (−114 / −36 / −19) on the support-points rule. The lever is a
-   redesign of opener's raise ladder: splinter raises, and the `3♠` / `4♠`
-   ranges. That is a bidding-theory call for jdh8 before authoring, with
-   its own knob, `-` and `(X)` tails, and A/B. The current responder table
-   is `responder_after_spade_jump` in `rebids/major_tails.rs` (`4NT` on
-   14+, `4♠` on 8+).
+   170 rows, −434 plain / −390 PD on the `6141cdb2` anchor; 91 deals, each
+   in both vulnerability cells). **Ranges shipped 2026-11-08; splinters
+   owed.** Every row is our `3♠` on "16–18". Where we bid `3♠`, BBA bids
+   `4♠` (122 rows, −228) or splinters (42 rows, −177). An earlier version of
+   this item split the rows as 65 + 39 + 14 on the 16–18 rule plus 24 + 24 +
+   21 on a support-points rule; that split did not reproduce, and the
+   support-points rows are `1♠ - 2♠ - 3♠` (`raises/game_try.rs`, 74 rows,
+   −178), a `1M - 2M` lane. By cause: missed slams −416 (responder held 10–12
+   and bid `4♠` over our `3♠`), stopping in `3♠` when game made −274
+   (responder 6–7 passed), our failed slams −140 (the floor's direct `6♠`
+   after `1m - 1♠ - 3♠`, a node with no book), against +396 back.
+   - **What the research found** (2026-11-08; reports and scripts in
+     `ab-results/item9-research-2026-11-08/`, gitignored). BBA's book prints
+     HCP bands (`2♠` 11–15, `3♠` 14–17, `4♠` 16–21, splinters 17–21); in
+     play, on 38k sampled hands, it raises at ≤14 / 15–16 / 17+ of our
+     points (89.9% fit). It splinters only with a small singleton (85%), a
+     void (94%) or sometimes a singleton A/Q (~20%), never a singleton K, at
+     `4♦`/`4♥` after `1♣`, `4♣`/`4♥` after `1♦`, `4♣`/`4♦` after `1♥`;
+     `3♥` after `1m - 1♠` is natural. A DD census over 5.4M `1x - 1♠`
+     raises puts the optimum at 12–14 / 15–16 / 17+ with responder
+     accepting `3♠` on 7+, ≈ +0.10 / +0.22 IMPs per raise board (none / vul)
+     over the old 12–15 / 16–18 / 19+; splinters add ≈ +0.02 on top, and a
+     responder bidding slam facing one on points − ½ × wasted ≥ 10 is worth
+     ≈ +1.6 per splinter hand. The textbooks (SAYC, Cohen, Hardy) say 16–18
+     / 19–20 in *support* points, roughly the same ladder in our units.
+   - **Measured** (`scripts/ab-spade-raise-ladder.sh`, vs BBA, 102,400
+     boards per cell, ~90 fired). Round 2 (seed 1794073969209614479) split
+     the arm: `rebid.spade_raise_ladder` (the ranges) **non-inferior 2/2**,
+     plain +0.0007 ±0.0015 / +0.0013 ±0.0018, PD agreeing, **shipped
+     default-on**. `rebid.spade_raise_answers` (responder's `3♠` / `4♠`
+     tables after all three openings) read −0.0009 / −0.0013 alone and
+     −0.0003 / +0.0001 with the ranges, so it **stays opt-in**: its slam asks
+     are too high opposite the old ranges (−179 IMPs passing 10–11 over a
+     19+ `4♠`), and the floor's direct jumps win as often as they lose.
+   - **Owed, in order.** (a) A `bba-gen` deal filter for `1x - 1♠` raise
+     boards: at 0.09% fired, one A/B cannot resolve the census's predicted
+     gain. (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
+     splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
+     a Drury-style responder answer and the `-` / `(X)` tails. (c) The
+     `spade_raise_answers` slam thresholds retuned to the shipped ranges.
+     (d) Responder over `1x - 1♠ - 2♠`, now 12–14 (floor after `1m`; the
+     census wants game on 11+, 10+ vul). (e) The heart sibling over
+     `1m - 1♥`, not censused. (f) Instinct bids `6♥` over `1♥ - 1♠ - 4♠`
+     holding `KJ32.Q543.K2.432` (9 HCP), unexplained by `instinct.rs:6034`.

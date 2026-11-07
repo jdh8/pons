@@ -18,6 +18,7 @@
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
 //! | [`heart_spade_jump_shift`] | `1♥ - 1♠ - 3m` 18+ jump shift and responder's answers | [`RebidKnobs::heart_spade_jump_shift`] |
 //! | [`minor_jump_shift`] | responder's answers to the `1m - 1M - 3x` jump shift and opener's rebids | [`RebidKnobs::minor_jump_shift_answers`] |
+//! | [`spade_raise_ladder`] | opener's `2♠`/`3♠`/`4♠` ranges after `1x - 1♠` and responder's `3♠`/`4♠` answers | [`RebidKnobs::spade_raise_ladder`], [`RebidKnobs::spade_raise_answers`] |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
 use super::{call, other_major};
@@ -41,6 +42,7 @@ mod meckstroth;
 mod minor_jump_notrump;
 mod minor_jump_shift;
 mod odwrotka;
+mod spade_raise_ladder;
 mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
@@ -64,6 +66,7 @@ pub(super) use meckstroth::{
 pub(super) use minor_jump_notrump::minor_jump_notrump_slam_continuations;
 pub(super) use minor_jump_shift::minor_jump_shift_continuations;
 pub(super) use odwrotka::odwrotka_continuations;
+pub(super) use spade_raise_ladder::spade_raise_ladder_continuations;
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
@@ -116,22 +119,20 @@ fn with_passed_hand_pass(rules: Rules, rebid: &RebidKnobs) -> Rules {
 /// Forcing on opener unless partner is a passed hand
 /// ([`with_passed_hand_pass`]).
 fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
+    let (two, three, four) =
+        spade_raise_ladder::spade_raise_ranges(agreements.rebid.spade_raise_ladder);
     let mut rules = Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
             260,
-            support(4..) & points(19..),
+            support(4..) & points(four),
         )
         .rule(
             Bid::new(3, Strain::Spades),
             220,
-            support(4..) & points(16..=18),
+            support(4..) & points(three),
         )
-        .rule(
-            Bid::new(2, Strain::Spades),
-            180,
-            support(4..) & points(12..=15),
-        )
+        .rule(Bid::new(2, Strain::Spades), 180, support(4..) & points(two))
         .rule(Bid::new(2, Strain::Hearts), 140, len(Suit::Hearts, 6..))
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -227,10 +228,14 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
 /// fit is lost to the 1NT rebid.
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agreements) -> Rules {
     let m = Strain::from(responder_major);
+    // Hearts keep the default ladder: the census behind the knob is spades only.
+    let (two, three, four) = spade_raise_ladder::spade_raise_ranges(
+        responder_major == Suit::Spades && agreements.rebid.spade_raise_ladder,
+    );
     let mut rules = Rules::new()
-        .rule(Bid::new(4, m), 260, support(4..) & points(19..))
-        .rule(Bid::new(3, m), 220, support(4..) & points(16..=18))
-        .rule(Bid::new(2, m), 180, support(4..) & points(12..=15))
+        .rule(Bid::new(4, m), 260, support(4..) & points(four))
+        .rule(Bid::new(3, m), 220, support(4..) & points(three))
+        .rule(Bid::new(2, m), 180, support(4..) & points(two))
         .rule(
             Bid::new(2, Strain::Notrump),
             120,
@@ -457,6 +462,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             minor_jump_shift_continuations(),
             one_diamond_two_clubs_preference(),
             major_rebid_tail_continuations(),
+            spade_raise_ladder_continuations(),
             fourth_suit_forcing_continuations(),
             remaining_rebid_bases(),
         ],

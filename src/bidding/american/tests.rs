@@ -81,6 +81,7 @@ fn row_package_invariants() {
             rebids::one_heart_one_spade_rebid(),
             rebids::one_diamond_two_clubs_preference(),
             rebids::major_rebid_tail_continuations(),
+            rebids::spade_raise_ladder_continuations(),
             rebids::fourth_suit_forcing_continuations(),
             rebids::remaining_rebid_bases(),
             game_force::base(),

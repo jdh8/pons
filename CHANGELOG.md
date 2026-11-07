@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's spade raises after `1x - 1♠` move down a rung, shipped
+  default-on (2026-11-08, [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
+  *Open work* item 9).** `rebid.spade_raise_ladder`: after `1♣` / `1♦` /
+  `1♥ - 1♠`, `2♠` is 12–14, `3♠` 15–16 and `4♠` 17+ points (was 12–15 /
+  16–18 / 19+). BBA raises at those points on 89.9% of 38k sampled hands, and
+  a double-dummy census over 5.4M raises puts the IMP optimum there. Hearts
+  over `1m - 1♥` keep the old ladder.
+
+  Measured against BBA (`scripts/ab-spade-raise-ladder.sh` round 2, seed
+  1794073969209614479, 102,400 boards per cell, 87 / 91 fired, 0 foreign in
+  every gate): **non-inferior 2/2**, plain +0.0007 ±0.0015 / +0.0013 ±0.0018
+  IMPs/board (none / both), PD +0.0008 / +0.0011. Shipped on non-inferiority;
+  the lane fires too rarely (0.09%) to resolve the census's predicted gain.
+  Off-switch `bba-gen --no-ns-spade-raise-ladder`.
+
+  Responder's authored `3♠` / `4♠` tables after all three openings
+  (`rebid.spade_raise_answers`, `-` and `(X)` tails) stay **opt-in**. Alone
+  they read −0.0009 / −0.0013 plain (inconclusive): their slam asks (12+ over
+  `4♠`, 14+ over `3♠`) are too high opposite the old 19+ / 16–18. On top of the
+  ranges they washed (−0.0003 / +0.0001). Round 1, both knobs as one arm,
+  read −0.0017 ±0.0015 plain in the none cell.
+
 - **Slam rungs over the `1m - 1M - 3x` jump-shift answers, shipped
   default-on (2026-11-07,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) "That lane,

@@ -422,12 +422,15 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
 
             // Opener's 3♠ jump raise (16–18, four-card support): sign-off or
             // RKCB.
-            let after_three_spades = format!("{base} 3♠ -");
-            entries.extend(rows_of(
-                Pattern::node(&after_three_spades),
-                responder_after_spade_jump(),
-            ));
-            entries.extend(slam::rkcb_rows(&after_three_spades, Suit::Spades));
+            // Under `spade_raise_answers` the `3♠` is answered there.
+            if !knobs.spade_raise_answers {
+                let after_three_spades = format!("{base} 3♠ -");
+                entries.extend(rows_of(
+                    Pattern::node(&after_three_spades),
+                    responder_after_spade_jump(),
+                ));
+                entries.extend(slam::rkcb_rows(&after_three_spades, Suit::Spades));
+            }
 
             // Opener's 2♥ rebid (own suit, 6+): invite/sign-off, and the 2NT
             // relay.

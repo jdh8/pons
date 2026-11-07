@@ -194,14 +194,16 @@ fn test_notrump_responses_and_completions() {
 fn test_opener_rebid_raises_spades() {
     let system = partnership();
     let p = Call::Pass;
-    // 1♥ - 1♠ - ?: 14 HCP with four spades raises to 2♠.
+    let auction = [call(1, Strain::Hearts), p, call(1, Strain::Spades), p];
+    // 1♥ - 1♠ - ?: 13 HCP 5431 (14 points) with four spades raises to 2♠.
     assert_eq!(
-        best_call(
-            &system,
-            &[call(1, Strain::Hearts), p, call(1, Strain::Spades), p],
-            "KQ32.AQ542.K43.2"
-        ),
+        best_call(&system, &auction, "KQ32.AQ542.Q43.2"),
         call(2, Strain::Spades),
+    );
+    // 14 HCP 5431 is 15 points: the `spade_raise_ladder` invite.
+    assert_eq!(
+        best_call(&system, &auction, "KQ32.AQ542.K43.2"),
+        call(3, Strain::Spades),
     );
 }
 
