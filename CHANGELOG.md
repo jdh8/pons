@@ -478,6 +478,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-07, `6141cdb2`)**: shipping `american()` scores
+  **−0.1556 plain / −0.0123 perfect-defense IMPs/board** (none −0.1563 /
+  −0.0071, both −0.1548 / −0.0174), the series' best by 0.005 plain;
+  `american_instinct()` −0.9039 / −0.9272, up the same 0.005. Same seed
+  `1783375064`, all four cells replayed at 100% with zero mismatches, 257
+  new DD tables; the first anchor on zoo (16 threads, 38 minutes). The
+  window since `07864122` is three book ships, the XYZ `2NT` invite
+  (`4e9e2ba9`) and the two 6♠4♥ `2♥` rebids (`a159a431`, `8a6a547a`), and
+  the move is their summed A/B size. Bucket order unchanged on both arms;
+  in Constructive / book / round-2 the XYZ relay left the top ten and `2♠`
+  6+♠ fell −1,053 → −393. Not paired to `07864122` (that snapshot is on the
+  unreachable Compute-Node02). Floor paired worth +0.383 plain / +0.465 PD,
+  unchanged. Next lane: opener's strong jump rebids (`3♦` 18+, `3M` 16+,
+  `3M` raise 16–18; 1,198 boards, −2,035 plain). Ranking and series row in
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-06-6141cdb2/`.
 - **BBA re-anchor (2026-11-06, `07864122`)**: shipping `american()` scores
   **−0.1609 plain / −0.0170 perfect-defense IMPs/board** (none −0.1600 /
   −0.0103, both −0.1617 / −0.0237), the series' best headline by 0.105
