@@ -669,9 +669,11 @@ In bucket order; each item is its own fresh-seed A/B per
      −0.0003 / +0.0001 with the ranges, so it **stays opt-in**: its slam asks
      are too high opposite the old ranges (−179 IMPs passing 10–11 over a
      19+ `4♠`), and the floor's direct jumps win as often as they lose.
-   - **Owed, in order.** (a) A `bba-gen` deal filter for `1x - 1♠` raise
-     boards: at 0.09% fired, one A/B cannot resolve the census's predicted
-     gain. (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
+   - **Owed, in order.** ~~(a) A `bba-gen` deal filter for `1x - 1♠` raise
+     boards~~ **built 2026-11-08** as `--filter-spade-raise` (density 9.5%,
+     100% coverage of round 2's divergent boards in every arm and cell; at
+     0.09% fired, an unfiltered A/B could not resolve the census's predicted
+     gain). (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
      splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
      a Drury-style responder answer and the `-` / `(X)` tails. (c) The
      `spade_raise_answers` slam thresholds retuned to the shipped ranges.

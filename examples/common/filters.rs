@@ -82,6 +82,20 @@ pub fn is_weak_heart_signoff(hand: Hand) -> bool {
     hand[Suit::Hearts].len() >= 5 && hand_hcp(hand) <= 11
 }
 
+/// Opener's half of a `1x - 1♠` raise, for `--filter-spade-raise`: exactly
+/// four spades (five open `1♠`) and 11+ HCP, and not [`is_1nt_opener`]'s
+/// strict 1NT hand.  HCP, not upgraded points, and uncapped: it gates a
+/// *scan*, not a call (see `--filter-landy`).
+pub fn is_spade_raiser(hand: Hand) -> bool {
+    hand[Suit::Spades].len() == 4 && hand_hcp(hand) >= 11 && !is_1nt_opener(hand)
+}
+
+/// Responder's half of a `1x - 1♠` raise, for `--filter-spade-raise`: four-plus
+/// spades and 5+ HCP, below the `1♠` response's floor on purpose.
+pub fn is_spade_responder(hand: Hand) -> bool {
+    hand[Suit::Spades].len() >= 4 && hand_hcp(hand) >= 5
+}
+
 /// One `bba-gen --filter-*` scan.  `bba-gen` keeps a deal only when every
 /// scan it was given accepts it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,16 +112,19 @@ pub enum Filter {
     /// `--filter-lebensohl-raise`: a wide candidate with three-plus hearts,
     /// its five-plus-spade LHO and its weak-heart partner.
     LebensohlRaise,
+    /// `--filter-spade-raise`: a spade raiser and its spade-holding partner.
+    SpadeRaise,
 }
 
 impl Filter {
     /// Every scan, in `bba-gen`'s flag order
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::OneNt,
         Self::Landy,
         Self::Preempt,
         Self::MultiSlam,
         Self::LebensohlRaise,
+        Self::SpadeRaise,
     ];
 
     /// The `bba-gen` flag that arms this scan
@@ -118,6 +135,7 @@ impl Filter {
             Self::Preempt => "--filter-preempt",
             Self::MultiSlam => "--filter-multi-slam",
             Self::LebensohlRaise => "--filter-lebensohl-raise",
+            Self::SpadeRaise => "--filter-spade-raise",
         }
     }
 
@@ -155,6 +173,9 @@ impl Filter {
                     && deal[seat][Suit::Hearts].len() >= 3
                     && deal[seat.lho()][Suit::Spades].len() >= 5
                     && is_weak_heart_signoff(deal[seat.partner()])
+            }
+            Self::SpadeRaise => {
+                is_spade_raiser(deal[seat]) && is_spade_responder(deal[seat.partner()])
             }
         })
     }

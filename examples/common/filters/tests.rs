@@ -42,3 +42,24 @@ fn landy_scan_pairs_the_candidate_with_its_lho() {
         assert!(!Filter::Landy.accepts(&rho, wide));
     }
 }
+
+/// `--filter-spade-raise` pairs the four-spade opener with its **partner**,
+/// and a five-spade opener (who opens `1♠`) is no raiser.
+#[test]
+fn spade_raise_scan_pairs_the_raiser_with_its_partner() {
+    // North raises (AK32 spades, 15 HCP, a singleton); South holds QJ54.
+    let partner: FullDeal = "N:AK32.KQ32.AJ432. T98.AJT9.KQ5.T98 QJ54.654.87.KQJ2 76.87.T96.A76543"
+        .parse()
+        .unwrap();
+    assert!(Filter::SpadeRaise.accepts(&partner, false));
+    // East and South swapped: the four spades now sit at North's LHO.
+    let lho: FullDeal = "N:AK32.KQ32.AJ432. QJ54.654.87.KQJ2 T98.AJT9.KQ5.T98 76.87.T96.A76543"
+        .parse()
+        .unwrap();
+    assert!(!Filter::SpadeRaise.accepts(&lho, false));
+
+    assert!(is_spade_raiser(hand("AK32.KQ32.AJ432.")));
+    assert!(!is_spade_raiser(hand("AK432.KQ3.AJ43.2")));
+    // The strict 1NT opener opens 1NT, not a suit.
+    assert!(!is_spade_raiser(hand("AKQ2.K32.K32.432")));
+}

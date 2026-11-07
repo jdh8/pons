@@ -370,6 +370,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_lebensohl_raise: bool,
 
+    /// Some seat holds exactly four spades and 11+ HCP (not the strict 1NT
+    /// opener) opposite a partner with four-plus spades and 5+ HCP: the
+    /// `1x - 1♠` raise lane (docs/bba-gap-campaign.md item 9), which fires
+    /// on 0.09% of unfiltered boards.  Loose on purpose: it gates a *scan*,
+    /// not a call (see `--filter-landy`).
+    ///
+    /// Enrichment, not isolation: the headline stays IMPs per *accepted*
+    /// deal, and arms under this flag pair **only with each other**.
+    #[arg(long, default_value_t = false)]
+    filter_spade_raise: bool,
+
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
     /// default (it ships): the responder structure + the encircling chase.
@@ -4026,6 +4037,7 @@ fn main() -> anyhow::Result<()> {
         (args.filter_preempt, Filter::Preempt),
         (args.filter_multi_slam, Filter::MultiSlam),
         (args.filter_lebensohl_raise, Filter::LebensohlRaise),
+        (args.filter_spade_raise, Filter::SpadeRaise),
         (args.filter_1nt, Filter::OneNt),
     ]
     .into_iter()

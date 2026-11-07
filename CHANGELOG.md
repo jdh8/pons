@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-gen --filter-spade-raise`, a deal filter for the `1x - 1♠` raise
+  lane (2026-11-08, [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
+  *Open work* item 9 (a)).** It keeps a deal when some seat holds exactly four
+  spades and 11+ HCP (not the strict 1NT opener) and that seat's partner holds
+  four-plus spades and 5+ HCP. It looks only at the hands. Density 9.5%, so
+  about 10× enrichment of a lane that fires on 0.09% of boards.
+  `filter-coverage` on round 2's unfiltered arms (`ranges`, `answers`, `full`
+  vs `base`, both cells) keeps **100%** of the auction- and contract-divergent
+  boards. No bidding change.
+
 - **Opener's spade raises after `1x - 1♠` move down a rung, shipped
   default-on (2026-11-08, [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   *Open work* item 9).** `rebid.spade_raise_ladder`: after `1♣` / `1♦` /

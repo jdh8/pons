@@ -101,7 +101,7 @@ fn refuses_unpaired_or_filtered_arms() {
 }
 
 /// Strict and wide rows for the three scans `--wide-1nt` changes, one row
-/// each for the two that are always wide.
+/// each for the three that ignore it.
 #[test]
 fn every_flag_has_its_rows() {
     let labels: Vec<String> = Scan::all().into_iter().map(Scan::label).collect();
@@ -116,6 +116,7 @@ fn every_flag_has_its_rows() {
             "--filter-preempt --wide-1nt",
             "--filter-multi-slam",
             "--filter-lebensohl-raise",
+            "--filter-spade-raise",
         ]
     );
 }
