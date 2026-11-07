@@ -1880,7 +1880,12 @@ fn authored_calls_read_what_they_gate() {
         // nodes split the 10-count on a disjunction of suit invites, `Pass`
         // on its negation, past the legacy hull, in the american and
         // Watermelon constructive tries.  Knob-on stays 0.
-        ("length", 120, 0),
+        // 120 → 124 when `rebid.major_jump_rebid_shape` shipped (2026-11-07):
+        // opener's `4M` over `3M - 3NT` on seven, or on six with a singleton
+        // or void (`7+ | 6+ & shortness_outside`), is a disjunction past the
+        // legacy hull, in the american and Watermelon constructive tries.
+        // Knob-on stays 0.
+        ("length", 124, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

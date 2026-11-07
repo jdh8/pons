@@ -17,13 +17,14 @@
 //! | [`odwrotka`] | `1♣ - 1M - 2♦!` artificial reverse and its 445566 steps | [`RebidKnobs::odwrotka`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
 //! | [`heart_spade_jump_shift`] | `1♥ - 1♠ - 3m` 18+ jump shift and responder's answers | [`RebidKnobs::heart_spade_jump_shift`] |
+//! | [`minor_jump_shift`] | responder's answers to the `1m - 1M - 3x` jump shift and opener's rebids | [`RebidKnobs::minor_jump_shift_answers`] |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
 use super::{call, other_major};
 use crate::bidding::agreements::{Agreements, RebidKnobs};
 use crate::bidding::constraint::{
-    balanced, fifths, hcp, len, longer_suit, partner_passed_hand, partner_suit_is, points,
-    stopper_in, support,
+    Cons, Constraint, balanced, fifths, hcp, len, longer_suit, partner_passed_hand,
+    partner_suit_is, points, stopper_in, support,
 };
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -38,6 +39,7 @@ mod major_jump_rebid;
 mod major_tails;
 mod meckstroth;
 mod minor_jump_notrump;
+mod minor_jump_shift;
 mod odwrotka;
 mod two_suiter;
 
@@ -60,12 +62,25 @@ pub(super) use meckstroth::{
     invitational_minor_continuations, meckstroth_two_notrump_continuations,
 };
 pub(super) use minor_jump_notrump::minor_jump_notrump_slam_continuations;
+pub(super) use minor_jump_shift::minor_jump_shift_continuations;
 pub(super) use odwrotka::odwrotka_continuations;
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
 // during `register()`, so set it before building the `System`.
 /// The cheapest level at which `strain` may be bid over `highest`
+/// A singleton or void in some suit other than `suit`
+///
+/// The complement of "2+ in every other suit"; a 6-3-2-2 or a 5-4-2-2 has
+/// none.
+fn shortness_outside(suit: Suit) -> Cons<impl Constraint + Clone> {
+    let others: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .filter(|&s| s != suit)
+        .collect();
+    !(len(others[0], 2..) & len(others[1], 2..) & len(others[2], 2..))
+}
+
 fn cheapest_level_over(highest: Bid, strain: Strain) -> u8 {
     if strain > highest.strain {
         highest.level.get()
@@ -439,6 +454,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             meckstroth_two_notrump_continuations(),
             one_heart_one_spade_rebid(),
             heart_spade_jump_shift_continuations(),
+            minor_jump_shift_continuations(),
             one_diamond_two_clubs_preference(),
             major_rebid_tail_continuations(),
             fourth_suit_forcing_continuations(),

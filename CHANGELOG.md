@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Continuations over opener's strong jump rebids: `major_jump_rebid_shape`
+  shipped default-on, `minor_jump_shift_answers` repaired and re-measuring
+  (2026-11-07,
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) next lane).** The
+  `6141cdb2` anchor's sharpest round-2 cluster (1,198 boards, −2,035 plain
+  / −2,359 PD) traced to the continuations, not the jumps: over the
+  `1m - 1M - 3x` jump shift the floor passes the game force on a weak hand
+  or bids `3NT` on a singleton and opener passes `3NT` with a 6-5
+  (`3♦` over `1♣ - 1M`: 191 boards −411 on `3♦ - 3NT -`, 37 on `3♦ - - -`);
+  over the `3M` jump rebid responder's `3NT` on a singleton is passed by a
+  7-2-2-2 opener (174 / 157 boards, −361 / −315) and a weak responder
+  passes `3M` where BBA opened `4M` on seven. `rebid.minor_jump_shift_answers`
+  authors responder's whole node (`4m` 13+ → keycards, `4s`, the own-major
+  rebid raised on 3+, `5m`, `3NT` pulled to `4m` on a 6-5), `-` and `(X)`
+  tails, in `rebids/minor_jump_shift.rs`. `rebid.major_jump_rebid_shape`
+  jumps to `4M` on seven and pulls `3NT` to `4M` on six with a singleton.
+  The jump raise's slam tools (`3♠` 16–18, 170 boards −434: BBA's
+  splinters and `4NT` on 11–13 with shape reach slams our `4♠` sign-off
+  misses) are the lane's third sub-node, not built. Off-state
+  byte-identical; `bba-gen --ns-minor-jump-shift-answers` /
+  `--ns-major-jump-rebid-shape`, `scripts/ab-strong-jump-rebids.sh` (one
+  off arm, two on arms). **Measured in self-play** (102,400 boards per cell,
+  none / both): `shape` **won 2/2**, plain +0.0018 / +0.0027 IMPs/board
+  (±0.0014 / ±0.0018) with PD agreeing, and **ships default-on** (off-switch
+  `--no-ns-major-jump-rebid-shape`). `answers` was inconclusive, plain
+  −0.0008 / −0.0017 (±0.0016 / ±0.0020); its worst boards were opener's
+  `3NT` over a six-card `3M` rebid with Hx and a 9–11 `4M` raise passed by a
+  19+ opener. Repaired: responder pulls that `3NT` to `4M` on six (`6NT` on
+  15+ HCP), raises a major second suit with `4NT` keycards on 11+ points
+  (18 + 11 = 29, `docs/suit-slam.md`), and opener asks over the 6–10 `4M`
+  on 21+. Round 2 (fresh seed) reads **non-inferior** on both scorers in
+  both cells: plain +0.0004 ±0.0016 / +0.0004 ±0.0020 IMPs/board. Still
+  default off pending the naturalness call.
 - **B2.5 and the `1♦` ♦3 atom are built as reading knobs, default off,
   and ride one matched retrain (2026-11-05,
   [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) open-work 7).**

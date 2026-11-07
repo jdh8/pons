@@ -5163,6 +5163,36 @@ pub struct RebidKnobs {
     /// `bba-gen --no-ns-heart-spade-jump-shift`
     /// (`scripts/ab-heart-spade-jump-shift.sh`).
     pub heart_spade_jump_shift: bool,
+
+    // --- rebids/minor_jump_shift.rs
+    /// Responder's answers to opener's `1m - 1M - 3x` jump shift (the extras
+    /// ladder's 18+ game force) and opener's rebids over them
+    ///
+    /// **Off by default:** the repaired round 2 read non-inferior on both
+    /// scorers in both cells (plain +0.0004 ±0.0016 / ±0.0020 IMPs/board,
+    /// none / both); the default flip is a naturalness call.  Off, the node
+    /// is the floor's, which passes the jump shift on a weak hand and bids `3NT` on a singleton,
+    /// and opener's `3NT` pass is the floor's too — the `6141cdb2` anchor's
+    /// `3♦` cluster (321 boards, −1.90/bd).  On, `4m` (13+, 4+ support: a
+    /// keycard ask follows), `4s`, the own-major rebid, `5m`, `3NT`; opener
+    /// raises the major on 3+ and pulls `3NT` to `4m` on a 6-5.  On-switch
+    /// `bba-gen --ns-minor-jump-shift-answers`
+    /// (`scripts/ab-strong-jump-rebids.sh`).
+    pub minor_jump_shift_answers: bool,
+
+    // --- rebids/major_jump_rebid.rs
+    /// Shape over strength on opener's `3M` jump rebid: a seven-card major
+    /// jumps straight to `4M`, and a six-card major with a singleton pulls
+    /// responder's `3NT` to `4M`
+    ///
+    /// **On by default (2026-11-07):** won 2/2 cells in self-play, plain
+    /// +0.0018 / +0.0027 IMPs/board (none / both, 102,400 boards each, lower
+    /// bounds above 0) with PD agreeing.  Off, a 7-card `1♥ - 1♠ - 3♥` is
+    /// passed below game (100 boards) or corrected to `3NT` on responder's
+    /// singleton and passed there (174 boards, −361 plain on the `6141cdb2`
+    /// anchor; BBA bids `4♥` on the same hands).  Off-switch
+    /// `bba-gen --no-ns-major-jump-rebid-shape`.
+    pub major_jump_rebid_shape: bool,
 }
 
 impl Default for RebidKnobs {
@@ -5207,6 +5237,8 @@ impl Default for RebidKnobs {
             diamond_rebid_fourth_suit: true,
             fourth_suit_keycard: false,
             heart_spade_jump_shift: true,
+            minor_jump_shift_answers: false,
+            major_jump_rebid_shape: true,
         }
     }
 }

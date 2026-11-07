@@ -25,7 +25,26 @@ pub(super) fn with_major_jump_rebid(
     }
     let trump = Strain::from(major);
     let level = cheapest_level_over(highest, trump) + 1;
-    rules.rule(Bid::new(level, trump), 150, len(major, 6..) & points(16..))
+    let mut rules = rules.rule(Bid::new(level, trump), 150, len(major, 6..) & points(16..));
+    // Shape over strength (`RebidKnobs::major_jump_rebid_shape`): a seven-card
+    // major is a game by itself, as BBA bids it.
+    if agreements.rebid.major_jump_rebid_shape {
+        rules = rules.rule(Bid::new(4, trump), 155, len(major, 7..) & points(16..));
+    }
+    rules
+}
+
+/// Opener over responder's `3NT` after the `3M` jump rebid, under
+/// [`RebidKnobs::major_jump_rebid_shape`]: pull to `4M` on seven, or on six
+/// with a singleton or void (responder's `3NT` denied two of the major)
+fn opener_pull_notrump(major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::from(major)),
+            100,
+            len(major, 7..) | (len(major, 6..) & shortness_outside(major)),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's call over opener's invitational `3M` jump-rebid
@@ -88,6 +107,19 @@ pub(crate) fn major_jump_rebid_continuations() -> Package {
             ));
             if keycard {
                 entries.extend(slam::rkcb_rows(after_jump, Suit::Hearts));
+            }
+            if agreements.rebid.major_jump_rebid_shape {
+                for tail in ["-", "(X)"] {
+                    entries.extend(expand(
+                        &format!("P* 1M - 1NT - 3M - 3NT {tail}"),
+                        |_| true,
+                        |b| opener_pull_notrump(b.suit('M')),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{after_jump} 3NT {tail}")),
+                        opener_pull_notrump(Suit::Hearts),
+                    ));
+                }
             }
             entries
         },

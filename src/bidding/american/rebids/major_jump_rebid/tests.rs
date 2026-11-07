@@ -8,6 +8,7 @@ use crate::bidding::Trie;
 fn major_jump_trie() -> Trie {
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.opener_major_jump_rebid = true;
+    agreements.rebid.major_jump_rebid_shape = false;
     let mut trie = Trie::new();
     register(&mut trie, &agreements);
     trie
@@ -101,5 +102,49 @@ fn responder_accepts_major_jump_rebid() {
     assert_eq!(
         best(&trie, AFTER_1S_1NT_3S, "87.KQ86.KJ43.T92"),
         Call::Bid(Bid::new(4, Strain::Spades))
+    );
+}
+
+fn shape_trie() -> Trie {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.major_jump_rebid_shape = true;
+    let mut trie = Trie::new();
+    register(&mut trie, &agreements);
+    trie
+}
+
+/// `major_jump_rebid_shape`: seven hearts jump to game; six with a singleton
+/// pull responder's `3NT`; a 6-3-2-2 passes it.
+#[test]
+fn major_jump_rebid_shape_bids_the_seventh_trump() {
+    let (off, on) = (major_jump_trie(), shape_trie());
+    // ♠9 ♥AKJ6532 ♦KQ5 ♣KQ — the anchor's 18-count BBA opened `4♥` on.
+    let seven = "9.AKJ6532.KQ5.KQ";
+    assert_eq!(best(&off, AFTER_1H_1S, seven), call(3, Strain::Hearts));
+    assert_eq!(best(&on, AFTER_1H_1S, seven), call(4, Strain::Hearts));
+    let mut notrump = AFTER_1H_1S.to_vec();
+    notrump.extend([
+        call(3, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Notrump),
+        Call::Pass,
+    ]);
+    // ♠3 ♥AKQJ76 ♦JT5 ♣A52 — six with a singleton: pull.
+    assert_eq!(
+        best(&on, &notrump, "3.AKQJ76.JT5.A52"),
+        call(4, Strain::Hearts)
+    );
+    // ♠K3 ♥AKQJ76 ♦J5 ♣A52 — 6-3-2-2: `3NT` stands.
+    assert_eq!(best(&on, &notrump, "K3.AKQJ76.J5.A52"), Call::Pass);
+    let mut spades = AFTER_1S_1NT.to_vec();
+    spades.extend([
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Notrump),
+        Call::Pass,
+    ]);
+    assert_eq!(
+        best(&on, &spades, "AQ96543.85.A.AJ8"),
+        call(4, Strain::Spades)
     );
 }

@@ -301,6 +301,25 @@ sharpest per-board cluster is **opener's strong jump rebids**: `3♦` 5♣4♦
 rebids on the same hands, and where our continuations over the jump stop
 short); fallback bucket #5 defensive round-1 (instinct #1).
 
+**That lane, worked (2026-11-07,** `scripts/ab-strong-jump-rebids.sh`,
+self-play, 102,400 boards per cell, none / both). The trace put the loss
+in the continuations, not the jumps. `rebid.major_jump_rebid_shape` (`4M`
+on seven, the `3NT` pull on six with a singleton) **won 2/2**, plain
++0.0018 ±0.0014 / +0.0027 ±0.0018 with PD agreeing, and **shipped
+default-on**. `rebid.minor_jump_shift_answers` (responder's whole node over
+`1m - 1M - 3x`) read inconclusive in round 1 (−0.0008 ±0.0016 /
+−0.0017 ±0.0020 plain; seed 1794039684800295301), because opener bid `3NT`
+over a six-card `3M` with Hx and passed a 9–11 `4M` raise holding 19+.
+After the repair (responder's `3NT` pull to `4M` on six or `6NT` on 15+ HCP,
+an 11+ `4NT` keycard raise of a major second suit, opener's 21+ ask over the
+6–10 `4M`), round 2 read **non-inferior on both scorers in both cells**
+(plain +0.0004 ±0.0016 / +0.0004 ±0.0020, PD +0.0003 ±0.0018 / +0.0004
+±0.0021; seed 1794059060547829818). It stays default off pending the
+naturalness call. Its worst boards are the still-unauthored rungs: a
+direct `3NT` on 14 HCP that the floor took to `6NT`, and a 4-card raise of
+a minor second suit on 11–12 that `4s`'s 13+ floor sends to `3NT`. The
+`3♠` jump raise's slam tools (170 bd, −434) are not built.
+
 The `07864122` tables are in its series row.
 
 **The `07864122` window, paired** (`ab-dump-diff` direct A/B at table A, `07864122` −
