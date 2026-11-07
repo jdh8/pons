@@ -673,7 +673,17 @@ In bucket order; each item is its own fresh-seed A/B per
      boards~~ **built 2026-11-08** as `--filter-spade-raise` (density 9.5%,
      100% coverage of round 2's divergent boards in every arm and cell; at
      0.09% fired, an unfiltered A/B could not resolve the census's predicted
-     gain). (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
+     gain). **Round 3 under it** (2026-11-08, seed 1794082373901736538,
+     409,600 accepted boards per cell, density 0.094): the shipped ranges
+     **win 2/2** over the old ladder, plain +0.0028 ±0.0024 / +0.0067
+     ±0.0032 per accepted board (none / both), PD +0.0010 / +0.0039.
+     `spade_raise_answers` **loses 2/2**, plain −0.0053 / −0.0056, PD
+     agreeing. The trace puts the loss on the slam asks: responder passes
+     9–11 HCP over the 17+ `4♠` where the floor bids `6♠` (−1032 IMPs, 474
+     boards, none cell), RKCB stops short of the floor's direct `7♠` (−487 /
+     99), and responder bids `4♠` over `3♠` on 11–13 HCP where the floor
+     bids `6♠` (−331 / 102). Its `4♠` on 7+ over `3♠` wins (+98 / 336).
+     (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
      splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
      a Drury-style responder answer and the `-` / `(X)` tails. (c) The
      `spade_raise_answers` slam thresholds retuned to the shipped ranges.

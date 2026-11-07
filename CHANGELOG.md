@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vs `base`, both cells) keeps **100%** of the auction- and contract-divergent
   boards. No bidding change.
 
+  Round 3 of `scripts/ab-spade-raise-ladder.sh` under the filter (seed
+  1794082373901736538, 409,600 accepted boards per cell): the shipped
+  `rebid.spade_raise_ladder` **wins 2/2** over the old ladder, plain +0.0028
+  ±0.0024 / +0.0067 ±0.0032 IMPs per accepted board (none / both), about
+  +0.0003 / +0.0006 per board overall; PD +0.0010 / +0.0039.
+  `rebid.spade_raise_answers` **loses 2/2** (plain −0.0053 / −0.0056, PD
+  agreeing) and stays opt-in: its slam asks (12+ over `4♠`, 14+ over `3♠`)
+  pass or sign off on hands where the floor's direct `6♠` scores.
+
 - **Opener's spade raises after `1x - 1♠` move down a rung, shipped
   default-on (2026-11-08, [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   *Open work* item 9).** `rebid.spade_raise_ladder`: after `1♣` / `1♦` /

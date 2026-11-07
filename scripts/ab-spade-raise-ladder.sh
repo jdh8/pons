@@ -39,6 +39,19 @@
 # Arm 2 (opener splinters, sub-arms 2a/2b on singleton honours) is measured
 # on top of the shipped ranges under the same filter.
 #
+# Round 3 read (2026-11-08, 4eac08d6, seed 1794082373901736538, density
+# 0.094228, IMPs per accepted board, gates 0 foreign except 1 in
+# answers/both):
+#   base vs old     plain +0.0028 ±0.0024 / +0.0067 ±0.0032 (none / both),
+#                   PD +0.0010 / +0.0039 → the shipped ladder WINS 2/2
+#   answers vs base plain −0.0053 ±0.0018 / −0.0056 ±0.0023, PD −0.0058 /
+#                   −0.0063 → LOSS 2/2, stays opt-in.  Traced: passing 9–11
+#                   HCP over the 17+ `4♠` where the floor bids `6♠` (−1032 on
+#                   474 boards, none), RKCB then stopping short of the floor's
+#                   `7♠` (−487 / 99), `4♠` over `3♠` on 11–13 HCP where the
+#                   floor bids `6♠` (−331 / 102); `4♠` on 7+ over `3♠` wins
+#                   (+98 / 336).  The asks (12+ / 14+ points) are too high.
+#
 #   BOARDS=409600 setsid nohup scripts/idle-run.sh \
 #       scripts/ab-spade-raise-ladder.sh ab-results/spade-raise-ladder-r3 \
 #       >ab-results/spade-raise-ladder-r3.log 2>&1 < /dev/null &
