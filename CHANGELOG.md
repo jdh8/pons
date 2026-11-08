@@ -604,6 +604,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-09, `ce114214`)**: shipping `american()` scores
+  **−0.1487 plain / −0.006 perfect-defense IMPs/board** (none −0.1513 /
+  −0.0028, both −0.1462 / −0.0097), the series' best, up 0.007 plain;
+  `american_instinct()` −0.8970 / −0.921. Same seed `1783375064`, all four
+  cells replayed at 100% with zero mismatches, 65 new DD tables, 38 minutes.
+  The window since `6141cdb2` is five book ships (the strong jump rebids, the
+  spade-raise ladder, `rebid.spade_raise_game`). Paired per table on the same
+  deals, shipping gains +0.0019 ±0.0017 / +0.0038 ±0.0022 plain and +0.0016
+  ±0.0018 / +0.0034 ±0.0024 PD (none / both). `1x - 1♠` opener's `3♠` raise
+  went from 170 rows, −434 plain to 93 rows, +34. Floor paired worth +0.383
+  plain / +0.465 PD, unchanged. Competitive / book / round-1 moves up to #3
+  on the shipping arm. Next lanes proposed: the negative double holding the
+  overcaller's suit over `1♥ (1♠)` / `1♠ (2♥)`, or `3M` vs BBA's `4M` over
+  `1♠ - 1NT - 2♥`. Ranking and series row in
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-08-ce114214/`.
 - **BBA re-anchor (2026-11-07, `6141cdb2`)**: shipping `american()` scores
   **−0.1556 plain / −0.0123 perfect-defense IMPs/board** (none −0.1563 /
   −0.0071, both −0.1548 / −0.0174), the series' best by 0.005 plain;
