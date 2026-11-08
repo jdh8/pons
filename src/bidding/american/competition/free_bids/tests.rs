@@ -12,9 +12,10 @@ fn free_bids_fill_the_natural_gaps() {
     let (two_hearts, floored) = best_call_with(&arm, &auction, "K5.AQ542.964.Q32");
     assert_eq!(two_hearts, call(2, Strain::Hearts), "the 2-level free bid");
     assert!(!floored, "an authored node, not the floor");
-    // `1♥ (1♠)`: a balanced 10 with a spade stopper bids 1NT.
+    // `1♥ (1♠)`: a 9-count with a spade stopper and two clubs (too short for
+    // the minors takeout) bids 1NT.
     let one_nt_auction = [call(1, Strain::Hearts), call(1, Strain::Spades)];
-    let (one_nt, _) = best_call_with(&arm, &one_nt_auction, "K52.95.KJ64.QJ32");
+    let (one_nt, _) = best_call_with(&arm, &one_nt_auction, "K5432.95.KJ64.Q2");
     assert_eq!(one_nt, call(1, Strain::Notrump), "the natural 1NT");
 }
 

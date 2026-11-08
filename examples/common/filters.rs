@@ -114,17 +114,21 @@ pub enum Filter {
     LebensohlRaise,
     /// `--filter-spade-raise`: a spade raiser and its spade-holding partner.
     SpadeRaise,
+    /// `--filter-other-major-double`: a five-card major opener, its LHO with
+    /// five of the other major and its partner with 7+ HCP.
+    OtherMajorDouble,
 }
 
 impl Filter {
     /// Every scan, in `bba-gen`'s flag order
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::OneNt,
         Self::Landy,
         Self::Preempt,
         Self::MultiSlam,
         Self::LebensohlRaise,
         Self::SpadeRaise,
+        Self::OtherMajorDouble,
     ];
 
     /// The `bba-gen` flag that arms this scan
@@ -136,6 +140,7 @@ impl Filter {
             Self::MultiSlam => "--filter-multi-slam",
             Self::LebensohlRaise => "--filter-lebensohl-raise",
             Self::SpadeRaise => "--filter-spade-raise",
+            Self::OtherMajorDouble => "--filter-other-major-double",
         }
     }
 
@@ -176,6 +181,16 @@ impl Filter {
             }
             Self::SpadeRaise => {
                 is_spade_raiser(deal[seat]) && is_spade_responder(deal[seat.partner()])
+            }
+            Self::OtherMajorDouble => {
+                hand_hcp(deal[seat.partner()]) >= 7
+                    && [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)]
+                        .iter()
+                        .any(|&(ours, theirs)| {
+                            deal[seat][ours].len() >= 5
+                                && hand_hcp(deal[seat]) >= 11
+                                && deal[seat.lho()][theirs].len() >= 5
+                        })
             }
         })
     }

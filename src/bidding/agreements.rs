@@ -91,6 +91,19 @@ pub struct CompetitionKnobs {
     /// Only under [`NegativeDoubleShape::Modern`].
     /// `bba-gen --no-ns-modern-double-both-majors` for the off arm.
     pub modern_double_both_majors: bool,
+    /// Responder's double when the overcall is the other major — `1♥ (1♠)`,
+    /// `1♥ (2♠)`, `1♠ (2♥)` — as a takeout for the minors
+    ///
+    /// **Default on** — shipped 2026-11-09, won 2/2 vs BBA (plain +0.0219 /
+    /// +0.0241, PD +0.0284 / +0.0284 IMPs per accepted board, none / both;
+    /// density 0.0974, 5,766 / 5,892 fired per 409,600 accepted).  Off, the
+    /// double keeps its shape from the opening alone: four-plus of *their*
+    /// suit, 8+ HCP.  On, 3+♣ 3+♦, ≤2 in opener's suit, ≤4 of theirs, 7+ HCP
+    /// over `(1♠)` and 10+ at the two level (BBA's book), with opener's
+    /// answers, the doubler's second turn and the contested tails authored.
+    /// Five-plus of their suit passes.
+    /// `bba-gen --no-ns-other-major-takeout-double` for the off arm.
+    pub other_major_takeout_double: bool,
     /// Bid (not merely recognize) the delayed cue — 2NT relay, then their suit
     ///
     /// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer
@@ -2167,6 +2180,7 @@ impl Default for CompetitionKnobs {
             cue_raise_answer: true,
             modern_double_answer: true,
             modern_double_both_majors: true,
+            other_major_takeout_double: true,
             cue_minor_raise_answer: true,
             delayed_cue: false,
             free_bids: false,

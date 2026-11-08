@@ -117,6 +117,7 @@ fn every_flag_has_its_rows() {
             "--filter-multi-slam",
             "--filter-lebensohl-raise",
             "--filter-spade-raise",
+            "--filter-other-major-double",
         ]
     );
 }

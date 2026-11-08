@@ -90,7 +90,25 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
     let over_spades = overcall.strain == Strain::Spades;
     let over_two_minor =
         matches!(overcall.strain, Strain::Clubs | Strain::Diamonds) && !over_one_diamond;
-    rules = if is_major {
+    rules = if is_major
+        && agreements.competition.other_major_takeout_double
+        && overcall.strain == Strain::from(other_major)
+    {
+        // Their suit is the other major: takeout for the minors, not a
+        // trump-stack values double ([`super::other_major_takeout`]).
+        let floor = if overcall.level.get() == 1 { 7 } else { 10 };
+        rules
+            .rule(
+                Call::Double,
+                100,
+                len(Suit::Clubs, 3..)
+                    & len(Suit::Diamonds, 3..)
+                    & len(o, ..=2)
+                    & len(other_major, ..=4)
+                    & hcp(floor..),
+            )
+            .alert(NEGATIVE_DOUBLE)
+    } else if is_major {
         // Other major, 4+ cards, 8+ HCP
         rules
             .rule(Call::Double, 100, len(other_major, 4..) & hcp(8..))

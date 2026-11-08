@@ -206,7 +206,9 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   flag it. **Flagged at the `ce114214` anchor (2026-11-09):** against BBA's
   pass, `1♥ (1♠) X` is 158 rows, −722 plain / −1,079 PD and the `1♠ (2♥) X`
   sibling 104 rows, −274 / −605
-  ([bba-gap-campaign.md](bba-gap-campaign.md) § Current ranking). Unmeasured.
+  ([bba-gap-campaign.md](bba-gap-campaign.md) § Current ranking). **Fixed
+  2026-11-09:** `competition.other_major_takeout_double` (default-on) makes
+  the double a minors takeout over the other-major overcall, won 2/2 vs BBA.
 - Modern's opener answer to the minor-opening negative double used to ride
   the floor on the theory that its "negative double = the unbid major"
   instinct is correct for it.  It was not: the floor read the double as game

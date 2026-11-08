@@ -54,6 +54,7 @@ mod lebensohl;
 mod modern_answer;
 mod negative_double;
 mod nt_high_overcall;
+mod other_major_takeout;
 mod our_preempts;
 mod over_our_diamond_transfer;
 mod over_our_drury;
@@ -77,6 +78,7 @@ use negative_double::{
     answer_negative_double_package, cachalot_package, sputnik_residual_answer_package,
 };
 use nt_high_overcall::nt_high_overcall_package;
+use other_major_takeout::other_major_takeout_package;
 use our_preempts::{strong_two_competition_package, weak_two_competition_package};
 use over_our_diamond_transfer::competition_over_diamond_transfer_package;
 use over_our_drury::competition_over_drury_package;
@@ -506,6 +508,11 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     // Section 9c: opener's answer to the Modern double of a one-level major
     // overcall (`agreements.competition.modern_double_answer`, default on).
     compile_into(&mut book, agreements, &[modern_double_answer_package()]);
+
+    // Section 9d: the takeout double of the other-major overcall and its
+    // continuations (`agreements.competition.other_major_takeout_double`,
+    // default off).
+    compile_into(&mut book, agreements, &[other_major_takeout_package()]);
 
     // Section 7: our contested weak twos (`agreements.competition.weak_two_competition`, default
     // off). Their double: responder's first call at the deeper `2M (X)` node

@@ -47,7 +47,8 @@ struct Args {
     examples: usize,
     /// Report only these scans, named as their `bba-gen` flag without
     /// `--filter-` (`1nt`, `landy`, `preempt`, `multi-slam`,
-    /// `lebensohl-raise`, `spade-raise`); repeatable.  Default: every scan.
+    /// `lebensohl-raise`, `spade-raise`, `other-major-double`); repeatable.
+    /// Default: every scan.
     #[arg(long = "filter")]
     filters: Vec<String>,
 }
@@ -201,7 +202,8 @@ fn main() -> anyhow::Result<()> {
         .collect();
     anyhow::ensure!(
         !scans.is_empty(),
-        "--filter names no scan (1nt, landy, preempt, multi-slam, lebensohl-raise, spade-raise)"
+        "--filter names no scan (1nt, landy, preempt, multi-slam, lebensohl-raise, spade-raise, \
+         other-major-double)"
     );
     let (on, off) = (load_dump(&args.on), load_dump(&args.off));
     check_unfiltered(&on, &args.on)?;

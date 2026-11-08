@@ -325,6 +325,24 @@ rows, −216 / −196 (−4.91), both on the 10–12 authored by
 reaching slam over its `4M`, so this first-call pair prices BBA's
 continuations with its call and needs a trace before a build.
 
+**Lane (a), worked (2026-11-09,** `scripts/ab-other-major-takeout.sh`, vs
+BBA, 409,600 accepted boards per cell under `--filter-other-major-double`,
+density 0.0974). `competition.other_major_takeout_double` makes the double
+BBA's minors takeout (3+♣ 3+♦, ≤2 opener's suit, ≤4 theirs, 7+ over `(1♠)`,
+10+ at the two level) with opener's answers, the doubler's second turn and
+the contested tails authored. **Won 2/2, shipped default-on:** round 2
+(seed 1794169626132547350, 0 foreign) plain +0.0219 ±0.0022 / +0.0241
+±0.0029, PD +0.0284 / +0.0284 per accepted board (none / both), about
++0.0021 / +0.0023 plain per board of the whole draw. The filter keeps 89%
+of the boards where the old double fired and 92% of those where the new
+shape is reachable, so the rescale slightly undercounts. Round 1 (seed
+1794167493548294797, deal-overlap 0 with round 2) agrees at +0.0229 /
++0.0255; its gate failed because `european_minors_opponents` copied the knob
+into the book we read BBA with. That re-reading of BBA's own `1M (OM) X` as a
+takeout, truer to its book, was worth +804 / +215 plain and −76 / −1,009 PD
+on 1,042 / 946 boards and is not shipped; it would be its own knob and A/B.
+Lane (b) is still open.
+
 **The `6141cdb2` ranking's lane** was opener's strong jump rebids (`3♦` 5♣4♦
 18+, `3♥` / `3♠` 6+ 16+, the `3♠` raise 16–18; 1,198 bd, −2,035 plain /
 −2,359 PD).

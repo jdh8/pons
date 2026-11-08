@@ -481,6 +481,11 @@ fn readings_admit_the_bidder() {
         for (scope, ceilings) in READING_REGIMES {
             agreements.decision.reading.scope = scope;
             agreements.decision.reading.strength_ceilings = ceilings;
+            // Under `Alerted` the natural walk stamps 5+ on the minors
+            // takeout's four-card jump to `3m` (17+).  The shipped scope reads
+            // the rule; alerting a natural call to buy the reading is the
+            // move docs/authored-reading-handoff.md forbids.
+            agreements.competition.other_major_takeout_double = scope != ReadingScope::Alerted;
             let partnership = crate::american(&agreements).bind();
             for &(what, node) in nodes {
                 for &hand in &hands {

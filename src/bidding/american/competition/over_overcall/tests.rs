@@ -77,6 +77,8 @@ fn per_overcall_tables_match_legacy() {
                     agreements.competition.free_bid_style = style;
                     agreements.competition.free_bids = engaged;
                     agreements.competition.free_bid_quality = quality;
+                    // The retired oracle predates the minors takeout.
+                    agreements.competition.other_major_takeout_double = false;
                     for opening in Suit::ASC {
                         let legacy = over_their_overcall_legacy(opening, &agreements);
                         for overcall in admitted_overcalls(Strain::from(opening)) {

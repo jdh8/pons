@@ -1599,6 +1599,9 @@ pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> 
     theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
     theirs.defense = Agreements::default().defense;
     theirs.decision.reading = theirs.decision.reading.with_house_defense();
+    // Likewise our double of the other-major overcall: the arm's own shape
+    // must not re-read EPBot's `1M (OM) X` (2026-11-09: 1042 foreign boards).
+    theirs.competition.other_major_takeout_double = false;
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 

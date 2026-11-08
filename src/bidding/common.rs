@@ -232,6 +232,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // answers keep the floor's reading.
     mirror.competition.modern_double_answer = false;
     mirror.competition.modern_double_both_majors = false;
+    // Likewise the takeout double of the other-major overcall: their
+    // `1M (OM) X` keeps the shipped reading.
+    mirror.competition.other_major_takeout_double = false;
     mirror.competition.weak_new_suit_rebid = false;
     mirror.competition.weak_new_suit_extras = false;
     mirror.competition.weak_new_suit_length = 5;

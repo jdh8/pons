@@ -429,6 +429,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`competition.other_major_takeout_double`, responder's double of the
+  other-major overcall as a minors takeout, default-on (2026-11-09,
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) lane (a)).** Over
+  `1♥ (1♠)`, `1♥ (2♠)` and `1♠ (2♥)` the double read its major off the
+  opening alone, so it promised four-plus of *their* suit. It now shows
+  BBA's book meaning: 3+♣ 3+♦, ≤2 in opener's suit, ≤4 of theirs, 7+ HCP
+  over `(1♠)` and 10+ at the two level; five-plus of their suit passes.
+  Opener's answers, the doubler's second turn and the tails where they
+  redouble or bid a suit are authored
+  (`src/bidding/american/competition/other_major_takeout.rs`). Measured vs
+  BBA under the new `bba-gen --filter-other-major-double` (density 0.0974),
+  409,600 accepted boards per cell, seed 1794169626132547350, 0 foreign:
+  plain **+0.0219 ±0.0022 / +0.0241 ±0.0029**, PD +0.0284 ±0.0027 /
+  +0.0284 ±0.0035 IMPs per accepted board (none / both), about +0.0021 /
+  +0.0023 plain per board of the whole draw; win 2/2. Round 1 on an
+  independent seed agrees (+0.0229 / +0.0255 plain, its gate failing on a
+  harness leak now pinned off). `bba-gen
+  --no-ns-other-major-takeout-double` for the off arm.
+
 - **`rebid.spade_raise_game`: responder's game over `1♥ - 1♠ - 2♠` moves
   down to 11+ points, or 10+ with a fifth spade (default-on 2026-11-09, item
   9 (d)).** The book invited with `3♠` on 10–11, and opener accepts only on

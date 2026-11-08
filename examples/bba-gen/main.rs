@@ -381,6 +381,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_spade_raise: bool,
 
+    /// Keep only deals where some seat holds a five-card major opener, its
+    /// LHO five-plus of the other major and its partner 7+ HCP (the
+    /// other-major negative double, 0.18% of unfiltered boards).  Loose on
+    /// purpose: it gates a *scan*, not a call (see `--filter-landy`).
+    ///
+    /// Enrichment, not isolation: the headline stays IMPs per *accepted*
+    /// deal, and arms under this flag pair **only with each other**.
+    #[arg(long, default_value_t = false)]
+    filter_other_major_double: bool,
+
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
     /// default (it ships): the responder structure + the encircling chase.
@@ -1871,6 +1881,13 @@ struct Args {
     /// (default on; see `competition.modern_double_both_majors`).
     #[arg(long, default_value_t = false)]
     no_ns_modern_double_both_majors: bool,
+
+    /// Keep the old responder's double of the other-major overcall
+    /// (`1♥ (1♠)`, `1♥ (2♠)`, `1♠ (2♥)`), four-plus of their suit, instead of
+    /// the minors takeout (default on; see
+    /// `competition.other_major_takeout_double`).
+    #[arg(long, default_value_t = false)]
+    no_ns_other_major_takeout_double: bool,
 
     /// Disable responder's structure over their two-suiters over our 1M — UvU
     /// over their both-minors `(2NT)`, the raise structure over their Michaels
@@ -3394,6 +3411,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
     agreements.competition.modern_double_answer = !args.no_ns_modern_double_answer;
     agreements.competition.modern_double_both_majors = !args.no_ns_modern_double_both_majors;
+    agreements.competition.other_major_takeout_double = !args.no_ns_other_major_takeout_double;
     agreements.competition.uvu_over_majors = !args.no_ns_uvu_over_majors;
     agreements.competition.uvu_over_minors = args.ns_uvu_over_minors;
     agreements.competition.weak_two_competition = args.ns_weak_two_comp;
@@ -4059,6 +4077,7 @@ fn main() -> anyhow::Result<()> {
         (args.filter_multi_slam, Filter::MultiSlam),
         (args.filter_lebensohl_raise, Filter::LebensohlRaise),
         (args.filter_spade_raise, Filter::SpadeRaise),
+        (args.filter_other_major_double, Filter::OtherMajorDouble),
         (args.filter_1nt, Filter::OneNt),
     ]
     .into_iter()
