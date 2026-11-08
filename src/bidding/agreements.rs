@@ -5267,6 +5267,20 @@ pub struct RebidKnobs {
     /// 2/2 (plain −0.0096 / −0.0050, none cell): asking where we passed
     /// loses as much as passing did.  `bba-gen --ns-spade-raise-four-ask N`.
     pub spade_raise_four_ask: u8,
+
+    /// `1♥ - 1♠ - 2♠`: responder's game moves down to 11+ points, or 10+
+    /// with a fifth spade (default 12+)
+    ///
+    /// **On by default (2026-11-09)**: *Open work* item 9 (d) of
+    /// `docs/bba-gap-campaign.md`, `scripts/ab-spade-raise-game.sh` round 2
+    /// (seed 1794157576022267568, 409,600 `--filter-spade-raise` boards per
+    /// cell, density 0.0946), plain +0.0017 ±0.0005 / +0.0046 ±0.0009 per
+    /// accepted board (none / both), PD +0.0012 / +0.0035.  The book's `3♠`
+    /// invite is accepted only on 14+ opposite a 12–14 raise.  The same gate
+    /// after `1m - 1♠ - 2♠` measured a loss in round 1: the floor's invite
+    /// there is better than game.  Off-switch
+    /// `bba-gen --no-ns-spade-raise-game`.
+    pub spade_raise_game: bool,
 }
 
 impl Default for RebidKnobs {
@@ -5318,6 +5332,7 @@ impl Default for RebidKnobs {
             spade_raise_answers: false,
             spade_raise_three_ask: 14,
             spade_raise_four_ask: 12,
+            spade_raise_game: true,
         }
     }
 }

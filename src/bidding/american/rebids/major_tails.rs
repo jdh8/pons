@@ -29,12 +29,24 @@ const FOURTH_SUIT: Alert = Alert("fourth-suit-forcing");
 /// | 4♠   | 1.5 | Sign off in game (12+ points) |
 /// | 3♠   | 1.2 | Invitational raise (10–11 points) |
 /// | Pass | 0.0 | Minimum, decline any further invitation |
+///
+/// Under [`RebidKnobs::spade_raise_game`] the `4♠` gate drops to 11+ points,
+/// or 10+ with a fifth spade, which leaves `3♠` only the four-card 10.
 #[must_use]
-fn responder_after_spade_raise() -> Rules {
-    Rules::new()
+fn responder_after_spade_raise(low_game: bool) -> Rules {
+    let rules = Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 200, points(16..))
-        .alert(slam::RKCB)
-        .rule(Bid::new(4, Strain::Spades), 150, points(12..))
+        .alert(slam::RKCB);
+    let rules = if low_game {
+        rules.rule(
+            Bid::new(4, Strain::Spades),
+            150,
+            points(11..) | (len(Suit::Spades, 5..) & points(10..)),
+        )
+    } else {
+        rules.rule(Bid::new(4, Strain::Spades), 150, points(12..))
+    };
+    rules
         .rule(Bid::new(3, Strain::Spades), 120, points(10..=11))
         .rule(Call::Pass, 0, hcp(0..))
 }
@@ -412,7 +424,7 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
             let after_two_spades = format!("{base} 2♠ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_spades),
-                responder_after_spade_raise(),
+                responder_after_spade_raise(knobs.spade_raise_game),
             ));
             entries.extend(rows_of(
                 Pattern::node(&format!("{after_two_spades} 3♠ -")),

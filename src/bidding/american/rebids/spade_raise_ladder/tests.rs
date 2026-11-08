@@ -113,6 +113,31 @@ fn spade_raise_ladder_answers_three_and_four_spades() {
     );
 }
 
+/// Game over `1♥ - 1♠ - 2♠` moves down to 11+, or 10+ with a fifth spade;
+/// the minor lanes keep the floor.
+#[test]
+fn spade_raise_game_gate() {
+    let build = |on| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.spade_raise_game = on;
+        let mut trie = Trie::new();
+        register(&mut trie, &agreements);
+        trie
+    };
+    let (off, on) = (build(false), build(true));
+    let game = call(4, Strain::Spades);
+    let invite = call(3, Strain::Spades);
+    let hearts = after(Strain::Hearts, &[call(2, Strain::Spades), Call::Pass]);
+    // ♠KJ85 ♥K63 ♦92 ♣A842 — 11 HCP: invite off, game on.
+    assert_eq!(best(&off, &hearts, "KJ85.K63.92.A842"), invite);
+    assert_eq!(best(&on, &hearts, "KJ85.K63.92.A842"), game);
+    // ♠QJ852 ♥K63 ♦92 ♣A84 — 10 points, 5 spades: game on the fifth spade.
+    assert_eq!(best(&on, &hearts, "QJ852.K63.92.A84"), game);
+    // ♠KJ85 ♥K63 ♦92 ♣Q842 — 9 HCP, 4 spades, and 10 with four: no game.
+    assert_eq!(best(&on, &hearts, "KJ85.K63.92.Q842"), Call::Pass);
+    assert_eq!(best(&on, &hearts, "KJ85.K63.92.K842"), invite);
+}
+
 /// The two RKCB floors are knobs: lowering them moves the ask, not the game
 /// acceptance.
 #[test]

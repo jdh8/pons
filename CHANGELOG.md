@@ -429,6 +429,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`rebid.spade_raise_game`: responder's game over `1♥ - 1♠ - 2♠` moves
+  down to 11+ points, or 10+ with a fifth spade (default-on 2026-11-09, item
+  9 (d)).** The book invited with `3♠` on 10–11, and opener accepts only on
+  14+ opposite a 12–14 raise. `scripts/ab-spade-raise-game.sh` round 2 vs BBA
+  (seed 1794157576022267568, 409,600 `--filter-spade-raise` boards per cell,
+  density 0.0946, 382 / 472 fired, 0 foreign): **win 2/2** on both scorers,
+  plain +0.0017 ±0.0005 / +0.0046 ±0.0009 per accepted board (none / both),
+  PD +0.0012 ±0.0006 / +0.0035 ±0.0010; +0.00016 / +0.00044 plain per board
+  of the whole draw. Round 1's wider arm also moved `1m - 1♠ - 2♠`, where
+  the floor owns the node, and lost there (−946 / −1829 plain IMPs against
+  +750 / +1789 for `1♥`), so that half was deleted. Off-switch
+  `bba-gen --no-ns-spade-raise-game`.
+
 - **Docs and scripts cite zoo's paths (2026-11-07).** Development moved
   dl02 → zoo; the dl02 scratch (`/mnt/ssd-data/jdh8/pons-*`) is now
   `~/pons-data/pons-*`, its A/B results are `~/src/pons/ab-results/`, and

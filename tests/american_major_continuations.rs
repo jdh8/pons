@@ -293,9 +293,9 @@ fn spade_raise_invite_accepted() {
     // Kxxx.AKxxx.Qxx.x: 12 HCP + 1 (unbalanced 4=5=3=1) = 13 points, four
     // spades — raises, then declines.
     let opener_decline = "Kxxx.AKxxx.Qxx.x";
-    // AJxx.xx.AQxx.xxx: 11 HCP, balanced (4=2=4=3) = 11 points, four
+    // AJxx.xx.AJxx.xxx: 10 HCP, balanced (4=2=4=3) = 10 points, four
     // spades, fewer than four hearts.
-    let responder = "AJxx.xx.AQxx.xxx";
+    let responder = "AJxx.xx.AJxx.xxx";
 
     for opener in [opener_accept, opener_decline] {
         assert_eq!(
@@ -308,7 +308,7 @@ fn spade_raise_invite_accepted() {
     assert_eq!(
         best_call(&system, &auction, responder),
         call(1, Strain::Spades),
-        "11 points, 4 spades, fewer than 4 hearts -> natural 1♠"
+        "10 points, 4 spades, fewer than 4 hearts -> natural 1♠"
     );
     let auction = extend(&auction, call(1, Strain::Spades));
 
@@ -316,14 +316,14 @@ fn spade_raise_invite_accepted() {
         assert_eq!(
             best_call(&system, &auction, opener),
             call(2, Strain::Spades),
-            "12/13 points, 4-card spade support -> the 12-15 raise"
+            "13/14 points, 4-card spade support -> the 12-14 raise"
         );
     }
     let auction = extend(&auction, call(2, Strain::Spades));
     assert_eq!(
         best_call(&system, &auction, responder),
         call(3, Strain::Spades),
-        "11 points -> the 10-11 invitational raise"
+        "10 points, four spades -> the invitational raise"
     );
     let auction = extend(&auction, call(3, Strain::Spades));
 

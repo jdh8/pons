@@ -1895,7 +1895,11 @@ fn authored_calls_read_what_they_gate() {
         // 11+ & not 4333)`) negates the flat shape past the legacy hull, in
         // the ♥ and ♠ lanes of the american and Watermelon constructive
         // tries.  Knob-on stays 0.
-        ("length", 132, 0),
+        // 132 → 134 when `rebid.spade_raise_game` shipped (2026-11-09):
+        // `4♠` over `1♥ - 1♠ - 2♠` on `11+ | (5+ ♠ & 10+)`, a length term
+        // inside a disjunction, in the american and Watermelon constructive
+        // tries.  Knob-on stays 0.
+        ("length", 134, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

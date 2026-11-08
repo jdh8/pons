@@ -700,7 +700,21 @@ In bucket order; each item is its own fresh-seed A/B per
      in the non-RKCB answers (−1816 IMPs on 1080 boards at ask 13, none).
      The node is a book node shadowing a floor that already bids it better;
      `spade_raise_answers` stays opt-in and no retune is owed.
-     (d) Responder over `1x - 1♠ - 2♠`, now 12–14 (floor after `1m`; the
-     census wants game on 11+, 10+ vul). (e) The heart sibling over
+     ~~(d) Responder over `1x - 1♠ - 2♠`, now 12–14.~~ **Shipped 2026-11-09
+     for `1♥` only** as `rebid.spade_raise_game`
+     (`scripts/ab-spade-raise-game.sh`, `--filter-spade-raise`, 409,600
+     accepted boards per cell, density 0.0946): `4♠` on 11+, or 10+ with a
+     fifth spade, over the book's old 12+. Round 2 (seed
+     1794157576022267568) **wins 2/2**, plain +0.0017 ±0.0005 / +0.0046
+     ±0.0009 per accepted board (none / both), PD +0.0012 ±0.0006 / +0.0035
+     ±0.0010. The census's "the invite never helped" does not hold against
+     the floor: round 1 (seed 1794155273629583038) ran the census gate (11+
+     white, 10+ red, or 10+ with a fifth spade) in `1♥` and as a partial
+     10–12 table over `1m`. The arm read plain −0.0005 / −0.0001, PD −0.0029
+     / −0.0070; `1m` alone was −946 / −1829 plain (`4♠` vs the floor's `3♠`
+     passed out), `1♥` alone +750 / +1789. The floor's `1m` lane already
+     invites well, the `1♥` book's invite is accepted only on 14+ opposite
+     12–14. The red 4-spade 10 washed in `1♥` (+47 plain, −354 PD), so round
+     2 has no vulnerability split. (e) The heart sibling over
      `1m - 1♥`, not censused. (f) Instinct bids `6♥` over `1♥ - 1♠ - 4♠`
      holding `KJ32.Q543.K2.432` (9 HCP), unexplained by `instinct.rs:6034`.
