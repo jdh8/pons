@@ -5244,6 +5244,29 @@ pub struct RebidKnobs {
     /// `responder_after_spade_jump`.  On-switch
     /// `bba-gen --ns-spade-raise-answers`.
     pub spade_raise_answers: bool,
+
+    /// Responder's points floor for `4NT` RKCB over opener's 15–16 `3♠`
+    /// after `1x - 1♠`; below it, 7+ bids `4♠`
+    ///
+    /// Inert unless [`Self::spade_raise_answers`] is on.  **Default 14** (the
+    /// first authoring).  Round 3 of `scripts/ab-spade-raise-ladder.sh`,
+    /// bucketed in points, lost `4♠` vs the floor's `6♠` at 11–13 (−34 /
+    /// −110 / −198 IMPs on 11 / 26 / 64 boards, none cell); round 4 swept
+    /// {11, 12, 13} and every value LOST 2/2 (plain −0.0150 / −0.0083 /
+    /// −0.0066 per accepted board, none cell), worse the lower the ask: the
+    /// RKCB auctions we add lose too.  `bba-gen --ns-spade-raise-three-ask N`.
+    pub spade_raise_three_ask: u8,
+
+    /// Responder's points floor for `4NT` RKCB over opener's 17+ `4♠` after
+    /// `1x - 1♠`; below it, pass
+    ///
+    /// Inert unless [`Self::spade_raise_answers`] is on.  **Default 12** (the
+    /// first authoring).  Round 3, bucketed in points: passing lost to the
+    /// floor's `6♠` at 10 / 11 (−114 / −914 on 173 / 328 boards, none cell)
+    /// and won at 8 / 9 (+50 / +22); round 4 swept {10, 11} and both LOST
+    /// 2/2 (plain −0.0096 / −0.0050, none cell): asking where we passed
+    /// loses as much as passing did.  `bba-gen --ns-spade-raise-four-ask N`.
+    pub spade_raise_four_ask: u8,
 }
 
 impl Default for RebidKnobs {
@@ -5293,6 +5316,8 @@ impl Default for RebidKnobs {
             major_jump_rebid_shape: true,
             spade_raise_ladder: true,
             spade_raise_answers: false,
+            spade_raise_three_ask: 14,
+            spade_raise_four_ask: 12,
         }
     }
 }

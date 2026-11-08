@@ -685,8 +685,21 @@ In bucket order; each item is its own fresh-seed A/B per
      bids `6♠` (−331 / 102). Its `4♠` on 7+ over `3♠` wins (+98 / 336).
      (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
      splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
-     a Drury-style responder answer and the `-` / `(X)` tails. (c) The
-     `spade_raise_answers` slam thresholds retuned to the shipped ranges.
+     a Drury-style responder answer and the `-` / `(X)` tails. ~~(c) The
+     `spade_raise_answers` slam thresholds retuned to the shipped ranges.~~
+     **Round 4 (2026-11-08, seed 1794087241043204556, same filter and
+     board count) closed it as a loss:** the asks as knobs
+     (`rebid.spade_raise_three_ask` / `four_ask`, defaults 14 / 12) swept
+     {11, 12, 13} over `3♠` and {10, 11} over `4♠`, each vs answers off.
+     All ten cells lose, plain −0.0066 ±0.0019 / −0.0086 ±0.0024 (none /
+     both) at the `3♠` ask 13 down to −0.0150 / −0.0198 at 11, `4♠` ask 11
+     −0.0050 / −0.0062 and 10 −0.0096 / −0.0125, PD agreeing, monotone in
+     the ask. Round 3's reading was wrong: the floor's direct `6♠` beats
+     both our pass and our RKCB, because RKCB then `6♠` lands where the
+     floor's direct call finds `6NT`, `6♥` or `7♠`. The remaining loss sits
+     in the non-RKCB answers (−1816 IMPs on 1080 boards at ask 13, none).
+     The node is a book node shadowing a floor that already bids it better;
+     `spade_raise_answers` stays opt-in and no retune is owed.
      (d) Responder over `1x - 1♠ - 2♠`, now 12–14 (floor after `1m`; the
      census wants game on 11+, 10+ vul). (e) The heart sibling over
      `1m - 1♥`, not censused. (f) Instinct bids `6♥` over `1♥ - 1♠ - 4♠`

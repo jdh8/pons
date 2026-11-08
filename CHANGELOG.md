@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.spade_raise_three_ask` / `rebid.spade_raise_four_ask`, responder's
+  RKCB floors over opener's `3♠` / `4♠` after `1x - 1♠` as numeric knobs
+  (2026-11-08, item 9 (c)).** Defaults 14 / 12 are the first authoring, so
+  the default system is byte-identical; both are inert unless
+  `rebid.spade_raise_answers` is on. `bba-gen --ns-spade-raise-three-ask N`
+  and `--ns-spade-raise-four-ask N`. Round 3's trace re-bucketed in points:
+  over the 17+ `4♠`, passing lost at 10 / 11 (−114 / −914 IMPs on 173 / 328
+  boards, none cell) and won at 8 / 9; over the 15–16 `3♠`, `4♠` lost at
+  11 / 12 / 13 (−34 / −110 / −198 on 11 / 26 / 64). Round 4 of
+  `scripts/ab-spade-raise-ladder.sh` swept {11, 12, 13} over `3♠` and
+  {10, 11} over `4♠` (seed 1794087241043204556, 409,600 accepted boards per
+  cell): **every arm loses 2/2**, plain −0.0066 ±0.0019 / −0.0086 ±0.0024
+  (none / both) at best (`3♠` ask 13) down to −0.0198 (`3♠` ask 11), PD
+  agreeing, and the loss grows as the ask drops. No value ships; the
+  defaults stay 14 / 12 and `spade_raise_answers` stays opt-in.
+
 - **`bba-gen --filter-spade-raise`, a deal filter for the `1x - 1♠` raise
   lane (2026-11-08, [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   *Open work* item 9 (a)).** It keeps a deal when some seat holds exactly four

@@ -112,3 +112,40 @@ fn spade_raise_ladder_answers_three_and_four_spades() {
         call(4, Strain::Spades)
     );
 }
+
+/// The two RKCB floors are knobs: lowering them moves the ask, not the game
+/// acceptance.
+#[test]
+fn spade_raise_ladder_asks_are_knobs() {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.spade_raise_answers = true;
+    agreements.rebid.spade_raise_three_ask = 11;
+    agreements.rebid.spade_raise_four_ask = 10;
+    let mut trie = Trie::new();
+    register(&mut trie, &agreements);
+    let three = after(Strain::Diamonds, &[call(3, Strain::Spades), Call::Pass]);
+    let four = after(Strain::Diamonds, &[call(4, Strain::Spades), Call::Pass]);
+    // ♠J854 ♥K63 ♦K2 ♣KQ42 — 13 HCP, 12 points: keycards over `3♠` at 11,
+    // game at 14.
+    assert_eq!(
+        best(&trie, &three, "J854.K63.K2.KQ42"),
+        call(4, Strain::Notrump)
+    );
+    assert_eq!(
+        best(&build(true), &three, "J854.K63.K2.KQ42"),
+        call(4, Strain::Spades)
+    );
+    // ♠J854 ♥K63 ♦K2 ♣KJ42 — 11 HCP, 11 points: keycards over `4♠` at 10,
+    // pass at 12.
+    assert_eq!(
+        best(&trie, &four, "J854.K63.K2.KJ42"),
+        call(4, Strain::Notrump)
+    );
+    assert_eq!(best(&build(true), &four, "J854.K63.K2.KJ42"), Call::Pass);
+    // ♠J854 ♥K63 ♦92 ♣K842 — 7 HCP: still `4♠` / pass.
+    assert_eq!(
+        best(&trie, &three, "J854.K63.92.K842"),
+        call(4, Strain::Spades)
+    );
+    assert_eq!(best(&trie, &four, "J854.K63.92.K842"), Call::Pass);
+}
