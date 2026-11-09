@@ -3,10 +3,12 @@
 # (*Open work* item 9 (e) of docs/bba-gap-campaign.md), the sibling of
 # `rebid.spade_raise_ladder` (scripts/ab-spade-raise-ladder.sh round 3).
 #
-#   base    the default ladder: `2♥` 12–15, `3♥` 16–18, `4♥` 19+
+#   base    the old ladder (default until 2026-11-10): `2♥` 12–15, `3♥`
+#           16–18, `4♥` 19+
 #   ladder  --ns-heart-raise-invite 15 --ns-heart-raise-game 17 (the spade
 #           ladder: 12–14 / 15–16 / 17+)
-#   invite  --ns-heart-raise-invite 15 alone (12–14 / 15–18 / 19+)
+#   invite  --ns-heart-raise-invite 15 with the old game cut 19 (12–14 /
+#           15–18 / 19+)
 #
 # Responder's nodes over the raise are the floor's in every arm.  The anchor
 # at `50d9ee65` shows no loss to recover at opener's rebid (+273 plain on 305
@@ -32,7 +34,11 @@
 # `4♥` where it bid game or asked over 16–18 (`3♥ -` `4♥` → pass −346 / −766
 # plain, `4NT` → `4♥` −212 / −272), which returns the 15-point invite's gain
 # (+412 / +1148).  The two cuts work only together.  Both knobs stay at their
-# defaults (16 / 19); the default flip is jdh8's call.
+# then-defaults (16 / 19); the default flip was jdh8's call.
+#
+# Default flipped to 15 / 17 on 2026-11-10 (jdh8, symmetry with spades, on
+# the non-inferiority above); the arms below now pin every cut, so `base` is
+# the old ladder and `ladder` the default.
 #
 # Read each arm vs base per *accepted* board under `--filter-heart-raise`;
 # DENSITY rescales δ = 0.002 to the whole draw.  The knob also moves how we
@@ -53,8 +59,8 @@ F=--filter-heart-raise
 
 log "=== heart-raise-ladder A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in $VULS; do
-    arm base "$vul" $F
-    arm invite "$vul" $F --ns-heart-raise-invite 15
+    arm base "$vul" $F --ns-heart-raise-invite 16 --ns-heart-raise-game 19
+    arm invite "$vul" $F --ns-heart-raise-invite 15 --ns-heart-raise-game 19
     arm ladder "$vul" $F --ns-heart-raise-invite 15 --ns-heart-raise-game 17
     DENSITY=$(density_of "$R/base-$vul")
     log "density ($vul) = $DENSITY"

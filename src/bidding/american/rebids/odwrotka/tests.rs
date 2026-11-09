@@ -56,10 +56,11 @@ fn opener_reverses_artificially() {
         calls(&a, &one_heart, "AQx.Kx.KQx.AJxxx"),
         bid(2, Strain::Diamonds)
     );
-    // 17 HCP with four hearts: the natural jump raise outranks it.
+    // 17 HCP with four hearts: the natural raise outranks it (`4♥` on 17+
+    // since the heart ladder moved to 15 / 17).
     assert_eq!(
         calls(&a, &one_heart, "Ax.KJxx.Kx.AJxxx"),
-        bid(3, Strain::Hearts)
+        bid(4, Strain::Hearts)
     );
     // A minimum with three hearts: the natural club rebid or 1NT, never 2♦.
     assert_ne!(

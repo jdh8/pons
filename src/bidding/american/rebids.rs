@@ -228,8 +228,8 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
 /// fit is lost to the 1NT rebid.
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agreements) -> Rules {
     let m = Strain::from(responder_major);
-    // Hearts have their own two cuts: the census behind the spade knob is
-    // spades only.
+    // Hearts have their own two cuts (same defaults as the spade ladder): the
+    // census behind the spade knob is spades only.
     let (two, three, four) = if responder_major == Suit::Spades {
         spade_raise_ladder::spade_raise_ranges(agreements.rebid.spade_raise_ladder)
     } else {

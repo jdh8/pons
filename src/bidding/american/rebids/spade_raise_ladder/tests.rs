@@ -24,7 +24,7 @@ fn after(opening: Strain, extra: &[Call]) -> Vec<Call> {
 }
 
 /// The ladder moves down a rung after every opening; hearts over `1m - 1♥`
-/// keep the default.
+/// follow their own cuts, not this knob.
 #[test]
 fn spade_raise_ladder_moves_opener_down_a_rung() {
     let (off, on) = (build(false), build(true));
@@ -54,7 +54,8 @@ fn spade_raise_ladder_moves_opener_down_a_rung() {
         best(&on, &auction, "KQ84.A6.Q987.Q53"),
         call(2, Strain::Spades)
     );
-    // Hearts over `1♦ - 1♥` keep 16–18 for `3♥`.
+    // Hearts over `1♦ - 1♥` ignore the spade knob: 17 is `4♥` on their own
+    // default cuts either way.
     let hearts = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -62,22 +63,31 @@ fn spade_raise_ladder_moves_opener_down_a_rung() {
         Call::Pass,
     ];
     // ♠A6 ♥KQ84 ♦AJ87 ♣K53 — 17 HCP.
-    assert_eq!(
-        best(&on, &hearts, "A6.KQ84.AJ87.K53"),
-        call(3, Strain::Hearts)
-    );
+    for trie in [&off, &on] {
+        assert_eq!(
+            best(trie, &hearts, "A6.KQ84.AJ87.K53"),
+            call(4, Strain::Hearts)
+        );
+    }
 }
 
-/// The two heart cuts at 15 / 17 move the raises over `1m - 1♥` down the
-/// spade ladder's rung.
+/// The two heart cuts default to the spade ladder's 15 / 17; at the old
+/// 16 / 19 the raises over `1m - 1♥` move back up a rung.
 #[test]
 fn heart_raise_ladder_moves_opener_down_a_rung() {
     let mut agreements = crate::bidding::agreements::Agreements::default();
-    agreements.rebid.heart_raise_invite = 15;
-    agreements.rebid.heart_raise_game = 17;
-    let mut on = Trie::new();
-    register(&mut on, &agreements);
-    let off = build(false);
+    assert_eq!(
+        (
+            agreements.rebid.heart_raise_invite,
+            agreements.rebid.heart_raise_game
+        ),
+        (15, 17)
+    );
+    let on = build(true);
+    agreements.rebid.heart_raise_invite = 16;
+    agreements.rebid.heart_raise_game = 19;
+    let mut off = Trie::new();
+    register(&mut off, &agreements);
     for opening in [Strain::Clubs, Strain::Diamonds] {
         let hearts = [
             call(1, opening),

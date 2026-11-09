@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`rebid.heart_raise_invite` / `rebid.heart_raise_game`, the point floors
-  of opener's `3♥` and `4♥` raises after `1m - 1♥`, defaults 16 / 19
-  (2026-11-10, item 9 (e) of docs/bba-gap-campaign.md).** The default system
-  is unchanged. Set to 15 / 17 they play the shipped spade ladder (`2♥`
+  of opener's `3♥` and `4♥` raises after `1m - 1♥`, first defaults 16 / 19
+  (2026-11-10, item 9 (e) of docs/bba-gap-campaign.md).** At 16 / 19 the
+  system was unchanged. Set to 15 / 17 they play the shipped spade ladder (`2♥`
   12–14, `3♥` 15–16, `4♥` 17+). Vs BBA, `scripts/ab-heart-raise-ladder.sh`,
   409,600 boards per cell under the new `bba-gen --filter-heart-raise`
   (density 0.0837, 0 foreign): 15 / 17 read plain +0.0015 ±0.0023 / +0.0006
@@ -462,6 +462,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   older than EPBot's.
 
 ### Changed
+
+- **Opener's heart raises after `1m - 1♥` move down a rung to the spade
+  ladder: `2♥` 12–14, `3♥` 15–16, `4♥` 17+ (was 12–15 / 16–18 / 19+;
+  2026-11-10).** `rebid.heart_raise_invite` / `rebid.heart_raise_game` now
+  default to 15 / 17. Shipped on non-inferiority for one raise ladder in
+  both majors, not on a win: plain +0.0015 ±0.0023 / +0.0006 ±0.0030 and
+  +0.0018 ±0.0023 / +0.0027 ±0.0030 IMPs per accepted board vs BBA (none /
+  both, two seeds), PD agreeing, against δ / density = 0.024 (entry below).
+  Set the knobs to 16 / 19 for the old ladder.
 
 - **`competition.other_major_takeout_double`, responder's double of the
   other-major overcall as a minors takeout, default-on (2026-11-09,

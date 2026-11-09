@@ -5240,8 +5240,8 @@ pub struct RebidKnobs {
     /// both) with PD agreeing (+0.0008 / +0.0011).  BBA raises on ≤14 /
     /// 15–16 / 17+ of our points (89.9% of 38k sampled hands), and the
     /// double-dummy census over 5.4M raises puts the IMP optimum there.
-    /// Hearts over `1m - 1♥` keep the old ladder unless
-    /// [`Self::heart_raise_invite`] and [`Self::heart_raise_game`] move it.  Off-switch
+    /// Hearts over `1m - 1♥` play the same ladder through their own cuts,
+    /// [`Self::heart_raise_invite`] and [`Self::heart_raise_game`].  Off-switch
     /// `bba-gen --no-ns-spade-raise-ladder`.
     pub spade_raise_ladder: bool,
 
@@ -5298,22 +5298,27 @@ pub struct RebidKnobs {
     pub spade_raise_game: bool,
 
     /// Points floor of opener's `3♥` raise after `1♣` / `1♦ - 1♥`; `2♥` is
-    /// 12 up to it (**default 16**, the spade ladder's sibling plays 15)
+    /// 12 up to it (**default 15**, the spade ladder's cut; 16 before
+    /// 2026-11-10)
     ///
-    /// *Open work* item 9 (e) of `docs/bba-gap-campaign.md`,
+    /// **Default flipped 2026-11-10** with [`Self::heart_raise_game`] on
+    /// non-inferiority, for one raise ladder in both majors, as
+    /// [`Self::spade_raise_ladder`] shipped.  *Open work* item 9 (e) of
+    /// `docs/bba-gap-campaign.md`,
     /// `scripts/ab-heart-raise-ladder.sh` (2026-11-10, vs BBA, 409,600
     /// `--filter-heart-raise` boards per cell, density 0.0837).  The spade
     /// ladder's pair, 15 with [`Self::heart_raise_game`] 17, read
-    /// non-inferior with no win on two seeds: plain +0.0015 ±0.0023 / +0.0006
+    /// non-inferior with no win on two seeds vs the old 16 / 19: plain +0.0015 ±0.0023 / +0.0006
     /// ±0.0030 and +0.0018 ±0.0023 / +0.0027 ±0.0030 per accepted board
     /// (none / both), PD agreeing.  15 alone washed (−0.0007 / −0.0004):
     /// responder passes a 15–18 `3♥` where game makes opposite 17–18.
-    /// `bba-gen --ns-heart-raise-invite N`.
+    /// Old ladder: `bba-gen --ns-heart-raise-invite 16
+    /// --ns-heart-raise-game 19`.
     pub heart_raise_invite: u8,
 
     /// Points floor of opener's `4♥` raise after `1♣` / `1♦ - 1♥`; `3♥` is
-    /// [`Self::heart_raise_invite`] up to it (**default 19**, the spade
-    /// ladder's sibling plays 17)
+    /// [`Self::heart_raise_invite`] up to it (**default 17**, the spade
+    /// ladder's cut; 19 before 2026-11-10)
     ///
     /// Measured only together with the invite at 15; see there.
     /// `bba-gen --ns-heart-raise-game N`.
@@ -5398,8 +5403,8 @@ impl Default for RebidKnobs {
             spade_raise_three_ask: 14,
             spade_raise_four_ask: 12,
             spade_raise_game: true,
-            heart_raise_invite: 16,
-            heart_raise_game: 19,
+            heart_raise_invite: 15,
+            heart_raise_game: 17,
             forcing_notrump_heart_game: true,
             forcing_notrump_heart_game_five: false,
         }

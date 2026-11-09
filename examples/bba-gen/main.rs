@@ -1714,13 +1714,15 @@ struct Args {
     no_ns_spade_raise_ladder: bool,
 
     /// Points floor of opener's `3♥` raise after `1m - 1♥`
-    /// (`rebid.heart_raise_invite`, default 16; `scripts/ab-heart-raise-ladder.sh`)
-    #[arg(long, default_value_t = 16)]
+    /// (`rebid.heart_raise_invite`, default 15, 16 before 2026-11-10;
+    /// `scripts/ab-heart-raise-ladder.sh`)
+    #[arg(long, default_value_t = 15)]
     ns_heart_raise_invite: u8,
 
     /// Points floor of opener's `4♥` raise after `1m - 1♥`
-    /// (`rebid.heart_raise_game`, default 19; `scripts/ab-heart-raise-ladder.sh`)
-    #[arg(long, default_value_t = 19)]
+    /// (`rebid.heart_raise_game`, default 17, 19 before 2026-11-10;
+    /// `scripts/ab-heart-raise-ladder.sh`)
+    #[arg(long, default_value_t = 17)]
     ns_heart_raise_game: u8,
 
     /// Author responder's `3♠` / `4♠` answers after `1x - 1♠`
