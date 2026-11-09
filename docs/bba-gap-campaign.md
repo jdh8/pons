@@ -368,7 +368,13 @@ thirds of the win. Round 1 (seed 1794213973288604725) agrees at +0.0008 /
 −69 / −40 PD on 41 / 49 boards and was dropped. Left open: the passed
 `4♥` forfeits the slams the old `3♥ - 4♥ - 6♥` route reached (three boards
 in round 1), and BBA's `4♥` vs our pass on 9 HCP with five hearts (12 rows,
-all losses at the anchor) now invites rather than bids game.
+all losses at the anchor) now invites rather than bids game. **That `4♥`,
+measured (round 3,** seed 1794229005590113046, 0 foreign):
+`rebid.forcing_notrump_heart_game_five` bids it on 9 HCP with five hearts
+and fired on 2 / 3 boards of 409,600, plain −7 / +1 IMPs, PD −11 / −5 (none /
+both). Non-inferior 4/4 by size alone and no win, so it **stays opt-in**: the
+8–9 invite already answers the anchor rows, and what is left is opener's
+minimum, where game fails as often as it makes.
 
 **The `6141cdb2` ranking's lane** was opener's strong jump rebids (`3♦` 5♣4♦
 18+, `3♥` / `3♠` 6+ 16+, the `3♠` raise 16–18; 1,198 bd, −2,035 plain /

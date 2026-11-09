@@ -399,6 +399,45 @@ fn forcing_notrump_heart_game_over_two_hearts() {
     assert_eq!(best(&trie, &auction, "AKJ75.AQ63.K4.82"), Call::Pass);
 }
 
+/// `forcing_notrump_heart_game_five`: 9 HCP with five hearts bids `4♥` instead
+/// of inviting; four hearts or 8 HCP still invite.
+#[test]
+fn forcing_notrump_heart_game_on_five_hearts() {
+    let build = |on: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.rebid.forcing_notrump_heart_game_five = on;
+        let mut trie = Trie::new();
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &agreements,
+            &[forcing_notrump_continuations()],
+        );
+        trie
+    };
+    let auction = [
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (off, on) = (build(false), build(true));
+    // 9 HCP, 1=5=4=3.
+    let five = "7.KJ542.K875.Q62";
+    assert_eq!(best(&off, &auction, five), call(3, Strain::Hearts));
+    assert_eq!(best(&on, &auction, five), call(4, Strain::Hearts));
+    // 9 HCP on four hearts, and 8 HCP on five, still invite.
+    assert_eq!(
+        best(&on, &auction, "97.KJ54.K875.Q62"),
+        call(3, Strain::Hearts)
+    );
+    assert_eq!(
+        best(&on, &auction, "7.QJ542.K875.Q62"),
+        call(3, Strain::Hearts)
+    );
+}
+
 /// `forcing_notrump_heart_raise`: after `1♠ - 1NT - 2♥`, 10–12 with four hearts
 /// raises to `3♥` (passed or bid `2NT` before), a weak doubleton spade with four
 /// hearts passes rather than prefer `2♠`, and opener accepts on 14+ points.

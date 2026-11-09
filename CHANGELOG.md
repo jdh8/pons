@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.forcing_notrump_heart_game_five`, responder's `4♥` over
+  `1♠ - 1NT - 2♥` on 9 HCP with five hearts, default off (2026-11-09).** The
+  hand invites with `3♥` by default. Vs BBA,
+  `scripts/ab-forcing-notrump-heart-game.sh` round 3 (seed
+  1794229005590113046, 409,600 boards per cell, 0 foreign): 2 / 3 boards
+  fired, plain −7 / +1 IMPs, PD −11 / −5 (none / both), non-inferior 4/4 by
+  size alone and not a win. The default system is unchanged;
+  `bba-gen --ns-forcing-notrump-heart-game-five` turns it on.
 - **`rebid.forcing_notrump_heart_game`, responder's `4♥` over
   `1♠ - 1NT - 2♥`, default on (2026-11-09, lane (b) of
   docs/bba-gap-campaign.md).** With four hearts responder now bids `4♥` on

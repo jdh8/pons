@@ -19,6 +19,7 @@ use super::*;
 /// | Call   | Wt  | Meaning |
 /// |--------|-----|---------|
 /// | 4♥     | 1.6 | Four-card raise of opener's `2♥` over `1♠` to game (10–12 HCP), knob `forcing_notrump_heart_game` |
+/// | 4♥     | 1.6 | The same raise on five hearts and 9 HCP, knob `forcing_notrump_heart_game_five` |
 /// | 3♥     | 1.55 | Four-card raise of opener's `2♥` over `1♠` (10–12 HCP; 8–9 under `forcing_notrump_heart_game`), knob `forcing_notrump_heart_raise` |
 /// | 3M     | 1.5 | Three-card limit raise (10–12 HCP); two cards over opener's own `2M`, knob `forcing_notrump_doubleton_raise` |
 /// | 3♥     | 1.3 | Six-card invite over `1♠` (10–12 HCP), knob `forcing_notrump_suit_invite`; not over `2♥` |
@@ -33,6 +34,7 @@ fn responder_after_forcing_notrump(
     doubleton_raise: bool,
     heart_raise: bool,
     heart_game: bool,
+    heart_game_five: bool,
 ) -> Rules {
     let trump = Strain::from(major);
     // Opener's own `2M` rebid shows six, so a doubleton is an eight-card fit.
@@ -65,6 +67,15 @@ fn responder_after_forcing_notrump(
                 160,
                 len(Suit::Hearts, 4..) & hcp(10..=12),
             );
+            // A ninth trump is worth the missing point: 9 HCP with five
+            // hearts bids game too.
+            if heart_game_five {
+                rules = rules.rule(
+                    Bid::new(4, Strain::Hearts),
+                    160,
+                    len(Suit::Hearts, 5..) & hcp(9..=9),
+                );
+            }
         }
         rules = rules
             .rule(
@@ -172,6 +183,7 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                             agreements.rebid.forcing_notrump_doubleton_raise,
                             agreements.rebid.forcing_notrump_heart_raise,
                             agreements.rebid.forcing_notrump_heart_game,
+                            agreements.rebid.forcing_notrump_heart_game_five,
                         ),
                     ));
                     if agreements.rebid.forcing_notrump_heart_raise

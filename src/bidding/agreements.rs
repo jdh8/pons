@@ -5310,6 +5310,19 @@ pub struct RebidKnobs {
     /// The same move in spades (`4♠` on three) measured a wash in round 1 and
     /// is not built.  Off-switch `bba-gen --no-ns-forcing-notrump-heart-game`.
     pub forcing_notrump_heart_game: bool,
+
+    /// `1♠ - 1NT - 2♥`: responder also bids `4♥` on five hearts and 9 HCP,
+    /// which otherwise invite with `3♥`
+    ///
+    /// **Off by default (2026-11-09)**: a wash too rare to read.
+    /// `scripts/ab-forcing-notrump-heart-game.sh` round 3 vs BBA (seed
+    /// 1794229005590113046, 409,600 boards per cell) fired on 2 / 3 boards,
+    /// plain −7 / +1 IMPs, PD −11 / −5 (none / both), non-inferior by size
+    /// alone.  The anchor's 12 losing rows (BBA's `4♥` vs our pass at
+    /// `ce114214`) are already answered by the 8–9 invite.  Needs
+    /// `forcing_notrump_heart_game`.
+    /// `bba-gen --ns-forcing-notrump-heart-game-five`.
+    pub forcing_notrump_heart_game_five: bool,
 }
 
 impl Default for RebidKnobs {
@@ -5363,6 +5376,7 @@ impl Default for RebidKnobs {
             spade_raise_four_ask: 12,
             spade_raise_game: true,
             forcing_notrump_heart_game: true,
+            forcing_notrump_heart_game_five: false,
         }
     }
 }

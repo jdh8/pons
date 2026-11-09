@@ -34,6 +34,17 @@
 # → shipped default-on 2026-11-09.  (Measured with the knob default off and
 # `game` armed by the retired `--ns-forcing-notrump-heart-game`.)
 #
+# Round 3 (the loop below) tests `rebid.forcing_notrump_heart_game_five` on
+# top of the shipped default: BBA's `4♥` vs our pass on 9 HCP with five
+# hearts was 12 rows, all losses, at the anchor.
+#
+#   game  the shipped default: 9 HCP with five hearts invites with `3♥`
+#   five  --ns-forcing-notrump-heart-game-five: that hand bids `4♥`
+#
+# Round 3 read (2026-11-09, 0ff4e422-dirty, seed 1794229005590113046, 0
+# foreign in both gates): 2 / 3 boards fired, plain −7 / +1 IMPs, PD −11 / −5
+# (none / both); non-inferior 4/4 by size alone, no win → stays opt-in.
+#
 # Each new seed wants a fresh results dir.
 R=${1:?usage: ab-forcing-notrump-heart-game.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
@@ -42,9 +53,9 @@ SEED_BASE=$(seed_for fnt-heart-game)
 
 log "=== fnt-heart-game A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in $VULS; do
-    arm base "$vul" --no-ns-forcing-notrump-heart-game
     arm game "$vul"
-    gatepair game base "$vul" || log "isolation gate game vs base ($vul) FAILED, scoring anyway"
-    diffpair game base "$vul"
+    arm five "$vul" --ns-forcing-notrump-heart-game-five
+    gatepair five game "$vul" || log "isolation gate five vs game ($vul) FAILED, scoring anyway"
+    diffpair five game "$vul"
 done
 log "=== fnt-heart-game A/B done"
