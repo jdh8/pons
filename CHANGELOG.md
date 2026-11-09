@@ -636,6 +636,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-09, `50d9ee65`) and third fresh-seed
+  confirmation**: shipping `american()` scores **−0.1419 plain / +0.0006
+  perfect-defense IMPs/board** (none −0.1455 / +0.0032, both −0.1382 /
+  −0.0020), the series' best, up 0.007 plain, and the first pooled PD at
+  zero; `american_instinct()` −0.8893 / −0.913. Same seed `1783375064`, all
+  four cells replayed at 100% with zero mismatches, 21 new DD tables, 39
+  minutes. The window since `ce114214` is
+  `competition.other_major_takeout_double` and
+  `rebid.forcing_notrump_heart_game`. Paired per table on the same deals,
+  shipping gains +0.0031 ±0.0011 / +0.0046 ±0.0016 plain and +0.0027 ±0.0014
+  / +0.0041 ±0.0018 PD (none / both), a win in all four cells. Floor paired
+  worth +0.382 plain / +0.464 PD. On the shipping arm Constructive / book /
+  opening and round-2 tie for #1 and Competitive / book / round-1 falls to
+  #4. The same sha on fresh seed `1794223191777049346` confirms the series:
+  shipping −0.148 / +0.015, instinct −0.906 / −0.911, floor worth +0.387 /
+  +0.464, all within ±0.02 of the series row, with the same top three
+  buckets on both arms. Ranking and series row in
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshots
+  `ab-results/anchor/2026-11-09-50d9ee65/` and
+  `ab-results/anchor-confirm-2026-11/2026-11-09-50d9ee65/`.
 - **BBA re-anchor (2026-11-09, `ce114214`)**: shipping `american()` scores
   **−0.1487 plain / −0.006 perfect-defense IMPs/board** (none −0.1513 /
   −0.0028, both −0.1462 / −0.0097), the series' best, up 0.007 plain;
