@@ -176,7 +176,10 @@ Jacoby 2NT; `3o -`; weak `2x -`).
   height** (see the `set_free_bid_floor` sweep in the ledger).
 - **Modern (BWS 2017 / Cohen; what BBA plays, untoggleably):** floor 6,
   unbounded. (1♦) → 4+/4+ majors; (1♥) → **exactly** 4♠ (1♠ = 5+); (1♠) → 4+
-  ♥; `1♥ (1♠) X` ≈ 4-4 minors. Through 3♠ or higher. Weak 5-card major →
+  ♥; `1♥ (1♠) X` = takeout, 7+ with 3+♣ 3+♦ ≤2♥ ≤4♠ (book render
+  `ab-results/bba-book/2026-11-04-93ec168e-pc`; the `1♠ (2♥) X` sibling is
+  10+ 3+♣ 3+♦ ≤4♥ ≤2♠ — not 4-4 minors, as this doc said until 2026-11-10).
+  Through 3♠ or higher. Weak 5-card major →
   double-then-bid, NF. Trap pass requires opener's reopening-X duty.
 - **Cachalot / Sardine / Spoutnik rotatif (French; Claire Martel memo):**
   transfer Walsh in competition, over 1♣/1♦ and (1♦)/(1♥) only: X = 4+
