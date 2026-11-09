@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.heart_raise_invite` / `rebid.heart_raise_game`, the point floors
+  of opener's `3♥` and `4♥` raises after `1m - 1♥`, defaults 16 / 19
+  (2026-11-10, item 9 (e) of docs/bba-gap-campaign.md).** The default system
+  is unchanged. Set to 15 / 17 they play the shipped spade ladder (`2♥`
+  12–14, `3♥` 15–16, `4♥` 17+). Vs BBA, `scripts/ab-heart-raise-ladder.sh`,
+  409,600 boards per cell under the new `bba-gen --filter-heart-raise`
+  (density 0.0837, 0 foreign): 15 / 17 read plain +0.0015 ±0.0023 / +0.0006
+  ±0.0030 per accepted board (none / both; seed 1794240504570765238, 3,117 /
+  3,434 fired) and +0.0018 ±0.0023 / +0.0027 ±0.0030 (seed
+  1794242921277593930), PD +0.0013 / +0.0002 and +0.0016 / +0.0024:
+  non-inferior in all eight cells, a win in none. The invite at 15 alone
+  washed (−0.0007 ±0.0017 / −0.0004 ±0.0022 plain). `bba-gen
+  --ns-heart-raise-invite N --ns-heart-raise-game N` set them.
 - **`rebid.forcing_notrump_heart_game_five`, responder's `4♥` over
   `1♠ - 1NT - 2♥` on 9 HCP with five hearts, default off (2026-11-09).** The
   hand invites with `3♥` by default. Vs BBA,

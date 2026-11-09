@@ -96,6 +96,22 @@ pub fn is_spade_responder(hand: Hand) -> bool {
     hand[Suit::Spades].len() >= 4 && hand_hcp(hand) >= 5
 }
 
+/// Opener's half of a `1m - 1♥` raise, for `--filter-heart-raise`: exactly
+/// four hearts and no five-card major (which opens `1M`), 11+ HCP, and not
+/// [`is_1nt_opener`]'s strict 1NT hand
+pub fn is_heart_raiser(hand: Hand) -> bool {
+    hand[Suit::Hearts].len() == 4
+        && hand[Suit::Spades].len() <= 4
+        && hand_hcp(hand) >= 11
+        && !is_1nt_opener(hand)
+}
+
+/// Responder's half of a `1m - 1♥` raise, for `--filter-heart-raise`:
+/// four-plus hearts and 5+ HCP
+pub fn is_heart_responder(hand: Hand) -> bool {
+    hand[Suit::Hearts].len() >= 4 && hand_hcp(hand) >= 5
+}
+
 /// One `bba-gen --filter-*` scan.  `bba-gen` keeps a deal only when every
 /// scan it was given accepts it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,6 +130,8 @@ pub enum Filter {
     LebensohlRaise,
     /// `--filter-spade-raise`: a spade raiser and its spade-holding partner.
     SpadeRaise,
+    /// `--filter-heart-raise`: a heart raiser and its heart-holding partner.
+    HeartRaise,
     /// `--filter-other-major-double`: a five-card major opener, its LHO with
     /// five of the other major and its partner with 7+ HCP.
     OtherMajorDouble,
@@ -121,13 +139,14 @@ pub enum Filter {
 
 impl Filter {
     /// Every scan, in `bba-gen`'s flag order
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::OneNt,
         Self::Landy,
         Self::Preempt,
         Self::MultiSlam,
         Self::LebensohlRaise,
         Self::SpadeRaise,
+        Self::HeartRaise,
         Self::OtherMajorDouble,
     ];
 
@@ -140,6 +159,7 @@ impl Filter {
             Self::MultiSlam => "--filter-multi-slam",
             Self::LebensohlRaise => "--filter-lebensohl-raise",
             Self::SpadeRaise => "--filter-spade-raise",
+            Self::HeartRaise => "--filter-heart-raise",
             Self::OtherMajorDouble => "--filter-other-major-double",
         }
     }
@@ -181,6 +201,9 @@ impl Filter {
             }
             Self::SpadeRaise => {
                 is_spade_raiser(deal[seat]) && is_spade_responder(deal[seat.partner()])
+            }
+            Self::HeartRaise => {
+                is_heart_raiser(deal[seat]) && is_heart_responder(deal[seat.partner()])
             }
             Self::OtherMajorDouble => {
                 hand_hcp(deal[seat.partner()]) >= 7

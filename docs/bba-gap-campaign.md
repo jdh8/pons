@@ -812,6 +812,20 @@ In bucket order; each item is its own fresh-seed A/B per
      passed out), `1♥` alone +750 / +1789. The floor's `1m` lane already
      invites well, the `1♥` book's invite is accepted only on 14+ opposite
      12–14. The red 4-spade 10 washed in `1♥` (+47 plain, −354 PD), so round
-     2 has no vulnerability split. (e) The heart sibling over
-     `1m - 1♥`, not censused. (f) Instinct bids `6♥` over `1♥ - 1♠ - 4♠`
+     2 has no vulnerability split. ~~(e) The heart sibling over
+     `1m - 1♥`, not censused.~~ **Measured 2026-11-10, opt-in**
+     (`scripts/ab-heart-raise-ladder.sh`, new `--filter-heart-raise`,
+     409,600 accepted boards per cell, density 0.0837, 0 foreign). The
+     `50d9ee65` anchor has no loss to recover at opener's rebid (+273 plain
+     on 305 rows, −251 on 323 on the fresh seed). The spade ladder's cuts
+     (`rebid.heart_raise_invite` 15, `rebid.heart_raise_game` 17; defaults
+     16 / 19) read plain +0.0015 ±0.0023 / +0.0006 ±0.0030 per accepted
+     board (none / both; seed 1794240504570765238) and +0.0018 ±0.0023 /
+     +0.0027 ±0.0030 (seed 1794242921277593930), PD +0.0013 / +0.0002 and
+     +0.0016 / +0.0024: **non-inferior 8/8, no win**, about a quarter of
+     the spade ladder's size. The invite cut alone (15 / 19) washed, −0.0007
+     ±0.0017 / −0.0004 ±0.0022: responder passes a 15–18 `3♥` where it bid
+     game over 16–18, so the cuts work only as a pair. The residue is the
+     floor over our `4♥`, whose `7♥` / `7NT` jumps are the worst boards in
+     both rounds. Default flip for symmetry awaits jdh8. (f) Instinct bids `6♥` over `1♥ - 1♠ - 4♠`
      holding `KJ32.Q543.K2.432` (9 HCP), unexplained by `instinct.rs:6034`.

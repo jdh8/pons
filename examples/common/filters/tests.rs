@@ -63,3 +63,23 @@ fn spade_raise_scan_pairs_the_raiser_with_its_partner() {
     // The strict 1NT opener opens 1NT, not a suit.
     assert!(!is_spade_raiser(hand("AKQ2.K32.K32.432")));
 }
+
+/// `--filter-heart-raise` pairs the four-heart opener with its **partner**,
+/// and a five-card major (which opens `1M`) is no raiser.
+#[test]
+fn heart_raise_scan_pairs_the_raiser_with_its_partner() {
+    let partner: FullDeal = "N:KQ32.AK32.AJ432. AJT9.T98.KQ5.T98 654.QJ54.87.KQJ2 87.76.T96.A76543"
+        .parse()
+        .unwrap();
+    assert!(Filter::HeartRaise.accepts(&partner, false));
+    // East and South swapped: the four hearts now sit at North's LHO.
+    let lho: FullDeal = "N:KQ32.AK32.AJ432. 654.QJ54.87.KQJ2 AJT9.T98.KQ5.T98 87.76.T96.A76543"
+        .parse()
+        .unwrap();
+    assert!(!Filter::HeartRaise.accepts(&lho, false));
+
+    assert!(is_heart_raiser(hand("KQ32.AK32.AJ432.")));
+    assert!(!is_heart_raiser(hand("KQ3.AK432.AJ43.2")));
+    assert!(!is_heart_raiser(hand("AJ432.AK32.K43.2")));
+    assert!(!is_heart_raiser(hand("K32.AKQ2.K32.432")));
+}

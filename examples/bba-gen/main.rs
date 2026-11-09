@@ -381,6 +381,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_spade_raise: bool,
 
+    /// Keep only deals where some seat holds exactly four hearts, fewer than
+    /// five spades and 11+ HCP outside the strict 1NT opener, and its partner
+    /// four-plus hearts and 5+ HCP: the `1m - 1♥` raise lane, the heart
+    /// sibling of `--filter-spade-raise`.  Loose on purpose; enrichment, not
+    /// isolation, so arms under this flag pair **only with each other**.
+    #[arg(long, default_value_t = false)]
+    filter_heart_raise: bool,
+
     /// Keep only deals where some seat holds a five-card major opener, its
     /// LHO five-plus of the other major and its partner 7+ HCP (the
     /// other-major negative double, 0.18% of unfiltered boards).  Loose on
@@ -1704,6 +1712,16 @@ struct Args {
     /// control arm of `scripts/ab-spade-raise-ladder.sh`)
     #[arg(long, default_value_t = false)]
     no_ns_spade_raise_ladder: bool,
+
+    /// Points floor of opener's `3♥` raise after `1m - 1♥`
+    /// (`rebid.heart_raise_invite`, default 16; `scripts/ab-heart-raise-ladder.sh`)
+    #[arg(long, default_value_t = 16)]
+    ns_heart_raise_invite: u8,
+
+    /// Points floor of opener's `4♥` raise after `1m - 1♥`
+    /// (`rebid.heart_raise_game`, default 19; `scripts/ab-heart-raise-ladder.sh`)
+    #[arg(long, default_value_t = 19)]
+    ns_heart_raise_game: u8,
 
     /// Author responder's `3♠` / `4♠` answers after `1x - 1♠`
     /// (`rebid.spade_raise_answers`, default off; a test arm of
@@ -3664,6 +3682,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.minor_jump_shift_slam = !args.no_ns_minor_jump_shift_slam;
     agreements.rebid.major_jump_rebid_shape = !args.no_ns_major_jump_rebid_shape;
     agreements.rebid.spade_raise_ladder = !args.no_ns_spade_raise_ladder;
+    agreements.rebid.heart_raise_invite = args.ns_heart_raise_invite;
+    agreements.rebid.heart_raise_game = args.ns_heart_raise_game;
     agreements.rebid.spade_raise_answers = args.ns_spade_raise_answers;
     agreements.rebid.spade_raise_game = !args.no_ns_spade_raise_game;
     agreements.rebid.forcing_notrump_heart_game = !args.no_ns_forcing_notrump_heart_game;
@@ -4091,6 +4111,7 @@ fn main() -> anyhow::Result<()> {
         (args.filter_multi_slam, Filter::MultiSlam),
         (args.filter_lebensohl_raise, Filter::LebensohlRaise),
         (args.filter_spade_raise, Filter::SpadeRaise),
+        (args.filter_heart_raise, Filter::HeartRaise),
         (args.filter_other_major_double, Filter::OtherMajorDouble),
         (args.filter_1nt, Filter::OneNt),
     ]

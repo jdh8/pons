@@ -68,6 +68,49 @@ fn spade_raise_ladder_moves_opener_down_a_rung() {
     );
 }
 
+/// The two heart cuts at 15 / 17 move the raises over `1m - 1♥` down the
+/// spade ladder's rung.
+#[test]
+fn heart_raise_ladder_moves_opener_down_a_rung() {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.heart_raise_invite = 15;
+    agreements.rebid.heart_raise_game = 17;
+    let mut on = Trie::new();
+    register(&mut on, &agreements);
+    let off = build(false);
+    for opening in [Strain::Clubs, Strain::Diamonds] {
+        let hearts = [
+            call(1, opening),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+        ];
+        // 17 HCP: invite off, game on.
+        assert_eq!(
+            best(&off, &hearts, "A6.KQ84.AJ87.K53"),
+            call(3, Strain::Hearts)
+        );
+        assert_eq!(
+            best(&on, &hearts, "A6.KQ84.AJ87.K53"),
+            call(4, Strain::Hearts)
+        );
+        // 15 HCP: `2♥` off, `3♥` on.
+        assert_eq!(
+            best(&off, &hearts, "A6.KQ84.KJ87.Q53"),
+            call(2, Strain::Hearts)
+        );
+        assert_eq!(
+            best(&on, &hearts, "A6.KQ84.KJ87.Q53"),
+            call(3, Strain::Hearts)
+        );
+        // 13 HCP: `2♥` either way.
+        assert_eq!(
+            best(&on, &hearts, "A6.KQ84.Q987.Q53"),
+            call(2, Strain::Hearts)
+        );
+    }
+}
+
 /// Responder accepts the 15–16 `3♠` on 7+ and asks keycards on 14+, also
 /// after a minor opening and over their double.
 #[test]
