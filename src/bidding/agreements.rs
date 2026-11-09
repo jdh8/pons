@@ -4557,7 +4557,11 @@ pub struct RebidKnobs {
     /// the wide `1♣`.  On, opener's `2♦` over a one-level major response is
     /// `points(19..)`, or `16–18` with exactly three trumps (the natural
     /// reverse into diamonds leaves the extras ladder; the `3♦` jump shift
-    /// stays), and responder answers in steps that pin the major's length and
+    /// stays).  The three-trump band sits one point above the four-trump
+    /// `3M` (15–16 in both majors) on purpose: one trump is one point
+    /// (`docs/major-game-threshold.md`), and where the invite ends is the
+    /// floor's call in the continuation, not this rule's.  Responder answers
+    /// in steps that pin the major's length and
     /// the strength: `2OM!` game-forcing four, `2M!` minimum four, `2NT!`
     /// game-forcing five, `3♣!` minimum five, `3♦!` game-forcing six-plus, `3M`
     /// minimum six-plus — the strong step below the weak at each length, so the
