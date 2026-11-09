@@ -206,6 +206,7 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.rebid.forcing_notrump_doubleton_raise = false;
     // Likewise the heart raise over `1♠ - 1NT - 2♥`.
     mirror.rebid.forcing_notrump_heart_raise = false;
+    mirror.rebid.forcing_notrump_heart_game = false;
     // Likewise opener's one-suited jump after a 2/1: their `1M - 2x - 3M`
     // keeps the floor's reading.
     mirror.rebid.two_over_one_side_suit_first = false;

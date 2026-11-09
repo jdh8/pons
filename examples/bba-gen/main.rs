@@ -1729,6 +1729,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_spade_raise_game: bool,
 
+    /// Keep responder's `3♥` raise over `1♠ - 1NT - 2♥` on 10–12, no `4♥`
+    /// (`rebid.forcing_notrump_heart_game`, shipped default-on 2026-11-09;
+    /// the base arm of `scripts/ab-forcing-notrump-heart-game.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_forcing_notrump_heart_game: bool,
+
     /// Withhold opener's invitational 15–17 two-suiter rebids over the forcing
     /// `1NT` (`rebid.forcing_nt_two_suiter`, shipped default-on; the control
     /// arm of the issue #7 re-measure in `scripts/ab-non-inferiority.sh`)
@@ -3654,6 +3660,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.spade_raise_ladder = !args.no_ns_spade_raise_ladder;
     agreements.rebid.spade_raise_answers = args.ns_spade_raise_answers;
     agreements.rebid.spade_raise_game = !args.no_ns_spade_raise_game;
+    agreements.rebid.forcing_notrump_heart_game = !args.no_ns_forcing_notrump_heart_game;
     agreements.rebid.spade_raise_three_ask = args.ns_spade_raise_three_ask;
     agreements.rebid.spade_raise_four_ask = args.ns_spade_raise_four_ask;
     agreements.rebid.forcing_nt_two_suiter = !args.no_ns_forcing_nt_two_suiter;

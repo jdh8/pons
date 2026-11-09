@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.forcing_notrump_heart_game`, responder's `4♥` over
+  `1♠ - 1NT - 2♥`, default on (2026-11-09, lane (b) of
+  docs/bba-gap-campaign.md).** With four hearts responder now bids `4♥` on
+  10–12 HCP and the `3♥` invite moves down to 8–9 (it passed before); opener
+  passes the game. The anchor trace at `ce114214` put the loss on opener's
+  11–12 passing the invite, where game made 84% of the time. Vs BBA,
+  `scripts/ab-forcing-notrump-heart-game.sh` round 2 (seed
+  1794216015315708893, 409,600 boards per cell, 222 / 247 fired, 0 foreign):
+  plain +0.0010 ±0.0004 / +0.0021 ±0.0006, PD +0.0008 / +0.0017 IMPs/board
+  (none / both), +1.9 / +3.6 IMPs per fired, win 4/4. Round 1 (seed
+  1794213973288604725) agrees at +0.0008 / +0.0019 plain with a wider arm
+  whose `4♠` on three spades was a wash (−24 / +40 plain, −69 / −40 PD) and
+  is not built. Off-switch `bba-gen --no-ns-forcing-notrump-heart-game`.
 - **`rebid.spade_raise_three_ask` / `rebid.spade_raise_four_ask`, responder's
   RKCB floors over opener's `3♠` / `4♠` after `1x - 1♠` as numeric knobs
   (2026-11-08, item 9 (c)).** Defaults 14 / 12 are the first authoring, so

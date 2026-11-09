@@ -367,6 +367,38 @@ fn forcing_notrump_doubleton_raise_over_the_six_card_rebid() {
     assert_eq!(best(&on, &two_clubs, hand), call(2, Strain::Notrump));
 }
 
+/// `forcing_notrump_heart_game`: after `1♠ - 1NT - 2♥`, 10–12 bids `4♥` on four
+/// hearts, 8–9 with four hearts invites, opener passes.
+#[test]
+fn forcing_notrump_heart_game_over_two_hearts() {
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let mut trie = Trie::new();
+    crate::bidding::rows::compile_into(&mut trie, &agreements, &[forcing_notrump_continuations()]);
+    let mut auction = vec![
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best(&trie, &auction, "7.KJ54.A8753.Q62"),
+        call(4, Strain::Hearts)
+    );
+    // Three spades still invite: the `4♠` half measured a wash.
+    assert_eq!(
+        best(&trie, &auction, "Q75.K4.A8753.J62"),
+        call(3, Strain::Spades)
+    );
+    assert_eq!(
+        best(&trie, &auction, "97.QJ54.K875.Q62"),
+        call(3, Strain::Hearts)
+    );
+    auction.extend([call(4, Strain::Hearts), Call::Pass]);
+    assert_eq!(best(&trie, &auction, "AKJ75.AQ63.K4.82"), Call::Pass);
+}
+
 /// `forcing_notrump_heart_raise`: after `1♠ - 1NT - 2♥`, 10–12 with four hearts
 /// raises to `3♥` (passed or bid `2NT` before), a weak doubleton spade with four
 /// hearts passes rather than prefer `2♠`, and opener accepts on 14+ points.
@@ -382,6 +414,8 @@ fn forcing_notrump_heart_raise_over_two_hearts() {
     let build = |on: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.rebid.forcing_notrump_heart_raise = on;
+        // The raise's own ranges, before the game knob moved them.
+        agreements.rebid.forcing_notrump_heart_game = false;
         let mut trie = Trie::new();
         crate::bidding::rows::compile_into(
             &mut trie,

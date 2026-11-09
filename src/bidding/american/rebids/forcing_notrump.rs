@@ -18,7 +18,8 @@ use super::*;
 ///
 /// | Call   | Wt  | Meaning |
 /// |--------|-----|---------|
-/// | 3♥     | 1.55 | Four-card raise of opener's `2♥` over `1♠` (10–12 HCP), knob `forcing_notrump_heart_raise` |
+/// | 4♥     | 1.6 | Four-card raise of opener's `2♥` over `1♠` to game (10–12 HCP), knob `forcing_notrump_heart_game` |
+/// | 3♥     | 1.55 | Four-card raise of opener's `2♥` over `1♠` (10–12 HCP; 8–9 under `forcing_notrump_heart_game`), knob `forcing_notrump_heart_raise` |
 /// | 3M     | 1.5 | Three-card limit raise (10–12 HCP); two cards over opener's own `2M`, knob `forcing_notrump_doubleton_raise` |
 /// | 3♥     | 1.3 | Six-card invite over `1♠` (10–12 HCP), knob `forcing_notrump_suit_invite`; not over `2♥` |
 /// | 2NT    | 1.2 | Natural notrump invite (11–12 HCP) |
@@ -31,6 +32,7 @@ fn responder_after_forcing_notrump(
     suit_invite: bool,
     doubleton_raise: bool,
     heart_raise: bool,
+    heart_game: bool,
 ) -> Rules {
     let trump = Strain::from(major);
     // Opener's own `2M` rebid shows six, so a doubleton is an eight-card fit.
@@ -54,11 +56,21 @@ fn responder_after_forcing_notrump(
     // Raise opener's `2♥` over `1♠`: a 4-4 fit outranks the spade preference,
     // so four hearts invite on 10–12 or pass below that.
     if heart_raise && major == Suit::Spades && rebid == call(2, Strain::Hearts) {
+        // Under the game knob 10–12 bids game itself (opener's 5-4 makes it
+        // on a combined 21) and the invite moves down to 8–9.
+        let invite = if heart_game { 8..=9 } else { 10..=12 };
+        if heart_game {
+            rules = rules.rule(
+                Bid::new(4, Strain::Hearts),
+                160,
+                len(Suit::Hearts, 4..) & hcp(10..=12),
+            );
+        }
         rules = rules
             .rule(
                 Bid::new(3, Strain::Hearts),
                 155,
-                len(Suit::Hearts, 4..) & hcp(10..=12),
+                len(Suit::Hearts, 4..) & hcp(invite),
             )
             .rule(
                 Bid::new(2, trump),
@@ -159,12 +171,21 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                             suit_invite,
                             agreements.rebid.forcing_notrump_doubleton_raise,
                             agreements.rebid.forcing_notrump_heart_raise,
+                            agreements.rebid.forcing_notrump_heart_game,
                         ),
                     ));
                     if agreements.rebid.forcing_notrump_heart_raise
                         && major == Suit::Spades
                         && rebid == call(2, Strain::Hearts)
                     {
+                        if agreements.rebid.forcing_notrump_heart_game {
+                            // Responder's game is to play: 10–12 facing a
+                            // non-jump rebid has no slam.
+                            entries.extend(rows_of(
+                                Pattern::node(&format!("{prefix} 4♥ -")),
+                                Rules::new().rule(Call::Pass, 0, hcp(0..)),
+                            ));
+                        }
                         entries.extend(rows_of(
                             Pattern::node(&format!("{prefix} 3♥ -")),
                             opener_accept_limit_raise(Suit::Hearts),

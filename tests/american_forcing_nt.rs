@@ -639,9 +639,15 @@ fn opener_shows_hearts_before_the_sixth_spade() {
 fn responder_finds_the_heart_fit_over_six_four() {
     let system = six_four_hearts();
     let auction = after_1s_1nt_then(&[call(2, Strain::Hearts)]);
-    // 4.QT85.KJ63.KQ72 — 11 HCP, four hearts: the invitational raise.
+    // 4.QT85.KJ63.KQ72 — 11 HCP, four hearts: game
+    // (`forcing_notrump_heart_game`, on since 2026-11-09).
     assert_eq!(
         best_call(&system, &auction, "4.QT85.KJ63.KQ72"),
+        call(4, Strain::Hearts),
+    );
+    // 4.QT85.KJ63.Q972 — 8 HCP, four hearts: the invitational raise.
+    assert_eq!(
+        best_call(&system, &auction, "4.QT85.KJ63.Q972"),
         call(3, Strain::Hearts),
     );
     // 4.QT85.KJ63.J972 — 7 HCP, four hearts: play the 4-4 fit.

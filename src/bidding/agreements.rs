@@ -5295,6 +5295,21 @@ pub struct RebidKnobs {
     /// there is better than game.  Off-switch
     /// `bba-gen --no-ns-spade-raise-game`.
     pub spade_raise_game: bool,
+
+    /// `1♠ - 1NT - 2♥`: responder bids `4♥` on four hearts and 10–12, and
+    /// the `3♥` raise moves down to 8–9
+    ///
+    /// **On by default (2026-11-09)**: lane (b) of
+    /// `docs/bba-gap-campaign.md`, `scripts/ab-forcing-notrump-heart-game.sh`
+    /// round 2 vs BBA (seed 1794216015315708893, 409,600 boards per cell,
+    /// 222 / 247 fired), plain +0.0010 ±0.0004 / +0.0021 ±0.0006, PD +0.0008
+    /// / +0.0017 IMPs/board (none / both), win 4/4; round 1 agrees.  At
+    /// anchor `ce114214` our `3♥` vs BBA's `4♥` was −403 plain per 409,600
+    /// boards, opener's 11–12 passing an invite whose game makes 84% of the
+    /// time.  Needs `forcing_notrump_heart_raise`.  Opener passes the game.
+    /// The same move in spades (`4♠` on three) measured a wash in round 1 and
+    /// is not built.  Off-switch `bba-gen --no-ns-forcing-notrump-heart-game`.
+    pub forcing_notrump_heart_game: bool,
 }
 
 impl Default for RebidKnobs {
@@ -5347,6 +5362,7 @@ impl Default for RebidKnobs {
             spade_raise_three_ask: 14,
             spade_raise_four_ask: 12,
             spade_raise_game: true,
+            forcing_notrump_heart_game: true,
         }
     }
 }

@@ -341,7 +341,25 @@ shape is reachable, so the rescale slightly undercounts. Round 1 (seed
 into the book we read BBA with. That re-reading of BBA's own `1M (OM) X` as a
 takeout, truer to its book, was worth +804 / +215 plain and −76 / −1,009 PD
 on 1,042 / 946 boards and is not shipped; it would be its own knob and A/B.
-Lane (b) is still open.
+
+**Lane (b), worked (2026-11-09,** `scripts/ab-forcing-notrump-heart-game.sh`,
+vs BBA, 409,600 boards per cell, unfiltered). The trace: the loss is local
+to the `2♥` rebid. Opener's 11–12 passes the invite and game makes on 84% of
+those boards (combined 22 HCP: 21 losses in 25 rows), the slam rows are a
+fifth of it, and the sibling nodes (`2♣`, `2♦`, `2♠` rebids) split evenly.
+BBA's book bids `4♥` on 10–11 of its points and `3♥` on 9–11.
+`rebid.forcing_notrump_heart_game` bids `4♥` on four hearts and 10–12 HCP,
+moves the `3♥` invite to 8–9 and has opener pass the game. **Won 4/4,
+shipped default-on:** round 2 (seed 1794216015315708893, 0 foreign) plain
++0.0010 ±0.0004 / +0.0021 ±0.0006, PD +0.0008 / +0.0017 per board (none /
+both). By first divergent call, plain: `3♥` vs pass +288 / +573 on 137 /
+151 boards, `4♥` vs `3♥` +125 / +305 on 85 / 96; the new invite is two
+thirds of the win. Round 1 (seed 1794213973288604725) agrees at +0.0008 /
++0.0019 with a wider arm; its `4♠` on three spades read −24 / +40 plain,
+−69 / −40 PD on 41 / 49 boards and was dropped. Left open: the passed
+`4♥` forfeits the slams the old `3♥ - 4♥ - 6♥` route reached (three boards
+in round 1), and BBA's `4♥` vs our pass on 9 HCP with five hearts (12 rows,
+all losses at the anchor) now invites rather than bids game.
 
 **The `6141cdb2` ranking's lane** was opener's strong jump rebids (`3♦` 5♣4♦
 18+, `3♥` / `3♠` 6+ 16+, the `3♠` raise 16–18; 1,198 bd, −2,035 plain /
