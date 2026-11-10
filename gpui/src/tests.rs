@@ -56,3 +56,9 @@ fn the_book_and_the_settings_registry_parse() {
 fn the_filter_types_suits_as_letters() {
     assert_eq!(typeable("1NT - 2♣"), "1nt - 2c");
 }
+
+#[test]
+fn a_registry_key_reads_as_a_label() {
+    assert_eq!(humanize("their_2d_multi"), "Their 2♦ multi");
+    assert_eq!(humanize("rkcb_over_1nt"), "RKCB over 1NT");
+}

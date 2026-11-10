@@ -15,8 +15,8 @@ use std::sync::mpsc;
 use gpui::prelude::*;
 use gpui::{
     App, Application, Bounds, Context, Div, FocusHandle, Font, FontWeight, KeyDownEvent,
-    SharedString, Stateful, StyledText, TextRun, Window, WindowBounds, WindowOptions, div, px,
-    relative, rgb, rgba, size,
+    PromptLevel, SharedString, Stateful, StyledText, TextRun, Window, WindowBounds, WindowOptions,
+    div, px, relative, rgb, rgba, size,
 };
 use pons_web::WebTable;
 use serde::Deserialize;
@@ -61,6 +61,7 @@ const SUIT_FONT: &str = "Libertinus Suits";
 const SEATS: [&str; 4] = ["N", "E", "S", "W"];
 const VULS: [&str; 4] = ["none", "ns", "ew", "both"];
 const PAIRS: [&str; 2] = ["ns", "ew"];
+const PAIR_NAMES: [&str; 2] = ["North–South", "East–West"];
 const STRAINS: [&str; 5] = ["♣", "♦", "♥", "♠", "NT"];
 /// Auction-table column order, west first as in the web client
 const COLUMNS: [char; 4] = ['W', 'N', 'E', 'S'];
@@ -309,6 +310,66 @@ fn key(id: String, label: impl IntoElement, enabled: bool) -> Stateful<Div> {
             this.cursor_pointer().hover(|style| style.bg(rgb(0xffffff)))
         })
         .child(label)
+}
+
+/// One answer on a paper form: a check box, or a radio button when `round`
+fn answer(id: String, text: String, on: bool, round: bool, live: bool) -> Stateful<Div> {
+    let shape = |this: Div| {
+        if round {
+            this.rounded_full()
+        } else {
+            this.rounded_sm()
+        }
+    };
+    let mark = shape(div())
+        .size(px(16.))
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .border_1()
+        .border_color(rgb(INK))
+        .when(on, |this| {
+            this.child(shape(div()).size(px(8.)).bg(rgb(CLUB)))
+        });
+    div()
+        .id(SharedString::from(id))
+        .flex()
+        .items_center()
+        .gap_2()
+        .px_1()
+        .rounded_sm()
+        // The web's `.opt.dimmed`: the master knob is off, so the engine ignores this row
+        .when(!live, |this| this.opacity(0.45))
+        .when(live, |this| {
+            this.cursor_pointer()
+                .hover(|style| style.bg(rgba(0x0000000f)))
+        })
+        .child(mark)
+        .child(suits(text))
+}
+
+/// A registry key as a label — the web client's `humanize`; keep the two in step
+fn humanize(key: &str) -> String {
+    let words: Vec<String> = key
+        .split('_')
+        .enumerate()
+        .map(|(index, word)| match word {
+            "nt" | "xyz" | "rkcb" | "dont" | "hcp" | "gf" | "1nt" | "3nt" | "4m" => {
+                word.to_uppercase()
+            }
+            "uvu" => "UvU".into(),
+            "2d" => "2♦".into(),
+            _ if index == 0 => {
+                let mut chars = word.chars();
+                chars.next().map_or_else(String::new, |first| {
+                    first.to_uppercase().chain(chars).collect()
+                })
+            }
+            _ => word.into(),
+        })
+        .collect();
+    words.join(" ")
 }
 
 /// A card-paper panel on the felt
@@ -945,6 +1006,7 @@ impl Pons {
         } else {
             self.overrides[self.pair].insert(key.clone(), value.clone());
         }
+        self.nodes.clear(); // the Book tab rebuilds from the new agreements
         self.apply(PAIRS[self.pair], key, value);
         self.status = match self.save() {
             Ok(()) => String::new(),
@@ -963,6 +1025,26 @@ impl Pons {
         std::fs::write(path, serde_json::to_string_pretty(&self.overrides)?)
     }
 
+    /// Back to the registry defaults for the partnership on show
+    fn reset(&mut self, cx: &mut Context<Self>) {
+        self.overrides[self.pair].clear();
+        for setting in &self.settings {
+            self.apply(
+                PAIRS[self.pair],
+                setting.key.clone(),
+                setting.default.clone(),
+            );
+        }
+        self.nodes.clear();
+        self.status = match self.save() {
+            Ok(()) => String::new(),
+            Err(error) => format!("Settings not saved: {error}"),
+        };
+        cx.notify();
+    }
+
+    /// The web client's questionnaire: one paper panel per section, one
+    /// question per line — a check box, or a titled family of radio answers
     fn render_settings(&self, cx: &mut Context<Self>) -> Div {
         let pair = |index: usize, label: &'static str, cx: &mut Context<Self>| {
             button(format!("pair-{index}"), label, self.pair == index, true).on_click(cx.listener(
@@ -972,72 +1054,122 @@ impl Pons {
                 },
             ))
         };
-        let mut page = div().flex().flex_col().gap_2().child(
-            div()
-                .flex()
-                .items_center()
-                .gap_2()
-                .child(pair(0, "North–South", cx))
-                .child(pair(1, "East–West", cx))
-                .child(
-                    div()
-                        .opacity(DIM)
-                        .child("Changes apply from the next deal."),
-                ),
-        );
+        let mut page = div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .max_w(px(720.))
+            .child("Toggle conventions, then deal in Play — changes apply to the next deal.")
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child("Partnership")
+                    .child(pair(0, PAIR_NAMES[0], cx))
+                    .child(pair(1, PAIR_NAMES[1], cx)),
+            );
         if !self.status.is_empty() {
             page = page.child(panel().text_color(rgb(HEART)).child(self.status.clone()));
         }
 
-        let mut section = "";
+        let mut sections: Vec<(&str, Div)> = Vec::new();
         for setting in &self.settings {
-            if setting.section != section {
-                section = &setting.section;
-                page = page.child(div().mt_2().opacity(DIM).child(section.to_string()));
+            if sections
+                .last()
+                .is_none_or(|(name, _)| *name != setting.section)
+            {
+                let title = div()
+                    .text_size(px(11.))
+                    .opacity(DIM)
+                    .mb_1()
+                    .child(setting.section.to_uppercase());
+                sections.push((&setting.section, panel().flex().flex_col().child(title)));
             }
             let live = self.live(setting);
             let current = self.value(self.pair, &setting.key);
             let label = if setting.label.is_empty() {
-                setting.key.replace('_', " ")
+                humanize(&setting.key)
             } else {
                 setting.label.clone()
             };
-            let option =
-                |id: String, text: String, on: bool, value: Value, cx: &mut Context<Self>| {
-                    let key = setting.key.clone();
-                    button(id, text, on, live).when(live, |this| {
-                        this.on_click(cx.listener(move |this, _, _, cx| {
-                            this.set(key.clone(), value.clone(), cx);
-                        }))
-                    })
-                };
-            let mut row = div().flex().flex_wrap().items_center().gap_2();
+            let needs = match (live, &setting.requires) {
+                (false, Some(requires)) => format!(
+                    "  (needs {})",
+                    requires
+                        .replace("opponent:", "opponent ")
+                        .replace('=', ": ")
+                ),
+                _ => String::new(),
+            };
+            let option = |id: String,
+                          text: String,
+                          on: bool,
+                          round: bool,
+                          value: Value,
+                          cx: &mut Context<Self>| {
+                let key = setting.key.clone();
+                answer(id, format!("{text}{needs}"), on, round, live).when(live, |this| {
+                    this.on_click(cx.listener(move |this, _, _, cx| {
+                        this.set(key.clone(), value.clone(), cx);
+                    }))
+                })
+            };
+            let mut body = sections.pop().expect("a section was just pushed");
             if setting.kind == "toggle" {
                 let on = current.as_bool().unwrap_or(false);
-                let mark = if on { "☑" } else { "☐" };
                 let id = format!("set-{}", setting.key);
-                row = row.child(option(
-                    id,
-                    format!("{mark} {label}"),
-                    on,
-                    Value::Bool(!on),
-                    cx,
-                ));
+                body.1 = body
+                    .1
+                    .child(option(id, label, on, false, Value::Bool(!on), cx));
             } else {
-                row = row.child(div().w(px(220.)).child(label));
+                body.1 = body.1.child(
+                    div()
+                        .mt_1()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(suits(label)),
+                );
                 for variant in &setting.variants {
                     let id = format!("set-{}-{}", setting.key, variant.value);
                     let on = current.as_str() == Some(&variant.value);
                     let value = Value::String(variant.value.clone());
-                    row = row.child(option(id, variant.label.clone(), on, value, cx));
+                    body.1 = body
+                        .1
+                        .child(option(id, variant.label.clone(), on, true, value, cx));
                 }
             }
-            if let (false, Some(requires)) = (live, &setting.requires) {
-                row = row.child(div().opacity(DIM).child(format!("needs {requires}")));
-            }
-            page = page.child(row);
+            sections.push(body);
         }
-        page
+        for (_, section) in sections {
+            page = page.child(section);
+        }
+
+        let name = PAIR_NAMES[self.pair];
+        page.child(
+            div().flex().child(
+                button(
+                    "reset".into(),
+                    format!("Reset {name} to defaults"),
+                    false,
+                    true,
+                )
+                .on_click(cx.listener(move |_, _, window, cx| {
+                    let answer = window.prompt(
+                        PromptLevel::Warning,
+                        &format!("Reset {name} convention settings to defaults?"),
+                        None,
+                        &["Reset", "Cancel"],
+                        cx,
+                    );
+                    cx.spawn(async move |this, cx| {
+                        if answer.await == Ok(0) {
+                            let _ = this.update(cx, Self::reset);
+                        }
+                    })
+                    .detach();
+                })),
+            ),
+        )
     }
 }
 
