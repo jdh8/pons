@@ -156,8 +156,9 @@ pub(super) fn asker_after_denial(
 ///
 /// Both ride the grand-zone **strength** gate on top of the combined count —
 /// RKCB is a slam veto, not a slam seeker, so a partnership short of the grand
-/// zone never spends the round.  `hcp(19..)` is the book's available proxy at
-/// this node, and `five` is the lane's combined-count decode (see
+/// zone never spends the round.  The asker's HCP from `explore` up (19 unless
+/// the lane's [`Grand`] says otherwise) is the book's available proxy at this
+/// node, and `five` is the lane's combined-count decode (see
 /// [`asker_after_denial`]): a grand is never touched with a keycard out.
 ///
 /// ponytail: raw HCP, because the book carries no combined-point machinery
@@ -170,6 +171,7 @@ pub(super) fn asker_after_queen(
     five: crate::bidding::constraint::Cons<
         impl crate::bidding::constraint::Constraint + Clone + 'static,
     >,
+    explore: u8,
 ) -> Rules {
     let t = Strain::from(trump);
     let mut rules = Rules::new();
@@ -177,14 +179,14 @@ pub(super) fn asker_after_queen(
         rules = rules.rule(
             Bid::new(7, t),
             150,
-            five.clone() & kings_outside(trump, 1..) & hcp(19..),
+            five.clone() & kings_outside(trump, 1..) & hcp(explore..),
         );
         if let Some(relay) = relay {
             rules = rules
                 .rule(
                     relay.ask,
                     140,
-                    five & kings_outside(trump, 0..=0) & hcp(19..),
+                    five & kings_outside(trump, 0..=0) & hcp(explore..),
                 )
                 .alert(RKCB);
         }
@@ -192,7 +194,7 @@ pub(super) fn asker_after_queen(
         rules = rules.rule(
             Bid::new(7, t),
             150,
-            five & kings_outside(trump, 2..) & hcp(19..),
+            five & kings_outside(trump, 2..) & hcp(explore..),
         );
     }
     rules.rule(Bid::new(6, t), 100, hcp(0..))

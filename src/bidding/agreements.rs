@@ -5304,20 +5304,23 @@ pub struct RebidKnobs {
     /// Opener's splinter raise after `1x - 1♠`: a double jump in a new suit
     /// (`4♦` / `4♥` after `1♣`, `4♣` / `4♥` after `1♦`, `4♣` / `4♦` after
     /// `1♥`) on four spades, the `4♠` raise's points and a singleton or void
-    /// holding at most this many HCP; responder asks keycards on points −
-    /// ½ × the HCP wasted there ≥ 10, else signs off in `4♠`
+    /// holding at most this many HCP; responder asks keycards on points
+    /// against the K/Q/J wasted there, a fifth spade worth two, else signs
+    /// off in `4♠`, and the keycard tree bids `7♠` on all five keycards, the
+    /// trump queen and the side kings (`rebids/spade_raise_splinter.rs`)
     ///
-    /// **Default off**: round 1 (2026-11-10, `scripts/ab-spade-raise-splinter.sh`)
-    /// lost 4/4, `Some(1)` plain −0.0015 / −0.0021 and `Some(4)` −0.0021 /
-    /// −0.0028 per accepted board (none / both), because responder signs off
-    /// holding the ace of the short suit, which the waste rule half-counted.
-    /// Round 2 counts K/Q/J only and is non-inferior 8/8 without a win,
-    /// `Some(1)` plain +0.0005 ±0.0011 / ±0.0014 (none / both), `Some(4)`
-    /// +0.0005 ±0.0014 / ±0.0017, PD agreeing; *Open work* item 9 (b) of
-    /// `docs/bba-gap-campaign.md` holds the trace.
-    /// `Some(1)` is BBA's rule — a small singleton or a void, never a
-    /// singleton K, rarely an A or Q (its 38k-hand probe); `Some(4)` any
-    /// singleton.  `bba-gen --ns-spade-raise-splinter N`.
+    /// **Default `Some(4)`**, any singleton, since round 3 (2026-11-10,
+    /// `scripts/ab-spade-raise-splinter.sh`, 409,600 filtered boards per
+    /// cell): `Some(4)` wins 4/4 over the blind `4♠`, plain +0.0057 ±0.0016 /
+    /// +0.0071 ±0.0020 per accepted board (none / both), PD +0.0057 /
+    /// +0.0070, and wins 4/4 over `Some(1)`, plain +0.0018 ±0.0010 / +0.0020
+    /// ±0.0012.  `Some(1)` is BBA's rule — a small singleton or a void, never
+    /// a singleton K, rarely an A or Q (its 38k-hand probe) — and wins 4/4
+    /// too, plain +0.0040 ±0.0012 / +0.0051 ±0.0015.  Rounds 1 and 2 (a loss,
+    /// then non-inferior without a win) had a fit-blind gate and no grand
+    /// rung; *Open work* item 9 (b) of `docs/bba-gap-campaign.md` holds the
+    /// traces.  `None` raises to `4♠` as before; `bba-gen
+    /// --ns-spade-raise-splinter off|N`.
     pub spade_raise_splinter: Option<u8>,
 
     /// Points floor of opener's `3♥` raise after `1♣` / `1♦ - 1♥`; `2♥` is
@@ -5426,7 +5429,7 @@ impl Default for RebidKnobs {
             spade_raise_three_ask: 14,
             spade_raise_four_ask: 12,
             spade_raise_game: true,
-            spade_raise_splinter: None,
+            spade_raise_splinter: Some(4),
             heart_raise_invite: 15,
             heart_raise_game: 17,
             forcing_notrump_heart_game: true,

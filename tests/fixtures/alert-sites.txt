@@ -49,11 +49,11 @@ opener-reverse 20
 puppet 80
 rebid-checkback 16
 responsive-double 32
-rkcb 32940
+rkcb 35388
 shortness 24
 slam-try 80
 smolen 112
-splinter 384
+splinter 408
 stayman 80
 strong-2c 4
 strong-2c:waiting 4
@@ -86,7 +86,7 @@ comp:multi-penalty 0 -> 24
 comp:multi-takeout 0 -> 12
 comp:stayman 8 -> 4
 completion 680 -> 676
-rkcb 32940 -> 33768
+rkcb 35388 -> 36216
 smolen 112 -> 104
 texas 80 -> 88
 
@@ -106,5 +106,5 @@ comp:multi-takeout 8 -> 12
 comp:multi-values 4 -> 0
 comp:stayman 8 -> 4
 completion 680 -> 676
-rkcb 33476 -> 33768
+rkcb 35924 -> 36216
 smolen 112 -> 104

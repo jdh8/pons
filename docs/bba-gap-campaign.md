@@ -734,7 +734,7 @@ In bucket order; each item is its own fresh-seed A/B per
 9. **Opener's raise structure after `1x - 1♠`** (Const / book / round-2;
    170 rows, −434 plain / −390 PD on the `6141cdb2` anchor; 91 deals, each
    in both vulnerability cells). **Ranges shipped 2026-11-08; splinters
-   owed.** Every row is our `3♠` on "16–18". Where we bid `3♠`, BBA bids
+   shipped 2026-11-10.** Every row is our `3♠` on "16–18". Where we bid `3♠`, BBA bids
    `4♠` (122 rows, −228) or splinters (42 rows, −177). An earlier version of
    this item split the rows as 65 + 39 + 14 on the 16–18 rule plus 24 + 24 +
    21 on a support-points rule; that split did not reproduce, and the
@@ -806,10 +806,37 @@ In bucket order; each item is its own fresh-seed A/B per
      sign-off bucket fell to −98 / −115; the residue is RKCB stopping in
      `6♠` where the floor's blind `7♠` makes (−163 / −242 on 58 / 66
      boards; no grand ask after the keycard answer) and, in `any` only,
-     sign-offs without the ace (−119 / −178). A grand-slam rung over the
-     keycard answer is the next lever. Stays opt-in; flipping the default
-     to `Some(1)` on non-inferiority (BBA's agreement, the 9 (e) heart
-     ladder precedent) is jdh8's call. ~~(c) The
+     sign-offs without the ace (−119 / −178). **Round 3 (2026-11-10, seed
+     1794301689386795430, same cells) wins 8/8 and ships default-on at
+     `Some(4)`.** Two changes, both read off a double-dummy census of
+     249,601 splinter auctions in the 100M-deal bank
+     (`ab-results/spade-raise-splinter-census-2026-11-10/`, `gate.txt` and
+     `grand.txt`). The gate: RKCB beats the sign-off from 10 / 11 / 12 /
+     13 points at 0 / 1–2 / 3 / 4–6 HCP of K/Q/J waste on four spades and
+     from two points lower on five, worth +1.87 / +2.21 IMPs per splinter
+     auction (none / vul) against +1.64 / +1.94 for the fit-blind rule.
+     The rung: with all five keycards
+     and the queen held or a ninth trump, `7♠` makes on 35% / 58% / 79% /
+     86% with 0 / 1 / 2 / 3 side kings between the hands (break-even near
+     56%), and on 68% with one king once the asker has 13+ HCP (54%
+     below); counting
+     only the kings outside the short suit does no better. So the lane
+     takes `slam::grand_rkcb_rows_on` with no HCP gate of the asker's own
+     (the shared rung wants 19, which a responder facing 17+ never has)
+     and one king enough from 13. Measured: `Some(1)` plain +0.0040
+     ±0.0012 / +0.0051 ±0.0015 (none / both), PD +0.0040 / +0.0050;
+     `Some(4)` plain +0.0057 ±0.0016 / +0.0071 ±0.0020, PD +0.0057 /
+     +0.0070; `Some(4)` over `Some(1)` +0.0018 ±0.0010 / +0.0020 ±0.0012
+     on both scorers. Buckets, `Some(1)`: `6♠` over the base's `4♠` +979 /
+     +1277 on 217 / 257 boards (round 2: +357 / +562), `7♠` over its `6♠`
+     +467 / +517 on 79 / 77 (round 2: −189 / −295 the other way), `5♠`
+     over a making `4♠` −96 / −144 on 61 / 71, the price of the wider
+     gate. The isolation gate reports 9 / 12 boards the package does not
+     own, as it did in round 2 (8): with the knob on we read *their*
+     `1x - 1♠ - 4y` as a splinter and our defence changes, −5 / +23 IMPs.
+     Owed: the heart sibling (splinters over `1m - 1♥`, its own A/B); the
+     one-king rule on the queen-relay path (an asker without the queen on
+     an eight-card fit still wants two kings there). ~~(c) The
      `spade_raise_answers` slam thresholds retuned to the shipped ranges.~~
      **Round 4 (2026-11-08, seed 1794087241043204556, same filter and
      board count) closed it as a loss:** the asks as knobs

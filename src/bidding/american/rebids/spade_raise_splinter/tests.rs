@@ -70,8 +70,9 @@ fn opener_splinters_instead_of_the_four_spade_raise() {
     );
 }
 
-/// Responder asks keycards on points less half the waste in the short
-/// suit reaching 10, else signs off in `4♠`; the same over their double.
+/// Responder asks keycards on points against the K/Q/J wasted in the short
+/// suit, a fifth spade worth two, else signs off in `4♠`; the same over their
+/// double.
 #[test]
 fn responder_answers_the_splinter() {
     let trie = build(Some(1));
@@ -86,11 +87,17 @@ fn responder_answers_the_splinter() {
         assert_eq!(best(&trie, &auction, "AJ85.K63.92.Q842"), rkcb);
         // ♠AJ85 ♥763 ♦K2 ♣Q842 — 10 HCP with ♦K wasted: sign off.
         assert_eq!(best(&trie, &auction, "AJ85.763.K2.Q842"), game);
-        // ♠AJ85 ♥K63 ♦K2 ♣J842 — 12 HCP with ♦K wasted (12 − 1½): slam try.
+        // ♠AJ85 ♥K63 ♦K2 ♣J842 — 12 HCP with ♦K wasted: slam try.
         assert_eq!(best(&trie, &auction, "AJ85.K63.K2.J842"), rkcb);
+        // ♠AJ85 ♥K63 ♦QJ ♣8642 — 11 HCP with ♦QJ wasted, four spades: sign off.
+        assert_eq!(best(&trie, &auction, "AJ85.K63.QJ.8642"), game);
+        // ♠AJ854 ♥K63 ♦92 ♣842 — 8 HCP, no waste, a fifth spade: slam try.
+        assert_eq!(best(&trie, &auction, "AJ854.K63.92.842"), rkcb);
+        // ♠AJ85 ♥K63 ♦92 ♣8642 — the same 8 HCP on four spades: sign off.
+        assert_eq!(best(&trie, &auction, "AJ85.K63.92.8642"), game);
         // ♠QJ85 ♥K63 ♦A2 ♣8642 — 10 HCP, the ♦A is not waste: slam try.
         assert_eq!(best(&trie, &auction, "QJ85.K63.A2.8642"), rkcb);
-        // ♠QJ85 ♥763 ♦AK ♣Q842 — 12 HCP with only the ♦K wasted (12 − 1½): slam try.
+        // ♠QJ85 ♥763 ♦AK ♣Q842 — 12 HCP with only the ♦K wasted: slam try.
         assert_eq!(best(&trie, &auction, "QJ85.763.AK.Q842"), rkcb);
     }
     // Opener passes the sign-off.
@@ -105,4 +112,47 @@ fn responder_answers_the_splinter() {
         &[call(4, Strain::Clubs), call(4, Strain::Hearts)],
     );
     assert_eq!(best(&trie, &overcalled, "J854.K63.92.Q842"), game);
+}
+
+/// With all five keycards and the trump queen the asker bids `7♠` on two side
+/// kings between the hands, or on one with 13+ HCP of its own.
+#[test]
+fn asker_bids_the_grand_on_keycards_and_kings() {
+    let trie = build(Some(1));
+    let seven = call(7, Strain::Spades);
+    let six = call(6, Strain::Spades);
+    let king_ask = call(5, Strain::Notrump);
+    // `1♣ - 1♠ - 4♦ - 4NT - 5♠`: two keycards and the ♠Q.
+    let answered = after(
+        Strain::Clubs,
+        &[
+            call(4, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Spades),
+            Call::Pass,
+        ],
+    );
+    // ♠A852 ♥A63 ♦A2 ♣K842 — three keycards, the ♣K, 15 HCP: seven at once.
+    assert_eq!(best(&trie, &answered, "A852.A63.A2.K842"), seven);
+    // ♠A852 ♥K63 ♦A2 ♣K842 — two keycards, one missing: six.
+    assert_eq!(best(&trie, &answered, "A852.K63.A2.K842"), six);
+    // ♠A852 ♥A63 ♦A2 ♣Q842 — three keycards, no side king: the king ask.
+    assert_eq!(best(&trie, &answered, "A852.A63.A2.Q842"), king_ask);
+    let asked = |reply: Call| {
+        let mut auction = answered.clone();
+        auction.extend([king_ask, Call::Pass, reply, Call::Pass]);
+        auction
+    };
+    // One king shown: seven on 14 HCP, six on 12; none shown: six.
+    let one_king = asked(call(6, Strain::Diamonds));
+    assert_eq!(best(&trie, &one_king, "A852.A63.A2.Q842"), seven);
+    assert_eq!(best(&trie, &one_king, "A852.A63.A2.8642"), six);
+    let no_king = asked(call(6, Strain::Clubs));
+    assert_eq!(best(&trie, &no_king, "A852.A63.A2.Q842"), six);
+    // Opener over the king ask: ♠KQ84 ♥KJ7 ♦7 ♣AK953 — two side kings, seven.
+    let mut kings = answered.clone();
+    kings.extend([king_ask, Call::Pass]);
+    assert_eq!(best(&trie, &kings, "KQ84.KJ7.7.AK953"), seven);
 }

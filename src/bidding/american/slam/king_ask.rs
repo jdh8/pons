@@ -43,15 +43,24 @@ pub(super) fn king_answers(trump: Suit) -> Rules {
 ///
 /// `needed` is three in the classic ladder and two on the grand rung (see
 /// [`grand_rkcb_rows`]).  6♥ is a king answer only when trumps are spades.
-pub(super) fn asker_after_kings(trump: Suit, shown: usize, needed: usize) -> Rules {
+/// `one_king` is [`Grand::one_king`]: from that many HCP a king partner showed
+/// is enough.
+pub(super) fn asker_after_kings(
+    trump: Suit,
+    shown: usize,
+    needed: usize,
+    one_king: Option<u8>,
+) -> Rules {
     let t = Strain::from(trump);
-    Rules::new()
-        .rule(
-            Bid::new(7, t),
-            100,
-            kings_outside(trump, needed.saturating_sub(shown)..),
-        )
-        .rule(Bid::new(6, t), 50, hcp(0..))
+    let mut rules = Rules::new().rule(
+        Bid::new(7, t),
+        100,
+        kings_outside(trump, needed.saturating_sub(shown)..),
+    );
+    if let Some(one) = one_king.filter(|_| shown >= 1) {
+        rules = rules.rule(Bid::new(7, t), 100, hcp(one..));
+    }
+    rules.rule(Bid::new(6, t), 50, hcp(0..))
 }
 
 /// Answers to the grand rung's 5NT: seven with the kings that make two of the

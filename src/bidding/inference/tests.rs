@@ -1904,7 +1904,12 @@ fn authored_calls_read_what_they_gate() {
         // `4♠` over `1♥ - 1♠ - 2♠` on `11+ | (5+ ♠ & 10+)`, a length term
         // inside a disjunction, in the american and Watermelon constructive
         // tries.  Knob-on stays 0.
-        ("length", 134, 0),
+        // 134 → 140 when `rebid.spade_raise_splinter` shipped (2026-11-10):
+        // responder's `4NT` over each of the three splinter suits asks on a
+        // lower points ladder with `5+ ♠`, a length term inside a
+        // disjunction, in the american and Watermelon constructive tries.
+        // Knob-on stays 0.
+        ("length", 140, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
@@ -1913,7 +1918,12 @@ fn authored_calls_read_what_they_gate() {
         // X, SOS runouts) are wired as `Fallback::classify` and the walk
         // never sees them — a pre-existing meter blind spot on EVERY
         // column, recorded in docs/dnf-migration.md.
-        ("suit HCP", 0, 0),
+        // 0 → 6 knob-off when `rebid.spade_raise_splinter` shipped
+        // (2026-11-10): responder's `4NT` over each of the three splinter
+        // suits gates on K/Q/J waste there, an ace-or-not `Or` of `suit_hcp`
+        // bands on an exact node, in the american and Watermelon constructive
+        // tries.  Knob-on stays 0.
+        ("suit HCP", 6, 0),
         // 84 → 107 when the direct-seat `(≤2♠)` guard became one exact
         // table per overcall (2026-08-06): its 23 cue/raise rules — the
         // same rules, the same hulls — moved from the fallback layer
@@ -1944,7 +1954,10 @@ fn authored_calls_read_what_they_gate() {
         // the bare `3+ support` gates below a natural positive — opener's
         // `4NT` ask for responder's major and responder's `4M` raise of
         // opener's — in the same two tries.  Knob-on stays 0.
-        ("support", 125, 0),
+        // 125 → 131 when `rebid.spade_raise_splinter` shipped (2026-11-10):
+        // opener's splinters over `1x - 1♠` (`4+ support`, the `4♠` raise's
+        // points, shortness) in the same two tries.  Knob-on stays 0.
+        ("support", 131, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {

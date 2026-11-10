@@ -18,8 +18,8 @@
 //! `PROBE_NS_LANDY_LIA=1` puts §N1-lia's ladder (default off) over it — inert
 //! without the first, like every other `PROBE_LANDY_*` knob.
 //! `PROBE_NEW_SUIT_VETO=1` arms the floor's phantom-suit rail (default off).
-//! `PROBE_SPADE_RAISE_SPLINTER=1|4` arms opener's splinter raise over `1x - 1♠`
-//! (default off; 1 = BBA's small-singleton rule, 4 = any singleton).
+//! `PROBE_SPADE_RAISE_SPLINTER=off|1|4` sets opener's splinter raise over
+//! `1x - 1♠` (default 4, any singleton; 1 = BBA's small-singleton rule).
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -124,8 +124,8 @@ fn main() {
         Err(_) => {}
     }
     // Opener's splinter raise over `1x - 1♠` (`rebid.spade_raise_splinter`,
-    // default off): `PROBE_SPADE_RAISE_SPLINTER=1` is BBA's small-singleton
-    // rule, `=4` any singleton.
+    // default 4, any singleton): `PROBE_SPADE_RAISE_SPLINTER=1` is BBA's
+    // small-singleton rule, `=off` the blind `4♠`.
     match std::env::var("PROBE_SPADE_RAISE_SPLINTER").as_deref() {
         Ok("0") | Ok("off") => agreements.rebid.spade_raise_splinter = None,
         Ok(n) => agreements.rebid.spade_raise_splinter = Some(n.parse().expect("a suit HCP cap")),

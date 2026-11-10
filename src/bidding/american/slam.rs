@@ -64,6 +64,10 @@
 //! side king short, and partner bids seven with one or six without — though a
 //! minor asker with only three trumps wants all three kings.
 //! Only the lanes that ask for it get it — the classic ladder is unchanged.
+//!
+//! The rung's strength gate is the lane's ([`Grand`]): 19 HCP in the asker's
+//! hand where partner's strength is open-ended ([`grand_rkcb_rows`]), lower
+//! where partner has already shown it ([`grand_rkcb_rows_on`]).
 
 use crate::bidding::agreements::Agreements;
 use crate::bidding::{Alert, Rules};
@@ -269,7 +273,7 @@ fn rkcb_answers(trump: Suit) -> Rules {
 ///
 /// Policy: asker with ≤2 keycards assumes partner has 4 (5NT = all five,
 /// king ask); with 3+ asker knows partner has 1, signs off at 5T or bids 6T.
-fn asker_after_5c(trump: Suit) -> Rules {
+fn asker_after_5c(trump: Suit, explore: u8) -> Rules {
     let t = Strain::from(trump);
     // Ask only what we will act on.  Three keycards decodes to four combined —
     // one missing, and the queen decides five against six, so the answer is
@@ -278,7 +282,7 @@ fn asker_after_5c(trump: Suit) -> Rules {
     relay_first(
         trump,
         Bid::new(5, Strain::Clubs),
-        keycards(trump, 3..=3) | (keycards(trump, 4..=4) & hcp(19..)),
+        keycards(trump, 3..=3) | (keycards(trump, 4..=4) & hcp(explore..)),
     )
     // 5NT: asker has 4 keycards + partner's 1 = all five → king ask, spent
     // only in the grand zone — the same veto-not-seeker gate the relay's own
@@ -286,7 +290,7 @@ fn asker_after_5c(trump: Suit) -> Rules {
     .rule(
         Bid::new(5, Strain::Notrump),
         140,
-        keycards(trump, 4..=4) & hcp(19..),
+        keycards(trump, 4..=4) & hcp(explore..),
     )
     .alert(RKCB)
     // 6T: all five on the table without the grand values, or three of our own
@@ -300,7 +304,7 @@ fn asker_after_5c(trump: Suit) -> Rules {
 ///
 /// Policy: asker with ≤2 keycards assumes partner has 3 → bid 6T; with 3+
 /// keycards asker knows partner has 0 → sign off at 5T.
-fn asker_after_5d(trump: Suit) -> Rules {
+fn asker_after_5d(trump: Suit, explore: u8) -> Rules {
     let t = Strain::from(trump);
     // Four keycards knows partner has none, so the total is four and the queen
     // is the whole difference between five and six — worth a round.  Two
@@ -310,7 +314,7 @@ fn asker_after_5d(trump: Suit) -> Rules {
     relay_first(
         trump,
         Bid::new(5, Strain::Diamonds),
-        keycards(trump, 4..=4) | ((keycards(trump, 2..=2) | keycards(trump, 5..)) & hcp(19..)),
+        keycards(trump, 4..=4) | ((keycards(trump, 2..=2) | keycards(trump, 5..)) & hcp(explore..)),
     )
     // 6T: asker with 1–2 assumes partner has 3 (four or five combined), or
     // asker has 4+.  Was `2..=2` until 2026-09-30, which signed off at five
@@ -417,7 +421,7 @@ pub(super) fn rkcb_answerer_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 /// The 4NT bid itself must already be in the caller's table; this produces
 /// everything that comes *after* 4NT.
 pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
-    rkcb_rows_with(prefix, trump, false)
+    rkcb_rows_with(prefix, trump, None)
 }
 
 /// [`rkcb_rows`] with the grand rung: seven on two of the three side kings,
@@ -430,7 +434,35 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 /// 30% / 64% / 84% — and on two kings only 55% when the asker has three
 /// trumps, so that hand wants all three ([`grand_kings`]).
 pub(super) fn grand_rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
-    rkcb_rows_with(prefix, trump, true)
+    grand_rkcb_rows_on(prefix, trump, Grand::OPEN)
+}
+
+/// [`grand_rkcb_rows`] on the lane's own terms
+pub(super) fn grand_rkcb_rows_on(prefix: &str, trump: Suit, grand: Grand) -> Vec<Entry> {
+    rkcb_rows_with(prefix, trump, Some(grand))
+}
+
+/// The grand rung's strength terms for one lane
+///
+/// RKCB is a slam veto, not a slam seeker, so seven is explored only on
+/// values.  The asker's own HCP are the book's proxy for them, and how many it
+/// takes depends on what partner has shown.
+#[derive(Clone, Copy)]
+pub(super) struct Grand {
+    /// HCP from which the asker explores seven at all: the gate on the rung,
+    /// on the queen relay's grand asks and on their placements
+    pub(super) explore: u8,
+    /// HCP from which **one** side king between the hands is enough for a
+    /// major seven, in a lane whose answerer has shown the strength for it
+    pub(super) one_king: Option<u8>,
+}
+
+impl Grand {
+    /// Partner's strength is open-ended: 19 HCP of our own, two side kings
+    const OPEN: Self = Self {
+        explore: 19,
+        one_king: None,
+    };
 }
 
 /// Our side kings against the grand rung's bar: two of the three, or all
@@ -480,14 +512,19 @@ fn grand_rung(
     certain: crate::bidding::constraint::Cons<
         impl crate::bidding::constraint::Constraint + Clone + 'static,
     >,
+    grand: Grand,
 ) -> Rules {
-    let certain = certain & hcp(19..);
-    rules
-        .rule(
-            Bid::new(7, Strain::from(trump)),
+    let certain = certain & hcp(grand.explore..);
+    let seven = Bid::new(7, Strain::from(trump));
+    let mut rules = rules.rule(seven, 150, certain.clone() & grand_kings(trump, false));
+    if let Some(one) = grand.one_king {
+        rules = rules.rule(
+            seven,
             150,
-            certain.clone() & grand_kings(trump, false),
-        )
+            certain.clone() & kings_outside(trump, 1..) & hcp(one..),
+        );
+    }
+    rules
         .rule(
             Bid::new(5, Strain::Notrump),
             145,
@@ -496,7 +533,9 @@ fn grand_rung(
         .alert(RKCB)
 }
 
-fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
+fn rkcb_rows_with(prefix: &str, trump: Suit, grand: Option<Grand>) -> Vec<Entry> {
+    // The classic ladder's own grand asks ride the open-ended gate.
+    let explore = grand.map_or(Grand::OPEN.explore, |grand| grand.explore);
     let ans_5c = Bid::new(5, Strain::Clubs);
     let ans_5d = Bid::new(5, Strain::Diamonds);
     let ans_5h = Bid::new(5, Strain::Hearts);
@@ -520,8 +559,8 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
     // skip the king ask further down).
     let (after_5c, after_5d, after_5h, after_5s) = if matches!(trump, Suit::Hearts | Suit::Spades) {
         (
-            asker_after_5c(trump),
-            asker_after_5d(trump),
+            asker_after_5c(trump, explore),
+            asker_after_5d(trump, explore),
             asker_after_5h(trump),
             asker_after_5s(trump),
         )
@@ -536,20 +575,27 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
 
     // The grand rung: per answer, the asker's own count that makes five, and
     // the queen — unasked where it is moot, denied over 5♥, shown over 5♠.
-    let (after_5c, after_5d, after_5h, after_5s) = if grand {
+    let (after_5c, after_5d, after_5h, after_5s) = if let Some(grand) = grand {
         (
-            grand_rung(after_5c, trump, keycards(trump, 4..=4) & queen_moot(trump)),
+            grand_rung(
+                after_5c,
+                trump,
+                keycards(trump, 4..=4) & queen_moot(trump),
+                grand,
+            ),
             grand_rung(
                 after_5d,
                 trump,
                 (keycards(trump, 2..=2) | keycards(trump, 5..)) & queen_moot(trump),
+                grand,
             ),
             grand_rung(
                 after_5h,
                 trump,
                 keycards(trump, 3..) & has_trump_queen(trump),
+                grand,
             ),
-            grand_rung(after_5s, trump, keycards(trump, 3..)),
+            grand_rung(after_5s, trump, keycards(trump, 3..), grand),
         )
     } else {
         (after_5c, after_5d, after_5h, after_5s)
@@ -596,13 +642,13 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
         }
         entries.extend(rows_of(
             node(&format!("{relay} {} -", map.no_king)),
-            asker_after_queen(trump, false, None, five()),
+            asker_after_queen(trump, false, None, five(), explore),
         ));
         for &(_, shown) in &map.kings {
             let second = king_relay(shown, trump);
             entries.extend(rows_of(
                 node(&format!("{relay} {shown} -")),
-                asker_after_queen(trump, true, second, five()),
+                asker_after_queen(trump, true, second, five(), explore),
             ));
             let Some(second) = second else {
                 continue;
@@ -618,7 +664,7 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
         }
     }
 
-    if grand {
+    if let Some(grand) = grand {
         // The answers to the rung's 5NT and the asker's placement, with the
         // doubled tails — a lead-directing double of the ask or of an
         // artificial answer must not drop either seat to the floor.  Seven
@@ -644,7 +690,7 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
                     for tail in ["-", "(X)"] {
                         entries.extend(rows_of(
                             node(&format!("{kings} {reply} {tail}")),
-                            asker_after_kings(trump, shown, 2),
+                            asker_after_kings(trump, shown, 2, grand.one_king),
                         ));
                     }
                 }
@@ -684,7 +730,7 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: bool) -> Vec<Entry> {
             }
             entries.extend(rows_of(
                 node(&format!("{kings} {reply} -")),
-                asker_after_kings(trump, shown, 3),
+                asker_after_kings(trump, shown, 3, None),
             ));
         }
     }

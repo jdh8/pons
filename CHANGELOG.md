@@ -10,15 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`rebid.spade_raise_splinter`, opener's splinter raise after `1x - 1♠`,
-  default off (2026-11-10, item 9 (b) of docs/bba-gap-campaign.md).** A
-  double jump in a new suit (`4♦` / `4♥` after `1♣`, `4♣` / `4♥` after `1♦`,
-  `4♣` / `4♦` after `1♥`) shows four spades, the `4♠` raise's points (17+
-  under the shipped ladder) and a singleton or void holding at most the
-  knob's HCP: `Some(1)` is BBA's small-singleton-or-void rule, `Some(4)` any
-  singleton. Responder asks keycards (`4NT`, the shared RKCB tree) on points
-  − ½ × the HCP wasted in the short suit ≥ 10, else signs off in `4♠`, which
-  opener passes; the same over their double, and `4♠` over their overcall up
-  to `4♥`. Off, the hand raises to `4♠` as before. **Round 1 lost 4/4**
+  default `Some(4)` (2026-11-10, item 9 (b) of docs/bba-gap-campaign.md).**
+  A double jump in a new suit (`4♦` / `4♥` after `1♣`, `4♣` / `4♥` after
+  `1♦`, `4♣` / `4♦` after `1♥`) shows four spades, the `4♠` raise's points
+  (17+ under the shipped ladder) and a singleton or void holding at most the
+  knob's HCP: `Some(4)`, the default, is any singleton, `Some(1)` BBA's
+  small-singleton-or-void rule, `None` the old blind `4♠`. Responder asks
+  keycards (`4NT`) on 10 / 11 / 12 / 13+ points with 0 / 1–2 / 3 / 4–6 HCP
+  of K/Q/J wasted in the short suit, two points fewer with a fifth spade,
+  else signs off in `4♠`, which opener passes; the same over their double,
+  and `4♠` over their overcall up to `4♥`. The keycard tree bids `7♠` on
+  all five keycards, the trump queen (or a ninth trump) and two side kings
+  between the hands, or one with 13+ HCP in the asker's hand. **Round 3 won
+  8/8** (seed 1794301689386795430, 409,600 `--filter-spade-raise` boards
+  per cell, density 0.094, vs the blind `4♠`): `Some(4)` plain +0.0057
+  ±0.0016 / +0.0071 ±0.0020 per accepted board (none / both), PD +0.0057 /
+  +0.0070; `Some(1)` plain +0.0040 ±0.0012 / +0.0051 ±0.0015, PD +0.0040 /
+  +0.0050; and `Some(4)` over `Some(1)` directly +0.0018 ±0.0010 / +0.0020
+  ±0.0012 on both scorers, which sets the default. Per whole-draw board
+  that is about +0.0005 / +0.0007. In `Some(1)`, `6♠` where the base stops
+  in `4♠` earns +979 / +1277 IMPs on 217 / 257 boards and `7♠` where it
+  stops in `6♠` +467 / +517 on 79 / 77; the cost is `5♠` over a making
+  `4♠` after a failed ask, −96 / −144 on 61 / 71. The gate and the rung
+  come from a double-dummy census of 249,601 splinter auctions in the
+  100M-deal bank (`ab-results/spade-raise-splinter-census-2026-11-10/`): a
+  fifth spade is worth two points, and with five keycards and the queen
+  `7♠` makes on 35% / 58% / 79% / 86% with 0 / 1 / 2 / 3 side kings. The
+  rung is `slam::grand_rkcb_rows_on` with the lane's own strength terms
+  (`slam::Grand`); every other RKCB lane keeps its 19-HCP gate, and
+  `smoke-default --count 20000 --seed 1` was byte-identical before the
+  default flip. With the knob on we also read **their** `1x - 1♠ - 4y` as a
+  splinter, which moves our defence on 9 / 12 boards per cell (−5 / +23
+  IMPs, inside the totals). Earlier rounds, a fit-blind gate (points − ½ ×
+  waste ≥ 10) on the classic keycard tree: **Round 1 lost 4/4**
   (2026-11-10, `scripts/ab-spade-raise-splinter.sh`, seed
   1794257911236651474, 409,600 `--filter-spade-raise` boards per cell,
   density 0.094): `Some(1)` plain −0.0015 ±0.0011 / −0.0021 ±0.0014 per
@@ -38,10 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bucket shrank from −773 / −959 to −98 / −115; the residue is RKCB
   stopping in `6♠` where the floor's blind `7♠` makes (−163 / −242, no
   grand ask authored) and, in `any`, sign-offs without the ace (−119 /
-  −178). Stays opt-in; the default flip on non-inferiority (BBA's
-  agreement, the heart-ladder precedent) is jdh8's call. `bba-gen
-  --ns-spade-raise-splinter N`, `probe-decision` under
-  `PROBE_SPADE_RAISE_SPLINTER=N`.
+  −178). `bba-gen --ns-spade-raise-splinter off|N` (default 4),
+  `probe-decision` under `PROBE_SPADE_RAISE_SPLINTER=off|N`.
 - **`rebid.heart_raise_invite` / `rebid.heart_raise_game`, the point floors
   of opener's `3♥` and `4♥` raises after `1m - 1♥`, first defaults 16 / 19
   (2026-11-10, item 9 (e) of docs/bba-gap-campaign.md).** At 16 / 19 the
