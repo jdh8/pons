@@ -156,3 +156,73 @@ fn asker_bids_the_grand_on_keycards_and_kings() {
     kings.extend([king_ask, Call::Pass]);
     assert_eq!(best(&trie, &kings, "KQ84.KJ7.7.AK953"), seven);
 }
+
+fn build_hearts(splinter: Option<u8>) -> Trie {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.heart_raise_splinter = splinter;
+    let mut trie = Trie::new();
+    register(&mut trie, &agreements);
+    trie
+}
+
+fn after_hearts(opening: Strain, extra: &[Call]) -> Vec<Call> {
+    let mut auction = vec![
+        call(1, opening),
+        Call::Pass,
+        call(1, Strain::Hearts),
+        Call::Pass,
+    ];
+    auction.extend_from_slice(extra);
+    auction
+}
+
+/// The heart mirror: `3♠` and the double jump in the other minor over
+/// `1m - 1♥`, `4♥` with the knob off.
+#[test]
+fn opener_splinters_over_one_heart() {
+    let (off, any) = (build_hearts(None), build_hearts(Some(4)));
+    let four_hearts = call(4, Strain::Hearts);
+    // ♠7 ♥KQ84 ♦AJ87 ♣AQ53 — 16 HCP, a spade singleton: `3♠` after either minor.
+    for opening in [Strain::Clubs, Strain::Diamonds] {
+        let auction = after_hearts(opening, &[]);
+        assert_eq!(best(&off, &auction, "7.KQ84.AJ87.AQ53"), four_hearts);
+        assert_eq!(
+            best(&any, &auction, "7.KQ84.AJ87.AQ53"),
+            call(3, Strain::Spades)
+        );
+    }
+    // ♠AQ53 ♥KQ84 ♦7 ♣AJ87 after `1♣`: `4♦`.
+    assert_eq!(
+        best(&any, &after_hearts(Strain::Clubs, &[]), "AQ53.KQ84.7.AJ87"),
+        call(4, Strain::Diamonds)
+    );
+    // ♠AQ53 ♥KQ84 ♦AJ87 ♣7 after `1♦`: `4♣`.
+    assert_eq!(
+        best(
+            &any,
+            &after_hearts(Strain::Diamonds, &[]),
+            "AQ53.KQ84.AJ87.7"
+        ),
+        call(4, Strain::Clubs)
+    );
+}
+
+/// Responder's gate over the heart splinter, its `(X)` tail, and `4♥` over
+/// their overcall below it.
+#[test]
+fn responder_answers_the_heart_splinter() {
+    let trie = build_hearts(Some(4));
+    let rkcb = call(4, Strain::Notrump);
+    let game = call(4, Strain::Hearts);
+    for tail in [Call::Pass, Call::Double] {
+        let auction = after_hearts(Strain::Clubs, &[call(3, Strain::Spades), tail]);
+        // ♠92 ♥AJ85 ♦K63 ♣Q842 — 10 HCP, no waste: slam try.
+        assert_eq!(best(&trie, &auction, "92.AJ85.K63.Q842"), rkcb);
+        // ♠K2 ♥AJ85 ♦763 ♣Q842 — 10 HCP with ♠K wasted: sign off.
+        assert_eq!(best(&trie, &auction, "K2.AJ85.763.Q842"), game);
+    }
+    for overcall in [call(3, Strain::Notrump), call(4, Strain::Diamonds)] {
+        let auction = after_hearts(Strain::Clubs, &[call(3, Strain::Spades), overcall]);
+        assert_eq!(best(&trie, &auction, "92.AJ85.K63.Q842"), game);
+    }
+}

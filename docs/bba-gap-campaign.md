@@ -784,7 +784,7 @@ In bucket order; each item is its own fresh-seed A/B per
      splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
      a Drury-style responder answer and the `-` / `(X)` tails. **Built
      2026-11-10** as `rebid.spade_raise_splinter: Option<u8>` (the most HCP
-     the short suit may hold: 1 = 2a, 4 = 2b; `rebids/spade_raise_splinter.rs`),
+     the short suit may hold: 1 = 2a, 4 = 2b; `rebids/spade_raise_splinter.rs`, now `major_raise_splinter.rs`),
      default off: opener's `4x` at the `4♠` range, responder's `4NT` RKCB on
      points − ½ × waste ≥ 10 else `4♠` (opener passes), both tails, `4♠`
      over their overcall to `4♥`. The authored projection reads the splinter
@@ -834,7 +834,18 @@ In bucket order; each item is its own fresh-seed A/B per
      gate. The isolation gate reports 9 / 12 boards the package does not
      own, as it did in round 2 (8): with the knob on we read *their*
      `1x - 1♠ - 4y` as a splinter and our defence changes, −5 / +23 IMPs.
-     Owed: the heart sibling (splinters over `1m - 1♥`, its own A/B); the
+     ~~The heart sibling (splinters over `1m - 1♥`, its own A/B).~~
+     **Shipped default-on 2026-11-11** as `rebid.heart_raise_splinter`
+     (`Some(4)`; the module is now `rebids/major_raise_splinter.rs`):
+     `3♠` / `4♦` after `1♣`, `3♠` / `4♣` after `1♦`, BBA's calls, with the
+     spade lane's gate and rung, no census of its own. Round 1
+     (`scripts/ab-heart-raise-splinter.sh`, `--filter-heart-raise`, 409,600
+     accepted boards per cell, density 0.0835, seed 1794327526422590351,
+     vs the blind `4♥`) **won 4/4**: plain +0.0038 ±0.0014 / +0.0054
+     ±0.0017 (none / both), PD +0.0038 / +0.0053. The worst boards are the
+     grand rung bidding `7♥` where `6♥` was the limit (−14 / −17 each).
+     The isolation gate reports 11 / 13 boards opened by them, our reading
+     of their splinter, −27 / −72 IMPs. Owed: the
      one-king rule on the queen-relay path (an asker without the queen on
      an eight-card fit still wants two kings there). ~~(c) The
      `spade_raise_answers` slam thresholds retuned to the shipped ranges.~~

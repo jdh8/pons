@@ -1757,6 +1757,14 @@ struct Args {
     #[arg(long, default_value = "4", value_name = "off|N")]
     ns_spade_raise_splinter: String,
 
+    /// Opener's splinter raise after `1m - 1♥` (`3♠` / `4m`), the heart
+    /// mirror, on a singleton or void with at most N HCP — 4 (the default)
+    /// any singleton — or `off` (`rebid.heart_raise_splinter`, **shipped
+    /// default-on 2026-11-11**; `off` is the base arm of
+    /// `scripts/ab-heart-raise-splinter.sh`)
+    #[arg(long, default_value = "4", value_name = "off|N")]
+    ns_heart_raise_splinter: String,
+
     /// Keep responder's `3♥` raise over `1♠ - 1NT - 2♥` on 10–12, no `4♥`
     /// (`rebid.forcing_notrump_heart_game`, shipped default-on 2026-11-09;
     /// the base arm of `scripts/ab-forcing-notrump-heart-game.sh`)
@@ -3701,6 +3709,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             "off" => None,
             n => Some(n.parse().map_err(|_| {
                 anyhow::anyhow!("--ns-spade-raise-splinter must be off|N, got {n:?}")
+            })?),
+        };
+    agreements.rebid.heart_raise_splinter =
+        match args.ns_heart_raise_splinter.as_str() {
+            "off" => None,
+            n => Some(n.parse().map_err(|_| {
+                anyhow::anyhow!("--ns-heart-raise-splinter must be off|N, got {n:?}")
             })?),
         };
     agreements.rebid.forcing_notrump_heart_game = !args.no_ns_forcing_notrump_heart_game;

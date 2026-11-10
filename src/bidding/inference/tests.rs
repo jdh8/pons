@@ -1909,7 +1909,10 @@ fn authored_calls_read_what_they_gate() {
         // lower points ladder with `5+ ♠`, a length term inside a
         // disjunction, in the american and Watermelon constructive tries.
         // Knob-on stays 0.
-        ("length", 140, 0),
+        // 140 → 146 when `rebid.heart_raise_splinter` shipped (2026-11-11):
+        // the same `4NT` ladder with `5+ ♥` over the four heart splinters,
+        // in the american and Watermelon constructive tries.  Knob-on stays 0.
+        ("length", 146, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
@@ -1922,8 +1925,10 @@ fn authored_calls_read_what_they_gate() {
         // (2026-11-10): responder's `4NT` over each of the three splinter
         // suits gates on K/Q/J waste there, an ace-or-not `Or` of `suit_hcp`
         // bands on an exact node, in the american and Watermelon constructive
-        // tries.  Knob-on stays 0.
-        ("suit HCP", 6, 0),
+        // tries.  Knob-on stays 0.  6 → 12 when `rebid.heart_raise_splinter`
+        // shipped (2026-11-11): the same gate over the heart splinters, its
+        // `♠` waste new.  Knob-on stays 0.
+        ("suit HCP", 12, 0),
         // 84 → 107 when the direct-seat `(≤2♠)` guard became one exact
         // table per overcall (2026-08-06): its 23 cue/raise rules — the
         // same rules, the same hulls — moved from the fallback layer
@@ -1957,7 +1962,10 @@ fn authored_calls_read_what_they_gate() {
         // 125 → 131 when `rebid.spade_raise_splinter` shipped (2026-11-10):
         // opener's splinters over `1x - 1♠` (`4+ support`, the `4♠` raise's
         // points, shortness) in the same two tries.  Knob-on stays 0.
-        ("support", 131, 0),
+        // 131 → 133 when `rebid.heart_raise_splinter` shipped (2026-11-11):
+        // the `3♠` splinter over `1m - 1♥` in the same two tries; the `4m`
+        // splinters' text was already metered.  Knob-on stays 0.
+        ("support", 133, 0),
         ("support points", 18, 0),
     ];
     let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
@@ -2839,4 +2847,26 @@ fn basic_alert_set_is_the_whitelist() {
         alerts, WHITELIST,
         "basic's alert set drifted from the whitelist"
     );
+}
+
+/// The heart splinter (`rebid.heart_raise_splinter`, default on) reads off its
+/// authored rule: `1♣ - 1♥ - 3♠` is four hearts and short spades, not a spade suit.
+#[test]
+fn heart_splinter_reads_as_shortness() {
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.rebid.heart_raise_splinter = Some(4);
+    let auction = [
+        bid(1, Strain::Clubs),
+        Call::Pass,
+        bid(1, Strain::Hearts),
+        Call::Pass,
+        bid(3, Strain::Spades),
+        Call::Pass,
+    ];
+    let inferences = read_booked_with(&agreements, &auction);
+    let admits = |hand: &str| inferences.admits(Relative::Partner, hand.parse().expect("a hand"));
+    // ♠7 ♥KQ84 ♦AJ87 ♣AQ53 — the splinter itself.
+    assert!(admits("7.KQ84.AJ87.AQ53"));
+    // ♠AKJ8 ♥K84 ♦A7 ♣AQ53 — a natural spade hand with three hearts.
+    assert!(!admits("AKJ8.K84.A7.AQ53"));
 }

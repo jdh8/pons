@@ -5307,7 +5307,7 @@ pub struct RebidKnobs {
     /// holding at most this many HCP; responder asks keycards on points
     /// against the K/Q/J wasted there, a fifth spade worth two, else signs
     /// off in `4♠`, and the keycard tree bids `7♠` on all five keycards, the
-    /// trump queen and the side kings (`rebids/spade_raise_splinter.rs`)
+    /// trump queen and the side kings (`rebids/major_raise_splinter.rs`)
     ///
     /// **Default `Some(4)`**, any singleton, since round 3 (2026-11-10,
     /// `scripts/ab-spade-raise-splinter.sh`, 409,600 filtered boards per
@@ -5322,6 +5322,22 @@ pub struct RebidKnobs {
     /// traces.  `None` raises to `4♠` as before; `bba-gen
     /// --ns-spade-raise-splinter off|N`.
     pub spade_raise_splinter: Option<u8>,
+
+    /// Opener's splinter raise after `1m - 1♥`, the mirror of
+    /// [`Self::spade_raise_splinter`]: `3♠` / `4♦` after `1♣`, `3♠` / `4♣`
+    /// after `1♦` (BBA's book) on four hearts, the `4♥` raise's points and a
+    /// singleton or void holding at most this many HCP; responder's gate and
+    /// grand rung are the spade lane's (`rebids/major_raise_splinter.rs`)
+    ///
+    /// **Default `Some(4)`**, any singleton, since 2026-11-11
+    /// (`scripts/ab-heart-raise-splinter.sh` round 1, seed
+    /// 1794327526422590351, 409,600 `--filter-heart-raise` boards per cell,
+    /// density 0.0835): wins 4/4 over the blind `4♥`, plain +0.0038 ±0.0014 /
+    /// +0.0054 ±0.0017 per accepted board (none / both), PD +0.0038 /
+    /// +0.0053.  *Open work* item 9 (b) of `docs/bba-gap-campaign.md`.
+    /// `None` raises to `4♥` as before; `bba-gen --ns-heart-raise-splinter
+    /// off|N`.
+    pub heart_raise_splinter: Option<u8>,
 
     /// Points floor of opener's `3♥` raise after `1♣` / `1♦ - 1♥`; `2♥` is
     /// 12 up to it (**default 15**, the spade ladder's cut; 16 before
@@ -5430,6 +5446,7 @@ impl Default for RebidKnobs {
             spade_raise_four_ask: 12,
             spade_raise_game: true,
             spade_raise_splinter: Some(4),
+            heart_raise_splinter: Some(4),
             heart_raise_invite: 15,
             heart_raise_game: 17,
             forcing_notrump_heart_game: true,

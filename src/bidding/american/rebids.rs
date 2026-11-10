@@ -19,7 +19,7 @@
 //! | [`heart_spade_jump_shift`] | `1♥ - 1♠ - 3m` 18+ jump shift and responder's answers | [`RebidKnobs::heart_spade_jump_shift`] |
 //! | [`minor_jump_shift`] | responder's answers to the `1m - 1M - 3x` jump shift and opener's rebids | [`RebidKnobs::minor_jump_shift_answers`] |
 //! | [`spade_raise_ladder`] | opener's `2♠`/`3♠`/`4♠` ranges after `1x - 1♠` and responder's `3♠`/`4♠` answers | [`RebidKnobs::spade_raise_ladder`], [`RebidKnobs::spade_raise_answers`] |
-//! | [`spade_raise_splinter`] | opener's `4x` splinter raise after `1x - 1♠` and responder's answers | [`RebidKnobs::spade_raise_splinter`] |
+//! | [`major_raise_splinter`] | opener's splinter raise after `1x - 1M` and responder's answers | [`RebidKnobs::spade_raise_splinter`], [`RebidKnobs::heart_raise_splinter`] |
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
 use super::{call, other_major};
@@ -38,13 +38,13 @@ mod forcing_notrump;
 mod heart_spade_jump_shift;
 mod jump_shifts;
 mod major_jump_rebid;
+mod major_raise_splinter;
 mod major_tails;
 mod meckstroth;
 mod minor_jump_notrump;
 mod minor_jump_shift;
 mod odwrotka;
 mod spade_raise_ladder;
-mod spade_raise_splinter;
 mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
@@ -61,6 +61,9 @@ pub(super) use forcing_notrump::forcing_notrump_continuations;
 pub(super) use heart_spade_jump_shift::heart_spade_jump_shift_continuations;
 pub(super) use jump_shifts::forcing_nt_jump_shift_continuations;
 pub(super) use major_jump_rebid::major_jump_rebid_continuations;
+pub(super) use major_raise_splinter::{
+    heart_raise_splinter_continuations, spade_raise_splinter_continuations,
+};
 pub(super) use major_tails::{fourth_suit_forcing_continuations, major_rebid_tail_continuations};
 pub(super) use meckstroth::{
     invitational_minor_continuations, meckstroth_two_notrump_continuations,
@@ -69,7 +72,6 @@ pub(super) use minor_jump_notrump::minor_jump_notrump_slam_continuations;
 pub(super) use minor_jump_shift::minor_jump_shift_continuations;
 pub(super) use odwrotka::odwrotka_continuations;
 pub(super) use spade_raise_ladder::spade_raise_ladder_continuations;
-pub(super) use spade_raise_splinter::spade_raise_splinter_continuations;
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
@@ -149,8 +151,14 @@ fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
     rules = with_passed_hand_pass(rules, &agreements.rebid);
     // Natural 18+ jump shift (default on).
     rules = with_heart_spade_jump_shift(rules, &agreements.rebid);
-    // Splinter raise (default off): a short suit outranks the `4♠` raise.
-    rules = spade_raise_splinter::with_spade_raise_splinter(rules, Suit::Hearts, four, agreements);
+    // Splinter raise (default on): a short suit outranks the `4♠` raise.
+    rules = major_raise_splinter::with_major_raise_splinter(
+        rules,
+        Suit::Hearts,
+        Suit::Spades,
+        four,
+        agreements,
+    );
     rules
         .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 90, len(Suit::Diamonds, 4..))
@@ -294,11 +302,14 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     }
     rules = with_passed_hand_pass(rules, &agreements.rebid);
     // Odwrotka (default off): `2♦!` as the artificial reverse over `1♣ - 1M`.
-    // Splinter raise of spades (default off): a short suit outranks `4♠`.
-    if responder_major == Suit::Spades {
-        rules =
-            spade_raise_splinter::with_spade_raise_splinter(rules, opener_minor, four, agreements);
-    }
+    // Splinter raise (default on): a short suit outranks `4M`.
+    rules = major_raise_splinter::with_major_raise_splinter(
+        rules,
+        opener_minor,
+        responder_major,
+        four,
+        agreements,
+    );
     rules = with_odwrotka(rules, opener_minor, agreements);
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
     rules = with_extras_ladder(
@@ -481,6 +492,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
             major_rebid_tail_continuations(),
             spade_raise_ladder_continuations(),
             spade_raise_splinter_continuations(),
+            heart_raise_splinter_continuations(),
             fourth_suit_forcing_continuations(),
             remaining_rebid_bases(),
         ],

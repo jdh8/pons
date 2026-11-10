@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.heart_raise_splinter`, opener's splinter raise after `1m - 1♥`,
+  default `Some(4)` (2026-11-11, item 9 (b) of docs/bba-gap-campaign.md).**
+  The heart mirror of the spade splinter below: `3♠` / `4♦` after `1♣`, `3♠`
+  / `4♣` after `1♦` (BBA's book) show four hearts, the `4♥` raise's 17+
+  points and a singleton or void with at most the knob's HCP; responder's
+  waste-aware `4NT` gate (a fifth heart worth two points), the `4♥`
+  sign-off, both tails, `4♥` over their overcall below it and the grand rung
+  are the spade lane's, reused without a census. **Round 1 won 4/4**
+  (`scripts/ab-heart-raise-splinter.sh`, seed 1794327526422590351, 409,600
+  `--filter-heart-raise` boards per cell, density 0.0835, vs the blind
+  `4♥`): plain +0.0038 ±0.0014 / +0.0054 ±0.0017 per accepted board (none /
+  both), PD +0.0038 / +0.0053; 748 / 860 boards fired, +2.08 / +2.57 IMPs
+  per fired board, about +0.0003 / +0.0005 per whole-draw board. As in the
+  spade lane, the knob also reads *their* `1m - 1♥` splinter as one (11 / 13
+  boards, −27 / −72 IMPs, inside the headline). The splinter module is now
+  `rebids/major_raise_splinter.rs`, generic over the major; the spade lane
+  is byte-identical (`smoke-default --count 20000 --seed 1` before the
+  flip). `bba-gen --ns-heart-raise-splinter off|N`,
+  `PROBE_HEART_RAISE_SPLINTER`. Re-blessed `alert-sites.txt` and three
+  pinned knob-off leak counts.
 - **`rebid.spade_raise_splinter`, opener's splinter raise after `1x - 1♠`,
   default `Some(4)` (2026-11-10, item 9 (b) of docs/bba-gap-campaign.md).**
   A double jump in a new suit (`4♦` / `4♥` after `1♣`, `4♣` / `4♥` after
