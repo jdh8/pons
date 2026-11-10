@@ -782,7 +782,34 @@ In bucket order; each item is its own fresh-seed A/B per
      bids `6♠` (−331 / 102). Its `4♠` on 7+ over `3♠` wins (+98 / 336).
      (b) Splinters as arm 2 on top of the ranges, with sub-arms 2a (no
      splinter on a singleton K/Q, BBA's rule) and 2b (any singleton), plus
-     a Drury-style responder answer and the `-` / `(X)` tails. ~~(c) The
+     a Drury-style responder answer and the `-` / `(X)` tails. **Built
+     2026-11-10** as `rebid.spade_raise_splinter: Option<u8>` (the most HCP
+     the short suit may hold: 1 = 2a, 4 = 2b; `rebids/spade_raise_splinter.rs`),
+     default off: opener's `4x` at the `4♠` range, responder's `4NT` RKCB on
+     points − ½ × waste ≥ 10 else `4♠` (opener passes), both tails, `4♠`
+     over their overcall to `4♥`. The authored projection reads the splinter
+     as ♠4, ♦/♥/♣ 0–1, 17–21 points without a bespoke reader. Round 1
+     (`scripts/ab-spade-raise-splinter.sh`, `--filter-spade-raise`, 409,600
+     accepted boards per cell, seed 1794257911236651474) **lost 4/4**:
+     `Some(1)` plain −0.0015 ±0.0011 / −0.0021 ±0.0014 (none / both),
+     `Some(4)` −0.0021 ±0.0014 / −0.0028 ±0.0017, PD agreeing. Responder
+     recognised the splinter; the loss is the sign-off: `4♠` where the
+     floor's `6♠` over a blind `4♠` makes (−674 / −867 IMPs, 233 / 263
+     boards, `small`), nearly all with responder holding the ace of the
+     short suit on 9–12 points, which ½ × waste counts as 2 wasted. The
+     asks that do fire win (+317 / +425). **Round 2 (2026-11-10, seed
+     1794297366600873980, same cells)** counts K/Q/J only as waste (the
+     ace opposite shortness is a working card, BBA's reading; the new
+     `constraint::has_ace` splits the ladder): **non-inferior 8/8, no
+     win**, `Some(1)` plain +0.0005 ±0.0011 / ±0.0014 (none / both),
+     `Some(4)` +0.0005 ±0.0014 / ±0.0017, PD within ±0.0001. The ace
+     sign-off bucket fell to −98 / −115; the residue is RKCB stopping in
+     `6♠` where the floor's blind `7♠` makes (−163 / −242 on 58 / 66
+     boards; no grand ask after the keycard answer) and, in `any` only,
+     sign-offs without the ace (−119 / −178). A grand-slam rung over the
+     keycard answer is the next lever. Stays opt-in; flipping the default
+     to `Some(1)` on non-inferiority (BBA's agreement, the 9 (e) heart
+     ladder precedent) is jdh8's call. ~~(c) The
      `spade_raise_answers` slam thresholds retuned to the shipped ranges.~~
      **Round 4 (2026-11-08, seed 1794087241043204556, same filter and
      board count) closed it as a loss:** the asks as knobs

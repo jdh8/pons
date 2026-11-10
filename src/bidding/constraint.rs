@@ -2928,6 +2928,37 @@ pub fn stopper_in(suit: Suit) -> Cons<impl Constraint + Clone> {
     Cons(StopperIn(suit))
 }
 
+/// The ace of a specific suit (the [`has_ace`] constraint)
+#[derive(Clone)]
+struct HasAce(Suit);
+
+impl Constraint for HasAce {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(hand[self.0].contains(Rank::A))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("{} ace", self.0))
+    }
+}
+
+/// The ace of the given suit
+///
+/// Facing partner's shortness the ace is a working card while K, Q and J are
+/// wasted: a splinter's waste count subtracts it from [`suit_hcp`].
+#[must_use]
+pub fn has_ace(suit: Suit) -> Cons<impl Constraint + Clone> {
+    Cons(HasAce(suit))
+}
+
 /// A stopper in every suit the opponents bid (the
 /// [`stopper_in_their_suits`] constraint)
 #[derive(Clone)]

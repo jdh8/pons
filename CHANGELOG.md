@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.spade_raise_splinter`, opener's splinter raise after `1x - 1♠`,
+  default off (2026-11-10, item 9 (b) of docs/bba-gap-campaign.md).** A
+  double jump in a new suit (`4♦` / `4♥` after `1♣`, `4♣` / `4♥` after `1♦`,
+  `4♣` / `4♦` after `1♥`) shows four spades, the `4♠` raise's points (17+
+  under the shipped ladder) and a singleton or void holding at most the
+  knob's HCP: `Some(1)` is BBA's small-singleton-or-void rule, `Some(4)` any
+  singleton. Responder asks keycards (`4NT`, the shared RKCB tree) on points
+  − ½ × the HCP wasted in the short suit ≥ 10, else signs off in `4♠`, which
+  opener passes; the same over their double, and `4♠` over their overcall up
+  to `4♥`. Off, the hand raises to `4♠` as before. **Round 1 lost 4/4**
+  (2026-11-10, `scripts/ab-spade-raise-splinter.sh`, seed
+  1794257911236651474, 409,600 `--filter-spade-raise` boards per cell,
+  density 0.094): `Some(1)` plain −0.0015 ±0.0011 / −0.0021 ±0.0014 per
+  accepted board (none / both), `Some(4)` −0.0021 ±0.0014 / −0.0028
+  ±0.0017, PD agreeing on every cell. The trace is one bucket: responder
+  signs off in `4♠` where the floor raises the blind `4♠` to a making `6♠`
+  (−674 / −867 IMPs on 233 / 263 boards, `small`), almost all with
+  responder holding the **ace** of the splinter suit on 9–12 points, which
+  the ½ × waste discount counts as 2 wasted. An ace opposite shortness is a
+  working card, not waste. RKCB stopping in `6♠` where the floor bid `7♠`
+  is the rest (−252 / −330). The asks it does make win (+317 / +425 on
+  `6♠` the floor missed). **Round 2 (2026-11-10, seed 1794297366600873980,
+  same cells) counts only K/Q/J as waste** (the new `constraint::has_ace`
+  splits the ladder) and is **non-inferior 8/8, no win**: `Some(1)` plain
+  +0.0005 ±0.0011 / +0.0005 ±0.0014 (none / both), `Some(4)` +0.0005
+  ±0.0014 / +0.0005 ±0.0017, PD the same to ±0.0001. The ace sign-off
+  bucket shrank from −773 / −959 to −98 / −115; the residue is RKCB
+  stopping in `6♠` where the floor's blind `7♠` makes (−163 / −242, no
+  grand ask authored) and, in `any`, sign-offs without the ace (−119 /
+  −178). Stays opt-in; the default flip on non-inferiority (BBA's
+  agreement, the heart-ladder precedent) is jdh8's call. `bba-gen
+  --ns-spade-raise-splinter N`, `probe-decision` under
+  `PROBE_SPADE_RAISE_SPLINTER=N`.
 - **`rebid.heart_raise_invite` / `rebid.heart_raise_game`, the point floors
   of opener's `3♥` and `4♥` raises after `1m - 1♥`, first defaults 16 / 19
   (2026-11-10, item 9 (e) of docs/bba-gap-campaign.md).** At 16 / 19 the

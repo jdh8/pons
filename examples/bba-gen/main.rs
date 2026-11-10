@@ -1749,6 +1749,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_spade_raise_game: bool,
 
+    /// Opener's splinter raise after `1x - 1♠` on a singleton or void with
+    /// at most N HCP — 1 is BBA's small-singleton rule, 4 any singleton
+    /// (`rebid.spade_raise_splinter`, default off; the test arms of
+    /// `scripts/ab-spade-raise-splinter.sh`)
+    #[arg(long, value_name = "N")]
+    ns_spade_raise_splinter: Option<u8>,
+
     /// Keep responder's `3♥` raise over `1♠ - 1NT - 2♥` on 10–12, no `4♥`
     /// (`rebid.forcing_notrump_heart_game`, shipped default-on 2026-11-09;
     /// the base arm of `scripts/ab-forcing-notrump-heart-game.sh`)
@@ -3688,6 +3695,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_raise_game = args.ns_heart_raise_game;
     agreements.rebid.spade_raise_answers = args.ns_spade_raise_answers;
     agreements.rebid.spade_raise_game = !args.no_ns_spade_raise_game;
+    agreements.rebid.spade_raise_splinter = args.ns_spade_raise_splinter;
     agreements.rebid.forcing_notrump_heart_game = !args.no_ns_forcing_notrump_heart_game;
     agreements.rebid.forcing_notrump_heart_game_five = args.ns_forcing_notrump_heart_game_five;
     agreements.rebid.spade_raise_three_ask = args.ns_spade_raise_three_ask;
