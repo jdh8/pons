@@ -5049,6 +5049,27 @@ pub struct RebidKnobs {
     /// --no-ns-two-over-one-six-four-hearts`
     /// (`scripts/ab-two-over-one-six-four.sh`).
     pub two_over_one_six_four_hearts: bool,
+    /// Responder's quantitative `4NT` instead of `3NT` on 18+ HCP after a 2/1
+    ///
+    /// **Default on — measured win 2026-11-11.**  Off, responder's default game in the
+    /// no-fit 2/1 continuations (`1M - 2x - R -` and `1♦ - 2♣ - R -`) is
+    /// `3NT` on 13+ HCP with no cap, so a 20-count facing an opener bids
+    /// `3NT` and a 31+ HCP slam is passed out.  The `7f3d57bd` anchor prices
+    /// that node at 600 rows, −802 plain / −796 PD per 409,600 boards, all of
+    /// it on 18+ HCP (134 rows, −920 plain, −6.9 per board); at ≤ 17 the
+    /// `3NT` nets +111.  On, `3NT` keeps 13–17, `4NT` (natural, quantitative)
+    /// takes 18–20 and `6NT` 21+.  Opener answers `4NT` with `6M` on a sixth
+    /// card of the major and 13+ HCP, `6NT` on 13+ (31 combined, the
+    /// [notrump-slam](../../docs/notrump-slam.md) threshold), else passes.
+    /// Vs BBA (819,200 boards per cell, `SEED_BASE` 1794339913594442018)
+    /// plain DD +0.0010 / +0.0012 / +0.0009 / +0.0012 IMPs/board
+    /// none/ns/ew/both (±0.0005), PD the same to the fourth decimal, SD-PD
+    /// +0.0012 to +0.0017, each a win.  The capped `3NT` also reads as 13–17,
+    /// so opener no longer raises it to `6NT` (64 of 471 divergent boards,
+    /// none vul); opener's own invite over it is unauthored.  Off-switch
+    /// `bba-gen --no-ns-two-over-one-quantitative`
+    /// (`scripts/ab-two-over-one-quantitative.sh`).
+    pub two_over_one_quantitative: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
     /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
@@ -5430,6 +5451,7 @@ impl Default for RebidKnobs {
             two_over_one_side_suit_first: true,
             two_over_one_reverse_extras: true,
             two_over_one_six_four_hearts: true,
+            two_over_one_quantitative: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,

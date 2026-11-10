@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.two_over_one_quantitative`, responder's quantitative `4NT` after
+  a no-fit 2/1, default on (2026-11-11).** Off, responder's
+  default game at `1M - 2x - R -` and `1♦ - 2♣ - R -` is `3NT` on 13+ HCP
+  with no cap, so a 20-count facing an opener bids `3NT` and a 31+ HCP slam
+  is passed out. The `7f3d57bd` anchor prices that node at 600 rows, −802
+  plain / −796 PD per 409,600 boards, all of it on 18+ HCP (134 rows, −920
+  plain, −6.9 per board; BBA bids a second suit or `4NT` and reaches 6/7);
+  at ≤ 17 the `3NT` nets +111. On, `3NT` keeps 13–17, `4NT` (natural,
+  quantitative) takes 18–20 and `6NT` 21+; opener answers `4NT` with `6M`
+  on a sixth card of the major and 13+ HCP, `6NT` on 13+ (31 combined, the
+  notrump-slam threshold), else passes. Vs BBA (819,200 boards per cell,
+  `SEED_BASE` 1794339913594442018): plain DD +0.0010 / +0.0012 / +0.0009 /
+  +0.0012 IMPs/board none/ns/ew/both (±0.0005), PD the same to the fourth
+  decimal, SD-PD +0.0012 to +0.0017, a win in all four cells on every
+  scorer; 463–493 boards fired per cell at +1.7 to +2.0 IMPs each. The
+  capped `3NT` now reads as 13–17, so opener stops raising it to `6NT` on
+  the floor (64 of 471 divergent boards at none vul); opener's own invite
+  over it is unauthored. Off-switch `bba-gen
+  --no-ns-two-over-one-quantitative`; `scripts/ab-two-over-one-quantitative.sh`.
 - **`rebid.heart_raise_splinter`, opener's splinter raise after `1m - 1♥`,
   default `Some(4)` (2026-11-11, item 9 (b) of docs/bba-gap-campaign.md).**
   The heart mirror of the spade splinter below: `3♠` / `4♦` after `1♣`, `3♠`

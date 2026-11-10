@@ -185,8 +185,13 @@ pub(super) fn opener_rebid(
 /// own suit, raising opener's 6-card rebid, and the default 3NT game
 /// follow in order.
 ///
+/// `quantitative`
+/// ([`RebidKnobs::two_over_one_quantitative`][crate::bidding::agreements::RebidKnobs::two_over_one_quantitative]):
+/// `3NT` is capped at 17 HCP; `4NT` (natural, quantitative) takes 18–20 and
+/// `6NT` 21+, answered by [`quantitative_answer`].
+///
 /// No [`Pass`][Call::Pass] rule: the auction is still game forcing.
-fn responder_rebid(major: Suit, resp: Suit) -> Rules {
+fn responder_rebid(major: Suit, resp: Suit, quantitative: bool) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
 
@@ -200,9 +205,8 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
             call(4, major_strain),
             100,
             partner_suit_is(major) & len(major, 2..),
-        )
-        // Default game.
-        .rule(call(3, Strain::Notrump), 80, hcp(13..));
+        );
+    rules = default_game(rules, quantitative);
 
     // Raise each suit opener might have bid (x ∉ {major, resp}).
     for &x in &[Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -303,9 +307,11 @@ fn opener_rebid_1d_2c(reverse_extras: bool) -> Rules {
 
 /// Responder's rebid after `1♦ - 2♣ - R`
 ///
+/// `quantitative` as in [`responder_rebid`].
+///
 /// No [`Pass`][Call::Pass] rule.
-fn responder_rebid_1d_2c() -> Rules {
-    Rules::new()
+fn responder_rebid_1d_2c(quantitative: bool) -> Rules {
+    let rules = Rules::new()
         // Raise opener's diamonds.
         .rule(
             call(3, Strain::Diamonds),
@@ -313,9 +319,45 @@ fn responder_rebid_1d_2c() -> Rules {
             partner_suit_is(Suit::Diamonds) & len(Suit::Diamonds, 4..),
         )
         // Rebid clubs.
-        .rule(call(3, Strain::Clubs), 110, len(Suit::Clubs, 6..))
-        // Default game.
-        .rule(call(3, Strain::Notrump), 80, hcp(13..))
+        .rule(call(3, Strain::Clubs), 110, len(Suit::Clubs, 6..));
+    default_game(rules, quantitative)
+}
+
+/// Responder's default game at a no-fit 2/1 node: `3NT` on 13+, or under
+/// `quantitative` `3NT` 13–17, the quantitative `4NT` 18–20 and `6NT` 21+
+///
+/// Natural notrump calls constrained on HCP alone, so none is alerted.
+/// ponytail: flat HCP thresholds whatever opener's rebid showed; a
+/// reverse's 15+ would justify lowering them by two.
+fn default_game(rules: Rules, quantitative: bool) -> Rules {
+    if quantitative {
+        rules
+            .rule(call(3, Strain::Notrump), 80, hcp(13..=17))
+            .rule(call(4, Strain::Notrump), 80, hcp(18..=20))
+            .rule(call(6, Strain::Notrump), 80, hcp(21..))
+    } else {
+        rules.rule(call(3, Strain::Notrump), 80, hcp(13..))
+    }
+}
+
+/// Opener's answer to responder's quantitative `4NT` (18–20 HCP, no fit)
+///
+/// 13+ HCP makes 31 combined, the [notrump-slam](../../../docs/notrump-slam.md)
+/// threshold: `6M` on a sixth card of the opened major (responder denied
+/// three-card support), else `6NT`; below it opener passes.
+fn quantitative_answer(major: Option<Suit>) -> Rules {
+    let rules = Rules::new();
+    let rules = match major {
+        Some(major) => rules.rule(
+            call(6, Strain::from(major)),
+            130,
+            hcp(13..) & len(major, 6..),
+        ),
+        None => rules,
+    };
+    rules
+        .rule(call(6, Strain::Notrump), 120, hcp(13..))
+        .rule(Call::Pass, 0, hcp(..13))
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +426,11 @@ pub(super) fn base() -> Package {
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
                         let after_rebid = format!("{prefix} {rebid_call} -");
-                        let mut rebid_rules = responder_rebid(major, resp);
+                        let mut rebid_rules = responder_rebid(
+                            major,
+                            resp,
+                            agreements.rebid.two_over_one_quantitative,
+                        );
                         // Minor before spades: responder shows the four
                         // spades it skipped at `1♠`, naturally.  ponytail:
                         // two-level only; `2NT` denies four spades (5-4 is
@@ -413,6 +459,12 @@ pub(super) fn base() -> Package {
                             ));
                         }
                         entries.extend(rows_of(node(&after_rebid), rebid_rules));
+                        if agreements.rebid.two_over_one_quantitative {
+                            entries.extend(rows_of(
+                                node(&format!("{after_rebid} 4NT -")),
+                                quantitative_answer(Some(major)),
+                            ));
+                        }
                         if let Call::Bid(rebid_bid) = rebid_call
                             && rebid_bid < three_major
                         {
@@ -439,8 +491,14 @@ pub(super) fn base() -> Package {
             for rebid_call in rebid_calls {
                 entries.extend(rows_of(
                     Pattern::node(&format!("{prefix} {rebid_call} -")),
-                    responder_rebid_1d_2c(),
+                    responder_rebid_1d_2c(agreements.rebid.two_over_one_quantitative),
                 ));
+                if agreements.rebid.two_over_one_quantitative {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{prefix} {rebid_call} - 4NT -")),
+                        quantitative_answer(None),
+                    ));
+                }
             }
 
             entries

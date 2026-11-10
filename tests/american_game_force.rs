@@ -321,3 +321,84 @@ fn six_four_hearts_shows_hearts_then_spades() {
         assert_eq!(best_call(&on, &notrump, six_four), call(4, Strain::Spades));
     }
 }
+
+// --- Responder's quantitative 4NT (rebid.two_over_one_quantitative) --------
+
+/// Deals from the `7f3d57bd` anchor: responder with 18+ HCP and no fit
+/// bid the uncapped `3NT` and a 31+ HCP slam was passed out.  On, `3NT`
+/// keeps 13–17, `4NT` takes 18–20, `6NT` 21+; opener accepts `4NT` on 13+.
+#[test]
+fn quantitative_four_notrump_after_two_over_one() {
+    use pons::bidding::agreements::Agreements;
+
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.two_over_one_quantitative = on;
+        american(&agreements).bind()
+    };
+    let (off, on) = (arm(false), arm(true));
+    let p = Call::Pass;
+
+    // 1♠ - 2♣ - 3♣ -: responder K6.KQ.A986.AKJ94, 20 HCP, two spades.
+    let auction = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(3, Strain::Clubs),
+        p,
+    ];
+    let twenty = "K6.KQ.A986.AKJ94";
+    assert_eq!(best_call(&off, &auction, twenty), call(3, Strain::Notrump));
+    assert_eq!(best_call(&on, &auction, twenty), call(4, Strain::Notrump));
+    // 15 HCP still bids 3NT; 22 HCP blasts 6NT.
+    assert_eq!(
+        best_call(&on, &auction, "K6.KQ.J986.AQJ94"),
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&on, &auction, "K6.AKQ.A986.AKJ94"),
+        call(6, Strain::Notrump),
+    );
+
+    // Opener's answer: AQ985.AJ3.K.Q832 (16 HCP, five spades) → 6NT;
+    // a minimum passes; six spades and 13+ → 6♠.
+    let answer = [auction.as_slice(), &[call(4, Strain::Notrump), p]].concat();
+    assert_eq!(
+        best_call(&on, &answer, "AQ985.AJ3.K.Q832"),
+        call(6, Strain::Notrump),
+    );
+    assert_eq!(best_call(&on, &answer, "AQ985.J73.K4.Q832"), p);
+    assert_eq!(
+        best_call(&on, &answer, "AQ9854.AJ3.K.Q83"),
+        call(6, Strain::Spades),
+    );
+
+    // 1♦ - 2♣ - 2NT -: responder AK9.A.KQT3.AK984 (23 HCP) → 6NT; a 19-count
+    // asks with 4NT and opener's 13+ accepts.
+    let minor = [
+        call(1, Strain::Diamonds),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Notrump),
+        p,
+    ];
+    assert_eq!(
+        best_call(&on, &minor, "AK9.A.KQT3.AK984"),
+        call(6, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&on, &minor, "K98.A4.KQT3.AK984"),
+        call(4, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&off, &minor, "K98.A4.KQT3.AK984"),
+        call(3, Strain::Notrump),
+    );
+    let minor_answer = [minor.as_slice(), &[call(4, Strain::Notrump), p]].concat();
+    assert_eq!(
+        best_call(&on, &minor_answer, "Q7.KQT5.AJ64.Q62"),
+        call(6, Strain::Notrump),
+    );
+}
