@@ -7,14 +7,16 @@
 //! the practice oracle prices a thousand reshuffles where the browser does a
 //! hundred.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::mpsc;
 
 use gpui::prelude::*;
 use gpui::{
-    App, Application, Bounds, Context, Div, FocusHandle, HighlightStyle, KeyDownEvent,
-    SharedString, Stateful, StyledText, Window, WindowBounds, WindowOptions, div, px, rgb, size,
+    App, Application, Bounds, Context, Div, FocusHandle, Font, FontWeight, KeyDownEvent,
+    SharedString, Stateful, StyledText, TextRun, Window, WindowBounds, WindowOptions, div, px,
+    relative, rgb, rgba, size,
 };
 use pons_web::WebTable;
 use serde::Deserialize;
@@ -32,14 +34,29 @@ const ORACLE_CHUNK: u32 = 100;
 // ponytail: paging, not a virtual list — `gpui::list` if scrolling the whole book matters
 const PAGE: usize = 40;
 
-const BG: u32 = 0x1e1f22;
-const PANEL: u32 = 0x2b2d31;
-const BORDER: u32 = 0x45474d;
-const TEXT: u32 = 0xe6e6e6;
-const DIM: u32 = 0x9a9ca3;
-const ACCENT: u32 = 0x2f6fde;
-const GOOD: u32 = 0x4ade80;
-const BAD: u32 = 0xf87171;
+// The web UI's look, copied by hand from `web/style.css` (`:root` and `body`):
+// flat felt, card-paper panels, gold for the active choice.  Keep the two in step.
+const FELT: u32 = 0x2c7a63;
+const PAPER: u32 = 0xfdfdf7;
+const INK: u32 = 0x222222;
+const GOLD: u32 = 0xf5c518;
+/// Text straight on the felt
+const CHALK: u32 = 0xf2f2f2;
+const SPADE: u32 = 0x1a1a1a;
+const HEART: u32 = 0xc0392b;
+const DIAMOND: u32 = 0xe07b00;
+const CLUB: u32 = 0x1e7a45;
+/// Outline of a control on the felt, and its hover wash: white at 35% and 12%
+const RIM: u32 = 0xffffff59;
+const WASH: u32 = 0xffffff1f;
+/// Secondary text is the surrounding colour at this opacity, on felt and paper
+/// alike — the web's `.hint` / `.count`
+const DIM: f32 = 0.65;
+/// The four suit glyphs of Libertinus Sans, the web's `@font-face`
+/// (`assets/SUITS-LICENSE.txt`); every other glyph stays in the system UI font.
+/// The embedded file aliases 'm' to the spade, or GPUI's Linux text system
+/// rejects the face — see `assets/suits.py`.
+const SUIT_FONT: &str = "Libertinus Suits";
 
 const SEATS: [&str; 4] = ["N", "E", "S", "W"];
 const VULS: [&str; 4] = ["none", "ns", "ew", "both"];
@@ -213,28 +230,52 @@ fn satisfies(value: &Value, want: Option<&str>) -> bool {
     }
 }
 
-/// Text with its suit symbols in the house colors (orange diamonds, blue clubs)
-fn suits(text: impl Into<SharedString>) -> StyledText {
-    let text: SharedString = text.into();
-    let highlights: Vec<_> = text
-        .char_indices()
-        .filter_map(|(at, c)| {
-            let color = match c {
-                '♥' => 0xef4444,
-                '♦' => 0xf59e0b,
-                '♣' => 0x60a5fa,
-                _ => return None,
-            };
-            let style = HighlightStyle {
-                color: Some(rgb(color).into()),
-                ..Default::default()
-            };
-            Some((at..at + c.len_utf8(), style))
-        })
-        .collect();
-    StyledText::new(text).with_highlights(highlights)
+/// Text with its suit symbols in the house colors and the house suit font
+///
+/// Always on paper: the green club and the near-black spade vanish on the felt.
+#[derive(IntoElement)]
+struct Suits(SharedString);
+
+fn suits(text: impl Into<SharedString>) -> Suits {
+    Suits(text.into())
 }
 
+impl RenderOnce for Suits {
+    fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+        let style = window.text_style();
+        let mut runs = Vec::new();
+        let mut plain = 0;
+        for c in self.0.chars() {
+            let color = match c {
+                '♠' => SPADE,
+                '♥' => HEART,
+                '♦' => DIAMOND,
+                '♣' => CLUB,
+                _ => {
+                    plain += c.len_utf8();
+                    continue;
+                }
+            };
+            if plain > 0 {
+                runs.push(style.to_run(std::mem::take(&mut plain)));
+            }
+            runs.push(TextRun {
+                font: Font {
+                    family: SUIT_FONT.into(),
+                    ..style.font()
+                },
+                color: rgb(color).into(),
+                ..style.to_run(c.len_utf8())
+            });
+        }
+        if plain > 0 {
+            runs.push(style.to_run(plain));
+        }
+        StyledText::new(self.0).with_runs(runs)
+    }
+}
+
+/// A control on the felt: outlined, gold when it is the active choice
 fn button(id: String, label: impl IntoElement, active: bool, enabled: bool) -> Stateful<Div> {
     div()
         .id(SharedString::from(id))
@@ -242,22 +283,43 @@ fn button(id: String, label: impl IntoElement, active: bool, enabled: bool) -> S
         .py_1()
         .rounded_md()
         .border_1()
-        .border_color(rgb(BORDER))
-        .bg(rgb(if active { ACCENT } else { PANEL }))
+        .border_color(if active { rgb(GOLD) } else { rgba(RIM) })
+        .when(active, |this| this.bg(rgb(GOLD)).text_color(rgb(INK)))
         .when(!enabled, |this| this.opacity(0.35))
-        .when(enabled, |this| {
-            this.cursor_pointer().hover(|style| style.bg(rgb(ACCENT)))
+        .when(enabled, |this| this.cursor_pointer())
+        .when(enabled && !active, |this| {
+            this.hover(|style| style.bg(rgba(WASH)))
         })
         .child(label)
 }
 
+/// A bidding-box key: a paper chip, so a suit keeps its colour
+fn key(id: String, label: impl IntoElement, enabled: bool) -> Stateful<Div> {
+    div()
+        .id(SharedString::from(id))
+        .py_1()
+        .flex()
+        .justify_center()
+        .rounded_md()
+        .bg(rgb(PAPER))
+        .text_color(rgb(INK))
+        .font_weight(FontWeight::SEMIBOLD)
+        .when(!enabled, |this| this.opacity(0.35))
+        .when(enabled, |this| {
+            this.cursor_pointer().hover(|style| style.bg(rgb(0xffffff)))
+        })
+        .child(label)
+}
+
+/// A card-paper panel on the felt
 fn panel() -> Div {
     div()
-        .p_2()
-        .rounded_md()
-        .bg(rgb(PANEL))
-        .border_1()
-        .border_color(rgb(BORDER))
+        .px_3()
+        .py_2()
+        .rounded_lg()
+        .bg(rgb(PAPER))
+        .text_color(rgb(INK))
+        .shadow_sm()
 }
 
 impl Pons {
@@ -490,10 +552,10 @@ impl Pons {
 
         let mut page = div().flex().flex_col().gap_3().child(controls);
         if !self.status.is_empty() {
-            page = page.child(div().text_color(rgb(BAD)).child(self.status.clone()));
+            page = page.child(panel().text_color(rgb(HEART)).child(self.status.clone()));
         }
         let Some(snap) = &self.snap else {
-            return page.child(div().text_color(rgb(DIM)).child(
+            return page.child(div().opacity(DIM).child(
                 "Deal a practice board to bid one seat against the bots, a demo board \
                  to watch them, or paste a PBN deal from the clipboard.",
             ));
@@ -502,7 +564,7 @@ impl Pons {
         let hand = |seat: char| {
             let mut cell = panel().w(px(170.)).flex().flex_col();
             let Some(hand) = snap.hands.get(&seat) else {
-                return cell.text_color(rgb(DIM)).child(format!("{seat} — hidden"));
+                return cell.child(div().opacity(DIM).child(format!("{seat} — hidden")));
             };
             let you = if snap.seat == Some(seat) {
                 " (you)"
@@ -511,7 +573,7 @@ impl Pons {
             };
             cell = cell.child(
                 div()
-                    .text_color(rgb(DIM))
+                    .opacity(DIM)
                     .child(format!("{seat}{you} · {} HCP", hand.hcp)),
             );
             for (symbol, cards) in [
@@ -548,7 +610,7 @@ impl Pons {
         let mut auction = panel().flex().flex_col().child(
             div()
                 .flex()
-                .text_color(rgb(DIM))
+                .opacity(DIM)
                 .children(COLUMNS.map(|seat| cell(seat.to_string()))),
         );
         for line in cells.chunks(4) {
@@ -556,7 +618,7 @@ impl Pons {
         }
         auction = auction.child(
             div()
-                .text_color(rgb(DIM))
+                .opacity(DIM)
                 .child(format!("Dealer {} · Vul {}", snap.dealer, snap.vul)),
         );
 
@@ -566,7 +628,7 @@ impl Pons {
             let call = |code: String, cx: &mut Context<Self>| {
                 let legal = snap.legal.contains(&code);
                 let label = suits(code.clone());
-                button(format!("call-{code}"), label, false, legal)
+                key(format!("call-{code}"), label, legal)
                     .w(px(44.))
                     .when(legal, |this| {
                         this.on_click(cx.listener(move |this, _, _, cx| {
@@ -599,14 +661,18 @@ impl Pons {
                     .collect::<Vec<_>>()
                     .join("   ");
                 side = side.child(
-                    div()
-                        .text_color(rgb(DIM))
-                        .child("Our tricks, as the net reads the auction:")
+                    panel()
+                        .child(
+                            div()
+                                .opacity(DIM)
+                                .child("Our tricks, as the net reads the auction:"),
+                        )
                         .child(suits(line)),
                 );
             }
         }
 
+        let mut rows = panel().flex().flex_col().gap_1();
         for feedback in &snap.feedback {
             // Ladder in nats when an authored node answered this hand (a
             // precedence), odds when the floor did.
@@ -623,11 +689,11 @@ impl Pons {
                 .collect::<Vec<_>>()
                 .join(" · ");
             let (mark, color) = if feedback.agreed {
-                ("✓", GOOD)
+                ("✓", CLUB)
             } else {
-                ("✗", BAD)
+                ("✗", HEART)
             };
-            side = side.child(
+            rows = rows.child(
                 div()
                     .flex()
                     .gap_2()
@@ -641,11 +707,23 @@ impl Pons {
             );
         }
 
+        if !snap.feedback.is_empty() {
+            side = side.child(rows);
+        }
+
         if let Some(contract) = &snap.contract {
-            side = side.child(suits(format!("Contract: {contract}")));
+            // A paper pill, as on the web, so the strain keeps its colour
+            side = side.child(
+                div().flex().justify_center().child(
+                    panel()
+                        .rounded_full()
+                        .font_weight(FontWeight::BOLD)
+                        .child(suits(format!("Contract: {contract}"))),
+                ),
+            );
         }
         if let Some(oracle) = &self.oracle {
-            side = side.child(format!(
+            side = side.child(panel().child(format!(
                 "Oracle, {}/{ORACLE_TOTAL} opponent reshuffles: makes {:.0}% · {:.2} tricks \
                  ({}–{}) · mean score {:+.0}",
                 oracle.n,
@@ -654,14 +732,14 @@ impl Pons {
                 oracle.tricks_min,
                 oracle.tricks_max,
                 oracle.mean_score,
-            ));
+            )));
         }
         if let Some(dd) = &self.dd {
             let cell = |text: String| div().w(px(36.)).child(suits(text));
             let mut table = panel().flex().flex_col().child(
                 div()
                     .flex()
-                    .text_color(rgb(DIM))
+                    .opacity(DIM)
                     .child(cell(String::new()))
                     .children(dd.seats.map(|seat| cell(seat.to_string()))),
             );
@@ -673,12 +751,16 @@ impl Pons {
                         .children(row.tricks.iter().map(|tricks| cell(tricks.to_string()))),
                 );
             }
-            side = side.child(table);
             for line in dd.verdict.iter().flatten() {
-                side = side.child(suits(line.clone()));
+                table = table.child(
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .child(suits(line.clone())),
+                );
             }
+            side = side.child(table);
         } else if snap.ended {
-            side = side.child(div().text_color(rgb(DIM)).child("Solving double dummy…"));
+            side = side.child(div().opacity(DIM).child("Solving double dummy…"));
         }
 
         page.child(div().flex().flex_wrap().gap_4().child(compass).child(side))
@@ -777,7 +859,7 @@ impl Pons {
             .child(turn("prev", "‹ Prev", page.saturating_sub(1), cx))
             .child(format!("{}/{pages}", page + 1))
             .child(turn("next", "Next ›", (page + 1).min(pages - 1), cx))
-            .child(div().text_color(rgb(DIM)).child(format!(
+            .child(div().opacity(DIM).child(format!(
                 "{} of {} nodes · {filter}",
                 hits.len(),
                 self.nodes.len(),
@@ -785,7 +867,7 @@ impl Pons {
 
         let mut list = div().flex().flex_col().gap_2().child(bar);
         if !self.status.is_empty() {
-            list = list.child(div().text_color(rgb(DIM)).child(self.status.clone()));
+            list = list.child(div().opacity(DIM).child(self.status.clone()));
         }
         for node in hits.into_iter().skip(page * PAGE).take(PAGE) {
             let mut card = panel().flex().flex_col().child(
@@ -793,10 +875,10 @@ impl Pons {
                     .flex()
                     .gap_2()
                     .child(suits(node.auction.clone()))
-                    .child(div().text_color(rgb(DIM)).child(node.book.clone())),
+                    .child(div().opacity(DIM).child(node.book.clone())),
             );
             if let Some(note) = &node.note {
-                card = card.child(div().text_color(rgb(DIM)).child(note.clone()));
+                card = card.child(div().opacity(DIM).child(note.clone()));
             }
             for rule in &node.rules {
                 let label = if rule.label.is_empty() {
@@ -813,7 +895,7 @@ impl Pons {
                             div()
                                 .w(px(56.))
                                 .flex_none()
-                                .text_color(rgb(DIM))
+                                .opacity(DIM)
                                 .child(format!("{:.2}", f32::from(rule.weight) / 100.)),
                         )
                         .child(div().flex_1().child(suits(format!("{}{label}", rule.text)))),
@@ -899,19 +981,19 @@ impl Pons {
                 .child(pair(1, "East–West", cx))
                 .child(
                     div()
-                        .text_color(rgb(DIM))
+                        .opacity(DIM)
                         .child("Changes apply from the next deal."),
                 ),
         );
         if !self.status.is_empty() {
-            page = page.child(div().text_color(rgb(BAD)).child(self.status.clone()));
+            page = page.child(panel().text_color(rgb(HEART)).child(self.status.clone()));
         }
 
         let mut section = "";
         for setting in &self.settings {
             if setting.section != section {
                 section = &setting.section;
-                page = page.child(div().mt_2().text_color(rgb(DIM)).child(section.to_string()));
+                page = page.child(div().mt_2().opacity(DIM).child(section.to_string()));
             }
             let live = self.live(setting);
             let current = self.value(self.pair, &setting.key);
@@ -951,11 +1033,7 @@ impl Pons {
                 }
             }
             if let (false, Some(requires)) = (live, &setting.requires) {
-                row = row.child(
-                    div()
-                        .text_color(rgb(DIM))
-                        .child(format!("needs {requires}")),
-                );
+                row = row.child(div().opacity(DIM).child(format!("needs {requires}")));
             }
             page = page.child(row);
         }
@@ -982,7 +1060,7 @@ impl Render for Pons {
             .gap_2()
             .p_2()
             .border_b_1()
-            .border_color(rgb(BORDER))
+            .border_color(rgba(0x00000033))
             .child(tab(Tab::Play, "Play", cx))
             .child(tab(Tab::Book, "Book", cx))
             .child(tab(Tab::Settings, "Settings", cx));
@@ -999,9 +1077,10 @@ impl Render for Pons {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(BG))
-            .text_color(rgb(TEXT))
-            .text_sm()
+            .bg(rgb(FELT))
+            .text_color(rgb(CHALK))
+            .text_size(px(15.))
+            .line_height(relative(1.4))
             .child(tabs)
             .child(
                 div()
@@ -1017,6 +1096,11 @@ impl Render for Pons {
 
 fn main() {
     Application::new().run(|cx: &mut App| {
+        cx.text_system()
+            .add_fonts(vec![Cow::Borrowed(
+                include_bytes!("../assets/suits.ttf").as_slice(),
+            )])
+            .expect("the embedded suit font loads");
         let bounds = Bounds::centered(None, size(px(1100.), px(800.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),

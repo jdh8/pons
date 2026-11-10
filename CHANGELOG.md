@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`gpui/`, a native desktop client (2026-11-11).** A [GPUI](https://gpui.rs)
+  front end beside `web/`, its own workspace, driving the same `pons-web`
+  session API as plain Rust: Play (practice and demo, PBN from the clipboard),
+  Book, Settings. The engine runs on its own thread and double dummy fans out
+  over `pons-dds`'s pool, so the practice oracle prices 1000 opponent
+  reshuffles a board where the browser prices 100. `pons-web`'s `dd_table`,
+  `oracle` and `Binky::run` take the parallel path on every native target and
+  keep the single warm solver on wasm; double dummy is exact, so the answers
+  are unchanged. No bidding code is touched. The Edit, Binky, Odds and Partner
+  tabs are not ported. It wears the web UI's look: felt, card-paper panels,
+  gold for the active choice, the four suit colours, and the Libertinus suit
+  glyphs embedded as `gpui/assets/suits.ttf` (OFL). The palette is copied by
+  hand from `web/style.css`; keep the two in step.
 - **`rebid.two_over_one_quantitative`, responder's quantitative `4NT` after
   a no-fit 2/1, default on (2026-11-11).** Off, responder's
   default game at `1M - 2x - R -` and `1♦ - 2♣ - R -` is `3NT` on 13+ HCP
