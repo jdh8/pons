@@ -29,7 +29,10 @@ use pons::bidding::fallback::Fallback;
 use pons::bidding::features::ConventionCard;
 use pons::bidding::{Partnership, Relative, Table, american, american_with_card, instinct};
 use pons::scoring::{final_contract, imps};
-use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
+use pons_dds::{
+    NonEmptyStrainFlags, Par, Solver, StrainFlags, TrickCountRow, TrickCountTable, Vulnerability,
+    calculate_par, solve_deal_on,
+};
 use rand::SeedableRng as _;
 use rand::rngs::StdRng;
 use serde::Serialize;
@@ -348,6 +351,40 @@ struct DdRow {
 /// name (16/32 is ~3.5× slower, correctness unaffected at any size).
 const TT_MB: (u32, u32) = (64, 128);
 
+/// One [`TrickCountRow`] per deal and strain, deal-major
+///
+/// Native builds fan out over `pons-dds`'s thread pool — a (deal, strain) pair
+/// per task, so an oracle chunk uses every core.  Wasm has no threads and
+/// walks the same pairs on the one warm `solver`.
+fn solve_rows(
+    solver: &mut Option<Solver>,
+    deals: &[FullDeal],
+    strains: &[Strain],
+) -> Vec<TrickCountRow> {
+    if cfg!(target_arch = "wasm32") {
+        let solver =
+            solver.get_or_insert_with(|| Solver::with_memory(strains[0], TT_MB.0, TT_MB.1));
+        return deals
+            .iter()
+            .flat_map(|&deal| strains.iter().map(move |&strain| (deal, strain)))
+            .map(|(deal, strain)| {
+                solver.set_strain(strain);
+                solver.solve(deal)
+            })
+            .collect();
+    }
+    let flags = strains
+        .iter()
+        .fold(StrainFlags::empty(), |acc, &s| acc | StrainFlags::from(s));
+    let Some(flags) = NonEmptyStrainFlags::new(flags) else {
+        return Vec::new();
+    };
+    pons_dds::solve_deals(deals, flags)
+        .iter()
+        .flat_map(|table| strains.iter().map(move |&strain| table[strain]))
+        .collect()
+}
+
 /// The vulnerability bit of `seat`'s side
 const fn side(seat: Seat) -> AbsoluteVulnerability {
     match seat {
@@ -562,13 +599,17 @@ impl WebTable {
             return "null".to_string();
         }
 
-        let solver = board
-            .solver
-            .get_or_insert_with(|| Solver::with_memory(Strain::Notrump, TT_MB.0, TT_MB.1));
-        if board.dd.is_none() {
-            board.dd = Some(solve_deal_on(solver, board.deal));
-        }
-        let table = board.dd.expect("just solved");
+        let table = *board.dd.get_or_insert_with(|| {
+            if cfg!(target_arch = "wasm32") {
+                let solver = board
+                    .solver
+                    .get_or_insert_with(|| Solver::with_memory(Strain::Notrump, TT_MB.0, TT_MB.1));
+                solve_deal_on(solver, board.deal)
+            } else {
+                // Native: the five strains spread across the solver's pool
+                pons_dds::solve_deal(board.deal)
+            }
+        });
 
         // The auction has ended (guarded above), so the verdict always shows —
         // par is defined even for a pass-out.
@@ -632,17 +673,15 @@ impl WebTable {
         .expect("two disjoint 13-card hands form a valid partial deal");
 
         let strain = contract.bid.strain;
-        let solver = board
-            .solver
-            .get_or_insert_with(|| Solver::with_memory(strain, TT_MB.0, TT_MB.1));
-        solver.set_strain(strain);
-
         let needed = 6 + contract.bid.level.get();
         let declarer_vul = board.vul.contains(side(declarer));
         let human_declaring = side(human) == side(declarer);
 
-        for deal in fill_deals(&mut self.rng, partial).take(samples as usize) {
-            let tricks = solver.solve(deal).get(declarer).get();
+        let deals: Vec<FullDeal> = fill_deals(&mut self.rng, partial)
+            .take(samples as usize)
+            .collect();
+        for row in solve_rows(&mut board.solver, &deals, &[strain]) {
+            let tricks = row.get(declarer).get();
             let score = i64::from(contract.score(tricks, declarer_vul));
             let human_score = if human_declaring { score } else { -score };
             board.oracle.add(tricks, tricks >= needed, human_score);
@@ -1740,7 +1779,7 @@ pub struct Binky {
     partial: PartialDeal,
     /// Notrump alone, or the four suits to take a max over.
     strains: Vec<Strain>,
-    solver: Solver,
+    solver: Option<Solver>,
     rng: StdRng,
     /// Layouts by trick count, 0..=13.
     histogram: [u32; 14],
@@ -1778,7 +1817,7 @@ impl Binky {
         };
         Some(Self {
             partial,
-            solver: Solver::with_memory(strains[0], TT_MB.0, TT_MB.1),
+            solver: None,
             strains,
             rng: StdRng::seed_from_u64(seed.parse().unwrap_or(0)),
             histogram: [0; 14],
@@ -1789,17 +1828,16 @@ impl Binky {
     /// `{n, mean, sd, histogram}` — `histogram[k]` is the count of layouts on
     /// which N-S take exactly `k` tricks.
     pub fn run(&mut self, samples: u32) -> String {
-        for deal in fill_deals(&mut self.rng, self.partial).take(samples as usize) {
-            // The label is the system's best declarer, and for a suit table also
-            // their best suit — the same `max` `examples/binky` fits against.
-            let tricks = self
-                .strains
+        let deals: Vec<FullDeal> = fill_deals(&mut self.rng, self.partial)
+            .take(samples as usize)
+            .collect();
+        // The label is the system's best declarer, and for a suit table also
+        // their best suit — the same `max` `examples/binky` fits against.
+        let rows = solve_rows(&mut self.solver, &deals, &self.strains);
+        for rows in rows.chunks(self.strains.len()) {
+            let tricks = rows
                 .iter()
-                .map(|&strain| {
-                    self.solver.set_strain(strain);
-                    let row = self.solver.solve(deal);
-                    row.get(Seat::North).get().max(row.get(Seat::South).get())
-                })
+                .map(|row| row.get(Seat::North).get().max(row.get(Seat::South).get()))
                 .max()
                 .unwrap_or(0);
             self.histogram[usize::from(tricks).min(13)] += 1;
