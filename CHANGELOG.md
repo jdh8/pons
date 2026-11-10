@@ -741,6 +741,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-11, `7f3d57bd`)**: shipping `american()` scores
+  **−0.1380 plain / +0.0047 perfect-defense IMPs/board** (none −0.1420 /
+  +0.0069, both −0.1339 / +0.0024), the series' best, up 0.004 plain, with
+  both PD cells positive for the first time; `american_instinct()` −0.8854
+  / −0.909. Same seed `1783375064`, all four cells replayed at 100% with
+  zero mismatches, 15 new DD tables, 38 minutes. The window since
+  `50d9ee65` is `rebid.spade_raise_splinter`, `rebid.heart_raise_splinter`
+  and the heart raise ladder at 15 / 17. Paired per table on the same
+  deals, shipping gains +0.0022 ±0.0012 / +0.0022 ±0.0016 plain and +0.0022
+  ±0.0013 / +0.0021 ±0.0016 PD (none / both), a win in all four cells. That
+  is about twice the window's ship A/Bs converted to whole-draw boards
+  (flagged, not traced). Floor paired worth +0.382 plain / +0.464 PD,
+  unchanged. Opening is #1 alone again on the shipping arm. Ranking and
+  series row in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md);
+  snapshot `ab-results/anchor/2026-11-10-7f3d57bd/`.
 - **BBA re-anchor (2026-11-09, `50d9ee65`) and third fresh-seed
   confirmation**: shipping `american()` scores **−0.1419 plain / +0.0006
   perfect-defense IMPs/board** (none −0.1455 / +0.0032, both −0.1382 /
