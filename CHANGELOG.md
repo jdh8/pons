@@ -21,7 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tabs are not ported. It wears the web UI's look: felt, card-paper panels,
   gold for the active choice, the four suit colours, and the Libertinus suit
   glyphs embedded as `gpui/assets/suits.ttf` (OFL). The palette is copied by
-  hand from `web/style.css`; keep the two in step.
+  hand from `web/style.css`; keep the two in step. It draws its own
+  decorations on Linux, since GNOME on Wayland draws none: the tab row is the
+  title bar, its gap drags the window and zooms on a double click, it carries
+  minimize, zoom and close buttons, and the outer 6 px of the window resize
+  it.
 - **`rebid.two_over_one_opener_invite`, opener's quantitative raise of
   responder's capped 2/1 `3NT`, default on (2026-11-11).** Since
   `two_over_one_quantitative` the `3NT` reads 13–17 HCP and the floor

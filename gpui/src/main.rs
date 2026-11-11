@@ -14,9 +14,10 @@ use std::sync::mpsc;
 
 use gpui::prelude::*;
 use gpui::{
-    App, Application, Bounds, Context, Div, FocusHandle, Font, FontWeight, KeyDownEvent,
-    PromptLevel, SharedString, Stateful, StyledText, TextRun, Window, WindowBounds, WindowOptions,
-    div, px, relative, rgb, rgba, size,
+    App, Application, Bounds, Context, CursorStyle, Decorations, Div, FocusHandle, Font,
+    FontWeight, KeyDownEvent, MouseButton, Pixels, PromptLevel, ResizeEdge, SharedString, Stateful,
+    StyledText, TextRun, Window, WindowBounds, WindowDecorations, WindowOptions, div, px, relative,
+    rgb, rgba, size,
 };
 use pons_web::WebTable;
 use serde::Deserialize;
@@ -36,6 +37,7 @@ const PAGE: usize = 40;
 
 // The web UI's look, copied by hand from `web/style.css` (`:root` and `body`):
 // flat felt, card-paper panels, gold for the active choice.  Keep the two in step.
+const RESIZE_GRIP: Pixels = px(6.);
 const FELT: u32 = 0x2c7a63;
 const PAPER: u32 = 0xfdfdf7;
 const INK: u32 = 0x222222;
@@ -1174,7 +1176,7 @@ impl Pons {
 }
 
 impl Render for Pons {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let tab = |tab: Tab, label: &'static str, cx: &mut Context<Self>| {
             button(format!("tab-{label}"), label, self.tab == tab, true).on_click(cx.listener(
                 move |this, _, _, cx| {
@@ -1195,7 +1197,36 @@ impl Render for Pons {
             .border_color(rgba(0x00000033))
             .child(tab(Tab::Play, "Play", cx))
             .child(tab(Tab::Book, "Book", cx))
-            .child(tab(Tab::Settings, "Settings", cx));
+            .child(tab(Tab::Settings, "Settings", cx))
+            // We draw our own decorations (see `main`), so the tab row is the
+            // title bar: the gap drags, a double click zooms.
+            .when(
+                matches!(window.window_decorations(), Decorations::Client { .. }),
+                |row| {
+                    row.child(div().flex_1().h_full().on_mouse_down(
+                        MouseButton::Left,
+                        |event, window, _| {
+                            if event.click_count == 2 {
+                                window.zoom_window();
+                            } else {
+                                window.start_window_move();
+                            }
+                        },
+                    ))
+                    .child(
+                        button("minimize".into(), "–", false, true)
+                            .on_click(|_, window, _| window.minimize_window()),
+                    )
+                    .child(
+                        button("zoom".into(), "□", false, true)
+                            .on_click(|_, window, _| window.zoom_window()),
+                    )
+                    .child(
+                        button("close".into(), "×", false, true)
+                            .on_click(|_, window, _| window.remove_window()),
+                    )
+                },
+            );
 
         let body = match self.tab {
             Tab::Play => self.render_play(cx),
@@ -1223,7 +1254,56 @@ impl Render for Pons {
                     .p_3()
                     .child(body),
             )
+            .when(!window.is_maximized(), |root| root.children(grips()))
     }
+}
+
+/// The resize handles of a window that draws its own decorations: strips
+/// [`RESIZE_GRIP`] wide over the four edges, then squares twice that over the
+/// corners. They paint last, so they take the press and the cursor from
+/// whatever lies under them.
+fn grips() -> impl Iterator<Item = Div> {
+    use ResizeEdge::{Bottom, BottomLeft, BottomRight, Left, Right, Top, TopLeft, TopRight};
+    // (edge, horizontal anchor, vertical anchor): −1 near, 0 spanning, 1 far.
+    [
+        (Top, 0, -1),
+        (Bottom, 0, 1),
+        (Left, -1, 0),
+        (Right, 1, 0),
+        (TopLeft, -1, -1),
+        (TopRight, 1, -1),
+        (BottomLeft, -1, 1),
+        (BottomRight, 1, 1),
+    ]
+    .into_iter()
+    .map(|(edge, x, y)| {
+        let reach = if x != 0 && y != 0 {
+            RESIZE_GRIP * 2.
+        } else {
+            RESIZE_GRIP
+        };
+        let grip = div().absolute().occlude();
+        let grip = match x {
+            -1 => grip.left_0().w(reach),
+            1 => grip.right_0().w(reach),
+            _ => grip.left_0().right_0(),
+        };
+        let grip = match y {
+            -1 => grip.top_0().h(reach),
+            1 => grip.bottom_0().h(reach),
+            _ => grip.top_0().bottom_0(),
+        };
+        grip.cursor(match (x, y) {
+            (0, _) => CursorStyle::ResizeUpDown,
+            (_, 0) => CursorStyle::ResizeLeftRight,
+            _ if x == y => CursorStyle::ResizeUpLeftDownRight,
+            _ => CursorStyle::ResizeUpRightDownLeft,
+        })
+        .on_mouse_down(MouseButton::Left, move |_, window, cx| {
+            window.start_window_resize(edge);
+            cx.stop_propagation();
+        })
+    })
 }
 
 fn main() {
@@ -1236,6 +1316,9 @@ fn main() {
         let bounds = Bounds::centered(None, size(px(1100.), px(800.)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
+            // GNOME on Wayland draws no frame, and GPUI then still reports
+            // the server decorations it asked for; ask for ours everywhere.
+            window_decorations: Some(WindowDecorations::Client),
             ..Default::default()
         };
         cx.open_window(options, |window, cx| {
