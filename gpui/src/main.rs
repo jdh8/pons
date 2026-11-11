@@ -15,9 +15,9 @@ use std::sync::mpsc;
 use gpui::prelude::*;
 use gpui::{
     App, Application, Bounds, Context, CursorStyle, Decorations, Div, FocusHandle, Font,
-    FontWeight, KeyDownEvent, MouseButton, Pixels, PromptLevel, ResizeEdge, SharedString, Stateful,
-    StyledText, TextRun, Window, WindowBounds, WindowDecorations, WindowOptions, div, px, relative,
-    rgb, rgba, size,
+    FontWeight, KeyDownEvent, MouseButton, PathBuilder, Pixels, PromptLevel, ResizeEdge,
+    SharedString, Stateful, StyledText, TextRun, Window, WindowBounds, WindowDecorations,
+    WindowOptions, canvas, div, point, px, relative, rgb, rgba, size,
 };
 use pons_web::WebTable;
 use serde::Deserialize;
@@ -54,6 +54,9 @@ const WASH: u32 = 0xffffff1f;
 /// The title row's tint and its bottom edge: black at 20%, so the row sits a
 /// shade under the felt the way an editor's title bar does
 const SHADE: u32 = 0x00000033;
+/// The close button: its X, and the red it turns under the pointer
+const CLOSE_X: Pixels = px(12.);
+const CLOSE_HOVER: u32 = 0xe81123;
 /// Secondary text is the surrounding colour at this opacity, on felt and paper
 /// alike — the web's `.hint` / `.count`
 const DIM: f32 = 0.65;
@@ -394,6 +397,47 @@ fn picker(
 /// A row of controls on the felt — the web's `.controls`
 fn controls() -> Div {
     div().flex().flex_wrap().items_center().gap(px(13.))
+}
+
+/// The one window control, close: a stroked X that turns red on hover, the
+/// way Discord and VS Code draw theirs.  Minimize and zoom are left to the
+/// desktop (a double click on the header still zooms).
+fn close_button() -> Stateful<Div> {
+    let half = CLOSE_X / 2.;
+    div()
+        .id("close")
+        // Flush in the window's top-right corner, the header's full height
+        .absolute()
+        .top_0()
+        .right_0()
+        .h_full()
+        .w(px(46.))
+        // It lies over the header's drag gap; without this the press also
+        // reaches the gap, whose window move grabs the pointer and eats the click
+        .occlude()
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor_pointer()
+        .hover(|style| style.bg(rgb(CLOSE_HOVER)))
+        .on_click(|_, window, _| window.remove_window())
+        .child(
+            canvas(
+                |_, _, _| (),
+                move |bounds, (), window, _| {
+                    let c = bounds.center();
+                    let mut x = PathBuilder::stroke(px(1.5));
+                    x.move_to(point(c.x - half, c.y - half));
+                    x.line_to(point(c.x + half, c.y + half));
+                    x.move_to(point(c.x + half, c.y - half));
+                    x.line_to(point(c.x - half, c.y + half));
+                    if let Ok(path) = x.build() {
+                        window.paint_path(path, rgb(CHALK));
+                    }
+                },
+            )
+            .size(CLOSE_X),
+        )
 }
 
 /// A quiet line on the felt under the controls — the web's `.boardinfo`
@@ -1492,21 +1536,9 @@ impl Render for Pons {
                 },
             ))
         };
-        // A window control: a bare glyph, so it does not read as a fourth tab
-        let control = |id: &'static str, glyph: &'static str| {
-            div()
-                .id(id)
-                .size(px(28.))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded_full()
-                .cursor_pointer()
-                .hover(|style| style.bg(rgba(WASH)))
-                .child(glyph)
-        };
         // The web's `header`: the name, then the tabs
         let header = div()
+            .relative()
             .flex()
             .items_center()
             .gap(px(6.))
@@ -1540,11 +1572,7 @@ impl Render for Pons {
                             }
                         },
                     ))
-                    .child(
-                        control("minimize", "–").on_click(|_, window, _| window.minimize_window()),
-                    )
-                    .child(control("zoom", "□").on_click(|_, window, _| window.zoom_window()))
-                    .child(control("close", "×").on_click(|_, window, _| window.remove_window()))
+                    .child(close_button())
                 },
             );
 
