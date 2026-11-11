@@ -22,6 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gold for the active choice, the four suit colours, and the Libertinus suit
   glyphs embedded as `gpui/assets/suits.ttf` (OFL). The palette is copied by
   hand from `web/style.css`; keep the two in step.
+- **`rebid.two_over_one_opener_invite`, opener's quantitative raise of
+  responder's capped 2/1 `3NT`, default on (2026-11-11).** Since
+  `two_over_one_quantitative` the `3NT` reads 13–17 HCP and the floor
+  passes it on opener's 16–18 where it raised the uncapped `3NT` to `6NT`.
+  Pricing that ship's run with `probe-divergence --imps`: 64–66 boards per
+  819,200, −154 / −205 / −154 / −192 IMPs plain none/ns/ew/both; passing
+  gains at 29–30 combined HCP and loses at 31+. On, opener bids `6NT` on
+  18+ HCP and a natural `4NT` on 16–17; responder raises `4NT` to `6NT` on
+  15+ (31 combined), else passes. Measured vs BBA at 3,276,800 boards per
+  cell (seed 1794350445707357507): plain DD +0.0003 IMPs/board in every
+  cell (±0.0002; +1019 / +1117 / +1016 / +1146 IMPs none/ns/ew/both), PD
+  +0.0003 every cell, SD +0.0004 to +0.0005, SD-PD +0.0003 to +0.0004,
+  all wins; 1270–1334 boards fired per cell. Flagged, not fixed: the
+  invite also fires after opener's raise (`1♠ - 2♥ - 3♥ - 3NT`), where
+  the worst boards stop in `4NT` and the floor bid `6♥`; the ON arm's SD
+  sampler falls back on 25% of worlds against 4% off. The off arm is
+  `bba-gen --no-ns-two-over-one-opener-invite`;
+  `scripts/ab-two-over-one-opener-invite.sh`.
 - **`rebid.two_over_one_quantitative`, responder's quantitative `4NT` after
   a no-fit 2/1, default on (2026-11-11).** Off, responder's
   default game at `1M - 2x - R -` and `1♦ - 2♣ - R -` is `3NT` on 13+ HCP

@@ -402,3 +402,89 @@ fn quantitative_four_notrump_after_two_over_one() {
         call(6, Strain::Notrump),
     );
 }
+
+// --- Opener's invite over the capped 3NT (rebid.two_over_one_opener_invite) ---
+
+/// Off, opener's 16–18 passes the 13–17 `3NT`.  On, 18+ bids `6NT`, 16–17
+/// invites with `4NT`, and responder accepts on 15+.
+#[test]
+fn opener_invites_over_capped_three_notrump() {
+    use pons::bidding::agreements::Agreements;
+
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.two_over_one_opener_invite = on;
+        american(&agreements).bind()
+    };
+    let (off, on) = (arm(false), arm(true));
+    let p = Call::Pass;
+
+    // 1♠ - 2♣ - 2♦ - 3NT -: the run's worst board, opener AQJ97.K6.KT82.KT
+    // (17 HCP) facing K4.AJ9.A76.A8762 (16).
+    let auction = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Diamonds),
+        p,
+        call(3, Strain::Notrump),
+        p,
+    ];
+    let seventeen = "AQJ97.K6.KT82.KT";
+    assert_eq!(best_call(&off, &auction, seventeen), p);
+    assert_eq!(
+        best_call(&on, &auction, seventeen),
+        call(4, Strain::Notrump)
+    );
+    // 19 HCP blasts; a minimum still passes.
+    assert_eq!(
+        best_call(&on, &auction, "AQJ97.K6.AK82.KT"),
+        call(6, Strain::Notrump),
+    );
+    assert_eq!(best_call(&on, &auction, "AQJ97.86.KT82.K7"), p);
+
+    // Responder's answer: 16 accepts, 13 passes.
+    let answer = [auction.as_slice(), &[call(4, Strain::Notrump), p]].concat();
+    assert_eq!(
+        best_call(&on, &answer, "K4.AJ9.A76.A8762"),
+        call(6, Strain::Notrump),
+    );
+    assert_eq!(best_call(&on, &answer, "K4.J93.A76.A8762"), p);
+
+    // 1♠ - 2♣ - 2♥ - 3NT -: the six-four `4♠` table keeps its node.
+    let hearts = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Hearts),
+        p,
+        call(3, Strain::Notrump),
+        p,
+    ];
+    assert_eq!(
+        best_call(&on, &hearts, "AQ9875.KJ73.4.Q8"),
+        call(4, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&on, &hearts, "AQJ97.AKJ3.K4.Q8"),
+        call(6, Strain::Notrump),
+    );
+
+    // 1♦ - 2♣ - 2♦ - 3NT -: the minor lane, 16 HCP invites.
+    let minor = [
+        call(1, Strain::Diamonds),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Diamonds),
+        p,
+        call(3, Strain::Notrump),
+        p,
+    ];
+    assert_eq!(
+        best_call(&on, &minor, "K7.A85.AKJ964.J2"),
+        call(4, Strain::Notrump),
+    );
+}

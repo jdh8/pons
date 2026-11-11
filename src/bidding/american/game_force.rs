@@ -33,7 +33,7 @@ use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
 use crate::bidding::context::Context;
-use crate::bidding::rows::{Package, Pattern, classified, compile_into, rows_of};
+use crate::bidding::rows::{Entry, Package, Pattern, classified, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Level, Strain, Suit};
 
@@ -360,6 +360,50 @@ fn quantitative_answer(major: Option<Suit>) -> Rules {
         .rule(Call::Pass, 0, hcp(..13))
 }
 
+/// Opener's raise of responder's capped `3NT` (13–17 HCP, no fit), appended
+/// to `rules`
+/// ([`RebidKnobs::two_over_one_opener_invite`][crate::bidding::agreements::RebidKnobs::two_over_one_opener_invite])
+///
+/// 18+ HCP makes 31 combined facing the minimum, the
+/// [notrump-slam](../../../docs/notrump-slam.md) threshold: `6NT`.  16–17
+/// invites with a natural `4NT`, answered by [`invite_answer`].  Every other
+/// hand is left to `rules` or, with none, to the floor, as before.
+/// ponytail: no `6M` on a long major and no grand; add them when a census
+/// of this node prices them.
+fn opener_invite(rules: Rules) -> Rules {
+    rules.rule(call(6, Strain::Notrump), 120, hcp(18..)).rule(
+        call(4, Strain::Notrump),
+        110,
+        hcp(16..=17),
+    )
+}
+
+/// Responder's answer to opener's quantitative `4NT` over the capped `3NT`
+///
+/// Responder holds 13–17 facing 16–17: 15+ makes 31 combined and bids
+/// `6NT`, less passes.
+fn invite_answer() -> Rules {
+    Rules::new()
+        .rule(call(6, Strain::Notrump), 120, hcp(15..))
+        .rule(Call::Pass, 0, hcp(..15))
+}
+
+/// Rows for [`opener_invite`] over `{after_rebid} 3NT -` and its answer
+///
+/// `base` is the table already owning the node, if any.
+fn opener_invite_rows(
+    node: impl Fn(&str) -> Pattern,
+    after_rebid: &str,
+    base: Rules,
+) -> Vec<Entry> {
+    let mut entries = rows_of(node(&format!("{after_rebid} 3NT -")), opener_invite(base));
+    entries.extend(rows_of(
+        node(&format!("{after_rebid} 3NT - 4NT -")),
+        invite_answer(),
+    ));
+    entries
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -423,6 +467,13 @@ pub(super) fn base() -> Package {
                     let rebid_calls = distinct_calls(&rebid);
                     entries.extend(rows_of(node(&prefix), rebid));
 
+                    // Opener's invite over the capped `3NT`; `2♥ - 3NT` may
+                    // already have a table, which the invite extends.
+                    let invite = agreements.rebid.two_over_one_quantitative
+                        && agreements.rebid.two_over_one_opener_invite;
+                    let six_four =
+                        agreements.rebid.two_over_one_six_four_hearts && major == Suit::Spades;
+
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
                         let after_rebid = format!("{prefix} {rebid_call} -");
@@ -465,6 +516,18 @@ pub(super) fn base() -> Package {
                                 quantitative_answer(Some(major)),
                             ));
                         }
+                        if invite {
+                            let owned = six_four && rebid_call == call(2, Strain::Hearts);
+                            entries.extend(opener_invite_rows(
+                                node,
+                                &after_rebid,
+                                if owned {
+                                    opener_after_heart_notrump()
+                                } else {
+                                    Rules::new()
+                                },
+                            ));
+                        }
                         if let Call::Bid(rebid_bid) = rebid_call
                             && rebid_bid < three_major
                         {
@@ -473,7 +536,7 @@ pub(super) fn base() -> Package {
                             entries.extend(super::slam::rkcb_rows(&agreed, major));
                         }
                     }
-                    if agreements.rebid.two_over_one_six_four_hearts && major == Suit::Spades {
+                    if six_four && !invite {
                         entries.extend(rows_of(
                             node(&format!("{prefix} 2♥ - 3NT -")),
                             opener_after_heart_notrump(),
@@ -497,6 +560,15 @@ pub(super) fn base() -> Package {
                     entries.extend(rows_of(
                         Pattern::node(&format!("{prefix} {rebid_call} - 4NT -")),
                         quantitative_answer(None),
+                    ));
+                }
+                if agreements.rebid.two_over_one_quantitative
+                    && agreements.rebid.two_over_one_opener_invite
+                {
+                    entries.extend(opener_invite_rows(
+                        Pattern::node,
+                        &format!("{prefix} {rebid_call} -"),
+                        Rules::new(),
                     ));
                 }
             }

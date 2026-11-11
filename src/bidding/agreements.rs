@@ -5070,6 +5070,21 @@ pub struct RebidKnobs {
     /// `bba-gen --no-ns-two-over-one-quantitative`
     /// (`scripts/ab-two-over-one-quantitative.sh`).
     pub two_over_one_quantitative: bool,
+    /// Opener's quantitative raise of responder's capped `3NT` after a 2/1
+    ///
+    /// **Default on — measured win 2026-11-11.**  Needs
+    /// [`two_over_one_quantitative`][Self::two_over_one_quantitative], whose
+    /// `3NT` reads 13–17 HCP: off, the floor passes it on opener's 16–18
+    /// where it raised the uncapped `3NT` to `6NT` (64–66 boards per 819,200,
+    /// −154 to −205 IMPs plain in that run; combined 31+ loses, 29–30 gains).
+    /// On, opener bids `6NT` on 18+ HCP and a natural `4NT` on 16–17, which
+    /// responder raises to `6NT` on 15+ (31 combined, the
+    /// [notrump-slam](../../docs/notrump-slam.md) threshold) and otherwise
+    /// passes.  3,276,800 boards per cell vs BBA: plain +0.0003 IMPs/board
+    /// in every cell (±0.0002), PD the same, SD-PD +0.0003 to +0.0004, all
+    /// wins.  The off arm is `bba-gen --no-ns-two-over-one-opener-invite`
+    /// (`scripts/ab-two-over-one-opener-invite.sh`).
+    pub two_over_one_opener_invite: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
     /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
@@ -5452,6 +5467,7 @@ impl Default for RebidKnobs {
             two_over_one_reverse_extras: true,
             two_over_one_six_four_hearts: true,
             two_over_one_quantitative: true,
+            two_over_one_opener_invite: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
