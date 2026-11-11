@@ -27,6 +27,14 @@
 #      isolation gate passed every cell.  Shipped default-on; `base` is now
 #      `--no-ns-two-over-one-quantitative`.  That run's arms were `base`
 #      bare and `on --ns-two-over-one-quantitative`.
+#   SD fallback (ON 29% of worlds, OFF 2%), diagnosed 2026-11-11: budget,
+#      not reading.  The leader's reading admits the true deal in every
+#      hidden seat on all 954 questions of the none cell; the starved
+#      auctions are `… 4NT` / `… 6NT` (18–20 / 21+ HCP, acceptance 0.013–
+#      0.025% against the 16 × 4096-draw budget).  Re-scored with a 64×
+#      budget (fallback 0.4%): SD plain +1008 IMPs none (was +1013), +1104
+#      both (was +1163), still +0.0012 / +0.0013 ±0.0005, win.  The fallback
+#      flatters ON by under 0.0001 IMPs/board.
 
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; δ = 0.002 IMPs/board.  Read each cell's `fired` count first.
