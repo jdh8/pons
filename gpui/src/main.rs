@@ -51,6 +51,9 @@ const CLUB: u32 = 0x1e7a45;
 /// Outline of a control on the felt, and its hover wash: white at 35% and 12%
 const RIM: u32 = 0xffffff59;
 const WASH: u32 = 0xffffff1f;
+/// The title row's tint and its bottom edge: black at 20%, so the row sits a
+/// shade under the felt the way an editor's title bar does
+const SHADE: u32 = 0x00000033;
 /// Secondary text is the surrounding colour at this opacity, on felt and paper
 /// alike — the web's `.hint` / `.count`
 const DIM: f32 = 0.65;
@@ -1509,8 +1512,9 @@ impl Render for Pons {
             .gap(px(6.))
             .px(GAP)
             .py(px(8.))
+            .bg(rgba(SHADE))
             .border_b_1()
-            .border_color(rgba(0x00000033))
+            .border_color(rgba(SHADE))
             .child(
                 div()
                     .mr(px(18.))
