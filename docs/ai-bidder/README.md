@@ -126,3 +126,16 @@ BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in
 [`archive/`](archive/).
 </content>
 </invoke>
+
+### Routing by task
+
+Moved here from the `CLAUDE.md` routing table on 2026-11-11.
+
+| Task | Read first |
+| --- | --- |
+| Retraining the floor after a feature bump, or reusing the M32 labels | [features-v8.md](features-v8.md), [features-v9.md](features-v9.md) — the zero-layout re-walk, the splice key, `scripts/feature-retrain.sh` |
+| Any retrain that must ship — why the M32 K = 8 beat every reseed of its recipe, and the BBA-relabel K = 8 that replaced it | [../reseed-gap-handoff.md](../reseed-gap-handoff.md) — the unshuffled stem order, the 2 × 2 over data order and seeds |
+| Retraining without a dump or relabel — seeds, ensembles, trainer flags | [../archive/floor-sweep.md](../archive/floor-sweep.md) — **closed 2026-09-30**; its closed axes are not retried. Parked big ideas: [../next-steps.md](../next-steps.md#parked-big-ideas) |
+| A knob A/B moves the floor's regime input, or a floor swap needs its siblings moved | [card-manifold.md](card-manifold.md) — the regime input reads `Agreements`, not card rows; the sibling-factory rule |
+| The contested 5-level decision (P(double), q) | [competitive-accountant.md](competitive-accountant.md), calibration in [doubling-calibration.md](doubling-calibration.md) |
+| Whether the chooser (net, accountants, collar) ports to another book; a second or third compiled domain | [../portable-judgement.md](../portable-judgement.md) — channel census, the train × serve table, phases 0–4 |

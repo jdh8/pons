@@ -429,3 +429,11 @@ the minors". The reversible default is one line in `basic()`
   (<https://bridgeworld.com/pages/readingroom/bws/bwscompletesystem.html>);
   Jim Loy's public summary is of the 1994 edition
   (<https://www.sao.ru/hq/dim/bridge/biddings/natural/loybws.html>).
+
+## The Watermelon Dutch Doubleton knobs
+
+5542, wide 1♣ + `1♦!` relay, Odwrotka, Multi `2♦`: all default off. The book
+is the spec: <https://jdh8.github.io/watermelon-dutch/>; code in
+`src/bidding/american/{openings,wide_one_club,multi}.rs` and
+`rebids/odwrotka.rs`. The retired `dutch()` factory is recorded in
+[archive/dutch-system.md](archive/dutch-system.md).

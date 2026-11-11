@@ -437,3 +437,17 @@ structs. Conventions:
   `ab-dump-diff`. Per-seat conventions toggle via `--our-conv`/`--their-conv`.
 - `tests/demo_system.rs` is a thin living-documentation system; `render-book`
   prints any book as prose.
+
+## Narrower design docs
+
+Moved here from the `CLAUDE.md` routing table on 2026-11-11; read the one that
+matches the task before working on it.
+
+| Task | Read first |
+| --- | --- |
+| The decision cache, the compiled rule path, or `Context` beyond the mechanical facts | [bidding-performance-handoff.md](bidding-performance-handoff.md) — the only design record of those commits |
+| Retiring a hand-written reader (`inference/readers.rs`) | [reader-retirement.md](reader-retirement.md) |
+| Envelope-union readings (the historical DNF campaign) | [dnf-migration.md](dnf-migration.md) |
+| Exact probabilities over a hidden hand; how other engines infer hands | [exact-posterior.md](exact-posterior.md) — what is closed, the survey, the phased plan |
+| Kickback / Redwood | [ai-bidder/bba-kickback.md](ai-bidder/bba-kickback.md) §7 |
+| Raw bidding-theory notes | [bidding-theorems.md](bidding-theorems.md) |
