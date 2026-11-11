@@ -27,6 +27,11 @@ a Vulkan driver at run time.  On Fedora:
 sudo dnf install libxkbcommon-devel libxkbcommon-x11-devel libxcb-devel
 ```
 
+Install [Inter](https://rsms.me/inter/) (`sudo dnf install rsms-inter-fonts`)
+for bold text: GPUI's Linux text system reads one weight per font file, so a
+variable-only UI font such as GNOME's Adwaita Sans draws every weight as
+regular.  Without Inter the client falls back to whatever GPUI finds.
+
 `Cargo.lock` pins `libc` to 0.2.189: GPUI 0.2.2 reaches `xattr` 0.2 through its
 HTTP client, and that reads `libc::ENOATTR`, which 0.2.190 removed on Linux.
 Drop the pin when a GPUI release moves off it.
@@ -34,9 +39,10 @@ Drop the pin when a GPUI release moves off it.
 ## Tabs
 
 - **Play** — the web client's Practice and Demo in one.  *Seat*, *Dealer*,
-  *Vul* and *Min HCP* cycle on click.  *Deal practice* seats you against the
-  bots, with the bidding box, the evaluator net's trick hint, and the bot's
-  top-3 after each of your calls; *Deal demo* lets the bots bid all four seats;
+  *Vul* and *Min HCP* are strips of choices, the chosen one gold.  *Deal
+  practice* seats you against the bots, with the bidding box, the evaluator
+  net's trick hint, and the bot's top-3 after each of your calls; *Deal demo*
+  lets the bots bid all four seats;
   *Paste PBN* bids out the deal on the clipboard.  After the auction: all four
   hands, the double-dummy table, the Result / Par / IMP verdict, and on a
   practice board the oracle.

@@ -54,14 +54,41 @@ const WASH: u32 = 0xffffff1f;
 /// Secondary text is the surrounding colour at this opacity, on felt and paper
 /// alike — the web's `.hint` / `.count`
 const DIM: f32 = 0.65;
+// The web's measures, in pixels at its 16px `rem`.  One centred column carries
+// every tab, and every row of a tab spans it, so the tabs share their edges.
+/// `main`'s `max-width`
+const COLUMN: Pixels = px(960.);
+/// Between the rows of a tab, and around them
+const GAP: Pixels = px(16.);
+/// `0.9rem`: controls, counts, the board line
+const SMALL: Pixels = px(14.4);
+/// Panel titles and table heads
+const TINY: Pixels = px(12.);
+/// A bidding-box key and the gap between two; three [`WIDE_KEY`]s span five
+const KEY: Pixels = px(54.);
+const KEY_GAP: Pixels = px(6.);
+const WIDE_KEY: Pixels = px(94.);
 /// The four suit glyphs of Libertinus Sans, the web's `@font-face`
 /// (`assets/SUITS-LICENSE.txt`); every other glyph stays in the system UI font.
 /// The embedded file aliases 'm' to the spade, or GPUI's Linux text system
 /// rejects the face — see `assets/suits.py`.
 const SUIT_FONT: &str = "Libertinus Suits";
+/// The face of everything else.  GPUI's Linux text system reads one weight per
+/// font file, so GNOME's Adwaita Sans — a single variable file — draws bold as
+/// regular; Inter, its upstream, ships a file per weight.  Where Inter is not
+/// installed GPUI falls back to the face it would have picked anyway.
+const UI_FONT: &str = if cfg!(target_os = "linux") {
+    "Inter"
+} else {
+    ".SystemUIFont"
+};
 
 const SEATS: [&str; 4] = ["N", "E", "S", "W"];
 const VULS: [&str; 4] = ["none", "ns", "ew", "both"];
+const VUL_NAMES: [&str; 4] = ["None", "NS", "EW", "Both"];
+/// The floors the *Min HCP* picker offers your hand
+// ponytail: eight landmarks, not the web's free 0–37 — GPUI ships no number field
+const MIN_HCPS: [u8; 8] = [0, 5, 8, 10, 12, 15, 18, 20];
 const PAIRS: [&str; 2] = ["ns", "ew"];
 const PAIR_NAMES: [&str; 2] = ["North–South", "East–West"];
 const STRAINS: [&str; 5] = ["♣", "♦", "♥", "♠", "NT"];
@@ -79,7 +106,6 @@ struct Hand {
 
 #[derive(Deserialize)]
 struct Feedback {
-    index: usize,
     human: String,
     agreed: bool,
     authored: bool,
@@ -278,17 +304,19 @@ impl RenderOnce for Suits {
     }
 }
 
-/// A control on the felt: outlined, gold when it is the active choice
+/// A quiet control on the felt — the web's `nav button` and `button.secondary`:
+/// outlined, gold when it is the active choice
 fn button(id: String, label: impl IntoElement, active: bool, enabled: bool) -> Stateful<Div> {
     div()
         .id(SharedString::from(id))
-        .px_2()
-        .py_1()
-        .rounded_md()
+        .px(px(12.))
+        .py(px(4.))
+        .rounded(px(5.))
         .border_1()
+        .text_size(SMALL)
         .border_color(if active { rgb(GOLD) } else { rgba(RIM) })
         .when(active, |this| this.bg(rgb(GOLD)).text_color(rgb(INK)))
-        .when(!enabled, |this| this.opacity(0.35))
+        .when(!enabled, |this| this.opacity(0.4))
         .when(enabled, |this| this.cursor_pointer())
         .when(enabled && !active, |this| {
             this.hover(|style| style.bg(rgba(WASH)))
@@ -296,51 +324,132 @@ fn button(id: String, label: impl IntoElement, active: bool, enabled: bool) -> S
         .child(label)
 }
 
+/// The gold action of a tab — the web's `button.primary`
+fn primary(id: &'static str, label: &'static str) -> Stateful<Div> {
+    div()
+        .id(id)
+        .px(px(16.))
+        .py(px(5.))
+        .rounded(px(6.))
+        .bg(rgb(GOLD))
+        .text_color(rgb(INK))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(|style| style.bg(rgb(0xffd83a)))
+        .child(label)
+}
+
+/// One of a few: a named strip of choices, the chosen one gold
+///
+/// Stands in for the web's `<select>`, which GPUI does not ship.  Every choice
+/// is on show, so the strip keeps its width whatever is chosen.
+fn picker(
+    name: &'static str,
+    labels: &[impl ToString],
+    chosen: usize,
+    cx: &mut Context<Pons>,
+    choose: fn(&mut Pons, usize, &mut Context<Pons>),
+) -> Div {
+    let last = labels.len().saturating_sub(1);
+    let choices = labels.iter().enumerate().map(|(index, label)| {
+        div()
+            .id(SharedString::from(format!("{name}-{index}")))
+            .px(px(8.))
+            .py(px(3.))
+            // The strip's corners do not clip its children; round the ends to fit.
+            .when(index == 0, |this| this.rounded_l(px(4.)))
+            .when(index == last, |this| this.rounded_r(px(4.)))
+            .when(index > 0, |this| this.border_l_1().border_color(rgba(RIM)))
+            .when(index == chosen, |this| {
+                this.bg(rgb(GOLD)).text_color(rgb(INK))
+            })
+            .when(index != chosen, |this| {
+                this.cursor_pointer()
+                    .hover(|style| style.bg(rgba(WASH)))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        choose(this, index, cx);
+                        cx.notify();
+                    }))
+            })
+            .child(label.to_string())
+    });
+    let strip = div()
+        .flex()
+        .rounded(px(5.))
+        .border_1()
+        .border_color(rgba(RIM))
+        .children(choices);
+    div()
+        .flex()
+        .items_center()
+        .gap(px(6.))
+        .text_size(SMALL)
+        .child(name)
+        .child(strip)
+}
+
+/// A row of controls on the felt — the web's `.controls`
+fn controls() -> Div {
+    div().flex().flex_wrap().items_center().gap(px(13.))
+}
+
+/// A quiet line on the felt under the controls — the web's `.boardinfo`
+fn note(text: impl Into<SharedString>) -> Div {
+    div().text_size(SMALL).opacity(0.85).child(text.into())
+}
+
 /// A bidding-box key: a paper chip, so a suit keeps its colour
 fn key(id: String, label: impl IntoElement, enabled: bool) -> Stateful<Div> {
     div()
         .id(SharedString::from(id))
-        .py_1()
+        .py(px(5.))
         .flex()
         .justify_center()
-        .rounded_md()
+        .rounded(px(6.))
         .bg(rgb(PAPER))
         .text_color(rgb(INK))
         .font_weight(FontWeight::SEMIBOLD)
         .when(!enabled, |this| this.opacity(0.35))
         .when(enabled, |this| {
-            this.cursor_pointer().hover(|style| style.bg(rgb(0xffffff)))
+            this.shadow_sm()
+                .cursor_pointer()
+                .hover(|style| style.bg(rgb(0xffffff)))
         })
         .child(label)
 }
 
 /// One answer on a paper form: a check box, or a radio button when `round`
 fn answer(id: String, text: String, on: bool, round: bool, live: bool) -> Stateful<Div> {
-    let shape = |this: Div| {
-        if round {
-            this.rounded_full()
-        } else {
-            this.rounded_sm()
-        }
-    };
-    let mark = shape(div())
+    let mark = div()
         .size(px(16.))
         .flex_none()
         .flex()
         .items_center()
         .justify_center()
         .border_1()
-        .border_color(rgb(INK))
-        .when(on, |this| {
-            this.child(shape(div()).size(px(8.)).bg(rgb(CLUB)))
+        .border_color(rgb(if on { CLUB } else { 0x767676 }))
+        .map(|this| match (round, on) {
+            (true, true) => this
+                .rounded_full()
+                .child(div().size(px(8.)).rounded_full().bg(rgb(CLUB))),
+            (true, false) => this.rounded_full(),
+            (false, true) => this
+                .rounded(px(3.))
+                .bg(rgb(CLUB))
+                .text_color(rgb(PAPER))
+                .text_size(TINY)
+                .line_height(relative(1.))
+                .font_weight(FontWeight::BOLD)
+                .child("✓"),
+            (false, false) => this.rounded(px(3.)),
         });
     div()
         .id(SharedString::from(id))
         .flex()
         .items_center()
-        .gap_2()
-        .px_1()
-        .rounded_sm()
+        .gap(px(8.))
+        .py(px(2.))
+        .rounded(px(3.))
         // The web's `.opt.dimmed`: the master knob is off, so the engine ignores this row
         .when(!live, |this| this.opacity(0.45))
         .when(live, |this| {
@@ -377,12 +486,133 @@ fn humanize(key: &str) -> String {
 /// A card-paper panel on the felt
 fn panel() -> Div {
     div()
-        .px_3()
-        .py_2()
-        .rounded_lg()
+        .px(px(14.))
+        .py(px(11.))
+        .rounded(px(8.))
         .bg(rgb(PAPER))
         .text_color(rgb(INK))
         .shadow_sm()
+}
+
+/// What a panel holds, over its content — the web's `.panel-title`
+fn title(text: &str) -> Div {
+    div()
+        .text_size(TINY)
+        .opacity(DIM)
+        .mb(px(6.))
+        .child(text.to_uppercase())
+}
+
+fn seat_name(seat: char) -> &'static str {
+    match seat {
+        'N' => "North",
+        'E' => "East",
+        'S' => "South",
+        _ => "West",
+    }
+}
+
+/// Seat a hand in `cell`: who and how strong, then the four suit lines
+fn seated(cell: Div, seat: char, hand: &Hand) -> Div {
+    let head = div()
+        .font_weight(FontWeight::BOLD)
+        .mb(px(5.))
+        .child(format!("{} · {} HCP", seat_name(seat), hand.hcp));
+    let lines = [
+        ("♠", &hand.spades),
+        ("♥", &hand.hearts),
+        ("♦", &hand.diamonds),
+        ("♣", &hand.clubs),
+    ]
+    .map(|(symbol, cards)| {
+        div()
+            .flex()
+            .gap(px(8.))
+            .text_size(px(16.8))
+            .font_weight(FontWeight::SEMIBOLD)
+            // A fixed gutter: the four glyphs differ in width, the ranks must not
+            .child(
+                div()
+                    .w(px(16.))
+                    .flex()
+                    .justify_center()
+                    .child(suits(symbol)),
+            )
+            .child(if cards.is_empty() {
+                "—".to_string()
+            } else {
+                cards.clone()
+            })
+    });
+    cell.flex().flex_col().child(head).children(lines)
+}
+
+/// All the hands on show in compass layout: North on top, West and East
+/// flanking, South below, each centred in a third of the column
+fn compass(hands: &BTreeMap<char, Hand>) -> Div {
+    let third = || div().flex_1().flex().justify_center();
+    let seat = |seat: char| match hands.get(&seat) {
+        Some(hand) => third().child(seated(panel().min_w(px(160.)), seat, hand)),
+        None => third(),
+    };
+    let row = || div().flex().gap(px(10.));
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(10.))
+        .child(row().child(third()).child(seat('N')).child(third()))
+        .child(row().child(seat('W')).child(third()).child(seat('E')))
+        .child(row().child(third()).child(seat('S')).child(third()))
+}
+
+/// The auction table: four equal columns, west first, blank up to the dealer
+fn auction(snap: &Snapshot) -> Div {
+    let column = || div().flex_1().flex().justify_center();
+    let head = div().flex().children(COLUMNS.map(|seat| {
+        let you = snap.seat == Some(seat);
+        column()
+            .pb(px(4.))
+            .border_b_1()
+            .text_size(TINY)
+            .when(you, |this| {
+                this.border_color(rgb(GOLD)).text_color(rgb(0x8a6d00))
+            })
+            .when(!you, |this| {
+                this.border_color(rgba(0x00000026)).opacity(DIM)
+            })
+            .child(seat_name(seat).to_uppercase())
+    }));
+    let lead = COLUMNS.iter().position(|&c| c == snap.dealer).unwrap_or(0);
+    let mut calls: Vec<&str> = std::iter::repeat_n("", lead)
+        .chain(snap.auction.iter().map(String::as_str))
+        .collect();
+    // A short last line would stretch its cells off the columns
+    calls.resize(calls.len().next_multiple_of(4), "");
+    let cell = |call: &str| {
+        let cell = column().py(px(3.));
+        match call {
+            "" => cell,
+            "P" => cell.opacity(0.45).child("P"),
+            "X" | "XX" => cell
+                .text_color(rgb(HEART))
+                .font_weight(FontWeight::EXTRA_BOLD)
+                .child(call.to_string()),
+            _ => cell
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(suits(call.to_string())),
+        }
+    };
+    panel()
+        .flex_1()
+        .min_w(px(256.))
+        .flex()
+        .flex_col()
+        .child(head)
+        .children(
+            calls
+                .chunks(4)
+                .map(|line| div().flex().children(line.iter().map(|call| cell(call)))),
+        )
 }
 
 impl Pons {
@@ -562,40 +792,41 @@ impl Pons {
     }
 
     fn render_play(&self, cx: &mut Context<Self>) -> Div {
-        let cycle = |id: &str, label: String, cx: &mut Context<Self>, step: fn(&mut Self)| {
-            button(id.into(), label, false, true).on_click(cx.listener(move |this, _, _, cx| {
-                step(this);
-                cx.notify();
-            }))
-        };
         let (seat, dealer, vul) = (SEATS[self.seat], SEATS[self.dealer], VULS[self.vul]);
         let min_hcp = self.min_hcp;
+        let floor = MIN_HCPS.iter().position(|&hcp| hcp == min_hcp);
 
-        let controls = div()
-            .flex()
-            .flex_wrap()
-            .gap_2()
-            .child(cycle("seat", format!("Seat {seat}"), cx, |this| {
-                this.seat = (this.seat + 1) % 4;
+        let options = controls()
+            .child(picker("Seat", &SEATS, self.seat, cx, |this, index, _| {
+                this.seat = index;
             }))
-            .child(cycle("dealer", format!("Dealer {dealer}"), cx, |this| {
-                this.dealer = (this.dealer + 1) % 4;
+            .child(picker(
+                "Dealer",
+                &SEATS,
+                self.dealer,
+                cx,
+                |this, index, _| {
+                    this.dealer = index;
+                },
+            ))
+            .child(picker("Vul", &VUL_NAMES, self.vul, cx, |this, index, _| {
+                this.vul = index;
             }))
-            .child(cycle("vul", format!("Vul {vul}"), cx, |this| {
-                this.vul = (this.vul + 1) % 4;
-            }))
-            .child(cycle("hcp", format!("Min HCP {min_hcp}"), cx, |this| {
-                this.min_hcp = (this.min_hcp + 2) % 22;
-            }))
-            .child(
-                button("practice".into(), "Deal practice", false, true).on_click(cx.listener(
-                    move |this, _, _, cx| {
-                        this.deal(cx, move |table| {
-                            table.deal_practice(seat, dealer, vul, min_hcp)
-                        });
-                    },
-                )),
-            )
+            .child(picker(
+                "Min HCP",
+                &MIN_HCPS,
+                floor.unwrap_or(0),
+                cx,
+                |this, index, _| this.min_hcp = MIN_HCPS[index],
+            ));
+        let actions = controls()
+            .child(primary("practice", "Deal practice").on_click(cx.listener(
+                move |this, _, _, cx| {
+                    this.deal(cx, move |table| {
+                        table.deal_practice(seat, dealer, vul, min_hcp)
+                    });
+                },
+            )))
             .child(
                 button("demo".into(), "Deal demo", false, true).on_click(cx.listener(
                     move |this, _, _, cx| this.deal(cx, move |table| table.deal_demo(dealer, vul)),
@@ -613,220 +844,228 @@ impl Pons {
                 )),
             );
 
-        let mut page = div().flex().flex_col().gap_3().child(controls);
+        // The web's order from here down: the board line, the table (your hand
+        // beside the auction; a demo's four hands above it), the bidding box,
+        // the hint, the feedback, then the reveal and its analysis.
+        let mut page = div().flex().flex_col().gap(GAP).child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(10.))
+                .child(options)
+                .child(actions),
+        );
         if !self.status.is_empty() {
             page = page.child(panel().text_color(rgb(HEART)).child(self.status.clone()));
         }
         let Some(snap) = &self.snap else {
-            return page.child(div().opacity(DIM).child(
-                "Deal a practice board to bid one seat against the bots, a demo board \
-                 to watch them, or paste a PBN deal from the clipboard.",
-            ));
+            return page.child(panel().child(div().opacity(0.6).italic().child(
+                "Pick your options and deal: a practice board to bid one seat against the \
+                 bots, a demo board to watch them, or a PBN deal from the clipboard.",
+            )));
         };
+        page = page.child(note(format!(
+            "Dealer {} · Vul {}",
+            seat_name(snap.dealer),
+            snap.vul,
+        )));
 
-        let hand = |seat: char| {
-            let mut cell = panel().w(px(170.)).flex().flex_col();
-            let Some(hand) = snap.hands.get(&seat) else {
-                return cell.child(div().opacity(DIM).child(format!("{seat} — hidden")));
-            };
-            let you = if snap.seat == Some(seat) {
-                " (you)"
-            } else {
-                ""
-            };
-            cell = cell.child(
-                div()
-                    .opacity(DIM)
-                    .child(format!("{seat}{you} · {} HCP", hand.hcp)),
-            );
-            for (symbol, cards) in [
-                ('♠', &hand.spades),
-                ('♥', &hand.hearts),
-                ('♦', &hand.diamonds),
-                ('♣', &hand.clubs),
-            ] {
-                let cards = if cards.is_empty() { "—" } else { cards };
-                cell = cell.child(suits(format!("{symbol} {cards}")));
+        let yours = snap
+            .seat
+            .and_then(|seat| Some((seat, snap.hands.get(&seat)?)));
+        let mut table = div().flex().flex_wrap().items_start().gap(GAP);
+        match yours {
+            Some((seat, hand)) => {
+                table = table.child(seated(panel().min_w(px(176.)), seat, hand));
             }
-            cell
-        };
-        let row = || div().flex().gap_2().justify_center();
-        let compass = div()
-            .flex()
-            .flex_col()
-            .gap_2()
-            .child(row().child(hand('N')))
-            .child(
-                row()
-                    .child(hand('W'))
-                    .child(div().w(px(170.)))
-                    .child(hand('E')),
-            )
-            .child(row().child(hand('S')));
-
-        // The auction, west first: blank cells until the dealer's column
-        let lead = COLUMNS.iter().position(|&c| c == snap.dealer).unwrap_or(0);
-        let cells: Vec<String> = std::iter::repeat_n(String::new(), lead)
-            .chain(snap.auction.iter().cloned())
-            .collect();
-        let cell = |text: String| div().w(px(48.)).child(suits(text));
-        let mut auction = panel().flex().flex_col().child(
-            div()
-                .flex()
-                .opacity(DIM)
-                .children(COLUMNS.map(|seat| cell(seat.to_string()))),
-        );
-        for line in cells.chunks(4) {
-            auction = auction.child(div().flex().children(line.iter().cloned().map(cell)));
+            None => page = page.child(compass(&snap.hands)),
         }
-        auction = auction.child(
-            div()
-                .opacity(DIM)
-                .child(format!("Dealer {} · Vul {}", snap.dealer, snap.vul)),
-        );
+        page = page.child(table.child(auction(snap)));
 
-        let mut side = div().flex().flex_col().gap_2().child(auction);
-
-        if snap.your_turn {
-            let call = |code: String, cx: &mut Context<Self>| {
+        if snap.your_turn && !snap.ended {
+            let call = |code: String, width: Pixels, cx: &mut Context<Self>| {
                 let legal = snap.legal.contains(&code);
                 let label = suits(code.clone());
                 key(format!("call-{code}"), label, legal)
-                    .w(px(44.))
+                    .w(width)
                     .when(legal, |this| {
                         this.on_click(cx.listener(move |this, _, _, cx| {
                             this.bid(code.clone(), cx);
                         }))
                     })
             };
-            let mut bidding_box = div().flex().flex_col().gap_1();
+            let line = || div().flex().gap(KEY_GAP);
+            let mut bidding_box = div().flex().flex_col().items_center().gap(KEY_GAP);
             for level in 1..=7 {
                 bidding_box = bidding_box.child(
-                    div()
-                        .flex()
-                        .gap_1()
-                        .children(STRAINS.map(|strain| call(format!("{level}{strain}"), cx))),
+                    line()
+                        .children(STRAINS.map(|strain| call(format!("{level}{strain}"), KEY, cx))),
                 );
             }
-            bidding_box = bidding_box.child(
-                div()
-                    .flex()
-                    .gap_1()
-                    .children(["P", "X", "XX"].map(|code| call(code.into(), cx))),
-            );
-            side = side.child(bidding_box);
+            page = page.child(bidding_box.child(
+                line().children(["P", "X", "XX"].map(|code| call(code.into(), WIDE_KEY, cx))),
+            ));
 
             if !self.hint.is_empty() {
-                let line = self
-                    .hint
-                    .iter()
-                    .map(|h| format!("{} {:.1}±{:.1}", h.strain, h.mean, h.sd))
-                    .collect::<Vec<_>>()
-                    .join("   ");
-                side = side.child(
+                let estimates = self.hint.iter().map(|hint| {
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(6.))
+                        .child(suits(hint.strain.clone()))
+                        .child(
+                            div()
+                                .text_size(px(28.8))
+                                .line_height(relative(1.1))
+                                .font_weight(FontWeight::BOLD)
+                                .child(format!("{:.1}", hint.mean)),
+                        )
+                        .child(div().opacity(0.6).child(format!("± {:.1}", hint.sd)))
+                });
+                page = page.child(
                     panel()
                         .child(
                             div()
-                                .opacity(DIM)
-                                .child("Our tricks, as the net reads the auction:"),
+                                .font_weight(FontWeight::BOLD)
+                                .mb(px(5.))
+                                .child("Our tricks, as the auction reads so far"),
                         )
-                        .child(suits(line)),
+                        .child(div().flex().flex_wrap().gap(GAP).children(estimates)),
                 );
             }
-        }
-
-        let mut rows = panel().flex().flex_col().gap_1();
-        for feedback in &snap.feedback {
-            // Ladder in nats when an authored node answered this hand (a
-            // precedence), odds when the floor did.
-            let top = feedback
-                .top
-                .iter()
-                .map(|(call, value)| {
-                    if feedback.authored {
-                        format!("{call} {value:.2}")
-                    } else {
-                        format!("{call} {value:.0}%")
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" · ");
-            let (mark, color) = if feedback.agreed {
-                ("✓", CLUB)
-            } else {
-                ("✗", HEART)
-            };
-            rows = rows.child(
-                div()
-                    .flex()
-                    .gap_2()
-                    .child(div().text_color(rgb(color)).child(mark))
-                    .child(suits(format!(
-                        "call {}: you {} — bot: {}",
-                        feedback.index + 1,
-                        feedback.human,
-                        if top.is_empty() { "off book" } else { &top },
-                    ))),
-            );
         }
 
         if !snap.feedback.is_empty() {
-            side = side.child(rows);
+            let rows = snap.feedback.iter().map(|feedback| {
+                // Ladder in nats when an authored node answered this hand (a
+                // precedence), odds when the floor did.
+                let top = feedback
+                    .top
+                    .iter()
+                    .map(|(call, value)| {
+                        if feedback.authored {
+                            format!("{call} {value:.2}")
+                        } else {
+                            format!("{call} {value:.0}%")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                let bot = if top.is_empty() {
+                    "book has no opinion (bot would pass)".to_string()
+                } else {
+                    format!("bot: {top}")
+                };
+                let (mark, color) = if feedback.agreed {
+                    ("✓", CLUB)
+                } else {
+                    ("✗", HEART)
+                };
+                div()
+                    .flex()
+                    .gap(px(6.))
+                    .child(
+                        div()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(color))
+                            .child(mark),
+                    )
+                    .child(suits(format!("you: {} · {bot}", feedback.human)))
+            });
+            page = page.child(
+                panel()
+                    .flex()
+                    .flex_col()
+                    .gap(px(4.))
+                    .text_size(px(15.2))
+                    .children(rows),
+            );
         }
 
+        if !snap.ended {
+            return page;
+        }
         if let Some(contract) = &snap.contract {
-            // A paper pill, as on the web, so the strain keeps its colour
-            side = side.child(
+            // A paper pill, so the strain keeps its colour
+            page = page.child(
                 div().flex().justify_center().child(
-                    panel()
+                    div()
+                        .px(px(14.))
+                        .py(px(4.))
                         .rounded_full()
+                        .bg(rgb(PAPER))
+                        .text_color(rgb(INK))
+                        .shadow_sm()
+                        .text_size(px(16.8))
                         .font_weight(FontWeight::BOLD)
-                        .child(suits(format!("Contract: {contract}"))),
+                        .child(suits(contract.clone())),
                 ),
             );
         }
-        if let Some(oracle) = &self.oracle {
-            side = side.child(panel().child(format!(
-                "Oracle, {}/{ORACLE_TOTAL} opponent reshuffles: makes {:.0}% · {:.2} tricks \
-                 ({}–{}) · mean score {:+.0}",
-                oracle.n,
-                oracle.makes_pct,
-                oracle.mean_tricks,
-                oracle.tricks_min,
-                oracle.tricks_max,
-                oracle.mean_score,
-            )));
+        if yours.is_some() {
+            page = page.child(compass(&snap.hands));
         }
-        if let Some(dd) = &self.dd {
-            let cell = |text: String| div().w(px(36.)).child(suits(text));
-            let mut table = panel().flex().flex_col().child(
-                div()
-                    .flex()
-                    .opacity(DIM)
-                    .child(cell(String::new()))
-                    .children(dd.seats.map(|seat| cell(seat.to_string()))),
-            );
-            for row in &dd.rows {
-                table = table.child(
-                    div()
-                        .flex()
-                        .child(cell(row.strain.clone()))
-                        .children(row.tricks.iter().map(|tricks| cell(tricks.to_string()))),
-                );
-            }
-            for line in dd.verdict.iter().flatten() {
-                table = table.child(
-                    div()
-                        .font_weight(FontWeight::BOLD)
-                        .child(suits(line.clone())),
-                );
-            }
-            side = side.child(table);
-        } else if snap.ended {
-            side = side.child(div().opacity(DIM).child("Solving double dummy…"));
+        if let Some(oracle) = &self.oracle {
+            page = page.child(panel().child(title("Oracle (opponents reshuffled)")).child(
+                format!(
+                    "{}/{ORACLE_TOTAL} shuffles: makes {:.0}% · tricks {}/{:.1}/{} · \
+                         mean score {:+.0}",
+                    oracle.n,
+                    oracle.makes_pct,
+                    oracle.tricks_min,
+                    oracle.mean_tricks,
+                    oracle.tricks_max,
+                    oracle.mean_score,
+                ),
+            ));
         }
 
-        page.child(div().flex().flex_wrap().gap_4().child(compass).child(side))
+        let analysis = panel().child(title("Double dummy"));
+        let Some(dd) = &self.dd else {
+            return page.child(analysis.child(div().opacity(0.6).italic().child("solving…")));
+        };
+        let cell = || div().w(px(64.)).py(px(2.)).flex().justify_center();
+        let head = div()
+            .flex()
+            .text_size(px(12.8))
+            .opacity(0.75)
+            .child(cell())
+            .children(dd.seats.map(|seat| cell().child(seat_name(seat))));
+        let rows = dd.rows.iter().map(|row| {
+            div()
+                .flex()
+                .border_t_1()
+                .border_color(rgba(0x00000014))
+                .child(cell().child(suits(row.strain.clone())))
+                .children(
+                    row.tricks
+                        .iter()
+                        .map(|tricks| cell().child(tricks.to_string())),
+                )
+        });
+        let verdict = dd.verdict.iter().flatten().map(|line| suits(line.clone()));
+        page.child(
+            analysis
+                .child(
+                    div().flex().justify_center().child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(head)
+                            .children(rows),
+                    ),
+                )
+                .child(
+                    div()
+                        .mt(px(6.))
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .font_weight(FontWeight::BOLD)
+                        .children(verdict),
+                ),
+        )
     }
 
     // --- book ---------------------------------------------------------------
@@ -891,80 +1130,144 @@ impl Pons {
         let pages = hits.len().div_ceil(PAGE).max(1);
         let page = self.page.min(pages - 1);
 
-        let turn = |id: &str, label: &'static str, to: usize, cx: &mut Context<Self>| {
-            button(id.into(), label, false, to != page).on_click(cx.listener(
-                move |this, _, _, cx| {
-                    this.page = to;
-                    cx.notify();
-                },
-            ))
+        // Twice on a long page: beside the filter, and under the last node
+        let pager = |place: &str, cx: &mut Context<Self>| {
+            let turn = |name: &str, label: &'static str, to: usize| {
+                button(format!("{name}-{place}"), label, false, to != page).on_click(cx.listener(
+                    move |this, _, _, cx| {
+                        this.page = to;
+                        cx.notify();
+                    },
+                ))
+            };
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .text_size(SMALL)
+                .child(turn("prev", "‹ Prev", page.saturating_sub(1)))
+                .child(format!("{} / {pages}", page + 1))
+                .child(turn("next", "Next ›", (page + 1).min(pages - 1)))
         };
-        let pair = |index: usize, label: &'static str, cx: &mut Context<Self>| {
-            button(format!("book-{index}"), label, self.pair == index, true).on_click(cx.listener(
-                move |this, _, _, cx| {
+        // The web's search field, drawn: the keys land on the window (see `key`)
+        let filter = div()
+            .flex_1()
+            .min_w(px(192.))
+            .px(px(6.))
+            .py(px(3.))
+            .rounded(px(5.))
+            .border_1()
+            .border_color(rgba(RIM))
+            .text_size(SMALL)
+            .child(if self.filter.is_empty() {
+                div()
+                    .truncate()
+                    .opacity(DIM)
+                    .child("Type to filter, e.g. 1nt 2c")
+            } else {
+                div().truncate().child(format!("{}▏", self.filter))
+            });
+        let bar = controls()
+            .child(picker(
+                "Partnership",
+                &PAIR_NAMES,
+                self.pair,
+                cx,
+                |this, index, cx| {
                     this.pair = index;
                     this.load_book(cx);
                 },
             ))
-        };
-        let filter = if self.filter.is_empty() {
-            "type to filter — suits as c d h s (1nt 2c), Esc clears".to_string()
-        } else {
-            format!("filter: {}▏", self.filter)
-        };
-        let bar = div()
-            .flex()
-            .flex_wrap()
-            .items_center()
-            .gap_2()
-            .child(pair(0, "North–South", cx))
-            .child(pair(1, "East–West", cx))
-            .child(turn("prev", "‹ Prev", page.saturating_sub(1), cx))
-            .child(format!("{}/{pages}", page + 1))
-            .child(turn("next", "Next ›", (page + 1).min(pages - 1), cx))
-            .child(div().opacity(DIM).child(format!(
-                "{} of {} nodes · {filter}",
+            .child(filter)
+            .child(note(format!(
+                "{} of {} nodes",
                 hits.len(),
                 self.nodes.len(),
-            )));
+            )))
+            .child(pager("top", cx));
 
-        let mut list = div().flex().flex_col().gap_2().child(bar);
+        let mut list = div().flex().flex_col().gap(GAP).child(bar);
         if !self.status.is_empty() {
-            list = list.child(div().opacity(DIM).child(self.status.clone()));
+            list = list.child(note(self.status.clone()));
         }
-        for node in hits.into_iter().skip(page * PAGE).take(PAGE) {
-            let mut card = panel().flex().flex_col().child(
+        let cards = hits.into_iter().skip(page * PAGE).take(PAGE).map(|node| {
+            let badge = match node.book.as_str() {
+                "constructive" => CLUB,
+                "competitive" => 0xb06000,
+                _ => 0x8f2f3a,
+            };
+            let head = div()
+                .flex()
+                .items_center()
+                .gap(px(10.))
+                .mb(px(5.))
+                .child(
+                    div()
+                        .px(px(7.))
+                        .py(px(1.))
+                        .rounded(px(4.))
+                        .bg(rgb(badge))
+                        .text_color(rgb(0xffffff))
+                        .text_size(px(11.2))
+                        .font_weight(FontWeight::BOLD)
+                        .child(node.book.to_uppercase()),
+                )
+                .child(
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .child(suits(node.auction.clone())),
+                );
+            // Call, weight, meaning, tag: fixed gutters, so the meanings of a
+            // node start on one edge.  The small columns keep the row's line
+            // height, which puts them on the first line of a wrapped meaning.
+            let rules = node.rules.iter().map(|rule| {
                 div()
                     .flex()
-                    .gap_2()
-                    .child(suits(node.auction.clone()))
-                    .child(div().opacity(DIM).child(node.book.clone())),
-            );
-            if let Some(note) = &node.note {
-                card = card.child(div().opacity(DIM).child(note.clone()));
-            }
-            for rule in &node.rules {
-                let label = if rule.label.is_empty() {
-                    String::new()
-                } else {
-                    format!(" [{}]", rule.label)
-                };
-                card = card.child(
-                    div()
-                        .flex()
-                        .gap_2()
-                        .child(div().w(px(48.)).flex_none().child(suits(rule.call.clone())))
-                        .child(
+                    .items_start()
+                    .gap(px(10.))
+                    .py(px(2.))
+                    .child(
+                        div()
+                            .w(px(45.))
+                            .flex_none()
+                            .font_weight(FontWeight::BOLD)
+                            .child(suits(rule.call.clone())),
+                    )
+                    .child(
+                        div()
+                            .w(px(46.))
+                            .flex_none()
+                            .opacity(0.5)
+                            .text_size(px(12.8))
+                            .line_height(px(21.))
+                            .child(format!("w{:.2}", f32::from(rule.weight) / 100.)),
+                    )
+                    .child(div().flex_1().child(suits(rule.text.clone())))
+                    .when(!rule.label.is_empty(), |this| {
+                        this.child(
                             div()
-                                .w(px(56.))
                                 .flex_none()
-                                .opacity(DIM)
-                                .child(format!("{:.2}", f32::from(rule.weight) / 100.)),
+                                .mt(px(2.))
+                                .px(px(6.))
+                                .rounded(px(4.))
+                                .bg(rgba(0x00000014))
+                                .text_size(px(11.5))
+                                .line_height(px(17.))
+                                .child(rule.label.clone()),
                         )
-                        .child(div().flex_1().child(suits(format!("{}{label}", rule.text)))),
-                );
-            }
-            list = list.child(card);
+                    })
+            });
+            let note = node.note.clone().map(|note| div().py(px(2.)).child(note));
+            panel()
+                .flex()
+                .flex_col()
+                .child(head)
+                .children(rules)
+                .children(note)
+        });
+        list = list.child(div().flex().flex_col().gap(px(11.)).children(cards));
+        if pages > 1 {
+            list = list.child(div().flex().justify_center().child(pager("bottom", cx)));
         }
         list
     }
@@ -1048,29 +1351,20 @@ impl Pons {
     /// The web client's questionnaire: one paper panel per section, one
     /// question per line — a check box, or a titled family of radio answers
     fn render_settings(&self, cx: &mut Context<Self>) -> Div {
-        let pair = |index: usize, label: &'static str, cx: &mut Context<Self>| {
-            button(format!("pair-{index}"), label, self.pair == index, true).on_click(cx.listener(
-                move |this, _, _, cx| {
-                    this.pair = index;
-                    cx.notify();
-                },
-            ))
-        };
         let mut page = div()
             .flex()
             .flex_col()
-            .gap_3()
-            .max_w(px(720.))
-            .child("Toggle conventions, then deal in Play — changes apply to the next deal.")
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child("Partnership")
-                    .child(pair(0, PAIR_NAMES[0], cx))
-                    .child(pair(1, PAIR_NAMES[1], cx)),
-            );
+            .gap(GAP)
+            .child(note(
+                "Toggle conventions, then deal in Play — changes apply to the next deal.",
+            ))
+            .child(controls().child(picker(
+                "Partnership",
+                &PAIR_NAMES,
+                self.pair,
+                cx,
+                |this, index, _| this.pair = index,
+            )));
         if !self.status.is_empty() {
             page = page.child(panel().text_color(rgb(HEART)).child(self.status.clone()));
         }
@@ -1081,12 +1375,13 @@ impl Pons {
                 .last()
                 .is_none_or(|(name, _)| *name != setting.section)
             {
-                let title = div()
-                    .text_size(px(11.))
-                    .opacity(DIM)
-                    .mb_1()
-                    .child(setting.section.to_uppercase());
-                sections.push((&setting.section, panel().flex().flex_col().child(title)));
+                let section = panel()
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.))
+                    .text_size(px(15.2))
+                    .child(title(&setting.section));
+                sections.push((&setting.section, section));
             }
             let live = self.live(setting);
             let current = self.value(self.pair, &setting.key);
@@ -1127,7 +1422,8 @@ impl Pons {
             } else {
                 body.1 = body.1.child(
                     div()
-                        .mt_1()
+                        .mt(px(3.))
+                        .py(px(2.))
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(suits(label)),
                 );
@@ -1142,9 +1438,13 @@ impl Pons {
             }
             sections.push(body);
         }
-        for (_, section) in sections {
-            page = page.child(section);
-        }
+        page = page.child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(13.))
+                .children(sections.into_iter().map(|(_, section)| section)),
+        );
 
         let name = PAIR_NAMES[self.pair];
         page.child(
@@ -1189,16 +1489,39 @@ impl Render for Pons {
                 },
             ))
         };
-        let tabs = div()
+        // A window control: a bare glyph, so it does not read as a fourth tab
+        let control = |id: &'static str, glyph: &'static str| {
+            div()
+                .id(id)
+                .size(px(28.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_full()
+                .cursor_pointer()
+                .hover(|style| style.bg(rgba(WASH)))
+                .child(glyph)
+        };
+        // The web's `header`: the name, then the tabs
+        let header = div()
             .flex()
-            .gap_2()
-            .p_2()
+            .items_center()
+            .gap(px(6.))
+            .px(GAP)
+            .py(px(8.))
             .border_b_1()
             .border_color(rgba(0x00000033))
+            .child(
+                div()
+                    .mr(px(18.))
+                    .text_size(px(19.2))
+                    .font_weight(FontWeight::BOLD)
+                    .child("pons"),
+            )
             .child(tab(Tab::Play, "Play", cx))
             .child(tab(Tab::Book, "Book", cx))
             .child(tab(Tab::Settings, "Settings", cx))
-            // We draw our own decorations (see `main`), so the tab row is the
+            // We draw our own decorations (see `main`), so the header is the
             // title bar: the gap drags, a double click zooms.
             .when(
                 matches!(window.window_decorations(), Decorations::Client { .. }),
@@ -1214,17 +1537,10 @@ impl Render for Pons {
                         },
                     ))
                     .child(
-                        button("minimize".into(), "–", false, true)
-                            .on_click(|_, window, _| window.minimize_window()),
+                        control("minimize", "–").on_click(|_, window, _| window.minimize_window()),
                     )
-                    .child(
-                        button("zoom".into(), "□", false, true)
-                            .on_click(|_, window, _| window.zoom_window()),
-                    )
-                    .child(
-                        button("close".into(), "×", false, true)
-                            .on_click(|_, window, _| window.remove_window()),
-                    )
+                    .child(control("zoom", "□").on_click(|_, window, _| window.zoom_window()))
+                    .child(control("close", "×").on_click(|_, window, _| window.remove_window()))
                 },
             );
 
@@ -1242,17 +1558,18 @@ impl Render for Pons {
             .flex_col()
             .bg(rgb(FELT))
             .text_color(rgb(CHALK))
+            .font_family(UI_FONT)
             .text_size(px(15.))
             .line_height(relative(1.4))
-            .child(tabs)
+            .child(header)
             .child(
                 div()
                     .id("body")
                     .flex_1()
                     .min_h(px(0.))
                     .overflow_y_scroll()
-                    .p_3()
-                    .child(body),
+                    // The web's `main`: one centred column for every tab
+                    .child(div().max_w(COLUMN).mx_auto().p(GAP).child(body)),
             )
             .when(!window.is_maximized(), |root| root.children(grips()))
     }

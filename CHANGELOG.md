@@ -21,8 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tabs are not ported. It wears the web UI's look: felt, card-paper panels,
   gold for the active choice, the four suit colours, and the Libertinus suit
   glyphs embedded as `gpui/assets/suits.ttf` (OFL). The palette is copied by
-  hand from `web/style.css`; keep the two in step. It draws its own
-  decorations on Linux, since GNOME on Wayland draws none: the tab row is the
+  hand from `web/style.css`; keep the two in step. So is the layout: one
+  centred 960 px column for every tab, each row spanning it, in the web's
+  order — the board line, your hand beside a four-column auction table, the
+  bidding box centred under them, then the hint, the feedback, the compass
+  reveal and the analysis panels. A `<select>` becomes a strip of choices
+  with the chosen one gold (*Min HCP* offers 0 / 5 / 8 / 10 / 12 / 15 / 18 /
+  20), *Deal practice* is the one gold action, and the book's nodes carry the
+  web's coloured book badge and fixed call / weight gutters. On Linux the UI
+  face is Inter when installed: GPUI reads one weight per font file, so
+  GNOME's variable Adwaita Sans drew every bold as regular. It draws its own
+  decorations on Linux, since GNOME on Wayland draws none: the header is the
   title bar, its gap drags the window and zooms on a double click, it carries
   minimize, zoom and close buttons, and the outer 6 px of the window resize
   it.
