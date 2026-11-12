@@ -38,6 +38,17 @@
 #      --ns-two-over-one-opener-invite`.  The ON arm's SD sampler fell
 #      back on 25% of worlds vs 4% OFF.
 #
+# CENSUS 2026-11-12 (r1's divergent boards priced by opener's rebid, no new
+# A/B; plain IMPs none / both per 3,276,800 boards): no-fit +746 / +854,
+# jump `3M` +19 / +19, raises +265 / +294 on 232-243 boards.  The only
+# losing raise prefix is `1♠ - 2♥ - 3♥`: 7 boards, -61 / -72.  Excluding
+# every raise prefix gives up a win; excluding the heart raise alone is 2
+# boards per million, unmeasurable.  Raise-prefix flag closed, as shipped.
+# Lead beside it, unsized: at `1♠ - 2♥ - 3♥ -` (656 boards, none) responder
+# bids `3NT` on 208 with a nine-card heart fit (`responder_rebid` has no rule
+# for the raised suit) and we end in `6♥` on ~120 of those where BBA stops in
+# game on ~55; 8 boards pass `3♥` in a game force.
+#
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; δ = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #

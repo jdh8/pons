@@ -821,6 +821,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BBA re-anchor (2026-11-12, `b3ffe8ee`)**: shipping `american()` scores
+  **−0.1345 plain / +0.0081 perfect-defense IMPs/board** (none −0.1388 /
+  +0.0101, both −0.1302 / +0.0061), the series' best, up 0.0035 plain;
+  `american_instinct()` −0.8819 / −0.9057. Same seed `1783375064`, all four
+  cells replayed at 100% with zero mismatches, 14 new DD tables, 40
+  minutes. The window since `7f3d57bd` is the 2/1 quantitative lane
+  (`rebid.two_over_one_quantitative`, `rebid.two_over_one_opener_invite`,
+  `rebid.two_over_one_reverse_quantitative`). Paired per table on the same
+  deals, shipping gains +0.0021 ±0.0011 / +0.0025 ±0.0013 plain and +0.0022
+  ±0.0011 / +0.0026 ±0.0014 PD (none / both), a win in all four cells, on
+  193 / 201 boards fired. That is about 1.6× the window's ship A/Bs
+  (flagged, not traced, as at `7f3d57bd`). Floor paired worth +0.382 plain
+  / +0.464 PD, unchanged. Shipping bucket order unchanged; the lane's
+  residual is responder's `4NT` 18–20 HCP at 141 rows, −385 plain. The
+  raise-prefix flag on the opener invite is closed by census (raises net
+  +265 / +294 IMPs per 3,276,800 boards; only `1♠ - 2♥ - 3♥` loses, 7
+  boards), `scripts/ab-two-over-one-opener-invite.sh`. Ranking and series
+  row in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-12-b3ffe8ee/`.
 - **BBA re-anchor (2026-11-11, `7f3d57bd`)**: shipping `american()` scores
   **−0.1380 plain / +0.0047 perfect-defense IMPs/board** (none −0.1420 /
   +0.0069, both −0.1339 / +0.0024), the series' best, up 0.004 plain, with
