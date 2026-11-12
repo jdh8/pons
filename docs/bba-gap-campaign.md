@@ -294,7 +294,13 @@ the window is the book, in both arms. All eight worst boards are the new
 lane: `4NT` reaching a failing slam, or the invite passed in `4NT` where the
 floor had bid the slam. That is 1.6× / 1.7× the window's ship A/Bs (+0.0010
 / +0.0012, +0.0003, ≈ +0.00005), the second window in a row to read above
-its A/Bs; not traced. `anchor-diff.py` on the instinct arm lists two
+its A/Bs. **Traced 2026-11-13: not a fire-rate gap.** The three A/Bs predict
+202 / 207 fired boards and the window has 193 / 201; the excess is IMPs per
+fired board (+439 / +522 against a predicted +280 / +326, z = +1.3 in each
+cell, and the cells share their deals). Split by first divergent call,
+responder's side matches (103 boards +294 against 98 and +268, z = +0.3) and
+the whole excess is opener's invite (90 boards +145 against 104 and +12,
+z = +1.5): sampling noise, no mechanism. `anchor-diff.py` on the instinct arm lists two
 buckets at n ≥ 300, neither a same-node move: Defensive / floor#50 / round-1
 −24 plain (other table) and Constructive / book / deep −46 (entries).
 
@@ -315,7 +321,18 @@ or raise-ladder auctions over `1x - 1♠` / `1m - 1♥`. **Flag:** that is
 splinter +0.0005 / +0.0007, heart splinter +0.0003 / +0.0005, ladder
 ≈ +0.0001), at the same ≈ +2 IMPs per fired board. So the gap is in the fire
 rate, which suggests the filters' density understates how often the lane
-fires on the anchor's deals; not traced. `anchor-diff.py` on the instinct
+fires on the anchor's deals. **Traced 2026-11-13: wrong, the fire rate
+matches.** That arithmetic left out the ladder's fired boards (about 130 per
+cell at +0.2 IMPs each). Scaled by their densities the three A/Bs predict
+211 / 235 fired boards and the window has 215 / 232, lane by lane (♠
+splinter 45 / 55 against 48 / 55; the heart lanes 166 / 174 against 160 /
+179). The excess is IMPs per fired board: +455 / +446 against a predicted
++206 / +277, z = +1.8 / +0.9 on shared deals, the largest lane the spade
+splinter (+212 against +111, z = +1.4). The only boards outside every filter
+are the 4 / 3 `1m (X) 1♥ -` systems-on boards below (+22 / +33). So the
+filters' densities stand; the two windows together are about 2σ high, which
+noise or selection (lanes mined from this deal set) would both produce, and
+the next fresh-seed confirmation separates them. `anchor-diff.py` on the instinct
 arm lists 10 buckets at n ≥ 300, the largest −54 plain (Defensive / book /
 round-1, all other-table). One has a same-node move: Competitive /
 fallback@2 / round-1, −5 plain / −12 PD on one deal in both cells, where
