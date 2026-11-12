@@ -1810,6 +1810,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_opener_invite: bool,
 
+    /// Turn off responder's lowered quantitative bands after opener's
+    /// reverse in a 2/1: `3NT` 13–15, `4NT` 16, `6NT` 17+, opener accepting
+    /// on 15+ (`rebid.two_over_one_reverse_quantitative`, default on since
+    /// 2026-11-12; `scripts/ab-two-over-one-reverse-quantitative.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_reverse_quantitative: bool,
+
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
     /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
@@ -3741,6 +3748,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.two_over_one_six_four_hearts = !args.no_ns_two_over_one_six_four_hearts;
     agreements.rebid.two_over_one_quantitative = !args.no_ns_two_over_one_quantitative;
     agreements.rebid.two_over_one_opener_invite = !args.no_ns_two_over_one_opener_invite;
+    agreements.rebid.two_over_one_reverse_quantitative =
+        !args.no_ns_two_over_one_reverse_quantitative;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

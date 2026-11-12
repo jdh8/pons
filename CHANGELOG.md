@@ -36,6 +36,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one close button flush in the top-right corner, a stroked X that turns red
   on hover, and the outer 6 px of the window resize it. The header is a shade
   darker than the felt (black at 20%), so it reads as a title bar.
+- **`rebid.two_over_one_reverse_quantitative`, responder's quantitative
+  bands lowered after opener's reverse in a 2/1, default on (2026-11-12).** Under `two_over_one_reverse_extras` `1♥ - 2m - 2♠` and
+  `1♦ - 2♣ - 2M` show 15+ points (14+ HCP on 95% of 1,359 boards), yet
+  responder's bands stayed flat, so a 16–17 count bid `3NT` and opener
+  passed it below 16. On, `3NT` is 13–15, `4NT` exactly 16 and `6NT` 17+
+  (31 combined facing 14), and opener raises the `4NT` on 15+. Measured vs
+  BBA at 6,553,600 boards per cell (seed 1794389024466134412): plain DD
+  +277 / +328 / +255 / +328 IMPs none/ns/ew/both (+0.00004 to +0.00005
+  IMPs/board, lower bound above 0), PD +272 / +319 / +250 / +319, SD +407
+  to +674, SD-PD +408 to +675, all wins; 132–140 boards fired per cell at
+  about +2 IMPs each. A rare auction, so the user impact is small: one
+  board in 48,000. The four cells score the same deals. The off arm is
+  `bba-gen --no-ns-two-over-one-reverse-quantitative`;
+  `scripts/ab-two-over-one-reverse-quantitative.sh`. The quantitative
+  `4NT`'s interfered tails stay unauthored: BBA acted over it on 0 of
+  2,765 boards.
 - **`rebid.two_over_one_opener_invite`, opener's quantitative raise of
   responder's capped 2/1 `3NT`, default on (2026-11-11).** Since
   `two_over_one_quantitative` the `3NT` reads 13–17 HCP and the floor

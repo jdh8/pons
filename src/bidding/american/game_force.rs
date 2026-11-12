@@ -187,11 +187,12 @@ pub(super) fn opener_rebid(
 ///
 /// `quantitative`
 /// ([`RebidKnobs::two_over_one_quantitative`][crate::bidding::agreements::RebidKnobs::two_over_one_quantitative]):
-/// `3NT` is capped at 17 HCP; `4NT` (natural, quantitative) takes 18–20 and
-/// `6NT` 21+, answered by [`quantitative_answer`].
+/// `3NT` is capped below the [`Bands`]' invite; `4NT` (natural,
+/// quantitative) and `6NT` take the rest, answered by
+/// [`quantitative_answer`].
 ///
 /// No [`Pass`][Call::Pass] rule: the auction is still game forcing.
-fn responder_rebid(major: Suit, resp: Suit, quantitative: bool) -> Rules {
+fn responder_rebid(major: Suit, resp: Suit, quantitative: Option<Bands>) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
 
@@ -310,7 +311,7 @@ fn opener_rebid_1d_2c(reverse_extras: bool) -> Rules {
 /// `quantitative` as in [`responder_rebid`].
 ///
 /// No [`Pass`][Call::Pass] rule.
-fn responder_rebid_1d_2c(quantitative: bool) -> Rules {
+fn responder_rebid_1d_2c(quantitative: Option<Bands>) -> Rules {
     let rules = Rules::new()
         // Raise opener's diamonds.
         .rule(
@@ -323,41 +324,90 @@ fn responder_rebid_1d_2c(quantitative: bool) -> Rules {
     default_game(rules, quantitative)
 }
 
+/// Responder's quantitative notrump bands at a no-fit 2/1 node, each a
+/// lowest HCP: `invite` bids `4NT`, `slam` bids `6NT`, and opener raises the
+/// `4NT` to slam on `accept`
+#[derive(Clone, Copy)]
+struct Bands {
+    invite: u8,
+    slam: u8,
+    accept: u8,
+}
+
+/// Facing any opening: 12 HCP is possible, so `6NT` waits for 33 combined
+const FLAT: Bands = Bands {
+    invite: 18,
+    slam: 21,
+    accept: 13,
+};
+
+/// Facing a reverse under `reverse_extras` (`points(15..)`, 14+ HCP on 95% of
+/// the 1,359 such boards in `ab-results/two-over-one-opener-invite`): 31
+/// combined, the [notrump-slam](../../../docs/notrump-slam.md) threshold,
+/// facing 14
+/// ([`RebidKnobs::two_over_one_reverse_quantitative`][crate::bidding::agreements::RebidKnobs::two_over_one_reverse_quantitative])
+const REVERSE: Bands = Bands {
+    invite: 16,
+    slam: 17,
+    accept: 15,
+};
+
+/// The bands responder's default game uses after opener's `rebid` of an
+/// opening in `opened`, or `None` for the uncapped `3NT`
+///
+/// A reverse is a two-level suit above the opened one; it shows extras only
+/// under `reverse_extras`.
+/// ponytail: the six-card jump to `3M` shows 15+ points too, but responder
+/// reaches the default game there only on a singleton; add it when sized.
+fn bands(agreements: &Agreements, opened: Strain, rebid: Call) -> Option<Bands> {
+    let knobs = &agreements.rebid;
+    let reverse = matches!(
+        rebid,
+        Call::Bid(bid) if bid > Bid::new(2, opened) && bid < Bid::new(2, Strain::Notrump)
+    );
+    knobs.two_over_one_quantitative.then_some(
+        if reverse && knobs.two_over_one_reverse_extras && knobs.two_over_one_reverse_quantitative {
+            REVERSE
+        } else {
+            FLAT
+        },
+    )
+}
+
 /// Responder's default game at a no-fit 2/1 node: `3NT` on 13+, or under
-/// `quantitative` `3NT` 13–17, the quantitative `4NT` 18–20 and `6NT` 21+
+/// `quantitative` `3NT` below the invite, the quantitative `4NT` and `6NT`
+/// ([`FLAT`]: 13–17, 18–20, 21+; [`REVERSE`]: 13–15, 16, 17+)
 ///
 /// Natural notrump calls constrained on HCP alone, so none is alerted.
-/// ponytail: flat HCP thresholds whatever opener's rebid showed; a
-/// reverse's 15+ would justify lowering them by two.
-fn default_game(rules: Rules, quantitative: bool) -> Rules {
-    if quantitative {
-        rules
-            .rule(call(3, Strain::Notrump), 80, hcp(13..=17))
-            .rule(call(4, Strain::Notrump), 80, hcp(18..=20))
-            .rule(call(6, Strain::Notrump), 80, hcp(21..))
-    } else {
-        rules.rule(call(3, Strain::Notrump), 80, hcp(13..))
+fn default_game(rules: Rules, quantitative: Option<Bands>) -> Rules {
+    match quantitative {
+        Some(Bands { invite, slam, .. }) => rules
+            .rule(call(3, Strain::Notrump), 80, hcp(13..invite))
+            .rule(call(4, Strain::Notrump), 80, hcp(invite..slam))
+            .rule(call(6, Strain::Notrump), 80, hcp(slam..)),
+        None => rules.rule(call(3, Strain::Notrump), 80, hcp(13..)),
     }
 }
 
-/// Opener's answer to responder's quantitative `4NT` (18–20 HCP, no fit)
+/// Opener's answer to responder's quantitative `4NT` (no fit)
 ///
-/// 13+ HCP makes 31 combined, the [notrump-slam](../../../docs/notrump-slam.md)
-/// threshold: `6M` on a sixth card of the opened major (responder denied
-/// three-card support), else `6NT`; below it opener passes.
-fn quantitative_answer(major: Option<Suit>) -> Rules {
+/// `accept`+ HCP ([`Bands`]) makes 31 combined, the
+/// [notrump-slam](../../../docs/notrump-slam.md) threshold: `6M` on a sixth
+/// card of the opened major (responder denied three-card support), else
+/// `6NT`; below it opener passes.
+fn quantitative_answer(major: Option<Suit>, accept: u8) -> Rules {
     let rules = Rules::new();
     let rules = match major {
         Some(major) => rules.rule(
             call(6, Strain::from(major)),
             130,
-            hcp(13..) & len(major, 6..),
+            hcp(accept..) & len(major, 6..),
         ),
         None => rules,
     };
     rules
-        .rule(call(6, Strain::Notrump), 120, hcp(13..))
-        .rule(Call::Pass, 0, hcp(..13))
+        .rule(call(6, Strain::Notrump), 120, hcp(accept..))
+        .rule(Call::Pass, 0, hcp(..accept))
 }
 
 /// Opener's raise of responder's capped `3NT` (13–17 HCP, no fit), appended
@@ -477,11 +527,8 @@ pub(super) fn base() -> Package {
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
                         let after_rebid = format!("{prefix} {rebid_call} -");
-                        let mut rebid_rules = responder_rebid(
-                            major,
-                            resp,
-                            agreements.rebid.two_over_one_quantitative,
-                        );
+                        let quantitative = bands(agreements, Strain::from(major), rebid_call);
+                        let mut rebid_rules = responder_rebid(major, resp, quantitative);
                         // Minor before spades: responder shows the four
                         // spades it skipped at `1♠`, naturally.  ponytail:
                         // two-level only; `2NT` denies four spades (5-4 is
@@ -510,10 +557,10 @@ pub(super) fn base() -> Package {
                             ));
                         }
                         entries.extend(rows_of(node(&after_rebid), rebid_rules));
-                        if agreements.rebid.two_over_one_quantitative {
+                        if let Some(Bands { accept, .. }) = quantitative {
                             entries.extend(rows_of(
                                 node(&format!("{after_rebid} 4NT -")),
-                                quantitative_answer(Some(major)),
+                                quantitative_answer(Some(major), accept),
                             ));
                         }
                         if invite {
@@ -552,14 +599,15 @@ pub(super) fn base() -> Package {
             let rebid_calls = distinct_calls(&rebid);
             entries.extend(rows_of(Pattern::node(prefix), rebid));
             for rebid_call in rebid_calls {
+                let quantitative = bands(agreements, Strain::Diamonds, rebid_call);
                 entries.extend(rows_of(
                     Pattern::node(&format!("{prefix} {rebid_call} -")),
-                    responder_rebid_1d_2c(agreements.rebid.two_over_one_quantitative),
+                    responder_rebid_1d_2c(quantitative),
                 ));
-                if agreements.rebid.two_over_one_quantitative {
+                if let Some(Bands { accept, .. }) = quantitative {
                     entries.extend(rows_of(
                         Pattern::node(&format!("{prefix} {rebid_call} - 4NT -")),
-                        quantitative_answer(None),
+                        quantitative_answer(None, accept),
                     ));
                 }
                 if agreements.rebid.two_over_one_quantitative

@@ -5085,6 +5085,28 @@ pub struct RebidKnobs {
     /// wins.  The off arm is `bba-gen --no-ns-two-over-one-opener-invite`
     /// (`scripts/ab-two-over-one-opener-invite.sh`).
     pub two_over_one_opener_invite: bool,
+    /// Lower responder's quantitative bands after opener's reverse in a 2/1
+    ///
+    /// **Default on — measured win 2026-11-12**
+    /// (`scripts/ab-two-over-one-reverse-quantitative.sh`).  Needs
+    /// [`two_over_one_quantitative`][Self::two_over_one_quantitative] and
+    /// [`two_over_one_reverse_extras`][Self::two_over_one_reverse_extras],
+    /// under which `1♥ - 2m - 2♠` and `1♦ - 2♣ - 2M` show `points(15..)`: 14+
+    /// HCP on 95% of the 1,359 such boards per 3,276,800 in
+    /// `ab-results/two-over-one-opener-invite`.  Off, responder's bands are
+    /// flat (`3NT` 13–17, `4NT` 18–20, `6NT` 21+) and a 16–17 count bids
+    /// `3NT`, which opener passes below 16.  On, after a reverse `3NT` is
+    /// 13–15, `4NT` exactly 16 and `6NT` 17+ (31 combined facing 14, the
+    /// [notrump-slam](../../docs/notrump-slam.md) threshold); opener raises
+    /// the `4NT` on 15+.  Rewriting that run's auctions and pricing them
+    /// with `probe-divergence --imps` puts the neighbouring "`4NT` 16–17,
+    /// accept on 15+" at +107 / +125 IMPs plain none/both over the 63
+    /// moved boards of one table (PD +100 / +116), and "accept on 14+" at
+    /// +148 / +171.  6,553,600 boards per cell vs BBA: plain +277 / +328 /
+    /// +255 / +328 IMPs none/ns/ew/both on 132–140 fired boards (+0.00004 to
+    /// +0.00005 IMPs/board), PD +250 to +319, SD-PD +408 to +675, all wins.
+    /// The off arm is `bba-gen --no-ns-two-over-one-reverse-quantitative`.
+    pub two_over_one_reverse_quantitative: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
     /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
@@ -5468,6 +5490,7 @@ impl Default for RebidKnobs {
             two_over_one_six_four_hearts: true,
             two_over_one_quantitative: true,
             two_over_one_opener_invite: true,
+            two_over_one_reverse_quantitative: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,

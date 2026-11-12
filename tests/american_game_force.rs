@@ -488,3 +488,72 @@ fn opener_invites_over_capped_three_notrump() {
         call(4, Strain::Notrump),
     );
 }
+
+// --- Lowered bands after a reverse (rebid.two_over_one_reverse_quantitative) ---
+
+/// Off, responder's bands are flat: 16–17 bids `3NT` over the reverse.  On,
+/// 16 invites with `4NT`, 17 bids `6NT`, and opener accepts on 15+.
+#[test]
+fn reverse_lowers_quantitative_bands() {
+    use pons::bidding::agreements::Agreements;
+
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.two_over_one_reverse_quantitative = on;
+        american(&agreements).bind()
+    };
+    let (off, on) = (arm(false), arm(true));
+    let p = Call::Pass;
+    let (three, four, six) = (
+        call(3, Strain::Notrump),
+        call(4, Strain::Notrump),
+        call(6, Strain::Notrump),
+    );
+
+    // 1♥ - 2♣ - 2♠ -: responder's 15, 16 and 17.
+    let reverse = [
+        call(1, Strain::Hearts),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Spades),
+        p,
+    ];
+    for (hand, flat, lowered) in [
+        ("K4.J9.AQ76.AJ762", three, three),
+        ("K4.Q9.AQ76.AJ762", three, four),
+        ("K4.K9.AQ76.AJ762", three, six),
+    ] {
+        assert_eq!(best_call(&off, &reverse, hand), flat, "{hand}");
+        assert_eq!(best_call(&on, &reverse, hand), lowered, "{hand}");
+    }
+
+    // Opener's answer: 14 passes the 16-count's `4NT`, 15 accepts.
+    let answer = [reverse.as_slice(), &[four, p]].concat();
+    assert_eq!(best_call(&off, &answer, "AQJ8.KQT52.7.Q54"), six);
+    assert_eq!(best_call(&on, &answer, "AQJ8.KQT52.7.Q54"), p);
+    assert_eq!(best_call(&on, &answer, "AQJ8.KQT52.7.K54"), six);
+
+    // 1♥ - 2♣ - 2♦ -: no reverse, so the flat bands stay.
+    let plain = [
+        call(1, Strain::Hearts),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Diamonds),
+        p,
+    ];
+    assert_eq!(best_call(&on, &plain, "KJ4.K9.A76.AJ762"), three);
+
+    // 1♦ - 2♣ - 2♥ -: the minor lane's reverse.
+    let minor = [
+        call(1, Strain::Diamonds),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Hearts),
+        p,
+    ];
+    assert_eq!(best_call(&off, &minor, "KQ4.J9.K76.AKJ62"), three);
+    assert_eq!(best_call(&on, &minor, "KQ4.J9.K76.AKJ62"), six);
+}
