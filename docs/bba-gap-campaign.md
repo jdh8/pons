@@ -331,8 +331,13 @@ splinter 45 / 55 against 48 / 55; the heart lanes 166 / 174 against 160 /
 splinter (+212 against +111, z = +1.4). The only boards outside every filter
 are the 4 / 3 `1m (X) 1♥ -` systems-on boards below (+22 / +33). So the
 filters' densities stand; the two windows together are about 2σ high, which
-noise or selection (lanes mined from this deal set) would both produce, and
-the next fresh-seed confirmation separates them. `anchor-diff.py` on the instinct
+noise or selection (lanes mined from this deal set) would both produce.
+**Closed 2026-11-13 on the fresh seed** (`5e9e4be4` − `50d9ee65` in
+`ab-results/anchor-confirm-2026-11/`, both windows at once on deals no lane
+was mined from): shipping +0.0029 ±0.0016 / +0.0034 ±0.0020 plain, +0.0028 /
++0.0032 PD (+592 / +692 IMPs on 382 / 398 fired), against the six A/Bs'
++486 / +603 and this series' +894 / +968. The A/Bs are the lane's size; the
+excess belongs to this deal set. `anchor-diff.py` on the instinct
 arm lists 10 buckets at n ≥ 300, the largest −54 plain (Defensive / book /
 round-1, all other-table). One has a same-node move: Competitive /
 fallback@2 / round-1, −5 plain / −12 PD on one deal in both cells, where
@@ -773,8 +778,16 @@ In bucket order; each item is its own fresh-seed A/B per
    (opening, round-2) swapped, the same tie as October; #4 / #5 (comp-r1,
    def-r1) swap too. Snapshot in
    `ab-results/anchor-confirm-2026-11/2026-11-09-50d9ee65/` (80 minutes on
-   zoo, 152,506 DD tables). Next one due around the third re-anchor from
-   here.
+   zoo, 152,506 DD tables). **Fourth confirmation 2026-11-13, `5e9e4be4`**
+   (`b3ffe8ee` plus docs; same seed as the third, so it is paired to it; all
+   four arms replay 100.00% / 0 mismatches): pooled instinct −0.900 / −0.905
+   (row −0.882 / −0.906), shipping −0.142 / +0.021 (row −0.134 / +0.008),
+   floor paired worth +0.387 / +0.464. Its window read is in the `7f3d57bd`
+   window paragraph: the two windows since `50d9ee65` are worth their summed
+   A/Bs on fresh deals, not the 1.6–2× the series deals showed. Snapshot in
+   `ab-results/anchor-confirm-2026-11/2026-11-12-5e9e4be4/` (40 minutes, 202
+   new DD tables, `diff.window.*`). Next one due around the third re-anchor
+   from here.
 9. **Opener's raise structure after `1x - 1♠`** (Const / book / round-2;
    170 rows, −434 plain / −390 PD on the `6141cdb2` anchor; 91 deals, each
    in both vulnerability cells). **Ranges shipped 2026-11-08; splinters
