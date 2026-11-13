@@ -682,7 +682,7 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-08-10 | `0d8b755` | **−1.163** (none −0.998 [−1.088, −0.909], both −1.328 [−1.442, −1.214]) | **−1.032** (none −0.837 [−0.941, −0.733], both −1.226 [−1.358, −1.094]) | **+0.743 plain / +0.829 PD** vs the first row. Covers three floor generations (v3 distilled → v4 configured → **v5, `american()`'s default since 2026-08-08**) plus the reading-drift and competitive-book tails. Divergence 65%/64%, down from 71%/70%. BEN pinned v0.8.8.4, conf sha256 `503b026a…`. |
 | 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
 | 2026-10-11 | `c72dd03e` | **−0.830** (none −0.7210 [−0.810, −0.632], both −0.9397 [−1.056, −0.824]) | **−0.480** (none −0.3495 [−0.453, −0.246], both −0.6102 [−0.744, −0.477]) | Divergence 63.92%/63.30%. Same BEN runtime and conf sha as M32 (PASS-level patch from the start, no recovery needed). Paired to M32 on the same deals: **+0.200 ±0.054 plain / +0.343 ±0.063 PD** pooled (none +0.132 / +0.239, both +0.269 / +0.448; 4,536 boards changed). Covers the floor rails, the K = 8 ensemble, and every constructive ship 2026-09-14 → 10-10. Replay 100.00% both arms; ranking below. |
-| 2026-11-13 | `f43436de` | **−0.741** (none −0.6135 [−0.702, −0.525], both −0.8685 [−0.981, −0.756]) | **−0.452** (none −0.2836 [−0.385, −0.182], both −0.6206 [−0.749, −0.492]) | Divergence 61.92%/60.55%. **Reading series break**: first row on `declared_natural_walk` (declared-all control not run). **Host change**: BEN reinstalled on zoo, replay-checked 60/60 against `c72dd03e`'s binary; conf / `gameapi.py` / `bidding.py` sha identical. Paired to `c72dd03e` on the same deals: **+0.089 ±0.050 plain / +0.028 ±0.056 PD** pooled (none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 / −0.010 ±0.087; 4,168 boards changed). Covers every ship 2026-10-11 → 11-13 and the reading change. Replay 100.00% both arms; ranking below. |
+| 2026-11-13 | `f43436de` | **−0.741** (none −0.6135 [−0.702, −0.525], both −0.8685 [−0.981, −0.756]) | **−0.452** (none −0.2836 [−0.385, −0.182], both −0.6206 [−0.749, −0.492]) | Divergence 61.92%/60.55%. **Reading series break**: first row on `declared_natural_walk`; the declared-all control on the same deals (2026-11-14) scores −0.751 / −0.450 (none −0.628 / −0.279, both −0.874 / −0.621), so the reading is worth **+0.010 ±0.023 plain / −0.002 ±0.026 PD** and the ships **+0.079 ±0.049 / +0.030 ±0.056** (note below). **Host change**: BEN reinstalled on zoo, replay-checked 60/60 against `c72dd03e`'s binary; conf / `gameapi.py` / `bidding.py` sha identical. Paired to `c72dd03e` on the same deals: **+0.089 ±0.050 plain / +0.028 ±0.056 PD** pooled (none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 / −0.010 ±0.087; 4,168 boards changed). Covers every ship 2026-10-11 → 11-13 and the reading change. Replay 100.00% both arms; ranking below. |
 
 > **Reading series break (owed 2026-10-27, taken at `f43436de`).** Every row
 > through `c72dd03e` read BEN's
@@ -694,8 +694,24 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 > `f43436de` row reads BEN's unalerted calls on the walk and its delta to
 > `c72dd03e` carries the reading change as well as the ships. Its
 > declared-all control, `ben-gen --ns-declared-natural-walk false` on the
-> same deals, **has not been run** (one more overnight Tier-S job), so the
-> window's +0.089 plain is not split between the two.
+> same deals and binaries, ran 2026-11-14
+> (`ab-results/ben-anchor/2026-11-13-f43436de-declared-all/`) and splits the
+> window exactly (reference-relative gain, IMPs/board, plain / PD):
+>
+> | Leg | none | both | pooled |
+> | --- | --- | --- | --- |
+> | Reading: natural walk − declared-all at `f43436de` | +0.014 ±0.029 / −0.004 ±0.032 | +0.006 ±0.036 / +0.000 ±0.041 | **+0.010 ±0.023 / −0.002 ±0.026** |
+> | Ships: declared-all `f43436de` − `c72dd03e` | +0.093 ±0.062 / +0.070 ±0.070 | +0.065 ±0.076 / −0.011 ±0.086 | **+0.079 ±0.049 / +0.030 ±0.056** |
+> | Window | +0.108 ±0.062 / +0.066 ±0.071 | +0.071 ±0.077 / −0.010 ±0.087 | +0.089 ±0.050 / +0.028 ±0.056 |
+>
+> The ships carry the window; the reading is a wash against BEN (inconclusive
+> in every cell, plain and PD), the same sign as but short of its BBA
+> +0.016. The walk changes our contract on 4.02% / 3.40% of boards (direct
+> A/B +0.008 ±0.022 / +0.014 ±0.026 plain, −0.006 ±0.024 / +0.010 ±0.029 PD)
+> and either table's on 7.53% / 6.36%. The control has no decomposition
+> (`bba-decompose` at `f43436de` cannot replay declared-all), so the legs are
+> not bucketed. To continue the pre-break series, compare a later row's
+> declared-all arm to −0.751 / −0.450.
 >
 > **Reading the deltas.** Rows share *deals* (`SEED_BASE`), while BEN re-bids
 > each auction and its replies can change. Each window bundles intervening

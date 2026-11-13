@@ -829,8 +829,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the gap closed **+0.089 ±0.050 plain**, with PD a wash (**+0.028
   ±0.056**; none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 /
   −0.010 ±0.087). Two series breaks sit in this row: it is the first read
-  on `reading.declared_natural_walk` (the declared-all control was not run,
-  so the window is not split between the reading and the ships), and BEN
+  on `reading.declared_natural_walk` (the declared-all control, run 2026-11-14
+  on the same deals, scores −0.751 / −0.450 and splits the window into
+  **ships +0.079 ±0.049 plain / +0.030 ±0.056 PD** and **reading +0.010
+  ±0.023 / −0.002 ±0.026**, a wash against BEN), and BEN
   was reinstalled on zoo (replay-checked 60/60 against `c72dd03e`'s
   binary). The gain is defensive and competitive (+1022 / +647 IMPs
   plain); the constructive phase is flat (+118). Bucket order unchanged.
