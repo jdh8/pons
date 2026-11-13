@@ -770,8 +770,48 @@ stays #1 plain and #2 PD; `Constructive / book / round-2` stays #1 PD.
 
 Two PD rows moved the wrong way: `Constructive / book / opening` (−301) and
 `Defensive / floor / round-2` (−170, on 200 fewer boards, so partly churn).
-Neither is traced; `scripts/anchor-diff.py` on the two snapshots is the
-tool. The next-steps items 3/4 slices are not re-priced on this row.
+**Traced 2026-11-14: both are noise.** `scripts/anchor-diff.py` splits the
+floor row's −170 PD into −102 on the 100 boards whose own table moved, −69 of
+net churn (285 entered, 485 left) and +1 at the other table; opening's −301
+is −152 here, −86 at the other table and −63 of churn. On the stayed boards
+whose PD swing changed, the sums are −101 ±190 (126 boards) and −238 ±388
+(444 boards): neither bracket excludes zero.
+
+**`Defensive / floor / round-2` cut by node (2026-11-14)**, 828 boards,
+−1,491 plain / −1,024 PD, each row joined to its shard auction. No auction
+shape carries more than −48 plain, so there is no node to author. The one
+slice with a bracket clear of zero is a tendency: partner made our side's
+first bid after we had passed, and we pass again where BEN bids.
+
+| slice | boards | plain | PD |
+| --- | --- | --- | --- |
+| partner bid first, we pass, BEN bids | 150 | −362 ±147 | −261 |
+| — BEN raises partner's suit | 99 | −226 ±123 | −147 |
+| — — a major, to the three or four level | 42 | −169 | −189 |
+| — BEN bids a new suit / cues / bids notrump | 25 / 9 / 17 | −79 / −38 / −19 | −84 / −19 / −11 |
+| the reverse: we bid, BEN passes | 59 | −23 | −10 |
+
+That is −0.018 plain IMPs/board over the 20,000 boards. We hold three or
+four trumps on 93 of the 99 raises, and they spread over some 25 shapes
+(`(1m) 2M (-)` is the largest at six boards; then the sandwich seat,
+`(1x) - (1y) 2M (3x)`, and `4♠` over their `4♥`). It is a floor pass-bias
+with support, not a missing book row. The overcaller passing a raise of his
+own suit with extras (`(1♣) 1♠ (-) 2♠ (-) -` on 14 HCP) is real but small:
+14 boards, −79 / −71.
+
+**Next-steps items 3/4 re-priced on this row** (same slicer; it reproduces
+the `c72dd03e` column of the table below exactly):
+
+| slice (Defensive / book / round-1) | `c72dd03e` n / plain / PD | `f43436de` n / plain / PD |
+| --- | --- | --- |
+| O1 cell: we overcall `1NT` with a 5+ major, 15–17 HCP | 41 / −68 / −137 | 42 / −112 / −189 (BEN bids the major on 40) |
+| — the whole `1NT`-overcall node | 109 / −196 / −243 | 109 / −268 / −338 |
+| O6: `P → 3x` | 19 / −14 / −39 | 20 / −16 / −34 |
+| accountant pool: `P → 2x` suit overcall | 570 / −174 / −995 | 625 / −107 / −887 |
+| — of which vul both | 308 / −177 / −686 | 338 / −208 / −699 |
+
+O1 still leaks and is no smaller; O6 stays negligible; the accountant pool
+is still PD-dominated and a plain wash, so its O4-vul verdict stands.
 
 **Throughput on zoo** (Ryzen 7 8700F, 16 threads, 8 Tier-S servers under
 `idle-run`): none 4 h 45 min, both 4 h 17 min for 10,000 boards each, about

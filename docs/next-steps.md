@@ -10,7 +10,7 @@ ranking below stands; `3debdd0f`'s declared-all loss is given back in full —
 rule 10 of [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
 `f43436de` (2026-11-13, +0.089 plain / +0.028 PD paired since `c72dd03e`, of which the ships are
 +0.079 / +0.030 and the natural-walk reading +0.010 / −0.002,
-bucket order unchanged; items 3/4 were last re-priced on `c72dd03e`,
+bucket order unchanged; items 3/4 re-priced on it 2026-11-14,
 [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
 see [Owed / deferred](#owed--deferred).
@@ -295,6 +295,17 @@ re-litigate). Live pieces, all in
   advancer passes the one-level overcall with game values, so the cell now
   waits on the overcall's reading (a reading knob that moves calls under the
   frozen floor — retrain-coupled), not on another bidding arm.
+  Re-priced at `f43436de`: 42 boards, −112 / −189, BEN bids the major on
+  40; no smaller.
+- **Advancer's pass with support (found 2026-11-14, unworked).** In
+  `Defensive / floor / round-2` vs BEN, when partner makes our side's first
+  bid after we passed, the floor passes again where BEN bids: 150 boards,
+  −362 ±147 plain / −261 PD at Tier S (−0.018 plain IMPs/board), 99 of them
+  BEN's raise on three or four trumps. Spread over ~25 shapes, so it is a
+  floor rail or a retrain, not a book row
+  ([ben-gap-campaign.md](ben-gap-campaign.md) § `f43436de`). Part of it is
+  obstruction that DD underprices, so a rail measuring negative on plain DD
+  is not a refutation.
 - **O6 three-level jumps** (`P → 3x` slice, −875 plain on the 102.4k Tier-F
   corpus, but only 19 boards / −14 / −39 at Tier S). Opt-in knob, one
   SD-PD measurement authorized; expect DD pessimism, sd-check first.
