@@ -821,6 +821,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BEN Tier-S re-anchor (2026-11-13, `f43436de`)**: shipping `american()`
+  scores **−0.741 plain / −0.452 perfect-defense IMPs/board** against BEN
+  v0.8.8.4 Tier S (none −0.614 / −0.284, both −0.869 / −0.621), 20,000
+  boards on the anchor seed `1784237746`, deals identical to `c72dd03e`,
+  replay 100% with zero mismatches. Paired to `c72dd03e` on the same deals
+  the gap closed **+0.089 ±0.050 plain**, with PD a wash (**+0.028
+  ±0.056**; none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 /
+  −0.010 ±0.087). Two series breaks sit in this row: it is the first read
+  on `reading.declared_natural_walk` (the declared-all control was not run,
+  so the window is not split between the reading and the ships), and BEN
+  was reinstalled on zoo (replay-checked 60/60 against `c72dd03e`'s
+  binary). The gain is defensive and competitive (+1022 / +647 IMPs
+  plain); the constructive phase is flat (+118). Bucket order unchanged.
+  Ranking and series row in
+  [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
+  `ab-results/ben-anchor/2026-11-13-f43436de/`.
 - **BBA re-anchor (2026-11-12, `b3ffe8ee`)**: shipping `american()` scores
   **−0.1345 plain / +0.0081 perfect-defense IMPs/board** (none −0.1388 /
   +0.0101, both −0.1302 / +0.0061), the series' best, up 0.0035 plain;

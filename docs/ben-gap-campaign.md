@@ -1,11 +1,12 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 1 complete; latest Tier-S reanchor at `c72dd03e`
-(2026-10-11): pons is −0.830 plain / −0.480 PD IMPs/board behind BEN Tier S**
-(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level patch). Paired on the
-same deals against the M32 anchor (`daa8bf4a`), the gap closed by **+0.200
-±0.054 plain / +0.343 ±0.063 PD** — the whole intervening batch, not one
-ship. Both arms replay at 100.00%; the bucket ranking is below.
+**Status: Phase 1 complete; latest Tier-S reanchor at `f43436de`
+(2026-11-13): pons is −0.741 plain / −0.452 PD IMPs/board behind BEN Tier S**
+(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level patch; first row on
+the natural-walk reading and on zoo). Paired on the same deals against
+`c72dd03e`, the gap closed by **+0.089 ±0.050 plain** with PD a wash
+(**+0.028 ±0.056**) — the whole intervening batch plus the reading change,
+not one ship. Both arms replay at 100.00%; the bucket ranking is below.
 Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
@@ -681,22 +682,84 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-08-10 | `0d8b755` | **−1.163** (none −0.998 [−1.088, −0.909], both −1.328 [−1.442, −1.214]) | **−1.032** (none −0.837 [−0.941, −0.733], both −1.226 [−1.358, −1.094]) | **+0.743 plain / +0.829 PD** vs the first row. Covers three floor generations (v3 distilled → v4 configured → **v5, `american()`'s default since 2026-08-08**) plus the reading-drift and competitive-book tails. Divergence 65%/64%, down from 71%/70%. BEN pinned v0.8.8.4, conf sha256 `503b026a…`. |
 | 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
 | 2026-10-11 | `c72dd03e` | **−0.830** (none −0.7210 [−0.810, −0.632], both −0.9397 [−1.056, −0.824]) | **−0.480** (none −0.3495 [−0.453, −0.246], both −0.6102 [−0.744, −0.477]) | Divergence 63.92%/63.30%. Same BEN runtime and conf sha as M32 (PASS-level patch from the start, no recovery needed). Paired to M32 on the same deals: **+0.200 ±0.054 plain / +0.343 ±0.063 PD** pooled (none +0.132 / +0.239, both +0.269 / +0.448; 4,536 boards changed). Covers the floor rails, the K = 8 ensemble, and every constructive ship 2026-09-14 → 10-10. Replay 100.00% both arms; ranking below. |
+| 2026-11-13 | `f43436de` | **−0.741** (none −0.6135 [−0.702, −0.525], both −0.8685 [−0.981, −0.756]) | **−0.452** (none −0.2836 [−0.385, −0.182], both −0.6206 [−0.749, −0.492]) | Divergence 61.92%/60.55%. **Reading series break**: first row on `declared_natural_walk` (declared-all control not run). **Host change**: BEN reinstalled on zoo, replay-checked 60/60 against `c72dd03e`'s binary; conf / `gameapi.py` / `bidding.py` sha identical. Paired to `c72dd03e` on the same deals: **+0.089 ±0.050 plain / +0.028 ±0.056 PD** pooled (none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 / −0.010 ±0.087; 4,168 boards changed). Covers every ship 2026-10-11 → 11-13 and the reading change. Replay 100.00% both arms; ranking below. |
 
-> **Reading series break owed (2026-10-27).** Every row above read BEN's
+> **Reading series break (owed 2026-10-27, taken at `f43436de`).** Every row
+> through `c72dd03e` read BEN's
 > declared book under `ReadingScope::All` — their natural calls decoded in
 > it, their `1♥` opener as `9..21`. `reading.declared_natural_walk` is the
 > library default since 2026-10-27 (BBA anchor: declared-all cost −0.0168 /
 > −0.0115 plain on the same deals; the walk reads +0.0157 / +0.0160 plain on
 > a fresh seed, [bba-gap-campaign.md](bba-gap-campaign.md) rule 10), so the
-> next Tier-S re-anchor reads BEN's unalerted calls on the walk and its
-> delta to `c72dd03e` carries the reading change as well as the ships. Its
-> declared-all control is `ben-gen --ns-declared-natural-walk false` on the
-> same deals.
+> `f43436de` row reads BEN's unalerted calls on the walk and its delta to
+> `c72dd03e` carries the reading change as well as the ships. Its
+> declared-all control, `ben-gen --ns-declared-natural-walk false` on the
+> same deals, **has not been run** (one more overnight Tier-S job), so the
+> window's +0.089 plain is not split between the two.
 >
 > **Reading the deltas.** Rows share *deals* (`SEED_BASE`), while BEN re-bids
 > each auction and its replies can change. Each window bundles intervening
 > ships; isolated attribution requires the per-fix A/B. The per-vulnerability
 > CIs below are not combined as independent samples: both arms reuse deals.
+
+### `f43436de` Tier-S reanchor (2026-11-13)
+
+Runner `ab-results/reanchor-f43436de-ben.sh`, artifacts in
+`ab-results/ben-anchor/2026-11-13-f43436de/` (`report.md`, `boards.jsonl`,
+`score-{none,both}-{plain,pd}.txt`). Seeds `1784237746` + 0..7, deals and
+dealers asserted identical to `c72dd03e`; replay 100.00% (0 of 106,536 none,
+0 of 104,732 both). Exit 0 at 12:08 CST; the box lost power at 14:01, after
+every artifact was on disk.
+
+| vulnerability | contract-divergent | plain IMPs/board [95% CI] | PD IMPs/board [95% CI] | paired plain vs `c72dd03e` | paired PD |
+| --- | --- | --- | --- | --- | --- |
+| none | 6,192 (61.92%) | −0.6135 [−0.702, −0.525] | −0.2836 [−0.385, −0.182] | +0.1075 ±0.0624 | +0.0659 ±0.0710 |
+| both | 6,055 (60.55%) | −0.8685 [−0.981, −0.756] | −0.6206 [−0.749, −0.492] | +0.0712 ±0.0768 | −0.0104 ±0.0873 |
+| pooled | 12,247 | **−0.7410** | **−0.4521** | **+0.0893 ±0.0495** | **+0.0278 ±0.0563** |
+
+The paired figures are per-board swing differences on the same deals (a
+board absent from `boards.jsonl` scores 0), the method that reproduces the
+`c72dd03e` row's +0.2004 ±0.0536 / +0.3432 ±0.0626. The plain swing changed
+on 4,168 boards, the PD swing on 3,929; an auction changed on 7,169 (4,062
+at the table where we sit N/S, 4,026 at the other).
+
+**Verdict.** A plain win pooled and at none; at both the plain bracket
+reaches −0.006, a wash by itself. PD is a wash in both cells and pooled.
+This is a batch window with the reading change inside it (trail note above),
+so it prices no single ship.
+
+**Top 8 buckets** (both arms, 12,247 divergent boards; Δ = change in total
+since `c72dd03e`):
+
+| bucket | boards | plain total (Δ) | plain /div | PD total (Δ) | PD /div |
+| --- | --- | --- | --- | --- | --- |
+| Defensive / book / round-1 | 2197 | −2217 (+366) | −1.01 | −1589 (+173) | −0.72 |
+| Constructive / book / opening | 2312 | −2179 (−27) | −0.94 | −396 (−301) | −0.17 |
+| Constructive / book / round-2 | 1541 | −1738 (+145) | −1.13 | −1691 (+294) | −1.10 |
+| Defensive / floor / round-2 | 828 | −1491 (+152) | −1.80 | −1024 (−170) | −1.24 |
+| Competitive / book / round-1 | 667 | −1299 (+282) | −1.95 | −864 (+168) | −1.30 |
+| Constructive / book / round-1 | 1047 | −996 (−21) | −0.95 | −796 (−54) | −0.76 |
+| Defensive / floor / round-1 | 519 | −774 (+306) | −1.49 | −180 (+127) | −0.35 |
+| Competitive / floor / round-2 | 447 | −704 (+22) | −1.57 | −304 (−25) | −0.68 |
+
+The order is unchanged from `c72dd03e`. By phase: Constructive −5858 (5666
+boards, +118) leads again, since Defensive improved to −5178 (4228, +1022)
+and Competitive to −3784 (2353, +647). On PD the phases are Constructive
+−3942 (+8), Defensive −2863 (+375), Competitive −2237 (+172). Provenance:
+book −9499 (8673, +742), floor −4010 (2653, +692). The window's plain gain
+is therefore defensive and competitive; the constructive ships of the window
+(the raise ladders, splinters, forcing-NT heart game, 2/1 quantitative) net
+to nothing against BEN at this sample size. `Defensive / book / round-1`
+stays #1 plain and #2 PD; `Constructive / book / round-2` stays #1 PD.
+
+Two PD rows moved the wrong way: `Constructive / book / opening` (−301) and
+`Defensive / floor / round-2` (−170, on 200 fewer boards, so partly churn).
+Neither is traced; `scripts/anchor-diff.py` on the two snapshots is the
+tool. The next-steps items 3/4 slices are not re-priced on this row.
+
+**Throughput on zoo** (Ryzen 7 8700F, 16 threads, 8 Tier-S servers under
+`idle-run`): none 4 h 45 min, both 4 h 17 min for 10,000 boards each, about
+0.6 boards/s; scoring and decomposition 6.5 min (181 new DD tables).
 
 ### `c72dd03e` Tier-S reanchor (2026-10-11)
 

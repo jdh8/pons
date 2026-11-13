@@ -64,6 +64,19 @@ BEN-side replay verification; fleet distribution.
     (160 packages, identical), and both source patches (`nolimit.patch`, the
     PASS-level one) were applied. The patched `_dds3.so` hash differs from
     the reference install's (a newer patchelf); the original's matches.
+  - **On zoo** (Fedora 44, glibc 2.43, installed 2026-11-13; dl02's
+    `~/ben` and its reference freeze are gone) `~/ben` is a fresh clone of
+    v0.8.8.4 (`60979359`) with a `uv venv` on Python 3.12.13 and
+    `uv pip install --exclude-newer 2026-07-15 -r requirements.txt` (160
+    packages; the package-set hash differs from the reference install's).
+    `nolimit.patch` applies with `git apply`; the PASS-level patch is
+    applied by hand, since `bidding.py` is CRLF and `git apply` refuses the
+    retained LF patch. `_dds3.so` stays pristine: glibc 2.43 has
+    `__isoc23_strtol`, so no shim, and its hash differs from dl02's shimmed
+    file. Conf, `gameapi.py` and `bidding.py` sha256 match the `c72dd03e`
+    anchor's `ben.sha256`. **Continuity check**: `c72dd03e`'s own `ben-gen`
+    binary against a zoo server reproduced 60 of 60 boards of that anchor's
+    `none/shard-0` byte for byte.
   - BEN's BBA consultation uses **ctypes against the vendored native
     `bin/BBA/linux/x64/libEPBot.so`** at this tag (the .NET/pythonnet path
     was removed upstream) — works headlessly, no runtime needed; `/bid`
@@ -90,8 +103,9 @@ BEN-side replay verification; fleet distribution.
   box: 48 servers there gave 13.2 boards/s under a ~520 load (16 gave 4.6,
   near-linear), against ~9–10 boards/s at the plateau on the 32-thread
   dl02. **Owed: a Tier-S benchmark** on the same box (servers vs boards/s,
-  against dl02's overnight 20k-board anchor), before the next Tier-S
-  reanchor. Neither box has ever run BEN on a GPU: dl02's venv has no CUDA
+  against dl02's overnight 20k-board anchor). The 2026-11-13 Tier-S
+  reanchor ran on zoo instead (8 servers on 16 threads: about 0.6 boards/s,
+  9 h for the 20k boards). Neither box has ever run BEN on a GPU: dl02's venv has no CUDA
   libraries, and every server log there says `Cannot dlopen some GPU
   libraries`. A CUDA build could speed Tier S's batched sampling (up to
   20,000 deals per search through the bidding net) but not its DDS
