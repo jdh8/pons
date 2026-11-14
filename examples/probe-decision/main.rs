@@ -18,6 +18,7 @@
 //! `PROBE_NS_LANDY_LIA=1` puts §N1-lia's ladder (default off) over it — inert
 //! without the first, like every other `PROBE_LANDY_*` knob.
 //! `PROBE_NEW_SUIT_VETO=1` arms the floor's phantom-suit rail (default off).
+//! `PROBE_LAW_RAISE=0|1` arms the Law-raise rail with that slack (default off).
 //! `PROBE_SPADE_RAISE_SPLINTER=off|1|4` sets opener's splinter raise over
 //! `1x - 1♠` (default 4, any singleton; 1 = BBA's small-singleton rule);
 //! `PROBE_HEART_RAISE_SPLINTER=off|1|4` its mirror over `1m - 1♥` (default 4).
@@ -316,6 +317,18 @@ fn main() {
     // classify-time profile rather than on the book: it masks a floored suit
     // bid on <=4 cards with <=5 announced combined, so it only ever shows up on
     // a seat the book left to the floor.
+    // The Law-raise rail (`InstinctProfile::advance_law_raise`, default 0):
+    // the value is the slack, or `off`.
+    if let Ok(slack) = std::env::var("PROBE_LAW_RAISE") {
+        agreements.decision.instinct.advance_law_raise = match slack.as_str() {
+            "off" => None,
+            slack => Some(
+                slack
+                    .parse()
+                    .expect("PROBE_LAW_RAISE is off or a slack in levels"),
+            ),
+        };
+    }
     match std::env::var("PROBE_NEW_SUIT_VETO").as_deref() {
         Ok("0") | Ok("off") => agreements.decision.instinct.new_suit_veto = false,
         Ok(_) => agreements.decision.instinct.new_suit_veto = true,

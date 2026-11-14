@@ -38,7 +38,9 @@
 //!   over their invitation after their `1NT` when
 //!   `InstinctProfile::their_nt_invite_double_veto` /
 //!   `their_nt_invite_bid_veto` is on, and `silent_cue_gate` masks a junk cue
-//!   of their suit when `InstinctProfile::silent_cue_veto` is on.  Every
+//!   of their suit when `InstinctProfile::silent_cue_veto` is on, and
+//!   `law_raise_gate` drops `Pass` under a Law-covered raise of partner's
+//!   overcall unless `InstinctProfile::advance_law_raise` is `None`.  Every
 //!   stage only ever demotes, so
 //!   knob-off is byte-identical and the net keeps its monopoly on introducing
 //!   calls.
@@ -56,8 +58,8 @@ use super::array::Logits;
 use super::context::Context;
 use super::features::CompactConfig;
 use super::instinct::{
-    competitive_gate, forced, new_suit_gate, silent_cue_gate, their_2nt_gate, their_contract_gate,
-    their_nt_invite_gate,
+    competitive_gate, forced, law_raise_gate, new_suit_gate, silent_cue_gate, their_2nt_gate,
+    their_contract_gate, their_nt_invite_gate,
 };
 use super::trie::Classifier;
 use super::{features, neural};
@@ -177,6 +179,7 @@ impl Classifier for ConfiguredFloorV6 {
         their_2nt_gate(&mut logits, hand, context);
         their_nt_invite_gate(&mut logits, hand, context);
         silent_cue_gate(&mut logits, hand, context);
+        law_raise_gate(&mut logits, hand, context);
         logits
     }
 }

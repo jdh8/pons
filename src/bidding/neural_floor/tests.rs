@@ -1101,3 +1101,85 @@ fn the_their_nt_invite_gate_reads_only_a_true_raise() {
         );
     }
 }
+
+/// The top call
+fn top(logits: &Logits) -> Call {
+    logits
+        .0
+        .iter()
+        .max_by(|a, b| a.1.total_cmp(b.1))
+        .map(|(call, _)| call)
+        .expect("a call array is never empty")
+}
+
+/// `law_raise_gate` over fixed logits: `Pass` on top, then a new suit, then
+/// the raises of `suit` cheapest first
+fn law_raised(slack: Option<u8>, auction: &str, hand: &str, suit: Strain) -> Logits {
+    let auction = auction_of(auction);
+    let mut agreements = Agreements::default();
+    agreements.decision.instinct.advance_law_raise = slack;
+    let mut logits = Logits(crate::bidding::array::Array::from_fn(|call| match call {
+        Call::Pass => 9.0,
+        Call::Bid(bid) if bid.strain == suit => 8.0 - f32::from(bid.level.get()),
+        Call::Bid(bid) if bid.strain == Strain::Hearts => 8.5,
+        _ => 0.0,
+    }));
+    mask_illegal(&mut logits, &auction);
+    let context =
+        Context::new(RelativeVulnerability::NONE, &auction).with_profile(agreements.decision);
+    crate::bidding::instinct::law_raise_gate(
+        &mut logits,
+        hand.parse().expect("valid test hand"),
+        &context,
+    );
+    logits
+}
+
+/// The Law-raise rail turns a floor pass into a raise of partner's overcall
+/// on four trumps, within the Law, and nowhere else
+///
+/// `(1♦) 2♠ (-)` to `KJ98.T98.853.KJ5`: ten trumps cover the four level, so
+/// the best raise outranks `Pass` and the junk between them.  `(3♣) 3♦ (-)`
+/// to `AT74.Q98.J9865.2` needs the four level on ten trumps: it fires with no
+/// slack and not with one.
+#[test]
+fn the_law_raise_gate_raises_on_four_trumps() {
+    assert_eq!(
+        Agreements::default().decision.instinct.advance_law_raise,
+        Some(0),
+        "the rail ships at the Law level"
+    );
+    let hand = "KJ98.T98.853.KJ5";
+    let off = law_raised(None, "1D 2S P", hand, Strain::Spades);
+    assert_eq!(top(&off), Call::Pass);
+    let on = law_raised(Some(0), "1D 2S P", hand, Strain::Spades);
+    let raise = call(3, Strain::Spades);
+    assert_eq!(top(&on), raise, "the best Law raise wins");
+    assert_eq!(on.0[raise], off.0[raise], "nothing is promoted");
+    assert!(on.0[Call::Pass].is_finite());
+
+    for (auction, hand, why) in [
+        ("1D 2S P", "KJ9.T98.8532.KJ5", "three trumps"),
+        ("P 1S 2D 2S 3D", hand, "we opened"),
+        ("P 1D 1S P P 2D 2S P", hand, "partner bid twice"),
+        ("1D 2S 5D", hand, "the raise is above the Law"),
+    ] {
+        assert_eq!(
+            law_raised(Some(0), auction, hand, Strain::Spades),
+            law_raised(None, auction, hand, Strain::Spades),
+            "{why} is outside the rail"
+        );
+    }
+
+    let hand = "AT74.Q98.J9865.2";
+    let off = law_raised(None, "3C 3D P", hand, Strain::Diamonds);
+    assert_eq!(
+        law_raised(Some(1), "3C 3D P", hand, Strain::Diamonds),
+        off,
+        "one level of slack keeps the four-level raise out"
+    );
+    assert_eq!(
+        top(&law_raised(Some(0), "3C 3D P", hand, Strain::Diamonds)),
+        call(4, Strain::Diamonds)
+    );
+}

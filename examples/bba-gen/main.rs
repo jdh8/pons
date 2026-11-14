@@ -674,6 +674,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_xx_runout_rails: bool,
 
+    /// The Law-raise rail's slack: with four or more trumps for partner's
+    /// overcall, the floor raises within the Law of Total Tricks less this
+    /// many levels instead of passing (`InstinctProfile::advance_law_raise`,
+    /// crate default 0); `off` disarms it.  The arms of
+    /// `scripts/ab-law-raise.sh`.
+    #[arg(long, default_value = "0", value_name = "off|LEVELS")]
+    ns_law_raise: String,
+
     /// Turn OFF the rail that vetoes our silent side's bids over their `2NT`
     /// opening auction on 7 HCP or fewer (`InstinctProfile::their_2nt_bid_veto`,
     /// crate default on).  The `plain` arm of `scripts/ab-2nt-bid-veto.sh`.
@@ -3311,6 +3319,14 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
+    agreements.decision.instinct.advance_law_raise = match args.ns_law_raise.as_str() {
+        "off" => None,
+        slack => Some(
+            slack
+                .parse()
+                .expect("--ns-law-raise is off or a slack in levels"),
+        ),
+    };
     agreements.decision.instinct.their_nt_invite_double_veto = !args.no_ns_nt_invite_double_veto;
     agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
     agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;

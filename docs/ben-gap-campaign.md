@@ -799,6 +799,46 @@ with support, not a missing book row. The overcaller passing a raise of his
 own suit with extras (`(1♣) 1♠ (-) 2♠ (-) -` on 14 HCP) is real but small:
 14 boards, −79 / −71.
 
+**The same slice on the BBA anchor, and the trigger (2026-11-14).** Cut on
+the `b3ffe8ee` shipping arm (409.6k boards) the tendency is there too, and it
+is a four-trump tendency, not a support one. Rows are floor decisions in the
+Defensive phase where we pass and the reference acts, partner having made
+our side's only bid (one suit); it does not need our earlier pass, so the
+first-round advance `(1♣) 1♠ (-)` is in it.
+
+| we pass, reference raises partner's suit | BBA n / plain / PD | BEN n / plain / PD |
+| --- | --- | --- |
+| four or more trumps | 514 / −1,195 / −903 | 55 / −131 ±105 / −57 ±116 |
+| three trumps | 826 / −337 ±315 / +781 ±368 | 99 / −91 ±115 / +31 ±137 |
+| — by our HCP, any support: 0–5 / 6–8 / 9–11 | −772 / −909 / +42 plain | −30 / −110 / −62 plain |
+
+The gate built on it: four or more trumps and the cheapest raise at or under
+the Law level (partner's promised length + ours − 6). On the boards where the
+reference acts at all (raise or otherwise):
+
+| gate (Defensive, 4+ trumps, raise within the Law) | BBA n / plain / PD | BEN n / plain / PD |
+| --- | --- | --- |
+| fires | 572 / −972 ±301 / −502 ±337 | 50 / −130 ±91 / −60 ±107 |
+| — raise exactly at the Law level | 330 / −464 ±214 / −68 ±237 | 30 / −26 ±59 / +34 ±75 |
+| — one level inside it | 229 / −477 ±205 / −429 ±227 | 18 / −82 ±62 / −70 ±62 |
+| same hand, but we opened (Competitive) | 222 / −121 ±213 / +68 ±225 | 20 / −13 ±53 / +33 ±51 |
+
+Every advance of an overcall is on the learned floor (no book node), and the
+net is nearly indifferent there: `(1♦) 2♠ (-)` on `KJ98.T98.853.KJ5` reads
+`Pass` 8.90, `3♠` 8.81. Built as the rail
+`InstinctProfile::advance_law_raise` (`Some(slack)`), which
+drops `Pass` under the net's best Law-covered raise. The census is blind to
+boards where both pass and the rail would raise alone; the A/B
+(`scripts/ab-law-raise.sh`, arms slack 1 and slack 0, four cells) prices
+them. Overcaller's continuation over the raise is still the floor's.
+
+**Read 2026-11-14: shipped default `Some(0)`.** Vs BBA slack 0 wins plain DD
+in all four cells (+0.0021 to +0.0073 IMPs/board) with a PD loss when we are
+vulnerable (−0.0039 ns, −0.0037 both); slack 1 wins three cells and is
+non-inferior at ns. Numbers in
+[floor-rail-campaign.md](floor-rail-campaign.md) row R9. The confirmation
+against BEN is owed.
+
 **Next-steps items 3/4 re-priced on this row** (same slicer; it reproduces
 the `c72dd03e` column of the table below exactly):
 

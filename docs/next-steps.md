@@ -297,7 +297,7 @@ re-litigate). Live pieces, all in
   frozen floor — retrain-coupled), not on another bidding arm.
   Re-priced at `f43436de`: 42 boards, −112 / −189, BEN bids the major on
   40; no smaller.
-- **Advancer's pass with support (found 2026-11-14, unworked).** In
+- **Advancer's pass with support (found 2026-11-14).** In
   `Defensive / floor / round-2` vs BEN, when partner makes our side's first
   bid after we passed, the floor passes again where BEN bids: 150 boards,
   −362 ±147 plain / −261 PD at Tier S (−0.018 plain IMPs/board), 99 of them
@@ -306,6 +306,14 @@ re-litigate). Live pieces, all in
   ([ben-gap-campaign.md](ben-gap-campaign.md) § `f43436de`). Part of it is
   obstruction that DD underprices, so a rail measuring negative on plain DD
   is not a refutation.
+  **Sharpened 2026-11-14:** the BBA anchor shows the same slice and puts it
+  on four-plus trumps (572 boards, −972 ±301 plain / −502 ±337 PD under a
+  Law-of-Total-Tricks gate; three trumps is a wash). Built as the
+  rail `advance_law_raise`. **Shipped 2026-11-14, default `Some(0)`:** vs BBA
+  a plain win in all four cells (+0.0021 to +0.0073 IMPs/board), a PD loss
+  when we are vulnerable ([floor-rail-campaign.md](floor-rail-campaign.md)
+  R9). Owed: the BEN confirmation, and a trace of the worst boards
+  (overcaller's continuation over the raise is still the floor's).
 - **O6 three-level jumps** (`P → 3x` slice, −875 plain on the 102.4k Tier-F
   corpus, but only 19 boards / −14 / −39 at Tier S). Opt-in knob, one
   SD-PD measurement authorized; expect DD pessimism, sd-check first.

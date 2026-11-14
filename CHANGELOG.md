@@ -36,6 +36,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one close button flush in the top-right corner, a stroked X that turns red
   on hover, and the outer 6 px of the window resize it. The header is a shade
   darker than the felt (black at 20%), so it reads as a title bar.
+- **`InstinctProfile::advance_law_raise`, the Law-raise rail of the learned
+  floor, default `Some(0)` (2026-11-14).** When they opened, we have only
+  passed, partner overcalled one suit read as five or more cards and we hold
+  four or more of it, the floor used to pass (`(1♦) 2♠ (-)` on
+  `KJ98.T98.853.KJ5`: `Pass` 8.90, `3♠` 8.81). The rail drops `Pass` under
+  the net's best raise that the Law of Total Tricks covers, less `slack`
+  levels; `None` turns it off. Vs BBA, 204,800 boards per cell, IMPs/board
+  against the rail off, plain DD | PD: none +0.0049 | +0.0007, ns
+  +0.0021 | −0.0039, ew +0.0073 | +0.0020, both +0.0042 | −0.0037. A plain
+  win in every cell; the PD loss when we are vulnerable is recorded, not a
+  veto. `Some(1)` wins three cells with no PD loss and is the conservative
+  setting. Single-dummy plain wins every pair. The BEN confirmation is owed.
+  `bba-gen --ns-law-raise off|LEVELS` and `PROBE_LAW_RAISE` set it.
 - **`rebid.two_over_one_reverse_quantitative`, responder's quantitative
   bands lowered after opener's reverse in a 2/1, default on (2026-11-12).** Under `two_over_one_reverse_extras` `1♥ - 2m - 2♠` and
   `1♦ - 2♣ - 2M` show 15+ points (14+ HCP on 95% of 1,359 boards), yet

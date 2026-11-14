@@ -805,6 +805,40 @@ pub struct InstinctProfile {
     /// a gate that reads no length re-spends the masked mass on other junk
     /// (`silent_cue_veto`'s loss).
     pub their_nt_invite_bid_veto: bool,
+
+    /// Demote `Pass` under a raise of partner's overcall when we hold four or
+    /// more trumps and the Law of Total Tricks covers the raise — the
+    /// **Law-raise rail** of the learned floor
+    ///
+    /// `Some(0)` is **the default** (2026-11-14): the raise may reach the Law
+    /// level.  `None` is off.  `Some(slack)` arms `law_raise_gate`: it fires when the opponents made
+    /// the auction's first bid, we have only passed, partner's calls are
+    /// passes and exactly one suit bid read as five or more cards, we hold
+    /// four or more of that suit, and the net's top call is `Pass`.  The
+    /// Law level is partner's promised length plus ours minus six; a raise
+    /// qualifies at a level at most that less `slack`.  Then `Pass` and every
+    /// call that outranks the net's best qualifying raise drop below it, so
+    /// that raise is the answer and `Pass` stays finite.
+    ///
+    /// Evidence (2026-11-14 census, the boards where the reference acts and
+    /// we pass at the floor on such a hand): 572 boards, −972 ±301 plain /
+    /// −502 ±337 PD IMPs over 409.6k vs BBA at `b3ffe8ee`; 50 boards,
+    /// −130 ±91 / −60 ±107 over 20k vs BEN at `f43436de`.  Three-card
+    /// support is a plain wash and a PD gain for passing, and the same hand
+    /// after our own opening is a wash, hence the four-card and
+    /// they-opened clauses.  The net is nearly indifferent at these nodes
+    /// (`(1♦) 2♠ (-)` on `KJ98.T98.853.KJ5`: `Pass` 8.90, `3♠` 8.81).
+    ///
+    /// Measured 2026-11-14 vs BBA (`scripts/ab-law-raise.sh`, 204,800 boards
+    /// per cell, IMPs/board vs the rail off, plain DD | PD, cells none / ns /
+    /// ew / both).  `Some(0)`: +0.0049 | +0.0007, +0.0021 | −0.0039,
+    /// +0.0073 | +0.0020, +0.0042 | −0.0037: a plain win in every cell, a PD
+    /// loss when we are vulnerable (recorded, not a veto: BBA's real doubles
+    /// are already in plain).  `Some(1)`: +0.0014 | +0.0008,
+    /// +0.0008 | −0.0002, +0.0022 | +0.0011, +0.0015 | +0.0002: a win in
+    /// three cells, non-inferior at ns, no PD loss.  Single-dummy plain wins
+    /// all eight pairs.  A BEN confirmation is owed.
+    pub advance_law_raise: Option<u8>,
 }
 
 impl Default for InstinctProfile {
@@ -856,6 +890,7 @@ impl Default for InstinctProfile {
             their_2nt_bid_veto: true,
             their_nt_invite_double_veto: true,
             their_nt_invite_bid_veto: true,
+            advance_law_raise: Some(0),
         }
     }
 }
@@ -911,6 +946,7 @@ impl InstinctProfile {
             their_2nt_bid_veto: false,
             their_nt_invite_double_veto: false,
             their_nt_invite_bid_veto: false,
+            advance_law_raise: Some(1),
         }
     }
 }
@@ -4325,6 +4361,76 @@ pub(crate) fn their_nt_invite_gate(logits: &mut Logits, hand: Hand, context: &Co
             {
                 *logit = f32::NEG_INFINITY;
             }
+        }
+    }
+}
+
+/// Demote `Pass` under a Law-covered raise of partner's overcall — the
+/// [`advance_law_raise`][InstinctProfile::advance_law_raise] stage of the
+/// learned floor
+///
+/// Fires only when the opponents made the first bid, every call of ours is a
+/// pass, partner's calls are passes and exactly one suit bid read as five or
+/// more cards, we hold four or more of that suit, a raise to at most
+/// `partner's promised length + ours − 6 − slack` is legal, and `Pass` is the
+/// net's top call.  Then every call that outranks the best such raise drops
+/// one logit below it.  Nothing is promoted and `Pass` stays finite.
+pub(crate) fn law_raise_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    let Some(slack) = pinned(context).advance_law_raise else {
+        return;
+    };
+    let auction = context.auction();
+    let Some(first) = auction.iter().position(|c| matches!(c, Call::Bid(_))) else {
+        return;
+    };
+    // Their calls sit an odd distance back from the call about to be made,
+    // so the first bid is theirs when that distance is odd.  Reversed, the
+    // indices run RHO, partner, LHO, us.
+    if (auction.len() - first).is_multiple_of(2) {
+        return;
+    }
+    let mut suit = None;
+    for (index, call) in auction.iter().rev().enumerate() {
+        match (index % 4, call) {
+            (0 | 2, _) | (_, Call::Pass) => {}
+            (1, Call::Bid(bid)) if suit.is_none() => match bid.strain.suit() {
+                Some(named) => suit = Some(named),
+                None => return,
+            },
+            _ => return,
+        }
+    }
+    let Some(suit) = suit else {
+        return;
+    };
+    let own = hand[suit].len();
+    let promised = usize::from(
+        context
+            .inferences()
+            .announced(Relative::Partner)
+            .length(suit)
+            .min,
+    );
+    if own < 4 || promised < 5 {
+        return;
+    }
+    let law = (promised + own).saturating_sub(6 + usize::from(slack));
+    let best = logits
+        .iter()
+        .filter(|(call, logit)| {
+            logit.is_finite()
+                && matches!(call, Call::Bid(bid)
+                    if bid.strain.suit() == Some(suit) && usize::from(bid.level.get()) <= law)
+        })
+        .map(|(_, logit)| *logit)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let pass = logits[Call::Pass];
+    if !best.is_finite() || logits.iter().any(|(_, logit)| *logit > pass) {
+        return;
+    }
+    for (_, logit) in logits.iter_mut() {
+        if *logit > best {
+            *logit = best - 1.0;
         }
     }
 }
