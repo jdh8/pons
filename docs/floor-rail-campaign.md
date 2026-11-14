@@ -185,6 +185,7 @@ CHANGELOG):
 | unusual-4NT veto | `their_3nt_unusual_veto` | 2026-09-25 `56ecccdd` | +0.0035/+0.0045 | +0.0041/+0.0053 | 0.03–0.04% | 1790324543 |
 | game-pull veto (R4) | `their_game_pull_veto` | 2026-09-26 | +0.0016/+0.0031 | +0.0026/+0.0048 | 0.03–0.05% | 1790405692 |
 | 2NT-bid veto (R7) | `their_2nt_bid_veto` | 2026-09-26 | +0.0010/+0.0011 | +0.0020/+0.0021 | 0.05% | 1790409954 |
+| 2NT short-bid veto (R9 trace) | `their_2nt_short_bid_veto` | 2026-11-15, on naturalness behind a non-inferiority proof: none / ns / ew / both, non-inferior 4/4 on both scorers, `win` at ew | +0.0001 / −0.0000 / +0.0003 / −0.0000 | +0.0001 / −0.0000 / +0.0003 / −0.0000 | 4–8 bd | 1794675113521988853 |
 | *(inert)* game-pull code exemption | `their_game_pull_alert_exempt` (dropped, `83989dd4`) | **off** 2026-09-26 | −0.0001/−0.0001 | −0.0001/−0.0001 | 1 bd | 1790419919 |
 | *(wash)* unusual-4NT over `2NT` (R4b) | `their_2nt_unusual_veto` | **off** 2026-09-26 | +0.0003/+0.0000 | +0.0003/+0.0000 | 0.02% | 1790406670 |
 | *(loss)* silent cue (R5) | `silent_cue_veto` | **off** 2026-09-26 | −0.0037/−0.0009 | −0.0011/+0.0028 | 0.36–0.38% | 1790407171 |
@@ -231,7 +232,8 @@ are sums with a 95% half-width, plain | PD.
   five hearts, and `their_2nt_bid_veto` stops at 7 HCP. The call reads as
   five-plus hearts, so the rail raises to `4♥` doubled: 12 fired boards over
   the four cells, −159 ±91 | −159. The bug predates the rail and belongs to
-  the `their_2nt_gate` family, not to `law_raise_gate`. **Unfixed, flagged.**
+  the `their_2nt_gate` family, not to `law_raise_gate`. **Fixed 2026-11-15**
+  by `their_2nt_short_bid_veto` (the shipped-rails table below).
 - **Lead 2, `(1NT) 2M (X) 3M`.** Nearly every raise directly over their `1NT` opening comes
   after responder's double (177 of 179 in the ns cell). The major raise is 329 boards, −169 ±217 |
   −1,177 ±267 (vulnerable −210 ±161 | −766; not vulnerable +41 | −411); the

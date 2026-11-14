@@ -688,6 +688,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_2nt_bid_veto: bool,
 
+    /// Turn OFF the rail that vetoes our silent side's suit bids on four cards
+    /// or fewer over their `2NT` opening auction
+    /// (`InstinctProfile::their_2nt_short_bid_veto`, crate default on).  The
+    /// `plain` arm of `scripts/ab-2nt-short-bid-veto.sh`.
+    #[arg(long, default_value_t = false)]
+    no_ns_2nt_short_bid_veto: bool,
+
     /// Turn OFF the rail that vetoes our silent side's double once their `1NT`
     /// auction reaches an invitation — their last bid responder's `2NT` or
     /// three-level true major raise
@@ -3319,6 +3326,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.silent_cue_veto = args.ns_silent_cue_veto;
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.decision.instinct.their_2nt_bid_veto = !args.no_ns_2nt_bid_veto;
+    agreements.decision.instinct.their_2nt_short_bid_veto = !args.no_ns_2nt_short_bid_veto;
     agreements.decision.instinct.advance_law_raise = match args.ns_law_raise.as_str() {
         "off" => None,
         slack => Some(

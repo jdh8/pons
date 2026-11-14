@@ -33,7 +33,8 @@
 //!   `InstinctProfile::new_suit_veto` is on, and `their_contract_gate` masks a
 //!   suit pull of their `3NT` when `InstinctProfile::their_3nt_pull_veto` is
 //!   on, and `their_2nt_gate` masks our silent side's double over their `2NT`
-//!   opening when `InstinctProfile::their_2nt_double_veto` is on, and
+//!   opening when `InstinctProfile::their_2nt_double_veto` is on (and its
+//!   short-suit bids when `InstinctProfile::their_2nt_short_bid_veto` is), and
 //!   `their_nt_invite_gate` masks our silent side's double or short-suit bid
 //!   over their invitation after their `1NT` when
 //!   `InstinctProfile::their_nt_invite_double_veto` /

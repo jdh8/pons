@@ -741,6 +741,27 @@ pub struct InstinctProfile {
     /// acted on 7 HCP or fewer.  Shares `their_2nt_gate`'s trigger.
     pub their_2nt_bid_veto: bool,
 
+    /// Mask our silent side's **short-suit** bids over their `2NT` opening
+    /// auction: every suit bid on four cards or fewer, at any strength — the
+    /// length sibling of [`their_2nt_bid_veto`][Self::their_2nt_bid_veto]
+    ///
+    /// **Default on** since 2026-11-15 on naturalness (a suit bid should show
+    /// the suit), behind a non-inferiority proof vs BBA
+    /// (`scripts/ab-2nt-short-bid-veto.sh`, 204,800 bd/cell, SEED_BASE
+    /// 1794675113521988853, IMPs/board plain DD | PD, cells none / ns / ew /
+    /// both): +0.0001 | +0.0001, −0.0000 | −0.0000, +0.0003 | +0.0003 (a win),
+    /// −0.0000 | −0.0000, each ±0.0002–0.0003; single-dummy non-inferior in
+    /// all eight pairs.  It moves the contract on 4–8 boards a cell.  Found
+    /// by the R9 trace (2026-11-15, `docs/floor-rail-campaign.md`): at
+    /// `(2NT) - (3♣)` the v6 floor's top call is `3♥` on a short suit
+    /// (`T73.Q3.J74.AQ964`: `3♥` 8.90, `Pass` 8.09), 26 of 27 such bids over
+    /// 204,800 boards holding fewer than five hearts.  The bid reads as five
+    /// or more, so the Law-raise rail raised it to `4♥` doubled: 12 boards,
+    /// −159 ±91 plain IMPs over the four cells of `scripts/ab-law-raise.sh`.
+    /// Notrump bids, `X` and `Pass` are untouched.  Shares `their_2nt_gate`'s
+    /// trigger.
+    pub their_2nt_short_bid_veto: bool,
+
     /// Mask our silent side's **double** once their `1NT` auction reaches an
     /// invitation — the `X` half of the 1NT-invite rail
     ///
@@ -888,6 +909,7 @@ impl Default for InstinctProfile {
             their_2nt_unusual_veto: false,
             silent_cue_veto: false,
             their_2nt_bid_veto: true,
+            their_2nt_short_bid_veto: true,
             their_nt_invite_double_veto: true,
             their_nt_invite_bid_veto: true,
             advance_law_raise: Some(0),
@@ -944,6 +966,7 @@ impl InstinctProfile {
             their_2nt_unusual_veto: true,
             silent_cue_veto: true,
             their_2nt_bid_veto: false,
+            their_2nt_short_bid_veto: false,
             their_nt_invite_double_veto: false,
             their_nt_invite_bid_veto: false,
             advance_law_raise: Some(1),
@@ -4244,18 +4267,19 @@ pub(crate) fn their_contract_gate(logits: &mut Logits, hand: Hand, context: &Con
 }
 
 /// Mask our silent side's double of their `2NT` opening auction — the
-/// [`their_2nt_double_veto`][InstinctProfile::their_2nt_double_veto] and
-/// [`their_2nt_bid_veto`][InstinctProfile::their_2nt_bid_veto] stages of the
-/// learned floor
+/// [`their_2nt_double_veto`][InstinctProfile::their_2nt_double_veto],
+/// [`their_2nt_bid_veto`][InstinctProfile::their_2nt_bid_veto] and
+/// [`their_2nt_short_bid_veto`][InstinctProfile::their_2nt_short_bid_veto]
+/// stages of the learned floor
 ///
 /// Fires only when the first bid of the auction is the opponents' `2NT` and
-/// every call our side has made is a pass.  Then `X` is masked, and with
-/// 7 HCP or fewer every bid too; `Pass` is untouched, so a distribution
-/// always survives.
+/// every call our side has made is a pass.  Then `X` is masked, with
+/// 7 HCP or fewer every bid too, and every suit bid on four cards or fewer; `Pass` is untouched, so a distribution always
+/// survives.
 pub(crate) fn their_2nt_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
     let profile = pinned(context);
     let junk = profile.their_2nt_bid_veto && raw_hcp(hand) <= 7;
-    if !profile.their_2nt_double_veto && !junk {
+    if !profile.their_2nt_double_veto && !junk && !profile.their_2nt_short_bid_veto {
         return;
     }
     let auction = context.auction();
@@ -4278,6 +4302,15 @@ pub(crate) fn their_2nt_gate(logits: &mut Logits, hand: Hand, context: &Context<
     if junk {
         for (call, logit) in logits.iter_mut() {
             if matches!(call, Call::Bid(_)) {
+                *logit = f32::NEG_INFINITY;
+            }
+        }
+    }
+    if profile.their_2nt_short_bid_veto {
+        for (call, logit) in logits.iter_mut() {
+            if let Call::Bid(bid) = call
+                && bid.strain.suit().is_some_and(|suit| hand[suit].len() <= 4)
+            {
                 *logit = f32::NEG_INFINITY;
             }
         }

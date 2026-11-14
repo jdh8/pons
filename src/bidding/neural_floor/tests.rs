@@ -954,6 +954,38 @@ fn the_their_2nt_gate_masks_the_junk_bid() {
     );
 }
 
+/// The short-bid knob: over their `(2NT) - (3♣)` the net's top call on
+/// `T73.Q3.J74.AQ964` is `3♥` on a doubleton (the R9 trace); knob-on every
+/// suit bid on four cards or fewer is masked, a five-card suit keeps its bid.
+#[test]
+fn the_their_2nt_gate_masks_the_short_suit_bid() {
+    let stayman = [call(2, Strain::Notrump), Call::Pass, call(3, Strain::Clubs)];
+    let three_hearts = call(3, Strain::Hearts);
+    let hand = "T73.Q3.J74.AQ964";
+    let mut agreements = Agreements::default();
+    assert!(
+        agreements.decision.instinct.their_2nt_short_bid_veto,
+        "the rail ships default on"
+    );
+    agreements.decision.instinct.their_2nt_short_bid_veto = false;
+    let off = shelled_with(&agreements, &stayman, hand);
+    assert!(
+        off.0[three_hearts].is_finite(),
+        "knob-off leaves the net alone"
+    );
+
+    agreements.decision.instinct.their_2nt_short_bid_veto = true;
+    let on = shelled_with(&agreements, &stayman, hand);
+    assert_eq!(on.0[three_hearts], f32::NEG_INFINITY);
+    assert_eq!(on.0[call(3, Strain::Diamonds)], f32::NEG_INFINITY);
+    assert!(on.0[Call::Pass].is_finite());
+    assert_eq!(
+        on.0[call(4, Strain::Clubs)],
+        off.0[call(4, Strain::Clubs)],
+        "a five-card suit is outside the rail"
+    );
+}
+
 /// An auction from its space-delimited calls (`1NT P 2NT`)
 fn auction_of(text: &str) -> Vec<Call> {
     text.split_whitespace()

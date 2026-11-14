@@ -36,6 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one close button flush in the top-right corner, a stroked X that turns red
   on hover, and the outer 6 px of the window resize it. The header is a shade
   darker than the felt (black at 20%), so it reads as a title bar.
+- **`InstinctProfile::their_2nt_short_bid_veto`, default on (2026-11-15).**
+  Over their `2NT` opening auction, while our side has only passed, the
+  learned floor no longer bids a suit on four cards or fewer; notrump bids,
+  `X` and `Pass` are untouched. At `(2NT) - (3♣)` the net's top call was `3♥`
+  on a doubleton (`T73.Q3.J74.AQ964`), 26 of 27 such bids over 204,800 boards
+  holding fewer than five hearts, and the Law-raise rail raised the phantom
+  suit to `4♥` doubled (found by the R9 worst-board trace,
+  `docs/floor-rail-campaign.md`). Shipped on naturalness behind a
+  non-inferiority proof vs BBA (`scripts/ab-2nt-short-bid-veto.sh`, 204,800
+  boards per cell, IMPs/board plain DD | PD): none +0.0001 | +0.0001, ns
+  −0.0000 | −0.0000, ew +0.0003 | +0.0003 (a win), both −0.0000 | −0.0000;
+  single-dummy non-inferior throughout. It moves the contract on 4–8 boards
+  a cell, so the score is unchanged within ±0.0003. `bba-gen
+  --no-ns-2nt-short-bid-veto` turns it off.
 - **`InstinctProfile::advance_law_raise`, the Law-raise rail of the learned
   floor, default `Some(0)` (2026-11-14).** When they opened, we have only
   passed, partner overcalled one suit read as five or more cards and we hold
