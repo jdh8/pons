@@ -18,7 +18,7 @@
 //! `PROBE_NS_LANDY_LIA=1` puts §N1-lia's ladder (default off) over it — inert
 //! without the first, like every other `PROBE_LANDY_*` knob.
 //! `PROBE_NEW_SUIT_VETO=1` arms the floor's phantom-suit rail (default off).
-//! `PROBE_LAW_RAISE=0|1` arms the Law-raise rail with that slack (default off).
+//! `PROBE_LAW_RAISE=off|0|1` sets the Law-raise rail's slack (default 0).
 //! `PROBE_SPADE_RAISE_SPLINTER=off|1|4` sets opener's splinter raise over
 //! `1x - 1♠` (default 4, any singleton; 1 = BBA's small-singleton rule);
 //! `PROBE_HEART_RAISE_SPLINTER=off|1|4` its mirror over `1m - 1♥` (default 4).

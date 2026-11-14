@@ -86,7 +86,7 @@ Priced at `c3bb94a7`, in order:
 | R6 | re-run the census (post-R4/R5, or immediately if either refutes) | — | — | — | **done 2026-09-26** at `7e0bc648` — see below |
 | R7 | our silent side **bids** over their `2NT` opening on ≤7 HCP | 201 | −0.98k | −1.25k | **shipped 2026-09-26** — `their_2nt_bid_veto`; ledger below |
 | R8 | our silent side **doubles or bids** once their `1NT` auction reaches an invitation (responder's `2NT`, or responder's three-level true major raise) | 366¹ | −0.75k¹ (`none` only) | −0.61k¹ (`none` only) | **shipped 2026-10-20, both halves** (reopened 2026-10-19, jdh8, for this one family): `scripts/ab-nt-invite-rail.sh`, 196,608 accepted boards per cell, both rails vs neither plain +0.0151 to +0.0182, PD +0.0138 to +0.0166 per accepted board (`win \| win` every cell, ≈ +0.004 per random deal); the bid veto wins on top of the double veto (paired `dxb − dx`). Under the honest reading (`--declare-their-european-minors`, `bba-gen`'s default since the same day) it fires on only 1–17 boards per cell: mostly a misread compensator. CHANGELOG 2026-10-20 |
-| R9 | **the Law raise** (not a veto: demotes `Pass`): they opened, we have only passed, partner bid one suit read as 5+, we hold 4+ of it, the floor passes where the reference raises | 572 | −0.97k | −0.50k | **shipped 2026-11-14, default `Some(0)`** — `advance_law_raise` (`Option<u8>` slack), `scripts/ab-law-raise.sh` vs BBA, 204,800 boards per cell, IMPs/board vs the rail off, plain \| PD, cells none / ns / ew / both. Slack 0 (raise may reach the Law level; fires on 0.43–0.55%): +0.0049 \| +0.0007, +0.0021 \| **−0.0039**, +0.0073 \| +0.0020, +0.0042 \| **−0.0037**: plain `win` 4/4, PD `loss` when we are vulnerable, recorded and not a veto (BBA's real doubles are already in plain). Slack 1 (0.11–0.18%): +0.0014 \| +0.0008, +0.0008 \| −0.0002, +0.0022 \| +0.0011, +0.0015 \| +0.0002: `win` 3/4, non-inferior at ns, no PD loss. Slack 0 beats slack 1 on plain in none, ew and both (non-inferior at ns), so a vulnerability-dependent slack is not worth a knob. Single-dummy plain wins 8/8; SD-PD never loses (slack 0 inconclusive at ns and both). Isolation gate passed 8/8. Worst boards not traced; overcaller's continuation over the raise is still the floor's. **BEN confirmation owed.** Census in [ben-gap-campaign.md](ben-gap-campaign.md) § `f43436de` |
+| R9 | **the Law raise** (not a veto: demotes `Pass`): they opened, we have only passed, partner bid one suit read as 5+, we hold 4+ of it, the floor passes where the reference raises | 572 | −0.97k | −0.50k | **shipped 2026-11-14, default `Some(0)`** — `advance_law_raise` (`Option<u8>` slack), `scripts/ab-law-raise.sh` vs BBA, 204,800 boards per cell, IMPs/board vs the rail off, plain \| PD, cells none / ns / ew / both. Slack 0 (raise may reach the Law level; fires on 0.43–0.55%): +0.0049 \| +0.0007, +0.0021 \| **−0.0039**, +0.0073 \| +0.0020, +0.0042 \| **−0.0037**: plain `win` 4/4, PD `loss` when we are vulnerable, recorded and not a veto (BBA's real doubles are already in plain). Slack 1 (0.11–0.18%): +0.0014 \| +0.0008, +0.0008 \| −0.0002, +0.0022 \| +0.0011, +0.0015 \| +0.0002: `win` 3/4, non-inferior at ns, no PD loss. Slack 0 beats slack 1 on plain in none, ew and both (non-inferior at ns), so a vulnerability-dependent slack is not worth a knob. Single-dummy plain wins 8/8; SD-PD never loses (slack 0 inconclusive at ns and both). Isolation gate passed 8/8. Worst boards traced 2026-11-15 (the R9 trace below): the trigger is exact and overcaller's continuation is not a leak. **BEN confirmation owed.** Census in [ben-gap-campaign.md](ben-gap-campaign.md) § `f43436de` |
 
 ¹ Not from the anchor census: the clean `--isolate-defense natural` forensic
 at `f8286a5a` (`none`, `--filter-1nt --wide-1nt`, step 2 of the 1NT-defense
@@ -210,6 +210,39 @@ R4b, the first wash, sat right at the census bar (−0.50k PD); its masked
 `4NT` was sometimes an accidental obstruction that pushed them overboard, so
 the census over-stated it. Rows at the bar are coin flips — price the next
 ones against ~1k PD, not 0.5k.
+
+**R9 trace (2026-11-15).** Slack 0 against the rail off, every
+contract-divergent board of the four cells (4,057, `ab-dump-diff --jsonl` on
+`ab-results/law-raise`), counted in full, not read off the worst tail. IMPs
+are sums with a 95% half-width, plain | PD.
+
+- **The trigger is exact.** All 4,057 boards diverge at our raise of
+  partner's suit; no other call moves first.
+- **Overcaller's continuation is not a leak.** Our side acts again after the
+  raise on 628 boards: +88 | −187 when we are vulnerable (ns + both),
+  +312 | +185 when we are not. Nothing to author there.
+- **The PD loss is doubles BBA does not make.** The raise ends the auction
+  undoubled on 1,459 boards: +1,848 | −1,938. When BBA does double and we
+  sit (574 boards) plain is −237 ±297 vulnerable and +279 ±243 not. The
+  recorded PD loss stands as recorded.
+- **Lead 1, a floor bug the rail exposes.** At `(2NT) - (3♣)` the net's top
+  call is `3♥` on a short suit (`T73.Q3.J74.AQ964`: `3♥` 8.90, `Pass` 8.09):
+  26 of the 27 such `3♥` bids in the 204,800-board ns control hold fewer than
+  five hearts, and `their_2nt_bid_veto` stops at 7 HCP. The call reads as
+  five-plus hearts, so the rail raises to `4♥` doubled: 12 fired boards over
+  the four cells, −159 ±91 | −159. The bug predates the rail and belongs to
+  the `their_2nt_gate` family, not to `law_raise_gate`. **Unfixed, flagged.**
+- **Lead 2, `(1NT) 2M (X) 3M`.** Nearly every raise directly over their `1NT` opening comes
+  after responder's double (177 of 179 in the ns cell). The major raise is 329 boards, −169 ±217 |
+  −1,177 ±267 (vulnerable −210 ±161 | −766; not vulnerable +41 | −411); the
+  minor twin `(1NT) 2m (X) 3m` is 396 boards, +1,134 ±257 | +204. A slice
+  chosen after the fact, and a plain wash: **unverified, no knob built.** It
+  carries about half of the vulnerable PD loss, so it is the first slice to
+  re-read on the BEN run.
+- **Lead 3, their preempts.** After their two- or three-level suit opening:
+  243 boards, −193 ±172 | −432. Same caveat as lead 2.
+- Raising over their `3NT` (44 boards, −215 ±136) is lead 1 and little else:
+  without the phantom `3♥` boards it is 34 boards, −75 ±104.
 
 **After the series: an exact-auction forced delegation (2026-10-19).**
 `InstinctProfile::xx_runout_rails` (default off, A/B owed:
