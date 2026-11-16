@@ -81,7 +81,14 @@ section { display: flex; flex-direction: column; gap: 1rem; align-items: stretch
   background: transparent;
   color: inherit;
 }
-.controls option { color: var(--ink); }
+/* WebKitGTK (Tauri on Linux) paints a native light select under our white
+   text; drop native appearance everywhere and draw the arrow ourselves. */
+.controls select {
+  appearance: none;
+  padding-right: 1.4rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23f2f2f2'/%3E%3C/svg%3E") no-repeat right 0.45rem center;
+}
+.controls option { color: var(--ink); background: var(--paper); }
 .controls input[type="number"] { width: 4rem; }
 .controls input[type="search"] { flex: 1; min-width: 12rem; }
 .count { opacity: 0.85; font-size: 0.9rem; }

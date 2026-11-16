@@ -22,7 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tab solves 100 layouts a batch. Every engine call in `app.js` is now
   awaited; the browser client behaves as before. No bidding code is touched.
   Linux builds need `webkit2gtk4.1-devel`, `gtk3-devel` and `libsoup3-devel`
-  (Fedora names).
+  (Fedora names). The controls' `<select>`s draw their own arrow
+  (`appearance: none`): WebKitGTK painted a light native box under their
+  white text.
 - **`InstinctProfile::their_2nt_short_bid_veto`, default on (2026-11-15).**
   Over their `2NT` opening auction, while our side has only passed, the
   learned floor no longer bids a suit on four cards or fewer; notrump bids,
