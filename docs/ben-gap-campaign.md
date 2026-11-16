@@ -836,8 +836,15 @@ them. Overcaller's continuation over the raise is still the floor's.
 in all four cells (+0.0021 to +0.0073 IMPs/board) with a PD loss when we are
 vulnerable (−0.0039 ns, −0.0037 both); slack 1 wins three cells and is
 non-inferior at ns. Numbers in
-[floor-rail-campaign.md](floor-rail-campaign.md) row R9. The confirmation
-against BEN is owed.
+[floor-rail-campaign.md](floor-rail-campaign.md) row R9.
+
+**BEN confirmed 2026-11-16** (Tier F, `scripts/ab-ben-law-raise.sh`,
+102,400 boards per cell, slack 0 vs the rail off, plain | PD): none
++0.0038 | −0.0004, ns +0.0008 | −0.0050, ew +0.0072 | +0.0008, both
++0.0043 | −0.0038. Plain wins three cells and is non-inferior at ns, so the
+BBA ship stands; the PD loss when we are vulnerable recurs and is recorded,
+not a veto. The two R9-trace leads do not replicate on these boards (R9
+trace, BEN re-read).
 
 **Next-steps items 3/4 re-priced on this row** (same slicer; it reproduces
 the `c72dd03e` column of the table below exactly):

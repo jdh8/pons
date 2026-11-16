@@ -228,6 +228,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_invite_bid_veto: bool,
 
+    /// The Law-raise rail's slack, as `bba-gen --ns-law-raise`: `off` disarms
+    /// it, a number is the levels the raise stays inside the Law of Total
+    /// Tricks (`InstinctProfile::advance_law_raise`, crate default 0).  The
+    /// arms of `scripts/ab-ben-law-raise.sh`.
+    #[arg(long, default_value = "0", value_name = "off|LEVELS")]
+    ns_law_raise: String,
+
     /// Hand `(1NT) X (XX)` and `(1NT) X (XX) - -` to the ladder's runouts
     /// instead of the net (opt-in; see `InstinctProfile::xx_runout_rails`).
     #[arg(long, default_value_t = false)]
@@ -656,6 +663,14 @@ fn ns_agreements(args: &Args) -> pons::bidding::agreements::Agreements {
         agreements.decision.reading.declared_natural_walk = v;
     }
     agreements.decision.instinct.their_nt_invite_bid_veto = !args.no_ns_nt_invite_bid_veto;
+    agreements.decision.instinct.advance_law_raise = match args.ns_law_raise.as_str() {
+        "off" => None,
+        slack => Some(
+            slack
+                .parse()
+                .expect("--ns-law-raise is off or a slack in levels"),
+        ),
+    };
 
     agreements.decision.instinct.xx_runout_rails = args.ns_xx_runout_rails;
     agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;

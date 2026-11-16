@@ -312,8 +312,9 @@ re-litigate). Live pieces, all in
   rail `advance_law_raise`. **Shipped 2026-11-14, default `Some(0)`:** vs BBA
   a plain win in all four cells (+0.0021 to +0.0073 IMPs/board), a PD loss
   when we are vulnerable ([floor-rail-campaign.md](floor-rail-campaign.md)
-  R9). Owed: the BEN confirmation, and a trace of the worst boards
-  (overcaller's continuation over the raise is still the floor's).
+  R9). **BEN confirmed 2026-11-16:** plain win 3/4, non-inferior at ns,
+  the same vulnerable PD loss; worst boards traced 2026-11-15, both leads
+  closed on the BEN re-read. Nothing owed.
 - **O6 three-level jumps** (`P → 3x` slice, −875 plain on the 102.4k Tier-F
   corpus, but only 19 boards / −14 / −39 at Tier S). Opt-in knob, one
   SD-PD measurement authorized; expect DD pessimism, sd-check first.
