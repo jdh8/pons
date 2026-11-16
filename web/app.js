@@ -1,6 +1,10 @@
-// Thin static UI over the pons wasm bidder: the engine holds the deal and the
+// Thin static UI over the pons bidder: the engine holds the deal and the
 // auction; JS rebuilds the DOM from each JSON snapshot (gin-rummy pattern).
-import init, { WebTable, Binky, book, point_census, set_option, set_choice, describe_options } from './pkg/pons_web.js';
+//
+// The engine is the wasm in a browser and the native process in the desktop
+// client (`tauri/`), behind one object: see loadEngine().
+
+const NATIVE = '__TAURI__' in window; // the desktop client injects it
 
 const SEATS = ['N', 'E', 'S', 'W'];
 const SEAT_NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -10,10 +14,12 @@ const HAND_ORDER = ['♠', '♥', '♦', '♣']; // spades first in hand panels
 const BOX_ORDER = ['♣', '♦', '♥', '♠', 'NT']; // bidding-box columns, low to high
 const DEMO_PACE_MS = 300; // pause between demo auction reveals
 
-const ORACLE_TOTAL = 100; // reshuffles per board
-const ORACLE_CHUNK = 2; // per JS task, so the page keeps painting between them
+// Native double dummy fans out over every core; the wasm solves on the page's
+// one thread, so it takes small bites and fewer of them.
+const ORACLE_TOTAL = NATIVE ? 1000 : 100; // reshuffles per board
+const ORACLE_CHUNK = NATIVE ? 100 : 2; // per engine call, so progress shows between them
 
-let game;
+let engine; // every method answers a JSON string, or a promise of one: always await
 let current = null; // the snapshot on screen
 let boardCount = 0; // practice deals so far — drives the "Rotate" dealer
 let bookNodes = null; // [{el, haystack}] for the selected partnership
@@ -24,10 +30,66 @@ let analysisGen = -1; // last boardGen whose DD + oracle were kicked off
 
 const id = (x) => document.getElementById(x);
 
+const newSeed = () => String(Math.floor(Math.random() * 2 ** 53)); // wasm has no entropy
+
+// The engine's methods, named and ordered as `pons-web` exports them.  The
+// table and the Evaluate tab's shuffler live on the engine's side either way.
+async function loadEngine() {
+  if (NATIVE) {
+    // One call at a time, in the order made: a setting must land before the
+    // deal that follows it, and the native side has a single engine thread.
+    let tail = Promise.resolve();
+    const call = (cmd, args) => {
+      const answer = tail.then(() => window.__TAURI__.core.invoke(cmd, args));
+      tail = answer.catch(() => {});
+      return answer;
+    };
+    return {
+      deal_practice: (seat, dealer, vul, minHcp) => call('deal_practice', { seat, dealer, vul, minHcp }),
+      deal_demo: (dealer, vul) => call('deal_demo', { dealer, vul }),
+      deal_pbn: (pbn, dealer, vul) => call('deal_pbn', { pbn, dealer, vul }),
+      bid: (code) => call('bid', { call: code }),
+      hint: () => call('hint'),
+      dd_table: () => call('dd_table'),
+      oracle: (samples) => call('oracle', { samples }),
+      book: (pair) => call('book', { pair }),
+      point_census: () => call('point_census'),
+      describe_options: () => call('describe_options'),
+      set_option: (pair, key, on) => call('set_option', { pair, key, on }),
+      set_choice: (pair, key, value) => call('set_choice', { pair, key, value }),
+      binky_create: (north, south, notrump) => call('binky_create', { north, south, notrump }),
+      binky_run: (samples) => call('binky_run', { samples }),
+    };
+  }
+  const wasm = await import('./pkg/pons_web.js');
+  await wasm.default();
+  const game = new wasm.WebTable(newSeed());
+  let binky = null;
+  return {
+    deal_practice: (...a) => game.deal_practice(...a),
+    deal_demo: (...a) => game.deal_demo(...a),
+    deal_pbn: (...a) => game.deal_pbn(...a),
+    bid: (code) => game.bid(code),
+    hint: () => game.hint(),
+    dd_table: () => game.dd_table(),
+    oracle: (samples) => game.oracle(samples),
+    book: wasm.book,
+    point_census: wasm.point_census,
+    describe_options: wasm.describe_options,
+    set_option: wasm.set_option,
+    set_choice: wasm.set_choice,
+    binky_create: (north, south, notrump) => {
+      binky?.free();
+      binky = wasm.Binky.create(north, south, notrump, newSeed()) ?? null;
+      return binky !== null;
+    },
+    binky_run: (samples) => (binky ? binky.run(samples) : 'null'),
+  };
+}
+
 async function main() {
-  await init();
-  game = new WebTable(String(Math.floor(Math.random() * 2 ** 53)));
-  OPTIONS = JSON.parse(describe_options()); // the Settings registry, from wasm
+  engine = await loadEngine();
+  OPTIONS = JSON.parse(await engine.describe_options()); // the Settings registry, from the engine
   // Replay saved overrides: booleans are toggles, strings are radio-choice values.
   for (const pair of PAIRS) {
     for (const [key, value] of Object.entries(stored[pair])) applyOption(pair, key, value);
@@ -46,7 +108,7 @@ async function main() {
   id('b-pair').onchange = (ev) => { bookPair = ev.target.value; loadBook(); };
   initEdit();
   initBinky();
-  initCalc();
+  await initCalc();
   initCompanion();
   showTab(location.hash.slice(1));
 }
@@ -66,17 +128,17 @@ function showTab(tab) {
 
 // --- dealing -----------------------------------------------------------------
 
-function dealPractice() {
+async function dealPractice() {
   boardGen++;
   const pick = id('p-dealer').value;
   const dealer = pick === 'rotate' ? SEATS[boardCount % 4] : pick;
   boardCount++;
   const hcp = Math.min(37, Math.max(0, Number(id('p-hcp').value) || 0));
-  render(JSON.parse(game.deal_practice(id('p-seat').value, dealer, id('p-vul').value, hcp)));
+  render(JSON.parse(await engine.deal_practice(id('p-seat').value, dealer, id('p-vul').value, hcp)));
 }
 
-function dealDemo() {
-  runDemo(game.deal_demo(id('d-dealer').value, id('d-vul').value));
+async function dealDemo() {
+  runDemo(await engine.deal_demo(id('d-dealer').value, id('d-vul').value));
 }
 
 // Hand the deal now on screen to the Edit tab so it can be tweaked and re-bid.
@@ -133,10 +195,12 @@ function renderPractice(s) {
 // The net read off the auction, not off the hidden hands: the same inferences
 // the bidder itself consumes. Watch sd narrow as partner describes their hand —
 // a call that fails to narrow it is a reading bug you can see while playing.
-function renderHint() {
+async function renderHint() {
   const box = id('p-hint');
   const on = id('p-hint-on').checked;
-  const rows = on ? JSON.parse(game.hint()) : null;
+  const s = current;
+  const rows = on ? JSON.parse(await engine.hint()) : null;
+  if (s !== current) return; // a later snapshot is on screen, with its own hint coming
   box.classList.toggle('hidden', !rows);
   if (!rows) return;
 
@@ -199,15 +263,15 @@ function renderReveal(s) {
 // --- double dummy + oracle -----------------------------------------------------
 
 // Solve after a paint so the "solving…" placeholder actually shows; the wasm
-// solve blocks the main thread for a few hundred ms.
+// solve blocks the main thread for a few hundred ms (the native one does not).
 function scheduleDD(targetId) {
   const gen = boardGen;
   const box = id(targetId);
   box.classList.remove('hidden');
   box.innerHTML = '<div class="panel-title">Double dummy</div><div class="solving">solving…</div>';
-  setTimeout(() => {
+  setTimeout(async () => {
     if (gen !== boardGen) return;
-    const dd = JSON.parse(game.dd_table());
+    const dd = JSON.parse(await engine.dd_table());
     if (dd && gen === boardGen) box.innerHTML = ddHTML(dd);
   }, 50);
 }
@@ -232,9 +296,10 @@ function runOracle() {
   box.classList.remove('hidden');
   box.innerHTML = '<div class="panel-title">Oracle (opponents reshuffled)</div>' +
     '<div class="o-body">shuffling…</div>';
-  const step = () => {
+  const step = async () => {
     if (gen !== boardGen) return;
-    const o = JSON.parse(game.oracle(ORACLE_CHUNK));
+    const o = JSON.parse(await engine.oracle(ORACLE_CHUNK));
+    if (gen !== boardGen) return;
     if (!o) { box.classList.add('hidden'); return; } // passed out — nothing to judge
     const sign = o.mean_score >= 0 ? '+' : '';
     box.querySelector('.o-body').textContent =
@@ -324,8 +389,12 @@ function bidButton(code) {
   b.dataset.code = code;
   b.disabled = true;
   b.innerHTML = colorizeCalls(code);
-  b.onclick = () => {
-    if (current && current.your_turn && !current.ended) render(JSON.parse(game.bid(code)));
+  b.onclick = async () => {
+    if (!current || !current.your_turn || current.ended) return;
+    const gen = boardGen;
+    current.your_turn = false; // one call a turn: a second click waits for the bots
+    const s = JSON.parse(await engine.bid(code));
+    if (gen === boardGen) render(s);
   };
   return b;
 }
@@ -341,8 +410,8 @@ function updateBiddingBox(s) {
 
 // --- book browser --------------------------------------------------------------
 
-function loadBook() {
-  const nodes = JSON.parse(book(bookPair));
+async function loadBook() {
+  const nodes = JSON.parse(await engine.book(bookPair));
   const frag = document.createDocumentFragment();
   id('b-results').replaceChildren();
   bookNodes = nodes.map((node) => {
@@ -418,9 +487,9 @@ function initEdit() {
   id('e-random').onclick = () => { editAssign = randomDeal(); syncFromBoard(); };
   id('e-clear').onclick = () => { editAssign = {}; syncFromBoard(); };
   id('e-copy').onclick = () => navigator.clipboard?.writeText(id('e-pbn').value);
-  id('e-bid').onclick = () => {
+  id('e-bid').onclick = async () => {
     location.hash = 'demo'; // hand the edited deal to the Demo tab and bid it out
-    runDemo(game.deal_pbn(toPBN(editAssign), id('d-dealer').value, id('d-vul').value));
+    runDemo(await engine.deal_pbn(toPBN(editAssign), id('d-dealer').value, id('d-vul').value));
   };
   id('e-eval').onclick = () => { binkyFromEdit(); location.hash = 'binky'; };
   id('e-grid').onclick = (ev) => {
@@ -531,12 +600,12 @@ function editGridHTML() {
 
 // --- settings -------------------------------------------------------------------
 //
-// The Settings tab is built entirely from the wasm registry (describe_options()):
+// The Settings tab is built entirely from the engine's registry (describe_options()):
 // one row per bidding knob, grouped by section, so a convention added in Rust shows
 // up here automatically.  A "toggle" is a checkbox; a "choice" is a mutually-
 // exclusive radio family (e.g. defense to their 1NT), backed by one engine enum.
 // Only *deviations* from a row's default are persisted per partnership and
-// replayed onto the wasm state at startup (applyOption routes by kind).
+// replayed onto the engine's state at startup (applyOption routes by kind).
 
 const STORAGE_KEY = 'pons-settings';
 const PAIRS = ['ns', 'ew'];
@@ -579,10 +648,11 @@ function isLive(opt, pair = settingsPair) {
   return want === undefined ? cur === true : cur === want;
 }
 
-// Push one saved value to the wasm bidder — booleans are toggles, strings choices.
+// Push one saved value to the bidder — booleans are toggles, strings choices.
+// Not awaited: the engine takes calls in the order they are made.
 function applyOption(pair, key, value) {
-  if (typeof value === 'boolean') set_option(pair, key, value);
-  else set_choice(pair, key, value);
+  if (typeof value === 'boolean') engine.set_option(pair, key, value);
+  else engine.set_choice(pair, key, value);
 }
 
 // One option's HTML: a checkbox, or a radio set for a mutually-exclusive family.
@@ -659,7 +729,7 @@ function renderInputs() {
   }
 }
 
-// Apply one option to the wasm bidder and update the delta store (default-valued
+// Apply one option to the bidder and update the delta store (default-valued
 // entries are dropped so localStorage only holds overrides).
 function setOption(pair, key, value) {
   applyOption(pair, key, value);
@@ -844,20 +914,20 @@ function holdingKey(cards) {
 // so this is ground truth with no sampler to be biased — the same check
 // `examples/binky --benchmark` runs natively.
 
-const K_CHUNK = 10; // solves per JS task, so the page keeps painting
+const K_CHUNK = NATIVE ? 100 : 10; // solves per engine call, so the page keeps painting
 
 async function runVerdict() {
   const e = binkyEvaluate();
   if (!e || kRunning) return;
   const total = Number(id('k-shuffles').value);
-  const engine = Binky.create(id('k-north').value.trim(), id('k-south').value.trim(),
-                              binkyNotrump(), String(Math.floor(Math.random() * 2 ** 53)));
-  if (!engine) { id('k-progress').textContent = 'Those two hands overlap.'; return; }
+  kRunning = true; // before the first await: a second click must not seat new hands mid-run
+  const seated = await engine.binky_create(id('k-north').value.trim(), id('k-south').value.trim(),
+                                           binkyNotrump());
+  if (!seated) { id('k-progress').textContent = 'Those two hands overlap.'; kRunning = false; return; }
 
-  kRunning = true;
   id('k-verify').disabled = true;
   for (let done = 0; done < total; done += K_CHUNK) {
-    kVerdict = JSON.parse(engine.run(Math.min(K_CHUNK, total - done)));
+    kVerdict = JSON.parse(await engine.binky_run(Math.min(K_CHUNK, total - done)));
     id('k-progress').textContent = `${kVerdict.n} / ${total} layouts solved`;
     renderVerdict(e);
     await new Promise((r) => setTimeout(r, 0)); // yield so the browser repaints
@@ -1385,7 +1455,7 @@ function oddsCount(boxes) {
   return { total, byShape };
 }
 
-function initCalc() {
+async function initCalc() {
   const vars = handVars(0, 1); // p = up
   const chk = (text, ...v) => compileWhere(text, vars)(v);
   console.assert(chk('s > h', 5, 4, 2, 2) && !chk('s > h >= d', 5, 2, 4, 2)
@@ -1400,7 +1470,7 @@ function initCalc() {
     && [...compileWhere('s + s.hcp >= 9, h.hcp + d.hcp > 3 | 4432, c.hcp > up', vars).mixed].join() === '11,12,13'
     && compileWhere('s.hcp >= 5 & (54)xx', vars)(Object.assign(new Array(HAND_SLOTS).fill(NaN), [5, 4, 2, 2])) === undefined
     && ['s >', 's + h', '!s', 'pts > 0', 'hcp_s > 0', 'my.s > 0', 's .hcp > 0', '5432', '5=4-3-1', 'hcp > 5431'].every((text) => compileWhere(text, vars) === null), 'compileWhere');
-  CENSUS = JSON.parse(point_census());
+  CENSUS = JSON.parse(await engine.point_census());
   HELD = CENSUS.map((rows) => {
     const byHonors = [];
     for (const [honors, hcp, wasted, plus] of rows) byHonors[honors] = [hcp, wasted, plus];

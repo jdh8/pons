@@ -9,33 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`gpui/`, a native desktop client (2026-11-11).** A [GPUI](https://gpui.rs)
-  front end beside `web/`, its own workspace, driving the same `pons-web`
-  session API as plain Rust: Play (practice and demo, PBN from the clipboard),
-  Book, Settings. The engine runs on its own thread and double dummy fans out
-  over `pons-dds`'s pool, so the practice oracle prices 1000 opponent
-  reshuffles a board where the browser prices 100. `pons-web`'s `dd_table`,
-  `oracle` and `Binky::run` take the parallel path on every native target and
-  keep the single warm solver on wasm; double dummy is exact, so the answers
-  are unchanged. No bidding code is touched. The Edit, Binky, Odds and Partner
-  tabs are not ported. It wears the web UI's look: felt, card-paper panels,
-  gold for the active choice, the four suit colours, and the Libertinus suit
-  glyphs embedded as `gpui/assets/suits.ttf` (OFL). The palette is copied by
-  hand from `web/style.css`; keep the two in step. So is the layout: one
-  centred 960 px column for every tab, each row spanning it, in the web's
-  order — the board line, your hand beside a four-column auction table, the
-  bidding box centred under them, then the hint, the feedback, the compass
-  reveal and the analysis panels. A `<select>` becomes a strip of choices
-  with the chosen one gold (*Min HCP* offers 0 / 5 / 8 / 10 / 12 / 15 / 18 /
-  20), *Deal practice* is the one gold action, and the book's nodes carry the
-  web's coloured book badge and fixed call / weight gutters. On Linux the UI
-  face is Inter when installed: GPUI reads one weight per font file, so
-  GNOME's variable Adwaita Sans drew every bold as regular. It draws its own
-  decorations on Linux, since GNOME on Wayland draws none: the header is the
-  title bar, its gap drags the window and zooms on a double click, it carries
-  one close button flush in the top-right corner, a stroked X that turns red
-  on hover, and the outer 6 px of the window resize it. The header is a shade
-  darker than the felt (black at 20%), so it reads as a title bar.
+- **`tauri/`, a desktop client; `gpui/` is removed (2026-11-16).** A
+  [Tauri](https://tauri.app) window around `web/`'s own page, its own
+  workspace, replacing the GPUI client of 2026-11-11. One UI now serves the
+  browser and the desktop, so the desktop gains the tabs GPUI never had
+  (Edit, Evaluate, Odds, Partner) and the hand-copied palette and layout are
+  gone. `web/app.js` reaches the engine through one object, `loadEngine()`:
+  the wasm in a browser, `#[tauri::command]`s over `pons-web` as plain Rust
+  under Tauri. Natively the engine runs on its own thread and double dummy
+  fans out over `pons-dds`'s pool, so the practice oracle prices 1000
+  opponent reshuffles a board where the browser prices 100, and the Evaluate
+  tab solves 100 layouts a batch. Every engine call in `app.js` is now
+  awaited; the browser client behaves as before. No bidding code is touched.
+  Linux builds need `webkit2gtk4.1-devel`, `gtk3-devel` and `libsoup3-devel`
+  (Fedora names).
 - **`InstinctProfile::their_2nt_short_bid_veto`, default on (2026-11-15).**
   Over their `2NT` opening auction, while our side has only passed, the
   learned floor no longer bids a suit on four cards or fewer; notrump bids,

@@ -4,6 +4,9 @@ The human-facing [pons](..) examples in the browser: practice bidding one seat
 against the 2/1 bots, watch them bid a random board, or browse the authored
 books.  Everything runs client-side as WebAssembly; there is no server.
 
+The same page is the desktop client's UI: [`tauri/`](../tauri) embeds it and
+swaps the wasm for the native engine, behind `loadEngine()` in `app.js`.
+
 Double dummy runs in the browser too, via the pure-Rust
 [pons-dds](https://github.com/jdh8/pons-dds) (the native `pons/dd` feature
 wraps C++ and cannot target wasm) — but only **after** the auction: a full

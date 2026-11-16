@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "pons",
+  "version": "0.1.0",
+  "identifier": "io.github.jdh8.pons",
+  "build": {
+    "frontendDist": [
+      "../web/index.html",
+      "../web/app.js",
+      "../web/style.css",
+      "../web/binky.json",
+      "../web/binky-suit.json"
+    ]
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "title": "pons", "width": 1100, "height": 900 }],
+    "security": { "csp": null }
+  }
+}

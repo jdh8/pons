@@ -1,24 +1,26 @@
 [package]
-name = "pons-gpui"
+name = "pons-tauri"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.93"
 publish = false
 license = "Apache-2.0"
-description = "Native front end for pons: practice bidding, watch the bots, browse the book"
+description = "Desktop front end for pons: the web UI in a native window, the engine on native threads"
 
 # Standalone crate, like `web/`: its own workspace root, so the parent `pons`
 # package never adopts it (and never compiles a GUI toolkit).
 [workspace]
 
+[build-dependencies]
+tauri-build = "2"
+
 [dependencies]
-gpui = "0.2.2"
+tauri = "2"
 # The session API (deal, bid, snapshot, book, settings registry) is the web
-# crate's, called as plain Rust: one engine surface, two front ends.  Its
-# double-dummy paths fan out over pons-dds's thread pool on native targets.
+# crate's, called as plain Rust: one engine surface, and one UI (`web/`'s
+# HTML, embedded at build time).  Its double-dummy paths fan out over
+# pons-dds's thread pool on native targets.
 pons-web = { path = "../web" }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 
 # Same as the parent crate: an un-optimized solver and bidder are glacial.
 [profile.dev]
