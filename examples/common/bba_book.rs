@@ -37,7 +37,7 @@ use pons::bidding::{
     Alert, Competitive, Constructive, Defensive, Phase, Rules, System, Trie, instinct,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 // ───────────────────────────── dump schema ─────────────────────────────
 
@@ -515,7 +515,7 @@ impl BbaBook {
     /// When `BBA_BOOK` is unset or names no readable walk.
     #[cfg(feature = "serde")]
     pub fn shared() -> anyhow::Result<Arc<Self>> {
-        static BOOK: OnceLock<Result<Arc<BbaBook>, String>> = OnceLock::new();
+        static BOOK: std::sync::OnceLock<Result<Arc<BbaBook>, String>> = std::sync::OnceLock::new();
         BOOK.get_or_init(|| {
             let dir = std::env::var("BBA_BOOK").map_err(|_| {
                 "the bba floor needs BBA_BOOK=<probe-bba-book run directory> \

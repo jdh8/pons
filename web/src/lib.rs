@@ -1119,17 +1119,12 @@ knob!(set_multi_kokish_kraft, multi_kokish_kraft, competition.multi_kokish_kraft
 // The declaration's read-side wiring: their 2♣ reads as both majors instead
 // of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
 // PD win); a no-op unless the disclosure is declared.
-knob!(set_their_landy_reading, their_landy_reading, decision.reading.their_landy_reading: bool);
 knob!(set_their_multi_reading, their_multi_reading, decision.reading.their_multi_reading: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 knob!(set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer, competition.defense_2c_landy_transfer: bool);
 knob!(set_defense_to_2c_landy_cue_floor, defense_to_2c_landy_cue_floor, competition.defense_2c_landy_cue_floor: bool);
 knob!(set_defense_to_2c_landy_fit_answers, defense_to_2c_landy_fit_answers, competition.defense_2c_landy_fit_answers: bool);
 knob!(set_defense_to_2c_landy_competition, defense_to_2c_landy_competition, competition.defense_2c_landy_competition: bool);
-knob!(set_defense_to_2c_landy_low_minors, defense_to_2c_landy_low_minors, competition.defense_2c_landy_low_minors: bool);
-knob!(set_defense_to_2c_landy_hcp_rungs, defense_to_2c_landy_hcp_rungs, competition.defense_2c_landy_hcp_rungs: bool);
-knob!(set_defense_to_2c_landy_bba, defense_to_2c_landy_bba, competition.defense_2c_landy_bba: bool);
-knob!(set_defense_to_2c_landy_weak_2d_cap, defense_to_2c_landy_weak_2d_cap, competition.defense_2c_landy_weak_2d_cap: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would
@@ -1148,8 +1143,6 @@ knob!(set_walk_axes, walk_axes, decision.reading.walk_axes: bool);
 knob!(set_one_diamond_floor, one_diamond_floor, decision.reading.one_diamond_floor: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
-knob!(set_strength_ceilings, strength_ceilings, decision.reading.strength_ceilings: bool);
-knob!(set_bid_exclusion, bid_exclusion, decision.reading.bid_exclusion: bool);
 knob!(set_control_bid, control_bid, decision.reading.control_bid: bool);
 knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
 knob!(set_transfer_gf_majors, transfer_gf_majors, decision.transfer_gf_majors: bool);
@@ -1173,7 +1166,6 @@ knob!(set_negative_double_shape, negative_double_shape, competition.negative_dou
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
 // The forced 3♣ completion's alert (reads as a puppet, not clubs).  Off
 // pending its A/B — it moves the default system.
-knob!(set_completion_alerts, completion_alerts, decision.reading.completion_alerts: bool);
 knob!(set_passed_hand_overcall, passed_hand_overcall, defense.passed_hand_overcall: bool);
 knob!(set_leaping_michaels, leaping_michaels, defense.leaping_michaels_enabled: bool);
 knob!(set_responsive_takeout, responsive_takeout, defense.responsive_takeout_enabled: bool);

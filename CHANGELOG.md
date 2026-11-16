@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Eight unused knob accessors in `pons-web` (2026-11-16).** The
+  `their_landy_reading`, `strength_ceilings`, `bid_exclusion`,
+  `completion_alerts` and `defense_to_2c_landy_{bba,weak_2d_cap,low_minors,hcp_rungs}`
+  setter/getter pairs never had a Settings-tab row, so nothing called them;
+  the engine knobs keep their defaults and stay reachable from Rust. Clears
+  `pons-web`'s 16 `dead_code` warnings (native, wasm, and through `tauri/`).
+  Also drops an import that only the `serde`-gated `BbaBook::shared` used,
+  which warned in every example built without `serde`. Builds are now
+  warning-free across the three workspaces. No bidding change.
+
 ### Performance
 
 - **Dealing and the Book tab in `web/` and `tauri/` (2026-11-16).** Every
