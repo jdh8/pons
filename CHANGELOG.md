@@ -887,6 +887,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ranking and series row in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
   `ab-results/ben-anchor/2026-11-13-f43436de/`.
+- **BBA re-anchor (2026-11-16, `b13dd9fe`)**: shipping `american()` scores
+  **−0.1257 plain / +0.0062 perfect-defense IMPs/board** (none −0.1305 /
+  +0.0107, both −0.1208 / +0.0017), the series' best plain, up 0.0088;
+  `american_instinct()` is byte-identical at −0.8819 / −0.9057. Same seed
+  `1783375064`, all four cells replayed at 100% with zero mismatches, 20 new
+  DD tables, 113 minutes on a busy box. The window since `b3ffe8ee` is two
+  floor rails (`advance_law_raise` `Some(0)`, `their_2nt_short_bid_veto`).
+  Paired per table on the same deals, shipping gains +0.0050 ±0.0017 /
+  +0.0054 ±0.0024 plain (none / both), a win in both cells, on 919 / 1,170
+  boards fired; PD +0.0015 ±0.0018 (non-inferior) / −0.0017 ±0.0026
+  (inconclusive), the Law-raise rail's known vulnerable PD shape, recorded
+  and not a veto. The window matches the rail's ship A/B (+0.0049 / +0.0042
+  plain). Floor paired worth +0.388 plain / +0.464 PD. Shipping #6 and #7
+  swap (Competitive / book / round-2 drops below Constructive / book /
+  deep); Defensive / book / round-1 gains +1,264 plain. Ranking and series
+  row in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-16-b13dd9fe/`.
 - **BBA re-anchor (2026-11-12, `b3ffe8ee`)**: shipping `american()` scores
   **−0.1345 plain / +0.0081 perfect-defense IMPs/board** (none −0.1388 /
   +0.0101, both −0.1302 / +0.0061), the series' best, up 0.0035 plain;

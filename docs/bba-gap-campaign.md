@@ -234,21 +234,19 @@ guarded fallback at depth d, `floor` (shipping arm) the net's off-book call.
 `boards.jsonl`'s `board` is an index within its shard, paired with that shard's
 `seed`; the emitted actor `hand` (S.H.D.C) is canonical.
 
-## Current ranking (`b3ffe8ee`, 2026-11-12)
+## Current ranking (`b13dd9fe`, 2026-11-16)
 
 PD columns are on `ns_score_bid` (see the standing note); compare plain across
-snapshots, and PD only back to `494f0c4b`. The window since `7f3d57bd` is the
-2/1 quantitative lane: responder's `4NT` / `6NT` after a no-fit 2/1
-(`rebid.two_over_one_quantitative`, `6056ef59`), opener's invite over the
-capped `3NT` (`rebid.two_over_one_opener_invite`, `5bb2004d`) and the bands
-lowered after a reverse (`rebid.two_over_one_reverse_quantitative`,
-`b3ffe8ee`). All are book ships that reach both arms. 40 minutes on zoo, 14
-new DD tables. Snapshot `ab-results/anchor/2026-11-12-b3ffe8ee/`; all four
-cells replay 100.00% / 0 mismatches.
+snapshots, and PD only back to `494f0c4b`. The window since `b3ffe8ee` is two
+floor rails: the Law-raise rail (`InstinctProfile::advance_law_raise`
+`Some(0)`, `b554b985`) and the short-suit veto over their `2NT`
+(`their_2nt_short_bid_veto`, `fe3f3bb1`). Both live in the learned floor, so
+only the shipping arm moves (rule 7). 113 minutes on a busy zoo, 20 new DD
+tables. Snapshot `ab-results/anchor/2026-11-16-b13dd9fe/`; all four cells
+replay 100.00% / 0 mismatches.
 
-**Instinct arm** — #7 and #8 swap: round-2 gains +856 plain and drops below
-Competitive / book / round-2. Round-1 gains +511. The rest of the order is
-unchanged.
+**Instinct arm** — byte-identical to `b3ffe8ee` (0 boards fired in either
+cell, `diff.window.instinct.*`), so the table below is that snapshot's.
 
 | # | bucket | boards | plain | /div | PD | /div | lane |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -265,24 +263,45 @@ By phase: Defensive −156,998 (103,322 bd) > Competitive −107,084 (48,959) >
 Constructive −97,134 (121,477). By provenance: `book` −206,183, `floor#3`
 −57,494, `floor#382` −15,252, nothing else below −7k.
 
-**Shipping arm** (`american()`). Order unchanged. Round-2 gains +820 plain
-and round-1 +511, so opening leads round-2 by 1,938 (it led by 1,141).
-Constructive / book / deep loses 46 on 56 boards that entered it.
+**Shipping arm** (`american()`). #6 and #7 swap: Competitive / book /
+round-2 gains +107 plain and drops below Constructive / book / deep, which
+did not move. Defensive / book / round-1 gains +1,264 plain (and loses 395
+PD), Defensive / floor / round-2 +742, opening +493, so opening leads
+round-2 by 1,443 (it led by 1,938).
 
 | # | bucket | boards | plain | /div | PD | /div |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Constructive / book / opening | 52,774 | −13,586 | −0.26 | +14,086 | +0.27 |
-| 2 | Constructive / book / round-2 | 32,986 | −11,648 | −0.35 | −13,416 | −0.41 |
-| 3 | Constructive / book / round-1 | 23,744 | −7,595 | −0.32 | −8,963 | −0.38 |
-| 4 | Competitive / book / round-1 | 13,959 | −7,593 | −0.54 | −3,932 | −0.28 |
-| 5 | Defensive / book / round-1 | 48,004 | −6,492 | −0.14 | −6,529 | −0.14 |
-| 6 | Competitive / book / round-2 | 6,984 | −2,544 | −0.36 | −1,800 | −0.26 |
-| 7 | Constructive / book / deep | 6,245 | −2,498 | −0.40 | −3,356 | −0.54 |
-| 8 | Defensive / floor / round-2 | 15,307 | −2,094 | −0.14 | +5,784 | +0.38 |
+| 1 | Constructive / book / opening | 52,744 | −13,093 | −0.25 | +13,799 | +0.26 |
+| 2 | Constructive / book / round-2 | 32,989 | −11,650 | −0.35 | −13,451 | −0.41 |
+| 3 | Constructive / book / round-1 | 23,737 | −7,641 | −0.32 | −9,113 | −0.38 |
+| 4 | Competitive / book / round-1 | 13,949 | −7,351 | −0.53 | −3,965 | −0.28 |
+| 5 | Defensive / book / round-1 | 48,216 | −5,228 | −0.11 | −6,924 | −0.14 |
+| 6 | Constructive / book / deep | 6,245 | −2,498 | −0.40 | −3,356 | −0.54 |
+| 7 | Competitive / book / round-2 | 6,895 | −2,437 | −0.35 | −1,743 | −0.25 |
+| 8 | Defensive / floor / round-2 | 15,631 | −1,352 | −0.09 | +5,973 | +0.38 |
 
-By phase: Constructive −37,864 (125,414 bd) > Competitive −11,252 (45,748) >
-Defensive −5,969 (85,437); by provenance `book` −52,770, `floor#3` −1,130,
-`floor#61` −1,050, `fallback@3` −1,005. Auction divergence vs BBA: 85 / 83%.
+By phase: Constructive −37,424 (125,387 bd) > Competitive −10,678 (45,372) >
+Defensive −3,365 (86,089); by provenance `book` −50,707, `floor#3` −1,130,
+`floor#61` −1,050, `fallback@3` −917. Auction divergence vs BBA: 85 / 83%.
+
+**The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
+`b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`
+in the snapshot). Shipping **+0.0050 ±0.0017 / +0.0054 ±0.0024 plain**
+(none / both; 919 / 1,170 boards fired, 0.45 / 0.57%), a `win` in both
+cells; PD +0.0015 ±0.0018 (`non-inferior`) / −0.0017 ±0.0026
+(inconclusive). That is the Law-raise rail's ship A/B read back on the
+anchor deals (plain +0.0049 / +0.0042, PD +0.0007 / −0.0037; the veto's A/B
+is ±0.0003): +1,017 / +1,102 plain IMPs against a predicted +1,003 / +860,
+and the same vulnerable PD shape, recorded and not a veto against BBA. The
+worst boards are Law raises doubled at the three level (`(1♥) 2♦ (-) 3♦
+(X)`, `(1♣) 1♦ (1♠) 3♦ - - (X)`) and one veto board where our short `3♥`
+over `(2NT) - (3♣)` used to keep BBA out of a making `7♥`. Instinct: 0
+boards fired. `shrunk-pools.py` on the shipping arm shows no new lane: the
+top-ten nodes of the top five buckets only reorder (opening's `1♦` 12–21
+enters at #8 for the seat-4 `1♠`; round-1's #2 and #3 swap; Competitive /
+book / round-1's `2♦` 10+ node reads −743 → −832 shrunk plain). Opening's
+pass node moved −11,443 → −11,178 with no opening changed, so that is our
+defence at the other table (the mechanism traced at `7e0bc648`).
 
 **The `b3ffe8ee` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b3ffe8ee` − `7f3d57bd`, same deals; `diff.window.{american,instinct}.*.txt`
@@ -657,6 +676,7 @@ recomputes a window's reference-relative gain paired, board by board.
 | 11-09 | `50d9ee65` | −0.889 / −0.913 | −0.142 / +0.001 | `competition.other_major_takeout_double` (`9f8eb0d1`) and `rebid.forcing_notrump_heart_game` (`50d9ee65`). All four arms replay 100.00% / 0 mismatches; 21 new DD tables, 39 minutes on zoo. Shipping cells −0.1455 / −0.1382 plain, +0.0032 / −0.0020 PD (the pooled PD gap is at zero for the first time); instinct −0.8141 / −0.9644 plain, −0.7494 / −1.0769 PD. **Paired to `ce114214`** (`diff.window.*`, table A): shipping +0.0031 ±0.0011 / +0.0046 ±0.0016 plain, +0.0027 ±0.0014 / +0.0041 ±0.0018 PD on 415 / 428 boards fired; instinct +0.0036 / +0.0054 plain. Churn split: 13 instinct buckets listed at n ≥ 300, one same-node move of −7 plain on one deal (`1♠ (X) 1NT - 2♥ - 3♥`). Instinct order unchanged; shipping opening / round-2 tie for #1, Competitive / book / round-1 falls to #4. Floor paired worth +0.382 / +0.464. **Fresh-seed confirmation at the same sha** (*Open work* item 8). Snapshot `ab-results/anchor/2026-11-09-50d9ee65/`. |
 | 11-11 Taipei (11-10 UTC snapshot) | `7f3d57bd` | −0.885 / −0.909 | −0.138 / +0.005 | `rebid.spade_raise_splinter` (`ef161d37`), `rebid.heart_raise_splinter` (`7f3d57bd`) and the heart raise ladder at 15 / 17 (`b0b1fb2b`). All four arms replay 100.00% / 0 mismatches; 15 new DD tables, 38 minutes on zoo. Shipping cells −0.1420 / −0.1339 plain, +0.0069 / +0.0024 PD (both PD cells positive for the first time); instinct −0.8105 / −0.9603 plain, −0.7457 / −1.0727 PD. **Paired to `50d9ee65`** (`diff.window.*`, table A): shipping +0.0022 ±0.0012 / +0.0022 ±0.0016 plain, +0.0022 ±0.0013 / +0.0021 ±0.0016 PD on 215 / 232 boards fired; instinct +0.0023 / +0.0021 plain. That is about 2× the window's summed whole-draw ship A/Bs (flagged). Churn split: 10 instinct buckets listed at n ≥ 300, one same-node move of −5 plain on one deal (`1♣ (X) 1♥ - 3♥`, systems-on carrying the new ladder cut). Instinct #6 / #7 swap; shipping opening is #1 alone again (by 1,141), #6 / #7 swap. Floor paired worth +0.382 / +0.464 (unchanged). Snapshot `ab-results/anchor/2026-11-10-7f3d57bd/`. |
 | 11-12 | `b3ffe8ee` | −0.882 / −0.906 | −0.134 / +0.008 | The 2/1 quantitative lane: `rebid.two_over_one_quantitative` (`6056ef59`), `rebid.two_over_one_opener_invite` (`5bb2004d`) and `rebid.two_over_one_reverse_quantitative` (`b3ffe8ee`). All four arms replay 100.00% / 0 mismatches; 14 new DD tables, 40 minutes on zoo. Shipping cells −0.1388 / −0.1302 plain, +0.0101 / +0.0061 PD; instinct −0.8073 / −0.9565 plain, −0.7425 / −1.0689 PD. **Paired to `7f3d57bd`** (`diff.window.*`, table A): shipping +0.0021 ±0.0011 / +0.0025 ±0.0013 plain, +0.0022 ±0.0011 / +0.0026 ±0.0014 PD on 193 / 201 boards fired; instinct identical to the IMP. That is 1.6× / 1.7× the window's summed ship A/Bs (flagged, as at `7f3d57bd`). Churn: two instinct buckets listed at n ≥ 300, no same-node move. Instinct #7 / #8 swap; shipping order unchanged, opening leads round-2 by 1,938. Residual in the lane: responder's `4NT` 18–20 HCP, 141 rows, −385 plain. Floor paired worth +0.382 / +0.464 (unchanged). Snapshot `ab-results/anchor/2026-11-12-b3ffe8ee/`. |
+| 11-16 | `b13dd9fe` | −0.882 / −0.906 | −0.126 / +0.006 | Two floor rails: the Law-raise rail `advance_law_raise` `Some(0)` (`b554b985`) and `their_2nt_short_bid_veto` (`fe3f3bb1`). All four arms replay 100.00% / 0 mismatches; 20 new DD tables, 113 minutes on a busy zoo. Shipping cells −0.1305 / −0.1208 plain, +0.0107 / +0.0017 PD; instinct byte-identical to `b3ffe8ee` (0 fired). **Paired to `b3ffe8ee`** (`diff.window.*`, table A): shipping +0.0050 ±0.0017 / +0.0054 ±0.0024 plain (`win` 2/2), +0.0015 ±0.0018 / −0.0017 ±0.0026 PD (non-inferior / inconclusive) on 919 / 1,170 boards fired, matching the rail's ship A/B (+0.0049 / +0.0042 plain, +0.0007 / −0.0037 PD). Shipping #6 / #7 swap; Defensive / book / round-1 +1,264 plain; opening leads round-2 by 1,443. Floor paired worth +0.388 / +0.464. Snapshot `ab-results/anchor/2026-11-16-b13dd9fe/`. |
 
 September 20 shipping cells (204,800 boards each; 95% CIs):
 
