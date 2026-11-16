@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **Dealing and the Book tab in `web/` and `tauri/` (2026-11-16).** Every
+  deal rebuilt and rebound both pairs' systems, about 1.2 s a board on the
+  desktop engine against 3 ms of actual bidding. `pons-web` now keeps the
+  last bound pair, keyed on both pairs' agreements, and binds one system
+  when the two pairs agree; a bound `Partnership` holds its books behind an
+  `Arc`, so cloning one per table copies no trie. A deal after the first
+  takes about 1 ms (measured in the Tauri window: 920 ms to 1–10 ms); the
+  first deal, and the first after a settings change, still binds (about
+  1 s). The Book tab built all 15,871 nodes (333,000 elements) at once and
+  WebKitGTK spent 4.6 s laying them out; it now builds the filter's matches
+  200 at a time as they scroll into reach: 5.4 s to 0.9 s to open, 0.3 s to
+  refilter. The count still reports every match; the browser's own find-in-
+  page sees only the built nodes, the filter box sees all. No bidding
+  change: `smoke-default --count 20000 --seed 1` is byte-identical.
+
 ### Added
 
 - **`tauri/`, a desktop client; `gpui/` is removed (2026-11-16).** A

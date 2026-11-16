@@ -22,7 +22,7 @@ const ORACLE_CHUNK = NATIVE ? 100 : 2; // per engine call, so progress shows bet
 let engine; // every method answers a JSON string, or a promise of one: always await
 let current = null; // the snapshot on screen
 let boardCount = 0; // practice deals so far — drives the "Rotate" dealer
-let bookNodes = null; // [{el, haystack}] for the selected partnership
+let bookNodes = null; // [{node, haystack, seqHay}] for the selected partnership
 let bookPair = 'ns';
 let demoTimer = 0;
 let boardGen = 0; // bumped per deal; stale async DD/oracle loops check it
@@ -410,11 +410,33 @@ function updateBiddingBox(s) {
 
 // --- book browser --------------------------------------------------------------
 
+// The book is ~16 000 nodes (a third of a million elements): laying them all
+// out stalls the page for seconds, so only the matches near the viewport are
+// built, BOOK_CHUNK at a time as the sentinel below them scrolls into reach.
+const BOOK_CHUNK = 200;
+let bookMatches = []; // the nodes passing the filter, in book order
+let bookRendered = 0; // how many of them are in the DOM
+const bookMore = document.createElement('div');
+new IntersectionObserver(
+  (entries) => { if (entries.some((e) => e.isIntersecting)) renderBook(); },
+  { rootMargin: '1500px' },
+).observe(bookMore);
+
 async function loadBook() {
   const nodes = JSON.parse(await engine.book(bookPair));
+  bookNodes = nodes.map((node) => ({
+    node,
+    haystack:
+      (node.auction + ' ' + node.rules.map((r) => `${r.call} ${r.text}`).join(' ') +
+        (node.note ? ' ' + node.note : '')).toLowerCase(),
+    seqHay: normSeq(node.auction + ' ' + node.rules.map((r) => r.call).join(' ')),
+  }));
+  filterBook();
+}
+
+function renderBook() {
   const frag = document.createDocumentFragment();
-  id('b-results').replaceChildren();
-  bookNodes = nodes.map((node) => {
+  for (const { node } of bookMatches.slice(bookRendered, bookRendered + BOOK_CHUNK)) {
     const el = document.createElement('div');
     el.className = 'node panel';
     const rules = node.rules.map((r) =>
@@ -429,14 +451,12 @@ async function loadBook() {
       `<div class="node-head"><span class="badge ${node.book}">${node.book}</span>` +
       `<span class="node-auction">${colorizeCalls(node.auction)}</span></div>${rules}`;
     frag.appendChild(el);
-    const haystack =
-      (node.auction + ' ' + node.rules.map((r) => `${r.call} ${r.text}`).join(' ') +
-        (node.note ? ' ' + node.note : '')).toLowerCase();
-    const seqHay = normSeq(node.auction + ' ' + node.rules.map((r) => r.call).join(' '));
-    return { el, haystack, seqHay };
-  });
+  }
+  bookRendered += BOOK_CHUNK;
+  // Re-appending the sentinel moves it below the new chunk
+  if (bookRendered < bookMatches.length) frag.appendChild(bookMore);
+  else bookMore.remove();
   id('b-results').appendChild(frag);
-  filterBook();
 }
 
 // Fuzzy sequence normalizer for the book filter: ASCII shorthand ↔ book glyphs.
@@ -455,12 +475,12 @@ function filterBook() {
   if (!bookNodes) return;
   const q = id('b-filter').value.trim().toLowerCase();
   const seq = normSeq(q);
-  let n = 0;
-  for (const { el, haystack, seqHay } of bookNodes) {
-    const show = !q || haystack.includes(q) || seqHay.includes(seq);
-    el.classList.toggle('hidden', !show);
-    if (show) n++;
-  }
+  bookMatches = bookNodes.filter(({ haystack, seqHay }) =>
+    !q || haystack.includes(q) || seqHay.includes(seq));
+  bookRendered = 0;
+  id('b-results').replaceChildren();
+  renderBook();
+  const n = bookMatches.length;
   id('b-count').textContent = `${n} node${n === 1 ? '' : 's'}`;
 }
 

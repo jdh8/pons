@@ -201,6 +201,29 @@ fn asymmetric_table_reads_the_opponents_actual_book() {
     set_choice("ew", "notrump_defense", "natural");
 }
 
+/// `partnerships()` keeps the last pair it bound; a setting must still reach
+/// the next table, in both directions.
+#[test]
+fn a_setting_change_rebinds_the_cached_partnerships() {
+    use contract_bridge::Suit;
+
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Bid(Bid::new(2, Strain::Clubs)),
+    ];
+    let rho_hearts = || {
+        let (ns, ew) = partnerships();
+        let table = Table::new(ns, ew, Seat::North, AbsoluteVulnerability::NONE);
+        table.infer(&auction).get(Relative::Rho).lengths[Suit::Hearts as usize].min
+    };
+    let natural = rho_hearts();
+    assert_eq!(rho_hearts(), natural);
+    set_choice("ew", "notrump_defense", "woolsey");
+    assert!(rho_hearts() >= 4);
+    set_choice("ew", "notrump_defense", "natural");
+    assert_eq!(rho_hearts(), natural);
+}
+
 #[test]
 fn default_mixed_table_matches_the_old_symmetric_table() {
     const PBN: &str = "N:AK72.K65.K43.Q82 QJT.AQJ.AQJ.AKJT 986.T987.T98.976 543.432.7652.543";

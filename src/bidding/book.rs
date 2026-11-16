@@ -399,7 +399,9 @@ impl System {
 /// happened, producing owned metadata that can safely back compiled plans.
 #[derive(Clone, Debug)]
 struct BoundBook {
-    trie: Trie,
+    /// Frozen at binding, so shared: cloning a [`Partnership`] (one per table
+    /// in the interactive clients) copies no book
+    trie: Arc<Trie>,
     decoder: Arc<AuthoringDecoder>,
     compiled_rules: Arc<CompiledRuleRegistry>,
 }
@@ -417,7 +419,7 @@ impl BoundBook {
         compiled_rules: Arc<CompiledRuleRegistry>,
     ) -> Self {
         Self {
-            trie,
+            trie: Arc::new(trie),
             decoder,
             compiled_rules,
         }

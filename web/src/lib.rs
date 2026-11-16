@@ -1028,14 +1028,32 @@ fn declared_agreements() -> [Agreements; 2] {
 /// reads *every* call of theirs off their book under `ReadingScope::All`, which
 /// is not the shipped self-play reading even when their book is ours.
 fn partnerships() -> (Partnership, Partnership) {
-    let [ns_agreements, ew_agreements] = declared_agreements();
-    let ns_card = ConventionCard::capture(&ns_agreements);
-    let ew_card = ConventionCard::capture(&ew_agreements);
-    let ns = american_with_card(&ns_agreements, &ew_card).bind();
-    let ew = american_with_card(&ew_agreements, &ns_card).bind();
-    if ns_agreements == ew_agreements {
-        return (ns, ew);
+    /// The agreements a pair was bound from, and the pair
+    type Bound = ([Agreements; 2], (Partnership, Partnership));
+    thread_local! {
+        /// The last pair bound.  Binding costs about a second and a setting
+        /// changes far less often than a board is dealt, so a deal clones the
+        /// pair instead (the bound books are shared).
+        static BOUND: std::cell::RefCell<Option<Bound>> =
+            const { std::cell::RefCell::new(None) };
     }
+    let agreements = declared_agreements();
+    BOUND.with_borrow_mut(|bound| match bound {
+        Some((key, pair)) if *key == agreements => pair.clone(),
+        _ => bound.insert((agreements, bind(&agreements))).1.clone(),
+    })
+}
+
+/// Build and bind both pairs from their declared agreements
+fn bind([ns_agreements, ew_agreements]: &[Agreements; 2]) -> (Partnership, Partnership) {
+    let ns_card = ConventionCard::capture(ns_agreements);
+    let ew_card = ConventionCard::capture(ew_agreements);
+    let ns = american_with_card(ns_agreements, &ew_card).bind();
+    if ns_agreements == ew_agreements {
+        // One system, built once: the clone shares the bound books
+        return (ns.clone(), ns);
+    }
+    let ew = american_with_card(ew_agreements, &ns_card).bind();
     (ns.clone().with_opponents(&ew), ew.with_opponents(&ns))
 }
 
