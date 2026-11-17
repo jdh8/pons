@@ -126,7 +126,8 @@ pub(super) fn opener_rebid(
             120,
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         );
-    // 6♠4♥: show the hearts first, just above the six-card `2♠`.
+    // 6♠4♥: show the hearts first, just above the six-card `2♠`.  Over a
+    // `2♥` response the call is illegal, and lowering drops it with its subtree.
     if six_four_hearts && major == Suit::Spades {
         rules = rules
             .rule(

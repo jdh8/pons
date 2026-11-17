@@ -56,18 +56,15 @@ fn responder_invites_notrump_with_no_spade_fit() {
 }
 
 #[test]
-fn responder_favors_club_runout_over_preference_weight() {
+fn responder_prefers_spades_when_the_club_runout_is_illegal() {
     // 32.53.J9.KQJ8642 — 7 HCP, 7 clubs, 2 spades.
-    // The 2♣ runout rule fires (len(clubs,6..) & hcp(..=9), weight 1.1) and
-    // outweighs the 2♠ preference rule (weight 1.0).  Note: in a real table
-    // auction 2♣ would be illegal here (below the 2♦ level), but the rules
-    // engine does not enforce call legality — the rule is "dead" only in the
-    // sense that a legal-move filter at the table layer would discard it.
-    // The system itself returns 2♣ as the highest-logit call.
+    // The 2♣ runout rule matches and outweighs the 2♠ preference, but 2♣ is
+    // illegal over 2♦, so lowering drops it and the preference stands — the
+    // call the table driver made before the drop, too.
     let system = partnership();
     assert_eq!(
         best_call(&system, &after_1s_1nt_2d(), "32.53.J9.KQJ8642"),
-        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
     );
 }
 

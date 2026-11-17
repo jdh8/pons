@@ -126,8 +126,10 @@ Each was paid for with a real regression or a wrong conclusion.
   floored by deterministic `instinct()`.
 - A book node with finite mass shadows the floor. To give the floor a
   position, delete the node; to smarten deep continuations, improve the floor.
-- Every rule table needs a finite catch-all; an all-−∞ table falls through to
-  the floor.
+- Every rule table needs a finite catch-all on a legal call; an all-−∞ table
+  falls through to the floor.  Rows drop rules for illegal calls when they
+  lower an exact table, so those never shadow the floor; under a rebase the
+  filter cannot see the real auction and a rejection still reads as Pass.
 
 ### Operations
 

@@ -35,10 +35,12 @@ use super::*;
 pub(super) fn answer_cue_raise(major: Suit, cue: Bid) -> Rules {
     let trump = Strain::from(major);
     let three = Bid::new(3, trump);
-    // The engine does not mask illegal calls: before this chose the rung, a
-    // bare `3M` was illegal over a `3♠` cue, a minimum opener fell through to
-    // the floor's pass, and we played `3♠` in *their* suit (anchor 46d0dc14:
-    // 58 rows, −12 IMPs a row).
+    // The driver does not mask illegal calls: before this chose the rung, a
+    // bare `3M` was illegal over a `3♠` cue, its finite weight kept the node
+    // from the floor, the driver passed for want of a legal call, and we played
+    // `3♠` in *their* suit (anchor 46d0dc14: 58 rows, −12 IMPs a row).  Rows
+    // now drop illegal rules when lowering, so over a cue at `4M` or higher,
+    // where both answers are illegal, the node is not inserted at all.
     let decline = if three > cue {
         three
     } else {
@@ -92,8 +94,10 @@ pub(super) fn answer_cue_minor_raise(minor: Suit) -> Rules {
 ///
 /// The columns after the opening are their overcall at level `i` in suit `x`,
 /// our cue *of that suit* at level `j`, their pass.  The shared letter is what
-/// makes it a cue, and ascension supplies `j > i` — enumerating every legal cue
-/// height is the point, not an accident.  The overcall is capped at `2♠`, the
+/// makes it a cue, and ascension supplies `j > i` — enumerating every cue height
+/// is the point, not an accident, though a cue at `4M` or above leaves no legal
+/// answer and lowering drops that node (responder's `1♥ (1♠)` table, for
+/// one, never bids it).  The overcall is capped at `2♠`, the
 /// cue-raise's authored ceiling in [`over_their_overcall`], and `x` excludes
 /// our own major: when the opponents cue-bid *our* suit (a Michaels
 /// `1♠ (2♠)`), responder's `3♠` is a natural raise, not a cue-raise, and this

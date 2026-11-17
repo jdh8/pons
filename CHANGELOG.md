@@ -1063,6 +1063,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Illegal book rules no longer pass game forces (2026-11-18).** A rule
+  whose call is illegal at its node still gave the table mass, so the trie
+  kept the node from the floor and the driver passed for want of a legal
+  call: responder passed `1♠ - 2♥ - 3♥` with six hearts and 11–13 HCP, its
+  only matching rule the illegal six-card `3♥` rebid. Rows now drop such rules
+  when lowering an exact table (`Rules::legal_after`), skip keys no legal
+  auction reaches (212, among them the `1♠ - 2♥ - 2♥ - …` subtree of the
+  6♠4♥ rebid), and leave an emptied table to the floor. The 273 RKCB sign-off
+  nodes that relied on an illegal `5M` to pass (`… 4NT - 5♠ -` in spades,
+  `… 4NT - 5♥ -` in hearts) name the `Pass` instead; that half is
+  byte-identical (`smoke-default --count 400000 --seed 1`). Bidding moves at
+  the 15 game-forcing `1x - 2y - 3z -` nodes, 72 of 400,000 self-play
+  auctions, all former passes, now mostly `3NT` and its quantitative
+  continuations. The 31 cue-raise answers over a cue at `4M` or above lose
+  their node too; responder's book does not bid such a cue (checked at
+  `1♥ (1♠)`). A/B vs BBA owed.
+
 - **`bba-decompose` replays dumps whose BBA opponents played another system
   (2026-11-06).** It armed our Landy and Multi counters for every
   BBA-labelled dump, but `bba-gen` derives them from `--system` and arms

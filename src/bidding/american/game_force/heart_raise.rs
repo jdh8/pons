@@ -2,8 +2,10 @@
 //! `1♠ - 2♥ - 3♥`
 //!
 //! Gated by [`GameForceKnobs::heart_raise_keycard`].  The raise shows four
-//! hearts facing five, a nine-card fit, and the base table has no heart call
-//! there: responder bids `3♠` on three spades or the no-fit notrump ladder.
+//! hearts facing five, a nine-card fit, and the base table's only heart call,
+//! the six-card `3♥` rebid, is illegal there and dropped when the book is
+//! built: responder bids `3♠` on three spades, the no-fit notrump ladder, or
+//! leaves a six-card minimum to the floor's `4♥`.
 //! On, hearts are trump: responder asks keycards on extras or signs off in
 //! `4♥`, and opener may ask over the sign-off.
 

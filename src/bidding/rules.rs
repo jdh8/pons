@@ -45,7 +45,7 @@ use super::context::Context;
 use super::inference::{Envelope, EnvelopeUnion, ReadingProfile};
 use super::trie::Classifier;
 use contract_bridge::Hand;
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Auction, Call};
 use core::fmt;
 use core::panic::Location;
 use std::collections::HashMap;
@@ -672,6 +672,21 @@ impl Rules {
         }
         self.rules
             .retain(|rule| rule.alert.is_none_or(|alert| !dormant.contains(&alert)));
+        self
+    }
+
+    /// Drop every rule whose call is illegal after `auction`
+    ///
+    /// An illegal rule is not inert.  Its finite weight still gives the table
+    /// mass, so the trie keeps the node from the floor, and the driver, finding
+    /// no legal finite call, passes.  That is how `1♠ - 2♥ - 3♥` came to pass a
+    /// game force: the six-heart `3♥` rebid outweighed nothing it could bid.
+    /// Rows lower every table through this, so a node is total over its
+    /// *legal* calls or falls through.
+    #[must_use]
+    pub fn legal_after(mut self, auction: &Auction) -> Self {
+        self.rules
+            .retain(|rule| auction.can_push(rule.call).is_ok());
         self
     }
 

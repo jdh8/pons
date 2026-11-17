@@ -648,16 +648,29 @@ fn assert_wirings_match(
     let new_book = compiled_package(agreements, current);
     for auction in auctions {
         let context = Context::new(RelativeVulnerability::NONE, auction);
+        let mut played = contract_bridge::auction::Auction::new();
+        played
+            .try_extend(auction.iter().copied())
+            .expect("a legal probe auction");
         for &hand in &hands {
             // Massless normalizes to unanswered: a guarded table that
             // rejects a hand is re-found on the fall-through pass (stuck
             // massless), while an exact node rejects-to-floor — the
             // documented exact-node semantic, and in the full book the
             // floor then answers where the guard wedged.  Mass-bearing
-            // answers must match exactly.
+            // answers must match exactly.  Illegal calls are masked: lowering
+            // drops them from an exact table but not from a guarded one, and
+            // the driver never makes them either way.
             let classify = |book: &crate::bidding::Trie| {
                 book.classify_floored(hand, &context, auction)
-                    .map(|(logits, _)| logits)
+                    .map(|(mut logits, _)| {
+                        for (call, logit) in logits.iter_mut() {
+                            if played.can_push(call).is_err() {
+                                *logit = f32::NEG_INFINITY;
+                            }
+                        }
+                        logits
+                    })
                     .filter(super::super::super::array::Logits::has_mass)
             };
             assert_eq!(

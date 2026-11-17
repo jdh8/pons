@@ -93,7 +93,7 @@ use super::constraint::Constraint;
 use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite, SuffixIs};
 use super::rules::{Alert, Rules};
 use super::trie::{Classifier, Trie};
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{Bid, Level, Strain, Suit};
 use core::fmt;
 use std::collections::{BTreeMap, BTreeSet};
@@ -1343,7 +1343,27 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
         }
     }
     for (pattern, lowered) in group(name, entries) {
-        let keys = pattern.keys();
+        let mut keys = pattern.keys();
+        let lowered = match lowered {
+            // An exact table answers fixed auctions, so legality is static:
+            // drop the keys no legal auction reaches and the rules no key
+            // admits ([`Rules::legal_after`]); an emptied table leaves the
+            // node to the floor.  Leading passes change no call's legality, so
+            // the seat fan shares one filtered table.  Guarded tables and
+            // rebases answer auctions other than their key: left alone.
+            Lowered::Table(rules) if pattern.guard.is_none() => {
+                keys.retain(|key| legal_auction(key).is_some());
+                let Some(auction) = keys.first().and_then(|key| legal_auction(key)) else {
+                    continue;
+                };
+                let rules = rules.legal_after(&auction);
+                if rules.rules().is_empty() {
+                    continue;
+                }
+                Lowered::Table(rules)
+            }
+            lowered => lowered,
+        };
         let source: Arc<str> = Arc::from(pattern.source.as_str());
         let grammar = pattern
             .guard
@@ -1404,6 +1424,13 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
             target,
         });
     }
+}
+
+/// `key` as an [`Auction`], or `None` if the laws forbid one of its calls
+fn legal_auction(key: &[Call]) -> Option<Auction> {
+    let mut auction = Auction::new();
+    auction.try_extend(key.iter().copied()).ok()?;
+    Some(auction)
 }
 
 /// Assert the row invariants over whole packages

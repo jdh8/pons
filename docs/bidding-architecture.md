@@ -62,7 +62,12 @@ auction + hand
   the fallback chain (ultimately the floor) only when the node yields **no
   mass** for the hand (all rules score −∞). A node that gives the hand any
   finite logit — including a `Pass, 0.0, hcp(0..)` catch-all — **shadows the
-  floor completely** for every deeper auction resolving to it.
+  floor completely** for every deeper auction resolving to it.  Only a
+  *legal* call counts: `rows.rs` drops, while lowering an exact table, every
+  rule its auction forbids (`Rules::legal_after`) and every key no legal
+  auction reaches, and an emptied table is not inserted.  Before 2026-11-18 an
+  illegal finite rule kept the node and the driver passed for want of a legal
+  call (`1♠ - 2♥ - 3♥`, a passed game force).
 - Therefore: to let the floor own a position, **delete the node** (leaving it
   rule-less is not enough if any catch-all matches). Adding a smart floor rule
   under a live book node is dead code. Verify a floor rule fires through the
@@ -74,14 +79,16 @@ auction + hand
   advances paid for this seam in commit `792710c`, which removed the
   finite-catch-all `advances()` nodes from both defenses so the floor could
   own those calls; re-adding a book `advances()` node would shadow them again.
-- **Every rule table ends in a finite catch-all** — a table that can reject
+- **Every rule table ends in a finite catch-all on a legal call** — a table that can reject
   every hand once produced a degenerate best-call (the 7NT bug). The flip
   side: rejecting is *how* a node hands a position to the floor, so an
   intentional rejection must have the floor behind it.  Exact nodes and
   guarded (`P*`) tables both fall through (guarded since 2026-10-03); a table
   reached through a **rebase** does not — its rejection reads as Pass, so a
-  rebased table must stay total (docs/archive/next-steps-done.md, "A rejecting table does
-  not fall through under a rebase").  A partial table whose key a rebase
+  rebased table must stay total over the calls legal at the *real* auction,
+  which the lowering filter (keyed on the table's own auction) cannot check
+  (docs/archive/next-steps-done.md, "A rejecting table does not fall through
+  under a rebase").  A partial table whose key a rebase
   *can* land on (the reverse responses, 2026-10-07: their double stripped,
   the rejection read as a pass of the forcing reverse, −59 IMPs on three
   boards) is made safe by a `Pattern::guarded` row admitting only
