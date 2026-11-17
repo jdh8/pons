@@ -342,16 +342,30 @@ fn asker_after_5h(trump: Suit) -> Rules {
             100,
             keycards(trump, 3..) | (keycards(trump, 2..=2) & has_trump_queen(trump)),
         )
-        // 5T: signoff
-        .rule(Bid::new(5, t), 50, hcp(0..))
+        // 5T: signoff — for hearts the answer *is* 5♥, so passing signs off
+        .rule(signoff_over(trump, Suit::Hearts), 50, hcp(0..))
+}
+
+/// The asker's five-level sign-off over a five-level `answer`: five of trump,
+/// or `Pass` when that answer is itself five of trump
+///
+/// A `5♥` rule over `5♥` is illegal, and an illegal rule shadows the floor
+/// just as a legal one does: the driver then passes for want of a legal call.
+/// Naming the `Pass` keeps the table total over its legal calls.
+fn signoff_over(trump: Suit, answer: Suit) -> Call {
+    if trump == answer {
+        Call::Pass
+    } else {
+        Bid::new(5, Strain::from(trump)).into()
+    }
 }
 
 /// Asker's continuation after a 5♠ response (2 keycards, with trump queen)
 ///
 /// When trump is Hearts: 5♥ (the natural signoff) is illegal — the answer was
 /// 5♠, which is already higher; passing would strand the auction in 5♠.
-/// Instead, add a 6T catch-all.  For Spades: the 5♠ signoff rule is itself
-/// dead (not higher than 5♠), and passing 5♠ is correct, so no catch-all.
+/// Instead, add a 6T catch-all.  For Spades: the answer is the contract, so the
+/// sign-off is an explicit `Pass` ([`signoff_over`]).
 fn asker_after_5s(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     let mut rules = Rules::new()
@@ -364,8 +378,9 @@ fn asker_after_5s(trump: Suit) -> Rules {
         .alert(RKCB)
         // 6T: asker has 2+ keycards → slam
         .rule(Bid::new(6, t), 100, keycards(trump, 2..))
-        // 5T: signoff (dead for spades, catches hearts where 5♥ is illegal)
-        .rule(Bid::new(5, t), 50, hcp(0..));
+        // 5T: signoff — `Pass` for spades; illegal for hearts, whose 6♥
+        // catch-all below takes over
+        .rule(signoff_over(trump, Suit::Spades), 50, hcp(0..));
 
     if trump == Suit::Hearts {
         // Over a 5♠ answer the 5♥ signoff above is illegal; this 6♥ catch-all
