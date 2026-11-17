@@ -5,11 +5,12 @@
 //! three rounds of the game-forcing auction (opener's rebid, responder's rebid,
 //! opener's third call).
 //!
-//! This module is the **index** for the base tables and three gated agreements:
+//! This module is the **index** for the base tables and four gated agreements:
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
 //! | [`backstop`] | the retired wildcard game backstop, default off | [`GameForceKnobs::game_backstop`] |
+//! | [`heart_raise`] | responder's keycard ask or `4♥` after `1♠ - 2♥ - 3♥`, default off | [`GameForceKnobs::heart_raise_keycard`] |
 //! | [`opener_third`] | opener's third call after responder sets trump at `1M - 2r - R - 3M` | [`GameForceKnobs::opener_third`] |
 //! | [`second_suit`] | opener's third call plus RKCB after responder raises opener's second suit | [`GameForceKnobs::second_suit_agreement`] |
 //!
@@ -38,6 +39,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Level, Strain, Suit};
 
 mod backstop;
+mod heart_raise;
 mod opener_third;
 mod second_suit;
 
@@ -526,6 +528,14 @@ pub(super) fn base() -> Package {
 
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
+                        // The raised hearts own their node (`heart_raise`).
+                        if let Some(ask) = agreements.game_force.heart_raise_keycard
+                            && resp == Suit::Hearts
+                            && rebid_call == call(3, Strain::Hearts)
+                        {
+                            entries.extend(heart_raise::rows(ask));
+                            continue;
+                        }
                         let after_rebid = format!("{prefix} {rebid_call} -");
                         let quantitative = bands(agreements, Strain::from(major), rebid_call);
                         let mut rebid_rules = responder_rebid(major, resp, quantitative);

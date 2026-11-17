@@ -38,6 +38,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`game_force.heart_raise_keycard`, opt-in: non-inferior, no win
+  (2026-11-17).** At `1♠ - 2♥ - 3♥ -` responder's table has no heart call
+  facing the raise: it bids `3♠` on three spades or the no-fit notrump
+  ladder, and passes the forcing raise on 9 boards per 3,276,800 (six-plus
+  hearts, 11–13 HCP, no rule matching). `Some(n)` agrees hearts: `4NT` RKCB
+  on `n`+ points, else `4♥`, and opener asks over the sign-off on 17+.
+  Measured vs BBA, 3,276,800 boards per cell, seed `1794846341798324340`
+  (`scripts/ab-heart-raise-keycard.sh`); the four cells are the same deals,
+  so they are one sample, not four replications. `Some(16)`: +79 ±194 /
+  +108 ±244 / +89 ±193 / +120 ±242 plain IMPs (none / ns / ew / both) on
+  153 / 171 / 151 / 166 fired, +0.00002 to +0.00004 IMPs/board, PD within 3
+  IMPs: non-inferior, not a win. `Some(18)`: −154 ±192 / −219 ±246 /
+  −144 ±191 / −168 ±241, non-inferior against δ but negative in every
+  cell. By responder's call at 16, none cell: `3♠` → `4NT` +72 on 51, the
+  pass → `4♥` +54 on 9, `3NT` → `4♥` passed out −143 on 31 (the base `3NT`
+  let opener jump to `6♥`; the sign-off needs 17+ from opener to move).
+  Default `None`, byte-identical. `bba-gen --ns-heart-raise-keycard
+  off|POINTS`. The sizing quoted on 2026-11-17 (640–674 boards at the node,
+  −0.0003 to −0.0004 IMPs/board) counted BBA's own East-West auctions: our
+  side reaches the node on 207 boards per cell.
 - **`tauri/`, a desktop client; `gpui/` is removed (2026-11-16).** A
   [Tauri](https://tauri.app) window around `web/`'s own page, its own
   workspace, replacing the GPUI client of 2026-11-11. One UI now serves the

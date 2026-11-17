@@ -1663,6 +1663,12 @@ struct Args {
     #[arg(long, default_value = "9", value_name = "off|HCP")]
     ns_minor_jump_notrump_slam_try: String,
 
+    /// Agree hearts at `1♠ - 2♥ - 3♥`: responder's keycard ask from this many
+    /// points, else `4♥`, or `off` (`game_force.heart_raise_keycard`, default
+    /// off; `scripts/ab-heart-raise-keycard.sh`)
+    #[arg(long, default_value = "off", value_name = "off|POINTS")]
+    ns_heart_raise_keycard: String,
+
     /// Withhold opener's light accept over `1♥ - 1♠ - 2♥ - 3♥`
     /// (`rebid.heart_rebid_invite_accept`, **shipped default-on 2026-10-07**:
     /// 13+ points, or 12+ with seven hearts, instead of 14+; this is the
@@ -3793,6 +3799,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.major_rebid_tails = !args.no_ns_major_rebid_tails;
     agreements.rebid.fourth_suit_forcing = !args.no_ns_fourth_suit_forcing;
     agreements.game_force.second_suit_agreement = !args.no_ns_second_suit_agreement;
+    agreements.game_force.heart_raise_keycard = match args.ns_heart_raise_keycard.as_str() {
+        "off" => None,
+        n => Some(n.parse().map_err(|_| {
+            anyhow::anyhow!("--ns-heart-raise-keycard must be off|POINTS, got {n:?}")
+        })?),
+    };
     agreements.game_force.opener_third = !args.no_ns_opener_third;
     agreements.game_force.game_backstop = args.ns_game_backstop;
     agreements.notrump.transfer_longer_major = !args.no_ns_transfer_longer;

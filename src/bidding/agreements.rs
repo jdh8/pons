@@ -5593,6 +5593,19 @@ pub struct GameForceKnobs {
     /// leaves a 16+ responder to the floor, which passes `4M`; responder's own
     /// `4NT` over the sign-off on 16+ is a wash that fires on 0.003% of boards.
     pub second_suit_agreement: bool,
+    // --- game_force/heart_raise.rs
+    /// Agree hearts at `1♠ - 2♥ - 3♥`: responder's keycard ask from this many
+    /// points, else `4♥`
+    ///
+    /// **Off by default (`None`) — measurement owed**
+    /// (`scripts/ab-heart-raise-keycard.sh`).  Off, responder's table has no
+    /// heart call facing the raise: it bids `3♠` on three spades or the
+    /// no-fit notrump ladder, and the node scores −1.6 to −1.9 plain IMPs per
+    /// board reached against BBA (640–674 boards per 3,276,800, the
+    /// `ab-results/two-over-one-opener-invite` on-arm), mostly slams and
+    /// grands BBA stays out of.  On, the node is `4NT` RKCB on `Some(n)`+
+    /// points and `4♥` below; opener asks over the sign-off on 17+.
+    pub heart_raise_keycard: Option<u8>,
 }
 
 impl Default for GameForceKnobs {
@@ -5601,6 +5614,7 @@ impl Default for GameForceKnobs {
             game_backstop: false,
             opener_third: true,
             second_suit_agreement: true,
+            heart_raise_keycard: None,
         }
     }
 }
