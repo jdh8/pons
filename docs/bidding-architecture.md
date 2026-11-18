@@ -67,7 +67,17 @@ auction + hand
   rule its auction forbids (`Rules::legal_after`) and every key no legal
   auction reaches, and an emptied table is not inserted.  Before 2026-11-18 an
   illegal finite rule kept the node and the driver passed for want of a legal
-  call (`1♠ - 2♥ - 3♥`, a passed game force).
+  call (`1♠ - 2♥ - 3♥`, a passed game force).  Guarded tables and rebases
+  answer auctions other than their key, so the filter cannot see them; the
+  census says nothing is left there (2026-11-18: no answer without a legal
+  call in 400,000 self-play deals, nor on 409,600 BBA anchor boards at
+  `b13dd9fe` in either arm; `probe-illegal-mass`, `bba-decompose
+  --illegal-mass`).  What a rebase still does is answer with no mass at all,
+  which reads as Pass: 1,043 decisions per 400,000 self-play deals and 163 on
+  the BBA boards, nearly all after a Stayman answer or a transfer completion
+  with the opponents in (`1NT (2♣) 2♦ - 2♥ -`, `1NT - 2♣ (X) 2♦ -`).  The
+  hand sampled at each auction is a weak one that should pass, and skipping
+  the rebase measured no better (the note in `Trie::resolve_at`).
 - Therefore: to let the floor own a position, **delete the node** (leaving it
   rule-less is not enough if any catch-all matches). Adding a smart floor rule
   under a live book node is dead code. Verify a floor rule fires through the

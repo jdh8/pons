@@ -336,6 +336,33 @@ pub fn next_call(
         .unwrap_or(Call::Pass)
 }
 
+/// Why the driver cannot play a classification as it stands, if it cannot
+///
+/// - `forced`: there is mass, none of it on a legal call, so the driver
+///   passes for want of one (how `1♠ - 2♥ - 3♥ -` passed a game force);
+/// - `empty`: there is no mass at all (a rebase's rejection reads as Pass);
+/// - `top`: the best call is illegal but a legal one stands behind it.
+///
+/// The census behind `probe-illegal-mass` and `bba-decompose --illegal-mass`.
+pub fn illegal_mass_kind(
+    logits: &pons::bidding::array::Logits,
+    auction: &Auction,
+) -> Option<&'static str> {
+    let legal = |call: Call| auction.can_push(call).is_ok();
+    let finite = || logits.iter().filter(|&(_, &logit)| logit.is_finite());
+    let (best, _) = match finite().max_by(|a, b| a.1.total_cmp(b.1)) {
+        None => return Some("empty"),
+        Some(best) => best,
+    };
+    if !finite().any(|(call, _)| legal(call)) {
+        Some("forced")
+    } else if !legal(best) {
+        Some("top")
+    } else {
+        None
+    }
+}
+
 /// Bid one deal with the convention pair on the side picked by `conv_is_ns`
 pub fn bid_out(
     conv: &Partnership,

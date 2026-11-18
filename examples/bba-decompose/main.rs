@@ -200,6 +200,11 @@ struct Args {
     /// How many of the worst buckets to detail with boards
     #[arg(long, default_value = "10")]
     buckets: usize,
+
+    /// Print the illegal-mass census and exit before the replay gate, so a
+    /// dump from an older revision still reads
+    #[arg(long)]
+    illegal_mass: bool,
 }
 
 /// Short label for a call (`P`, `X`, `XX`, `2♣`, …)
@@ -453,6 +458,67 @@ fn replay_verify(partnership: &Partnership, arm: &Arm) -> (u64, u64) {
         .reduce(|| (0, 0), |x, y| (x.0 + y.0, x.1 + y.1))
 }
 
+/// Our decisions on the dump's own prefixes whose answer the driver cannot
+/// play: `forced` has mass but none on a legal call, `empty` has no mass,
+/// `top` has an illegal best call with a legal one behind it
+///
+/// The twin of `probe-illegal-mass` on a real opponent's auctions; see there.
+fn illegal_mass_census(partnership: &Partnership, arm: &Arm) {
+    type Tally = HashMap<(&'static str, bool, usize, String), (usize, String)>;
+    let tally =
+        arm.boards
+            .par_iter()
+            .fold(Tally::new, |mut tally, board| {
+                for (auction, ours_ns) in [(&board.table_a, true), (&board.table_b, false)] {
+                    let mut prefix = Auction::new();
+                    for (i, &call) in auction.iter().enumerate() {
+                        let seat = seat_to_act(board.dealer, i);
+                        let hand = board.deal[seat];
+                        if matches!(seat, Seat::North | Seat::South) == ours_ns
+                            && let Some((logits, provenance)) = partnership
+                                .classify_with_provenance(hand, relative(arm.vul, seat), &prefix)
+                        {
+                            let kind = common::illegal_mass_kind(&logits, &prefix);
+                            if let Some(kind) = kind {
+                                let calls: Vec<String> =
+                                    prefix.iter().map(|&c| call_label(c)).collect();
+                                let key = (
+                                    kind,
+                                    provenance.fallback.is_none(),
+                                    provenance.rebases,
+                                    calls.join(" "),
+                                );
+                                tally.entry(key).or_insert_with(|| (0, format!("{hand}"))).0 += 1;
+                            }
+                        }
+                        prefix.push(call);
+                    }
+                }
+                tally
+            })
+            .reduce(Tally::new, |mut a, b| {
+                for (key, (n, hand)) in b {
+                    a.entry(key).or_insert((0, hand)).0 += n;
+                }
+                a
+            });
+    for kind in ["forced", "empty", "top"] {
+        let mut rows: Vec<_> = tally.iter().filter(|(key, _)| key.0 == kind).collect();
+        rows.sort_by(|a, b| b.1.0.cmp(&a.1.0).then_with(|| a.0.3.cmp(&b.0.3)));
+        let total: usize = rows.iter().map(|(_, (n, _))| n).sum();
+        println!(
+            "## {kind}: {total} decisions at {} auctions ({} boards, vul {})",
+            rows.len(),
+            arm.boards.len(),
+            arm.vul
+        );
+        for ((_, exact, rebases, auction), (n, hand)) in rows.into_iter().take(40) {
+            let node = if *exact { "exact" } else { "fallback" };
+            println!("{n:6}  {node:8} rebases={rebases}  {auction}  | {hand}");
+        }
+    }
+}
+
 /// A deal's cache key: its serde string, stable for a cache file
 fn deal_key(deal: &FullDeal) -> String {
     serde_json::to_string(deal).expect("a deal serializes")
@@ -574,6 +640,12 @@ fn main() -> anyhow::Result<()> {
             Ok(partnership)
         };
     let partnership = build(&|_| {})?;
+    if args.illegal_mass {
+        for arm in &arms {
+            illegal_mass_census(&partnership, arm);
+        }
+        return Ok(());
+    }
 
     // Exactness is an acceptance gate, not a warning. Verify every arm before
     // loading/solving DD tables so a wrong floor or revision cannot emit a

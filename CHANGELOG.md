@@ -38,6 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-illegal-mass` and `bba-decompose --illegal-mass` (2026-11-18).**
+  The census behind the illegal-rule filter: every decision whose answer has
+  no legal call (`forced`), no mass at all (`empty`), or an illegal best call
+  (`top`).  The filter lowers exact tables only, so this asks what guarded
+  tables and rebases still leak.  Nothing: 0 `forced` and 0 `top` in 400,000
+  self-play deals (`--seed 1`) and on the 409,600 boards of the `b13dd9fe`
+  BBA anchor, both arms; the commit before the filter reads 72 `forced` and
+  3,730 `top` on the same deals.  `empty` is 1,043 and 163, all through a
+  rebase and nearly all after a Stayman answer or a transfer completion with
+  the opponents in, where the sampled hands are weak and should pass.  No
+  bidding change; the lane is closed.
+
 - **`game_force.heart_raise_keycard`, opt-in: non-inferior, no win
   (2026-11-17).** At `1♠ - 2♥ - 3♥ -` responder's table has no heart call
   facing the raise: it bids `3♠` on three spades or the no-fit notrump
