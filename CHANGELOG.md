@@ -1078,7 +1078,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auctions, all former passes, now mostly `3NT` and its quantitative
   continuations. The 31 cue-raise answers over a cue at `4M` or above lose
   their node too; responder's book does not bid such a cue (checked at
-  `1♥ (1♠)`). A/B vs BBA owed.
+  `1♥ (1♠)`). Vs BBA (819,200 boards per cell, seed 1794984344382769611)
+  it wins plain DD in all four cells: +179 / +316 / +166 / +306 IMPs
+  (none / NS / EW / both; +0.0002 to +0.0004 IMPs/board ±0.0001–0.0002) on
+  58–64 fired boards. PD wins three cells and is non-inferior in EW. Every
+  fired board is a game-forcing `1x - 2y - 3z -` pass, and in every one the
+  filter reaches game; none came from cue_raise.
 
 - **`bba-decompose` replays dumps whose BBA opponents played another system
   (2026-11-06).** It armed our Landy and Multi counters for every
