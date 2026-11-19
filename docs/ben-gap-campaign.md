@@ -803,6 +803,27 @@ own Tier-F read (102,400 boards per cell, plain +0.001 to +0.007) already
 contains these fires. **Lead closed; no action.** A strength floor on the
 raise is the only hypothesis left in it, and 12 boards do not earn an A/B.
 
+**`Constructive / book / round-2`, cut by call pair (2026-11-19).** The one
+pair past −100 is our `2♦` where BEN bids `2♣`: 112 boards, −202 plain /
+−215 PD; next is `3♣` vs `2NT` at 37 / −83 / −87, then a thin tail. Joined
+to the shard auctions it is two things.
+
+| our `2♦`, BEN's `2♣` | n | plain | PD |
+| --- | --- | --- | --- |
+| `1♦ - 1M -`, opener's rebid | 96 | −139 | −152 |
+| … 5♦4♣ | 66 | −115 | −139 |
+| … 5♦5♣ | 23 | −34 | −32 |
+| … 6♦ with 4–5♣ | 7 | +10 | +19 |
+| `1♦ - 1♥ - 1♠ -`, responder's XYZ `2♦` vs BEN's fourth suit | 16 | −63 | −63 |
+
+The first is the known wash (`rebid.one_diamond_two_clubs`, opt-in): no new
+lead. The second is 8 deals in both cells; three carry −78, each a slam BEN
+bid after responder's game force where ours rebid `3NT` on 16–18 HCP
+(`A6.A5432.A.KQ976`, `QJ9.AK32.AK8752.`, `A.A964.J8763.AK2`, the last two
+holding five-plus cards in opener's diamonds), and one deal gives +13 back.
+Three deals do not earn an A/B; the lead is responder's uncapped `3NT` after
+the XYZ game force, and it wants a census first.
+
 **The Law-raise slice, re-cut.** Floor decisions in the Defensive phase
 where we pass and BEN raises partner's suit, partner having made our side's
 only bid (one suit). The slicer joins each `boards.jsonl` row to its shard
