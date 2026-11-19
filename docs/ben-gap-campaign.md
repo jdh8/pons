@@ -768,8 +768,40 @@ single board.
 The one row that moved the wrong way is `Defensive / book / round-1`.
 `scripts/anchor-diff.py` puts −66 plain / −72 PD of its −83 / −101 on the 31
 stayed boards whose own table moved, the rest on churn (9 entered, 4 left).
-**Not traced**: 31 boards is inside the bucket's noise, but nothing in the
-window was meant to move a round-1 defensive book call, so it is a lead.
+**Traced 2026-11-19: the Law-raise rail, and noise.** No round-1 defensive
+book call moved. The bucket is named for the first divergence, our overcall
+where BEN passed the same hand; the call that changed is advancer's, one
+round later. `anchor-diff.py --bucket 'Defensive / book / round-1' --show
+5000` lists 60 boards whose auction moved at the bucket's table (47 stayed,
+31 of them with a changed swing; 9 entered; 4 left), and on all 60 the first
+differing call is advancer's `Pass` turning into a raise of the overcalled
+suit on four or more trumps (59 to the three level or higher, one `2♥`).
+`probe-decision` on three of them puts the raise one logit over `Pass`, and
+`PROBE_LAW_RAISE=off` restores the pass on all three. This is the complement
+of the slice below, which counts only boards where the pass itself was the
+first divergence.
+
+| cut of the 60 | n | plain | PD |
+| --- | --- | --- | --- |
+| all | 60 | −83 ±100 | −101 ±117 |
+| deals `…749`/15 and `…747`/1003, both cells | 4 | −72 | −75 |
+| the other 56 | 56 | −11 ±69 | −26 ±90 |
+| partner overcalled their 1NT | 39 | −47 ±83 | −57 ±99 |
+| partner overcalled a suit opening | 21 | −36 ±58 | −44 ±63 |
+| advancer 0–4 HCP | 12 | −86 ±67 | −89 ±72 |
+| advancer 5–7 HCP | 37 | +0 ±48 | −16 ±69 |
+| advancer 8+ HCP | 11 | +3 ±41 | +4 ±48 |
+
+Intervals are per board; the two cells share deals, so they are too narrow.
+Two deals carry the loss. On `…749`/15, `(1NT) 2♦ (3♣)`, advancer
+`T95432.3.9862.92` raises to `3♦` and BEN, in `3NT` before, bids `6♣`. On
+`…747`/1003, `(1♥) 2♦ (2♠)`, advancer `J2.9543.6543.754` raises and BEN
+finds `6♠` where it stopped in `4♥`. The 0–4 HCP row is the only one whose
+bracket excludes zero; it is a post-hoc cut, 4 of its 12 boards are those two
+deals, and DD prices a slam BEN bid, not one the raise gave away. The rail's
+own Tier-F read (102,400 boards per cell, plain +0.001 to +0.007) already
+contains these fires. **Lead closed; no action.** A strength floor on the
+raise is the only hypothesis left in it, and 12 boards do not earn an A/B.
 
 **The Law-raise slice, re-cut.** Floor decisions in the Defensive phase
 where we pass and BEN raises partner's suit, partner having made our side's

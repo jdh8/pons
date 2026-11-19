@@ -912,8 +912,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   illegal-rule filter, `their_2nt_short_bid_veto`) is too small to register
   at 20k boards. The Law-raise rail removes 42 of the 53 boards where we
   passed four-card support and BEN raised, for +12 ±84 plain on them. #6 and
-  #7 swap; Defensive / book / round-1 loses 83 plain on 31 moved boards,
-  untraced. Ranking and series row in
+  #7 swap; Defensive / book / round-1 loses 83 plain. Traced 2026-11-19: all
+  60 boards that moved there are the Law-raise rail raising partner's
+  overcall, and two deals where BEN then bid a making slam carry −72 of it
+  (the other 56 boards: −11 ±69). Noise, no action. Ranking and series row in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
   `ab-results/ben-anchor/2026-11-18-fef03d38/`.
 - **BEN Tier-S re-anchor (2026-11-13, `f43436de`)**: shipping `american()`
