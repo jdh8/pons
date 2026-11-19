@@ -8,9 +8,11 @@ series' best headline; the bucket order is unchanged since `7838d8c2` but
 for the #4/#5 swap of `3debdd0f`, opening #1 plain, round-2 #1 PD, so the
 ranking below stands; `3debdd0f`'s declared-all loss is given back in full —
 rule 10 of [bba-gap-campaign.md](bba-gap-campaign.md)) and BEN Tier S at
-`f43436de` (2026-11-13, +0.089 plain / +0.028 PD paired since `c72dd03e`, of which the ships are
-+0.079 / +0.030 and the natural-walk reading +0.010 / −0.002,
-bucket order unchanged; items 3/4 re-priced on it 2026-11-14,
+`fef03d38` (2026-11-19, flat since `f43436de`: −0.001 ±0.010 plain / −0.006
+±0.011 PD paired, 153 boards moved, #6/#7 swap; the window before it,
+`c72dd03e` → `f43436de`, was +0.089 plain / +0.028 PD, of which the ships are
++0.079 / +0.030 and the natural-walk reading +0.010 / −0.002; items 3/4
+re-priced at `f43436de` 2026-11-14,
 [ben-gap-campaign.md](ben-gap-campaign.md)). **Retrains are
 deferred** (jdh8, 2026-09-26): items that need one are owed, not queued —
 see [Owed / deferred](#owed--deferred).

@@ -901,6 +901,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its next Tier-S re-anchor ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)
   rule 10, [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md) anchor trail).
 
+- **BEN Tier-S re-anchor (2026-11-19, `fef03d38`)**: shipping `american()`
+  scores **−0.742 plain / −0.458 perfect-defense IMPs/board** against BEN
+  v0.8.8.4 Tier S (none −0.612 / −0.286, both −0.873 / −0.630), 20,000
+  boards on the anchor seed `1784237746`, deals identical to `f43436de`,
+  replay 100% with zero mismatches. Paired to `f43436de` on the same deals
+  the gap is flat, **−0.001 ±0.010 plain / −0.006 ±0.011 PD** (none +0.002
+  ±0.012 / −0.002 ±0.013, both −0.004 ±0.016 / −0.009 ±0.018), a wash that
+  reaches past −δ; 153 boards moved. The window (Law-raise rail,
+  illegal-rule filter, `their_2nt_short_bid_veto`) is too small to register
+  at 20k boards. The Law-raise rail removes 42 of the 53 boards where we
+  passed four-card support and BEN raised, for +12 ±84 plain on them. #6 and
+  #7 swap; Defensive / book / round-1 loses 83 plain on 31 moved boards,
+  untraced. Ranking and series row in
+  [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
+  `ab-results/ben-anchor/2026-11-18-fef03d38/`.
 - **BEN Tier-S re-anchor (2026-11-13, `f43436de`)**: shipping `american()`
   scores **−0.741 plain / −0.452 perfect-defense IMPs/board** against BEN
   v0.8.8.4 Tier S (none −0.614 / −0.284, both −0.869 / −0.621), 20,000

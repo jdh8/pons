@@ -1,12 +1,13 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 1 complete; latest Tier-S reanchor at `f43436de`
-(2026-11-13): pons is −0.741 plain / −0.452 PD IMPs/board behind BEN Tier S**
-(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level patch; first row on
-the natural-walk reading and on zoo). Paired on the same deals against
-`c72dd03e`, the gap closed by **+0.089 ±0.050 plain** with PD a wash
-(**+0.028 ±0.056**) — the whole intervening batch plus the reading change,
-not one ship. Both arms replay at 100.00%; the bucket ranking is below.
+**Status: Phase 1 complete; latest Tier-S reanchor at `fef03d38`
+(2026-11-19): pons is −0.742 plain / −0.458 PD IMPs/board behind BEN Tier S**
+(20k boards, historical seeds; BEN v0.8.8.4 + PASS-level patch; natural-walk
+reading, on zoo). Paired on the same deals against `f43436de`, the gap is
+flat: **−0.001 ±0.010 plain / −0.006 ±0.011 PD**, with only 153 boards
+moved. The previous window (`c72dd03e` → `f43436de`) closed **+0.089 ±0.050
+plain** with PD a wash. Both arms replay at 100.00%; the bucket ranking is
+below.
 Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
@@ -683,6 +684,7 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | 2026-09-14 | M32 `daa8bf4a` | **−1.031** (none −0.8528 [−0.946, −0.760], both −1.2087 [−1.328, −1.090]) | **−0.755** (none −0.5297 [−0.638, −0.422], both −0.9800 [−1.117, −0.843]) | 20k original boards completed; divergence 66.23%/65.07%. BEN v0.8.8.4 + PASS-level compatibility patch for the two recovered vulnerable shards; config unchanged. +0.13255 plain / +0.27675 PD since August, a batch comparison. Direct scores valid; decomposer replay failed, so no new bucket ranking. |
 | 2026-10-11 | `c72dd03e` | **−0.830** (none −0.7210 [−0.810, −0.632], both −0.9397 [−1.056, −0.824]) | **−0.480** (none −0.3495 [−0.453, −0.246], both −0.6102 [−0.744, −0.477]) | Divergence 63.92%/63.30%. Same BEN runtime and conf sha as M32 (PASS-level patch from the start, no recovery needed). Paired to M32 on the same deals: **+0.200 ±0.054 plain / +0.343 ±0.063 PD** pooled (none +0.132 / +0.239, both +0.269 / +0.448; 4,536 boards changed). Covers the floor rails, the K = 8 ensemble, and every constructive ship 2026-09-14 → 10-10. Replay 100.00% both arms; ranking below. |
 | 2026-11-13 | `f43436de` | **−0.741** (none −0.6135 [−0.702, −0.525], both −0.8685 [−0.981, −0.756]) | **−0.452** (none −0.2836 [−0.385, −0.182], both −0.6206 [−0.749, −0.492]) | Divergence 61.92%/60.55%. **Reading series break**: first row on `declared_natural_walk`; the declared-all control on the same deals (2026-11-14) scores −0.751 / −0.450 (none −0.628 / −0.279, both −0.874 / −0.621), so the reading is worth **+0.010 ±0.023 plain / −0.002 ±0.026 PD** and the ships **+0.079 ±0.049 / +0.030 ±0.056** (note below). **Host change**: BEN reinstalled on zoo, replay-checked 60/60 against `c72dd03e`'s binary; conf / `gameapi.py` / `bidding.py` sha identical. Paired to `c72dd03e` on the same deals: **+0.089 ±0.050 plain / +0.028 ±0.056 PD** pooled (none +0.108 ±0.062 / +0.066 ±0.071, both +0.071 ±0.077 / −0.010 ±0.087; 4,168 boards changed). Covers every ship 2026-10-11 → 11-13 and the reading change. Replay 100.00% both arms; ranking below. |
+| 2026-11-19 | `fef03d38` | **−0.742** (none −0.6117 [−0.700, −0.523], both −0.8727 [−0.985, −0.761]) | **−0.458** (none −0.2858 [−0.387, −0.185], both −0.6295 [−0.758, −0.501]) | Divergence 61.91%/60.48%. Same BEN runtime, conf sha, host and reading as `f43436de`. Paired to `f43436de` on the same deals: **−0.001 ±0.010 plain / −0.006 ±0.011 PD** pooled (none +0.002 ±0.012 / −0.002 ±0.013, both −0.004 ±0.016 / −0.009 ±0.018; 153 boards changed), a wash whose brackets reach past −δ. Window: the Law-raise rail, the illegal-rule filter, `their_2nt_short_bid_veto`, the heart-raise keycard opt-in. Replay 100.00% both arms; ranking below. |
 
 > **Reading series break (owed 2026-10-27, taken at `f43436de`).** Every row
 > through `c72dd03e` read BEN's
@@ -717,6 +719,81 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 > each auction and its replies can change. Each window bundles intervening
 > ships; isolated attribution requires the per-fix A/B. The per-vulnerability
 > CIs below are not combined as independent samples: both arms reuse deals.
+
+### `fef03d38` Tier-S reanchor (2026-11-19)
+
+Runner `ab-results/reanchor-fef03d38-ben.sh`, artifacts in
+`ab-results/ben-anchor/2026-11-18-fef03d38/` (`report.md`, `boards.jsonl`,
+`score-{none,both}-{plain,pd}.txt`). Seeds `1784237746` + 0..7, deals and
+dealers asserted identical to `f43436de`; replay 100.00% (0 of 106,502 none,
+0 of 104,670 both). Launched 2026-11-18 23:05 CST, exit 0 at 08:01.
+
+| vulnerability | contract-divergent | plain IMPs/board [95% CI] | PD IMPs/board [95% CI] | paired plain vs `f43436de` | paired PD |
+| --- | --- | --- | --- | --- | --- |
+| none | 6,191 (61.91%) | −0.6117 [−0.700, −0.523] | −0.2858 [−0.387, −0.185] | +0.0018 ±0.0116 | −0.0022 ±0.0126 |
+| both | 6,048 (60.48%) | −0.8727 [−0.985, −0.761] | −0.6295 [−0.758, −0.501] | −0.0042 ±0.0156 | −0.0089 ±0.0177 |
+| pooled | 12,239 | **−0.7422** | **−0.4577** | **−0.0012 ±0.0097** | **−0.0056 ±0.0109** |
+
+Paired by the same per-board swing method as the `f43436de` row. The plain
+swing changed on 153 boards (68 none, 85 both), the PD swing on 152.
+
+**Verdict.** A wash in both cells and pooled, on both scorers; every lower
+bound is below −δ, so it is inconclusive, not "no loss". The window's ships
+were measured against BBA and are too small or too rare to register on
+20,000 BEN boards: the Law-raise rail's own BEN Tier-F read was +0.001 to
++0.007 plain on 102,400 boards per cell.
+
+**Top 8 buckets** (both arms, 12,239 divergent boards; Δ = change in total
+since `f43436de`):
+
+| bucket | boards | plain total (Δ) | plain /div | PD total (Δ) | PD /div |
+| --- | --- | --- | --- | --- | --- |
+| Defensive / book / round-1 | 2202 | −2300 (−83) | −1.04 | −1690 (−101) | −0.77 |
+| Constructive / book / opening | 2308 | −2183 (−4) | −0.95 | −399 (−3) | −0.17 |
+| Constructive / book / round-2 | 1541 | −1738 (+0) | −1.13 | −1691 (+0) | −1.10 |
+| Defensive / floor / round-2 | 814 | −1447 (+44) | −1.78 | −1009 (+15) | −1.24 |
+| Competitive / book / round-1 | 666 | −1270 (+29) | −1.91 | −837 (+27) | −1.26 |
+| Constructive / book / round-1 | 1048 | −953 (+43) | −0.91 | −748 (+48) | −0.71 |
+| Defensive / floor / round-1 | 519 | −738 (+36) | −1.42 | −176 (+4) | −0.34 |
+| Competitive / floor / round-2 | 460 | −728 (−24) | −1.58 | −321 (−17) | −0.70 |
+
+`Constructive / book / round-1` and `Defensive / floor / round-1` swap #6
+and #7; otherwise the order is `f43436de`'s. By phase: Constructive −5819
+(5663 boards, +39), Defensive −5217 (4220, −39), Competitive −3808 (2356,
+−24); on PD −3897 (+45), −2992 (−129), −2264 (−27). Provenance: book −9539
+(8671, −40), floor −4017 (2648, −7). `Defensive / book / round-1` stays #1
+plain and #2 PD; `Constructive / book / round-2`, #1 PD, did not move by a
+single board.
+
+The one row that moved the wrong way is `Defensive / book / round-1`.
+`scripts/anchor-diff.py` puts −66 plain / −72 PD of its −83 / −101 on the 31
+stayed boards whose own table moved, the rest on churn (9 entered, 4 left).
+**Not traced**: 31 boards is inside the bucket's noise, but nothing in the
+window was meant to move a round-1 defensive book call, so it is a lead.
+
+**The Law-raise slice, re-cut.** Floor decisions in the Defensive phase
+where we pass and BEN raises partner's suit, partner having made our side's
+only bid (one suit). The slicer joins each `boards.jsonl` row to its shard
+auction; it reproduces the `f43436de` section's BEN column to within two or
+three boards (53 / −134 / −61 against the 55 / −131 / −57 written there), so
+read the `f43436de` column below as this slicer's, not that table's.
+
+| we pass, BEN raises partner's suit | `f43436de` n / plain / PD | `fef03d38` n / plain / PD |
+| --- | --- | --- |
+| four or more trumps | 53 / −134 ±103 / −61 ±114 | 11 / −59 ±51 / −44 ±56 |
+| three trumps | 96 / −81 ±112 / +28 ±135 | 96 / −81 ±112 / +28 ±135 |
+| any action by BEN (raise or not) | 224 / −344 ±191 / −34 ±224 | 178 / −263 ±170 / −25 ±200 |
+
+The rail does what it was built to do: 42 of the 53 four-trump passes are
+gone, none entered, and the three-trump row is untouched to the board. It
+does not show as IMPs here: those 42 boards scored −75 plain / −17 PD before
+and −63 / −35 now (31 are still contract-divergent), a change of +12 ±84 /
+−18 ±89. The raise lands in BEN's contract on 11 of the 42; the other 31
+were not traced (overcaller's continuation over the raise is still the
+floor's).
+
+**Throughput on zoo**: none 4 h 34 min, both 4 h 16 min, scoring and
+decomposition 6 min (5 new DD tables).
 
 ### `f43436de` Tier-S reanchor (2026-11-13)
 
