@@ -822,7 +822,31 @@ bid after responder's game force where ours rebid `3NT` on 16–18 HCP
 (`A6.A5432.A.KQ976`, `QJ9.AK32.AK8752.`, `A.A964.J8763.AK2`, the last two
 holding five-plus cards in opener's diamonds), and one deal gives +13 back.
 Three deals do not earn an A/B; the lead is responder's uncapped `3NT` after
-the XYZ game force, and it wants a census first.
+the XYZ game force.
+
+**Censused the same day on the BBA anchor `b13dd9fe`: dry, lead closed.** Of
+819,200 tables (409,600 boards, each bid twice), 1,059 of our auctions reach
+an uncontested `1♦ - 1♥ - 1♠ - 2♦`, and 565 end `{2♥, 2NT, 3♦} - 3NT`. The
+anchor's DD cache prices 467 of them (a scratch script; the 98 it lacks are
+boards where BBA also played `3NT`). Slam columns take the better of the two
+partners as declarer, so they flatter the slam.
+
+| responder, in the 467 | n | `3NT` makes | 12+ in NT | 12+ in ♦ | always `6NT` | always `6♦` | BBA bid slam |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| all | 467 | 84% | 10% | 16% | −4,078 | −3,347 | 25 |
+| ≤14 HCP | 333 | 79% | 2% | 13% | −3,449 | −2,481 | 3 |
+| 15 HCP | 61 | 100% | 13% | 20% | −545 | −453 | 8 |
+| 16+ HCP | 73 | 95% | 44% | 26% | −84 | −413 | 14 |
+| 16+ HCP, 4+ ♦ | 23 | 91% | 52% | 57% | +24 | +45 | 8 |
+| 16+ HCP, ≤3 ♦ | 50 | 96% | 40% | 12% | −108 | −458 | 6 |
+| 15+ HCP, 5+ ♦ | 12 | 100% | 67% | 83% | +47 | +88 | 10 |
+| combined 31–32 HCP | 22 | 100% | 73% | 45% | +120 | −37 | 8 |
+
+The best gate a row could state, 15+ HCP with five diamonds, is 12 boards
+(six deals) worth +88 IMPs: +0.0002 IMPs/board, a tenth of δ. Perfect slam
+choice over the whole pool is +1,131 on 100 boards (+0.003/board), and no
+HCP or fit cut reaches a fifth of it; 16+ without a diamond fit loses.
+The sign-off is right as written.
 
 **The Law-raise slice, re-cut.** Floor decisions in the Defensive phase
 where we pass and BEN raises partner's suit, partner having made our side's
