@@ -308,6 +308,42 @@ rows that remain), and the new minor-raise `4NT` 18+ node reads 13 rows /
 leaves the top ten and `3♥` 0+ HCP (128 rows, raw −334, shrunk −286) enters at
 #10; opening's `3♣` / `3♦` and round-1's tail only reorder.
 
+**Shipping round-2, cut by auction (2026-11-20, at `0772f1c4`).**
+`shrunk-pools.py` keys a node by rule text and call, which pools every
+auction that shares a rule. This cut joins each of the bucket's 32,960 rows
+to its shard auction (`seed` + `board`; the two tables agree up to
+`div_index`) and keys it by that shared prefix, leading passes folded, then
+by our call against BBA's. A deal sits in both vulnerability cells, so rows
+are about twice the deals. The largest pairs are known: `1♦ - 1M -` our `2♦`
+where BBA bids `2♣` (1,503 rows, −1,316 plain / −1,418 PD, the
+`rebid.one_diamond_two_clubs` wash), `1♣ - 1♠ -` `2♣` vs `1NT` (487, −244 /
+−288, [next-steps.md](next-steps.md) item 2), `1♠ - 1NT - 2♥ -` `3♠` vs `4♠`
+(44, −216 / −196, lane (b) below, unchanged), opener's `3♦` on 5♣4♦ 18+
+(222, −404 / −466, the `6141cdb2` lane) and the Stayman `4♥` where BBA bids
+`6♥` (38, −216 / −210). The leads not yet in any doc:
+
+| # | node | rows (deals) | plain | PD | what the boards show |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `1♣ - 1♦ -`: our `1♥` / `1♠`, BBA's `2NT` | 288 (149) | −618 | −517 | opener is balanced 18–19 with a four-card major; `1M` (weight 130) outranks `2NT` (110); responder passes `1M` on 150 rows (−555, BBA in `3NT` on 130 of them) and the XYZ relay stops in `2♦` on 21 (−61) |
+| 2 | our quantitative `4NT`, BBA's `6NT` | 58 (29) | −408 | −399 | responder over `1NT - 2♣ - 2♦`, `1NT - 2♥ - 2♠`, `1NT - 2♦ - 2♥`, `2NT - 3♣ - 3♦`; 28 rows hold 17 HCP (−288); the transfer lane's `4NT` is `16+` with no cap and opener passes it |
+| 3 | `1♦ - 1♠ - 2NT -` | 146 (73) | −450 | −528 | `4NT` on 12–13 where BBA bids `3NT` (22 rows, −166: opener raises to a failing `6NT`); checkback `3♣` / `3♠` where BBA bids a natural `3♥` (34 rows, −245: BBA reaches `6♠`, we stop in `4♠`) |
+| 4 | `2NT - 3♦ -` / `2NT - 3♥ -`: our completion, BBA's `4M` | 114 (63) | −358 | −335 | every row has four-card support or better; BBA's jump lets responder ask, ours hears `3M - 3NT - 4M` |
+| 5 | Drury `1♠ - 2♣ -`: opener's `4NT` on 19+ support points | 52 (27) | −282 | −289 | all passed-hand rows; `6♠` after the `5♣` answer on balanced 18–20. `raises/drury.rs`'s module doc already names this hole |
+| 6 | `1♠ - 3NT -`: our `4♠`, BBA's `4♣` / `4♦` | 38 (19) | −216 | −216 | opener 13–18 unbalanced signs off over the 12–15 balanced raise; BBA cue-bids to `6♠` |
+| 7 | `1♥ - 1♠ - 2x -`: responder's `2NT` on 10–12 | 490 (253) | −494 | −781 | diffuse: with four spades over `2♦` / `2♥` 125 rows −267 / −383 (BBA passes `2♥`), with six or more spades 135 rows −185 / −191 (BBA bids spades) |
+
+Lead 1 is book-internal, not a census of BBA's continuations: our `1♦`
+response is `4+ ♦, ≤3 ♥, ≤3 ♠`, so opener's `1M` there can never find a 4-4
+fit, and `probe-decision "K53.KQ85.KJ2.AK9" "1♣ - 1♦ -"` reads partner as
+♥ 0–3, ♠ 0–3 and still bids `1♥`. The fix is one weight (`2NT` above `1M` on
+a balanced 18–20). The 12–14 sibling (`1NT` at weight 50, also under `1M`)
+is concealment only, which DD does not price, so it is a separate knob.
+Leads 2–6 are first-call pairs that price BBA's continuation with its call
+(the census lesson above); each needs its worst boards traced before a
+build. Lead 2 goes through [notrump-slam.md](notrump-slam.md)'s `6NT` gate
+and lead 4 is not the `1NT` super-accept (`transfer_super_accept`, a
+measured wash), because over `2NT` the jump is to game.
+
 **The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`
 in the snapshot). Shipping **+0.0050 ±0.0017 / +0.0054 ±0.0024 plain**
