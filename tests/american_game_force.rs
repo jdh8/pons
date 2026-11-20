@@ -334,6 +334,9 @@ fn quantitative_four_notrump_after_two_over_one() {
     let arm = |on: bool| {
         let mut agreements = Agreements::default();
         agreements.rebid.two_over_one_quantitative = on;
+        // The auctions below follow opener's raise of the minor, where the
+        // keycard ask would replace the bands under test.
+        agreements.rebid.two_over_one_minor_raise_keycard = false;
         american(&agreements).bind()
     };
     let (off, on) = (arm(false), arm(true));
@@ -556,4 +559,68 @@ fn reverse_lowers_quantitative_bands() {
     ];
     assert_eq!(best_call(&off, &minor, "KQ4.J9.K76.AKJ62"), three);
     assert_eq!(best_call(&on, &minor, "KQ4.J9.K76.AKJ62"), six);
+}
+
+// --- RKCB after opener raises responder's minor (rebid.two_over_one_minor_raise_keycard) ---
+
+/// Off, the raise takes the no-fit bands: an 18-count bids a natural `4NT`,
+/// which opener passes on 12 or raises to `6NT` on 13+.  On, the same `4NT`
+/// asks for keycards in the minor, and `3NT` still takes 13–17.
+#[test]
+fn minor_raise_asks_keycards() {
+    use pons::bidding::agreements::Agreements;
+
+    let arm = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.two_over_one_minor_raise_keycard = on;
+        american(&agreements).bind()
+    };
+    let (off, on) = (arm(false), arm(true));
+    let p = Call::Pass;
+    let four = call(4, Strain::Notrump);
+
+    // 1♠ - 2♣ - 3♣ -: responder's 16 and 18.
+    let spades = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(3, Strain::Clubs),
+        p,
+    ];
+    for arm in [&off, &on] {
+        assert_eq!(
+            best_call(arm, &spades, "98.AT3.QJ3.AKQ96"),
+            call(3, Strain::Notrump)
+        );
+        assert_eq!(best_call(arm, &spades, "98.AT3.AJ3.AKQ96"), four);
+    }
+
+    // Opener's 12 with one keycard: passes the natural `4NT`, answers `5♣`.
+    let ask = [spades.as_slice(), &[four, p]].concat();
+    assert_eq!(best_call(&off, &ask, "AKJ54.K2.43.J872"), p);
+    assert_eq!(
+        best_call(&on, &ask, "AKJ54.K2.43.J872"),
+        call(5, Strain::Clubs)
+    );
+
+    // 1♦ - 2♣ - 3♣ -: the minor lane; opener's 14 accepts the natural `4NT`.
+    let ask = [
+        call(1, Strain::Diamonds),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(3, Strain::Clubs),
+        p,
+        four,
+        p,
+    ];
+    assert_eq!(
+        best_call(&off, &ask, "AJ.K32.KJ65.Q872"),
+        call(6, Strain::Notrump)
+    );
+    assert_eq!(
+        best_call(&on, &ask, "AJ.K32.KJ65.Q872"),
+        call(5, Strain::Clubs)
+    );
 }

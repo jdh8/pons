@@ -38,6 +38,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.two_over_one_minor_raise_keycard`: RKCB after opener raises
+  responder's minor in a 2/1 (2026-11-20, default on, measured win).** Opener's
+  raise (`1M - 2m - 3m`, `1♦ - 2♣ - 3♣`) took the no-fit quantitative bands,
+  so an 18–20 count bid a natural `4NT` on a nine-card fit, and opener passed
+  it on 12 or bid `6NT`. On the BBA anchor `b13dd9fe` the `4NT` 18–20 node is
+  141 rows, −385 plain / −390 PD. Those three prefixes are 25 of the rows
+  and −284 / −296 of the IMPs; BBA bids `4m`, cues and keycards into `6m`.
+  On, `3NT` keeps 13–17 and every 18+ bids `4NT` RKCB for the minor,
+  answered by the book's ladder. Needs the minor keycard. Against BBA
+  (`scripts/ab-two-over-one-minor-raise-keycard.sh`, 3,276,800 boards per
+  cell, seed 1795086497417332106): plain +755 / +1047 / +737 / +990 IMPs for
+  none / ns / ew / both (+0.0002 to +0.0003 IMPs/board, ±0.0001), PD +760 /
+  +1064 / +745 / +1007, SD-PD +846 / +1113 / +787 / +1063, a win in all
+  four cells on 261–296 fired boards (+2.8 to +3.5 IMPs each). One deal
+  opened by BBA diverged in none and ns: its own `1♥ - 2♣ - 3♣ - 4NT - 5♥`
+  now reads as RKCB and we stop doubling the answer, −2 plain. The off arm
+  is `bba-gen --no-ns-two-over-one-minor-raise-keycard`, which builds the
+  same rows as before.
+
 - **`probe-illegal-mass` and `bba-decompose --illegal-mass` (2026-11-18).**
   The census behind the illegal-rule filter: every decision whose answer has
   no legal call (`forced`), no mass at all (`empty`), or an illegal best call

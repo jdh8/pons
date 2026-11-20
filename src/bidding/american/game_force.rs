@@ -194,8 +194,11 @@ pub(super) fn opener_rebid(
 /// quantitative) and `6NT` take the rest, answered by
 /// [`quantitative_answer`].
 ///
+/// `keycard`: opener raised responder's minor, so [`minor_raise_game`]
+/// replaces the no-fit bands.
+///
 /// No [`Pass`][Call::Pass] rule: the auction is still game forcing.
-fn responder_rebid(major: Suit, resp: Suit, quantitative: Option<Bands>) -> Rules {
+fn responder_rebid(major: Suit, resp: Suit, quantitative: Option<Bands>, keycard: bool) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
 
@@ -210,7 +213,11 @@ fn responder_rebid(major: Suit, resp: Suit, quantitative: Option<Bands>) -> Rule
             100,
             partner_suit_is(major) & len(major, 2..),
         );
-    rules = default_game(rules, quantitative);
+    rules = if keycard {
+        minor_raise_game(rules, quantitative)
+    } else {
+        default_game(rules, quantitative)
+    };
 
     // Raise each suit opener might have bid (x ∉ {major, resp}).
     for &x in &[Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -314,7 +321,7 @@ fn opener_rebid_1d_2c(reverse_extras: bool) -> Rules {
 /// `quantitative` as in [`responder_rebid`].
 ///
 /// No [`Pass`][Call::Pass] rule.
-fn responder_rebid_1d_2c(quantitative: Option<Bands>) -> Rules {
+fn responder_rebid_1d_2c(quantitative: Option<Bands>, keycard: bool) -> Rules {
     let rules = Rules::new()
         // Raise opener's diamonds.
         .rule(
@@ -324,7 +331,11 @@ fn responder_rebid_1d_2c(quantitative: Option<Bands>) -> Rules {
         )
         // Rebid clubs.
         .rule(call(3, Strain::Clubs), 110, len(Suit::Clubs, 6..));
-    default_game(rules, quantitative)
+    if keycard {
+        minor_raise_game(rules, quantitative)
+    } else {
+        default_game(rules, quantitative)
+    }
 }
 
 /// Responder's quantitative notrump bands at a no-fit 2/1 node, each a
@@ -390,6 +401,31 @@ fn default_game(rules: Rules, quantitative: Option<Bands>) -> Rules {
             .rule(call(6, Strain::Notrump), 80, hcp(slam..)),
         None => rules.rule(call(3, Strain::Notrump), 80, hcp(13..)),
     }
+}
+
+/// Responder's game after opener raised its minor
+/// ([`RebidKnobs::two_over_one_minor_raise_keycard`][crate::bidding::agreements::RebidKnobs::two_over_one_minor_raise_keycard]):
+/// `3NT` below the invite ([`FLAT`]'s 18 when the bands are off), `4NT`
+/// RKCB for the minor from it
+///
+/// Facing 12+ with four-card support, 18 HCP clears the
+/// [suit-slam](../../../docs/suit-slam.md) checked `6m` gate (28
+/// `point_count`), so the quantitative `4NT` and `6NT` give way to the ask.
+fn minor_raise_game(rules: Rules, quantitative: Option<Bands>) -> Rules {
+    let invite = quantitative.map_or(FLAT.invite, |bands| bands.invite);
+    rules
+        .rule(call(3, Strain::Notrump), 80, hcp(13..invite))
+        .rule(call(4, Strain::Notrump), 80, hcp(invite..))
+        .alert(super::slam::RKCB)
+}
+
+/// Whether responder asks for keycards after `rebid_call`: opener raised
+/// responder's minor `resp` and the knob and the minor keycard are both on
+fn minor_raise_keycard(agreements: &Agreements, resp: Suit, rebid_call: Call) -> bool {
+    agreements.rebid.two_over_one_minor_raise_keycard
+        && matches!(resp, Suit::Clubs | Suit::Diamonds)
+        && rebid_call == call(3, Strain::from(resp))
+        && super::slam::minor_keycard(agreements)
 }
 
 /// Opener's answer to responder's quantitative `4NT` (no fit)
@@ -539,7 +575,8 @@ pub(super) fn base() -> Package {
                         }
                         let after_rebid = format!("{prefix} {rebid_call} -");
                         let quantitative = bands(agreements, Strain::from(major), rebid_call);
-                        let mut rebid_rules = responder_rebid(major, resp, quantitative);
+                        let keycard = minor_raise_keycard(agreements, resp, rebid_call);
+                        let mut rebid_rules = responder_rebid(major, resp, quantitative, keycard);
                         // Minor before spades: responder shows the four
                         // spades it skipped at `1♠`, naturally.  ponytail:
                         // two-level only; `2NT` denies four spades (5-4 is
@@ -568,7 +605,9 @@ pub(super) fn base() -> Package {
                             ));
                         }
                         entries.extend(rows_of(node(&after_rebid), rebid_rules));
-                        if let Some(Bands { accept, .. }) = quantitative {
+                        if keycard {
+                            entries.extend(super::slam::rkcb_rows(&after_rebid, resp));
+                        } else if let Some(Bands { accept, .. }) = quantitative {
                             entries.extend(rows_of(
                                 node(&format!("{after_rebid} 4NT -")),
                                 quantitative_answer(Some(major), accept),
@@ -611,11 +650,17 @@ pub(super) fn base() -> Package {
             entries.extend(rows_of(Pattern::node(prefix), rebid));
             for rebid_call in rebid_calls {
                 let quantitative = bands(agreements, Strain::Diamonds, rebid_call);
+                let keycard = minor_raise_keycard(agreements, Suit::Clubs, rebid_call);
                 entries.extend(rows_of(
                     Pattern::node(&format!("{prefix} {rebid_call} -")),
-                    responder_rebid_1d_2c(quantitative),
+                    responder_rebid_1d_2c(quantitative, keycard),
                 ));
-                if let Some(Bands { accept, .. }) = quantitative {
+                if keycard {
+                    entries.extend(super::slam::rkcb_rows(
+                        &format!("{prefix} {rebid_call} -"),
+                        Suit::Clubs,
+                    ));
+                } else if let Some(Bands { accept, .. }) = quantitative {
                     entries.extend(rows_of(
                         Pattern::node(&format!("{prefix} {rebid_call} - 4NT -")),
                         quantitative_answer(None, accept),

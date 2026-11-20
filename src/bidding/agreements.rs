@@ -5107,6 +5107,26 @@ pub struct RebidKnobs {
     /// +0.00005 IMPs/board), PD +250 to +319, SD-PD +408 to +675, all wins.
     /// The off arm is `bba-gen --no-ns-two-over-one-reverse-quantitative`.
     pub two_over_one_reverse_quantitative: bool,
+    /// Responder's `4NT` is RKCB for its minor after opener raises it in a
+    /// 2/1 (`1M - 2m - 3m`, `1♦ - 2♣ - 3♣`)
+    ///
+    /// **Default on — measured win 2026-11-20.**  Needs the minor keycard
+    /// ([`keycard_minors`][crate::bidding::instinct::InstinctProfile::keycard_minors]).
+    /// Off, the raise takes the no-fit bands of
+    /// [`two_over_one_quantitative`][Self::two_over_one_quantitative], so an
+    /// 18–20 count bids a natural `4NT` holding a nine-card fit and opener
+    /// passes it on 12, or bids `6NT`.  On the BBA anchor `b13dd9fe` those
+    /// three prefixes carry 25 of the node's 141 rows and −284 of its −385
+    /// IMPs plain (BBA bids `4m`, cues, keycards and plays `6m`).  On,
+    /// `3NT` keeps 13–17 and every 18+ bids `4NT` RKCB for the minor (the
+    /// [suit-slam](../../docs/suit-slam.md) checked `6m` gate is 28
+    /// `point_count`), answered by the book's RKCB ladder.  Against BBA
+    /// (`scripts/ab-two-over-one-minor-raise-keycard.sh`, 3,276,800 boards
+    /// per cell) plain +755 / +1047 / +737 / +990 IMPs for none / ns / ew /
+    /// both (+0.0002 to +0.0003 IMPs/board), PD +745 to +1064, SD-PD +787 to
+    /// +1113, all wins on 261–296 fired boards.  The off arm is
+    /// `bba-gen --no-ns-two-over-one-minor-raise-keycard`.
+    pub two_over_one_minor_raise_keycard: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
     /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
@@ -5491,6 +5511,7 @@ impl Default for RebidKnobs {
             two_over_one_quantitative: true,
             two_over_one_opener_invite: true,
             two_over_one_reverse_quantitative: true,
+            two_over_one_minor_raise_keycard: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,

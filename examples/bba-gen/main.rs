@@ -1838,6 +1838,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_reverse_quantitative: bool,
 
+    /// Keep the quantitative bands after opener raises responder's minor in
+    /// a 2/1 (`1M - 2m - 3m`, `1♦ - 2♣ - 3♣`) instead of `4NT` RKCB for the
+    /// minor (`rebid.two_over_one_minor_raise_keycard`, default on; the off
+    /// arm of `scripts/ab-two-over-one-minor-raise-keycard.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_minor_raise_keycard: bool,
+
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
     /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
@@ -3780,6 +3787,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.two_over_one_opener_invite = !args.no_ns_two_over_one_opener_invite;
     agreements.rebid.two_over_one_reverse_quantitative =
         !args.no_ns_two_over_one_reverse_quantitative;
+    agreements.rebid.two_over_one_minor_raise_keycard =
+        !args.no_ns_two_over_one_minor_raise_keycard;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;
