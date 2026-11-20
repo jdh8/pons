@@ -955,6 +955,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ranking and series row in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
   `ab-results/ben-anchor/2026-11-13-f43436de/`.
+- **BBA re-anchor (2026-11-20, `0772f1c4`)**: shipping `american()` scores
+  **−0.1238 plain / +0.0080 perfect-defense IMPs/board** (none −0.1289 /
+  +0.0122, both −0.1186 / +0.0038), the series' best plain, up 0.0019;
+  `american_instinct()` −0.880 / −0.904. Same seed `1783375064`, all four
+  cells replayed at 100% with zero mismatches, 3 new DD tables, 39 minutes.
+  The window since `b13dd9fe` is two book ships in the game-forcing
+  `1x - 2y - 3z -` nodes (the illegal-rule filter and
+  `rebid.two_over_one_minor_raise_keycard`). Paired per table on the same
+  deals, both arms gain +0.0006 ±0.0004 / +0.0009 ±0.0006 plain (none /
+  both) and the same in PD, a win in all four cells, on 29 / 32 boards
+  fired: +127 / +181 plain IMPs against +92 / +138 predicted from the two
+  ship A/Bs. The round-2 `4NT` 18–20 node falls from 141 rows / −385 plain
+  to 110 / −106. Shipping #3 and #4 swap (Constructive / book / round-1
+  gains +480 plain and drops below Competitive / book / round-1). Floor
+  paired worth unchanged at +0.388 plain / +0.464 PD. Ranking and series
+  row in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-20-0772f1c4/`.
 - **BBA re-anchor (2026-11-16, `b13dd9fe`)**: shipping `american()` scores
   **−0.1257 plain / +0.0062 perfect-defense IMPs/board** (none −0.1305 /
   +0.0107, both −0.1208 / +0.0017), the series' best plain, up 0.0088;
