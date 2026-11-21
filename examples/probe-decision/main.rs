@@ -24,6 +24,8 @@
 //! `PROBE_HEART_RAISE_SPLINTER=off|1|4` its mirror over `1m - 1♥` (default 4).
 //! `PROBE_ONE_CLUB_ONE_DIAMOND_2NT_FIRST=off` puts `1M` back ahead of the
 //! balanced 18–19 `2NT` after `1♣ - 1♦` (default on).
+//! `PROBE_QUANTITATIVE_THIRTY_TWO=off` turns off the 32-HCP quantitative bands
+//! (`notrump.quantitative_thirty_two`, default on).
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -335,6 +337,9 @@ fn main() {
     // (`rebid.one_club_one_diamond_two_notrump_first`, default on).
     if let Ok("0" | "off") = std::env::var("PROBE_ONE_CLUB_ONE_DIAMOND_2NT_FIRST").as_deref() {
         agreements.rebid.one_club_one_diamond_two_notrump_first = false;
+    }
+    if let Ok("0" | "off") = std::env::var("PROBE_QUANTITATIVE_THIRTY_TWO").as_deref() {
+        agreements.notrump.quantitative_thirty_two = false;
     }
     match std::env::var("PROBE_NEW_SUIT_VETO").as_deref() {
         Ok("0") | Ok("off") => agreements.decision.instinct.new_suit_veto = false,

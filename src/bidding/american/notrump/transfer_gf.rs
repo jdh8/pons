@@ -86,6 +86,7 @@ pub(super) fn transfer_spade_gf_rebid(agreements: &Agreements) -> Rules {
                 & hcp(16..),
         )
         .alert(SLAM_TRY)
+        .chain(gf_six_notrump(Suit::Spades, agreements))
         // Six-card-spade slam tries with a side-suit splinter — carved off the direct
         // Texas `4♦` / `4♠` (see `is_major_splinter_slam`).  Artificial (the bid names
         // the *short* suit, not a strain to play), so each carries [`SPLINTER`].
@@ -202,6 +203,31 @@ pub(super) fn transfer_heart_gf_rebid(agreements: &Agreements) -> Rules {
                 & hcp(16..),
         )
         .alert(SLAM_TRY)
+        .chain(gf_six_notrump(Suit::Hearts, agreements))
+}
+
+/// The balanced single-suiter's `6NT` on 17+ (`notrump.quantitative_thirty_two`)
+///
+/// Weight 1.41 sits just above the quantitative `4NT` (1.40), which so keeps
+/// only the 16-count.  Natural: upper bounds only (the transfer already pins
+/// the five-card major), so it floors no un-named suit and carries no alert.
+/// ponytail: no `5NT` pick-a-slam; add one if 5-3 fits show up in a worst-board
+/// trace (the lane won +8.8 IMPs per fired board without it).
+fn gf_six_notrump(major: Suit, agreements: &Agreements) -> Rules {
+    if agreements.notrump.quantitative_thirty_two {
+        let other = if major == Suit::Spades {
+            Suit::Hearts
+        } else {
+            Suit::Spades
+        };
+        Rules::new().rule(
+            Bid::new(6, Strain::Notrump),
+            141,
+            len(other, ..4) & len(Suit::Clubs, ..4) & len(Suit::Diamonds, ..4) & hcp(17..),
+        )
+    } else {
+        Rules::new()
+    }
 }
 
 /// Opener's answer to responder's quantitative `4NT` (`1NT - 2♥ - 2♠ - 4NT`)
@@ -211,15 +237,17 @@ pub(super) fn transfer_heart_gf_rebid(agreements: &Agreements) -> Rules {
 /// else `6NT`; a minimum declines by passing `4NT`.  ponytail: blasts the small slam
 /// rather than RKCB — the invite is balanced and quantitative, so a keycard detour
 /// buys little.
-fn gf_quant_answer(major: Suit) -> Rules {
+fn gf_quant_answer(major: Suit, agreements: &Agreements) -> Rules {
+    // `notrump.quantitative_thirty_two`: accept on 16+, not only the maximum.
+    let accept = 17 - u8::from(agreements.notrump.quantitative_thirty_two);
     Rules::new()
         .rule(
             Bid::new(6, Strain::from(major)),
             130,
-            hcp(17..) & len(major, 3..),
+            hcp(accept..) & len(major, 3..),
         )
-        .rule(Bid::new(6, Strain::Notrump), 120, hcp(17..))
-        .rule(Call::Pass, 0, hcp(..17))
+        .rule(Bid::new(6, Strain::Notrump), 120, hcp(accept..))
+        .rule(Call::Pass, 0, hcp(..accept))
 }
 
 /// Opener's answer to responder's five-spade-plus-minor game force (`…3♣` / `…3♦`)
@@ -388,10 +416,10 @@ pub(crate) fn spade_transfer_game_force() -> Package {
     Package {
         name: "spade-transfer-game-force",
         gate: |agreements| agreements.decision.transfer_gf_majors,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ - 4NT -"),
-                gf_quant_answer(Suit::Spades),
+                gf_quant_answer(Suit::Spades, agreements),
             );
             entries.extend(expand(
                 "P* 1NT - 2♥ - 2♠ - 3m -",
@@ -416,10 +444,10 @@ pub(crate) fn heart_transfer_game_force() -> Package {
     Package {
         name: "heart-transfer-game-force",
         gate: |agreements| agreements.decision.transfer_gf_heart_mirror(),
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 4NT -"),
-                gf_quant_answer(Suit::Hearts),
+                gf_quant_answer(Suit::Hearts, agreements),
             );
             entries.extend(expand(
                 "P* 1NT - 2♦ - 2♥ - 3m -",

@@ -229,7 +229,7 @@ pub(super) fn stayman_major_rebid(major: Suit, agreements: &Agreements) -> Rules
         .rule(
             Bid::new(4, Strain::Notrump),
             120,
-            len(major, ..4) & hcp(16..=17),
+            len(major, ..4) & hcp(16..=17 - u8::from(agreements.notrump.quantitative_thirty_two)),
         )
         // No fit: game / invitational notrump raise.  The net seams keep the
         // 2♣ entry's 8-HCP floor so a garbage/crawling weak hand never invites.
@@ -298,7 +298,11 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..) & hcp(9..),
         )
         .alert(SMOLEN)
-        .rule(Bid::new(4, Strain::Notrump), 120, hcp(16..=17))
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            hcp(16..=17 - u8::from(agreements.notrump.quantitative_thirty_two)),
+        )
         // The notrump revert seams are net-priced under `DecisionProfile::stayman_net_force`
         // (Smolen and the quantitative 4NT outrank them by weight either way).
         .rule(
@@ -403,7 +407,11 @@ fn six_notrump(
     shape: Cons<impl Constraint + 'static>,
 ) -> Rules {
     if agreements.notrump.quantitative_six_notrump {
-        rules.rule(Bid::new(6, Strain::Notrump), 120, hcp(18..) & shape)
+        rules.rule(
+            Bid::new(6, Strain::Notrump),
+            120,
+            hcp(18 - u8::from(agreements.notrump.quantitative_thirty_two)..) & shape,
+        )
     } else {
         rules
     }

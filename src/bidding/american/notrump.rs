@@ -345,7 +345,9 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
         .rule(
             Bid::new(4, Strain::Notrump),
             120,
-            hcp(16..=17) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(16..=17 - u8::from(agreements.notrump.quantitative_thirty_two))
+                & len(Suit::Hearts, ..5)
+                & len(Suit::Spades, ..5),
         )
         // Natural 3NT game-force, 9+, no five-card major (those transfer).  A
         // balanced hand with a three-card major prefers Puppet (3♣ outranks), so
@@ -402,7 +404,24 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
         .chain(garbage_stayman_rule(agreements))
         // Crawling Stayman (superset of garbage): 4-4 majors short in diamonds.
         .chain(crawling_stayman_rule(agreements))
+        .chain(direct_six_notrump(agreements))
         .gated_out(&[dormant])
+}
+
+/// The direct `1NT - 6NT` on a certain 32 (`notrump.quantitative_thirty_two`)
+///
+/// 17–20 with no five-card major; 21+ stays with `3NT` as before.
+/// ponytail: no grand rung above it, add one when a census prices 37 facing 15.
+fn direct_six_notrump(agreements: &Agreements) -> Rules {
+    if agreements.notrump.quantitative_thirty_two {
+        Rules::new().rule(
+            Bid::new(6, Strain::Notrump),
+            120,
+            hcp(17..=20) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+        )
+    } else {
+        Rules::new()
+    }
 }
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
@@ -447,7 +466,7 @@ pub(super) fn base() -> Package {
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 4NT -"),
-                quantitative_answer(17),
+                quantitative_answer(17 - u8::from(agreements.notrump.quantitative_thirty_two)),
             ));
 
             // Responder's rebid after opener shows a major, and opener's reply
@@ -502,15 +521,15 @@ pub(super) fn base() -> Package {
             // Opener's quantitative accept after a no-fit revert to 4NT.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♥ - 4NT -"),
-                quantitative_answer(17),
+                quantitative_answer(17 - u8::from(agreements.notrump.quantitative_thirty_two)),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♠ - 4NT -"),
-                quantitative_answer(17),
+                quantitative_answer(17 - u8::from(agreements.notrump.quantitative_thirty_two)),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 4NT -"),
-                quantitative_answer(17),
+                quantitative_answer(17 - u8::from(agreements.notrump.quantitative_thirty_two)),
             ));
 
             entries

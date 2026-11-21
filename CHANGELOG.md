@@ -38,6 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`notrump.quantitative_thirty_two`: `6NT` on a certain 32 HCP in every
+  quantitative notrump lane (2026-11-21, default on, measured win).** The
+  invite bands were two points wide and opener accepted only on a maximum, so
+  32 and 33 combined stopped in `4NT`; a balanced 18–20 with no major bid
+  `3NT` over `1NT`. On, the invite is the one hand a point short and opener
+  accepts above a minimum: over `1NT` (direct, after Stayman, and with a
+  five-card major after the transfer) `4NT` on 16, `6NT` on 17+ (direct:
+  17–20), accept on 16+; over `2NT` `4NT` on 11, `6NT` on 12+; over
+  `2♣ - 2x - 2NT` `4NT` on 9, `6NT` on 10+, accept on 23+; over the 18–19
+  `2NT` rebid the 12-count invite is gone. Against BBA
+  (`scripts/ab-quantitative-thirty-two.sh`, 1,638,400 boards per cell, seed
+  1795249359375984672): plain +4082 / +4893 / +4071 / +4873 IMPs for none /
+  ns / ew / both (+0.0025 to +0.0030 IMPs/board, ±0.0003 to ±0.0004), PD
+  +4040 / +4865 / +4029 / +4835, SD-PD +4529 / +5229 / +4223 / +5217, a win
+  in all four cells on 821–865 fired boards (+4.9 to +5.8 IMPs each). By
+  lane over the four cells: the new direct `1NT - 6NT` on 18–20 is +5620 on
+  508 boards, the rest of the `1NT` lanes +10,587 on 1,597, the `2NT` lanes
+  +1796 on 272, and the `2NT`-rebid row a wash (−84 plain / +10 PD on 983).
+  The transfer-lane `6NT` shipped without the redundant five-card floor the
+  A/B arm carried, so it is natural and unalerted (`smoke-default --count
+  400000 --seed 1` byte-identical, the lane firing 113 times). The off arm
+  is `bba-gen --no-ns-quantitative-thirty-two`, which builds the same rows
+  as before.
+
 - **`rebid.one_club_one_diamond_two_notrump_first`: the balanced 18–19
   `2NT` ahead of `1M` after `1♣ - 1♦` (2026-11-21, default on, measured
   win).** Our `1♦` response denies a four-card major (`response.up_the_line`),

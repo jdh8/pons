@@ -9,6 +9,7 @@
 
 mod common;
 use common::*;
+use pons::bidding::agreements::Agreements;
 
 const P: Call = Call::Pass;
 
@@ -108,4 +109,82 @@ fn test_rebid_2nt_response_3nt() {
         best_call(&system, auction, "KQ32.J5.A964.982"),
         call(3, Strain::Notrump),
     );
+}
+
+// --- notrump.quantitative_thirty_two -----------------------------------------
+
+#[test]
+fn quantitative_thirty_two() {
+    let system_with = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.notrump.quantitative_thirty_two = on;
+        american(&agreements).bind()
+    };
+    let (on, off) = (system_with(true), system_with(false));
+    let six_nt = call(6, Strain::Notrump);
+    let four_nt = call(4, Strain::Notrump);
+    let one_nt = [call(1, Strain::Notrump), P];
+    let both = |auction: &[Call], hand: &str| {
+        (
+            best_call(&off, auction, hand),
+            best_call(&on, auction, hand),
+        )
+    };
+
+    // Direct: 17 is a certain 32, 16 is the whole invite, 19 no longer stops in 3NT.
+    assert_eq!(both(&one_nt, "AK3.K52.AJ42.Q72"), (four_nt, six_nt));
+    assert_eq!(both(&one_nt, "AK3.K52.AJ42.J72"), (four_nt, four_nt));
+    assert_eq!(
+        both(&one_nt, "AK3.K52.AQ42.K72"),
+        (call(3, Strain::Notrump), six_nt),
+    );
+    // Opener accepts the invite on 16, still declines on 15.
+    let invited = [one_nt[0], P, four_nt, P];
+    assert_eq!(both(&invited, "A642.AT4.KT.KQ98"), (P, six_nt));
+    assert_eq!(both(&invited, "K43.A3.J942.AK32"), (P, P));
+    // After Stayman finds no fit.
+    let denied = [
+        one_nt[0],
+        P,
+        call(2, Strain::Clubs),
+        P,
+        call(2, Strain::Diamonds),
+        P,
+    ];
+    assert_eq!(both(&denied, "AK9.AT92.AJ75.J2"), (four_nt, six_nt));
+    // The five-card major after the transfer: 17 bids the slam, opener accepts
+    // a 16-count invite on 16 in the known fit.
+    let transferred = [
+        one_nt[0],
+        P,
+        call(2, Strain::Hearts),
+        P,
+        call(2, Strain::Spades),
+        P,
+    ];
+    assert_eq!(both(&transferred, "AJ842.AK9.KQ6.94"), (four_nt, six_nt));
+    assert_eq!(both(&transferred, "AK932.QT9.A83.KT"), (four_nt, four_nt));
+    let invited = [&transferred[..], &[four_nt, P]].concat();
+    assert_eq!(
+        both(&invited, "T86.AKJ42.K62.AJ"),
+        (P, call(6, Strain::Spades)),
+    );
+    // 2NT: 12 facing 20–21 is a certain 32.
+    let two_nt = [call(2, Strain::Notrump), P];
+    assert_eq!(both(&two_nt, "K7.Q63.A842.K976"), (four_nt, six_nt));
+    assert_eq!(both(&two_nt, "K7.Q63.A842.Q976"), (four_nt, four_nt));
+    // The 18–19 rebid: the 12-count invite is gone, 13 still invites.
+    let rebid = [
+        call(1, Strain::Diamonds),
+        P,
+        call(1, Strain::Hearts),
+        P,
+        call(2, Strain::Notrump),
+        P,
+    ];
+    assert_eq!(
+        both(&rebid, "A6.T732.K7.KQ753"),
+        (four_nt, call(3, Strain::Notrump)),
+    );
+    assert_eq!(both(&rebid, "965.QJ64.K62.AK5"), (four_nt, four_nt));
 }

@@ -20,8 +20,8 @@ fn transfer_gf_majors_five_five_and_quantitative() {
     let slam_55 = "AKQ52.AK432.32.4";
     // 5♠5♥, ♠KQ + ♥KQ = 10 HCP → point_count 12 (minimum game force).
     let min_55 = "KQ542.KQ432.32.4";
-    // Balanced single-suited 5♠, 18 HCP, ≤3 hearts (the old single-suited try).
-    let single = "AKQ52.A32.K32.Q2";
+    // Balanced single-suited 5♠, 16 HCP, ≤3 hearts (the old single-suited try).
+    let single = "AKQ52.A32.K32.32";
 
     // --- Baseline (gate off): unchanged ------------------------------
     let mut off = Agreements::default();

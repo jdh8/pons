@@ -26,6 +26,8 @@ fn two_notrump_responses(agreements: &Agreements, shift: u8) -> Rules {
     // the transfers is arbitrary (a weak 6♠5♥ could transfer to hearts and
     // scramble — the M6.4 A/B caught exactly that board).
     let prefer_longer = agreements.notrump.transfer_longer_major;
+    // `notrump.quantitative_thirty_two`: the invite keeps its bottom point only.
+    let tight = u8::from(agreements.notrump.quantitative_thirty_two);
     let rules = Rules::new()
         // 3-level Jacoby transfers.
         .rule(
@@ -63,7 +65,7 @@ fn two_notrump_responses(agreements: &Agreements, shift: u8) -> Rules {
         .rule(
             Bid::new(4, Strain::Notrump),
             120,
-            hcp(11 - shift..=12 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(11 - shift..=12 - shift - tight) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // 3NT to play: game values, no major fit.
         .rule(
@@ -78,7 +80,7 @@ fn two_notrump_responses(agreements: &Agreements, shift: u8) -> Rules {
         rules.rule(
             Bid::new(6, Strain::Notrump),
             120,
-            hcp(13 - shift..=16 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(13 - shift - tight..=16 - shift) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
     } else {
         rules
@@ -103,14 +105,15 @@ fn six_notrump(
 /// (`2NT - 3♣ - 3♦`): the same `4NT` / `6NT` the direct responses carry,
 /// lowered by the same `shift`
 fn quantitative_after_stayman_denial(agreements: &Agreements, shift: u8) -> Rules {
+    let tight = u8::from(agreements.notrump.quantitative_thirty_two);
     if agreements.notrump.quantitative_six_notrump {
         Rules::new()
             .rule(
                 Bid::new(4, Strain::Notrump),
                 120,
-                hcp(11 - shift..=12 - shift),
+                hcp(11 - shift..=12 - shift - tight),
             )
-            .rule(Bid::new(6, Strain::Notrump), 120, hcp(13 - shift..))
+            .rule(Bid::new(6, Strain::Notrump), 120, hcp(13 - shift - tight..))
     } else {
         Rules::new()
     }
@@ -154,8 +157,15 @@ pub(super) fn quantitative_answer(accept_hcp: u8) -> Rules {
 /// `lane` under `notrump.rebid_checkback`, the checkback and forcing majors
 /// of [`rebid_checkback_responder`] sit above all of these.
 fn after_rebid_two_notrump(agreements: &Agreements, lane: Option<(Suit, Suit)>) -> Rules {
+    // `notrump.quantitative_thirty_two` drops the 12-count invite (31 facing 19).
+    // ponytail: the two checkback ladders below keep 12–13; this row measured a
+    // wash on its own (−84 IMPs plain on 983 fired), so nothing says to move them.
     let rules = Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..=13))
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            hcp(12 + u8::from(agreements.notrump.quantitative_thirty_two)..=13),
+        )
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(6..))
         .rule(Call::Pass, 0, hcp(..6));
     let rules = six_notrump(rules, agreements, 14, hcp(0..));
@@ -368,6 +378,10 @@ pub(crate) fn two_notrump_structure() -> Package {
                 } else {
                     0
                 };
+                // `notrump.quantitative_thirty_two`: the three-point 22–24
+                // range accepts the one-point invite on 23 as well.
+                let accept_hcp = &(*accept_hcp
+                    - u8::from(base.len() > 1 && agreements.notrump.quantitative_thirty_two));
                 let prefix = core::iter::once("P*".to_owned())
                     .chain(base.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()

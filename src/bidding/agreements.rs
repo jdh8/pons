@@ -3598,6 +3598,35 @@ pub struct NotrumpKnobs {
     /// `scripts/ab-quantitative-6nt.sh` won all four cells, +0.0031 (none) /
     /// +0.0036 (both) IMPs/board on both scorers, 82 fired per 204,800.
     pub quantitative_six_notrump: bool,
+    /// Every quantitative notrump lane bids `6NT` on a certain 32 HCP,
+    /// invites only when one point short of that, and accepts on anything
+    /// above a minimum
+    ///
+    /// **Default on — measured win 2026-11-21**
+    /// (`scripts/ab-quantitative-thirty-two.sh`, vs BBA, 1,638,400 boards per
+    /// cell): plain +0.0025 / +0.0030 / +0.0025 / +0.0030 IMPs/board for none
+    /// / ns / ew / both, PD and SD-PD the same, 821–865 fired.  The `2NT`
+    /// rebid row alone is a wash (983 fired over the four cells, −84 IMPs
+    /// plain / +10 PD).  Off, the invite bands are
+    /// two points wide and opener accepts only on a maximum, so 32 and 33
+    /// combined stop in `4NT`: 16–17 facing a `1NT` opener that holds 15–16,
+    /// 12 facing a 20-count `2NT`.  On the BBA anchor `0772f1c4` that is 58
+    /// rows (29 deals) per 409,600 boards, −408 IMPs plain / −399 PD
+    /// (docs/bba-gap-campaign.md, round-2 cut, lead 2).  On:
+    ///
+    /// | opener | `4NT` | `6NT` | opener accepts on |
+    /// | --- | --- | --- | --- |
+    /// | `1NT` 15–17, direct and after Stayman | 16 | 17+ (direct: 17–20) | 16+ |
+    /// | `1NT`, five-card major after the transfer | 16 | 17+ | 16+ |
+    /// | `2NT` 20–21, direct and after `3♣ - 3♦` | 11 | 12+ | 21 |
+    /// | `2♣ - 2x - 2NT` 22–24 (shifted bands) | 9 | 10+ | 23+ |
+    /// | the 18–19 `2NT` rebid | 13 | 14+ | 19 |
+    ///
+    /// The direct `1NT - 6NT` exists only under this knob: off, a balanced
+    /// 18+ with no major to show bids `3NT`.  The `2NT` rebid row only drops the 12-count invite
+    /// (31 facing 19; [notrump-slam.md](../../../docs/notrump-slam.md) makes
+    /// 31 a coin flip).
+    pub quantitative_thirty_two: bool,
     /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
     ///
     /// Off, responder's only calls are `3NT`, the quantitative `4NT` and
@@ -3901,6 +3930,7 @@ impl Default for NotrumpKnobs {
             transfer_super_accept: false,
             transfer_longer_major: true,
             quantitative_six_notrump: true,
+            quantitative_thirty_two: true,
             rebid_checkback: true,
             strong_two_notrump_floors: true,
             sixcard_invite_floor: 13,

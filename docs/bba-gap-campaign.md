@@ -350,6 +350,21 @@ measured wash), because over `2NT` the jump is to game.
 to +3266 win 4/4, 742–815 fired. Its worst boards are the `2NT - 4NT` tail
 (passed under a making `6NT`, or raised to a failing one), the same shape as
 lead 3.
+**Lead 2 and lead 3's `4NT` half worked 2026-11-21:**
+`notrump.quantitative_thirty_two` (default on) bids `6NT` on a certain 32,
+invites one point short and accepts above a minimum, in every quantitative
+notrump lane: plain +4082 / +4893 / +4071 / +4873 IMPs none / ns / ew / both
+per 1,638.4k boards per cell vs BBA (+0.0025 to +0.0030 IMPs/board), win
+4/4, PD +4029 to +4865 and SD-PD +4223 to +5229 win 4/4, 821–865 fired. Cut
+by lane over the four cells (3,360 fired, +17,919 plain): the direct
+`1NT - 6NT` on 18–20, which round 2 never listed (base bid `3NT`), is the
+largest piece, +5620 on 508; lead 2's own lanes (17 facing `1NT`, opener's
+accept on 16, the `2NT` lanes) are +12,383 on 1,869. Lead 3's half, the
+12-count `3NT` over the 18–19 `2NT` rebid, is a wash on its own: −84 plain /
++10 PD on 983 fired, where the anchor read −166 on 22 rows. It ships with
+the knob as measured; the two checkback ladders over that `2NT` keep their
+12–13 invite. Lead 3's other half (checkback where BBA bids a natural `3♥`)
+is untouched.
 
 **The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`
