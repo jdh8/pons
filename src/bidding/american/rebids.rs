@@ -338,7 +338,13 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
 /// Under the up-the-line completion (`up_the_line`) a six-plus club suit
 /// rebids a natural `2♣` — without it those hands land in the misdescribed
 /// 1NT catch-all.
+///
+/// Under `rebid.one_club_one_diamond_two_notrump_first` (with `up_the_line`,
+/// whose `1♦` denies a four-card major) the balanced 18–19 `2NT` outranks
+/// `1M`: no 4-4 major fit exists, and responder passes `1M` on a minimum.
 fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
+    let two_notrump_first =
+        agreements.response.up_the_line && agreements.rebid.one_club_one_diamond_two_notrump_first;
     let mut rules = Rules::new()
         .rule(Bid::new(1, Strain::Hearts), 130, len(Suit::Hearts, 4..))
         .rule(
@@ -358,7 +364,7 @@ fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
         )
         .rule(
             Bid::new(2, Strain::Notrump),
-            110,
+            if two_notrump_first { 140 } else { 110 },
             fifths(18.0..20.0) & balanced(),
         );
     if agreements.response.up_the_line {

@@ -1845,6 +1845,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_minor_raise_keycard: bool,
 
+    /// Rebid `1M` ahead of the balanced 18–19 `2NT` after `1♣ - 1♦`, which
+    /// denies a four-card major
+    /// (`rebid.one_club_one_diamond_two_notrump_first`, default on; the off
+    /// arm of `scripts/ab-one-club-one-diamond-two-notrump.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_one_club_one_diamond_two_notrump_first: bool,
+
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
     /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
@@ -3789,6 +3796,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         !args.no_ns_two_over_one_reverse_quantitative;
     agreements.rebid.two_over_one_minor_raise_keycard =
         !args.no_ns_two_over_one_minor_raise_keycard;
+    agreements.rebid.one_club_one_diamond_two_notrump_first =
+        !args.no_ns_one_club_one_diamond_two_notrump_first;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

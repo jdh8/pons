@@ -38,6 +38,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rebid.one_club_one_diamond_two_notrump_first`: the balanced 18–19
+  `2NT` ahead of `1M` after `1♣ - 1♦` (2026-11-21, default on, measured
+  win).** Our `1♦` response denies a four-card major (`response.up_the_line`),
+  so opener's `1M` there can never find a 4-4 fit, yet `1M` (weight 1.30)
+  outranked `2NT` (1.10): a balanced 18–19 with a four-card major rebid `1M`
+  and responder passed it on a minimum. On the BBA anchor `0772f1c4` that is
+  288 rows (149 deals), −618 plain / −517 PD, responder passing `1M` on 150
+  with BBA in `3NT` on 130. On, the `2NT` weighs 1.40, above `1M` and below
+  the `3♦` raise. Against BBA
+  (`scripts/ab-one-club-one-diamond-two-notrump.sh`, 1,638,400 boards per
+  cell, seed 1795177221863966046): plain +1434 / +2629 / +1416 / +2568 IMPs
+  for none / ns / ew / both (+0.0009 to +0.0016 IMPs/board, ±0.0002 to
+  ±0.0003), PD +1196 / +2232 / +1172 / +2179, SD-PD +2005 / +3266 / +1892 /
+  +3244, a win in all four cells on 742–815 fired boards (+1.9 to +3.2 IMPs
+  each). The off arm is
+  `bba-gen --no-ns-one-club-one-diamond-two-notrump-first`, which builds the
+  same rows as before.
+
 - **`rebid.two_over_one_minor_raise_keycard`: RKCB after opener raises
   responder's minor in a 2/1 (2026-11-20, default on, measured win).** Opener's
   raise (`1M - 2m - 3m`, `1♦ - 2♣ - 3♣`) took the no-fit quantitative bands,

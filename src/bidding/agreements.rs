@@ -5127,6 +5127,23 @@ pub struct RebidKnobs {
     /// +1113, all wins on 261–296 fired boards.  The off arm is
     /// `bba-gen --no-ns-two-over-one-minor-raise-keycard`.
     pub two_over_one_minor_raise_keycard: bool,
+    /// Opener's balanced 18–19 `2NT` outranks `1M` after `1♣ - 1♦`
+    ///
+    /// **Default on — measured win 2026-11-21.**  Needs
+    /// [`up_the_line`][ResponseKnobs::up_the_line], whose `1♦` denies a
+    /// four-card major: opener's `1M` there can never find a 4-4 fit.  Off,
+    /// `1M` (weight 1.30) outranks `2NT` (1.10), so a balanced 18–19 with a
+    /// four-card major rebids `1M` and responder passes it on a minimum.  On
+    /// the BBA anchor `0772f1c4` that is 288 rows (149 deals) per 409,600
+    /// boards, −618 IMPs plain / −517 PD; responder passes `1M` on 150 of
+    /// them with BBA in `3NT` on 130.  On, the `2NT` weighs 1.40: above
+    /// `1M`, still below the `3♦` raise (1.50).  Against BBA
+    /// (`scripts/ab-one-club-one-diamond-two-notrump.sh`, 1,638,400 boards
+    /// per cell) plain +1434 / +2629 / +1416 / +2568 IMPs for none / ns /
+    /// ew / both (+0.0009 to +0.0016 IMPs/board), PD +1172 to +2232, SD-PD
+    /// +1892 to +3266, all wins on 742–815 fired boards.  The off arm is
+    /// `bba-gen --no-ns-one-club-one-diamond-two-notrump-first`.
+    pub one_club_one_diamond_two_notrump_first: bool,
     /// Jump to `3NT` over `1m - 1x` on a six-card minor and 18+ HCP
     ///
     /// **Default on — measured win 2026-10-06.**  Off, every 16+ six-card
@@ -5512,6 +5529,7 @@ impl Default for RebidKnobs {
             two_over_one_opener_invite: true,
             two_over_one_reverse_quantitative: true,
             two_over_one_minor_raise_keycard: true,
+            one_club_one_diamond_two_notrump_first: true,
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,

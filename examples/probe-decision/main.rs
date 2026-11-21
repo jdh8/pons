@@ -22,6 +22,8 @@
 //! `PROBE_SPADE_RAISE_SPLINTER=off|1|4` sets opener's splinter raise over
 //! `1x - 1♠` (default 4, any singleton; 1 = BBA's small-singleton rule);
 //! `PROBE_HEART_RAISE_SPLINTER=off|1|4` its mirror over `1m - 1♥` (default 4).
+//! `PROBE_ONE_CLUB_ONE_DIAMOND_2NT_FIRST=off` puts `1M` back ahead of the
+//! balanced 18–19 `2NT` after `1♣ - 1♦` (default on).
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -328,6 +330,11 @@ fn main() {
                     .expect("PROBE_LAW_RAISE is off or a slack in levels"),
             ),
         };
+    }
+    // The balanced 18–19 `2NT` ahead of `1M` after `1♣ - 1♦`
+    // (`rebid.one_club_one_diamond_two_notrump_first`, default on).
+    if let Ok("0" | "off") = std::env::var("PROBE_ONE_CLUB_ONE_DIAMOND_2NT_FIRST").as_deref() {
+        agreements.rebid.one_club_one_diamond_two_notrump_first = false;
     }
     match std::env::var("PROBE_NEW_SUIT_VETO").as_deref() {
         Ok("0") | Ok("off") => agreements.decision.instinct.new_suit_veto = false,

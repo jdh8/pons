@@ -343,6 +343,13 @@ Leads 2–6 are first-call pairs that price BBA's continuation with its call
 build. Lead 2 goes through [notrump-slam.md](notrump-slam.md)'s `6NT` gate
 and lead 4 is not the `1NT` super-accept (`transfer_super_accept`, a
 measured wash), because over `2NT` the jump is to game.
+**Lead 1 worked 2026-11-21:** `rebid.one_club_one_diamond_two_notrump_first`
+(default on) puts the `2NT` at 1.40, above `1M`: plain +1434 / +2629 / +1416
+/ +2568 IMPs none / ns / ew / both per 1,638.4k boards per cell vs BBA
+(+0.0009 to +0.0016 IMPs/board), win 4/4, PD +1172 to +2232 and SD-PD +1892
+to +3266 win 4/4, 742–815 fired. Its worst boards are the `2NT - 4NT` tail
+(passed under a making `6NT`, or raised to a failing one), the same shape as
+lead 3.
 
 **The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`

@@ -728,3 +728,49 @@ fn xyz_accept_thirteen_bids_game_over_two_notrump() {
         P,
     );
 }
+
+// --- rebid.one_club_one_diamond_two_notrump_first ----------------------------
+
+#[test]
+fn one_club_one_diamond_two_notrump_first() {
+    let after_one_diamond = [call(1, Strain::Clubs), P, call(1, Strain::Diamonds), P];
+    let system_with = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.rebid.one_club_one_diamond_two_notrump_first = on;
+        american(&agreements).bind()
+    };
+    let on = system_with(true);
+
+    // Balanced 18–19 with a four-card major: 1♦ denied a major, so 2NT.
+    assert_eq!(
+        best_call(&on, &after_one_diamond, "K53.KQ85.KJ2.AK9"),
+        call(2, Strain::Notrump),
+    );
+    // Off: the major first, which responder may pass.
+    assert_eq!(
+        best_call(&system_with(false), &after_one_diamond, "K53.KQ85.KJ2.AK9"),
+        call(1, Strain::Hearts),
+    );
+    // An unbalanced or minimum hand still shows its major ...
+    assert_eq!(
+        best_call(&on, &after_one_diamond, "K5.KQ85.2.AJ9732"),
+        call(1, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call(&on, &after_one_diamond, "K53.KQ85.J62.A97"),
+        call(1, Strain::Hearts),
+    );
+    // ... and responder raises the 2NT to game on a minimum.
+    let after_two_notrump = [
+        call(1, Strain::Clubs),
+        P,
+        call(1, Strain::Diamonds),
+        P,
+        call(2, Strain::Notrump),
+        P,
+    ];
+    assert_eq!(
+        best_call(&on, &after_two_notrump, "J62.A7.Q9843.T52"),
+        call(3, Strain::Notrump),
+    );
+}
