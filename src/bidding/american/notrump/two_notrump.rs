@@ -136,8 +136,38 @@ fn stayman_answers_at_three() -> Rules {
 }
 
 /// Complete a 3-level transfer by bidding the anchor suit
-fn complete_transfer_at_three(into: Suit) -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::from(into)), 100, hcp(0..))
+///
+/// Under `notrump.two_notrump_super_accept`, four-card support jumps to game.
+// ponytail: no strength or shape gate — BBA's jump has none, and it won 4/4.
+fn complete_transfer_at_three(into: Suit, agreements: &Agreements) -> Rules {
+    let rules = Rules::new().rule(Bid::new(3, Strain::from(into)), 100, hcp(0..));
+    if agreements.notrump.two_notrump_super_accept {
+        rules.rule(Bid::new(4, Strain::from(into)), 150, len(into, 4..))
+    } else {
+        rules
+    }
+}
+
+/// Responder over opener's `4M` jump (`notrump.two_notrump_super_accept`):
+/// RKCB on 11+ support points facing 20–21 and nine trumps, else the game
+/// stands
+///
+/// Left to the floor this seat bid `6M` on eight-counts and `7M` where the
+/// completion lane bid six: −950 to −1185 plain IMPs per 1.6M boards
+/// (`scripts/ab-two-notrump-super-accept.sh`, read 2026-11-22).  Gated on raw
+/// HCP it passed the shapely slams instead (`AKQ8543.T.753.94`): 86 boards,
+/// −307 plain in the none cell (round 2, read 2026-11-23).
+// ponytail: no term for a sixth trump beyond the shortness it brings; the
+// slam census (docs/suit-slam.md, threshold 15) prices it near half a point.
+fn after_super_accept(into: Suit, shift: u8) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            support_points(into, 11 - shift..),
+        )
+        .alert(slam::RKCB)
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to the quantitative 4NT: accept or decline the slam invite
@@ -401,11 +431,11 @@ pub(crate) fn two_notrump_structure() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend(call(3, Strain::Diamonds))),
-                    complete_transfer_at_three(Suit::Hearts),
+                    complete_transfer_at_three(Suit::Hearts, agreements),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend(call(3, Strain::Hearts))),
-                    complete_transfer_at_three(Suit::Spades),
+                    complete_transfer_at_three(Suit::Spades, agreements),
                 ));
 
                 // Quantitative 4NT answer.
@@ -421,6 +451,17 @@ pub(crate) fn two_notrump_structure() -> Package {
                 let extend3 = |a: Call, b: Call, c: Call| format!("{prefix} {a} - {b} - {c} -");
                 let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
                 let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
+                if agreements.notrump.two_notrump_super_accept {
+                    for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
+                        let jumped = extend2(transfer, call(4, Strain::from(major)));
+                        entries.extend(rows_of(
+                            Pattern::node(&jumped),
+                            after_super_accept(major, shift),
+                        ));
+                        entries.extend(slam::rkcb_rows_facing_strong(&jumped, major));
+                        entries.extend(slam::rkcb_answerer_rows(&jumped, major));
+                    }
+                }
                 entries.extend(rows_of(
                     Pattern::node(&extend2(three_c, three_d)),
                     smolen_at_three(),

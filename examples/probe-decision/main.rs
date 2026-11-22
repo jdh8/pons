@@ -26,6 +26,9 @@
 //! balanced 18–19 `2NT` after `1♣ - 1♦` (default on).
 //! `PROBE_QUANTITATIVE_THIRTY_TWO=off` turns off the 32-HCP quantitative bands
 //! (`notrump.quantitative_thirty_two`, default on).
+//! `PROBE_TWO_NOTRUMP_SUPER_ACCEPT=off` turns off the `4M` jump over
+//! `2NT - 3♦/3♥` with four-card support
+//! (`notrump.two_notrump_super_accept`, default on).
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -340,6 +343,9 @@ fn main() {
     }
     if let Ok("0" | "off") = std::env::var("PROBE_QUANTITATIVE_THIRTY_TWO").as_deref() {
         agreements.notrump.quantitative_thirty_two = false;
+    }
+    if let Ok("0" | "off") = std::env::var("PROBE_TWO_NOTRUMP_SUPER_ACCEPT").as_deref() {
+        agreements.notrump.two_notrump_super_accept = false;
     }
     match std::env::var("PROBE_NEW_SUIT_VETO").as_deref() {
         Ok("0") | Ok("off") => agreements.decision.instinct.new_suit_veto = false,

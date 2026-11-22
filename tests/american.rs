@@ -466,7 +466,8 @@ fn test_strong_two_system_on_transfer() {
         call(3, Strain::Hearts),
     );
 
-    // ... and opener completes the transfer.
+    // ... and opener completes the transfer on three trumps (four jump to
+    // game under `notrump.two_notrump_super_accept`).
     let completed = [
         call(2, Strain::Clubs),
         p,
@@ -478,7 +479,7 @@ fn test_strong_two_system_on_transfer() {
         p,
     ];
     assert_eq!(
-        best_call(&system, &completed, "AKQ2.AKJ.KQ4.932"),
+        best_call(&system, &completed, "AKQ.AKJ2.KQ4.932"),
         call(3, Strain::Spades),
     );
 }

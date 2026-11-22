@@ -188,3 +188,76 @@ fn quantitative_thirty_two() {
     );
     assert_eq!(both(&rebid, "965.QJ64.K62.AK5"), (four_nt, four_nt));
 }
+
+// --- notrump.two_notrump_super_accept ----------------------------------------
+
+#[test]
+fn two_notrump_super_accept() {
+    let system_with = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.notrump.two_notrump_super_accept = on;
+        american(&agreements).bind()
+    };
+    let (on, off) = (system_with(true), system_with(false));
+    let both = |auction: &[Call], hand: &str| {
+        (
+            best_call(&off, auction, hand),
+            best_call(&on, auction, hand),
+        )
+    };
+    let hearts = [call(2, Strain::Notrump), P, call(3, Strain::Diamonds), P];
+    let spades = [call(2, Strain::Notrump), P, call(3, Strain::Hearts), P];
+    // Four trumps jump to game; three complete.
+    assert_eq!(
+        both(&hearts, "A7.AJ42.AKQ6.KT7"),
+        (call(3, Strain::Hearts), call(4, Strain::Hearts)),
+    );
+    assert_eq!(
+        both(&spades, "A954.AK5.A8.AQT4"),
+        (call(3, Strain::Spades), call(4, Strain::Spades)),
+    );
+    assert_eq!(
+        both(&hearts, "AK7.AJ4.KQ62.KT7"),
+        (call(3, Strain::Hearts), call(3, Strain::Hearts)),
+    );
+    // The 22–24 lane shares the structure.
+    let strong = [
+        call(2, Strain::Clubs),
+        P,
+        call(2, Strain::Diamonds),
+        P,
+        call(2, Strain::Notrump),
+        P,
+        call(3, Strain::Diamonds),
+        P,
+    ];
+    assert_eq!(
+        both(&strong, "AK7.AQJ4.AKQ6.K7"),
+        (call(3, Strain::Hearts), call(4, Strain::Hearts)),
+    );
+    // Responder over the jump: a weak hand passes, 9 support points pass, 11
+    // ask keycards — on shape as well as on high cards.
+    let jumped = [
+        call(2, Strain::Notrump),
+        P,
+        call(3, Strain::Diamonds),
+        P,
+        call(4, Strain::Hearts),
+        P,
+    ];
+    let four_nt = call(4, Strain::Notrump);
+    assert_eq!(best_call(&on, &jumped, "86.T9743.J52.943"), P);
+    assert_eq!(best_call(&on, &jumped, "K6.QT743.J52.Q43"), P);
+    assert_eq!(best_call(&on, &jumped, "K6.KT743.K52.Q43"), four_nt);
+    assert_eq!(best_call(&on, &jumped, "T.AKQ8543.753.94"), four_nt);
+    // Facing 20+, `5♣` is four keycards unless we hold two ourselves.
+    let answered = [&jumped[..], &[four_nt, P, call(5, Strain::Clubs), P]].concat();
+    assert_eq!(
+        best_call(&on, &answered, "K73.KQJ76.74.KQ9"),
+        call(6, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call(&on, &answered, "A73.KQJ76.74.Q93"),
+        call(5, Strain::Hearts),
+    );
+}

@@ -366,6 +366,24 @@ the knob as measured; the two checkback ladders over that `2NT` keep their
 12–13 invite. Lead 3's other half (checkback where BBA bids a natural `3♥`)
 is untouched.
 
+**Lead 4 traced 2026-11-22:** a game lane, not a slam lane. Of the 114 rows,
+57 are responder passing our `3M` on 0–4 HCP with five trumps while BBA's
+`4M` (any four-card support, no strength gate) makes: −302 plain. The slam
+rows net about −50 (our `6NT` / `7NT` after `3NT` −53, game vs BBA's slam
++10). `notrump.two_notrump_super_accept` is BBA's jump.
+
+**Lead 4 shipped 2026-11-23** (`scripts/ab-two-notrump-super-accept.sh`,
+round 3, 1,638,400 boards per cell vs BBA, seed 1795365303630366253): plain
++0.0007 / +0.0010 / +0.0006 / +0.0010 IMPs/board for none / ns / ew / both
+(±0.0003), PD +0.0005 / +0.0008 / +0.0005 / +0.0008, SD-PD +0.0008 to
++0.0013, a win in all four cells on 777–802 fired boards; default on. The
+bare jump (round 1) lost on the floor's slam bidding over `4M`; an HCP-gated
+`4NT` (round 2) was non-inferior; round 3 gates `4NT` on support points and
+reads `5♣` as four keycards facing 20+. Two residues, both untraced: the
+`3M` completion, now denying four trumps, loses −117 to −155 plain IMPs per
+cell where either arm reaches slam; and the knob moved one deal per cell
+that BBA opened, through the mirrored reading (−11 to −13 IMPs).
+
 **The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`
 in the snapshot). Shipping **+0.0050 ±0.0017 / +0.0054 ±0.0024 plain**

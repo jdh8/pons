@@ -38,6 +38,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`notrump.two_notrump_super_accept`: opener jumps to `4M` over a
+  three-level transfer with four-card support (2026-11-23, default on,
+  measured win).** Over `2NT - 3♦ -` / `2NT - 3♥ -` and the `2♣ - 2x - 2NT`
+  lanes, four or more trumps bid game instead of completing, as BBA does;
+  the `3M` completion now denies four. Responder passes the jump or asks
+  keycards on 11+ support points (9+ in the `2♣` lanes), and in this lane
+  reads a `5♣` answer as four keycards unless holding two. On the `0772f1c4`
+  anchor, lead 4 of the round-2 cut (114 rows, −358 plain / −335 PD) was a
+  game lane: on 57 rows responder passed our `3M` on 0–4 HCP with five
+  trumps while BBA's `4M` made (−302 plain). Against BBA
+  (`scripts/ab-two-notrump-super-accept.sh` round 3, 1,638,400 boards per
+  cell, seed 1795365303630366253): plain +1072 / +1655 / +1048 / +1642 IMPs
+  for none / ns / ew / both (+0.0006 to +0.0010 IMPs/board, ±0.0003), PD
+  +862 / +1313 / +838 / +1310, SD-PD +1386 / +2185 / +1672 / +2105, a win in
+  all four cells on 777–802 fired boards. By lane (plain, same cell order):
+  the jump ending at game or below +607 / +931 / +607 / +923, the jump with
+  either arm in slam +393 / +501 / +360 / +518, the `3M` completion at game
+  or below +211 / +368 / +211 / +369, and the `3M` completion with either
+  arm in slam −128 / −134 / −117 / −155 (PD −144 to −196), where responder
+  now drives to slam facing a completion that reads as three trumps;
+  untraced. Rounds 1 and 2 (the bare jump, then an HCP-gated `4NT`) were
+  non-wins on the slam tail. The isolation gate failed on one deal per cell
+  that BBA opened (`2♣ - 2♦ - 2NT - 3♥ - 4♠`: our lead-directing double of
+  `5♦` becomes a pass, −11 to −13 IMPs), the knob reaching their auction
+  through the mirrored reading; recorded, not resolved. `alert-sites.txt`
+  re-blessed (`rkcb` +456 sites); no card row yet (the BBA card's "Super
+  acceptance after NT" still follows the `1NT` knob). The off arm is
+  `bba-gen --no-ns-two-notrump-super-accept`; the web toggle is
+  `two_notrump_super_accept`.
+
 - **`notrump.quantitative_thirty_two`: `6NT` on a certain 32 HCP in every
   quantitative notrump lane (2026-11-21, default on, measured win).** The
   invite bands were two points wide and opener accepted only on a maximum, so

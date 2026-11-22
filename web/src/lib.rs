@@ -1091,6 +1091,7 @@ knob!(set_stayman_cue_continuation, stayman_cue_continuation, notrump.stayman_cu
 knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_slam_try: bool);
 knob!(set_quantitative_six_notrump, quantitative_six_notrump, notrump.quantitative_six_notrump: bool);
 knob!(set_quantitative_thirty_two, quantitative_thirty_two, notrump.quantitative_thirty_two: bool);
+knob!(set_two_notrump_super_accept, two_notrump_super_accept, notrump.two_notrump_super_accept: bool);
 knob!(set_rebid_checkback, rebid_checkback, notrump.rebid_checkback: bool);
 knob!(set_strong_two_notrump_floors, strong_two_notrump_floors, notrump.strong_two_notrump_floors: bool);
 knob!(set_splinter_doubled, splinter_doubled, competition.splinter_doubled: bool);
@@ -1659,6 +1660,7 @@ static SETTINGS: &[Setting] = &[
     toggle("stayman_minor_slam_try", NOTRUMP, "", true, set_stayman_minor_slam_try, stayman_minor_slam_try),
     toggle("quantitative_six_notrump", NOTRUMP, "direct 6NT above each quantitative 4NT", true, set_quantitative_six_notrump, quantitative_six_notrump),
     toggle("quantitative_thirty_two", NOTRUMP, "6NT on a certain 32 HCP, one-point invites", true, set_quantitative_thirty_two, quantitative_thirty_two),
+    toggle("two_notrump_super_accept", NOTRUMP, "4M over a 2NT transfer with four trumps", true, set_two_notrump_super_accept, two_notrump_super_accept),
     toggle("rebid_checkback", NOTRUMP, "checkback and forcing 3M over the 18–19 2NT rebid", true, set_rebid_checkback, rebid_checkback),
     toggle("strong_two_notrump_floors", NOTRUMP, "responder's bands two lower over the 22–24 2NT after 2♣", true, set_strong_two_notrump_floors, strong_two_notrump_floors),
     toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, set_nt_splinter, nt_splinter),

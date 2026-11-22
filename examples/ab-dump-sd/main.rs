@@ -321,6 +321,13 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_no_ns_quantitative_thirty_two: bool,
+    /// Read the ON arm without the `4M` jump over `2NT - 3♦/3♥`
+    /// (`notrump.two_notrump_super_accept` off; `bba-gen --no-ns-two-notrump-super-accept`)
+    #[arg(long, default_value_t = false)]
+    on_no_ns_two_notrump_super_accept: bool,
+    /// Same for the OFF arm
+    #[arg(long, default_value_t = false)]
+    off_no_ns_two_notrump_super_accept: bool,
     /// Read the ON arm with this XYZ relay-invite floor after `1x - 1y - 1NT`
     /// (`rebid.xyz_notrump_invite_floor`, `bba-gen --ns-xyz-notrump-invite-floor`).
     #[arg(long, default_value_t = 11)]
@@ -486,6 +493,7 @@ fn main() {
     on_arm.rebid.one_club_one_diamond_two_notrump_first =
         !args.on_no_ns_one_club_one_diamond_two_notrump_first;
     on_arm.notrump.quantitative_thirty_two = !args.on_no_ns_quantitative_thirty_two;
+    on_arm.notrump.two_notrump_super_accept = !args.on_no_ns_two_notrump_super_accept;
     on_arm.rebid.xyz_notrump_accept = args.on_ns_xyz_notrump_accept;
     on_arm.defense.woolsey_wide_unusual_2nt = args.on_ns_woolsey_wide_2nt;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
@@ -552,6 +560,7 @@ fn main() {
     off_arm.rebid.one_club_one_diamond_two_notrump_first =
         !args.off_no_ns_one_club_one_diamond_two_notrump_first;
     off_arm.notrump.quantitative_thirty_two = !args.off_no_ns_quantitative_thirty_two;
+    off_arm.notrump.two_notrump_super_accept = !args.off_no_ns_two_notrump_super_accept;
     off_arm.rebid.xyz_notrump_accept = args.off_ns_xyz_notrump_accept;
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     common::set_notrump_defense(

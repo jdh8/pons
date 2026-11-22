@@ -3627,6 +3627,27 @@ pub struct NotrumpKnobs {
     /// (31 facing 19; [notrump-slam.md](../../../docs/notrump-slam.md) makes
     /// 31 a coin flip).
     pub quantitative_thirty_two: bool,
+    /// Jump to `4M` over a three-level transfer with four-card support
+    ///
+    /// Over `2NT - 3♦ -` / `2NT - 3♥ -` (and the `2♣ - 2x - 2NT` lanes that
+    /// share the structure), opener with four or more trumps jumps to game
+    /// instead of completing at the three level, as BBA does.  Responder's
+    /// weak transfer then plays the nine-card-fit game it would pass below:
+    /// on the `0772f1c4` anchor 57 of lead 4's 114 rows were responder passing
+    /// our `3M` on 0–4 HCP while BBA's `4M` made (−302 plain).
+    ///
+    /// Responder passes the jump or asks keycards on 11+ support points (9+
+    /// in the `2♣` lanes), reading a `5♣` answer as four keycards unless
+    /// holding two.
+    ///
+    /// **On by default** since 2026-11-23
+    /// (`scripts/ab-two-notrump-super-accept.sh` round 3, vs BBA, 1,638,400
+    /// boards per cell): plain +0.0007 / +0.0010 / +0.0006 / +0.0010
+    /// IMPs/board for none / ns / ew / both (±0.0003), a win in all four
+    /// cells on plain, PD and SD-PD.  The `3M` completion now denies four
+    /// trumps, and its slam rows are the one losing bucket (−117 to −155
+    /// plain IMPs per cell, untraced).
+    pub two_notrump_super_accept: bool,
     /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
     ///
     /// Off, responder's only calls are `3NT`, the quantitative `4NT` and
@@ -3931,6 +3952,7 @@ impl Default for NotrumpKnobs {
             transfer_longer_major: true,
             quantitative_six_notrump: true,
             quantitative_thirty_two: true,
+            two_notrump_super_accept: true,
             rebid_checkback: true,
             strong_two_notrump_floors: true,
             sixcard_invite_floor: 13,

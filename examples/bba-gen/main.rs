@@ -1859,6 +1859,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_quantitative_thirty_two: bool,
 
+    /// Complete `2NT - 3♦/3♥` at three even with four-card support
+    /// (`notrump.two_notrump_super_accept`, default on; the off arm of
+    /// `scripts/ab-two-notrump-super-accept.sh`)
+    #[arg(long, default_value_t = false)]
+    no_ns_two_notrump_super_accept: bool,
+
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
     /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
@@ -3806,6 +3812,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.one_club_one_diamond_two_notrump_first =
         !args.no_ns_one_club_one_diamond_two_notrump_first;
     agreements.notrump.quantitative_thirty_two = !args.no_ns_quantitative_thirty_two;
+    agreements.notrump.two_notrump_super_accept = !args.no_ns_two_notrump_super_accept;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

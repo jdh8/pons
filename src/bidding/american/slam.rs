@@ -300,6 +300,42 @@ fn asker_after_5c(trump: Suit, explore: u8) -> Rules {
     .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
+/// [`asker_after_5c`] facing a hand too strong to hold one keycard: a combined
+/// count of one or two reads as four or five
+///
+/// Once a slam try has fired opposite a 20+ opener, two keycards between the
+/// hands is next to impossible, so an asker with none or one takes `5♣` for
+/// four.  None of our own is four combined (the queen relay's hand, as three
+/// of our own is in the plain table); one is all five and bids six.  Two of
+/// our own still reads partner for one and signs off.
+///
+/// On the super-accept round-2 A/B the plain table signed off in `5M` facing
+/// four keycards on 11 boards per 1.6M for −100 plain IMPs
+/// (`scripts/ab-two-notrump-super-accept.sh`).
+// ponytail: one keycard of our own never explores seven here — the relay's
+// `five` decode is the caller's and still says four of our own; widen it there
+// if the grand ever matters in this lane.
+fn asker_after_5c_facing_strong(trump: Suit, explore: u8) -> Rules {
+    let t = Strain::from(trump);
+    relay_first(
+        trump,
+        Bid::new(5, Strain::Clubs),
+        keycards(trump, 0..=0) | keycards(trump, 3..=3) | (keycards(trump, 4..=4) & hcp(explore..)),
+    )
+    .rule(
+        Bid::new(5, Strain::Notrump),
+        140,
+        keycards(trump, 4..=4) & hcp(explore..),
+    )
+    .alert(RKCB)
+    .rule(
+        Bid::new(6, t),
+        100,
+        keycards(trump, 0..=1) | keycards(trump, 3..=4),
+    )
+    .rule(Bid::new(5, t), 50, hcp(0..))
+}
+
 /// Asker's continuation after a 5♦ response
 ///
 /// Policy: asker with ≤2 keycards assumes partner has 3 → bid 6T; with 3+
@@ -436,7 +472,14 @@ pub(super) fn rkcb_answerer_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 /// The 4NT bid itself must already be in the caller's table; this produces
 /// everything that comes *after* 4NT.
 pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
-    rkcb_rows_with(prefix, trump, None)
+    rkcb_rows_with(prefix, trump, None, false)
+}
+
+/// [`rkcb_rows`] for a major whose answerer has shown 20+: the asker reads a
+/// `5♣` answer as four keycards unless it holds two itself
+/// (`asker_after_5c_facing_strong`)
+pub(super) fn rkcb_rows_facing_strong(prefix: &str, trump: Suit) -> Vec<Entry> {
+    rkcb_rows_with(prefix, trump, None, true)
 }
 
 /// [`rkcb_rows`] with the grand rung: seven on two of the three side kings,
@@ -454,7 +497,7 @@ pub(super) fn grand_rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 
 /// [`grand_rkcb_rows`] on the lane's own terms
 pub(super) fn grand_rkcb_rows_on(prefix: &str, trump: Suit, grand: Grand) -> Vec<Entry> {
-    rkcb_rows_with(prefix, trump, Some(grand))
+    rkcb_rows_with(prefix, trump, Some(grand), false)
 }
 
 /// The grand rung's strength terms for one lane
@@ -548,7 +591,12 @@ fn grand_rung(
         .alert(RKCB)
 }
 
-fn rkcb_rows_with(prefix: &str, trump: Suit, grand: Option<Grand>) -> Vec<Entry> {
+fn rkcb_rows_with(
+    prefix: &str,
+    trump: Suit,
+    grand: Option<Grand>,
+    facing_strong: bool,
+) -> Vec<Entry> {
     // The classic ladder's own grand asks ride the open-ended gate.
     let explore = grand.map_or(Grand::OPEN.explore, |grand| grand.explore);
     let ans_5c = Bid::new(5, Strain::Clubs);
@@ -574,7 +622,11 @@ fn rkcb_rows_with(prefix: &str, trump: Suit, grand: Option<Grand>) -> Vec<Entry>
     // skip the king ask further down).
     let (after_5c, after_5d, after_5h, after_5s) = if matches!(trump, Suit::Hearts | Suit::Spades) {
         (
-            asker_after_5c(trump, explore),
+            if facing_strong {
+                asker_after_5c_facing_strong(trump, explore)
+            } else {
+                asker_after_5c(trump, explore)
+            },
             asker_after_5d(trump, explore),
             asker_after_5h(trump),
             asker_after_5s(trump),

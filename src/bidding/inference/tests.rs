@@ -1830,7 +1830,11 @@ fn authored_calls_read_what_they_gate() {
         // hand at every keycard answer) or dropping it (which would let
         // the relay fire without the values).  See
         // docs/ai-bidder/bba-kickback.md §7.7.
-        ("HCP", 20, 9),
+        // 20/9 → 24/13 when `notrump.two_notrump_super_accept` shipped
+        // (2026-11-23): the same `19+ HCP` bar on the `5♦` queen relay of
+        // `asker_after_5c_facing_strong`, per major, in the two
+        // constructive columns.
+        ("HCP", 24, 13),
         // 59 → 65 when the diamond splinters after `1NT - 2NT` went
         // default-on (2026-08-13).  The six are the same two calls (`3♥`,
         // `3♠`) in each of american constructive/defensive and the (then-)Dutch trie: they
