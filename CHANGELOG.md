@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Three flags left by the `2NT` super-accept closed (2026-11-23).** No
+  behaviour change. (1) The one BBA-opened deal the isolation gate flagged is
+  traced in `docs/bba-gap-campaign.md`: with the knob on we read BBA's
+  transfer hand for 5+ spades (true) where off read 6+, the net floor's
+  double of `5♦` became a pass, and the −11 to −13 IMPs were BBA misreading
+  its own `XX` after that double; the reading stays unscoped. (2) The BBA
+  card row "Super acceptance after NT" stays on the `1NT` knob: EPBot reads
+  `2NT - 3♦ - 4♥` and `3♥` identically with the row at 0 and at 1, and the
+  row feeds that knob's net feature. (3) `slam::asker_after_5c`'s doc said an
+  asker with two or fewer keycards assumes partner has four; the code signs
+  off in `5T` there (only `asker_after_5c_facing_strong` reads four), and the
+  doc now says so.
+
 ### Removed
 
 - **Eight unused knob accessors in `pons-web` (2026-11-16).** The

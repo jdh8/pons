@@ -271,8 +271,12 @@ fn rkcb_answers(trump: Suit) -> Rules {
 
 /// Asker's continuation after a 5♣ response
 ///
-/// Policy: asker with ≤2 keycards assumes partner has 4 (5NT = all five,
-/// king ask); with 3+ asker knows partner has 1, signs off at 5T or bids 6T.
+/// Policy: `5♣` reads as **one** keycard unless the asker's own count proves
+/// four.  Two of our own makes four impossible; none or one leaves it open,
+/// and this table still takes the answer for one and signs off in `5T`
+/// ([`asker_after_5c_facing_strong`] is the lane that reads those as four).
+/// Three of our own is four combined: the queen relay, else `6T`.  Four is
+/// all five: `5NT` king ask on grand values, else `6T`.
 fn asker_after_5c(trump: Suit, explore: u8) -> Rules {
     let t = Strain::from(trump);
     // Ask only what we will act on.  Three keycards decodes to four combined —

@@ -550,6 +550,15 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // super-accept a Jacoby transfer with four-card support and a maximum.
         // The hand-written card declared `= 1` here; that was a claim to a
         // convention we do not play, and generating it fixes the disclosure.
+        //
+        // `NotrumpKnobs::two_notrump_super_accept` (on by default) does not
+        // move this row.  EPBot's interpreter reads `2NT - 3♦ - 4♥` as
+        // `20-21 4-5♥ [Super acceptance after NT]` and `3♥` as `2-4♥` with
+        // the row at 0 and at 1 alike (`probe-bba-book --conv`, 2026-11-23),
+        // so the row is no disclosure channel for the jump; and
+        // `ConventionCard::from_card` projects it onto the 1NT knob's feature,
+        // which an OR of the two knobs would turn on for a net never trained
+        // with it.
         "Super acceptance after NT" => i32::from(a.notrump.transfer_super_accept),
         // Two lanes share the row: the clubs-lane `2♦` and the `3♣` over
         // `1♥ - 1♠ - 2♦` (`rebid.diamond_rebid_fourth_suit`).

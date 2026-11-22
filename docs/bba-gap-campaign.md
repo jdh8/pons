@@ -384,6 +384,21 @@ reads `5♣` as four keycards facing 20+. Two residues, both untraced: the
 cell where either arm reaches slam; and the knob moved one deal per cell
 that BBA opened, through the mirrored reading (−11 to −13 IMPs).
 
+That deal, traced 2026-11-23 (board 1069830, `2♣ - 2♦ - 2NT - 3♥ - 4♠ - 4NT -
+5♣ - 5♦`, South `4.J64.QT964.KT54`): the reading is not scoped away. BBA
+plays the same jump (`probe-bba-book`: `2NT - 3♦ - 4♥` is `20-21 4-5♥ [Super
+acceptance after NT]`), and with the knob on we read the transfer hand for
+5+ spades, which it held (`A9753`), where off read 6+. The shifted reading
+moves the net floor's logits (`probe-decision`, `P` 19.34 → 19.17, `X` 16.72
+→ 16.48) and under `bba-gen`'s seat floor the double of `5♦` became a pass.
+The IMPs were BBA's own accident: over our double its `XX` was misread and
+it stopped in `5♠` holding four keycards and the trump queen; undoubled it
+bids the `6♠` it should. `probe-decision` passes in both arms, so the flip
+itself is not reproduced outside `bba-gen`. The card row "Super acceptance
+after NT" stays on the `1NT` knob: BBA's interpreter reads the jump and the
+completion identically with the row at 0 and at 1, and the row feeds the
+`1NT` knob's net feature (`ConventionCard::from_card`).
+
 **The `b13dd9fe` window, paired** (`ab-dump-diff` direct A/B at table A,
 `b13dd9fe` − `b3ffe8ee`, same deals; `diff.window.{american,instinct}.*.txt`
 in the snapshot). Shipping **+0.0050 ±0.0017 / +0.0054 ±0.0024 plain**
