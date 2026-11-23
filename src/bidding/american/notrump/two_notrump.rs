@@ -170,6 +170,64 @@ fn after_super_accept(into: Suit, shift: u8) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Responder over the plain `3M` completion
+/// (`notrump.two_notrump_transfer_rebid`)
+///
+/// Unauthored, this seat is the floor's, and its slam milestones run on the
+/// evaluator net alone: `6NT` on a five-card 10-count, `6M` on six trumps and
+/// 6–8 HCP (`scripts/ab-two-notrump-super-accept.sh`, round 3: the one losing
+/// bucket, −117 to −155 plain IMPs per cell).  The table mirrors the direct
+/// responses, with the same `shift`:
+///
+/// | Call | Wt | Meaning |
+/// |------|----|---------|
+/// | 6M | 1.3 | Six trumps, 11+ support points (31+ facing 20–21 and a fit) |
+/// | 4NT | 1.2 | Quantitative, five trumps, 11–12 |
+/// | 6NT | 1.2 | Five trumps, 13–16 (`notrump.quantitative_six_notrump`) |
+/// | 4M | 1.1 | Six trumps, to play |
+/// | 3NT | 1.0 | Choice of games, five trumps, 5–10 |
+/// | Pass | 0.0 | Under game values |
+///
+/// Five trumps on 17+ stay with the floor, as in the direct table.
+// ponytail: six trumps place the slam without a keycard ask — `4NT` is the
+// quantitative raise here and opener cannot tell the two apart.  Give the long
+// hand an ask (a Texas-style route) if the `6M` row measures badly.
+fn after_transfer_completion(into: Suit, agreements: &Agreements, shift: u8) -> Rules {
+    let tight = u8::from(agreements.notrump.quantitative_thirty_two);
+    let trump = Strain::from(into);
+    let rules = Rules::new()
+        .rule(
+            Bid::new(6, trump),
+            130,
+            len(into, 6..) & support_points(into, 11 - shift..),
+        )
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            len(into, ..6) & hcp(11 - shift..=12 - shift - tight),
+        )
+        .rule(
+            Bid::new(4, trump),
+            110,
+            len(into, 6..) & support_points(into, 4 - shift..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            100,
+            len(into, ..6) & hcp(5 - shift..=10 - shift),
+        )
+        .rule(Call::Pass, 0, hcp(..5 - shift));
+    if agreements.notrump.quantitative_six_notrump {
+        rules.rule(
+            Bid::new(6, Strain::Notrump),
+            120,
+            len(into, ..6) & hcp(13 - shift - tight..=16 - shift),
+        )
+    } else {
+        rules
+    }
+}
+
 /// Opener's answer to the quantitative 4NT: accept or decline the slam invite
 ///
 /// `accept_hcp` is the minimum HCP to accept: 21 after a 2NT opening (20–21),
@@ -271,9 +329,23 @@ fn rebid_checkback_answers(major: Suit) -> Rules {
 
 /// Responder places the contract once opener shows three-card support: the
 /// major game, or RKCB with 14+ (32+ combined and a 5-3 fit)
-fn after_checkback_fit(major: Suit) -> Rules {
-    Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 120, hcp(14..))
+///
+/// `shape` (`notrump.rebid_checkback_shape_keycard`) asks on 13+ support
+/// points instead: the fit is known, so a short suit is worth its ruffs, and
+/// the `.pdd` census (`probe-drury-slam --checkback`) turns positive at 13
+/// facing three trumps, at 12 facing a six-card suit.
+fn after_checkback_fit(major: Suit, shape: bool) -> Rules {
+    let rules = Rules::new();
+    let rules = if shape {
+        rules.rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            support_points(major, 13..),
+        )
+    } else {
+        rules.rule(Bid::new(4, Strain::Notrump), 120, hcp(14..))
+    };
+    rules
         .alert(slam::RKCB)
         .rule(Bid::new(4, Strain::from(major)), 100, hcp(0..))
 }
@@ -297,12 +369,20 @@ fn after_checkback_denial() -> Rules {
 }
 
 /// Responder after the forcing `3M` is raised: RKCB with 12+ (a 6-2 fit
-/// opposite 18–19), else the game stands
-fn after_six_card_raise() -> Rules {
-    Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..))
-        .alert(slam::RKCB)
-        .rule(Call::Pass, 0, hcp(0..))
+/// opposite 18–19), else the game stands; `shape` as in
+/// [`after_checkback_fit`]
+fn after_six_card_raise(major: Suit, shape: bool) -> Rules {
+    let rules = Rules::new();
+    let rules = if shape {
+        rules.rule(
+            Bid::new(4, Strain::Notrump),
+            120,
+            support_points(major, 12..),
+        )
+    } else {
+        rules.rule(Bid::new(4, Strain::Notrump), 120, hcp(12..))
+    };
+    rules.alert(slam::RKCB).rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Every node below responder's checkback, forcing `3M` and (over `1♥`) `3♠`
@@ -311,7 +391,7 @@ fn after_six_card_raise() -> Rules {
 /// (`P* 1♦ - 1♠ - 2NT -`).  The contested tails (they double the checkback)
 /// are left to reading: the ask projects the major and no minor, so the floor
 /// holds no phantom suit — the XYZ precedent.
-fn rebid_checkback_rows(two_nt_rebid: &str, opening: Suit, major: Suit) -> Vec<Entry> {
+fn rebid_checkback_rows(two_nt_rebid: &str, opening: Suit, major: Suit, shape: bool) -> Vec<Entry> {
     let trump = Strain::from(major);
     let other = other_major(major);
     let node = |tail: &str| Pattern::node(&format!("{two_nt_rebid} {tail}"));
@@ -321,7 +401,7 @@ fn rebid_checkback_rows(two_nt_rebid: &str, opening: Suit, major: Suit) -> Vec<E
     let ask = format!("{} -", call(3, Strain::from(new_minor(opening))));
     let mut entries = rows_of(node(&ask), rebid_checkback_answers(major));
     let fit = format!("{ask} {} -", call(3, trump));
-    entries.extend(rows_of(node(&fit), after_checkback_fit(major)));
+    entries.extend(rows_of(node(&fit), after_checkback_fit(major, shape)));
     entries.extend(slam::rkcb_rows(&format!("{two_nt_rebid} {fit}"), major));
     entries.extend(slam::rkcb_answerer_rows(
         &format!("{two_nt_rebid} {fit}"),
@@ -347,7 +427,7 @@ fn rebid_checkback_rows(two_nt_rebid: &str, opening: Suit, major: Suit) -> Vec<E
         Rules::new().rule(Bid::new(4, trump), 100, hcp(0..)),
     ));
     let raised = format!("{three_m} {} -", call(4, trump));
-    entries.extend(rows_of(node(&raised), after_six_card_raise()));
+    entries.extend(rows_of(node(&raised), after_six_card_raise(major, shape)));
     entries.extend(slam::rkcb_rows(&format!("{two_nt_rebid} {raised}"), major));
     entries.extend(slam::rkcb_answerer_rows(
         &format!("{two_nt_rebid} {raised}"),
@@ -451,6 +531,19 @@ pub(crate) fn two_notrump_structure() -> Package {
                 let extend3 = |a: Call, b: Call, c: Call| format!("{prefix} {a} - {b} - {c} -");
                 let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
                 let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
+                if agreements.notrump.two_notrump_transfer_rebid {
+                    for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
+                        let completed = extend2(transfer, call(3, Strain::from(major)));
+                        entries.extend(rows_of(
+                            Pattern::node(&completed),
+                            after_transfer_completion(major, agreements, shift),
+                        ));
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{completed} {four_nt} -")),
+                            quantitative_answer(*accept_hcp),
+                        ));
+                    }
+                }
                 if agreements.notrump.two_notrump_super_accept {
                     for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
                         let jumped = extend2(transfer, call(4, Strain::from(major)));
@@ -540,7 +633,12 @@ pub(crate) fn two_notrump_rebids() -> Package {
                 if let Some((opening, major)) = *lane
                     && agreements.notrump.rebid_checkback
                 {
-                    entries.extend(rebid_checkback_rows(&two_nt_rebid, opening, major));
+                    entries.extend(rebid_checkback_rows(
+                        &two_nt_rebid,
+                        opening,
+                        major,
+                        agreements.notrump.rebid_checkback_shape_keycard,
+                    ));
                 }
             }
 

@@ -1,7 +1,8 @@
 use super::super::notrump::flat_4333;
+use super::super::slam;
 use crate::bidding::agreements::ResponseKnobs;
-use crate::bidding::constraint::{balanced, hcp, len, points, support};
-use crate::bidding::rows::{Package, expand};
+use crate::bidding::constraint::{balanced, hcp, len, points, support, support_points};
+use crate::bidding::rows::{Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -39,8 +40,23 @@ pub(super) fn with_choice_of_games(rules: Rules, major: Suit, knobs: &ResponseKn
 /// Correct to `4M` with an unbalanced hand (the alerted reading pins 3+
 /// support, so the 5-3 fit is known); pass balanced — including 5332, which
 /// the floor's ruffing-shortness correction would wrongly pull.
-fn opener_after_choice_of_games(major: Suit) -> Rules {
-    Rules::new()
+///
+/// Under [`ResponseKnobs::choice_of_games_keycard`] a hand on that many
+/// support points asks keycards first: responder has shown 12–15 HCP and
+/// three trumps, and the sign-off above cannot tell a 13-count from a 19.
+fn opener_after_choice_of_games(major: Suit, keycard: Option<u8>) -> Rules {
+    let rules = Rules::new();
+    let rules = match keycard {
+        Some(floor) => rules
+            .rule(
+                Bid::new(4, Strain::Notrump),
+                120,
+                support_points(major, floor..),
+            )
+            .alert(slam::RKCB),
+        None => rules,
+    };
+    rules
         .rule(Bid::new(4, Strain::from(major)), 100, !balanced())
         .rule(Call::Pass, 0, hcp(0..))
 }
@@ -50,12 +66,21 @@ pub(crate) fn choice_of_games_continuations() -> Package {
     Package {
         name: "major-choice-of-games-continuations",
         gate: |a| a.response.major_choice_of_games,
-        entries: |_| {
-            expand(
-                "P* 1M - 3NT -",
-                |_| true,
-                |b| opener_after_choice_of_games(b.suit('M')),
-            )
+        entries: |agreements| {
+            let keycard = agreements.response.choice_of_games_keycard;
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let prefix = format!("P* 1{} - 3NT -", Strain::from(major));
+                entries.extend(rows_of(
+                    Pattern::node(&prefix),
+                    opener_after_choice_of_games(major, keycard),
+                ));
+                if keycard.is_some() {
+                    entries.extend(slam::rkcb_rows(&prefix, major));
+                    entries.extend(slam::rkcb_answerer_rows(&prefix, major));
+                }
+            }
+            entries
         },
     }
 }

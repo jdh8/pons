@@ -261,3 +261,94 @@ fn two_notrump_super_accept() {
         call(5, Strain::Hearts),
     );
 }
+
+// --- notrump.rebid_checkback_shape_keycard -----------------------------------
+
+#[test]
+fn rebid_checkback_shape_keycard() {
+    let system_with = |on: bool| {
+        let mut agreements = Agreements::default();
+        agreements.notrump.rebid_checkback_shape_keycard = on;
+        american(&agreements).bind()
+    };
+    let (on, off) = (system_with(true), system_with(false));
+    let both = |auction: &[Call], hand: &str| {
+        (
+            best_call(&off, auction, hand),
+            best_call(&on, auction, hand),
+        )
+    };
+    let four_nt = call(4, Strain::Notrump);
+    let rebid = [
+        call(1, Strain::Diamonds),
+        P,
+        call(1, Strain::Spades),
+        P,
+        call(2, Strain::Notrump),
+        P,
+    ];
+    // The 5-3 fit: 13 HCP and a singleton asks; a flat 8-count never does.
+    let fit = [
+        &rebid[..],
+        &[call(3, Strain::Clubs), P, call(3, Strain::Spades), P],
+    ]
+    .concat();
+    assert_eq!(
+        both(&fit, "Q9753.AQT4.KQ5.8"),
+        (call(4, Strain::Spades), four_nt),
+    );
+    assert_eq!(
+        both(&fit, "K9753.Q64.K52.82"),
+        (call(4, Strain::Spades), call(4, Strain::Spades)),
+    );
+    // The 6-2 fit: 11 HCP and a singleton asks over the raise.
+    let raised = [
+        &rebid[..],
+        &[call(3, Strain::Spades), P, call(4, Strain::Spades), P],
+    ]
+    .concat();
+    assert_eq!(both(&raised, "QJT432.AT64.8.A5"), (P, four_nt));
+}
+
+// --- notrump.two_notrump_transfer_rebid --------------------------------------
+
+#[test]
+fn two_notrump_transfer_rebid() {
+    let mut agreements = Agreements::default();
+    agreements.notrump.two_notrump_transfer_rebid = true;
+    let on = american(&agreements).bind();
+    let hearts = [
+        call(2, Strain::Notrump),
+        P,
+        call(3, Strain::Diamonds),
+        P,
+        call(3, Strain::Hearts),
+        P,
+    ];
+    let three_nt = call(3, Strain::Notrump);
+    // Five trumps walk the notrump ladder: a 10-count offers the choice of
+    // games, 11 invites (the one-point invite of `quantitative_thirty_two`),
+    // 13 bids the slam.
+    assert_eq!(best_call(&on, &hearts, "53.AJT86.J872.KJ"), three_nt);
+    assert_eq!(
+        best_call(&on, &hearts, "53.AJT86.Q872.KJ"),
+        call(4, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&on, &hearts, "K3.AJT86.K872.Q4"),
+        call(6, Strain::Notrump),
+    );
+    // Six trumps place the contract: game on a 6-count, slam on shape and 9.
+    assert_eq!(
+        best_call(&on, &hearts, "T8.AQ9765.T32.65"),
+        call(4, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call(&on, &hearts, "K7.A98752.8.QJ74"),
+        call(6, Strain::Hearts),
+    );
+    // A bust passes the completion; opener declines the invite on 20.
+    assert_eq!(best_call(&on, &hearts, "532.T8643.872.J4"), P);
+    let invited = [&hearts[..], &[call(4, Strain::Notrump), P]].concat();
+    assert_eq!(best_call(&on, &invited, "KQJ2.K4.AK3.A652"), P);
+}

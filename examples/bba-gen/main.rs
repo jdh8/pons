@@ -1871,6 +1871,44 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_notrump_super_accept: bool,
 
+    /// Gate the `1m - 1M - 2NT` checkback's keycard asks on support points
+    /// (13+ on the 5-3 fit, 12+ on the 6-2), not raw HCP
+    /// (`notrump.rebid_checkback_shape_keycard`, default off; the on arm of
+    /// `scripts/ab-rebid-checkback-shape-keycard.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_rebid_checkback_shape_keycard: bool,
+
+    /// Author responder's rebid over the plain `3M` completion of a `2NT`
+    /// transfer instead of leaving it to the floor
+    /// (`notrump.two_notrump_transfer_rebid`, default off; the on arm of
+    /// `scripts/ab-two-notrump-transfer-rebid.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_two_notrump_transfer_rebid: bool,
+
+    /// Pass `1♥ - 1♠ - 2♥` on a misfit under 12 HCP instead of inviting with
+    /// `2NT` (`rebid.heart_rebid_misfit_pass`, default off; the on arm of
+    /// `scripts/ab-heart-spade-tails.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_heart_rebid_misfit_pass: bool,
+
+    /// Raise opener's `2m` in `1♥ - 1♠ - 2m` to `3m` on four-card support, not
+    /// five (`rebid.minor_rebid_four_card_raise`, default off; the on arm of
+    /// `scripts/ab-heart-spade-tails.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_minor_rebid_four_card_raise: bool,
+
+    /// Responder's invitational `3♠` (six spades) and `4♠` (seven) over `1♥ -
+    /// 1♠ - 2m` (`rebid.spade_jump_rebid_invite`, default off; the on arm of
+    /// `scripts/ab-heart-spade-tails.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_spade_jump_rebid_invite: bool,
+
+    /// Opener's support-point floor for the `4NT` keycard ask over the choice-
+    /// of-games `1M - 3NT` (`response.choice_of_games_keycard`, default none;
+    /// the on arm of `scripts/ab-choice-of-games-keycard.sh`)
+    #[arg(long, value_name = "POINTS")]
+    ns_choice_of_games_keycard: Option<u8>,
+
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
     /// displaces `rebid.forcing_nt_jump_shifts`, so this is the jump shifts'
@@ -3820,6 +3858,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         !args.no_ns_one_club_one_diamond_two_notrump_first;
     agreements.notrump.quantitative_thirty_two = !args.no_ns_quantitative_thirty_two;
     agreements.notrump.two_notrump_super_accept = !args.no_ns_two_notrump_super_accept;
+    agreements.notrump.rebid_checkback_shape_keycard = args.ns_rebid_checkback_shape_keycard;
+    agreements.notrump.two_notrump_transfer_rebid = args.ns_two_notrump_transfer_rebid;
+    agreements.rebid.heart_rebid_misfit_pass = args.ns_heart_rebid_misfit_pass;
+    agreements.rebid.minor_rebid_four_card_raise = args.ns_minor_rebid_four_card_raise;
+    agreements.rebid.spade_jump_rebid_invite = args.ns_spade_jump_rebid_invite;
+    agreements.response.choice_of_games_keycard = args.ns_choice_of_games_keycard;
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

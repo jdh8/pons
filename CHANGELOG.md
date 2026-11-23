@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Six opt-in knobs for the remaining round-2 leads of the BBA anchor
+  `a0977ce9`, all off by default and unmeasured (2026-11-24).** No default
+  call changes. Each has a `bba-gen --ns-…` flag and a runner queued through
+  `scripts/queue-ab.sh`; the verdicts are owed.
+  - `ResponseKnobs::choice_of_games_keycard` (`None`; the arm is `Some(18)`):
+    opener asks keycards over `1M - 3NT` on 18+ support points (lead 6, −216
+    plain IMPs on 38 anchor rows). `scripts/ab-choice-of-games-keycard.sh`.
+  - `NotrumpKnobs::rebid_checkback_shape_keycard`: after `1m - 1M - 2NT`,
+    responder's keycard asks count support points (13+ on the 5-3 fit, 12+
+    on the 6-2) instead of 14+ / 12+ HCP (lead 3b, −269 on 37 rows).
+    `scripts/ab-rebid-checkback-shape-keycard.sh`.
+  - `NotrumpKnobs::two_notrump_transfer_rebid`: responder's rebid over the
+    plain `3M` completion of a `2NT` transfer is a book table, not the
+    floor's net-only slam leap (the losing bucket of the super-accept A/B,
+    −117 to −155 plain per cell). `scripts/ab-two-notrump-transfer-rebid.sh`.
+  - `RebidKnobs::heart_rebid_misfit_pass`, `minor_rebid_four_card_raise` and
+    `spade_jump_rebid_invite`: three natural fixes to responder's rebid in
+    `1♥ - 1♠ - 2x` (lead 7), one arm each in
+    `scripts/ab-heart-spade-tails.sh`.
+  - `probe-drury-slam` takes `--choice-of-games` and `--checkback` to price
+    a keycard ask against game for those two populations.
+
 ### Changed
 
 - **Opener's keycard ask over Reverse Drury needs 20 support points, not 19

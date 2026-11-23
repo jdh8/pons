@@ -86,8 +86,13 @@ fn responder_after_spade_jump() -> Rules {
 /// | 3♥   | 1.2 | Invitational raise, 2+ hearts (10–12 points) |
 /// | 2NT  | 1.0 | Natural notrump invite (10–12 points) |
 /// | Pass | 0.0 | Minimum, nothing further |
+///
+/// The `3♥` raise takes every 10–12 with two hearts, so the `2NT` invite is
+/// the misfit: a singleton or void.  Under
+/// [`RebidKnobs::heart_rebid_misfit_pass`] it needs 12 HCP, and a lighter
+/// misfit passes `2♥`.
 #[must_use]
-fn responder_after_heart_rebid(keycard: bool) -> Rules {
+fn responder_after_heart_rebid(keycard: bool, misfit_pass: bool) -> Rules {
     let mut rules = Rules::new();
     if keycard {
         rules = rules
@@ -110,7 +115,11 @@ fn responder_after_heart_rebid(keycard: bool) -> Rules {
             120,
             len(Suit::Hearts, 2..) & points(10..=12),
         )
-        .rule(Bid::new(2, Strain::Notrump), 100, points(10..=12))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            100,
+            points(10..=12) & hcp(if misfit_pass { 12 } else { 0 }..),
+        )
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -169,7 +178,9 @@ fn opener_after_heart_invite() -> Rules {
 /// | 3NT  | 2.05 | Minimum game force, no major fit: 13–15 HCP, ≤2♥, ≤4♠ (diamonds only, knob-gated) |
 /// | 3♣   | 2.0  | Fourth-suit game force, 13+ HCP (diamonds only, knob-gated) |
 /// | 3♥   | 1.3  | Invitational jump preference, 3+ hearts (10–12) |
-/// | 3m   | 1.25 | Invitational raise of opener's minor, 5+ (10–12) |
+/// | 4♠   | 1.28 | Seven spades, to play (10–12; [`RebidKnobs::spade_jump_rebid_invite`]) |
+/// | 3♠   | 1.27 | Invitational, 6+ spades (10–12; same knob) |
+/// | 3m   | 1.25 | Invitational raise of opener's minor, 5+ (10–12); 4+ under [`RebidKnobs::minor_rebid_four_card_raise`] |
 /// | 2NT  | 1.2  | Natural notrump invite (10–12) |
 /// | 2♠   | 1.05 | Weak rebid, 6+ spades, to play (≤9) |
 /// | 2♥   | 1.0  | Simple preference, 2+ hearts (6–9) |
@@ -204,13 +215,32 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
             .rule(Bid::new(3, Strain::Clubs), 200, hcp(13..))
             .alert(FOURTH_SUIT);
     }
-    rules = rules
-        .rule(
-            Bid::new(3, Strain::Hearts),
-            130,
-            len(Suit::Hearts, 3..) & points(10..=12),
-        )
-        .rule(Bid::new(3, m), 125, len(minor, 5..) & points(10..=12));
+    rules = rules.rule(
+        Bid::new(3, Strain::Hearts),
+        130,
+        len(Suit::Hearts, 3..) & points(10..=12),
+    );
+    if knobs.spade_jump_rebid_invite {
+        // HCP, like the `2NT` invite these hands leave: `points` would count
+        // the long suit twice.
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Spades),
+                128,
+                len(Suit::Spades, 7..) & hcp(10..=12),
+            )
+            .rule(
+                Bid::new(3, Strain::Spades),
+                127,
+                len(Suit::Spades, 6..) & hcp(10..=12),
+            );
+    }
+    let raise = if knobs.minor_rebid_four_card_raise {
+        4
+    } else {
+        5
+    };
+    rules = rules.rule(Bid::new(3, m), 125, len(minor, raise..) & points(10..=12));
     // The one no-fit rung: HCP-gauged when `nt_invite_hcp` is armed (a
     // notrump invite takes no ruffs), else the shipped `points`.
     rules = if knobs.nt_invite_hcp {
@@ -244,6 +274,28 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
 fn opener_accept_minor_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's call over responder's invitational `3♠` after `1♥ - 1♠ - 2m`
+/// ([`RebidKnobs::spade_jump_rebid_invite`])
+///
+/// Responder holds six spades and 10–12.  Three-card support always raises;
+/// a doubleton raises on 13+; a short spade bids `3NT` on 15+ HCP, else
+/// passes.
+#[must_use]
+fn opener_after_spade_jump_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            100,
+            len(Suit::Spades, 3..) | (len(Suit::Spades, 2..) & points(13..)),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            90,
+            len(Suit::Spades, ..=1) & hcp(15..),
+        )
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -449,7 +501,10 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
             let after_two_hearts = format!("{base} 2♥ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_hearts),
-                responder_after_heart_rebid(knobs.heart_rebid_keycard),
+                responder_after_heart_rebid(
+                    knobs.heart_rebid_keycard,
+                    knobs.heart_rebid_misfit_pass,
+                ),
             ));
             if knobs.heart_rebid_keycard {
                 entries.extend(slam::rkcb_rows(&after_two_hearts, Suit::Hearts));
@@ -487,6 +542,20 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
                     Pattern::node(&format!("{after_minor} 3♥ -")),
                     opener_accept_limit_raise(Suit::Hearts),
                 ));
+                if knobs.spade_jump_rebid_invite {
+                    // The 3♠ invite and its answer; a game in spades stands.
+                    let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{after_minor} 3♠ -")),
+                        opener_after_spade_jump_rebid(),
+                    ));
+                    for game in ["3♠ - 4♠ -", "4♠ -"] {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{after_minor} {game}")),
+                            pass(),
+                        ));
+                    }
+                }
                 if minor == Suit::Diamonds && knobs.diamond_rebid_fourth_suit {
                     // Responder's 3♣ game force: opener answers naturally,
                     // responder places or asks keycards for hearts.

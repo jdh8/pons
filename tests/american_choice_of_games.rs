@@ -78,3 +78,36 @@ fn opener_corrects_to_four_hearts_with_shape() {
         call(4, Strain::Hearts),
     );
 }
+
+/// `ResponseKnobs::choice_of_games_keycard`: 18+ support points ask keycards
+/// before choosing the game, and responder answers on the 1430 ladder
+#[test]
+fn opener_asks_keycards_on_slam_values() {
+    let mut agreements = Agreements::default();
+    agreements.response.choice_of_games_keycard = Some(18);
+    let (off, on) = (partnership(), american(&agreements).bind());
+    let auction = [
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Notrump),
+        Call::Pass,
+    ];
+    let four_nt = call(4, Strain::Notrump);
+    assert_eq!(
+        best_call(&off, &auction, "AKJ53.AQ42.KJ3.5"),
+        call(4, Strain::Spades),
+    );
+    assert_eq!(best_call(&on, &auction, "AKJ53.AQ42.KJ3.5"), four_nt);
+    // A minimum still only chooses the game.
+    assert_eq!(best_call(&on, &auction, "KQJ87.K9.982.K42"), Call::Pass);
+    assert_eq!(
+        best_call(&on, &auction, "KQJ85.A2.93.T863"),
+        call(4, Strain::Spades),
+    );
+    // Responder shows three keycards (1430).
+    let asked = [&auction[..], &[four_nt, Call::Pass]].concat();
+    assert_eq!(
+        best_call(&on, &asked, "T96.A93.A82.AQ87"),
+        call(5, Strain::Diamonds),
+    );
+}

@@ -3648,6 +3648,19 @@ pub struct NotrumpKnobs {
     /// trumps, and its slam rows are the one losing bucket (−117 to −155
     /// plain IMPs per cell, untraced).
     pub two_notrump_super_accept: bool,
+    /// Author responder's rebid over the plain `3M` completion of a `2NT`
+    /// transfer
+    ///
+    /// Off, the seat falls to the floor, whose slam milestones there run on
+    /// the evaluator net alone: `6NT` on a five-card 10-count, `6M` on six
+    /// trumps and 6–8 HCP.  That is the one losing bucket of the super-accept
+    /// A/B (round 3: −117 to −155 plain IMPs per cell; traced 2026-11-24, the
+    /// `3M` reading `2..=3` trumps tips the net about a point earlier).  On,
+    /// five trumps bid the notrump ladder of the direct responses (`3NT`
+    /// 5–10, quantitative `4NT` 11–12, `6NT` 13–16) and six place `4M`, or
+    /// `6M` on 11+ support points.  **Off by default**, measurement owed:
+    /// `scripts/ab-two-notrump-transfer-rebid.sh`.
+    pub two_notrump_transfer_rebid: bool,
     /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
     ///
     /// Off, responder's only calls are `3NT`, the quantitative `4NT` and
@@ -3667,6 +3680,19 @@ pub struct NotrumpKnobs {
     /// fired per 204,800.  Owed: the doubled checkback (`3x (X)`) still drops
     /// to the floor.
     pub rebid_checkback: bool,
+    /// Count the checkback's keycard gates in support points, not raw HCP
+    ///
+    /// Under [`rebid_checkback`][Self::rebid_checkback] responder asks
+    /// keycards once the fit is found: on 14+ HCP after `3m - 3M` (a 5-3
+    /// fit), on 12+ after the forcing `3M` is raised (6-2).  On, the gates are
+    /// 13+ and 12+ support points in the agreed major, where the `.pdd`
+    /// census (`probe-drury-slam --checkback`) first prices the ask above the
+    /// game; a short suit counts, and `Q9753.AQT4.KQ5.8` asks where it used
+    /// to bid `4♠`.  The anchor
+    /// `a0977ce9` prices the two sign-offs at −269 plain IMPs on 37 rows
+    /// (round-2 lead 3b, BBA in slam).  **Off by default**, measurement owed:
+    /// `scripts/ab-rebid-checkback-shape-keycard.sh`.
+    pub rebid_checkback_shape_keycard: bool,
     /// Responder's floors over the 22–24 `2NT` rebid after `2♣`
     ///
     /// `2♣ - 2♦ - 2NT` and `2♣ - 2♥ - 2NT` reuse the `2NT`-opening response
@@ -3953,7 +3979,9 @@ impl Default for NotrumpKnobs {
             quantitative_six_notrump: true,
             quantitative_thirty_two: true,
             two_notrump_super_accept: true,
+            two_notrump_transfer_rebid: false,
             rebid_checkback: true,
+            rebid_checkback_shape_keycard: false,
             strong_two_notrump_floors: true,
             sixcard_invite_floor: 13,
             sixcard_accept_floor: 18,
@@ -4369,6 +4397,16 @@ pub struct ResponseKnobs {
     /// lone four-card suit as a 2/1 (or Jacoby 2NT / limit raise with four
     /// trumps).
     pub major_choice_of_games: bool,
+    /// Opener's keycard ask over the choice-of-games `1M - 3NT`
+    ///
+    /// `None`: opener only chooses the game, `4M` unbalanced or a pass.
+    /// `Some(n)`: on `n`+ support points opener bids `4NT`, RKCB in the
+    /// major, before that choice.  Responder is 12–15 HCP with three or four
+    /// trumps and no ruffing value.  The anchor `a0977ce9` prices the missing
+    /// ask at −216 plain IMPs on 38 rows (round-2 lead 6: BBA cue-bids to
+    /// `6♠`).  **`None` by default**, measurement owed:
+    /// `scripts/ab-choice-of-games-keycard.sh`.
+    pub choice_of_games_keycard: Option<u8>,
     // --- raises/game_try.rs
     /// Author the long-suit and general game tries after `1M - 2M`
     ///
@@ -4520,6 +4558,7 @@ impl Default for ResponseKnobs {
             two_over_one_minor_before_spades: true,
             up_the_line: true,
             major_choice_of_games: true,
+            choice_of_games_keycard: None,
             major_game_tries: true,
             major_raise_slam_try: true,
             limit_raise_acceptance: true,
@@ -5263,6 +5302,33 @@ pub struct RebidKnobs {
     /// anchor `25aea82c` our `3♥` vs BBA's `4♥` there is 97 rows, −364 plain /
     /// −306 PD per 409,600 boards, nearly all a vulnerable game left in `3♥`.
     pub heart_rebid_invite_accept: bool,
+    /// Pass `1♥ - 1♠ - 2♥` on a misfit 10–11 instead of inviting with `2NT`
+    ///
+    /// The `3♥` raise takes every 10–12 with two hearts, so responder's `2NT`
+    /// is a singleton or void.  Opener declines it with `3♥`, a level higher
+    /// on the same misfit: on the anchor `a0977ce9` that is 112 of the 149
+    /// `2NT` rows for −242 plain / −394 PD, where BBA passed `2♥` (round-2
+    /// lead 7).  On, `2NT` needs 12 HCP and a lighter misfit passes.
+    /// **Off by default**, measurement owed: `scripts/ab-heart-spade-tails.sh`.
+    pub heart_rebid_misfit_pass: bool,
+    /// Raise opener's `2m` rebid in `1♥ - 1♠ - 2m` on four cards, not five
+    ///
+    /// The invitational `3m` (10–12) needs five-card support today, so a 4-4
+    /// minor fit invites with `2NT`.  On the anchor `a0977ce9` BBA raises
+    /// `2♦` on four where we bid `2NT`: 60 rows, −148 plain / −202 PD
+    /// (round-2 lead 7).  **Off by default**, measurement owed:
+    /// `scripts/ab-heart-spade-tails.sh`.
+    pub minor_rebid_four_card_raise: bool,
+    /// Responder's invitational `3♠` (six spades) and `4♠` (seven) over
+    /// `1♥ - 1♠ - 2m`
+    ///
+    /// Today a 10–12 hand with long spades has only `2NT`.  On, six spades
+    /// jump to `3♠` (opener raises on three-card support or a doubleton and
+    /// 13+, bids `3NT` on a short spade and 15+ HCP, else passes) and seven
+    /// bid `4♠`.  On the anchor `a0977ce9` the `2NT` rows where BBA bid `3♠`
+    /// or `4♠` are 68 rows, −146 plain / −137 PD (round-2 lead 7).  **Off by
+    /// default**, measurement owed: `scripts/ab-heart-spade-tails.sh`.
+    pub spade_jump_rebid_invite: bool,
     /// Responder asks keycards for hearts over `1♥ - 1♠ - 2♥` (2+ hearts, 16+
     /// points) and `1♥ - 1♠ - 3♥` (2+ hearts, 14+ points)
     ///
@@ -5603,6 +5669,9 @@ impl Default for RebidKnobs {
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
+            heart_rebid_misfit_pass: false,
+            minor_rebid_four_card_raise: false,
+            spade_jump_rebid_invite: false,
             heart_rebid_keycard: true,
             diamond_rebid_fourth_suit: true,
             fourth_suit_keycard: false,
