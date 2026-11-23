@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Reading `5♣` as four keycards in every RKCB lane: measured, not a win,
+  dropped (2026-11-23).** An asker holding none or one keycard read the
+  `5♣` answer as four in every book RKCB lane, as the lane facing 20+ after
+  the `2NT` super-accept already does. A/B vs BBA
+  (`scripts/ab-rkcb-five-clubs-four.sh`, seed 1795382556049855042, 1,638,400
+  boards per cell, 108–119 fired): plain DD −90 / −170 / −66 / −167 IMPs
+  (none/ns/ew/both), every point estimate negative; PD and SD-PD lose where
+  NS is vulnerable. With partner holding four, the old sign-off already
+  reached the grand (18–20 made in 24–26); bidding six takes that away. Away
+  from the lane facing 20+, the asker meets a partner with one about 50
+  times per cell. The knob was never committed; the book is unchanged.
+
 - **Three flags left by the `2NT` super-accept closed (2026-11-23).** No
   behaviour change. (1) The one BBA-opened deal the isolation gate flagged is
   traced in `docs/bba-gap-campaign.md`: with the knob on we read BBA's
