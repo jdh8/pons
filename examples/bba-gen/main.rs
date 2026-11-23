@@ -1046,6 +1046,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_drury_splinters: bool,
 
+    /// Opener's support-point floor for the direct `4NT` keycard ask over
+    /// Reverse Drury (`response.drury_keycard`, default `20`, shipped
+    /// 2026-11-23; `19` is the control arm of `scripts/ab-drury-keycard.sh`).
+    #[arg(long, default_value_t = 20, value_name = "POINTS")]
+    ns_drury_keycard: u8,
+
     /// Disable the three-card-minor rebid over the forcing `1NT` — a 5-3-3-2
     /// rebids its five-card major again (shipped default-on; see
     /// `ReadingProfile::forcing_nt_three_card_minor`).
@@ -3739,6 +3745,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         };
     agreements.response.drury = !args.no_ns_drury;
     agreements.response.drury_splinters = !args.no_ns_drury_splinters;
+    agreements.response.drury_keycard = args.ns_drury_keycard;
     agreements.decision.reading.forcing_nt_three_card_minor =
         !args.no_ns_forcing_nt_three_card_minor;
     agreements.response.up_the_line = !args.no_ns_up_the_line;

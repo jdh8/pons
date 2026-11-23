@@ -179,3 +179,25 @@ fn responder_steps_with_no_wasted_honor_and_opener_asks() {
         bid(4, Strain::Spades)
     );
 }
+
+#[test]
+fn keycard_floor_moves_a_balanced_nineteen_to_game() {
+    // AKJ96.K54.K8.AJ7: 18 HCP 5332, 19 support points — game at the
+    // shipped floor of 20, the ask at 19.
+    let hand = "AKJ96.K54.K8.AJ7";
+    assert_eq!(
+        best(&drury_trie(), THIRD_SEAT, hand),
+        bid(4, Strain::Spades)
+    );
+    // AKJ52.K63.AK4.K7 keeps the ask.
+    assert_eq!(
+        best(&drury_trie(), THIRD_SEAT, "AKJ52.K63.AK4.K7"),
+        bid(4, Strain::Notrump)
+    );
+    let mut agreements = Agreements::default();
+    agreements.response.drury_splinters = false;
+    agreements.response.drury_keycard = 19;
+    let mut trie = Trie::new();
+    super::super::register(&mut trie, &agreements);
+    assert_eq!(best(&trie, THIRD_SEAT, hand), bid(4, Strain::Notrump));
+}

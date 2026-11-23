@@ -4467,6 +4467,23 @@ pub struct ResponseKnobs {
     /// ±0.0004 / +0.0006 ±0.0006, PD +0.0005 ±0.0004 / +0.0007 ±0.0006
     /// IMPs/board (none / both), all eight per-seed cells non-negative.
     pub drury_splinters: bool,
+    /// Opener's **keycard floor** over Reverse Drury: after `- - 1M - 2♣! -`,
+    /// `4NT` RKCB needs this many support points (default `20`; `19` is the
+    /// earlier ladder); below it opener bids `4M` on 16+
+    ///
+    /// **Shipped at `20` 2026-11-23** (`--ns-drury-keycard 19` in `bba-gen`
+    /// is the control).  A short hand on 16–20 splinters first, so the floor
+    /// moves only a hand without a singleton or void.  The `.pdd` census
+    /// (`examples/probe-drury-slam.rs`, ~100M deals) prices the ask against
+    /// `4M` opposite a 9–11 passed hand: on exactly 19 it loses for every
+    /// opener shape (−1.9 IMPs/case balanced, −0.5 semi-balanced, not vul),
+    /// on 20 it wins (+1.3 / +2.7).  A/B vs BBA
+    /// (`scripts/ab-drury-keycard.sh`, 1,638,400 boards per cell, 148–187
+    /// fired): plain DD +252 / +431 / +242 / +457 IMPs (none / ns / ew /
+    /// both), PD +289 / +503 / +277 / +529, a win in every cell; single-dummy
+    /// −116 / −117 / −81 / −105, non-inferior.  Our reading of *their*
+    /// `1M - 2♣ - 4NT` stays 19+ (`mirror_agreements`), as measured.
+    pub drury_keycard: u8,
     // --- strong_two.rs
     /// BBA's looser positive to the strong `2♣`: any five-card suit, or a
     /// balanced hand, on 7+ HCP
@@ -4509,6 +4526,7 @@ impl Default for ResponseKnobs {
             preemptive_minor_raise_pass: Some(16),
             drury: true,
             drury_splinters: true,
+            drury_keycard: 20,
             strong_two_loose_positive: true,
         }
     }

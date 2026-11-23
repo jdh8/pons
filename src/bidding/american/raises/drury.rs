@@ -18,8 +18,8 @@
 //! |---|---|
 //! | `2M` | minimum, ≤12 (a third/fourth-seat opening starts at 11) |
 //! | `2♦!` | full opening, 13–15 |
-//! | `4M` | 16–18 |
-//! | `4NT` | RKCB, 19+ |
+//! | `4M` | 16–19 |
+//! | `4NT` | RKCB, 20+ ([`ResponseKnobs::drury_keycard`][crate::bidding::agreements::ResponseKnobs::drury_keycard]) |
 //!
 //! | Responder after | Call | Meaning |
 //! |---|---|---|
@@ -98,13 +98,14 @@ fn drury_prefixes(major: Suit) -> [String; 2] {
 }
 
 /// Opener's answer after `- - 1M - 2♣! -`: minimum, full opening, game, or
-/// the keycard ask
-fn drury_answers(major: Suit) -> Rules {
+/// the keycard ask on `keycard`+ support points
+/// ([`ResponseKnobs::drury_keycard`][crate::bidding::agreements::ResponseKnobs::drury_keycard])
+fn drury_answers(major: Suit, keycard: u8) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
-        // 4NT: RKCB on 19+, the rung the limit-raise ladder measured as its
-        // whole win (`limit_raise.rs`).
-        .rule(Bid::new(4, Strain::Notrump), 250, sp(major, 19..))
+        // 4NT: RKCB, the rung the limit-raise ladder measured as its whole
+        // win (`limit_raise.rs`).
+        .rule(Bid::new(4, Strain::Notrump), 250, sp(major, keycard..))
         .alert(slam::RKCB)
         .rule(Bid::new(4, trump), 200, sp(major, 16..))
         .rule(Bid::new(2, Strain::Diamonds), 150, sp(major, 13..=15))
@@ -113,14 +114,15 @@ fn drury_answers(major: Suit) -> Rules {
 }
 
 /// Opener's answers with the splinters on top
-fn drury_answers_with_splinters(major: Suit) -> Rules {
-    drury_splinters(major)
-        .into_iter()
-        .fold(drury_answers(major), |rules, (short, jump, _)| {
+fn drury_answers_with_splinters(major: Suit, keycard: u8) -> Rules {
+    drury_splinters(major).into_iter().fold(
+        drury_answers(major, keycard),
+        |rules, (short, jump, _)| {
             rules
                 .rule(jump, 260, len(short, ..=1) & sp(major, 16..=20))
                 .alert(DRURY_SPLINTER)
-        })
+        },
+    )
 }
 
 /// Responder over opener's splinter: game, or the step with no king, queen
@@ -189,10 +191,11 @@ pub(crate) fn drury_continuations() -> Package {
                 let four_major = call(4, Strain::from(major));
                 for prefix in drury_prefixes(major) {
                     let node = |tail: &str| Pattern::node(&format!("{prefix} {tail}"));
+                    let keycard = agreements.response.drury_keycard;
                     let answers = if agreements.response.drury_splinters {
-                        drury_answers_with_splinters(major)
+                        drury_answers_with_splinters(major, keycard)
                     } else {
-                        drury_answers(major)
+                        drury_answers(major, keycard)
                     };
                     entries.extend(rows_of(Pattern::node(&prefix), answers));
                     if agreements.response.drury_splinters {

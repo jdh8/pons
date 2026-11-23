@@ -349,6 +349,16 @@ where BBA bids `2♣` (1,503 rows, −1,316 plain / −1,418 PD, the
 | 6 | `1♠ - 3NT -`: our `4♠`, BBA's `4♣` / `4♦` | 38 (19) | −216 | −216 | opener 13–18 unbalanced signs off over the 12–15 balanced raise; BBA cue-bids to `6♠` |
 | 7 | `1♥ - 1♠ - 2x -`: responder's `2NT` on 10–12 | 490 (253) | −494 | −781 | diffuse: with four spades over `2♦` / `2♥` 125 rows −267 / −383 (BBA passes `2♥`), with six or more spades 135 rows −185 / −191 (BBA bids spades) |
 
+**Lead 5 worked 2026-11-23: shipped, win 4/4.** The floor of the direct
+`4NT` moved from 19 to 20 support points (`response.drury_keycard`); a short
+hand on 16–20 already splinters, so only a 19 without a singleton or void
+changes, and it bids `4M`. `ab-drury-keycard.sh`, 1,638,400 boards per cell,
+148–187 fired: plain +252 / +431 / +242 / +457 IMPs (none / ns / ew / both),
+PD +289 / +503 / +277 / +529. Single-dummy is negative in every cell (−81 to
+−117 plain), inside non-inferiority. Not worked: the splinter lane's `4NT`
+over the interest step (also 19+, a different population) and the slam
+decision after the answer.
+
 Lead 1 is book-internal, not a census of BBA's continuations: our `1♦`
 response is `4+ ♦, ≤3 ♥, ≤3 ♠`, so opener's `1M` there can never find a 4-4
 fit, and `probe-decision "K53.KQ85.KJ2.AK9" "1♣ - 1♦ -"` reads partner as

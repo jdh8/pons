@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Opener's keycard ask over Reverse Drury needs 20 support points, not 19
+  (2026-11-23).** After `- - 1M - 2♣ -`, a 19-point opener without a
+  singleton or void now bids `4M` instead of `4NT`; a short hand on 16–20
+  splinters as before. New knob `ResponseKnobs::drury_keycard` (default
+  `20`; `19` restores the old ladder; `bba-gen --ns-drury-keycard`). A/B vs
+  BBA (`scripts/ab-drury-keycard.sh`, seed 1795428182203345817, 1,638,400
+  boards per cell, 148–187 fired): plain DD +252 / +431 / +242 / +457 IMPs
+  (none/ns/ew/both), PD +289 / +503 / +277 / +529, a win in every cell,
+  about +1.6 to +2.5 IMPs per fired board on 1 board in 10,000. Single-dummy
+  is negative in every cell (−116 / −117 / −81 / −105 plain) and
+  non-inferior. Our reading of BBA's own `4NT` there stays 19+.
+
 ## [0.12.0] — 2026-11-23
 
 ### Documentation

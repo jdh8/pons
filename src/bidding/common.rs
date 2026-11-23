@@ -192,6 +192,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise opener's rebid over the preemptive minor raise: their
     // `1m - 3m - 3NT` and pass keep the floor's reading.
     mirror.response.preemptive_minor_raise_pass = None;
+    // Likewise opener's keycard floor over Reverse Drury: their
+    // `1M - 2♣ - 4NT` keeps the 19+ reading the A/B ran with.
+    mirror.response.drury_keycard = 19;
     // Likewise the 2/1 suit order: their `1♠ - 2m` keeps the weight ladder's
     // reading.
     mirror.response.two_over_one_hearts_first = false;
