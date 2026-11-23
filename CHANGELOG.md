@@ -81,6 +81,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/queue-ab.sh`: heavy runs queue through pueue (2026-11-24).** It
+  snapshots the checkout, uncommitted files included, into a worktree under
+  `~/ab/` and queues the command there under `idle-run.sh`; pueue runs one
+  task at a time, so several changes can await their A/B while development
+  continues in the main checkout. No bidding change. See
+  [docs/measurement.md](docs/measurement.md#queueing-a-run).
+
 - **`notrump.two_notrump_super_accept`: opener jumps to `4M` over a
   three-level transfer with four-card support (2026-11-23, default on,
   measured win).** Over `2NT - 3♦ -` / `2NT - 3♥ -` and the `2♣ - 2x - 2NT`

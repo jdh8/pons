@@ -29,10 +29,16 @@ read it now if this session hasn't. This skill is the run procedure.
 3. **Seeds.** `export SEED_BASE=$(date +%s%N)` once; all arms of this experiment
    share it (paired diffs need identical deals). Next experiment → new base.
    Record the base + git SHA in the results note.
-4. **Run.** Build first, then hands off the binaries until the run finishes —
-   no rebuilds mid-run. Wrap in `scripts/idle-run.sh` (shared box), arms
-   strictly sequential; one run already saturates every core. `tmux` or
-   `setsid nohup` for long runs. Typical scale: 200k filtered boards/cell
+4. **Run.** Queue it: `scripts/queue-ab.sh SLUG scripts/ab-<x>.sh
+   ab-results/SLUG` (docs/measurement.md § "Queueing a run"). It snapshots
+   the checkout, dirty files included, into a worktree, and pueue runs it
+   under `scripts/idle-run.sh` after whatever is already queued; the runner
+   builds there when its turn comes. Record the task id, then end the turn
+   unless the queue is empty and the run is short; a later session reads
+   `pueue status` and `ab-results/SLUG.log`. Arms strictly sequential; one
+   run already saturates every core. Never start a heavy run or a release
+   build beside the queue. The watcher recipe below applies only to a run
+   launched by hand. Typical scale: 200k filtered boards/cell
    contested, ~205k/arm (6400 × nproc) for bba-gen; 40k filtered ≈ 1 min/cell.
    **Watch the wrapper PID** (`PID=$(pgrep -f '^bash scripts/idle-run.sh
    scripts/<script>')`, then `tail --pid=$PID -f /dev/null`; the `^bash` anchor

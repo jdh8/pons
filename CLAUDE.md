@@ -133,9 +133,13 @@ Each was paid for with a real regression or a wrong conclusion.
 
 ### Operations
 
-- Heavy runs: `scripts/idle-run.sh`, arms **sequential**, one fresh
-  `SEED_BASE=$(date +%s)` per experiment shared across its arms, and never
-  rebuild binaries while an A/B is in flight.
+- Heavy runs go through the queue: `scripts/queue-ab.sh SLUG COMMAND...`
+  freezes the checkout (dirty files included) into a worktree under `~/ab/`
+  and queues the command there under `scripts/idle-run.sh`; pueue runs one
+  task at a time. `pueue status` is the index of what is in flight. Arms
+  **sequential**, one fresh `SEED_BASE=$(date +%s)` per experiment shared
+  across its arms. Never launch a heavy run or a release build beside the
+  queue, and never rebuild in a worktree whose task is running.
 - The ddss `Solver` runs on the main thread only; parallelize bidding with
   rayon, never the solver.
 

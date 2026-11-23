@@ -116,10 +116,13 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    **reach-maximal negative control** — the same mechanism at deliberately
    over-strong thresholds — to separate "these thresholds are too tight" from
    "this mechanism cannot move the bidder".
-7. **Run politely and sequentially.** Wrap heavy runs in
-   `scripts/idle-run.sh`; run arms one after another, never in parallel (each
-   run already saturates the box); **never `cargo build` while an A/B is
-   running** (later shards exec the new binary and die on renamed flags).
+7. **Run politely and sequentially.** Queue heavy runs with
+   `scripts/queue-ab.sh` ([Queueing a run](#queueing-a-run)), which wraps them
+   in `scripts/idle-run.sh`; run arms one after another, never in parallel
+   (each run already saturates the box); **never `cargo build` in a checkout
+   whose A/B is running** (later shards exec the new binary and die on
+   renamed flags). A queued run has its own worktree and `target/`, so the
+   main checkout stays free to edit and build.
 8. **Score with both scorers** — plain DD (`ns_score_contract`) *and* perfect
    defense (`ns_score_bid`) — and report: IMPs/board, IMPs/fired (or /divergent),
    the fired rate, and vulnerability split (none/both). Two seeds or a
@@ -245,6 +248,44 @@ of every shard dir here and on dl02 (2,723 dirs, 2026-10-16) found none that
 differ otherwise, and of the 46 with a note (2026-10-18) only
 `ben-anchor/2026-09-13-daa8bf4a/both`, whose recovered shards ran the PASS-level
 patch, now refuses.
+
+## Queueing a run
+
+Every heavy run saturates the box, so they run one at a time through
+[pueue](https://github.com/Nukesor/pueue) (`pueued` is a systemd user unit;
+its default group is one task wide). Queue a run with:
+
+```sh
+BOARDS=1638400 scripts/queue-ab.sh my scripts/ab-my.sh ab-results/my
+```
+
+`queue-ab.sh` snapshots the checkout as it is at that moment, uncommitted and
+untracked files included, into a detached worktree `~/ab/pons-my`, and queues
+the command there under `idle-run.sh`. Consequences:
+
+- **The run measures the snapshot**, not later edits. The runner's own
+  `cargo build` happens when the task starts, inside the worktree, so builds
+  queue too and no queued task can rebuild under a running one.
+- **Results land in the main checkout.** The worktree's `ab-results` is a
+  symlink to the main one; the log is `ab-results/my.log`.
+- **The environment is captured at queue time** (`BOARDS`, `VULS`, `JOBS`).
+  `seed_for` still draws the seed when the task starts.
+- **The logged SHA is the snapshot commit** (parent: `HEAD` at queue time),
+  clean rather than `-dirty`. It is unreferenced once the worktree is removed,
+  so the reproducible pair is still the committed change plus `SEED_BASE`.
+- Ignored inputs (`data/`, weights outside the tree) are not in the snapshot:
+  pass absolute paths. `BBA_LIB` defaults to the main checkout's library.
+
+`pueue status` shows the queue and each task's exit status;
+`pueue restart -i ID` resumes a failed run in place; `pueue kill ID` stops one.
+Remove the worktree (`git worktree remove --force ~/ab/pons-my`) once the
+verdict is read and no rescore is owed: each holds several GB of `target/`.
+Restarting the `pueued` unit kills the running task. Queued tasks survive a
+reboot; the one that was running is marked failed and needs the restart above.
+
+A queued run is not watched: record the task id and the results path, and
+read `pueue status` and the log in a later session. The recipe below is for a
+run launched by hand outside the queue.
 
 ## Watching a run
 

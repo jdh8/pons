@@ -142,7 +142,9 @@ concurrent 500k `ab-landy` runs drove load to ~126 on 32 cores and produced *zer
 output in ~20 min — slower wall-clock than running them one after another, where a
 single run saturates the cores cleanly. **Chain multi-config sweeps sequentially**
 (`for … do …; done` or `&&`); only genuinely single-threaded jobs are safe to
-idle-run in parallel.
+idle-run in parallel. Separate experiments go through the pueue queue
+(`scripts/queue-ab.sh`, [measurement.md](measurement.md#queueing-a-run)), which
+runs them one at a time, each from its own worktree.
 
 ## Check for live A/Bs before building or editing
 
