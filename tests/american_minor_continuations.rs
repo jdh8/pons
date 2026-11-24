@@ -445,7 +445,7 @@ fn rebid_checkback_finds_the_five_three_fit_and_the_slam() {
         "{slam:?}"
     );
     // A six-card suit forces with 3♠ and is raised.
-    let six = play_out(&system, start(), ["AQJT64.K4.J96.65", opener]);
+    let six = play_out(&system, start(), ["AJT964.K4.J96.65", opener]);
     assert_eq!(
         &six[6..],
         [call(3, Strain::Spades), P, call(4, Strain::Spades), P, P, P]

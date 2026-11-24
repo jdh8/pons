@@ -396,7 +396,8 @@ fn rebid_checkback_over_two_notrump() {
     assert_eq!(best_with(&on, &denied, "KJ752.AJT.T2.Q84"), P);
     assert_eq!(best_with(&on, &denied, "KJ752.QT9.A2.Q84"), bid(4, nt));
     assert_eq!(best_with(&on, &denied, "AKJ52.AJT.T2.Q84"), bid(6, nt));
-    // The forcing 3♠ is raised, and 12+ keycards over the raise.
+    // The forcing 3♠ is raised, and 12+ support points keycard over the
+    // raise (`rebid_checkback_shape_keycard`, default on).
     let forced = [bid(1, d), P, bid(1, s), P, bid(2, nt), P, bid(3, s), P];
     assert_eq!(best_with(&on, &forced, "AJ.KQ54.AKJ5.Q73"), bid(4, s));
     let raised = [
@@ -411,7 +412,7 @@ fn rebid_checkback_over_two_notrump() {
         bid(4, s),
         P,
     ];
-    assert_eq!(best_with(&on, &raised, "AQJT64.K4.J96.65"), P);
+    assert_eq!(best_with(&on, &raised, "AJT964.K4.J96.65"), P);
     assert_eq!(best_with(&on, &raised, "AQJT64.K4.A96.65"), bid(4, nt));
     // 3♠ over 1♥: raised with four spades, else 3NT.
     let spades = [bid(1, c), P, bid(1, h), P, bid(2, nt), P, bid(3, s), P];

@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     1795473254996592931, 1,638,400 boards per cell, 432–478 fired): plain DD
     +1128 / +1438 / +1130 / +1432 IMPs (none/ns/ew/both), PD +1075 / +1351 /
     +1070 / +1345, a win in every cell on plain, PD and both single-dummy
-    scorers. Still off by default: the default flip is undecided.
+    scorers. Shipped (see Changed).
   - `NotrumpKnobs::two_notrump_transfer_rebid`: responder's rebid over the
     plain `3M` completion of a `2NT` transfer is a book table, not the
     floor's net-only slam leap (the losing bucket of the super-accept A/B,
@@ -31,8 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     in every cell (`scripts/ab-two-notrump-transfer-rebid.sh`, seed
     1795486471760789996, 529–594 fired: plain −713 / −1184 / −679 / −1154,
     PD −529 / −863 / −495 / −837). The bands now sit a point lower, 14+
-    stays with the floor and opener passes the `4M` sign-off; that round is
-    unmeasured.
+    stays with the floor and opener passes the `4M` sign-off. Round 2 (seed
+    1795531385099959427, 434–468 fired) is non-inferior in every cell with
+    every point estimate negative: plain −85 / −26 / −85 / −33, PD −159 /
+    −69 / −159 / −68. Still off by default.
   - `RebidKnobs::heart_rebid_misfit_pass`, `minor_rebid_four_card_raise` and
     `spade_jump_rebid_invite`: three natural fixes to responder's rebid in
     `1♥ - 1♠ - 2x` (lead 7), one arm each in
@@ -41,6 +43,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     a keycard ask against game for those two populations.
 
 ### Changed
+
+- **The `1m - 1M - 2NT` checkback asks keycards on shape (2026-11-25).**
+  Once the major fit is found, responder's `4NT` counts support points: 13+
+  on the 5-3 fit (`3m - 3M`), 12+ after the forcing `3M` is raised. It used
+  to need 14+ / 12+ HCP, so `Q9753.AQT4.KQ5.8` signed off in `4♠`.
+  `NotrumpKnobs::rebid_checkback_shape_keycard` defaults to `true`; the
+  `bba-gen` flag is now `--no-ns-rebid-checkback-shape-keycard`. A/B vs BBA
+  (`scripts/ab-rebid-checkback-shape-keycard.sh`, seed 1795473254996592931,
+  1,638,400 boards per cell, 432–478 fired), none/ns/ew/both: plain DD +1128
+  / +1438 / +1130 / +1432 IMPs, PD +1075 / +1351 / +1070 / +1345, a win in
+  every cell on plain, PD and both single-dummy scorers, about +0.0007
+  IMPs/board non-vulnerable and +0.0009 vulnerable. The ew cell re-run after
+  the harness fix below passes the isolation gate: +1117 plain, +1064 PD on
+  430 fired.
 
 - **Three natural fixes to responder's rebid in `1♥ - 1♠ - 2x` (2026-11-25).**
   A misfit 10–11 now passes opener's `2♥` instead of inviting with `2NT`

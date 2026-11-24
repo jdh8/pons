@@ -20,8 +20,10 @@
 #   6-2 or better  -1.25   +1.48   +4.18   +6.32   +7.95
 #
 #   base notrump.rebid_checkback_shape_keycard off: hcp(14..) / hcp(12..)
+#        (`--no-ns-…` since the READ of 2026-11-25)
 #   on   notrump.rebid_checkback_shape_keycard on: support_points 13+ on the
-#        5-3 fit, 12+ after the forcing `3M` is raised
+#        5-3 fit, 12+ after the forcing `3M` is raised (the default since
+#        that READ)
 #
 # Not in this arm: the 4-4 fit in the other major (`3m - 3oM - 4oM`, two rows;
 # `4NT` there is the quantitative raise), the doubled checkback (owed since
@@ -52,6 +54,19 @@
 # `ab-results/checkback-gate-recheck`.  The knob is still default off: the
 # flip awaits jdh8.
 #
+# READ 2026-11-25, the gate re-check (948751b0, the same SEED_BASE, VULS=ew,
+# 1,638,400 boards, vs BBA): isolation gate PASSED, 0 foreign of 430
+# divergent boards (was 2), so the reset holds.  WIN on all four scorers:
+#
+#   cell  fired  plain  PD     IMPs/board (plain, 95% CI)  SD plain / SD-PD   foreign
+#   ew    430    +1117  +1064  +0.0007 ± 0.0002            +1568 / +1536      0
+#
+# The first read's ew cell was +1130 plain on 432 fired, so the leak carried
+# nothing.  One cell re-run, not four: none, ns and both keep the first
+# read's numbers.
+# Shipped default-on on this READ (jdh8, 2026-11-25); the arms below now turn
+# the base off instead of the candidate on.
+#
 # Resumable; SEED_BASE persists in $R/rebid-checkback-shape-keycard.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-rebid-checkback-shape-keycard.sh RESULTS_DIR}
@@ -63,12 +78,12 @@ SEED_BASE=$(seed_for rebid-checkback-shape-keycard)
 
 log "=== rebid-checkback-shape-keycard A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul vuls=$VULS"
 for vul in $VULS; do
-    arm base "$vul"
-    arm on "$vul" --ns-rebid-checkback-shape-keycard
+    arm base "$vul" --no-ns-rebid-checkback-shape-keycard
+    arm on "$vul"
     gatepair on base "$vul" || log "isolation gate on vs base ($vul) FAILED, scoring anyway"
     diffpair on base "$vul"
     fired=$(sed -n 's/.*: \([0-9]*\) fired (.*/\1/p' "$R/diff.on.vs.base.$vul.plain.txt")
     log "pre-count on vs base $vul: ${fired:-0} contract-divergent boards$([ "${fired:-0}" -lt 50 ] && echo ' (< 50): INSUFFICIENT DATA for this cell')"
-    sddiff on base "$vul" --on-ns-rebid-checkback-shape-keycard
+    sddiff on base "$vul" --off-no-ns-rebid-checkback-shape-keycard
 done
 log "=== rebid-checkback-shape-keycard A/B done"

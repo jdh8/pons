@@ -1871,12 +1871,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_notrump_super_accept: bool,
 
-    /// Gate the `1m - 1M - 2NT` checkback's keycard asks on support points
-    /// (13+ on the 5-3 fit, 12+ on the 6-2), not raw HCP
-    /// (`notrump.rebid_checkback_shape_keycard`, default off; the on arm of
+    /// Gate the `1m - 1M - 2NT` checkback's keycard asks on raw HCP (14+ on
+    /// the 5-3 fit, 12+ on the 6-2) again, not support points
+    /// (`notrump.rebid_checkback_shape_keycard`, **shipped default-on
+    /// 2026-11-25**; the base arm of
     /// `scripts/ab-rebid-checkback-shape-keycard.sh`)
     #[arg(long, default_value_t = false)]
-    ns_rebid_checkback_shape_keycard: bool,
+    no_ns_rebid_checkback_shape_keycard: bool,
 
     /// Author responder's rebid over the plain `3M` completion of a `2NT`
     /// transfer instead of leaving it to the floor
@@ -3859,7 +3860,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         !args.no_ns_one_club_one_diamond_two_notrump_first;
     agreements.notrump.quantitative_thirty_two = !args.no_ns_quantitative_thirty_two;
     agreements.notrump.two_notrump_super_accept = !args.no_ns_two_notrump_super_accept;
-    agreements.notrump.rebid_checkback_shape_keycard = args.ns_rebid_checkback_shape_keycard;
+    agreements.notrump.rebid_checkback_shape_keycard = !args.no_ns_rebid_checkback_shape_keycard;
     agreements.notrump.two_notrump_transfer_rebid = args.ns_two_notrump_transfer_rebid;
     agreements.rebid.heart_rebid_misfit_pass = !args.no_ns_heart_rebid_misfit_pass;
     agreements.rebid.minor_rebid_four_card_raise = !args.no_ns_minor_rebid_four_card_raise;

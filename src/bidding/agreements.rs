@@ -3660,7 +3660,9 @@ pub struct NotrumpKnobs {
     /// lower (`3NT` 4–9, quantitative `4NT` 10–11, `6NT` 12–13; 14+ stay with
     /// the floor) and six place `4M`, or `6M` on 11+ support points; opener
     /// passes the `4M`.  **Off by default**: round 1, on the direct bands,
-    /// lost 4/4 vs BBA (2026-11-24); round 2 is owed:
+    /// lost 4/4 vs BBA (2026-11-24); round 2 is non-inferior 4/4 with every
+    /// point estimate negative (2026-11-25, −26 to −85 plain IMPs per
+    /// 1,638,400 boards), so it stays opt-in:
     /// `scripts/ab-two-notrump-transfer-rebid.sh`.
     pub two_notrump_transfer_rebid: bool,
     /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
@@ -3692,8 +3694,12 @@ pub struct NotrumpKnobs {
     /// game; a short suit counts, and `Q9753.AQT4.KQ5.8` asks where it used
     /// to bid `4♠`.  The anchor
     /// `a0977ce9` prices the two sign-offs at −269 plain IMPs on 37 rows
-    /// (round-2 lead 3b, BBA in slam).  **Off by default**, measurement owed:
-    /// `scripts/ab-rebid-checkback-shape-keycard.sh`.
+    /// (round-2 lead 3b, BBA in slam).  **Shipped default-on 2026-11-25**:
+    /// `scripts/ab-rebid-checkback-shape-keycard.sh` vs BBA won all four
+    /// cells on plain DD (+1128 / +1438 / +1130 / +1432 IMPs per 1,638,400
+    /// boards, none / ns / ew / both, 432–478 fired), PD and both
+    /// single-dummy scorers.  Our reading of the opponents' own `4NT` there
+    /// stays on HCP.
     pub rebid_checkback_shape_keycard: bool,
     /// Responder's floors over the 22–24 `2NT` rebid after `2♣`
     ///
@@ -3983,7 +3989,7 @@ impl Default for NotrumpKnobs {
             two_notrump_super_accept: true,
             two_notrump_transfer_rebid: false,
             rebid_checkback: true,
-            rebid_checkback_shape_keycard: false,
+            rebid_checkback_shape_keycard: true,
             strong_two_notrump_floors: true,
             sixcard_invite_floor: 13,
             sixcard_accept_floor: 18,

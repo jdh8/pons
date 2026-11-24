@@ -335,12 +335,12 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = 20)]
     off_ns_drury_keycard: u8,
-    /// Read the ON arm with `notrump.rebid_checkback_shape_keycard` on (`bba-gen --ns-rebid-checkback-shape-keycard`)
+    /// Read the ON arm with `notrump.rebid_checkback_shape_keycard` off (`bba-gen --no-ns-rebid-checkback-shape-keycard`)
     #[arg(long, default_value_t = false)]
-    on_ns_rebid_checkback_shape_keycard: bool,
+    on_no_ns_rebid_checkback_shape_keycard: bool,
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
-    off_ns_rebid_checkback_shape_keycard: bool,
+    off_no_ns_rebid_checkback_shape_keycard: bool,
     /// Read the ON arm with `notrump.two_notrump_transfer_rebid` on (`bba-gen --ns-two-notrump-transfer-rebid`)
     #[arg(long, default_value_t = false)]
     on_ns_two_notrump_transfer_rebid: bool,
@@ -544,7 +544,7 @@ fn main() {
     on_arm.notrump.quantitative_thirty_two = !args.on_no_ns_quantitative_thirty_two;
     on_arm.notrump.two_notrump_super_accept = !args.on_no_ns_two_notrump_super_accept;
     on_arm.response.drury_keycard = args.on_ns_drury_keycard;
-    on_arm.notrump.rebid_checkback_shape_keycard = args.on_ns_rebid_checkback_shape_keycard;
+    on_arm.notrump.rebid_checkback_shape_keycard = !args.on_no_ns_rebid_checkback_shape_keycard;
     on_arm.notrump.two_notrump_transfer_rebid = args.on_ns_two_notrump_transfer_rebid;
     on_arm.rebid.heart_rebid_misfit_pass = !args.on_no_ns_heart_rebid_misfit_pass;
     on_arm.rebid.minor_rebid_four_card_raise = !args.on_no_ns_minor_rebid_four_card_raise;
@@ -618,7 +618,7 @@ fn main() {
     off_arm.notrump.quantitative_thirty_two = !args.off_no_ns_quantitative_thirty_two;
     off_arm.notrump.two_notrump_super_accept = !args.off_no_ns_two_notrump_super_accept;
     off_arm.response.drury_keycard = args.off_ns_drury_keycard;
-    off_arm.notrump.rebid_checkback_shape_keycard = args.off_ns_rebid_checkback_shape_keycard;
+    off_arm.notrump.rebid_checkback_shape_keycard = !args.off_no_ns_rebid_checkback_shape_keycard;
     off_arm.notrump.two_notrump_transfer_rebid = args.off_ns_two_notrump_transfer_rebid;
     off_arm.rebid.heart_rebid_misfit_pass = !args.off_no_ns_heart_rebid_misfit_pass;
     off_arm.rebid.minor_rebid_four_card_raise = !args.off_no_ns_minor_rebid_four_card_raise;

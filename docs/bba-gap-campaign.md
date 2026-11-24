@@ -299,9 +299,9 @@ facing `2NT - 3♦ - 3♥` or `1NT - 2♣ - 2♦` (−13 to −15); not traced.
 the known pairs (`2♦` 5+ ♦ −1,295 shrunk, `2♣` 5+ ♣ −738, the 5♣4♦ `3♦` 18+
 −368), `3NT` 0+ HCP (168 rows, raw −310, shrunk −274) enters at #10 and the
 3-card-support `3♣` (78 rows) is demoted. Round-2 leads since worked: 5 (Drury
-`4NT`) and 6 (`1♠ - 3NT`) shipped, 3's checkback half won and is opt-in; 7
-(`1♥ - 1♠ - 2x - 2NT`) and lead 4's `3M`-completion slam residue are in
-flight (see the reads below the table).
+`4NT`), 6 (`1♠ - 3NT`), 3's checkback half and 7 (`1♥ - 1♠ - 2x - 2NT`)
+shipped; lead 4's `3M`-completion slam residue is a non-inferior wash after
+round 2 and stays opt-in (see the reads below the table).
 
 **The `0772f1c4` window, paired** (`ab-dump-diff` direct A/B at table A,
 `0772f1c4` − `b13dd9fe`, same deals; `diff.window.{american,instinct}.*.txt`
@@ -357,8 +357,9 @@ per cell vs BBA, one seed per run; lead 7's `ab-heart-spade-tails.sh` read
 | Lead | Knob | Fired / cell | Plain (none / ns / ew / both) | Verdict |
 | --- | --- | --- | --- | --- |
 | 6 | `response.choice_of_games_keycard` `Some(18)` | 340–370 | +1527 / +2018 / +1494 / +1904 | win 4/4 on plain, PD, SD, SD-PD; **shipped default** |
-| 3b | `notrump.rebid_checkback_shape_keycard` | 432–478 | +1128 / +1438 / +1130 / +1432 | win 4/4 on all four scorers; gate failed on 1–2 boards per cell; opt-in, flip awaits jdh8 |
-| 4 residue | `notrump.two_notrump_transfer_rebid` (round 1) | 529–594 | −713 / −1184 / −679 / −1154 | loss 4/4 on all four scorers; round 2 queued |
+| 3b | `notrump.rebid_checkback_shape_keycard` | 432–478 | +1128 / +1438 / +1130 / +1432 | win 4/4 on all four scorers; gate failed on 1–2 boards per cell (a harness leak, fixed); the ew re-check on the same seed passes the gate, +1117 on 430; **shipped default** 2026-11-25 |
+| 4 residue | `notrump.two_notrump_transfer_rebid` (round 1) | 529–594 | −713 / −1184 / −679 / −1154 | loss 4/4 on all four scorers |
+| 4 residue | `notrump.two_notrump_transfer_rebid` (round 2, fresh seed) | 434–468 | −85 / −26 / −85 / −33 | non-inferior 4/4 on all four scorers, every point estimate negative; opt-in |
 | 7 misfit | `rebid.heart_rebid_misfit_pass` | 833–916 | +1074 / +1352 / +1100 / +1375 | win 4/4 on all four scorers (PD about 2× plain); **shipped default** |
 | 7 raise | `rebid.minor_rebid_four_card_raise` | 424–464 | +140 / +306 / +147 / +306 | win vul, non-inferior NV, on every scorer; **shipped default** |
 | 7 spade | `rebid.spade_jump_rebid_invite` | 298–322 | +605 / +856 / +605 / +825 | win 4/4 on all four scorers; **shipped default** |

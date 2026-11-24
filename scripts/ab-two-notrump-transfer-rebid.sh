@@ -72,6 +72,24 @@
 # opener's pass over `4M`, results in ab-results/two-notrump-transfer-rebid-r2
 # (a fresh SEED_BASE); the knob stays default off.
 #
+# READ 2026-11-25, round 2 (84da882d, SEED_BASE 1795531385099959427,
+# 1,638,400 boards per cell, vs BBA): NON-INFERIOR 4/4 on plain, PD, plain SD
+# and SD-PD, every point estimate negative.  A wash, not a win: the knob
+# stays default off (jdh8, 2026-11-25).
+#
+#   cell  fired  plain  PD    IMPs/board (plain, 95% CI)  SD plain / SD-PD
+#   none  468    -85    -159  -0.0001 ± 0.0002            -249 / -266
+#   ns    441    -26    -69   -0.0000 ± 0.0003            -331 / -383
+#   ew    462    -85    -159  -0.0001 ± 0.0002            -205 / -230
+#   both  434    -33    -68   -0.0000 ± 0.0003            -349 / -383
+#
+# Isolation gate passed in every cell.  Round 1's -679 to -1184 plain is
+# gone, so the band shift and opener's pass over `4M` did their work; what is
+# left is -0.06 to -0.18 IMPs per fired board.  SD fired on 497-532 boards
+# and is still not arm-symmetric: 21-23% of the on arm's boards fell back
+# against 6-7% of the base arm's.  Not bucketed (`ab-dump-diff --jsonl`,
+# first differing call x HCP, is the next step if the lane is reopened).
+#
 # Resumable; SEED_BASE persists in $R/two-notrump-transfer-rebid.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-two-notrump-transfer-rebid.sh RESULTS_DIR}
