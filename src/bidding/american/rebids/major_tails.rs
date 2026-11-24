@@ -91,10 +91,21 @@ fn responder_after_spade_jump() -> Rules {
 /// the misfit: a singleton or void.  Under
 /// [`RebidKnobs::heart_rebid_misfit_pass`] it needs 12 HCP, and a lighter
 /// misfit passes `2♥`.
+///
+/// Under [`RebidKnobs::heart_rebid_spade_rebid`] that misfit (at most one
+/// heart) gets its own suit, gauged in HCP like the sibling `3♠` over `2m`
+/// (`points` would count the long suit twice):
+///
+/// | Call | Wt   | Meaning |
+/// |------|------|---------|
+/// | 4♠   | 1.4  | To play: seven spades and 10+ HCP, or six and 13+ |
+/// | 3♠   | 1.35 | Invitational, six spades (10–12 HCP) |
+/// | 2♠   | 1.32 | To play, 6+ spades (≤9 HCP) |
 #[must_use]
-fn responder_after_heart_rebid(keycard: bool, misfit_pass: bool) -> Rules {
+fn responder_after_heart_rebid(knobs: &RebidKnobs) -> Rules {
+    let misfit_pass = knobs.heart_rebid_misfit_pass;
     let mut rules = Rules::new();
-    if keycard {
+    if knobs.heart_rebid_keycard {
         rules = rules
             .rule(
                 Bid::new(4, Strain::Notrump),
@@ -103,12 +114,32 @@ fn responder_after_heart_rebid(keycard: bool, misfit_pass: bool) -> Rules {
             )
             .alert(slam::RKCB);
     }
+    rules = rules.rule(
+        Bid::new(4, Strain::Hearts),
+        150,
+        len(Suit::Hearts, 2..) & points(13..),
+    );
+    if knobs.heart_rebid_spade_rebid {
+        let misfit = || len(Suit::Hearts, ..=1);
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::Spades),
+                140,
+                misfit()
+                    & ((len(Suit::Spades, 7..) & hcp(10..)) | (len(Suit::Spades, 6..) & hcp(13..))),
+            )
+            .rule(
+                Bid::new(3, Strain::Spades),
+                135,
+                misfit() & len(Suit::Spades, 6..) & hcp(10..=12),
+            )
+            .rule(
+                Bid::new(2, Strain::Spades),
+                132,
+                misfit() & len(Suit::Spades, 6..) & hcp(..=9),
+            );
+    }
     rules
-        .rule(
-            Bid::new(4, Strain::Hearts),
-            150,
-            len(Suit::Hearts, 2..) & points(13..),
-        )
         .rule(Bid::new(3, Strain::Notrump), 130, points(13..))
         .rule(
             Bid::new(3, Strain::Hearts),
@@ -278,7 +309,8 @@ fn opener_accept_minor_raise() -> Rules {
 }
 
 /// Opener's call over responder's invitational `3♠` after `1♥ - 1♠ - 2m`
-/// ([`RebidKnobs::spade_jump_rebid_invite`])
+/// ([`RebidKnobs::spade_jump_rebid_invite`]) or `1♥ - 1♠ - 2♥`
+/// ([`RebidKnobs::heart_rebid_spade_rebid`])
 ///
 /// Responder holds six spades and 10–12.  Three-card support always raises;
 /// a doubleton raises on 13+; a short spade bids `3NT` on 15+ HCP, else
@@ -501,11 +533,23 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
             let after_two_hearts = format!("{base} 2♥ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_hearts),
-                responder_after_heart_rebid(
-                    knobs.heart_rebid_keycard,
-                    knobs.heart_rebid_misfit_pass,
-                ),
+                responder_after_heart_rebid(knobs),
             ));
+            if knobs.heart_rebid_spade_rebid {
+                // The 3♠ invite takes the `2m` lane's answer; `2♠` and a
+                // game in spades stand.
+                let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{after_two_hearts} 3♠ -")),
+                    opener_after_spade_jump_rebid(),
+                ));
+                for stands in ["2♠ -", "3♠ - 4♠ -", "4♠ -"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{after_two_hearts} {stands}")),
+                        pass(),
+                    ));
+                }
+            }
             if knobs.heart_rebid_keycard {
                 entries.extend(slam::rkcb_rows(&after_two_hearts, Suit::Hearts));
             }

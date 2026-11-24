@@ -576,3 +576,52 @@ fn heart_spade_tail_knobs() {
     );
     assert_eq!(best_call(&on, &invited, "5.QJ742.AQ863.Q3"), P);
 }
+
+// --- rebid.heart_rebid_spade_rebid (lead 7's residue, off by default) ------
+
+#[test]
+fn heart_rebid_spade_rebid() {
+    let off = american(&Agreements::default()).bind();
+    let mut agreements = Agreements::default();
+    agreements.rebid.heart_rebid_spade_rebid = true;
+    let on = american(&agreements).bind();
+    let hearts = [
+        call(1, Strain::Hearts),
+        P,
+        call(1, Strain::Spades),
+        P,
+        call(2, Strain::Hearts),
+        P,
+    ];
+    let spades = |level| call(level, Strain::Spades);
+
+    // A weak six-card misfit signs off, and opener passes it.
+    assert_eq!(best_call(&off, &hearts, "KJ9654.3.Q82.J43"), P);
+    assert_eq!(best_call(&on, &hearts, "KJ9654.3.Q82.J43"), spades(2));
+    let signed_off = extend(&hearts, spades(2));
+    assert_eq!(best_call(&on, &signed_off, "85.AKQ864.KJ6.A8"), P);
+
+    // Six spades and 10-12 invite; opener raises on a doubleton and 13,
+    // passes a misfit minimum, and responder passes the game.
+    assert_eq!(best_call(&off, &hearts, "KQ8654.3.T93.AJ4"), P);
+    assert_eq!(best_call(&on, &hearts, "KQ8654.3.T93.AJ4"), spades(3));
+    let invited = extend(&hearts, spades(3));
+    assert_eq!(best_call(&on, &invited, "85.KQ8643.KJ6.A8"), spades(4));
+    assert_eq!(best_call(&on, &invited, "5.QJ7432.AQ8.Q63"), P);
+    let raised = extend(&invited, spades(4));
+    assert_eq!(best_call(&on, &raised, "KQ8654.3.T93.AJ4"), P);
+
+    // Seven spades and 10, or six and 13, bid the game; opener passes.
+    assert_eq!(best_call(&on, &hearts, "AQT7543.K.J94.43"), spades(4));
+    assert_eq!(best_call(&on, &hearts, "AQT754.K.KJ94.43"), spades(4));
+    let game = extend(&hearts, spades(4));
+    assert_eq!(best_call(&on, &game, "5.QJ7432.AQ8.Q63"), P);
+
+    // Two hearts still raise, whatever the spades.
+    for hand in ["KQ8654.T3.93.AJ4", "AQT754.K4.KJ9.43"] {
+        assert_eq!(
+            best_call(&on, &hearts, hand),
+            best_call(&off, &hearts, hand)
+        );
+    }
+}

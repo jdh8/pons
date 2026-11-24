@@ -363,6 +363,7 @@ per cell vs BBA, one seed per run; lead 7's `ab-heart-spade-tails.sh` read
 | 7 misfit | `rebid.heart_rebid_misfit_pass` | 833–916 | +1074 / +1352 / +1100 / +1375 | win 4/4 on all four scorers (PD about 2× plain); **shipped default** |
 | 7 raise | `rebid.minor_rebid_four_card_raise` | 424–464 | +140 / +306 / +147 / +306 | win vul, non-inferior NV, on every scorer; **shipped default** |
 | 7 spade | `rebid.spade_jump_rebid_invite` | 298–322 | +605 / +856 / +605 / +825 | win 4/4 on all four scorers; **shipped default** |
+| 7 misfit residue | `rebid.heart_rebid_spade_rebid` (`2♠` / `3♠` / `4♠` over `1♥ - 1♠ - 2♥` on ≤1♥) | owed | owed | authored 2026-11-25, opt-in; sized at about +550 / +700 (NV / vul) on ~440 boards; `ab-heart-rebid-spade-rebid.sh` queued |
 
 Lead 3b's foreign boards were a harness leak: `european_minors_opponents`
 copies the arm's agreements into the book we read EPBot's alerted calls off,

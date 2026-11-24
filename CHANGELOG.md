@@ -41,6 +41,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `scripts/ab-heart-spade-tails.sh`. All three shipped (see Changed).
   - `probe-drury-slam` takes `--choice-of-games` and `--checkback` to price
     a keycard ask against game for those two populations.
+- **`RebidKnobs::heart_rebid_spade_rebid`: responder's own spade suit over
+  `1♥ - 1♠ - 2♥` (2026-11-25).** Off by default, A/B vs BBA queued
+  (`scripts/ab-heart-rebid-spade-rebid.sh`, `bba-gen
+  --ns-heart-rebid-spade-rebid`). The table over `2♥` had no spade call, so a
+  six-spade misfit passed `2♥` or bid notrump (the residue of
+  `heart_rebid_misfit_pass`). On, with at most one heart: `2♠` to play (6+
+  spades, ≤9 HCP), `3♠` invitational (six spades, 10–12 HCP; opener answers
+  as over `1♥ - 1♠ - 2m - 3♠`), `4♠` (seven spades and 10+ HCP, or six and
+  13+). Sized on the shipped `misfit` arm by pricing those contracts against
+  today's (1,638,400 boards, 437 misfit boards with 6+ spades): about +550
+  plain DD IMPs non-vulnerable and +700 vulnerable, most of it the `3♠`
+  invite (+243 / +312 on 139 boards) and `4♠` over `3NT` on six spades and
+  13+ (+109 / +124 on 113). No measured verdict yet.
 
 ### Changed
 

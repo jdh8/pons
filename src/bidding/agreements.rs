@@ -5324,6 +5324,22 @@ pub struct RebidKnobs {
     /// +2725 / +1979 / +2758, win 4/4 on every scorer.  Off-switch
     /// `bba-gen --no-ns-heart-rebid-misfit-pass`.
     pub heart_rebid_misfit_pass: bool,
+    /// Responder's own spade suit over `1♥ - 1♠ - 2♥` on a misfit (at most
+    /// one heart)
+    ///
+    /// The residue of [`Self::heart_rebid_misfit_pass`]: the table over `2♥`
+    /// has no spade call, so six spades pass `2♥` or bid notrump.  On: `2♠`
+    /// to play (6+ spades, ≤9 HCP; opener passes), `3♠` invitational (six
+    /// spades, 10–12 HCP; opener answers as over `1♥ - 1♠ - 2m - 3♠`), `4♠`
+    /// to play (seven spades and 10+ HCP, or six and 13+).  Two or more
+    /// hearts still raise.  Sized on the shipped `misfit` arm (1,638,400
+    /// boards vs BBA, 437 misfit boards with 6+ spades), DD against today's
+    /// contract, none / both: the `3♠` invite +243 / +312 plain IMPs on 139
+    /// boards, the flat `4♠` on six spades and 13+ +109 / +124 on 113, `2♠`
+    /// on six a wash (+9 / +6 on 97).  **Default off**, A/B owed
+    /// (`scripts/ab-heart-rebid-spade-rebid.sh`); arm it with
+    /// `bba-gen --ns-heart-rebid-spade-rebid`.
+    pub heart_rebid_spade_rebid: bool,
     /// Raise opener's `2m` rebid in `1♥ - 1♠ - 2m` on four cards, not five
     ///
     /// The invitational `3m` (10–12) needs five-card support today, so a 4-4
@@ -5690,6 +5706,7 @@ impl Default for RebidKnobs {
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
             heart_rebid_misfit_pass: true,
+            heart_rebid_spade_rebid: false,
             minor_rebid_four_card_raise: true,
             spade_jump_rebid_invite: true,
             heart_rebid_keycard: true,

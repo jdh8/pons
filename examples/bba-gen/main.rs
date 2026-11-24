@@ -1904,6 +1904,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_spade_jump_rebid_invite: bool,
 
+    /// Give a misfit responder a spade call over `1♥ - 1♠ - 2♥`: `2♠` to
+    /// play, `3♠` invitational, `4♠` (`rebid.heart_rebid_spade_rebid`,
+    /// default off; the on arm of `scripts/ab-heart-rebid-spade-rebid.sh`)
+    #[arg(long, default_value_t = false)]
+    ns_heart_rebid_spade_rebid: bool,
+
     /// Opener's support-point floor for the `4NT` keycard ask over the choice-
     /// of-games `1M - 3NT`, or `off` (`response.choice_of_games_keycard`,
     /// **shipped default 18 2026-11-24**; `off` is the base arm of
@@ -3865,6 +3871,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_rebid_misfit_pass = !args.no_ns_heart_rebid_misfit_pass;
     agreements.rebid.minor_rebid_four_card_raise = !args.no_ns_minor_rebid_four_card_raise;
     agreements.rebid.spade_jump_rebid_invite = !args.no_ns_spade_jump_rebid_invite;
+    agreements.rebid.heart_rebid_spade_rebid = args.ns_heart_rebid_spade_rebid;
     agreements.response.choice_of_games_keycard = match args.ns_choice_of_games_keycard.as_str() {
         "off" => None,
         n => Some(n.parse().map_err(|_| {
