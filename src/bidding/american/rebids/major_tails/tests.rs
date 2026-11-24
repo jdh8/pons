@@ -199,11 +199,12 @@ fn heart_rebid_responder_prefers_the_fit() {
         Call::Bid(Bid::new(3, Strain::Hearts)),
         "11 points, 2 hearts -> 3♥ beats 2NT"
     );
-    // AJ98.K.7654.QJ87 — 11 points, singleton heart -> the notrump invite.
+    // AJ98.K.7654.QJ87 — 11 points, singleton heart: the misfit passes
+    // (`rebid.heart_rebid_misfit_pass`; the `2NT` invite needs 12 HCP).
     assert_eq!(
         best(&trie, AFTER_2H, "AJ98.K.7654.QJ87"),
-        Call::Bid(Bid::new(2, Strain::Notrump)),
-        "11 points, 1 heart -> 2NT"
+        Call::Pass,
+        "11 points, 1 heart -> pass"
     );
 }
 
@@ -368,7 +369,7 @@ fn nt_invite_hcp_gauges_the_no_fit_rung() {
         Call::Pass,
     ];
     let shaped = "KT8642.7.QJ4.QJ3"; // 9 HCP, 10 points
-    let flat = "AT86.97.QJ42.QJ3"; // 10 HCP, 10 points
+    let flat = "AT86.97.QJ4.QJ32"; // 10 HCP, 10 points, three diamonds
     let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
 
     let default_trie = fsf_trie();

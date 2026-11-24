@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Six knobs for the remaining round-2 leads of the BBA anchor `a0977ce9`
   (2026-11-24).** Each has a `bba-gen --ns-…` flag and a runner queued
-  through `scripts/queue-ab.sh`. One has shipped (see Changed); the rest are
-  off by default.
+  through `scripts/queue-ab.sh`. Four have shipped (see Changed); the rest
+  are off by default.
   - `ResponseKnobs::choice_of_games_keycard`: opener asks keycards over
     `1M - 3NT` on 18+ support points (lead 6, −216 plain IMPs on 38 anchor
     rows). `scripts/ab-choice-of-games-keycard.sh`.
@@ -36,11 +36,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RebidKnobs::heart_rebid_misfit_pass`, `minor_rebid_four_card_raise` and
     `spade_jump_rebid_invite`: three natural fixes to responder's rebid in
     `1♥ - 1♠ - 2x` (lead 7), one arm each in
-    `scripts/ab-heart-spade-tails.sh`.
+    `scripts/ab-heart-spade-tails.sh`. All three shipped (see Changed).
   - `probe-drury-slam` takes `--choice-of-games` and `--checkback` to price
     a keycard ask against game for those two populations.
 
 ### Changed
+
+- **Three natural fixes to responder's rebid in `1♥ - 1♠ - 2x` (2026-11-25).**
+  A misfit 10–11 now passes opener's `2♥` instead of inviting with `2NT`
+  (opener's `3♥` refusal played a level higher on the same misfit). Four-card
+  support raises opener's `2♣` / `2♦` to `3m` (it needed five). Six spades
+  jump to `3♠` over `2m` and seven bid `4♠`, where both used to bid `2NT`.
+  `RebidKnobs::heart_rebid_misfit_pass`, `minor_rebid_four_card_raise` and
+  `spade_jump_rebid_invite` all default to `true`; `bba-gen` flags are now
+  `--no-ns-…`. A/B vs BBA, one arm each (`scripts/ab-heart-spade-tails.sh`,
+  seed 1795499692299080341, 1,638,400 boards per cell), plain DD
+  none/ns/ew/both:
+  - misfit pass (833–916 fired): +1074 / +1352 / +1100 / +1375 IMPs, PD
+    +1948 / +2725 / +1979 / +2758. A win in every cell on every scorer.
+  - four-card raise (424–464 fired): +140 / +306 / +147 / +306, PD +197 /
+    +365 / +204 / +365. A win vulnerable, non-inferior non-vulnerable.
+  - spade invite (298–322 fired): +605 / +856 / +605 / +825, PD +696 / +979
+    / +696 / +949. A win in every cell on every scorer.
+
+  Together about +0.0012 IMPs/board non-vulnerable and +0.0015 vulnerable.
+  Not authored: a spade call over the `2♥` rebid, where a six-spade misfit
+  now passes.
 
 - **Opener asks keycards over the choice-of-games `1M - 3NT` on 18+ support
   points (2026-11-24).** Opener used to choose only the game there (`4M`

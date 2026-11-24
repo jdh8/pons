@@ -1885,23 +1885,23 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_notrump_transfer_rebid: bool,
 
-    /// Pass `1♥ - 1♠ - 2♥` on a misfit under 12 HCP instead of inviting with
-    /// `2NT` (`rebid.heart_rebid_misfit_pass`, default off; the on arm of
-    /// `scripts/ab-heart-spade-tails.sh`)
+    /// Invite with `2NT` over `1♥ - 1♠ - 2♥` on a misfit 10–11 again instead
+    /// of passing (`rebid.heart_rebid_misfit_pass`, **shipped default-on
+    /// 2026-11-25**; the base arm of `scripts/ab-heart-spade-tails.sh`)
     #[arg(long, default_value_t = false)]
-    ns_heart_rebid_misfit_pass: bool,
+    no_ns_heart_rebid_misfit_pass: bool,
 
-    /// Raise opener's `2m` in `1♥ - 1♠ - 2m` to `3m` on four-card support, not
-    /// five (`rebid.minor_rebid_four_card_raise`, default off; the on arm of
-    /// `scripts/ab-heart-spade-tails.sh`)
+    /// Raise opener's `2m` in `1♥ - 1♠ - 2m` to `3m` on five-card support
+    /// only, as before (`rebid.minor_rebid_four_card_raise`, **shipped
+    /// default-on 2026-11-25**; the base arm of `scripts/ab-heart-spade-tails.sh`)
     #[arg(long, default_value_t = false)]
-    ns_minor_rebid_four_card_raise: bool,
+    no_ns_minor_rebid_four_card_raise: bool,
 
-    /// Responder's invitational `3♠` (six spades) and `4♠` (seven) over `1♥ -
-    /// 1♠ - 2m` (`rebid.spade_jump_rebid_invite`, default off; the on arm of
-    /// `scripts/ab-heart-spade-tails.sh`)
+    /// Drop responder's invitational `3♠` (six spades) and `4♠` (seven) over
+    /// `1♥ - 1♠ - 2m` (`rebid.spade_jump_rebid_invite`, **shipped default-on
+    /// 2026-11-25**; the base arm of `scripts/ab-heart-spade-tails.sh`)
     #[arg(long, default_value_t = false)]
-    ns_spade_jump_rebid_invite: bool,
+    no_ns_spade_jump_rebid_invite: bool,
 
     /// Opener's support-point floor for the `4NT` keycard ask over the choice-
     /// of-games `1M - 3NT`, or `off` (`response.choice_of_games_keycard`,
@@ -3861,9 +3861,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.notrump.two_notrump_super_accept = !args.no_ns_two_notrump_super_accept;
     agreements.notrump.rebid_checkback_shape_keycard = args.ns_rebid_checkback_shape_keycard;
     agreements.notrump.two_notrump_transfer_rebid = args.ns_two_notrump_transfer_rebid;
-    agreements.rebid.heart_rebid_misfit_pass = args.ns_heart_rebid_misfit_pass;
-    agreements.rebid.minor_rebid_four_card_raise = args.ns_minor_rebid_four_card_raise;
-    agreements.rebid.spade_jump_rebid_invite = args.ns_spade_jump_rebid_invite;
+    agreements.rebid.heart_rebid_misfit_pass = !args.no_ns_heart_rebid_misfit_pass;
+    agreements.rebid.minor_rebid_four_card_raise = !args.no_ns_minor_rebid_four_card_raise;
+    agreements.rebid.spade_jump_rebid_invite = !args.no_ns_spade_jump_rebid_invite;
     agreements.response.choice_of_games_keycard = match args.ns_choice_of_games_keycard.as_str() {
         "off" => None,
         n => Some(n.parse().map_err(|_| {

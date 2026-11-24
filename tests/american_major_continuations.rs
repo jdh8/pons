@@ -507,7 +507,7 @@ fn default_state_matches_all_on() {
 }
 
 // --- rebid.heart_rebid_misfit_pass, minor_rebid_four_card_raise,
-// --- spade_jump_rebid_invite (round-2 lead 7, off by default) ---------------
+// --- spade_jump_rebid_invite (round-2 lead 7, on by default) ---------------
 
 #[test]
 fn heart_spade_tail_knobs() {
@@ -516,7 +516,11 @@ fn heart_spade_tail_knobs() {
         set(&mut agreements);
         american(&agreements).bind()
     };
-    let off = system_with(|_| {});
+    let off = system_with(|a| {
+        a.rebid.heart_rebid_misfit_pass = false;
+        a.rebid.minor_rebid_four_card_raise = false;
+        a.rebid.spade_jump_rebid_invite = false;
+    });
     let prefix = |rebid: Call| {
         [
             call(1, Strain::Hearts),
@@ -530,13 +534,19 @@ fn heart_spade_tail_knobs() {
     let two_nt = call(2, Strain::Notrump);
 
     // A misfit 10-count passes 2♥ instead of inviting.
-    let on = system_with(|a| a.rebid.heart_rebid_misfit_pass = true);
+    let on = system_with(|a| {
+        a.rebid.minor_rebid_four_card_raise = false;
+        a.rebid.spade_jump_rebid_invite = false;
+    });
     let hearts = prefix(call(2, Strain::Hearts));
     assert_eq!(best_call(&off, &hearts, "A632.K.Q975.Q953"), two_nt);
     assert_eq!(best_call(&on, &hearts, "A632.K.Q975.Q953"), P);
 
     // Four-card support raises opener's minor.
-    let on = system_with(|a| a.rebid.minor_rebid_four_card_raise = true);
+    let on = system_with(|a| {
+        a.rebid.heart_rebid_misfit_pass = false;
+        a.rebid.spade_jump_rebid_invite = false;
+    });
     let diamonds = prefix(call(2, Strain::Diamonds));
     assert_eq!(best_call(&off, &diamonds, "QT86.K7.AJ98.983"), two_nt);
     assert_eq!(
@@ -546,7 +556,10 @@ fn heart_spade_tail_knobs() {
 
     // Six spades invite with 3♠, seven bid game; opener raises on a
     // doubleton and 13, passes a misfit minimum.
-    let on = system_with(|a| a.rebid.spade_jump_rebid_invite = true);
+    let on = system_with(|a| {
+        a.rebid.heart_rebid_misfit_pass = false;
+        a.rebid.minor_rebid_four_card_raise = false;
+    });
     assert_eq!(best_call(&off, &diamonds, "KQ8654.T3.9.AJ43"), two_nt);
     assert_eq!(
         best_call(&on, &diamonds, "KQ8654.T3.9.AJ43"),

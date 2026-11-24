@@ -1917,7 +1917,11 @@ fn authored_calls_read_what_they_gate() {
         // the same `4NT` ladder with `5+ ♥` over the four heart splinters,
         // in the american and Watermelon constructive tries.  Knob-on stays 0.
         ("length", 146, 0),
-        ("points", 11, 0),
+        // 11 → 13 when `rebid.spade_jump_rebid_invite` shipped (2026-11-25):
+        // opener's `4♠` over `1♥ - 1♠ - 2m - 3♠` on `3+ ♠ | (2+ ♠ & 13+)`, a
+        // points term inside a disjunction, in the american and Watermelon
+        // constructive tries.  Knob-on stays 0.
+        ("points", 13, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
         // the exact base-axis projection is ungated, so even the knob-off

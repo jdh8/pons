@@ -5312,15 +5312,22 @@ pub struct RebidKnobs {
     /// on the same misfit: on the anchor `a0977ce9` that is 112 of the 149
     /// `2NT` rows for −242 plain / −394 PD, where BBA passed `2♥` (round-2
     /// lead 7).  On, `2NT` needs 12 HCP and a lighter misfit passes.
-    /// **Off by default**, measurement owed: `scripts/ab-heart-spade-tails.sh`.
+    /// **Default on**, shipped 2026-11-25 (`scripts/ab-heart-spade-tails.sh`,
+    /// seed 1795499692299080341, 1,638,400 boards/cell vs BBA, 833–916 fired):
+    /// plain +1074 / +1352 / +1100 / +1375 IMPs (none/ns/ew/both), PD +1948 /
+    /// +2725 / +1979 / +2758, win 4/4 on every scorer.  Off-switch
+    /// `bba-gen --no-ns-heart-rebid-misfit-pass`.
     pub heart_rebid_misfit_pass: bool,
     /// Raise opener's `2m` rebid in `1♥ - 1♠ - 2m` on four cards, not five
     ///
     /// The invitational `3m` (10–12) needs five-card support today, so a 4-4
     /// minor fit invites with `2NT`.  On the anchor `a0977ce9` BBA raises
     /// `2♦` on four where we bid `2NT`: 60 rows, −148 plain / −202 PD
-    /// (round-2 lead 7).  **Off by default**, measurement owed:
-    /// `scripts/ab-heart-spade-tails.sh`.
+    /// (round-2 lead 7).  **Default on**, shipped 2026-11-25
+    /// (`scripts/ab-heart-spade-tails.sh`, 424–464 fired): plain +140 / +306 /
+    /// +147 / +306 IMPs (none/ns/ew/both), PD +197 / +365 / +204 / +365; a win
+    /// vulnerable, non-inferior non-vulnerable.  Off-switch
+    /// `bba-gen --no-ns-minor-rebid-four-card-raise`.
     pub minor_rebid_four_card_raise: bool,
     /// Responder's invitational `3♠` (six spades) and `4♠` (seven) over
     /// `1♥ - 1♠ - 2m`
@@ -5329,8 +5336,12 @@ pub struct RebidKnobs {
     /// jump to `3♠` (opener raises on three-card support or a doubleton and
     /// 13+, bids `3NT` on a short spade and 15+ HCP, else passes) and seven
     /// bid `4♠`.  On the anchor `a0977ce9` the `2NT` rows where BBA bid `3♠`
-    /// or `4♠` are 68 rows, −146 plain / −137 PD (round-2 lead 7).  **Off by
-    /// default**, measurement owed: `scripts/ab-heart-spade-tails.sh`.
+    /// or `4♠` are 68 rows, −146 plain / −137 PD (round-2 lead 7).  **Default
+    /// on**, shipped 2026-11-25 (`scripts/ab-heart-spade-tails.sh`, 298–322
+    /// fired): plain +605 / +856 / +605 / +825 IMPs (none/ns/ew/both), PD +696
+    /// / +979 / +696 / +949, win 4/4 on every scorer.  Not authored over the
+    /// `2♥` rebid, where responder has no spade call.  Off-switch
+    /// `bba-gen --no-ns-spade-jump-rebid-invite`.
     pub spade_jump_rebid_invite: bool,
     /// Responder asks keycards for hearts over `1♥ - 1♠ - 2♥` (2+ hearts, 16+
     /// points) and `1♥ - 1♠ - 3♥` (2+ hearts, 14+ points)
@@ -5672,9 +5683,9 @@ impl Default for RebidKnobs {
             minor_jump_notrump: true,
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
-            heart_rebid_misfit_pass: false,
-            minor_rebid_four_card_raise: false,
-            spade_jump_rebid_invite: false,
+            heart_rebid_misfit_pass: true,
+            minor_rebid_four_card_raise: true,
+            spade_jump_rebid_invite: true,
             heart_rebid_keycard: true,
             diamond_rebid_fourth_suit: true,
             fourth_suit_keycard: false,

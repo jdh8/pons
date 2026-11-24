@@ -351,14 +351,17 @@ where BBA bids `2♣` (1,503 rows, −1,316 plain / −1,418 PD, the
 | 7 | `1♥ - 1♠ - 2x -`: responder's `2NT` on 10–12 | 490 (253) | −494 | −781 | diffuse: with four spades over `2♦` / `2♥` 125 rows −267 / −383 (BBA passes `2♥`), with six or more spades 135 rows −185 / −191 (BBA bids spades) |
 
 **Round-2 leads 6, 3b and 4's residue read 2026-11-24** (1,638,400 boards
-per cell vs BBA, one seed per run; lead 7's `ab-heart-spade-tails.sh` still
-running). The READ header of each runner holds the cells.
+per cell vs BBA, one seed per run; lead 7's `ab-heart-spade-tails.sh` read
+2026-11-25). The READ header of each runner holds the cells.
 
 | Lead | Knob | Fired / cell | Plain (none / ns / ew / both) | Verdict |
 | --- | --- | --- | --- | --- |
 | 6 | `response.choice_of_games_keycard` `Some(18)` | 340–370 | +1527 / +2018 / +1494 / +1904 | win 4/4 on plain, PD, SD, SD-PD; **shipped default** |
 | 3b | `notrump.rebid_checkback_shape_keycard` | 432–478 | +1128 / +1438 / +1130 / +1432 | win 4/4 on all four scorers; gate failed on 1–2 boards per cell; opt-in, flip awaits jdh8 |
 | 4 residue | `notrump.two_notrump_transfer_rebid` (round 1) | 529–594 | −713 / −1184 / −679 / −1154 | loss 4/4 on all four scorers; round 2 queued |
+| 7 misfit | `rebid.heart_rebid_misfit_pass` | 833–916 | +1074 / +1352 / +1100 / +1375 | win 4/4 on all four scorers (PD about 2× plain); **shipped default** |
+| 7 raise | `rebid.minor_rebid_four_card_raise` | 424–464 | +140 / +306 / +147 / +306 | win vul, non-inferior NV, on every scorer; **shipped default** |
+| 7 spade | `rebid.spade_jump_rebid_invite` | 298–322 | +605 / +856 / +605 / +825 | win 4/4 on all four scorers; **shipped default** |
 
 Lead 3b's foreign boards were a harness leak: `european_minors_opponents`
 copies the arm's agreements into the book we read EPBot's alerted calls off,
