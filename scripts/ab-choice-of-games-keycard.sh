@@ -21,9 +21,10 @@
 # At 18 every shape is positive (balanced +1.36, a singleton +1.95 not vul);
 # at 17 only the no-singleton unbalanced hands are (+0.64).
 #
-#   base response.choice_of_games_keycard None (the book today)
+#   base response.choice_of_games_keycard None (the book before this run)
 #   on   response.choice_of_games_keycard Some(18): `4NT` RKCB on 18+ support
 #        points, the 1430 ladder and the answerer's pass below it
+#        (the default since this READ; both arms now pass the flag)
 #
 # Not in this arm: a cue-bidding route (BBA's `4♣` / `4♦`), the `4NT (X)` and
 # overcalled tails (the shared RKCB gap, park/rkcb-doubled-answer), and any
@@ -31,6 +32,20 @@
 #
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
+#
+# READ 2026-11-24 (057679f8, SEED_BASE 1795459438892546132, 1,638,400 boards
+# per cell, vs BBA): WIN 4/4 on plain, PD, plain SD and SD-PD.
+#
+#   cell  fired  plain  PD     IMPs/board (plain, 95% CI)  SD plain / SD-PD
+#   none  343    +1527  +1495  +0.0009 ± 0.0002            +1926 / +1904
+#   ns    370    +2018  +1966  +0.0012 ± 0.0003            +2709 / +2683
+#   ew    340    +1494  +1462  +0.0009 ± 0.0002            +2010 / +1986
+#   both  358    +1904  +1856  +0.0012 ± 0.0003            +2458 / +2430
+#
+# +4.4 (we are non-vul) to +5.5 (we are vul) IMPs per fired board, 1 in
+# ~4,600 boards.  Isolation gate passed in every cell.  The four cells share
+# their deals (one seed), so 4/4 is one deal sample at four vulnerabilities.
+# Shipped `Some(18)` by default on this READ (jdh8, 2026-11-24).
 #
 # Resumable; SEED_BASE persists in $R/choice-of-games-keycard.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
@@ -43,12 +58,12 @@ SEED_BASE=$(seed_for choice-of-games-keycard)
 
 log "=== choice-of-games-keycard A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul vuls=$VULS"
 for vul in $VULS; do
-    arm base "$vul"
+    arm base "$vul" --ns-choice-of-games-keycard off
     arm on "$vul" --ns-choice-of-games-keycard 18
     gatepair on base "$vul" || log "isolation gate on vs base ($vul) FAILED, scoring anyway"
     diffpair on base "$vul"
     fired=$(sed -n 's/.*: \([0-9]*\) fired (.*/\1/p' "$R/diff.on.vs.base.$vul.plain.txt")
     log "pre-count on vs base $vul: ${fired:-0} contract-divergent boards$([ "${fired:-0}" -lt 50 ] && echo ' (< 50): INSUFFICIENT DATA for this cell')"
-    sddiff on base "$vul" --on-ns-choice-of-games-keycard 18
+    sddiff on base "$vul" --on-ns-choice-of-games-keycard 18 --off-ns-choice-of-games-keycard off
 done
 log "=== choice-of-games-keycard A/B done"

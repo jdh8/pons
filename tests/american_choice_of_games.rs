@@ -84,8 +84,8 @@ fn opener_corrects_to_four_hearts_with_shape() {
 #[test]
 fn opener_asks_keycards_on_slam_values() {
     let mut agreements = Agreements::default();
-    agreements.response.choice_of_games_keycard = Some(18);
-    let (off, on) = (partnership(), american(&agreements).bind());
+    agreements.response.choice_of_games_keycard = None;
+    let (off, on) = (american(&agreements).bind(), partnership());
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,

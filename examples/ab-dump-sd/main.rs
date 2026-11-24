@@ -365,13 +365,13 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_ns_spade_jump_rebid_invite: bool,
-    /// Read the ON arm with this choice-of-games keycard floor
+    /// Read the ON arm with this choice-of-games keycard floor, or `off`
     /// (`response.choice_of_games_keycard`, `bba-gen --ns-choice-of-games-keycard`)
-    #[arg(long)]
-    on_ns_choice_of_games_keycard: Option<u8>,
+    #[arg(long, default_value = "18", value_name = "off|POINTS")]
+    on_ns_choice_of_games_keycard: String,
     /// Same for the OFF arm
-    #[arg(long)]
-    off_ns_choice_of_games_keycard: Option<u8>,
+    #[arg(long, default_value = "18", value_name = "off|POINTS")]
+    off_ns_choice_of_games_keycard: String,
     /// Read the ON arm with this XYZ relay-invite floor after `1x - 1y - 1NT`
     /// (`rebid.xyz_notrump_invite_floor`, `bba-gen --ns-xyz-notrump-invite-floor`).
     #[arg(long, default_value_t = 11)]
@@ -465,6 +465,11 @@ impl Sampling {
     }
 }
 
+/// An `off|POINTS` flag as the knob's `Option`
+fn off_or_points(flag: &str) -> Option<u8> {
+    (flag != "off").then(|| flag.parse().expect("the flag takes off|POINTS"))
+}
+
 fn main() {
     let args = Args::parse();
     let on = common::load_dump(&args.on);
@@ -544,7 +549,7 @@ fn main() {
     on_arm.rebid.heart_rebid_misfit_pass = args.on_ns_heart_rebid_misfit_pass;
     on_arm.rebid.minor_rebid_four_card_raise = args.on_ns_minor_rebid_four_card_raise;
     on_arm.rebid.spade_jump_rebid_invite = args.on_ns_spade_jump_rebid_invite;
-    on_arm.response.choice_of_games_keycard = args.on_ns_choice_of_games_keycard;
+    on_arm.response.choice_of_games_keycard = off_or_points(&args.on_ns_choice_of_games_keycard);
     on_arm.rebid.xyz_notrump_accept = args.on_ns_xyz_notrump_accept;
     on_arm.defense.woolsey_wide_unusual_2nt = args.on_ns_woolsey_wide_2nt;
     on_arm.decision.instinct.penalize_escape_stack = args.on_ns_penalize_escape_stack;
@@ -618,7 +623,7 @@ fn main() {
     off_arm.rebid.heart_rebid_misfit_pass = args.off_ns_heart_rebid_misfit_pass;
     off_arm.rebid.minor_rebid_four_card_raise = args.off_ns_minor_rebid_four_card_raise;
     off_arm.rebid.spade_jump_rebid_invite = args.off_ns_spade_jump_rebid_invite;
-    off_arm.response.choice_of_games_keycard = args.off_ns_choice_of_games_keycard;
+    off_arm.response.choice_of_games_keycard = off_or_points(&args.off_ns_choice_of_games_keycard);
     off_arm.rebid.xyz_notrump_accept = args.off_ns_xyz_notrump_accept;
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     common::set_notrump_defense(

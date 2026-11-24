@@ -30,6 +30,28 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
+# READ 2026-11-24 (878fa705, SEED_BASE 1795473254996592931, 1,638,400 boards
+# per cell, vs BBA): WIN 4/4 on plain, PD, plain SD and SD-PD; the isolation
+# gate FAILED in every cell on 1-2 boards.
+#
+#   cell  fired  plain  PD     IMPs/board (plain, 95% CI)  SD plain / SD-PD   foreign
+#   none  439    +1128  +1075  +0.0007 ± 0.0002            +1498 / +1455      1
+#   ns    478    +1438  +1351  +0.0009 ± 0.0003            +2115 / +2062      1
+#   ew    432    +1130  +1070  +0.0007 ± 0.0002            +1685 / +1643      2
+#   both  472    +1432  +1345  +0.0009 ± 0.0003            +2053 / +1994      2
+#
+# +2.6 (we are non-vul) to +3.0 (we are vul) IMPs per fired board, 1 in
+# ~3,600 boards.  One seed, four vulnerabilities.  The foreign boards are
+# THEIR `1♣ - 1♠ - 2NT - 3♠ - 4♠ - 4NT - 5♣`: with the knob on we double the
+# `5♣` answer and they stop in `5♠` instead of `6♠`.  Traced 2026-11-24, a
+# harness leak, not an engine one: `common::european_minors_opponents` builds
+# the book we read EPBot's alerted calls off from a copy of the arm's own
+# agreements, so the knob re-read THEIR alerted `4NT` on support points.  The
+# copy now resets this knob (the third such reset there); 6 boards of 1,821
+# cannot carry the verdict.  A one-cell gate re-check on the same seed is
+# `ab-results/checkback-gate-recheck`.  The knob is still default off: the
+# flip awaits jdh8.
+#
 # Resumable; SEED_BASE persists in $R/rebid-checkback-shape-keycard.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-rebid-checkback-shape-keycard.sh RESULTS_DIR}

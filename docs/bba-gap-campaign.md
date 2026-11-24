@@ -298,9 +298,10 @@ facing `2NT - 3♦ - 3♥` or `1NT - 2♣ - 2♦` (−13 to −15); not traced.
 `shrunk-pools.py` on the shipping arm shows no new lane: round-2's top ten are
 the known pairs (`2♦` 5+ ♦ −1,295 shrunk, `2♣` 5+ ♣ −738, the 5♣4♦ `3♦` 18+
 −368), `3NT` 0+ HCP (168 rows, raw −310, shrunk −274) enters at #10 and the
-3-card-support `3♣` (78 rows) is demoted. Open round-2 leads: 3's checkback
-half, 5 (Drury `4NT`), 6 (`1♠ - 3NT`), 7 (`1♥ - 1♠ - 2x - 2NT`) and lead 4's
-`3M`-completion slam residue.
+3-card-support `3♣` (78 rows) is demoted. Round-2 leads since worked: 5 (Drury
+`4NT`) and 6 (`1♠ - 3NT`) shipped, 3's checkback half won and is opt-in; 7
+(`1♥ - 1♠ - 2x - 2NT`) and lead 4's `3M`-completion slam residue are in
+flight (see the reads below the table).
 
 **The `0772f1c4` window, paired** (`ab-dump-diff` direct A/B at table A,
 `0772f1c4` − `b13dd9fe`, same deals; `diff.window.{american,instinct}.*.txt`
@@ -348,6 +349,27 @@ where BBA bids `2♣` (1,503 rows, −1,316 plain / −1,418 PD, the
 | 5 | Drury `1♠ - 2♣ -`: opener's `4NT` on 19+ support points | 52 (27) | −282 | −289 | all passed-hand rows; `6♠` after the `5♣` answer on balanced 18–20. `raises/drury.rs`'s module doc already names this hole |
 | 6 | `1♠ - 3NT -`: our `4♠`, BBA's `4♣` / `4♦` | 38 (19) | −216 | −216 | opener 13–18 unbalanced signs off over the 12–15 balanced raise; BBA cue-bids to `6♠` |
 | 7 | `1♥ - 1♠ - 2x -`: responder's `2NT` on 10–12 | 490 (253) | −494 | −781 | diffuse: with four spades over `2♦` / `2♥` 125 rows −267 / −383 (BBA passes `2♥`), with six or more spades 135 rows −185 / −191 (BBA bids spades) |
+
+**Round-2 leads 6, 3b and 4's residue read 2026-11-24** (1,638,400 boards
+per cell vs BBA, one seed per run; lead 7's `ab-heart-spade-tails.sh` still
+running). The READ header of each runner holds the cells.
+
+| Lead | Knob | Fired / cell | Plain (none / ns / ew / both) | Verdict |
+| --- | --- | --- | --- | --- |
+| 6 | `response.choice_of_games_keycard` `Some(18)` | 340–370 | +1527 / +2018 / +1494 / +1904 | win 4/4 on plain, PD, SD, SD-PD; **shipped default** |
+| 3b | `notrump.rebid_checkback_shape_keycard` | 432–478 | +1128 / +1438 / +1130 / +1432 | win 4/4 on all four scorers; gate failed on 1–2 boards per cell; opt-in, flip awaits jdh8 |
+| 4 residue | `notrump.two_notrump_transfer_rebid` (round 1) | 529–594 | −713 / −1184 / −679 / −1154 | loss 4/4 on all four scorers; round 2 queued |
+
+Lead 3b's foreign boards were a harness leak: `european_minors_opponents`
+copies the arm's agreements into the book we read EPBot's alerted calls off,
+so the knob re-read their `4NT` in `1♣ - 1♠ - 2NT - 3♠ - 4♠ - 4NT` and our
+double of the `5♣` answer moved. The copy now resets the knob. Lead 4's
+round 1 sat on the direct `2NT` table's bands and bid a point less than the
+floor it replaced: `4NT` on 11 lost 3.4 IMPs a board to the floor's `6NT`
+(142 boards, none + both), `3NT` on 10 lost 2.4 (129), the pass of `3M` on 4
+lost 0.7 (295), and opener raised the unauthored `4♥` sign-off to `6♥` (22
+boards, −9.9). Round 2 moves each band down a point, hands 14+ back to the
+floor and authors opener's pass.
 
 **Lead 5 worked 2026-11-23: shipped, win 4/4.** The floor of the direct
 `4NT` moved from 19 to 20 support points (`response.drury_keycard`); a short

@@ -9,21 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Six opt-in knobs for the remaining round-2 leads of the BBA anchor
-  `a0977ce9`, all off by default and unmeasured (2026-11-24).** No default
-  call changes. Each has a `bba-gen --ns-…` flag and a runner queued through
-  `scripts/queue-ab.sh`; the verdicts are owed.
-  - `ResponseKnobs::choice_of_games_keycard` (`None`; the arm is `Some(18)`):
-    opener asks keycards over `1M - 3NT` on 18+ support points (lead 6, −216
-    plain IMPs on 38 anchor rows). `scripts/ab-choice-of-games-keycard.sh`.
+- **Six knobs for the remaining round-2 leads of the BBA anchor `a0977ce9`
+  (2026-11-24).** Each has a `bba-gen --ns-…` flag and a runner queued
+  through `scripts/queue-ab.sh`. One has shipped (see Changed); the rest are
+  off by default.
+  - `ResponseKnobs::choice_of_games_keycard`: opener asks keycards over
+    `1M - 3NT` on 18+ support points (lead 6, −216 plain IMPs on 38 anchor
+    rows). `scripts/ab-choice-of-games-keycard.sh`.
   - `NotrumpKnobs::rebid_checkback_shape_keycard`: after `1m - 1M - 2NT`,
     responder's keycard asks count support points (13+ on the 5-3 fit, 12+
     on the 6-2) instead of 14+ / 12+ HCP (lead 3b, −269 on 37 rows).
-    `scripts/ab-rebid-checkback-shape-keycard.sh`.
+    Measured vs BBA (`scripts/ab-rebid-checkback-shape-keycard.sh`, seed
+    1795473254996592931, 1,638,400 boards per cell, 432–478 fired): plain DD
+    +1128 / +1438 / +1130 / +1432 IMPs (none/ns/ew/both), PD +1075 / +1351 /
+    +1070 / +1345, a win in every cell on plain, PD and both single-dummy
+    scorers. Still off by default: the default flip is undecided.
   - `NotrumpKnobs::two_notrump_transfer_rebid`: responder's rebid over the
     plain `3M` completion of a `2NT` transfer is a book table, not the
     floor's net-only slam leap (the losing bucket of the super-accept A/B,
-    −117 to −155 plain per cell). `scripts/ab-two-notrump-transfer-rebid.sh`.
+    −117 to −155 plain per cell). Round 1, on the direct table's bands, lost
+    in every cell (`scripts/ab-two-notrump-transfer-rebid.sh`, seed
+    1795486471760789996, 529–594 fired: plain −713 / −1184 / −679 / −1154,
+    PD −529 / −863 / −495 / −837). The bands now sit a point lower, 14+
+    stays with the floor and opener passes the `4M` sign-off; that round is
+    unmeasured.
   - `RebidKnobs::heart_rebid_misfit_pass`, `minor_rebid_four_card_raise` and
     `spade_jump_rebid_invite`: three natural fixes to responder's rebid in
     `1♥ - 1♠ - 2x` (lead 7), one arm each in
@@ -32,6 +41,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     a keycard ask against game for those two populations.
 
 ### Changed
+
+- **Opener asks keycards over the choice-of-games `1M - 3NT` on 18+ support
+  points (2026-11-24).** Opener used to choose only the game there (`4M`
+  unbalanced, else pass); an 18-point hand now bids `4NT`, RKCB in the
+  major, and responder answers on the 1430 ladder.
+  `ResponseKnobs::choice_of_games_keycard` defaults to `Some(18)`; `None`
+  restores the old book, and `bba-gen --ns-choice-of-games-keycard` now takes
+  `off|POINTS`. A/B vs BBA (`scripts/ab-choice-of-games-keycard.sh`, seed
+  1795459438892546132, 1,638,400 boards per cell, 340–370 fired): plain DD
+  +1527 / +2018 / +1494 / +1904 IMPs (none/ns/ew/both), PD +1495 / +1966 /
+  +1462 / +1856, single-dummy +1926 / +2709 / +2010 / +2458, a win in every
+  cell on every scorer: +4.4 to +5.5 IMPs per fired board on 1 board in
+  4,600.
 
 - **Opener's keycard ask over Reverse Drury needs 20 support points, not 19
   (2026-11-23).** After `- - 1M - 2♣ -`, a 19-point opener without a
@@ -44,6 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   about +1.6 to +2.5 IMPs per fired board on 1 board in 10,000. Single-dummy
   is negative in every cell (−116 / −117 / −81 / −105 plain) and
   non-inferior. Our reading of BBA's own `4NT` there stays 19+.
+
+### Fixed
+
+- **The A/B harnesses no longer leak `rebid_checkback_shape_keycard` into
+  the book the opponents are read off (2026-11-24).**
+  `european_minors_opponents` copies the arm's agreements; with the knob on,
+  EPBot's alerted `4NT` in `1♣ - 1♠ - 2NT - 3♠ - 4♠ - 4NT` was re-read on
+  support points and our double of the `5♣` answer moved (6 foreign boards
+  at the isolation gate across four cells). Harness only; no engine call
+  changes.
 
 ## [0.12.0] — 2026-11-23
 

@@ -1904,10 +1904,11 @@ struct Args {
     ns_spade_jump_rebid_invite: bool,
 
     /// Opener's support-point floor for the `4NT` keycard ask over the choice-
-    /// of-games `1M - 3NT` (`response.choice_of_games_keycard`, default none;
-    /// the on arm of `scripts/ab-choice-of-games-keycard.sh`)
-    #[arg(long, value_name = "POINTS")]
-    ns_choice_of_games_keycard: Option<u8>,
+    /// of-games `1M - 3NT`, or `off` (`response.choice_of_games_keycard`,
+    /// **shipped default 18 2026-11-24**; `off` is the base arm of
+    /// `scripts/ab-choice-of-games-keycard.sh`)
+    #[arg(long, default_value = "18", value_name = "off|POINTS")]
+    ns_choice_of_games_keycard: String,
 
     /// Play the Meckstroth `2NT` adjunct over the forcing `1NT` instead of
     /// the natural jump shifts (`rebid.meckstroth_adjunct`, default off; it
@@ -3863,7 +3864,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.rebid.heart_rebid_misfit_pass = args.ns_heart_rebid_misfit_pass;
     agreements.rebid.minor_rebid_four_card_raise = args.ns_minor_rebid_four_card_raise;
     agreements.rebid.spade_jump_rebid_invite = args.ns_spade_jump_rebid_invite;
-    agreements.response.choice_of_games_keycard = args.ns_choice_of_games_keycard;
+    agreements.response.choice_of_games_keycard = match args.ns_choice_of_games_keycard.as_str() {
+        "off" => None,
+        n => Some(n.parse().map_err(|_| {
+            anyhow::anyhow!("--ns-choice-of-games-keycard must be off|POINTS, got {n:?}")
+        })?),
+    };
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;

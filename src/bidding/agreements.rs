@@ -3656,9 +3656,11 @@ pub struct NotrumpKnobs {
     /// trumps and 6–8 HCP.  That is the one losing bucket of the super-accept
     /// A/B (round 3: −117 to −155 plain IMPs per cell; traced 2026-11-24, the
     /// `3M` reading `2..=3` trumps tips the net about a point earlier).  On,
-    /// five trumps bid the notrump ladder of the direct responses (`3NT`
-    /// 5–10, quantitative `4NT` 11–12, `6NT` 13–16) and six place `4M`, or
-    /// `6M` on 11+ support points.  **Off by default**, measurement owed:
+    /// five trumps bid the notrump ladder of the direct responses a point
+    /// lower (`3NT` 4–9, quantitative `4NT` 10–11, `6NT` 12–13; 14+ stay with
+    /// the floor) and six place `4M`, or `6M` on 11+ support points; opener
+    /// passes the `4M`.  **Off by default**: round 1, on the direct bands,
+    /// lost 4/4 vs BBA (2026-11-24); round 2 is owed:
     /// `scripts/ab-two-notrump-transfer-rebid.sh`.
     pub two_notrump_transfer_rebid: bool,
     /// Checkback and forcing majors over the 18–19 `2NT` rebid (`1m - 1M - 2NT`)
@@ -4404,8 +4406,9 @@ pub struct ResponseKnobs {
     /// major, before that choice.  Responder is 12–15 HCP with three or four
     /// trumps and no ruffing value.  The anchor `a0977ce9` prices the missing
     /// ask at −216 plain IMPs on 38 rows (round-2 lead 6: BBA cue-bids to
-    /// `6♠`).  **`None` by default**, measurement owed:
-    /// `scripts/ab-choice-of-games-keycard.sh`.
+    /// `6♠`).  **`Some(18)` by default since 2026-11-24**: won 4/4 vs BBA on
+    /// plain, PD and both SD scorers, +4.4 to +5.5 plain IMPs per fired board
+    /// on 340–370 boards per 1.6M (`scripts/ab-choice-of-games-keycard.sh`).
     pub choice_of_games_keycard: Option<u8>,
     // --- raises/game_try.rs
     /// Author the long-suit and general game tries after `1M - 2M`
@@ -4558,7 +4561,7 @@ impl Default for ResponseKnobs {
             two_over_one_minor_before_spades: true,
             up_the_line: true,
             major_choice_of_games: true,
-            choice_of_games_keycard: None,
+            choice_of_games_keycard: Some(18),
             major_game_tries: true,
             major_raise_slam_try: true,
             limit_raise_acceptance: true,

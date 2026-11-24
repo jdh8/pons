@@ -326,18 +326,17 @@ fn two_notrump_transfer_rebid() {
         P,
     ];
     let three_nt = call(3, Strain::Notrump);
-    // Five trumps walk the notrump ladder: a 10-count offers the choice of
-    // games, 11 invites (the one-point invite of `quantitative_thirty_two`),
-    // 13 bids the slam.
-    assert_eq!(best_call(&on, &hearts, "53.AJT86.J872.KJ"), three_nt);
+    // Five trumps walk the notrump ladder a point below the direct table: a
+    // 9-count offers the choice of games, 10 invites (the one-point invite
+    // of `quantitative_thirty_two`), 11 to 13 bid the slam.
+    assert_eq!(best_call(&on, &hearts, "53.AJT86.J872.QJ"), three_nt);
     assert_eq!(
-        best_call(&on, &hearts, "53.AJT86.Q872.KJ"),
+        best_call(&on, &hearts, "53.AJT86.J872.KJ"),
         call(4, Strain::Notrump),
     );
-    assert_eq!(
-        best_call(&on, &hearts, "K3.AJT86.K872.Q4"),
-        call(6, Strain::Notrump),
-    );
+    for slam in ["53.AJT86.Q872.KJ", "K3.AJT86.K872.Q4"] {
+        assert_eq!(best_call(&on, &hearts, slam), call(6, Strain::Notrump));
+    }
     // Six trumps place the contract: game on a 6-count, slam on shape and 9.
     assert_eq!(
         best_call(&on, &hearts, "T8.AQ9765.T32.65"),
@@ -351,4 +350,7 @@ fn two_notrump_transfer_rebid() {
     assert_eq!(best_call(&on, &hearts, "532.T8643.872.J4"), P);
     let invited = [&hearts[..], &[call(4, Strain::Notrump), P]].concat();
     assert_eq!(best_call(&on, &invited, "KQJ2.K4.AK3.A652"), P);
+    // Opener passes the sign-off.
+    let signed_off = [&hearts[..], &[call(4, Strain::Hearts), P]].concat();
+    assert_eq!(best_call(&on, &signed_off, "KQJ2.K4.AK3.A652"), P);
 }

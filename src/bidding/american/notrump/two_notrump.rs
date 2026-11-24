@@ -176,19 +176,22 @@ fn after_super_accept(into: Suit, shift: u8) -> Rules {
 /// Unauthored, this seat is the floor's, and its slam milestones run on the
 /// evaluator net alone: `6NT` on a five-card 10-count, `6M` on six trumps and
 /// 6–8 HCP (`scripts/ab-two-notrump-super-accept.sh`, round 3: the one losing
-/// bucket, −117 to −155 plain IMPs per cell).  The table mirrors the direct
-/// responses, with the same `shift`:
+/// bucket, −117 to −155 plain IMPs per cell).  The table is the direct
+/// responses' ladder one point lower (the fifth trump), with the same `shift`:
 ///
 /// | Call | Wt | Meaning |
 /// |------|----|---------|
 /// | 6M | 1.3 | Six trumps, 11+ support points (31+ facing 20–21 and a fit) |
-/// | 4NT | 1.2 | Quantitative, five trumps, 11–12 |
-/// | 6NT | 1.2 | Five trumps, 13–16 (`notrump.quantitative_six_notrump`) |
+/// | 4NT | 1.2 | Quantitative, five trumps, 10–11 |
+/// | 6NT | 1.2 | Five trumps, 12–13 (`notrump.quantitative_six_notrump`) |
 /// | 4M | 1.1 | Six trumps, to play |
-/// | 3NT | 1.0 | Choice of games, five trumps, 5–10 |
+/// | 3NT | 1.0 | Choice of games, five trumps, 4–9 |
 /// | Pass | 0.0 | Under game values |
 ///
-/// Five trumps on 17+ stay with the floor, as in the direct table.
+/// Five trumps on 14+ stay with the floor: its `7NT` there beat a blanket
+/// `6NT` by 10 IMPs a board where it chose it.  Round 1 sat on the direct
+/// table's own bands and lost 4/4 to the floor it replaced
+/// (`scripts/ab-two-notrump-transfer-rebid.sh`, read 2026-11-24).
 // ponytail: six trumps place the slam without a keycard ask — `4NT` is the
 // quantitative raise here and opener cannot tell the two apart.  Give the long
 // hand an ask (a Texas-style route) if the `6M` row measures badly.
@@ -204,7 +207,7 @@ fn after_transfer_completion(into: Suit, agreements: &Agreements, shift: u8) -> 
         .rule(
             Bid::new(4, Strain::Notrump),
             120,
-            len(into, ..6) & hcp(11 - shift..=12 - shift - tight),
+            len(into, ..6) & hcp(10 - shift..=11 - shift - tight),
         )
         .rule(
             Bid::new(4, trump),
@@ -214,14 +217,14 @@ fn after_transfer_completion(into: Suit, agreements: &Agreements, shift: u8) -> 
         .rule(
             Bid::new(3, Strain::Notrump),
             100,
-            len(into, ..6) & hcp(5 - shift..=10 - shift),
+            len(into, ..6) & hcp(4 - shift..=9 - shift),
         )
-        .rule(Call::Pass, 0, hcp(..5 - shift));
+        .rule(Call::Pass, 0, hcp(..4 - shift));
     if agreements.notrump.quantitative_six_notrump {
         rules.rule(
             Bid::new(6, Strain::Notrump),
             120,
-            len(into, ..6) & hcp(13 - shift - tight..=16 - shift),
+            len(into, ..6) & hcp(12 - shift - tight..=13 - shift),
         )
     } else {
         rules
@@ -541,6 +544,14 @@ pub(crate) fn two_notrump_structure() -> Package {
                         entries.extend(rows_of(
                             Pattern::node(&format!("{completed} {four_nt} -")),
                             quantitative_answer(*accept_hcp),
+                        ));
+                        // The `4M` sign-off stands: left to the floor,
+                        // opener raised it to `6M` on 20–21 (22 boards,
+                        // −9.9 IMPs each, round 1).
+                        let signed_off = call(4, Strain::from(major));
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{completed} {signed_off} -")),
+                            Rules::new().rule(Call::Pass, 0, hcp(0..)),
                         ));
                     }
                 }

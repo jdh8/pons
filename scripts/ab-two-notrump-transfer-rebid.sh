@@ -19,11 +19,14 @@
 # the floor, not against the old reading.
 #
 #   base notrump.two_notrump_transfer_rebid off: the floor bids the seat
-#   on   notrump.two_notrump_transfer_rebid on: five trumps bid `3NT` 5-10,
-#        quantitative `4NT` 11, `6NT` 12-16 (the direct table's bands; 17+
-#        stays with the floor); six bid `4M`, or `6M` on 11+ support points;
-#        opener answers the `4NT` as it answers the direct one.  The 22-24
-#        `2♣` lanes share it, two points lower.
+#   on   notrump.two_notrump_transfer_rebid on.  Round 2 (the code today):
+#        five trumps bid `3NT` 4-9, quantitative `4NT` 10, `6NT` 11-13 (the
+#        direct table's bands one point lower; 14+ stays with the floor); six
+#        bid `4M`, or `6M` on 11+ support points; opener passes the `4M` and
+#        answers the `4NT` as it answers the direct one.  The 22-24 `2♣`
+#        lanes share it, two points lower.  Round 1 sat on the direct bands
+#        (`3NT` 5-10, `4NT` 11, `6NT` 12-16) and left opener's seat over `4M`
+#        to the floor; see its READ below.
 #
 # Not in this arm: a keycard ask for the six-card hand (`4NT` is the
 # quantitative raise; opener cannot tell them apart), opener's choice over
@@ -32,6 +35,42 @@
 #
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
+#
+# READ 2026-11-24 (24eab2cb, SEED_BASE 1795486471760789996, 1,638,400 boards
+# per cell, vs BBA): LOSS 4/4 on plain, PD, plain SD and SD-PD.  Not dead:
+# the bands sit a point too high and one continuation is unauthored.
+#
+#   cell  fired  plain  PD    IMPs/board (plain, 95% CI)  SD plain / SD-PD
+#   none  532    -713   -529  -0.0004 ± 0.0003            -1385 / -1262
+#   ns    594    -1184  -863  -0.0007 ± 0.0003            -2415 / -2209
+#   ew    529    -679   -495  -0.0004 ± 0.0003            -1559 / -1430
+#   both  588    -1154  -837  -0.0007 ± 0.0003            -2268 / -2044
+#
+# Isolation gate passed in every cell.  SD fell back on 13-14% of the on
+# arm's boards against 4% of the base arm's, so SD is not arm-symmetric.
+# Trace (`ab-dump-diff --jsonl`, none + both pooled, 1,120 boards, -1,867
+# plain), by the first differing call and that hand's HCP:
+#
+#   floor -> table              hand                  n    plain  /board
+#   6NT -> 4NT (resp)           11, five trumps       142  -484   -3.41
+#   6NT -> 3NT (resp)           10, five              129  -307   -2.38
+#   6NT -> 3NT (resp)            9, five               53  +148   +2.79
+#   7NT -> 6NT (resp)           14-16, five            46  -468   -10.2
+#   7NT -> 6NT (resp)           12-13, five            41  +197   +4.80
+#   3NT -> pass of 3M (resp)     4, five              295  -211   -0.72
+#   pass -> 6♥ over 4♥ (opener)  20-21                 22  -218   -9.91
+#   7♠ -> 6♠ (resp)             six or more            40  -207   -5.18
+#
+# So the floor's slams are right one point lower than the direct table's
+# bands (the fifth trump is worth the point): `6NT` from 11, an invite on 10,
+# a grand from 14, pass of `3M` only below 4.  Opener's `6♥` over the `4♥`
+# sign-off is the floor bidding an unauthored seat.  The five losing rows
+# those fixes address (all but the six-card `7♠ -> 6♠`) are -1,688 of the
+# -1,867.  Each row is conditional on the floor's own choice (the 14-16 row
+# is only the hands where it picked `7NT`), so round 2 hands 14+ back to the
+# floor instead of bidding a blanket grand.  Round 2 = those bands plus
+# opener's pass over `4M`, results in ab-results/two-notrump-transfer-rebid-r2
+# (a fresh SEED_BASE); the knob stays default off.
 #
 # Resumable; SEED_BASE persists in $R/two-notrump-transfer-rebid.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
