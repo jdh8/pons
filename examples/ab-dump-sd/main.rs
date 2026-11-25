@@ -347,12 +347,12 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_ns_two_notrump_transfer_rebid: bool,
-    /// Read the ON arm with `rebid.heart_rebid_spade_rebid` on (`bba-gen --ns-heart-rebid-spade-rebid`)
+    /// Read the ON arm with `rebid.heart_rebid_spade_rebid` off (`bba-gen --no-ns-heart-rebid-spade-rebid`)
     #[arg(long, default_value_t = false)]
-    on_ns_heart_rebid_spade_rebid: bool,
+    on_no_ns_heart_rebid_spade_rebid: bool,
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
-    off_ns_heart_rebid_spade_rebid: bool,
+    off_no_ns_heart_rebid_spade_rebid: bool,
     /// Read the ON arm with `rebid.heart_rebid_misfit_pass` off (`bba-gen --no-ns-heart-rebid-misfit-pass`)
     #[arg(long, default_value_t = false)]
     on_no_ns_heart_rebid_misfit_pass: bool,
@@ -553,7 +553,7 @@ fn main() {
     on_arm.notrump.rebid_checkback_shape_keycard = !args.on_no_ns_rebid_checkback_shape_keycard;
     on_arm.notrump.two_notrump_transfer_rebid = args.on_ns_two_notrump_transfer_rebid;
     on_arm.rebid.heart_rebid_misfit_pass = !args.on_no_ns_heart_rebid_misfit_pass;
-    on_arm.rebid.heart_rebid_spade_rebid = args.on_ns_heart_rebid_spade_rebid;
+    on_arm.rebid.heart_rebid_spade_rebid = !args.on_no_ns_heart_rebid_spade_rebid;
     on_arm.rebid.minor_rebid_four_card_raise = !args.on_no_ns_minor_rebid_four_card_raise;
     on_arm.rebid.spade_jump_rebid_invite = !args.on_no_ns_spade_jump_rebid_invite;
     on_arm.response.choice_of_games_keycard = off_or_points(&args.on_ns_choice_of_games_keycard);
@@ -628,7 +628,7 @@ fn main() {
     off_arm.notrump.rebid_checkback_shape_keycard = !args.off_no_ns_rebid_checkback_shape_keycard;
     off_arm.notrump.two_notrump_transfer_rebid = args.off_ns_two_notrump_transfer_rebid;
     off_arm.rebid.heart_rebid_misfit_pass = !args.off_no_ns_heart_rebid_misfit_pass;
-    off_arm.rebid.heart_rebid_spade_rebid = args.off_ns_heart_rebid_spade_rebid;
+    off_arm.rebid.heart_rebid_spade_rebid = !args.off_no_ns_heart_rebid_spade_rebid;
     off_arm.rebid.minor_rebid_four_card_raise = !args.off_no_ns_minor_rebid_four_card_raise;
     off_arm.rebid.spade_jump_rebid_invite = !args.off_no_ns_spade_jump_rebid_invite;
     off_arm.response.choice_of_games_keycard = off_or_points(&args.off_ns_choice_of_games_keycard);

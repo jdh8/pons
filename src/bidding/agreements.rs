@@ -5336,9 +5336,14 @@ pub struct RebidKnobs {
     /// boards vs BBA, 437 misfit boards with 6+ spades), DD against today's
     /// contract, none / both: the `3♠` invite +243 / +312 plain IMPs on 139
     /// boards, the flat `4♠` on six spades and 13+ +109 / +124 on 113, `2♠`
-    /// on six a wash (+9 / +6 on 97).  **Default off**, A/B owed
-    /// (`scripts/ab-heart-rebid-spade-rebid.sh`); arm it with
-    /// `bba-gen --ns-heart-rebid-spade-rebid`.
+    /// on six a wash (+9 / +6 on 97).  **Default on**, shipped 2026-11-25
+    /// (`scripts/ab-heart-rebid-spade-rebid.sh`, seed 1795562137919430161,
+    /// 1,638,400 boards/cell vs BBA, 455–503 fired): plain +729 / +951 / +725
+    /// / +946 IMPs (none/ns/ew/both), PD +832 / +1063 / +834 / +1057, win 4/4
+    /// on every scorer.  Every hand bucket is positive on plain (`2♠` on six
+    /// +122 / +139); the weak one is the `3♠` invite on 10–11 where the old
+    /// book passed `2♥` (+16 plain / −40 PD on 79 boards non-vulnerable).
+    /// Off-switch `bba-gen --no-ns-heart-rebid-spade-rebid`.
     pub heart_rebid_spade_rebid: bool,
     /// Raise opener's `2m` rebid in `1♥ - 1♠ - 2m` on four cards, not five
     ///
@@ -5361,8 +5366,8 @@ pub struct RebidKnobs {
     /// or `4♠` are 68 rows, −146 plain / −137 PD (round-2 lead 7).  **Default
     /// on**, shipped 2026-11-25 (`scripts/ab-heart-spade-tails.sh`, 298–322
     /// fired): plain +605 / +856 / +605 / +825 IMPs (none/ns/ew/both), PD +696
-    /// / +979 / +696 / +949, win 4/4 on every scorer.  Not authored over the
-    /// `2♥` rebid, where responder has no spade call.  Off-switch
+    /// / +979 / +696 / +949, win 4/4 on every scorer.  Over the `2♥` rebid the
+    /// spade calls are [`Self::heart_rebid_spade_rebid`].  Off-switch
     /// `bba-gen --no-ns-spade-jump-rebid-invite`.
     pub spade_jump_rebid_invite: bool,
     /// Responder asks keycards for hearts over `1♥ - 1♠ - 2♥` (2+ hearts, 16+
@@ -5706,7 +5711,7 @@ impl Default for RebidKnobs {
             minor_jump_notrump_slam_try: Some(9),
             heart_rebid_invite_accept: true,
             heart_rebid_misfit_pass: true,
-            heart_rebid_spade_rebid: false,
+            heart_rebid_spade_rebid: true,
             minor_rebid_four_card_raise: true,
             spade_jump_rebid_invite: true,
             heart_rebid_keycard: true,

@@ -42,20 +42,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `probe-drury-slam` takes `--choice-of-games` and `--checkback` to price
     a keycard ask against game for those two populations.
 - **`RebidKnobs::heart_rebid_spade_rebid`: responder's own spade suit over
-  `1♥ - 1♠ - 2♥` (2026-11-25).** Off by default, A/B vs BBA queued
-  (`scripts/ab-heart-rebid-spade-rebid.sh`, `bba-gen
-  --ns-heart-rebid-spade-rebid`). The table over `2♥` had no spade call, so a
-  six-spade misfit passed `2♥` or bid notrump (the residue of
-  `heart_rebid_misfit_pass`). On, with at most one heart: `2♠` to play (6+
-  spades, ≤9 HCP), `3♠` invitational (six spades, 10–12 HCP; opener answers
-  as over `1♥ - 1♠ - 2m - 3♠`), `4♠` (seven spades and 10+ HCP, or six and
-  13+). Sized on the shipped `misfit` arm by pricing those contracts against
-  today's (1,638,400 boards, 437 misfit boards with 6+ spades): about +550
-  plain DD IMPs non-vulnerable and +700 vulnerable, most of it the `3♠`
-  invite (+243 / +312 on 139 boards) and `4♠` over `3NT` on six spades and
-  13+ (+109 / +124 on 113). No measured verdict yet.
+  `1♥ - 1♠ - 2♥` (2026-11-25).** Sized on the shipped `misfit` arm at about
+  +550 plain DD IMPs non-vulnerable and +700 vulnerable per 1,638,400 boards,
+  measured in `scripts/ab-heart-rebid-spade-rebid.sh`. Shipped (see Changed).
 
 ### Changed
+
+- **A misfit responder bids their own spades over `1♥ - 1♠ - 2♥`
+  (2026-11-25).** The table over `2♥` had no spade call, so six spades
+  passed `2♥` or bid notrump (the residue of the misfit pass below). Now,
+  with at most one heart: `2♠` to play (6+ spades, ≤9 HCP; opener passes),
+  `3♠` invitational (six spades, 10–12 HCP; opener answers as over `1♥ - 1♠
+  - 2m - 3♠`), `4♠` (seven spades and 10+ HCP, or six and 13+). Two hearts
+  still raise. `RebidKnobs::heart_rebid_spade_rebid` defaults to `true`; the
+  `bba-gen` flag is now `--no-ns-heart-rebid-spade-rebid`. A/B vs BBA
+  (`scripts/ab-heart-rebid-spade-rebid.sh`, seed 1795562137919430161,
+  1,638,400 boards per cell, 455–503 fired), none/ns/ew/both: plain DD +729 /
+  +951 / +725 / +946 IMPs, PD +832 / +1063 / +834 / +1057, a win in every
+  cell on plain, PD and both single-dummy scorers: +1.6 to +1.9 IMPs per
+  fired board, about +0.0004 IMPs/board non-vulnerable and +0.0006
+  vulnerable. Every hand bucket is positive on plain. `2♠` on six spades was
+  sized a wash and gained +122 / +139 (none / both); the weak slice is the
+  `3♠` invite on 10–11 where the old book passed `2♥` (+16 plain / −40 PD on
+  79 boards non-vulnerable, +87 / 0 on 83 vulnerable).
 
 - **The `1m - 1M - 2NT` checkback asks keycards on shape (2026-11-25).**
   Once the major fit is found, responder's `4NT` counts support points: 13+
@@ -89,8 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     / +696 / +949. A win in every cell on every scorer.
 
   Together about +0.0012 IMPs/board non-vulnerable and +0.0015 vulnerable.
-  Not authored: a spade call over the `2♥` rebid, where a six-spade misfit
-  now passes.
+  A six-spade misfit passed `2♥` on this change; the entry above gives it a
+  spade call.
 
 - **Opener asks keycards over the choice-of-games `1M - 3NT` on 18+ support
   points (2026-11-24).** Opener used to choose only the game there (`4M`

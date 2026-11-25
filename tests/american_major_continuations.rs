@@ -577,14 +577,14 @@ fn heart_spade_tail_knobs() {
     assert_eq!(best_call(&on, &invited, "5.QJ742.AQ863.Q3"), P);
 }
 
-// --- rebid.heart_rebid_spade_rebid (lead 7's residue, off by default) ------
+// --- rebid.heart_rebid_spade_rebid (lead 7's residue, on by default) -------
 
 #[test]
 fn heart_rebid_spade_rebid() {
-    let off = american(&Agreements::default()).bind();
+    let on = american(&Agreements::default()).bind();
     let mut agreements = Agreements::default();
-    agreements.rebid.heart_rebid_spade_rebid = true;
-    let on = american(&agreements).bind();
+    agreements.rebid.heart_rebid_spade_rebid = false;
+    let off = american(&agreements).bind();
     let hearts = [
         call(1, Strain::Hearts),
         P,
