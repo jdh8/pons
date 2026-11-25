@@ -385,3 +385,48 @@ fn ten_count_majors_open_only_the_sound_5431() {
     // A 9-count still passes.
     assert_eq!(opens(&on, "AQ986.K942.T72.6"), Call::Pass);
 }
+
+#[test]
+fn longer_suit_first_opens_the_six_card_suit() {
+    let bid = |level, strain| Call::Bid(Bid::new(level, strain));
+    // 11-HCP 6-5s: clubs over hearts, diamonds over spades, hearts over spades.
+    let clubs = "4.AQ653.9.AJ8653";
+    let diamonds = "AQ653.4.AJ8653.9";
+    let hearts = "AQ653.AJ8653.9.4";
+    let off = openings(&Agreements::default());
+    assert_eq!(opens(&off, clubs), bid(1, Strain::Hearts));
+    assert_eq!(opens(&off, diamonds), bid(1, Strain::Spades));
+    assert_eq!(opens(&off, hearts), bid(1, Strain::Spades));
+
+    let mut agreements = Agreements::default();
+    agreements.opening.longer_suit_first = true;
+    let on = openings(&agreements);
+    assert_eq!(opens(&on, clubs), bid(1, Strain::Clubs));
+    assert_eq!(opens(&on, diamonds), bid(1, Strain::Diamonds));
+    assert_eq!(opens(&on, hearts), bid(1, Strain::Hearts));
+    // 5-5 still opens the higher suit, and six of a major over five of a
+    // minor is untouched.
+    assert_eq!(opens(&on, "AQ653.AK865.93.4"), bid(1, Strain::Spades));
+    assert_eq!(opens(&on, "4.AJ8653.9.AQ653"), bid(1, Strain::Hearts));
+}
+
+#[test]
+fn strong_two_six_major_opens_two_clubs_from_its_floor() {
+    let two_c = Call::Bid(Bid::new(2, Strain::Clubs));
+    // 20 HCP, 6=3=3=1 and 3=6=2=2; then 19 HCP, and 20 with five spades.
+    let spades = "AQJ965.AJ7.KJ2.A";
+    let hearts = "A72.AKQ764.A8.K3";
+    let nineteen = "AQJ965.AJ7.KJ2.K";
+    let five = "AQJ96.AJ7.KJ2.A5";
+    let off = openings(&Agreements::default());
+    assert_eq!(opens(&off, spades), Call::Bid(Bid::new(1, Strain::Spades)));
+    assert_eq!(opens(&off, hearts), Call::Bid(Bid::new(1, Strain::Hearts)));
+
+    let mut agreements = Agreements::default();
+    agreements.opening.strong_two_six_major = Some(20);
+    let on = openings(&agreements);
+    assert_eq!(opens(&on, spades), two_c);
+    assert_eq!(opens(&on, hearts), two_c);
+    assert_ne!(opens(&on, nineteen), two_c);
+    assert_ne!(opens(&on, five), two_c);
+}

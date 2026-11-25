@@ -255,6 +255,15 @@ fn main() {
     if std::env::var("PROBE_TEN_COUNT_MAJORS").is_ok_and(|v| v == "1") {
         agreements.opening.ten_count_majors = true;
     }
+    if std::env::var("PROBE_LONGER_SUIT_FIRST").is_ok_and(|v| v == "1") {
+        agreements.opening.longer_suit_first = true;
+    }
+    if let Some(floor) = std::env::var("PROBE_STRONG_TWO_SIX_MAJOR")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        agreements.opening.strong_two_six_major = Some(floor);
+    }
     // Opener passes `1M (X) 1NT -` with a balanced non-maximum (shipped
     // default-on 2026-10-04): `=0` withholds it.
     if std::env::var("PROBE_DOUBLED_NOTRUMP_PASS").is_ok_and(|v| v == "0") {

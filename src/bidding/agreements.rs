@@ -4152,6 +4152,38 @@ pub struct OpeningKnobs {
     /// (`scripts/ab-ten-count-majors.sh`).  Measured 2026-10-05: a plain wash
     /// and a PD loss alone, a doubling artifact with the 11-count knob.
     pub ten_count_majors: bool,
+    /// Open the **longer suit** on a five-card major under a longer suit:
+    /// `1m` on six or more in the minor, `1♥` on five spades and six or more
+    /// hearts
+    ///
+    /// **Default off**, measurement queued 2026-11-25
+    /// (`scripts/ab-longer-suit-first.sh`).  Off, a five-card major always
+    /// opens `1M` and 5-5 or longer in the majors opens `1♠`, so a 1=5=1=6
+    /// opens `1♥` and a 5=6=1=1 opens `1♠`.  BBA opens the long suit: on
+    /// anchor `a0977ce9` that pair is 1,787 rows per 409,600 boards, −2,878
+    /// plain / −2,406 PD (a first-call pair, so it prices BBA's continuations
+    /// too).  On, three rules above the majors take the hand at the base
+    /// band (12+ points, 10+ HCP); a third- or fourth-seat 11-point hand
+    /// still opens the major.  Nothing else is authored: opener's rebids are
+    /// the natural ones (the major at the one level, a reverse on extras, the
+    /// minor again on a minimum).  `bba-gen --ns-longer-suit-first`,
+    /// `PROBE_LONGER_SUIT_FIRST=1` in `probe-decision`.
+    pub longer_suit_first: bool,
+    /// The HCP floor from which a **six-card major** opens the strong `2♣`
+    ///
+    /// **Default `None`**, measurement queued 2026-11-25
+    /// (`scripts/ab-strong-two-six-major.sh`, arm `Some(20)`).  `None`: `2♣`
+    /// needs 22 points, so a 20-count 6322 opens `1M` and plays there when
+    /// responder passes on 0–5.  BBA opens `2♣` on it: on anchor `a0977ce9`
+    /// our `1M` against its `2♣` is 954 rows per 409,600 boards, −1,429 plain
+    /// / −1,141 PD, and the 20–21 HCP hands with a six-card major and no
+    /// second suit are 366 of them, −661 plain (a first-call pair, so it
+    /// prices BBA's continuations too).  `Some(floor)`: one more `2♣` rule,
+    /// `floor`+ HCP with six or more in a major.  Nothing else is authored:
+    /// the strong-`2♣` lane's answers still count opener for 22.  Not under
+    /// the wide `1♣`.  `bba-gen --ns-strong-two-six-major HCP`,
+    /// `PROBE_STRONG_TWO_SIX_MAJOR=HCP` in `probe-decision`.
+    pub strong_two_six_major: Option<u8>,
     /// Play the **wide, non-forcing `1♣`** with its `1♦!` catch-all relay —
     /// the Watermelon Dutch Doubleton plugin (<https://jdh8.github.io/watermelon-dutch/>)
     ///
@@ -4252,6 +4284,8 @@ impl Default for OpeningKnobs {
             five_five_four_two: false,
             eleven_count_majors: false,
             ten_count_majors: false,
+            longer_suit_first: false,
+            strong_two_six_major: None,
             wide_one_club: false,
             multi_two_diamonds: false,
             multi_two_diamonds_champion: true,

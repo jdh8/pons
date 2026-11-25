@@ -93,9 +93,22 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
         // force to a passable 1♣ (the shipped floored scale reads it 22, and
         // unbalanced 22-HCP hands read 22+ points on every scale, so the
         // union adds nothing else — it's redundant-but-exact by default).
-        Rules::new()
+        let rules = Rules::new()
             .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
-            .alert(STRONG_2C)
+            .alert(STRONG_2C);
+        // Opt-in: a six-card major opens `2♣!` from a lower HCP floor
+        // (`strong_two_six_major`), ahead of `1M` and of the `2NT` a 6322
+        // would otherwise never reach.
+        match knobs.strong_two_six_major {
+            Some(floor) => rules
+                .rule(
+                    Bid::new(2, Strain::Clubs),
+                    300,
+                    hcp(floor..) & (len(Suit::Hearts, 6..) | len(Suit::Spades, 6..)),
+                )
+                .alert(STRONG_2C),
+            None => rules,
+        }
     };
     rules = with_one_notrump(rules, shape, knobs);
     rules = with_two_notrump(rules, agreements);
@@ -122,6 +135,30 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
     // moves onto raw HCP: majors run to 20 (a 21+ five-card major opens
     // `2♣!`), minors to 23 (`wide_one_club`).
     //
+    // Opt-in: the longer suit first (`longer_suit_first`).  Exactly five in
+    // a major under six or more in a minor opens the minor, and five spades
+    // under six or more hearts open `1♥`; the weight sits above every `1M`
+    // below, so the majors yield without changing their own rules.
+    if knobs.longer_suit_first {
+        rules = one_level(
+            rules,
+            Bid::new(1, Strain::Hearts),
+            270,
+            wide,
+            (12, 10, 20),
+            len(Suit::Hearts, 6..) & len(Suit::Spades, 5..=5),
+        );
+        for suit in [Suit::Diamonds, Suit::Clubs] {
+            rules = one_level(
+                rules,
+                Bid::new(1, Strain::from(suit)),
+                270,
+                wide,
+                (12, 10, 23),
+                len(suit, 6..) & (len(Suit::Hearts, 5..=5) | len(Suit::Spades, 5..=5)),
+            );
+        }
+    }
     // Five-card majors; 1♠ ranks just above 1♥ so 5-5 opens the higher.
     let early = nth_seat(1) | nth_seat(2);
     let late = nth_seat(3) | nth_seat(4);

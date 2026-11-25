@@ -1004,6 +1004,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_ten_count_majors: bool,
 
+    /// Open the longer suit on a five-card major under a six-card minor or
+    /// five spades under six hearts (default off; see
+    /// `opening.longer_suit_first`).
+    #[arg(long, default_value_t = false)]
+    ns_longer_suit_first: bool,
+
+    /// Open the strong `2♣` on a six-card major from this many HCP (default
+    /// off; see `opening.strong_two_six_major`).
+    #[arg(long)]
+    ns_strong_two_six_major: Option<u8>,
+
     /// Play the wide, non-forcing `1♣` with its `1♦!` relay (default off; see
     /// `opening.wide_one_club`).
     #[arg(long, default_value_t = false)]
@@ -3770,6 +3781,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.five_five_four_two = args.ns_5542;
     agreements.opening.eleven_count_majors = args.ns_eleven_count_majors;
     agreements.opening.ten_count_majors = args.ns_ten_count_majors;
+    agreements.opening.longer_suit_first = args.ns_longer_suit_first;
+    agreements.opening.strong_two_six_major = args.ns_strong_two_six_major;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
     agreements.rebid.strong_two_positive = !args.no_ns_strong_two_positive;

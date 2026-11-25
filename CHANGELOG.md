@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Two opt-in opening knobs for the largest first-call pairs of the BBA
+  anchor `4592d0a3` (2026-11-25), both measurements queued.** Neither is
+  measured yet; both are off by default and the default book is unchanged.
+  - `OpeningKnobs::longer_suit_first`: a five-card major under a six-card
+    or longer minor opens the minor, and five spades under six or more
+    hearts open `1♥` (12+ points, 10+ HCP). BBA opens the long suit; our
+    `1M` there is 1,781 anchor rows per 409,600 boards, −2,898 plain /
+    −2,447 PD. No continuation is authored: opener's rebids are the book's
+    natural ones. `bba-gen --ns-longer-suit-first`,
+    `PROBE_LONGER_SUIT_FIRST=1`, `scripts/ab-longer-suit-first.sh`.
+  - `OpeningKnobs::strong_two_six_major`: the HCP floor from which a
+    six-card major opens the strong `2♣` (`None` keeps 22 points; the
+    queued arm is `Some(20)`). Our `1M` where BBA opens `2♣` is 955 rows,
+    −1,411 / −1,123, and the 20–21 HCP six-card one-suiters are 366 of
+    them, −661 / −550. `bba-gen --ns-strong-two-six-major HCP`,
+    `PROBE_STRONG_TWO_SIX_MAJOR=HCP`,
+    `scripts/ab-strong-two-six-major.sh`.
+- **`scripts/cut-auction.py`**: cuts an anchor snapshot by auction prefix,
+  our call and BBA's call, the 2026-11-20 round-2 cut as a script. It
+  produced the two leads above.
 - **Six knobs for the remaining round-2 leads of the BBA anchor `a0977ce9`
   (2026-11-24).** Each has a `bba-gen --ns-…` flag and a runner queued
   through `scripts/queue-ab.sh`. Four have shipped (see Changed); the rest
@@ -1192,6 +1212,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ranking and series row in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md); snapshot
   `ab-results/ben-anchor/2026-11-13-f43436de/`.
+- **BBA re-anchor (2026-11-25, `4592d0a3`)**: shipping `american()` scores
+  **−0.1110 plain / +0.0214 perfect-defense IMPs/board** (none −0.1178 /
+  +0.0238, both −0.1042 / +0.0190), the series' best plain, up 0.0043;
+  `american_instinct()` −0.867 / −0.890. Same seed `1783375064`, all four
+  cells replayed at 100% with zero mismatches, 22 new DD tables, 40 minutes.
+  The window since `a0977ce9` is seven book knobs: the Drury keycard floor,
+  the choice-of-games keycard, the three `1♥ - 1♠ - 2x` responder fixes, the
+  checkback shape gate and the spade rebids over `1♥ - 1♠ - 2♥`. Paired per
+  table on the same deals, shipping gains +0.0019 ±0.0012 / +0.0020 ±0.0016
+  plain (none / both) and +0.0023 / +0.0027 PD, a win in all four cells, on
+  359 / 383 boards fired. That is +379 / +414 plain IMPs against +682 /
+  +906 predicted from the seven ship A/Bs: about half, with the prediction
+  outside the window's CI in both cells. Summed with the two windows before
+  it the series deals paid 0.92× / 0.86× of the A/Bs. Shipping round-2
+  gains +1,103 plain and round-1 +386. Floor paired worth unchanged at
+  +0.387 plain / +0.464 PD. Ranking, the by-auction lead table and series
+  row in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md); snapshot
+  `ab-results/anchor/2026-11-25-4592d0a3/`.
 - **BBA re-anchor (2026-11-23, `a0977ce9`)**: shipping `american()` scores
   **−0.1153 plain / +0.0159 perfect-defense IMPs/board** (none −0.1217 /
   +0.0189, both −0.1088 / +0.0129), the series' best plain, up 0.0085;

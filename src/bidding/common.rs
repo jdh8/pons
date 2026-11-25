@@ -170,6 +170,10 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise our light 11-count majors: their `1M` keeps the sound reading.
     mirror.opening.eleven_count_majors = opening.eleven_count_majors;
     mirror.opening.ten_count_majors = opening.ten_count_majors;
+    // And the longer suit first on a 6-5: their `1m` keeps denying a major.
+    mirror.opening.longer_suit_first = opening.longer_suit_first;
+    // And the lighter `2♣` on a six-card major: their `2♣` stays 22+.
+    mirror.opening.strong_two_six_major = opening.strong_two_six_major;
     // Our `2♦`-waiting structure over 2♣ is pinned *off* in the mirror: an
     // undeclared opponent's `2♣ - 2♦` decodes as the double-negative
     // structure, so the knob moves only boards we open.  Measured
