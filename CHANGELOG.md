@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Agreements::bws()`: Bridge World Standard 2017 as a third named
+  preset, measurement queued.** `default()` with seventeen knobs moved to
+  the state [BWS 2017](https://bridgeworld.com/bridge-world-standard)
+  prescribes, where that state is authored: the semiforcing `1NT`, the
+  strong `1♥ - 2♠`, plain Stayman answers, strict positives to `2♣`, plain
+  lebensohl with a negative double over their overcall of our `1NT`,
+  negative doubles through `3♠`, the Woolsey defense to their `1NT`,
+  doubles of their Stayman and transfers. Most flips undo a measured
+  verdict, so a loss to `advanced` is expected; the run prices the
+  consensus card. `docs/bws-2017.md` holds the flips, a census of every BWS
+  agreement against the book (what matches, what a knob gives, what is
+  unauthored) and the ranked holes. `--ns-preset bws` in `bba-gen`,
+  `render-book` and `probe-call-reading`; `scripts/ab-bws.sh`. The default
+  system is unchanged.
+- **`RebidKnobs::semiforcing_notrump`, opt-in: opener passes `1M - 1NT` on
+  a balanced minimum.** A 5-3-3-2, or a 4=5=2=2 over `1♥ - 1NT`, with at
+  most 12 HCP passes instead of bidding a three-card minor or rebidding
+  `2♥` (BWS 2017, IV.G); every other hand rebids as before. The `.bbsa`
+  card moves from `Forcing 1NT` to `Semi forcing 1NT` with the knob. Default
+  off, the default book is unchanged; the A/B vs BBA is queued as arm `sf`
+  of `scripts/ab-bws.sh`. `bba-gen --ns-semiforcing-notrump`.
 - **`ResponseKnobs::heart_spade_strong_jump_shift`, opt-in: `1♥ - 2♠` as a
   strong jump shift.** `Some(floor)`: an unpassed hand's `2♠` shows 5+
   spades, at most two hearts and `floor`+ HCP, game-forcing; a passed hand

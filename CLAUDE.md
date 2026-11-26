@@ -52,6 +52,7 @@ Paths are under `docs/` unless they start with `src/` or `.claude/`.
 | **The book** | |
 | Porting a book section to rows | [declarative-rows.md](docs/declarative-rows.md); grammar in `rows.rs`'s module doc |
 | System variants (`basic` / `advanced`), the Watermelon knobs | [system-variants.md](docs/system-variants.md): a variant is an `Agreements` value, not a factory |
+| Bridge World Standard 2017 (`Agreements::bws()`, `--ns-preset bws`); what BWS says about a call | [bws-2017.md](docs/bws-2017.md): the flips, the conformance census, the ranked holes |
 | Our 1NT constructive | [one-notrump-constructive.md](docs/one-notrump-constructive.md) |
 | Our 1NT contested (`1NT (2x)`, `1NT - resp (..)`) | [one-notrump-competitive.md](docs/one-notrump-competitive.md): their overcalls are artificial (BBA plays Woolsey Multi-Landy). Verdicts in `docs/archive/one-notrump-competitive-*.md` |
 | The `1NT (2♦)` Multi lane | [one-notrump-multi.md](docs/one-notrump-multi.md); `render-book --their-2d-multi --prefix "1NT 2♦"` |

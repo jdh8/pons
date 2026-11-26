@@ -229,6 +229,22 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
             .rule(Bid::new(2, Strain::Clubs), 40, len(Suit::Clubs, 3..))
             .rule(Bid::new(2, Strain::Diamonds), 35, len(Suit::Diamonds, 3..));
     }
+    // Semiforcing: a balanced minimum passes instead of inventing a rebid
+    // (BWS 2017).  Above the three-card-minor rungs and the 2M fallback,
+    // below every real suit, so only 5-3-3-2 and 4=5=2=2 reach it.
+    if agreements.rebid.semiforcing_notrump {
+        rules = rules.rule(Call::Pass, 45, hcp(..=12) & balanced());
+        if major == Suit::Hearts {
+            rules = rules.rule(
+                Call::Pass,
+                44,
+                hcp(..=12)
+                    & len(Suit::Spades, 4..=4)
+                    & len(Suit::Diamonds, 2..=2)
+                    & len(Suit::Clubs, 2..=2),
+            );
+        }
+    }
     // Opener always holds at least five of the major, so this always applies.
     rules.rule(Bid::new(2, trump), 30, len(major, 5..))
 }

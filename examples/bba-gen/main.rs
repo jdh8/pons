@@ -1951,6 +1951,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_meckstroth_adjunct: bool,
 
+    /// Play the `1NT` response to `1M` semiforcing: opener passes a 5-3-3-2
+    /// or 4=5=2=2 with at most 12 HCP (`rebid.semiforcing_notrump`, default
+    /// off; Bridge World Standard 2017, `docs/bws-2017.md`)
+    #[arg(long, default_value_t = false)]
+    ns_semiforcing_notrump: bool,
+
     /// Let responder's `4♥` over `1♥ - 1NT - 2♠` take a doubleton
     /// (`rebid.forcing_nt_reverse_heart_game`, default off; the #7 repair)
     #[arg(long, default_value_t = false)]
@@ -3006,9 +3012,10 @@ struct Args {
     #[arg(long, default_value_t = 2)]
     ns_preempt_4m_top_honors: u8,
 
-    /// Replace every `--ns-*` knob with a named system variant, `basic` or
-    /// `advanced` (`docs/system-variants.md`); applied last, so it overrides
-    /// the knob flags and keeps only their-side disclosures
+    /// Replace every `--ns-*` knob with a named system variant, `basic`,
+    /// `advanced` or `bws` (`docs/system-variants.md`, `docs/bws-2017.md`);
+    /// applied last, so it overrides the knob flags and keeps only their-side
+    /// disclosures
     #[arg(long)]
     ns_preset: Option<String>,
 
@@ -3911,6 +3918,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })?),
     };
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
+    agreements.rebid.semiforcing_notrump = args.ns_semiforcing_notrump;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;
     agreements.rebid.forcing_nt_reverse_hcp_floor = !args.no_ns_forcing_nt_reverse_hcp_floor;

@@ -4878,6 +4878,21 @@ pub struct RebidKnobs {
     /// `bba-gen --no-ns-forcing-nt-six-four-hearts`
     /// (`scripts/ab-forcing-nt-six-four.sh`).
     pub forcing_nt_six_four_hearts: bool,
+    /// The **semiforcing** `1NT`: opener passes `1M - 1NT` on a balanced
+    /// minimum
+    ///
+    /// **Default off**, measurement queued 2026-11-26 (`scripts/ab-bws.sh`,
+    /// arm `sf`).  Off, the notrump is forcing: a 5-3-3-2 bids its three-card
+    /// minor ([`forcing_nt_three_card_minor`][crate::bidding::inference::ReadingProfile::forcing_nt_three_card_minor])
+    /// and a 4=5=2=2 rebids `2♥`.  On, opener passes with at most 12 HCP and
+    /// either shape, which is Bridge World Standard 2017's agreement
+    /// (IV.G: "opener may pass with 5-3-3-2 or 4=5=2=2 and a hand deemed no
+    /// stronger than 12 high-card points"); every other hand rebids as
+    /// before, so `1NT` stays 6-12 and its three-card limit raise can be
+    /// passed in `1NT`.  The `.bbsa` card moves from `Forcing 1NT` to
+    /// `Semi forcing 1NT` with it.  `bba-gen --ns-semiforcing-notrump`;
+    /// part of [`Agreements::bws`] (`docs/bws-2017.md`).
+    pub semiforcing_notrump: bool,
     /// Let responder's `4♥` over the `1♥ - 1NT - 2♠` reverse take a doubleton
     ///
     /// **Default off** (measuring).  Off, `4♥` needs three hearts, so a hand
@@ -5763,6 +5778,7 @@ impl Default for RebidKnobs {
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
             forcing_nt_six_four_hearts: true,
+            semiforcing_notrump: false,
             forcing_nt_reverse_heart_game: false,
             forcing_nt_reverse_five_hearts: true,
             forcing_nt_reverse_hcp_floor: true,
@@ -6078,11 +6094,13 @@ impl Default for Agreements {
     }
 }
 
-/// The two named profiles of the system (`docs/system-variants.md`)
+/// The named profiles of the system (`docs/system-variants.md`,
+/// `docs/bws-2017.md`)
 ///
 /// A variant is an `Agreements` value, not a second factory: `advanced` is
 /// the shipped default under its IntoBridge name, `basic` the same system
-/// with the gadget layer switched to each knob's natural *authored* state.
+/// with the gadget layer switched to each knob's natural *authored* state,
+/// `bws` the same system on Bridge World Standard 2017's agreements.
 /// An unauthored off-state falls to the floor, which is not "natural", so a
 /// hole (Puppet vs a natural `1NT - 3m`, the 1NT runout family) stays as
 /// shipped and is recorded in the document, not flipped here.
@@ -6156,6 +6174,61 @@ impl Agreements {
         // off is already the default).
         a.response.drury = false;
         a.response.drury_splinters = false;
+        a
+    }
+
+    /// Bridge World Standard 2017, as far as the authored book reaches
+    /// (`docs/bws-2017.md`)
+    ///
+    /// [`Default`] with every knob moved to the state BWS prescribes, where
+    /// that state is authored.  The default is the *measured* card and BWS
+    /// the *polled* one, so most flips here undo a measured verdict: the
+    /// preset prices expert consensus, it is not a claim to beat `advanced`.
+    /// What BWS states and no knob can say (0314 keycard replies, `4♦`/`4♥`
+    /// Texas with Gerber, Kokish `2♥`, the feature ask over a weak two, XYZ
+    /// confined to the `1NT` rebid) stays as shipped and is listed in the
+    /// document; numeric ranges are untouched.  Section numbers are BWS's.
+    /// `bws_differs_from_default_only_on_the_listed_fields` pins the flips.
+    #[must_use]
+    pub fn bws() -> Self {
+        let mut a = Self::default();
+        // IV.F(d): opener answers Stayman `2♦`/`2♥`/`2♠` only, hearts with
+        // both majors; no `2NT` or `3M` maximum jumps.
+        a.notrump.stayman_both_majors = false;
+        a.notrump.stayman_5card_max = false;
+        // V.C(m): over their double of a transfer opener accepts on three,
+        // redoubles on the doubled suit, and superaccepts "as had intervenor
+        // passed", which presumes the uncontested superaccept.
+        a.notrump.transfer_super_accept = true;
+        a.competition.competition_over_transfer = true;
+        // IV.D: a positive to `2♣` needs a strong suit or notrump shape.
+        a.response.strong_two_loose_positive = false;
+        // IV.G(a): the `1NT` response to a major is semiforcing.
+        a.rebid.semiforcing_notrump = true;
+        // IV.G(f): `1♥ - 2♠` is a strong jump shift, 16+ HCP.
+        a.response.heart_spade_strong_jump_shift = Some(16);
+        // V.C(a)-(c): over their overcall of our `1NT`, a negative double,
+        // plain lebensohl and forcing three-level suits.
+        a.competition.lebensohl_style = LebensohlStyle::Plain;
+        a.competition.double_style = DoubleStyle::Takeout;
+        // V.D, V.E: negative doubles through `3♠`.
+        a.competition.high_overcall_responses = true;
+        // V.A: over their double of our weak two a strength redouble and
+        // forcing new suits, over their overcall a forcing `2NT`.
+        a.competition.weak_two_competition = true;
+        // VI.A: against their `1NT`, double = a four-card major and a longer
+        // minor, `2♣` majors, `2♦` one major, `2M` that major and a minor,
+        // `2NT` minors at any strength.
+        a.decision.reading.notrump_defense = super::american::NotrumpDefense::Woolsey;
+        a.defense.woolsey_wide_unusual_2nt = true;
+        // VI.A: a double of their Stayman or transfer shows the suit doubled,
+        // a bid of the suit a transfer shows is takeout.
+        a.defense.stayman_defense_enabled = true;
+        a.defense.transfer_defense_enabled = true;
+        // VI.C: advancer's double of responder's raise is not for penalty.
+        a.defense.responsive_overcall_enabled = true;
+        // VI.F: lebensohl advances of a takeout double of their weak two.
+        a.defense.advance_sohl_style = LebensohlStyle::Plain;
         a
     }
 }

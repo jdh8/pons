@@ -38,7 +38,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 /// `--ns-preset NAME`: replace every knob with a named system variant
-/// (`docs/system-variants.md`), keeping only the opponents' disclosures.
+/// (`docs/system-variants.md`, `docs/bws-2017.md`), keeping only the
+/// opponents' disclosures.
 ///
 /// Applied **after** the `--ns-*` overlay, because every binary assigns each
 /// flag unconditionally, defaults included, so a preset laid down first would
@@ -50,7 +51,8 @@ pub fn apply_preset(agreements: &mut Agreements, preset: &str) -> anyhow::Result
     *agreements = match preset {
         "basic" => Agreements::basic(),
         "advanced" => Agreements::advanced(),
-        other => anyhow::bail!("--ns-preset must be basic or advanced, got {other:?}"),
+        "bws" => Agreements::bws(),
+        other => anyhow::bail!("--ns-preset must be basic, advanced or bws, got {other:?}"),
     };
     agreements.decision.their = their;
     Ok(())

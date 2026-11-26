@@ -595,6 +595,12 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Reverse drury" => i32::from(a.response.drury),
         "Drury" => 0,
 
+        // The 1NT response to a major and its two-suiter rebids: forcing, or
+        // semiforcing under `rebid.semiforcing_notrump` (opener may pass a
+        // balanced minimum).
+        "Forcing 1NT" => i32::from(!a.rebid.semiforcing_notrump),
+        "Semi forcing 1NT" => i32::from(a.rebid.semiforcing_notrump),
+
         // ---- constant: we author these (or pointedly do not), and no knob moves them ----
         //
         // Better minor: `1♦` can be three cards, so neither length row holds
@@ -707,9 +713,6 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // so `1` describes our bidder better than `0` would.
         "Unusual 1NT" | "Unusual 4NT" | "Two suit takeout double" => 1,
         "Unusual 3NT" | "Non-Leaping Michaels" | "Ghestem" | "Polish two suiters" | "Wilkosz" => 0,
-        // The forcing 1NT response and its two-suiter rebids; not semi-forcing.
-        "Forcing 1NT" => 1,
-        "Semi forcing 1NT" => 0,
         // Inverted minor raises, Jacoby 2NT, splinters, Smolen, Texas, quantitative
         // 4NT, minor transfers after 2NT, Ogust over a weak two, Lebensohl's
         // strength structure, weak twos in both majors and diamonds.

@@ -23,9 +23,9 @@ same for `american()`:
   candidate list); the test is *how much a beginner must memorise*, not
   *expert consensus*. (The first draft of this doc used Bridge World
   Standard 2017 as the reference; that is the wrong card — Wikipedia's own
-  summary calls BWS 2/1 "with many advanced treatments", its complete text
-  is paywalled, and a consensus of experts is what `advanced` already
-  approximates. BWS stays in [§8](#8-sources) as a *not this*.) The nearest
+  summary calls BWS 2/1 "with many advanced treatments", and a consensus of
+  experts is what `advanced` already approximates. BWS is its own preset
+  since 2026-11-26, `Agreements::bws()`: [bws-2017.md](bws-2017.md).) The nearest
   public teaching card is the ACBL SAYC booklet; BBO's own split is the
   precedent: BBO Basic ≈ SAYC, BBO Advanced ≈ 2/1.
 - **`advanced`** — the champion: every convention that measured a win is on.
@@ -425,10 +425,9 @@ the minors". The reversible default is one line in `basic()`
   American and 2/1 game forcing, but with many advanced treatments" — why
   BWS is *not* the `basic` reference.
   <https://en.wikipedia.org/wiki/Bridge_World_Standard>; the 2017 complete
-  system is behind The Bridge World's login
-  (<https://bridgeworld.com/pages/readingroom/bws/bwscompletesystem.html>);
-  Jim Loy's public summary is of the 1994 edition
-  (<https://www.sao.ru/hq/dim/bridge/biddings/natural/loybws.html>).
+  system is public at <https://bridgeworld.com/bridge-world-standard>
+  (fetched 2026-11-26; the old reading-room URL was behind a login) and is
+  the spec of the `bws` preset ([bws-2017.md](bws-2017.md)).
 
 ## The Watermelon Dutch Doubleton knobs
 

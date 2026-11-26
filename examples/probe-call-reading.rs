@@ -275,9 +275,10 @@ struct Args {
     #[arg(long, default_value = "14", value_name = "off|HCP")]
     ns_passed_hand_major_pass: String,
 
-    /// Replace every `--ns-*` knob with a named system variant, `basic` or
-    /// `advanced` (`docs/system-variants.md`); applied last, so it overrides
-    /// the knob flags and keeps only their-side disclosures
+    /// Replace every `--ns-*` knob with a named system variant, `basic`,
+    /// `advanced` or `bws` (`docs/system-variants.md`, `docs/bws-2017.md`);
+    /// applied last, so it overrides the knob flags and keeps only their-side
+    /// disclosures
     #[arg(long)]
     ns_preset: Option<String>,
 

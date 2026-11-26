@@ -169,6 +169,43 @@ fn basic_differs_from_default_only_on_the_listed_fields() {
     );
 }
 
+/// `bws()` moves exactly the knobs `docs/bws-2017.md` §2 lists
+///
+/// A default flipped later does not drag the BWS card with it unnoticed: a
+/// field that leaves this list means the default now agrees with BWS there.
+#[test]
+fn bws_differs_from_default_only_on_the_listed_fields() {
+    let default = flat(&super::Agreements::default());
+    let bws = flat(&super::Agreements::bws());
+    let moved: Vec<&str> = default
+        .iter()
+        .filter(|(key, value)| bws[*key] != **value)
+        .map(|(key, _)| key.as_str())
+        .collect();
+    assert_eq!(
+        moved,
+        [
+            "Agreements.competition.competition_over_transfer",
+            "Agreements.competition.double_style",
+            "Agreements.competition.high_overcall_responses",
+            "Agreements.competition.lebensohl_style",
+            "Agreements.competition.weak_two_competition",
+            "Agreements.decision.reading.notrump_defense",
+            "Agreements.defense.advance_sohl_style",
+            "Agreements.defense.responsive_overcall_enabled",
+            "Agreements.defense.stayman_defense_enabled",
+            "Agreements.defense.transfer_defense_enabled",
+            "Agreements.defense.woolsey_wide_unusual_2nt",
+            "Agreements.notrump.stayman_5card_max",
+            "Agreements.notrump.stayman_both_majors",
+            "Agreements.notrump.transfer_super_accept",
+            "Agreements.rebid.semiforcing_notrump",
+            "Agreements.response.heart_spade_strong_jump_shift",
+            "Agreements.response.strong_two_loose_positive",
+        ]
+    );
+}
+
 #[test]
 fn advanced_is_the_default() {
     assert_eq!(super::Agreements::advanced(), super::Agreements::default());
