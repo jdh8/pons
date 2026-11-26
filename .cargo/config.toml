@@ -1,0 +1,6 @@
+# Aliases only: cargo also reads this file from inside `web/`, `tauri/` and
+# `trainer/`, so build settings here would leak into those crates.
+[alias]
+# The desktop client, from the repository root (the path is relative to the
+# working directory).
+desktop = "run --release --manifest-path tauri/Cargo.toml"

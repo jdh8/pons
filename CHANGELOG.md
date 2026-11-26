@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`cargo desktop` (2026-11-27).** A cargo alias in `.cargo/config.toml`
+  that runs the `tauri/` desktop client in release from the repository root.
+
 - **`strawberry()`: Strawberry Polish Club as a second system, first cut,
   measurement queued.** jdh8's Polish club (<https://polish.club/>) as its
   own factory and modules (`src/bidding/strawberry/`), not a variant of
