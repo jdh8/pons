@@ -62,6 +62,8 @@
 # apply: a declared opponent bypasses the mirror).  Same class as lead 3b's
 # leak; pinned off there 2026-11-27, which closes it.  Worth under 0.00004
 # IMPs/board a cell, so the verdict stands.
+#
+# Lead 3 CLOSED 2026-11-27 (jdh8): three washes, worth ~0; stays opt-in.
 R=${1:?usage: ab-two-over-one-hearts-first.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
