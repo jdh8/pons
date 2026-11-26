@@ -4173,12 +4173,14 @@ pub struct OpeningKnobs {
     /// alone: `1♥` on five spades and six or more hearts, the minors
     /// untouched
     ///
-    /// **Default off**, measurement queued 2026-11-26
-    /// (`scripts/ab-longer-hearts-first.sh`).  The whole knob lost on its
-    /// `1m` half and on the reading drift the widened `1m` causes; this half
-    /// read +454 plain on 728 boards inside that arm, which could not price
-    /// it apart.  `bba-gen --ns-longer-hearts-first`,
-    /// `PROBE_LONGER_HEARTS_FIRST=1` in `probe-decision`.
+    /// **Default on** since 2026-11-27 (`scripts/ab-longer-hearts-first.sh`
+    /// vs BBA, 1,638,400 boards a cell, 717–775 fired: plain +376 / +366 /
+    /// +507 / +432 IMPs none / ns / ew / both, PD +471 / +512 / +603 / +531;
+    /// plain win at none and ew, non-inferior at ns and both, PD win 4/4).
+    /// The whole knob lost on its `1m` half and on the reading drift the
+    /// widened `1m` causes; this half alone wins.  Off:
+    /// `bba-gen --no-ns-longer-hearts-first`, `PROBE_LONGER_HEARTS_FIRST=0`
+    /// in `probe-decision`.
     pub longer_hearts_first: bool,
     /// The HCP floor from which a **six-card major** opens the strong `2♣`
     ///
@@ -4296,7 +4298,7 @@ impl Default for OpeningKnobs {
             eleven_count_majors: false,
             ten_count_majors: false,
             longer_suit_first: false,
-            longer_hearts_first: false,
+            longer_hearts_first: true,
             strong_two_six_major: None,
             wide_one_club: false,
             multi_two_diamonds: false,

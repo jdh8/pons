@@ -393,7 +393,9 @@ fn longer_suit_first_opens_the_six_card_suit() {
     let clubs = "4.AQ653.9.AJ8653";
     let diamonds = "AQ653.4.AJ8653.9";
     let hearts = "AQ653.AJ8653.9.4";
-    let off = openings(&Agreements::default());
+    let mut agreements = Agreements::default();
+    agreements.opening.longer_hearts_first = false;
+    let off = openings(&agreements);
     assert_eq!(opens(&off, clubs), bid(1, Strain::Hearts));
     assert_eq!(opens(&off, diamonds), bid(1, Strain::Spades));
     assert_eq!(opens(&off, hearts), bid(1, Strain::Spades));
@@ -409,10 +411,8 @@ fn longer_suit_first_opens_the_six_card_suit() {
     assert_eq!(opens(&on, "AQ653.AK865.93.4"), bid(1, Strain::Spades));
     assert_eq!(opens(&on, "4.AJ8653.9.AQ653"), bid(1, Strain::Hearts));
 
-    // The heart half alone leaves the minors to the book.
-    let mut agreements = Agreements::default();
-    agreements.opening.longer_hearts_first = true;
-    let half = openings(&agreements);
+    // The heart half alone (the default) leaves the minors to the book.
+    let half = openings(&Agreements::default());
     assert_eq!(opens(&half, clubs), bid(1, Strain::Hearts));
     assert_eq!(opens(&half, diamonds), bid(1, Strain::Spades));
     assert_eq!(opens(&half, hearts), bid(1, Strain::Hearts));

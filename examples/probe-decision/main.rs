@@ -267,8 +267,8 @@ fn main() {
     if std::env::var("PROBE_LONGER_SUIT_FIRST").is_ok_and(|v| v == "1") {
         agreements.opening.longer_suit_first = true;
     }
-    if std::env::var("PROBE_LONGER_HEARTS_FIRST").is_ok_and(|v| v == "1") {
-        agreements.opening.longer_hearts_first = true;
+    if std::env::var("PROBE_LONGER_HEARTS_FIRST").is_ok_and(|v| v == "0") {
+        agreements.opening.longer_hearts_first = false;
     }
     if let Some(floor) = std::env::var("PROBE_STRONG_TWO_SIX_MAJOR")
         .ok()

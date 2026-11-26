@@ -73,12 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default book is unchanged; the A/B vs BBA is queued
   (`scripts/ab-single-raise-gap.sh`). `bba-gen --ns-single-raise-gap`,
   `PROBE_SINGLE_RAISE_GAP=1`.
-- **`OpeningKnobs::longer_hearts_first`, opt-in: the heart half of
-  `longer_suit_first` alone.** Five spades under six or more hearts open
-  `1♥` (12+ points, 10+ HCP); the minors and the `1m` reading stay the
-  book's. Default off, the default book is unchanged; the A/B vs BBA is
-  queued (`scripts/ab-longer-hearts-first.sh`). `bba-gen
-  --ns-longer-hearts-first`, `PROBE_LONGER_HEARTS_FIRST=1`.
+- **`OpeningKnobs::longer_hearts_first`: the heart half of
+  `longer_suit_first` alone.** Shipped (see Changed).
 - **Two opt-in opening knobs for the largest first-call pairs of the BBA
   anchor `4592d0a3` (2026-11-25), measured 2026-11-25 vs BBA at 1,638,400
   boards a cell; neither ships.** Both stay off and the default book is
@@ -144,6 +140,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Five spades under six or more hearts open `1♥` (2026-11-27).** They
+  opened `1♠`. 12+ points and 10+ HCP; the minors and the `1m` reading stay
+  the book's, and opener's rebids are the natural ones (`1♥ - 1NT - 2♥`;
+  `2♠` is a reverse). `OpeningKnobs::longer_hearts_first` defaults to `true`;
+  the `bba-gen` flag is now `--no-ns-longer-hearts-first` and
+  `PROBE_LONGER_HEARTS_FIRST=0` turns it off in `probe-decision`. The mirror
+  keeps an undeclared opponent's `1♠` on the old reading. A/B vs BBA
+  (`scripts/ab-longer-hearts-first.sh`, seed 1795705454956034453, 1,638,400
+  boards per cell, 717–775 fired), none/ns/ew/both: plain DD +376 / +366 /
+  +507 / +432 IMPs, PD +471 / +512 / +603 / +531. Plain wins at none and ew
+  and is non-inferior at ns and both; PD wins every cell. About +0.5 to +0.7
+  IMPs per fired board, +0.0002 / +0.0003 IMPs/board (NV / vul).
 - **Measurement notes, no code change (2026-11-26).** Telling BBA our
   generated card costs us −0.0065 / −0.0059 plain and −0.0033 / −0.0023 PD
   IMPs/board (none / both, 1,638,400 boards), against −0.009 for the old
@@ -151,8 +159,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the BBA anchor series, at `4592d0a3`, holds every pooled headline within
   ±0.02, and its window since `5e9e4be4` pays 0.93× / 0.97× of the summed
   ship A/Bs (docs/bba-gap-campaign.md, Open work item 8).
-  `response.two_over_one_hearts_first` re-measured at 1,638,400 boards on
-  the none cell washes a third time.
+  `response.two_over_one_hearts_first` re-measured at 1,638,400 boards
+  washes a third time, now in all four cells (plain +0.0000..+0.0001
+  IMPs/board, non-inferior on plain and PD; completed 2026-11-27); it stays
+  off.
 - **A misfit responder bids their own spades over `1♥ - 1♠ - 2♥`
   (2026-11-25).** The table over `2♥` had no spade call, so six spades
   passed `2♥` or bid notrump (the residue of the misfit pass below). Now,

@@ -15,8 +15,8 @@
 # the `1m` rules and reading alone.  Anchor 4592d0a3: `1♠` where BBA opens
 # `1♥` is 371 rows per 409,600 boards, -533 plain.
 #
-#   base the book: 5♠6♥ opens `1♠`
-#   on   --ns-longer-hearts-first: `1♥` on 6+♥ with exactly five spades
+#   base --no-ns-longer-hearts-first: 5♠6♥ opens `1♠`
+#   on   the default since 2026-11-27: `1♥` on 6+♥ with exactly five spades
 #        (12+ points, 10+ HCP)
 #
 # Not in this arm: any continuation.  Opener's rebids are the book's natural
@@ -25,6 +25,18 @@
 #
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
+#
+# MEASURED 2026-11-27, a WIN, shipped default-on (sha e46af7be; seed
+# 1795705454956034453; 1,638,400 bd/cell; isolation gate passed in every
+# cell).  IMPs none / ns / ew / both, CI +-0.0002..0.0003 per board:
+#
+#   plain  +376 / +366 / +507 / +432  (win / non-inferior / win / non-inferior)
+#   PD     +471 / +512 / +603 / +531  (win 4/4)
+#   fired  717 / 775 / 718 / 762 (0.04-0.05%), +0.47..+0.71 plain per fired
+#
+# Shippable per the table (plain non-inferior worst cell, PD win).  Since the
+# flip the `on` arm is the default and `base` passes
+# `--no-ns-longer-hearts-first`.
 #
 # Resumable; SEED_BASE persists in $R/longer-hearts-first.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
@@ -37,8 +49,8 @@ SEED_BASE=$(seed_for longer-hearts-first)
 
 log "=== longer-hearts-first A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul vuls=$VULS"
 for vul in $VULS; do
-    arm base "$vul"
-    arm on "$vul" --ns-longer-hearts-first
+    arm base "$vul" --no-ns-longer-hearts-first
+    arm on "$vul"
     gatepair on base "$vul" || log "isolation gate on vs base ($vul) FAILED, scoring anyway"
     diffpair on base "$vul"
 done

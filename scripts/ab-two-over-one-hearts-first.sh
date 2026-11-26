@@ -43,6 +43,25 @@
 # hand: plain +0.0000 (+75 IMPs), PD +0.0000 (+59), CI +-0.0003, 1,068
 # fired; non-inferior both scorers.  By opener: ours 992 bd +73 / +74,
 # theirs 76 bd +2 / -15.  A wash a third time, on one cell.
+#
+# ROUND 3 COMPLETED 2026-11-27 (pueue 38, restarted with `gatepair`
+# non-fatal; none reused, ns / ew / both on the same seed).  A WASH 4/4,
+# stays off.  IMPs none / ns / ew / both, CI +-0.0003..0.0004 per board:
+#
+#   plain  +75 / +204 / +154 / +131  (non-inferior 4/4, +0.0000..+0.0001)
+#   PD     +59 / +232 / +168 / +139  (non-inferior 4/4)
+#   fired  1,068 / 1,073 / 1,020 / 1,047 (0.06-0.07%)
+#
+# The gate failed in every cell: 76 / 39 / 28 / 31 boards opened by THEM.
+# Split by opener (`ab-dump-diff --jsonl`), plain / PD:
+#   ours    +73 / +74, +177 / +197, +203 / +218, +180 / +193
+#   theirs   +2 / -15,  +27 /  +35,  -49 /  -50,  -49 /  -54
+# Root cause: `common::european_minors_opponents` builds the declared EPBot
+# book from the ARM's agreements, so the on arm reads EPBot's `1♠ - 2♥` /
+# `2♦` under this knob and our defensive calls move (the mirror pin does not
+# apply: a declared opponent bypasses the mirror).  Same class as lead 3b's
+# leak; pinning the knob off there closes it.  Worth under 0.00004
+# IMPs/board a cell, so the verdict stands.
 R=${1:?usage: ab-two-over-one-hearts-first.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

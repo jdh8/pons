@@ -1010,10 +1010,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_longer_suit_first: bool,
 
-    /// Open `1♥` on five spades under six hearts, the minors untouched
-    /// (default off; see `opening.longer_hearts_first`).
+    /// Open `1♠`, not `1♥`, on five spades under six hearts
+    /// (`opening.longer_hearts_first`, **shipped default-on 2026-11-27**; the
+    /// base arm of `scripts/ab-longer-hearts-first.sh`)
     #[arg(long, default_value_t = false)]
-    ns_longer_hearts_first: bool,
+    no_ns_longer_hearts_first: bool,
 
     /// Open the strong `2♣` on a six-card major from this many HCP (default
     /// off; see `opening.strong_two_six_major`).
@@ -3804,7 +3805,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.eleven_count_majors = args.ns_eleven_count_majors;
     agreements.opening.ten_count_majors = args.ns_ten_count_majors;
     agreements.opening.longer_suit_first = args.ns_longer_suit_first;
-    agreements.opening.longer_hearts_first = args.ns_longer_hearts_first;
+    agreements.opening.longer_hearts_first = !args.no_ns_longer_hearts_first;
     agreements.opening.strong_two_six_major = args.ns_strong_two_six_major;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;

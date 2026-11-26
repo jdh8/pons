@@ -149,7 +149,9 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
             wide,
             (12, 10, 20),
             len(Suit::Hearts, 6..) & len(Suit::Spades, 5..=5),
-        );
+        )
+        // Floors spades, yet natural: hearts is the longer suit.
+        .natural();
     }
     if knobs.longer_suit_first {
         for suit in [Suit::Diamonds, Suit::Clubs] {
