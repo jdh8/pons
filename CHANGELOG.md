@@ -233,6 +233,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An unchanged `tauri/` no longer recompiles on every build
+  (2026-11-27).** `tauri-build` watches `tauri/capabilities`, and cargo
+  treats a missing watched path as always stale, so the build script reran
+  and the app crate rebuilt each time. An empty `capabilities/` (a
+  `.gitkeep`, which the capability parser skips) makes a no-op build a
+  no-op.
+
 - **The A/B harnesses no longer leak `rebid_checkback_shape_keycard` into
   the book the opponents are read off (2026-11-24).**
   `european_minors_opponents` copies the arm's agreements; with the knob on,
