@@ -1641,6 +1641,11 @@ pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> 
     // in `1♣ - 1♠ - 2NT - 3♠ - 4♠ - 4NT` on support points, and our double of
     // the `5♣` answer moved (2026-11-24: 6 foreign boards in four cells).
     theirs.notrump.rebid_checkback_shape_keycard = false;
+    // And the 2/1 suit order and the lighter six-major `2♣`: the arm re-read
+    // EPBot's `1♠ - 2♥` / `2♦` and their `2♣`, and our defensive calls moved
+    // (2026-11-25/27: 28–76 and 72–119 foreign boards a cell).
+    theirs.response.two_over_one_hearts_first = false;
+    theirs.opening.strong_two_six_major = None;
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 

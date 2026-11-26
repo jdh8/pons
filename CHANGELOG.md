@@ -243,6 +243,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`bba-gen`'s declared EPBot book no longer follows two of our opt-in
+  knobs (2026-11-27).** `european_minors_opponents` copied the arm's
+  agreements into the book we read EPBot off, so
+  `--ns-two-over-one-hearts-first` re-read their `1♠ - 2♥` / `2♦` and
+  `--ns-strong-two-six-major` their `2♣`, moving our defensive calls on
+  28–119 foreign boards a cell; both failed the isolation gate. Both are now
+  pinned to their defaults there. Harness only: the default arm is
+  unchanged, and the two measured washes stand (the foreign boards were
+  worth −54 to +138 IMPs a cell).
 - **An unchanged `tauri/` no longer recompiles on every build
   (2026-11-27).** `tauri-build` watches `tauri/capabilities`, and cargo
   treats a missing watched path as always stale, so the build script reran

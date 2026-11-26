@@ -42,7 +42,9 @@
 #   ours    -206 / -474, +161 / -293, -154 / -378, +238 / -190
 #   theirs    +2 /   +2, +138 / +119,  +11 /   -6,  +37 /  +58
 # The foreign boards are worth nothing, so the verdict stands; the leak is
-# flagged (same pattern as two-over-one-hearts r3) and not root-caused.
+# flagged (same pattern as two-over-one-hearts r3).  Root cause, 2026-11-27:
+# `common::european_minors_opponents` copied the arm's knob into the declared
+# EPBot book, so the on arm re-read their `2♣`; pinned to `None` there.
 #
 # Resumable; SEED_BASE persists in $R/strong-two-six-major.seed.
 # Iron rule: do NOT rebuild binaries while this runs.

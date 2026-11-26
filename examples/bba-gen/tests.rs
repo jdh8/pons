@@ -83,3 +83,27 @@ fn declared_european_minors_read_their_2nt_as_an_invitation() {
         declared.rho()
     );
 }
+
+#[test]
+fn declared_opponents_ignore_our_two_over_one_suit_order() {
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::{Bid, Strain};
+
+    // EPBot's `1♠ - 2♥` must read the same whichever 2/1 order our arm plays.
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(2, Strain::Hearts)),
+    ];
+    let read = |argv: &[&str]| {
+        let agreements = arm_knobs(&Args::parse_from(argv)).unwrap();
+        let ours = super::seat_floor("american", &agreements).unwrap();
+        let reading = super::european_minors_opponents(ours, &agreements)
+            .infer(RelativeVulnerability::NONE, &auction);
+        format!("{:?}", reading.rho())
+    };
+    assert_eq!(
+        read(&["bba-gen"]),
+        read(&["bba-gen", "--ns-two-over-one-hearts-first"])
+    );
+}

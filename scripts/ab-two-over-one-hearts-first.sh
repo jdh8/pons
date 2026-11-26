@@ -60,7 +60,7 @@
 # book from the ARM's agreements, so the on arm reads EPBot's `1♠ - 2♥` /
 # `2♦` under this knob and our defensive calls move (the mirror pin does not
 # apply: a declared opponent bypasses the mirror).  Same class as lead 3b's
-# leak; pinning the knob off there closes it.  Worth under 0.00004
+# leak; pinned off there 2026-11-27, which closes it.  Worth under 0.00004
 # IMPs/board a cell, so the verdict stands.
 R=${1:?usage: ab-two-over-one-hearts-first.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
