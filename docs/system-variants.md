@@ -70,7 +70,9 @@ the same thing with a name. So:
 
 What this deliberately does **not** build, with the lesson that forbids it:
 
-- **No second factory, book, module tree or `Family`.** The retired `dutch()`
+- **No second factory, book, module tree or `Family`** for a *variant*.
+  (A different system is not a variant: Strawberry Polish Club has its own
+  factory since 2026-11-26, [strawberry.md](strawberry.md).) The retired `dutch()`
   ([archive/dutch-system.md](archive/dutch-system.md)) was a reuse-and-override
   factory and still never beat `american()` as a whole; every win it found was
   a per-gadget knob. A system is a knob vector. Keep it one.

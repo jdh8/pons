@@ -2183,6 +2183,23 @@ fn watermelon_artificial_calls_are_alerted() {
     );
 }
 
+/// The same alert invariant for Strawberry Polish Club's own books, which
+/// the default walk never sees.
+#[test]
+fn strawberry_artificial_calls_are_alerted() {
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let system = crate::bidding::strawberry::strawberry(&agreements);
+    for (label, trie) in [
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+    ] {
+        assert_all_alerted(
+            "Strawberry",
+            unalerted_artificial(label, trie, agreements.decision),
+        );
+    }
+}
+
 /// The same alert invariant for the opt-in Multi `2♦`, in **both** variants
 ///
 /// The default walk has the Multi knob off, so it never sees a single Multi

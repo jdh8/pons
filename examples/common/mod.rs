@@ -27,7 +27,7 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, TrickCountTable};
 use pons::bidding::agreements::Agreements;
-use pons::bidding::card::{Card, american_card};
+use pons::bidding::card::{Card, american_card, strawberry_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::ConventionCard;
 use pons::bidding::{Bidder, Partnership};
@@ -1421,6 +1421,11 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor(agreements).bind(),
+        // Strawberry Polish Club (docs/strawberry.md): its own constructive
+        // and competitive books over the house defense and the same floors.
+        "strawberry" => pons::strawberry(agreements).bind(),
+        "strawberry-book" => pons::strawberry_book(agreements).bind(),
+        "strawberry-instinct" => pons::strawberry_instinct(agreements).bind(),
         "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
         "american-v6-their" => pons::bidding::american::american_v6_their(agreements).bind(),
         "american-v8" => pons::bidding::american::american_v8(agreements).bind(),
@@ -1445,7 +1450,7 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
             anyhow::bail!("the {name} floor needs --features serde")
         }
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file|bba|bba-ladder|bba-file, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|american-v8|american-file|strawberry|strawberry-book|strawberry-instinct|bba|bba-ladder|bba-file, got {other:?}"
         ),
     })
 }
@@ -1481,11 +1486,12 @@ fn floor_blobs() -> anyhow::Result<std::sync::Arc<[Vec<f32>]>> {
 pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
     Ok(match name.split('-').next().unwrap_or_default() {
         "american" => american_card(agreements),
+        "strawberry" => strawberry_card(agreements),
         // The `bba` pair plays EPBot's own defaults, which is what its card
         // says: no row moved (docs/bba-system.md, D5).
         "bba" => bba_book::card(),
         other => anyhow::bail!(
-            "no card generator for system `{other}` (known: american, bba).  \
+            "no card generator for system `{other}` (known: american, strawberry, bba).  \
              Write one in `src/bidding/card.rs` rather than declaring another \
              system's card."
         ),

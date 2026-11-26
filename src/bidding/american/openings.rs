@@ -21,7 +21,7 @@ mod one_notrump;
 mod two_notrump;
 mod weak_two;
 
-use one_notrump::with_one_notrump;
+pub(in crate::bidding) use one_notrump::with_one_notrump;
 use two_notrump::with_two_notrump;
 use weak_two::with_weak_twos;
 

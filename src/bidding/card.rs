@@ -461,6 +461,23 @@ pub fn american_card(a: &Agreements) -> Card {
     }
 }
 
+/// The card [`strawberry`][crate::bidding::strawberry()] declares
+///
+/// The WJ header over our own rows: EPBot's Polish club is the nearest
+/// system it knows, and the header is the only channel that tells it our
+/// `1♣` is forcing and may be short.  Every row still reads our knobs, so
+/// the conventions WJ plays and we do not are overridden back.  What the
+/// header gets wrong is recorded in `docs/strawberry.md`: WJ's `1♦` and `1M`
+/// run to 17 where ours run to 20 and 16, and its two-level openings are
+/// calls we do not make yet.
+#[must_use]
+pub fn strawberry_card(a: &Agreements) -> Card {
+    Card {
+        system: 2,
+        ..american_card(a)
+    }
+}
+
 /// The card a **foreign** bidder holds, read one row at a time
 ///
 /// [`american_card`] describes *us* from our own knobs.  This describes someone

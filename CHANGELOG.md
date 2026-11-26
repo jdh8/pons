@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`strawberry()`: Strawberry Polish Club as a second system, first cut,
+  measurement queued.** jdh8's Polish club (<https://polish.club/>) as its
+  own factory and modules (`src/bidding/strawberry/`), not a variant of
+  `american()`. Authored from the book: the opening table at the one level
+  (the forcing three-way `1♣!`, `1♦` 11–20, five-card majors 11–16, no
+  strong `2♣` or `2NT`) and the Polish `1♣` through opener's rebid (the
+  negative `1♦!`, positive majors, the swapped `2♣!`/`2♦!` game forces,
+  Reverse Flannery, Odwrotka with its reverse-445566 steps). The chapters
+  not yet authored (`1♦`, `1♥`, `1♠`) are grafted from the house book, as
+  is the shared `1NT` structure; the defensive book is the house's, whole,
+  so a board they open is bid exactly as `american()` bids it. A loss to
+  `american()` is expected until the remaining chapters are authored
+  (competition over `1♣`, Checkback Gladiator, the two-level openings);
+  the run ranks them. `strawberry_instinct()` and `strawberry_book()` are
+  the floor twins; `--our-floor strawberry` in `bba-gen`,
+  `render-book --system strawberry`, `card::strawberry_card` (the WJ
+  header), `scripts/ab-strawberry.sh`. `docs/strawberry.md` is the ledger:
+  assembly, chapter state, the census against the book, the ranked holes.
+  `american()` is unchanged.
 - **`Agreements::bws()`: Bridge World Standard 2017 as a third named
   preset, measurement queued.** `default()` with seventeen knobs moved to
   the state [BWS 2017](https://bridgeworld.com/bridge-world-standard)

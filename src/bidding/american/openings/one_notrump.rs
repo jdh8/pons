@@ -81,7 +81,11 @@ fn one_notrump_offshape_gate() -> Cons<impl Constraint + Clone> {
         )
 }
 
-pub(super) fn with_one_notrump(rules: Rules, shape: NotrumpShape, knobs: &OpeningKnobs) -> Rules {
+pub(in crate::bidding) fn with_one_notrump(
+    rules: Rules,
+    shape: NotrumpShape,
+    knobs: &OpeningKnobs,
+) -> Rules {
     let mut rules = rules;
     let one_notrump_offshape = knobs.one_notrump_offshape;
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening

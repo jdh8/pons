@@ -428,7 +428,9 @@ A fifth joined them on 2026-10-02 and a sixth on 2026-10-03.
   defensive floor buckets, or DD-search-at-leaves
   ([ben-gap-campaign.md](ben-gap-campaign.md) Phase 3) exists — the remaining
   gap is judgement, not structure.
-- **Add Polish Club.** The nearest precedent is the retired `dutch()` system
+- **Add Polish Club.** **Re-opened by jdh8 2026-11-26 as its own system:
+  [strawberry.md](strawberry.md) is the live ledger; the paragraph below is
+  the record of why it was parked.** The nearest precedent is the retired `dutch()` system
   ([archive/dutch-system.md](archive/dutch-system.md)): a naturalised Polish
   Club that never beat `american()` as a whole (Phase 2.1 lost, WJ-floor arms
   B and C lost, the Multi lost) while every win was a per-gadget knob. A true

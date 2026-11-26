@@ -45,6 +45,8 @@ pub(in crate::bidding) mod rows;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
 pub mod sampler;
+/// Strawberry Polish Club, a system of its own
+pub mod strawberry;
 pub mod table;
 /// Structural tag reading of a call — the shared corpus/feature vocabulary
 pub mod tags;
@@ -82,6 +84,7 @@ pub use sampler::{
     SampleStats, sample_defender_remnants, sample_defender_remnants_with_stats, sample_layouts,
     sample_layouts_with_stats,
 };
+pub use strawberry::{strawberry, strawberry_book, strawberry_instinct};
 pub use table::Table;
 pub use trie::{Trie, classifier};
 pub use verify::{Report, accepts, compare};

@@ -47,6 +47,11 @@ struct Args {
     #[arg(long, default_value = "")]
     prefix: String,
 
+    /// Which system's books to print: `american` or `strawberry`
+    /// (docs/strawberry.md)
+    #[arg(long, default_value = "american")]
+    system: String,
+
     /// Declare their `2♦` a Multi (`their.two_diamonds_multi`), which swaps the
     /// natural `(2♦)` leg for the N4 tables
     #[arg(long, default_value_t = false)]
@@ -338,7 +343,11 @@ fn main() {
     if let Some(preset) = &args.ns_preset {
         common::apply_preset(&mut agreements, preset).expect("a known preset");
     }
-    let system = american_book(&agreements);
+    let system = match args.system.as_str() {
+        "american" => american_book(&agreements),
+        "strawberry" => pons::strawberry_book(&agreements),
+        other => panic!("--system must be american or strawberry, got {other:?}"),
+    };
     let books: [(&str, &Trie); 3] = [
         ("constructive", &system.constructive.0),
         ("competitive", &system.competitive.0),
