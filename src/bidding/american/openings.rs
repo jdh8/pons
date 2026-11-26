@@ -139,7 +139,9 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
     // a major under six or more in a minor opens the minor, and five spades
     // under six or more hearts open `1♥`; the weight sits above every `1M`
     // below, so the majors yield without changing their own rules.
-    if knobs.longer_suit_first {
+    // `longer_hearts_first` is the heart half alone: the `1m` rules, and so
+    // the `1m` reading, stay the book's.
+    if knobs.longer_suit_first || knobs.longer_hearts_first {
         rules = one_level(
             rules,
             Bid::new(1, Strain::Hearts),
@@ -148,6 +150,8 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
             (12, 10, 20),
             len(Suit::Hearts, 6..) & len(Suit::Spades, 5..=5),
         );
+    }
+    if knobs.longer_suit_first {
         for suit in [Suit::Diamonds, Suit::Clubs] {
             rules = one_level(
                 rules,

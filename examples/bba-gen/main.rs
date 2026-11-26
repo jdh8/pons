@@ -1010,6 +1010,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_longer_suit_first: bool,
 
+    /// Open `1♥` on five spades under six hearts, the minors untouched
+    /// (default off; see `opening.longer_hearts_first`).
+    #[arg(long, default_value_t = false)]
+    ns_longer_hearts_first: bool,
+
     /// Open the strong `2♣` on a six-card major from this many HCP (default
     /// off; see `opening.strong_two_six_major`).
     #[arg(long)]
@@ -1641,6 +1646,16 @@ struct Args {
     /// off; see `response.two_over_one_hearts_first`).
     #[arg(long, default_value_t = false)]
     ns_two_over_one_hearts_first: bool,
+
+    /// Raise `1M` to `2M` on three trumps and at most 9 HCP whatever the
+    /// support points (default off; see `response.single_raise_gap`).
+    #[arg(long, default_value_t = false)]
+    ns_single_raise_gap: bool,
+
+    /// Play `1♥ - 2♠` as a strong jump shift from this many HCP (default
+    /// off; see `response.heart_spade_strong_jump_shift`).
+    #[arg(long)]
+    ns_heart_spade_strong_jump_shift: Option<u8>,
 
     /// Over `1♥`, bid `1♠` on a game force with four spades and a longer
     /// minor (`response.two_over_one_minor_before_spades`, **shipped
@@ -3782,6 +3797,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.opening.eleven_count_majors = args.ns_eleven_count_majors;
     agreements.opening.ten_count_majors = args.ns_ten_count_majors;
     agreements.opening.longer_suit_first = args.ns_longer_suit_first;
+    agreements.opening.longer_hearts_first = args.ns_longer_hearts_first;
     agreements.opening.strong_two_six_major = args.ns_strong_two_six_major;
     agreements.opening.wide_one_club = args.ns_wide_1c;
     agreements.rebid.odwrotka = args.ns_odwrotka;
@@ -3821,6 +3837,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     };
     agreements.response.two_over_one_natural_lengths = args.ns_two_over_one_natural_lengths;
     agreements.response.two_over_one_hearts_first = args.ns_two_over_one_hearts_first;
+    agreements.response.single_raise_gap = args.ns_single_raise_gap;
+    agreements.response.heart_spade_strong_jump_shift = args.ns_heart_spade_strong_jump_shift;
     agreements.response.two_over_one_minor_before_spades =
         !args.no_ns_two_over_one_minor_before_spades;
     agreements.rebid.forcing_notrump_suit_invite = !args.no_ns_forcing_notrump_suit_invite;

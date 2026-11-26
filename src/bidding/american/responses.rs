@@ -7,6 +7,7 @@
 //! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`], [`ResponseKnobs::two_over_one_hearts_first`], [`ResponseKnobs::two_over_one_minor_before_spades`] |
 //! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`longer_major_response`][field@crate::bidding::inference::ReadingProfile::longer_major_response], [`ResponseKnobs::up_the_line`] |
 //! | [`choice_of_games`] | `1M - 3NT` choice of games | [`ResponseKnobs::major_choice_of_games`] |
+//! | [`strong_jump_shift`] | `1♥ - 2♠` strong jump shift and two rounds below it | [`ResponseKnobs::heart_spade_strong_jump_shift`] |
 //! | [`inverted_minor`] | inverted-minor continuation tree | always on |
 
 use super::super::Alert;
@@ -24,6 +25,7 @@ use contract_bridge::{Bid, Strain, Suit};
 mod choice_of_games;
 mod inverted_minor;
 mod longer_major;
+mod strong_jump_shift;
 mod two_over_one;
 
 use super::raises::DRURY;
@@ -35,6 +37,8 @@ use two_over_one::with_two_over_one;
 
 pub(super) use choice_of_games::choice_of_games_continuations;
 pub(super) use inverted_minor::minor_keycard_continuations;
+pub(super) use strong_jump_shift::strong_jump_shift_continuations;
+use strong_jump_shift::with_strong_jump_shift;
 pub use two_over_one::TwoOverOneGate;
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support
@@ -57,6 +61,17 @@ const GAME_FORCE: Alert = Alert("game-force");
 /// in a new suit) and weak jump shifts round out the response set.
 #[must_use]
 pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
+    responses_with(
+        major,
+        agreements,
+        agreements.response.heart_spade_strong_jump_shift,
+    )
+}
+
+/// [`major_responses`] with the `1♥ - 2♠` jump shift's strength explicit:
+/// `Some(floor)` strong ([`strong_jump_shift`]), `None` weak, which a passed
+/// hand always plays
+fn responses_with(major: Suit, agreements: &Agreements, strong_spades: Option<u8>) -> Rules {
     let knobs = &agreements.response;
     let trump = Strain::from(major);
     let mut rules = Rules::new()
@@ -107,6 +122,18 @@ pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
         )
         .rule(Call::Pass, 0, hcp(..6));
 
+    // Opt-in: three trumps too strong for the single raise in support
+    // points and too weak in HCP for the limit raise through `1NT`
+    // (`hcp(10..=12)`, `rebids/forcing_notrump.rs`) raise anyway
+    // (`single_raise_gap`).
+    if knobs.single_raise_gap {
+        rules = rules.rule(
+            Bid::new(2, trump),
+            150,
+            support(3..=3) & support_points(major, 10..) & hcp(..=9),
+        );
+    }
+
     // 1♠ over 1♥: a new suit at the one level, preferred to a single raise.
     // Minor before spades (`two_over_one_minor_before_spades`): a game force
     // with four spades and a longer minor yields to the 2/1 and shows the
@@ -156,11 +183,18 @@ pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
         &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
     };
 
+    let strong_spades = strong_spades.filter(|_| major == Suit::Hearts);
     for &x in wjs_suits {
+        if x == Suit::Spades && strong_spades.is_some() {
+            continue;
+        }
         let (level, strain) = wjs_bid(major, x);
         rules = rules
             .rule(Bid::new(level, strain), 100, len(x, 6..) & points(2..=5))
             .alert(WEAK_JUMP_SHIFT);
+    }
+    if let Some(floor) = strong_spades {
+        rules = with_strong_jump_shift(rules, floor);
     }
 
     rules = with_two_over_one(rules, major, knobs);
@@ -180,7 +214,7 @@ pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
 /// unpassed `1M - 2♣` reading (measured 2026-10-01).
 #[must_use]
 pub fn passed_hand_major_responses(major: Suit, agreements: &Agreements) -> Rules {
-    major_responses(major, agreements)
+    responses_with(major, agreements, None)
         .rule(
             Bid::new(2, Strain::Clubs),
             250,
@@ -405,6 +439,7 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
         &[
             package(),
             choice_of_games_continuations(),
+            strong_jump_shift_continuations(),
             minor_keycard_continuations(),
         ],
     );

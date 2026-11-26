@@ -408,6 +408,15 @@ fn longer_suit_first_opens_the_six_card_suit() {
     // minor is untouched.
     assert_eq!(opens(&on, "AQ653.AK865.93.4"), bid(1, Strain::Spades));
     assert_eq!(opens(&on, "4.AJ8653.9.AQ653"), bid(1, Strain::Hearts));
+
+    // The heart half alone leaves the minors to the book.
+    let mut agreements = Agreements::default();
+    agreements.opening.longer_hearts_first = true;
+    let half = openings(&agreements);
+    assert_eq!(opens(&half, clubs), bid(1, Strain::Hearts));
+    assert_eq!(opens(&half, diamonds), bid(1, Strain::Spades));
+    assert_eq!(opens(&half, hearts), bid(1, Strain::Hearts));
+    assert_eq!(opens(&half, "AQ653.AK865.93.4"), bid(1, Strain::Spades));
 }
 
 #[test]

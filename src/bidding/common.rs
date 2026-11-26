@@ -172,6 +172,7 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     mirror.opening.ten_count_majors = opening.ten_count_majors;
     // And the longer suit first on a 6-5: their `1m` keeps denying a major.
     mirror.opening.longer_suit_first = opening.longer_suit_first;
+    mirror.opening.longer_hearts_first = opening.longer_hearts_first;
     // And the lighter `2♣` on a six-card major: their `2♣` stays 22+.
     mirror.opening.strong_two_six_major = opening.strong_two_six_major;
     // Our `2♦`-waiting structure over 2♣ is pinned *off* in the mirror: an
@@ -202,6 +203,10 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise the 2/1 suit order: their `1♠ - 2m` keeps the weight ladder's
     // reading.
     mirror.response.two_over_one_hearts_first = false;
+    // Likewise the single raise's gap hands: their `1M - 2M` keeps 6–9.
+    mirror.response.single_raise_gap = false;
+    // And the strong `1♥ - 2♠`: their jump shift keeps the weak reading.
+    mirror.response.heart_spade_strong_jump_shift = None;
     // Likewise the minor before spades over `1♥`: their `1♥ - 1♠` and
     // `1♥ - 2m - R - 2♠` keep the floor's reading.
     mirror.response.two_over_one_minor_before_spades = false;

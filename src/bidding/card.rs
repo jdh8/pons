@@ -799,8 +799,11 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // Responder's single jump in a new suit is weak — 6+ cards, 2–5 points
         // (`responses.rs`, `wjs_bid`), at whichever level the jump lands: `2♠`
         // over `1♥`, the 3 level below the major.  EPBot splits the two levels
-        // into `conventions[166]`/`[167]`, both of which we want.  No knob —
-        // this is the response structure, not a treatment.
+        // into `conventions[166]`/`[167]`, both of which we want.  Constant:
+        // `response.heart_spade_strong_jump_shift` moves `1♥ - 2♠` alone, and
+        // EPBot's two-level row is one radio group for every opening, so
+        // declaring `Strong Jump Shifts 2` would misdescribe the minor
+        // openings' weak ones.  That knob's `2♠` is undisclosed to BBA.
         "Weak Jump Shifts 2" | "Weak Jump Shifts 3" => 1,
         _ => panic!("`{name}` is in the .bbsa schema with no value in `american_row`"),
     }

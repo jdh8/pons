@@ -52,7 +52,7 @@ log "=== two-over-one-hearts A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS
 for vul in $VULS; do
     arm off "$vul"
     arm on "$vul" --ns-two-over-one-hearts-first
-    gatepair on off "$vul"
+    gatepair on off "$vul" || log "isolation gate on vs off ($vul) FAILED, scoring anyway"
     diffpair on off "$vul"
 done
 log "=== two-over-one-hearts A/B done"

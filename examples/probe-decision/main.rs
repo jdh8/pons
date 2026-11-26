@@ -211,6 +211,15 @@ fn main() {
     if std::env::var("PROBE_TWO_OVER_ONE_HEARTS_FIRST").is_ok_and(|v| v == "1") {
         agreements.response.two_over_one_hearts_first = true;
     }
+    if std::env::var("PROBE_SINGLE_RAISE_GAP").is_ok_and(|v| v == "1") {
+        agreements.response.single_raise_gap = true;
+    }
+    if let Some(floor) = std::env::var("PROBE_HEART_SPADE_STRONG_JUMP_SHIFT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        agreements.response.heart_spade_strong_jump_shift = Some(floor);
+    }
     // Over `1♥` a game force with four spades bids its longer minor first
     // (shipped default-on 2026-10-05): `=0` withholds it.
     if std::env::var("PROBE_TWO_OVER_ONE_MINOR_BEFORE_SPADES").is_ok_and(|v| v == "0") {
@@ -257,6 +266,9 @@ fn main() {
     }
     if std::env::var("PROBE_LONGER_SUIT_FIRST").is_ok_and(|v| v == "1") {
         agreements.opening.longer_suit_first = true;
+    }
+    if std::env::var("PROBE_LONGER_HEARTS_FIRST").is_ok_and(|v| v == "1") {
+        agreements.opening.longer_hearts_first = true;
     }
     if let Some(floor) = std::env::var("PROBE_STRONG_TWO_SIX_MAJOR")
         .ok()

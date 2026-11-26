@@ -39,6 +39,7 @@ fn row_package_invariants() {
             weak_twos::package(),
             responses::package(),
             responses::choice_of_games_continuations(),
+            responses::strong_jump_shift_continuations(),
             responses::minor_keycard_continuations(),
             xyz::package(),
             nmf::package(),

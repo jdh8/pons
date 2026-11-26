@@ -4169,6 +4169,17 @@ pub struct OpeningKnobs {
     /// minor again on a minimum).  `bba-gen --ns-longer-suit-first`,
     /// `PROBE_LONGER_SUIT_FIRST=1` in `probe-decision`.
     pub longer_suit_first: bool,
+    /// The heart half of [`longer_suit_first`][Self::longer_suit_first]
+    /// alone: `1♥` on five spades and six or more hearts, the minors
+    /// untouched
+    ///
+    /// **Default off**, measurement queued 2026-11-26
+    /// (`scripts/ab-longer-hearts-first.sh`).  The whole knob lost on its
+    /// `1m` half and on the reading drift the widened `1m` causes; this half
+    /// read +454 plain on 728 boards inside that arm, which could not price
+    /// it apart.  `bba-gen --ns-longer-hearts-first`,
+    /// `PROBE_LONGER_HEARTS_FIRST=1` in `probe-decision`.
+    pub longer_hearts_first: bool,
     /// The HCP floor from which a **six-card major** opens the strong `2♣`
     ///
     /// **Default `None`**, measurement queued 2026-11-25
@@ -4285,6 +4296,7 @@ impl Default for OpeningKnobs {
             eleven_count_majors: false,
             ten_count_majors: false,
             longer_suit_first: false,
+            longer_hearts_first: false,
             strong_two_six_major: None,
             wide_one_club: false,
             multi_two_diamonds: false,
@@ -4385,6 +4397,39 @@ pub struct ResponseKnobs {
     /// over both vulnerabilities, against +229 on 244 for the heart half).  The
     /// hands that respond with a 2/1 at all are the same; only the suit moves.
     pub two_over_one_hearts_first: bool,
+    /// Raise `1M` to `2M` on **three trumps and at most 9 HCP** even when
+    /// shape lifts the hand past the single raise's 9 support points
+    ///
+    /// **Default off**, measurement queued 2026-11-26
+    /// (`scripts/ab-single-raise-gap.sh`).  The single raise is 6–9 support
+    /// points and the three-card limit raise through the forcing `1NT` is
+    /// 10–12 *HCP*, so three trumps on 9 HCP with a doubleton (10+ support
+    /// points) fits neither: off, it bids `1NT` and then only takes a
+    /// preference.  BBA raises.  Anchor `4592d0a3`: our `1NT` where BBA bids
+    /// `2♠` over `1♠` is 325 rows per 409,600 boards, −462 plain / −532 PD,
+    /// of which the 9-HCP hands are 147 rows, −298; the heart sibling reads
+    /// +46 on 146.  On, the `2M` reading widens to those hands and responder
+    /// accepts opener's game tries on 8+ support points, not 8–9.  `bba-gen --ns-single-raise-gap`,
+    /// `PROBE_SINGLE_RAISE_GAP=1` in `probe-decision`.
+    pub single_raise_gap: bool,
+    /// The HCP floor of a **strong jump shift** `1♥ - 2♠` by an unpassed
+    /// hand
+    ///
+    /// **Default `None`**, measurement queued 2026-11-26
+    /// (`scripts/ab-strong-jump-shift.sh`, arms `Some(16)` and `Some(15)`).
+    /// `None`: `2♠` is the weak jump shift, six spades and 2–5 points.  `Some(floor)`: five
+    /// or more spades, at most two hearts and `floor`+ HCP, game-forcing,
+    /// with opener's rebid and responder's placement authored
+    /// (`responses/strong_jump_shift.rs`); a passed hand keeps the weak one
+    /// and the unpassed weak hand goes back to pass or `1♠`.  BBA plays it
+    /// from 15.  Anchor `4592d0a3`: our `1♠` where BBA bids `2♠` is 303 rows
+    /// per 409,600 boards, −442 plain / −456 PD, the 15-counts a wash (118
+    /// rows, −19) and 16–17 the loss (130 rows, −354).  The `.bbsa` card
+    /// still declares weak two-level jump shifts: EPBot has one row for all
+    /// of them and the minor openings' stay weak.  `bba-gen
+    /// --ns-heart-spade-strong-jump-shift 16`,
+    /// `PROBE_HEART_SPADE_STRONG_JUMP_SHIFT=16` in `probe-decision`.
+    pub heart_spade_strong_jump_shift: Option<u8>,
     /// Over `1♥`, a game force with four spades and a longer minor bids the
     /// minor first
     ///
@@ -4598,6 +4643,8 @@ impl Default for ResponseKnobs {
             two_over_one_major_discount: false,
             two_over_one_heart_light: false,
             two_over_one_hearts_first: false,
+            single_raise_gap: false,
+            heart_spade_strong_jump_shift: None,
             two_over_one_minor_before_spades: true,
             up_the_line: true,
             major_choice_of_games: true,

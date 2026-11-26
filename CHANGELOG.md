@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ResponseKnobs::heart_spade_strong_jump_shift`, opt-in: `1♥ - 2♠` as a
+  strong jump shift.** `Some(floor)`: an unpassed hand's `2♠` shows 5+
+  spades, at most two hearts and `floor`+ HCP, game-forcing; a passed hand
+  keeps the weak jump shift. Opener rebids `3♠` (3+ support), `3♥` (6+),
+  `3m` (4+) or `2NT`; responder places game, raises the minor or asks
+  keycards on 18+, and opener asks over a placed `4M` on 15+ points. BBA
+  anchor `4592d0a3`, lead 4: our `1♠` where BBA jump-shifts is −442 plain
+  on 303 rows, all of it on 16–17 HCP. Default `None`, the default book is
+  unchanged; the A/B vs BBA at 16 and 15 is queued
+  (`scripts/ab-strong-jump-shift.sh`). The `.bbsa` card cannot disclose it.
+  `bba-gen --ns-heart-spade-strong-jump-shift 16`,
+  `PROBE_HEART_SPADE_STRONG_JUMP_SHIFT=16`.
+- **`ResponseKnobs::single_raise_gap`, opt-in: three trumps on at most 9
+  HCP raise `1M` to `2M` whatever the support points.** The single raise is
+  6–9 support points and the three-card limit raise through the forcing
+  `1NT` is 10–12 HCP, so a 9-count with a doubleton fits neither and bids
+  `1NT` (BBA anchor `4592d0a3`, lead 5: −298 plain on 147 rows). On,
+  responder also accepts game tries on 8+ support points. Default off, the
+  default book is unchanged; the A/B vs BBA is queued
+  (`scripts/ab-single-raise-gap.sh`). `bba-gen --ns-single-raise-gap`,
+  `PROBE_SINGLE_RAISE_GAP=1`.
+- **`OpeningKnobs::longer_hearts_first`, opt-in: the heart half of
+  `longer_suit_first` alone.** Five spades under six or more hearts open
+  `1♥` (12+ points, 10+ HCP); the minors and the `1m` reading stay the
+  book's. Default off, the default book is unchanged; the A/B vs BBA is
+  queued (`scripts/ab-longer-hearts-first.sh`). `bba-gen
+  --ns-longer-hearts-first`, `PROBE_LONGER_HEARTS_FIRST=1`.
 - **Two opt-in opening knobs for the largest first-call pairs of the BBA
   anchor `4592d0a3` (2026-11-25), measured 2026-11-25 vs BBA at 1,638,400
   boards a cell; neither ships.** Both stay off and the default book is

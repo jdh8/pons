@@ -102,13 +102,19 @@ fn opener_after_raise(major: Suit, slam_try: bool) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// The top of the single raise in support points: 9, or unbounded when
+/// `single_raise_gap` sends the shapely 9-counts through it
+fn maximum(gap: bool) -> u8 {
+    if gap { u8::MAX } else { 9 }
+}
+
 /// Responder's answer to a long-suit game try: accept with a maximum, a
 /// shortage, or two top honors in the tried suit — decline otherwise
 ///
 /// Forcing by omission below `3M`: every try sits under it, so the decline is
 /// always legal.
 #[must_use]
-fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
+fn responder_after_try(major: Suit, try_suit: Suit, gap: bool) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
         // Accept: a maximum single raise, or good shape in the try suit.
@@ -116,7 +122,9 @@ fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
         .rule(
             Bid::new(4, trump),
             100,
-            support_points(major, 8..=9) | len(try_suit, ..=1) | top_honors(try_suit, 2..),
+            support_points(major, 8..=maximum(gap))
+                | len(try_suit, ..=1)
+                | top_honors(try_suit, 2..),
         )
         // Decline, guaranteed legal (every try sits below 3M).
         .rule(Bid::new(3, trump), 50, hcp(0..))
@@ -125,13 +133,13 @@ fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
 /// Responder's answer to the general re-raise try: accept with a maximum,
 /// passable
 #[must_use]
-fn responder_after_general_try(major: Suit) -> Rules {
+fn responder_after_general_try(major: Suit, gap: bool) -> Rules {
     Rules::new()
         // Responder's seat: the single raise promised 3+ trumps, +3.
         .rule(
             Bid::new(4, Strain::from(major)),
             100,
-            support_points(major, 8..=9),
+            support_points(major, 8..=maximum(gap)),
         )
         .rule(Call::Pass, 0, hcp(0..))
 }
@@ -157,6 +165,7 @@ pub(crate) fn major_game_try_continuations() -> Package {
         gate: |a| a.response.major_game_tries,
         entries: |agreements| {
             let slam_try = agreements.response.major_raise_slam_try;
+            let gap = agreements.response.single_raise_gap;
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);
@@ -172,7 +181,7 @@ pub(crate) fn major_game_try_continuations() -> Package {
                     let tried = format!("{prefix} {try_call} -");
                     entries.extend(rows_of(
                         Pattern::node(&tried),
-                        responder_after_try(major, suit),
+                        responder_after_try(major, suit, gap),
                     ));
 
                     let declined = format!("{tried} {} -", call(3, trump));
@@ -185,7 +194,7 @@ pub(crate) fn major_game_try_continuations() -> Package {
                 let general = format!("{prefix} {} -", call(3, trump));
                 entries.extend(rows_of(
                     Pattern::node(&general),
-                    responder_after_general_try(major),
+                    responder_after_general_try(major, gap),
                 ));
             }
             entries

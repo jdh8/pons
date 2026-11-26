@@ -184,6 +184,20 @@ fn two_over_one_natural_lengths_and_light_major() {
     );
 }
 
+/// `single_raise_gap`: three trumps on 9 HCP and 10+ support points raise
+/// instead of bidding the forcing `1NT`; a 10-count keeps the limit route.
+#[test]
+fn single_raise_gap_raises_the_shapely_nine_count() {
+    let a = [call(1, Strain::Spades), Call::Pass];
+    let off = major_responses(Suit::Spades, &Agreements::default());
+    let mut agreements = Agreements::default();
+    agreements.response.single_raise_gap = true;
+    let on = major_responses(Suit::Spades, &agreements);
+    assert_eq!(best(&off, &a, "T98.K.K964.KT542"), call(1, Strain::Notrump));
+    assert_eq!(best(&on, &a, "T98.K.K964.KT542"), call(2, Strain::Spades));
+    assert_eq!(best(&on, &a, "Q94.KQ7.983.QJ72"), call(1, Strain::Notrump));
+}
+
 /// `two_over_one_hearts_first`: over `1♠` a minor 2/1 yields to `2♥` when
 /// hearts are the longest new suit; four-card ties go up the line, the minors
 /// keep clubs first, and `1♥` does not move.
