@@ -34,6 +34,15 @@
 #
 # Seed 2 wants `ab-results/two-over-one-hearts-2` (`seed_for` reuses the seed
 # it finds in a results dir).
+#
+# ROUND 3, 2026-11-25, none cell only (sha b212eea9, the frozen 45b3f565 tree;
+# seed 1795637731189018879; 1,638,400 bd/arm).  The isolation gate FAILED on
+# none (76 of 1,068 divergent boards opened by them, their `1♠ - 2x` auctions,
+# though the mirror pins the knob off) and `gatepair` is fatal here, so the
+# run stopped before scoring and before ns / ew / both.  Scored afterwards by
+# hand: plain +0.0000 (+75 IMPs), PD +0.0000 (+59), CI +-0.0003, 1,068
+# fired; non-inferior both scorers.  By opener: ours 992 bd +73 / +74,
+# theirs 76 bd +2 / -15.  A wash a third time, on one cell.
 R=${1:?usage: ab-two-over-one-hearts-first.sh RESULTS_DIR}
 BUILD_EXTRA='--example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"

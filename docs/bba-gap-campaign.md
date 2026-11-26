@@ -109,7 +109,9 @@ Each was paid for; the story behind each is in the archive.
 3. **Disclosure series break at `3c94802` (2026-07-28).** From there BBA is told
    what we play (`bba-gen --disclose generated`); every earlier anchor faced a
    BBA that took us for a BBA. Disclosure's isolated cost was −0.009/board with
-   the old static card; against the generated card it is unmeasured.
+   the old static card; against the generated card it is **−0.0065 / −0.0059
+   plain, −0.0033 / −0.0023 PD** (none / both, told − blind, 1,638,400
+   boards a cell, measured 2026-11-25, `scripts/ab-disclose.sh` header).
 4. **Compare buckets on `/div`, never raw IMPs** — board counts moved when the
    shard count doubled and move whenever auctions change. `floor#N` labels are
    stable only within a build. Across the book/fallback provenance boundary
@@ -302,7 +304,9 @@ read 1.4× and 1.15×; summed over the three, the series deals paid +1,470 /
 untested: each knob shipped on its own win, and a sum of selected wins
 regresses. Not traced by knob.
 The 2026-11-25 confirmation on the November seed (Open work item 8) is the
-second read.
+second read: its window from `5e9e4be4` spans four re-anchors and pays
+0.93× / 0.97× of their summed ship A/Bs on fresh deals, so the shortfall
+does not replicate there, though that window cannot isolate this one.
 
 **All buckets, shipping arm, cut by auction (2026-11-25, at `4592d0a3`).**
 `scripts/cut-auction.py SNAPSHOT` is the 2026-11-20 cut as a script: each
@@ -313,9 +317,9 @@ largest pairs left are first calls. The opening passes against BBA's light
 
 | # | node | rows | plain | PD | what the boards show | status |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | opening `1M` on a five-card major under a longer suit; BBA opens the long suit | 1,781 | −2,898 | −2,447 | every row is 5M with a 6+ minor (`1♥` vs `1♣` 387 rows −787, `1♠` vs `1♣` 317 −727, `1♥` vs `1♦` 377 −448, `1♠` vs `1♦` 329 −403) or 5♠ with 6+♥ (371, −533) | `opening.longer_suit_first`, opt-in, `ab-longer-suit-first.sh` queued 2026-11-25 |
-| 2 | opening `1M` where BBA opens `2♣` | 955 | −1,411 | −1,123 | 17–21 HCP; the dense cell is 20–21 with a six- or seven-card major and no second suit (366 rows, −661 / −550), `1M` passed out or `1M - 1NT - 3M` under BBA's slam; with a second suit the same counts wash (135 rows, +3) | `opening.strong_two_six_major`, opt-in, `ab-strong-two-six-major.sh` (arm `Some(20)`) queued 2026-11-25 |
-| 3 | `1♠ -`: our `2♣`, BBA's `2♥` / `2♦` | 665 | −1,373 | −1,419 | four clubs with a five-card or longer red suit; the weight ladder | known: `response.two_over_one_hearts_first` washed 2026-10-05 at 409,600 boards per cell pooled, its diamond half lost; re-measure at 1,638,400 queued 2026-11-25 |
+| 1 | opening `1M` on a five-card major under a longer suit; BBA opens the long suit | 1,781 | −2,898 | −2,447 | every row is 5M with a 6+ minor (`1♥` vs `1♣` 387 rows −787, `1♠` vs `1♣` 317 −727, `1♥` vs `1♦` 377 −448, `1♠` vs `1♦` 329 −403) or 5♠ with 6+♥ (371, −533) | `opening.longer_suit_first` **lost 2026-11-25**, stays off: plain −0.0060 / −0.0085 / −0.0059 / −0.0083 per board (none / ns / ew / both), PD about twice that. The 6m5M `1m` loses at the opening (−4,757 plain on 2,998 boards, none cell), the 6♥5♠ `1♥` wins (+454 on 728), and the widened `1m` reading drifts the contested floor on 28k other boards (−5,049). Follow-up: the heart half alone. Header of `ab-longer-suit-first.sh` |
+| 2 | opening `1M` where BBA opens `2♣` | 955 | −1,411 | −1,123 | 17–21 HCP; the dense cell is 20–21 with a six- or seven-card major and no second suit (366 rows, −661 / −550), `1M` passed out or `1M - 1NT - 3M` under BBA's slam; with a second suit the same counts wash (135 rows, +3) | `opening.strong_two_six_major` `Some(20)` **washed 2026-11-25**, stays off: plain −0.0001..+0.0002, PD −0.0003..−0.0001 per board, non-inferior 4/4, ~1,420 boards fired a cell; isolation gate leaked (72–119 their-`2♣` boards a cell, worth ~0). Header of `ab-strong-two-six-major.sh` |
+| 3 | `1♠ -`: our `2♣`, BBA's `2♥` / `2♦` | 665 | −1,373 | −1,419 | four clubs with a five-card or longer red suit; the weight ladder | known: `response.two_over_one_hearts_first` washed 2026-10-05 at 409,600 boards per cell pooled, its diamond half lost; re-measure at 1,638,400 (2026-11-25) scored the none cell only, a wash again (+0.0000 plain and PD, CI ±0.0003); the gate leaked and stopped the other cells |
 | 4 | `1♥ -`: our `1♠`, BBA's `2♠` | 303 | −442 | −456 | 15+ HCP with five or more spades, BBA's strong jump shift | known ([next-steps.md](next-steps.md) item 2, re-cut 2026-10-07): the loss is responder's round-2 sign-off; the jump shift itself is unbuilt and costs the weak `2♠` |
 | 5 | `1♠ -`: our `1NT`, BBA's `2♠` | 325 | −462 | −532 | three spades on 8–10 HCP, mostly 9, a third of them 4333 | not traced |
 
@@ -980,8 +984,11 @@ In bucket order; each item is its own fresh-seed A/B per
    are non-vulnerable (+0.014..+0.021) and wash plain with a resolved PD loss
    when NS are vulnerable (−0.016..−0.021). The pattern repeats across
    draws, so it is not draw luck. Table in CHANGELOG.
-8. **Owed measurements:** disclosure's isolated cost against the *generated*
-   card (`ab-disclose.sh`; −0.009/bd was the static card); ~~a fresh-seed
+8. **Owed measurements:** ~~disclosure's isolated cost against the *generated*
+   card (`ab-disclose.sh`; −0.009/bd was the static card)~~ **measured
+   2026-11-25:** −0.0065 / −0.0059 plain, −0.0033 / −0.0023 PD per board
+   (none / both), on 14,653 / 12,953 boards fired of 1,638,400 (rule 3);
+   ~~a fresh-seed
    confirmation of the series (protocol asks for one every ~3rd re-anchor; none
    recorded)~~ **confirmed 2026-08-18.** Fresh seed `1787064872` (was
    `1783375064`), HEAD `9cfb464b` (the requested post-N3 HEAD), all four
@@ -1020,8 +1027,27 @@ In bucket order; each item is its own fresh-seed A/B per
    window paragraph: the two windows since `50d9ee65` are worth their summed
    A/Bs on fresh deals, not the 1.6–2× the series deals showed. Snapshot in
    `ab-results/anchor-confirm-2026-11/2026-11-12-5e9e4be4/` (40 minutes, 202
-   new DD tables, `diff.window.*`). Next one due around the third re-anchor
-   from here.
+   new DD tables, `diff.window.*`). **Fifth confirmation 2026-11-25,
+   `4592d0a3`**, the same seed, so paired to the fourth; all four arms
+   replay 100.00% / 0 mismatches. Pooled instinct −0.882 / −0.886 (row
+   −0.867 / −0.890), shipping −0.118 / +0.034 (row −0.111 / +0.021), floor
+   paired worth +0.390 / +0.461 (row +0.387 / +0.464), all inside ±0.02.
+   Instinct's top three agree in order and #4 / #5 and #6 / #7 swap;
+   shipping's #1 / #2 (opening, round-2) agree and #3 / #5 swap
+   (Defensive / book / round-1 −8,048 here, −5,022 on the anchor seed).
+   **Its window** (`diff.window.{american,instinct}.{vul}.*`, `4592d0a3` −
+   `5e9e4be4`, four re-anchors on fresh deals): shipping +0.0119 ±0.0026 /
+   +0.0144 ±0.0034 plain, +0.0077 / +0.0072 PD, `win` 4/4, on 1,633 / 1,897
+   boards fired; +2,440 / +2,956 plain IMPs against +2,610 / +3,039 summed
+   from the ship A/Bs of the `b13dd9fe`, `0772f1c4`, `a0977ce9` and
+   `4592d0a3` windows (0.93× / 0.97×), and against +2,494 / +2,984 the
+   series deals paid. Instinct, which the `b13dd9fe` rail does not touch,
+   +1,794 / +2,377 against +1,606 / +2,179 predicted for the three book
+   windows (1.12× / 1.09×). The `4592d0a3` window's 0.56× / 0.46× on the
+   series deals does not show on fresh deals at this resolution (the four
+   windows are pooled here, so it is not isolated). Snapshot in
+   `ab-results/anchor-confirm-2026-11/2026-11-25-4592d0a3/` (47 minutes,
+   342 new DD tables). Next one due around the third re-anchor from here.
 9. **Opener's raise structure after `1x - 1♠`** (Const / book / round-2;
    170 rows, −434 plain / −390 PD on the `6141cdb2` anchor; 91 deals, each
    in both vulnerability cells). **Ranges shipped 2026-11-08; splinters

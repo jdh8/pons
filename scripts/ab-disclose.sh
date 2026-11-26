@@ -26,6 +26,17 @@
 # ship/reject on a treatment — it sizes an instrument error, and decides whether
 # the anchor series needs re-basing.
 #
+# MEASURED 2026-11-25 against the GENERATED card (`CARD=generated`, sha
+# a2be8cdd, the frozen 45b3f565 tree; seed 1795631427516933749; 1,638,400
+# bd/arm/vul).  Told − blind, IMPs/board none / both:
+#
+#   plain  -0.0065 / -0.0059  (CI +-0.0009 / +-0.0010)
+#   PD     -0.0033 / -0.0023  (CI +-0.0010 / +-0.0012)
+#   fired  14,653 / 12,953 (0.89% / 0.79%)
+#
+# A BBA told what we play costs us about 0.006 IMPs/board plain, two thirds of
+# the static card's -0.009.  Instrument sizing, not a verdict.
+#
 #   setsid nohup scripts/idle-run.sh scripts/ab-disclose.sh \
 #       ab-results/disclose >ab-results/disclose.log 2>&1 &
 #

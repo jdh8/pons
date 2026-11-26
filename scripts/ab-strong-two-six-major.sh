@@ -27,6 +27,23 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
+# MEASURED 2026-11-25, a WASH (non-inferior 4/4 on both scorers, no win),
+# stays off (sha f786856c, the frozen 45b3f565 tree; seed 1795618433883867323;
+# 1,638,400 bd/cell).  IMPs/board none / ns / ew / both, CI +-0.0004..0.0005:
+#
+#   plain  -0.0001 / +0.0002 / -0.0001 / +0.0002
+#   PD     -0.0003 / -0.0001 / -0.0002 / -0.0001
+#   fired  1,398 / 1,447 / 1,402 / 1,440 (0.09%)
+#
+# The isolation gate FAILED in every cell: 119 / 85 / 107 / 72 divergent boards
+# opened by THEM (their `2♣`; our defensive call moves), though the mirror pins
+# this knob off (`common::mirror_agreements`).  Split by opener
+# (`ab-dump-diff --jsonl`), plain / PD IMPs:
+#   ours    -206 / -474, +161 / -293, -154 / -378, +238 / -190
+#   theirs    +2 /   +2, +138 / +119,  +11 /   -6,  +37 /  +58
+# The foreign boards are worth nothing, so the verdict stands; the leak is
+# flagged (same pattern as two-over-one-hearts r3) and not root-caused.
+#
 # Resumable; SEED_BASE persists in $R/strong-two-six-major.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-strong-two-six-major.sh RESULTS_DIR}

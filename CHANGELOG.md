@@ -10,8 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Two opt-in opening knobs for the largest first-call pairs of the BBA
-  anchor `4592d0a3` (2026-11-25), both measurements queued.** Neither is
-  measured yet; both are off by default and the default book is unchanged.
+  anchor `4592d0a3` (2026-11-25), measured 2026-11-25 vs BBA at 1,638,400
+  boards a cell; neither ships.** Both stay off and the default book is
+  unchanged. `longer_suit_first` **lost** in all four cells (plain −0.0060 /
+  −0.0085 / −0.0059 / −0.0083 IMPs/board none / ns / ew / both, PD about
+  twice that): the 6m5M `1m` opening loses, the 6♥5♠ `1♥` wins (+454 plain
+  on 728 boards, none cell), and the widened `1m` reading drifts the
+  contested floor. `strong_two_six_major` `Some(20)` **washed** (plain
+  −0.0001..+0.0002, PD −0.0003..−0.0001, non-inferior 4/4).
   - `OpeningKnobs::longer_suit_first`: a five-card major under a six-card
     or longer minor opens the minor, and five spades under six or more
     hearts open `1♥` (12+ points, 10+ HCP). BBA opens the long suit; our
@@ -68,6 +74,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Measurement notes, no code change (2026-11-26).** Telling BBA our
+  generated card costs us −0.0065 / −0.0059 plain and −0.0033 / −0.0023 PD
+  IMPs/board (none / both, 1,638,400 boards), against −0.009 for the old
+  static card (`scripts/ab-disclose.sh`). The fifth fresh-seed confirmation
+  of the BBA anchor series, at `4592d0a3`, holds every pooled headline within
+  ±0.02, and its window since `5e9e4be4` pays 0.93× / 0.97× of the summed
+  ship A/Bs (docs/bba-gap-campaign.md, Open work item 8).
+  `response.two_over_one_hearts_first` re-measured at 1,638,400 boards on
+  the none cell washes a third time.
 - **A misfit responder bids their own spades over `1♥ - 1♠ - 2♥`
   (2026-11-25).** The table over `2♥` had no spade call, so six spades
   passed `2♥` or bid notrump (the residue of the misfit pass below). Now,

@@ -27,6 +27,29 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
+# MEASURED 2026-11-25, a LOSS in all four cells, stays off (sha 8b04e984, the
+# frozen 45b3f565 tree; seed 1795603545036763043; 1,638,400 bd/cell; isolation
+# gate passed, 0 foreign).  IMPs/board none / ns / ew / both:
+#
+#   plain  -0.0060 / -0.0085 / -0.0059 / -0.0083  (CI +-0.0013..0.0015)
+#   PD     -0.0135 / -0.0163 / -0.0141 / -0.0156
+#   fired  33,148 / 31,343 / 31,262 / 29,598 (1.8-2.0%)
+#
+# Traced, none cell (`ab-dump-diff --jsonl`, plain / PD IMPs):
+#   opening changed           3,726 bd   -4,303 / -3,838
+#     6m5M opening `1m`       2,998 bd   -4,757 / -4,352, two thirds of it
+#                                         contested (partner's major is lost
+#                                         when they interfere)
+#     6♥5♠ opening `1♥`         728 bd     +454 /   +514
+#   same opening, contested  28,273 bd   -5,049 / -17,395  reading drift: the
+#                                         widened `1m` reading moves the learned
+#                                         contested floor on hands that are not
+#                                         6-5 at all (docs/reading-drift-handoff.md)
+#   same opening, uncontested 1,149 bd     -465 /   -915
+# Opener's rebid is not the culprit: the minor half loses at the opening.  The
+# credible follow-up is the heart half alone (6♥5♠ opens `1♥`, the `1m` reading
+# untouched), which this arm cannot price apart from its own drift.
+#
 # Resumable; SEED_BASE persists in $R/longer-suit-first.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-longer-suit-first.sh RESULTS_DIR}
