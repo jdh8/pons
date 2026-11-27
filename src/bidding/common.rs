@@ -215,6 +215,9 @@ pub(in crate::bidding) fn mirror_agreements(agreements: &Agreements) -> Option<A
     // Likewise responder's six-card invite after the forcing `1NT`: their
     // `1M - 1NT - 2x - 3y` keeps the floor's reading.
     mirror.rebid.forcing_notrump_suit_invite = false;
+    // Likewise the semiforcing `1NT`: their `1M - 1NT - Pass` keeps the
+    // forcing reading (no rebid authored on a pass).
+    mirror.rebid.semiforcing_notrump = false;
     // Likewise the doubleton raise over opener's six-card `2M`: their
     // `1M - 1NT - 2M - 3M` and `2NT` keep the floor's reading.
     mirror.rebid.forcing_notrump_doubleton_raise = false;

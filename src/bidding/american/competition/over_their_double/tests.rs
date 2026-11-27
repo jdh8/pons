@@ -193,6 +193,8 @@ fn doubled_notrump_pass_drops_the_forcing_rebid() {
     arm.competition.doubled_notrump_pass = true;
     let mut off = Agreements::default();
     off.competition.doubled_notrump_pass = false;
+    // The rebase onto a forcing notrump: semiforcing, it would pass too.
+    off.rebid.semiforcing_notrump = false;
     let (got, _) = best_call_with(&off, &auction, "AQ542.K54.Q96.32");
     assert_ne!(got, Call::Pass, "off: the rebase's forcing-notrump rebid");
     let (got, floored) = best_call_with(&arm, &auction, "AQ542.K54.Q96.32");

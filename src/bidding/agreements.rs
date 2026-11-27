@@ -4883,8 +4883,11 @@ pub struct RebidKnobs {
     /// The **semiforcing** `1NT`: opener passes `1M - 1NT` on a balanced
     /// minimum
     ///
-    /// **Default off**, measurement queued 2026-11-26 (`scripts/ab-bws.sh`,
-    /// arm `sf`).  Off, the notrump is forcing: a 5-3-3-2 bids its three-card
+    /// **Default on since 2026-11-27**: arm `sf` of `scripts/ab-bws.sh` vs
+    /// BBA (819,200 boards a cell, 0.13–0.15% fired) won 4/4, plain +202 /
+    /// +326 / +204 / +286 IMPs none/ns/ew/both, PD +418 / +658 / +431 /
+    /// +600.  The mirror and the declared EPBot book keep the opponents'
+    /// `1M - 1NT - Pass` on the forcing reading.  Off, the notrump is forcing: a 5-3-3-2 bids its three-card
     /// minor ([`forcing_nt_three_card_minor`][crate::bidding::inference::ReadingProfile::forcing_nt_three_card_minor])
     /// and a 4=5=2=2 rebids `2♥`.  On, opener passes with at most 12 HCP and
     /// either shape, which is Bridge World Standard 2017's agreement
@@ -4892,7 +4895,7 @@ pub struct RebidKnobs {
     /// stronger than 12 high-card points"); every other hand rebids as
     /// before, so `1NT` stays 6-12 and its three-card limit raise can be
     /// passed in `1NT`.  The `.bbsa` card moves from `Forcing 1NT` to
-    /// `Semi forcing 1NT` with it.  `bba-gen --ns-semiforcing-notrump`;
+    /// `Semi forcing 1NT` with it.  Off-switch `bba-gen --no-ns-semiforcing-notrump`;
     /// part of [`Agreements::bws`] (`docs/bws-2017.md`).
     pub semiforcing_notrump: bool,
     /// Let responder's `4♥` over the `1♥ - 1NT - 2♠` reverse take a doubleton
@@ -5780,7 +5783,7 @@ impl Default for RebidKnobs {
             meckstroth_minor_jumps: false,
             forcing_nt_two_suiter: true,
             forcing_nt_six_four_hearts: true,
-            semiforcing_notrump: false,
+            semiforcing_notrump: true,
             forcing_nt_reverse_heart_game: false,
             forcing_nt_reverse_five_hearts: true,
             forcing_nt_reverse_hcp_floor: true,

@@ -174,11 +174,31 @@ starts at an opening call or under `1♣`. Two things the run cannot say: BBA
 defends a WJ card that misstates our `1♦` and `1M` ranges, and double-dummy
 is blind to what the nebulous `1♣` concealed.
 
-**Verdict: owed.** Queued 2026-11-26 as pueue task 43, behind the
-lead-table runs and the BWS run: `BOARDS=204800 scripts/queue-ab.sh
-strawberry scripts/ab-strawberry.sh ab-results/strawberry` (204,800 boards
-per arm per cell, log `ab-results/strawberry.log`, seed in
-`ab-results/strawberry/seed`, snapshot `fae1bb9a` on `f61d3699`).
+**Read 2026-11-27** (pueue task 43, snapshot `fae1bb9a` on `f61d3699`,
+seed 1795771032426658059, 204,800 boards per arm per cell, results in
+`ab-results/strawberry/`). IMPs a board, 95% CI in brackets:
+
+| Pair | Fired | Plain none | Plain both | PD none | PD both |
+| --- | --- | --- | --- | --- | --- |
+| `strawberry` vs `advanced` | 18.3% / 18.5% | −0.0640 [±0.0103] | −0.0835 [±0.0132] | −0.0870 [±0.0118] | −0.0995 [±0.0153] |
+| `strawberry-instinct` vs `strawberry` | 27.7% / 26.0% | −0.3371 [±0.0133] | −0.4133 [±0.0168] | −0.3424 [±0.0152] | −0.4941 [±0.0191] |
+
+- **The system: a loss, on plan** for a first cut with half its chapters
+  borrowed. About 0.07 IMPs a board plain, −0.35 to −0.45 per fired board;
+  plain carries most of it, so this is bidding, not the doubling bracket.
+- **The floor under it is worth more than under `american`**: the learned
+  floor beats the ladder by +0.337 / +0.413 plain and +0.342 / +0.494 PD,
+  where on `american` the M32 v6 floor's paired worth is about +0.265 plain
+  and +0.392 PD ([bba-gap-campaign.md](bba-gap-campaign.md)). Never trained
+  on a Polish `1♣`, it still covers the unauthored ground better than the
+  ladder does; that is no reason to leave the holes to it.
+- **Attribution owed**: `ab-dump-bucket --by side|node` for both pairs,
+  queued as pueue task 44 (files `ab-results/strawberry/bucket.*.txt`,
+  the `instinct` ones prefixed `bucket.instinct.`). It re-ranks §5.
+
+The borrowed `1♥`/`1♠` chapters took the semiforcing `1NT` with the house
+default on 2026-11-27, after this run; the book's own `1M - 1NT` is
+non-forcing (§5 item 3), so that moves toward it.
 
 Checked before queueing: `american` is byte-identical to `f61d3699`
 (`smoke-default --count 20000 --seed 1`, dev profile, both dumps

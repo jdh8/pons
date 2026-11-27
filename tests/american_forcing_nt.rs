@@ -685,9 +685,11 @@ fn opener_plays_the_six_two_spade_fit_over_the_notrump_invite() {
 // The semiforcing 1NT (`rebid.semiforcing_notrump`, Bridge World Standard 2017)
 // ---------------------------------------------------------------------------
 
-fn semiforcing() -> Partnership {
+/// The forcing notrump, `rebid.semiforcing_notrump` off (the default is
+/// semiforcing since 2026-11-27)
+fn forcing() -> Partnership {
     let mut agreements = Agreements::default();
-    agreements.rebid.semiforcing_notrump = true;
+    agreements.rebid.semiforcing_notrump = false;
     american(&agreements).bind()
 }
 
@@ -697,22 +699,22 @@ fn opener_passes_the_semiforcing_notrump_on_a_balanced_minimum() {
     // bids the three-card minor, the semiforcing one passes.
     let hand = "KQ853.A42.Q43.42";
     assert_eq!(
-        best_call(&partnership(), &after_1s_1nt(), hand),
+        best_call(&forcing(), &after_1s_1nt(), hand),
         call(2, Strain::Diamonds),
     );
-    assert_eq!(best_call(&semiforcing(), &after_1s_1nt(), hand), Call::Pass);
+    assert_eq!(best_call(&partnership(), &after_1s_1nt(), hand), Call::Pass);
     // KQ54.AJ853.Q4.42 — 12 HCP, 4=5=2=2: no rebid but `2♥`, so pass.
     let hand = "KQ54.AJ853.Q4.42";
     assert_eq!(
-        best_call(&partnership(), &after_1h_1nt(), hand),
+        best_call(&forcing(), &after_1h_1nt(), hand),
         call(2, Strain::Hearts),
     );
-    assert_eq!(best_call(&semiforcing(), &after_1h_1nt(), hand), Call::Pass);
+    assert_eq!(best_call(&partnership(), &after_1h_1nt(), hand), Call::Pass);
 }
 
 #[test]
 fn opener_still_rebids_the_semiforcing_notrump_with_extras_or_shape() {
-    let system = semiforcing();
+    let system = partnership();
     // KQ853.AJ2.K43.42 — 13 HCP, one over the ceiling: bids on.
     assert_eq!(
         best_call(&system, &after_1s_1nt(), "KQ853.AJ2.K43.42"),

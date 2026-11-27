@@ -226,6 +226,8 @@ fn forcing_nt_three_card_minor_knob_bids_the_minor() {
     let build = |on: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.decision.reading.forcing_nt_three_card_minor = on;
+        // The forcing notrump: semiforcing, these minimums pass.
+        agreements.rebid.semiforcing_notrump = false;
         let mut trie = Trie::new();
         crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
         trie

@@ -1651,6 +1651,10 @@ pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> 
     // (2026-11-27: 22–49 and 155–257 foreign boards a cell).
     theirs.response.single_raise_gap = false;
     theirs.response.heart_spade_strong_jump_shift = None;
+    // And the semiforcing `1NT`: the arm re-read EPBot's `1♠ - 1NT - Pass`
+    // as a balanced minimum and our balancing call moved (2026-11-27: 0–2
+    // foreign boards a cell, `scripts/ab-bws.sh` arm `sf`).
+    theirs.rebid.semiforcing_notrump = false;
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 

@@ -30,11 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book --system strawberry`, `card::strawberry_card` (the WJ
   header), `scripts/ab-strawberry.sh`. `docs/strawberry.md` is the ledger:
   assembly, chapter state, the census against the book, the ranked holes.
-  `american()` is unchanged.
+  `american()` is unchanged. Measured vs BBA 2026-11-27 (204,800 boards a
+  cell): a loss, plain −0.064 / −0.084 IMPs a board (none / both), PD
+  −0.087 / −0.100; on the instinct ladder instead of the learned floor it
+  loses another 0.34–0.41 plain.
 - **`Agreements::bws()`: Bridge World Standard 2017 as a third named
-  preset, measurement queued.** `default()` with seventeen knobs moved to
+  preset, measurement queued.** `default()` with sixteen knobs moved to
   the state [BWS 2017](https://bridgeworld.com/bridge-world-standard)
-  prescribes, where that state is authored: the semiforcing `1NT`, the
+  prescribes, where that state is authored (the semiforcing `1NT`, a
+  seventeenth when measured, is the default since 2026-11-27): the
   strong `1♥ - 2♠`, plain Stayman answers, strict positives to `2♣`, plain
   lebensohl with a negative double over their overcall of our `1NT`,
   negative doubles through `3♠`, the Woolsey defense to their `1NT`,
@@ -43,15 +47,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consensus card. `docs/bws-2017.md` holds the flips, a census of every BWS
   agreement against the book (what matches, what a knob gives, what is
   unauthored) and the ranked holes. `--ns-preset bws` in `bba-gen`,
-  `render-book` and `probe-call-reading`; `scripts/ab-bws.sh`. The default
-  system is unchanged.
-- **`RebidKnobs::semiforcing_notrump`, opt-in: opener passes `1M - 1NT` on
-  a balanced minimum.** A 5-3-3-2, or a 4=5=2=2 over `1♥ - 1NT`, with at
-  most 12 HCP passes instead of bidding a three-card minor or rebidding
-  `2♥` (BWS 2017, IV.G); every other hand rebids as before. The `.bbsa`
-  card moves from `Forcing 1NT` to `Semi forcing 1NT` with the knob. Default
-  off, the default book is unchanged; the A/B vs BBA is queued as arm `sf`
-  of `scripts/ab-bws.sh`. `bba-gen --ns-semiforcing-notrump`.
+  `render-book` and `probe-call-reading`; `scripts/ab-bws.sh`. Measured
+  2026-11-27: a loss in every cell, plain −0.012 to −0.024 IMPs a board,
+  PD −0.094 to −0.103 (`docs/bws-2017.md` §5).
+- **`RebidKnobs::semiforcing_notrump`, default-on since 2026-11-27: opener
+  passes `1M - 1NT` on a balanced minimum.** A 5-3-3-2, or a 4=5=2=2 over
+  `1♥ - 1NT`, with at most 12 HCP passes instead of bidding a three-card
+  minor or rebidding `2♥` (BWS 2017, IV.G); every other hand rebids as
+  before. The `.bbsa` cards (`American`, `American-Basic`) move from
+  `Forcing 1NT` to `Semi forcing 1NT`. Measured vs BBA as arm `sf` of
+  `scripts/ab-bws.sh` (seed 1795754828414854101, 819,200 boards a cell,
+  0.13–0.15% fired): **win 4/4**, plain +202 / +326 / +204 / +286 IMPs
+  (none / ns / ew / both, +0.0002 to +0.0004 a board), PD +418 / +658 /
+  +431 / +600. The isolation gate met 0–2 foreign boards a cell: the
+  declared EPBot book copied the knob and re-read their `1♠ - 1NT - Pass`,
+  moving our balancing call. Both the EPBot book and the mirror now keep
+  the opponents on the forcing reading. `basic()` inherits it.
+  `bba-gen --no-ns-semiforcing-notrump` is the off-switch.
 - **`ResponseKnobs::heart_spade_strong_jump_shift`, opt-in: `1♥ - 2♠` as a
   strong jump shift.** `Some(floor)`: an unpassed hand's `2♠` shows 5+
   spades, at most two hearts and `floor`+ HCP, game-forcing; a passed hand

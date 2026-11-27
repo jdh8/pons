@@ -1952,11 +1952,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_meckstroth_adjunct: bool,
 
-    /// Play the `1NT` response to `1M` semiforcing: opener passes a 5-3-3-2
-    /// or 4=5=2=2 with at most 12 HCP (`rebid.semiforcing_notrump`, default
-    /// off; Bridge World Standard 2017, `docs/bws-2017.md`)
+    /// Play the `1NT` response to `1M` forcing: opener never passes it
+    /// (`rebid.semiforcing_notrump`, **shipped default-on 2026-11-27**; the
+    /// control arm of `scripts/ab-bws.sh`'s `sf`)
     #[arg(long, default_value_t = false)]
-    ns_semiforcing_notrump: bool,
+    no_ns_semiforcing_notrump: bool,
 
     /// Let responder's `4♥` over `1♥ - 1NT - 2♠` take a doubleton
     /// (`rebid.forcing_nt_reverse_heart_game`, default off; the #7 repair)
@@ -3919,7 +3919,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })?),
     };
     agreements.rebid.meckstroth_adjunct = args.ns_meckstroth_adjunct;
-    agreements.rebid.semiforcing_notrump = args.ns_semiforcing_notrump;
+    agreements.rebid.semiforcing_notrump = !args.no_ns_semiforcing_notrump;
     agreements.rebid.forcing_nt_reverse_heart_game = args.ns_forcing_nt_reverse_heart_game;
     agreements.rebid.forcing_nt_reverse_five_hearts = !args.no_ns_forcing_nt_reverse_five_hearts;
     agreements.rebid.forcing_nt_reverse_hcp_floor = !args.no_ns_forcing_nt_reverse_hcp_floor;

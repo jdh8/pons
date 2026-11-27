@@ -199,7 +199,6 @@ fn bws_differs_from_default_only_on_the_listed_fields() {
             "Agreements.notrump.stayman_5card_max",
             "Agreements.notrump.stayman_both_majors",
             "Agreements.notrump.transfer_super_accept",
-            "Agreements.rebid.semiforcing_notrump",
             "Agreements.response.heart_spade_strong_jump_shift",
             "Agreements.response.strong_two_loose_positive",
         ]

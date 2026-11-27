@@ -143,3 +143,18 @@ fn declared_opponents_ignore_our_strong_jump_shift() {
     ];
     assert_declared_ignores(&["--ns-heart-spade-strong-jump-shift", "15"], &auction);
 }
+
+#[test]
+fn declared_opponents_ignore_our_semiforcing_notrump() {
+    use contract_bridge::auction::Call;
+    use contract_bridge::{Bid, Strain};
+    // Their opener's pass of the notrump: the reading our balancer acts on.
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Pass,
+        Call::Pass,
+    ];
+    assert_declared_ignores(&["--no-ns-semiforcing-notrump"], &auction);
+}
