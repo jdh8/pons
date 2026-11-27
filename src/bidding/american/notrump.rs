@@ -112,6 +112,7 @@ pub(super) use texas::{
 pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_force};
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
+pub use two_notrump::two_notrump_rows;
 pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
 
 /// The **Puppet** 1NT minor scheme — the shipped default

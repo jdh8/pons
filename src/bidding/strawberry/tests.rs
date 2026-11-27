@@ -149,6 +149,95 @@ fn a_bust_signs_off_over_the_strong_rebid() {
     assert_ne!(calls(&auction, "K32.432.Q432.432"), P);
 }
 
+/// Game values over the 21+ rebid bid as over a natural 2NT.
+#[test]
+fn the_strong_rebid_is_a_two_notrump_opening() {
+    let auction = [
+        bid(1, Suit::Clubs),
+        P,
+        bid(1, Suit::Diamonds),
+        P,
+        bid(2, Suit::Diamonds),
+        P,
+    ];
+    assert_eq!(calls(&auction, "432.KJ32.Q432.32"), bid(3, Suit::Clubs));
+    assert_eq!(calls(&auction, "KJ432.32.Q32.432"), bid(3, Suit::Hearts));
+    assert_eq!(calls(&auction, "432.432.K432.Q32"), bid(3, Strain::Notrump));
+    let stayman = [auction.as_slice(), &[bid(3, Suit::Clubs), P]].concat();
+    assert_eq!(calls(&stayman, "AKQ2.KQ3.KQ3.A32"), bid(3, Suit::Spades));
+}
+
+/// Over the 20–23 major, responder places the game and opener respects it.
+#[test]
+fn the_strong_major_is_raised_to_game_and_no_further() {
+    let auction = [
+        bid(1, Suit::Clubs),
+        P,
+        bid(1, Suit::Diamonds),
+        P,
+        bid(2, Suit::Spades),
+        P,
+    ];
+    assert_eq!(calls(&auction, "K32.432.Q432.432"), bid(4, Suit::Spades));
+    assert_eq!(calls(&auction, "32.Q432.K432.Q32"), bid(3, Strain::Notrump));
+    assert_eq!(calls(&auction, "432.432.432.5432"), P);
+    let raised = [auction.as_slice(), &[bid(4, Suit::Spades), P]].concat();
+    assert_eq!(calls(&raised, "AKQ32.AK2.KQ2.32"), P);
+}
+
+/// The balanced game force is weighed for slam; a passed hand's 3♦ is a
+/// natural invitation, which a minimum passes.
+#[test]
+fn the_balanced_force_and_the_passed_hand_invitation() {
+    let force = [bid(1, Suit::Clubs), P, bid(3, Suit::Diamonds), P];
+    assert_eq!(calls(&force, "K32.KJ32.K32.Q32"), bid(3, Strain::Notrump));
+    assert_eq!(calls(&force, "AKQ2.KQ3.KJ3.432"), bid(4, Strain::Notrump));
+    assert_eq!(calls(&force, "AKQ2.KQ3.KQ3.A32"), bid(6, Strain::Notrump));
+    let invited = [P, P, bid(1, Suit::Clubs), P, bid(3, Suit::Diamonds), P];
+    assert_eq!(calls(&invited, "K32.KJ32.K32.Q32"), P);
+    assert_eq!(calls(&invited, "KQ2.KJ32.K32.Q32"), bid(3, Strain::Notrump));
+}
+
+/// Checkback Gladiator over 1♣ - 1♥ - 1♠: the puppet, its completion, and
+/// the hand types behind it.
+#[test]
+fn the_checkback_puppet() {
+    let forcing = [
+        bid(1, Suit::Clubs),
+        P,
+        bid(1, Suit::Hearts),
+        P,
+        bid(1, Suit::Spades),
+        P,
+    ];
+    // A minimum with four spades and the balanced invitation go through 2♣;
+    // a flat minimum bids 1NT.
+    assert_eq!(calls(&forcing, "KJ32.KJ32.432.32"), bid(2, Suit::Clubs));
+    assert_eq!(calls(&forcing, "K32.KJ32.K32.Q32"), bid(2, Suit::Clubs));
+    assert_eq!(calls(&forcing, "Q32.KJ32.K32.432"), bid(1, Strain::Notrump));
+
+    let puppet = [forcing.as_slice(), &[bid(2, Suit::Clubs), P]].concat();
+    assert_eq!(calls(&puppet, "KQ32.K2.K432.Q32"), bid(2, Suit::Diamonds));
+    assert_eq!(calls(&puppet, "AKQ32.K2.AK32.32"), bid(2, Suit::Spades));
+
+    let completed = [puppet.as_slice(), &[bid(2, Suit::Diamonds), P]].concat();
+    assert_eq!(calls(&completed, "KJ32.KJ32.432.32"), bid(2, Suit::Spades));
+    assert_eq!(
+        calls(&completed, "K32.KJ32.K32.Q32"),
+        bid(2, Strain::Notrump)
+    );
+    let invited = [completed.as_slice(), &[bid(2, Strain::Notrump), P]].concat();
+    assert_eq!(calls(&invited, "KQ32.K2.K432.Q32"), P);
+    assert_eq!(calls(&invited, "KQ32.K2.KJ32.Q32"), bid(3, Strain::Notrump));
+
+    // Over 1NT a game force shows its fifth spade, and responder picks.
+    let notrump = [forcing.as_slice(), &[bid(1, Strain::Notrump), P]].concat();
+    assert_eq!(calls(&notrump, "AKQ32.K2.AK32.32"), bid(2, Suit::Spades));
+    assert_eq!(calls(&notrump, "KQ32.K2.K432.Q32"), P);
+    let shown = [notrump.as_slice(), &[bid(2, Suit::Spades), P]].concat();
+    assert_eq!(calls(&shown, "J32.KJ32.K32.432"), bid(4, Suit::Spades));
+}
+
 /// Opener's rebid over a positive 1♥, and the Odwrotka steps.
 #[test]
 fn rebids_over_a_positive() {
@@ -226,7 +315,16 @@ fn borrowed_chapters_and_the_defense_are_the_house_book() {
         "AQ432.KJ32.K2.32",
         "432.432.432.5432",
     ];
-    let auctions: [&[Call]; 5] = [
+    let auctions: [&[Call]; 6] = [
+        // The 12–14 notrump rebid is the house's too: its XYZ answers it.
+        &[
+            bid(1, Suit::Clubs),
+            P,
+            bid(1, Suit::Spades),
+            P,
+            bid(1, Strain::Notrump),
+            P,
+        ],
         &[bid(1, Suit::Hearts), P],
         &[bid(1, Suit::Diamonds), P],
         &[bid(1, Strain::Notrump), P],

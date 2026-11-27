@@ -1,12 +1,14 @@
 # Strawberry Polish Club: the `strawberry` system
 
-**Status: first cut built 2026-11-26, measurement queued, verdict owed
-([§6](#6-measurement)).** `pons::strawberry()`, `strawberry_instinct()` and
+**Status: first cut measured 2026-11-27, a loss on plan; round 2 authored
+2026-11-28, its measurement queued ([§6](#6-measurement)).**
+`pons::strawberry()`, `strawberry_instinct()` and
 `strawberry_book()`, the seat names `strawberry` / `strawberry-instinct` /
 `strawberry-book` in `bba-gen`, `render-book --system strawberry`,
 `card::strawberry_card` and `scripts/ab-strawberry.sh` are on `main`.
-Authored: the opening table and the Polish `1♣` through opener's rebid.
-Everything else is borrowed from the house book or owed
+Authored: the opening table, the Polish `1♣` through opener's rebid, and
+five lanes below it (round 2).  Everything else is borrowed from the house
+book or owed
 ([§3](#3-chapter-ledger)). `american()` is untouched: its two visibility
 changes move no rule.
 
@@ -38,7 +40,7 @@ convention are authored.
 | Book | Source |
 | --- | --- |
 | Constructive | `strawberry::openings` and `strawberry::one_club`, then the house subtrees under each opening in `BORROWED` |
-| Competitive | the house subtrees under each opening in `BORROWED`; nothing under `1♣` |
+| Competitive | the house subtrees under each opening in `BORROWED`; under `1♣` only what the house keys below `1♣ - 1M - 1NT` |
 | Defensive | the house book, whole (jdh8, 2026-11-26: the defensive system is not coupled to the constructive one) |
 | Mirror (how we read *their* calls) | the house book: an undeclared opponent does not play a Polish club |
 
@@ -51,6 +53,11 @@ convention are authored.
   book's notrump structure is the house's ([§4](#4-census)). The test
   `the_house_book_keys_every_fallback_under_an_opening` guards the graft: a
   house fallback keyed above an opening call would not follow it.
+- **One borrowed lane under `1♣`.** The house tables under `1♣` read the
+  opening as natural clubs, so nothing there is grafted, with one exception
+  (2026-11-28): `1♣ - 1M - 1NT` is the same 12–14 balanced rebid in both
+  books, so the house subtree below it (XYZ) is grafted in all four seats.
+  It leaves with the Checkback Gladiator tables for those two auctions.
 - **Floors.** `strawberry()` stands on the shipped v6 net under the same
   convention card as `american()`; `strawberry_instinct()` on the
   deterministic ladder. No card slot expresses a Polish club (slot 0 is the
@@ -74,11 +81,11 @@ convention are authored.
 | Chapter (page) | State | Notes |
 | --- | --- | --- |
 | Openings (`Openings.md`) | **authored**, one level | `1♣!`, `1♦`, `1M`, `1NT`, `3x`. Late-seat majors from 9. No two-level opening, gambling `3NT`, Namyats, `4M` or `4NT`: those hands pass or open `3x` |
-| `1♣` responses (`1C.md`) | **authored** | both tables; the `4♣!`/`4♦!` Namyats responses are owed |
-| Negative `1♦` (`1C/1D.md`) | **authored**, two rounds | opener's rebid, responder over `1M` / `2♣` / `2♦!`, opener over `1M - 1NT`. Owed: `3♥!`, `3♠!`, `3NT!` two-suiters, the Muppet tree over `2♦!`, systems on over the 18–20 `1NT` (a verbatim graft would be three points off; the floor bids it for now), opener's pass of a passed hand's `1♦` |
+| `1♣` responses (`1C.md`) | **authored** | both tables; the `4♣!`/`4♦!` Namyats responses are owed. Opener over the balanced `3♦!` bids notrump by points (`3NT`, `4NT` on 18–19, `6NT` on 20+) |
+| Negative `1♦` (`1C/1D.md`) | **authored**, two rounds | opener's rebid, responder over `1M` / `2♣` / `2♦!` / `2M`, opener over `1M - 1NT`. Over `2♦!` the house 2NT structure (`two_notrump_rows`, every band one point lower) stands in for the Muppet tree; over `2M` responder places game and opener passes it. Owed: `3♥!`, `3♠!`, `3NT!` two-suiters, Muppet proper, systems on over the 18–20 `1NT` (a verbatim graft would be three points off; the floor bids it for now), opener's pass of a passed hand's `1♦` |
 | Positive `1M` (`1C/1M.md`) | **authored**, opener's rebid | owed: opener's splinters, the solid-club `3NT` |
 | Odwrotka (`1C/1M/2D.md`) | **authored**, reverse 445566 | the page's recommended strong-`2♥` relay structure is owed; opener places game only |
-| Checkback Gladiator (`1C/1M/CheckbackGladiator.md`) | **interim** | `1♣ - 1♥ - 1♠`: the natural rows and the game-forcing `2♦!` with its answers. The `2♣!` checkback is owed, so `1NT` also takes the minimum with four spades and the balanced invitation. The `1♣ - 1M - 1NT` tables are the floor's |
+| Checkback Gladiator (`1C/1M/CheckbackGladiator.md`) | **partly authored** | `1♣ - 1♥ - 1♠`: the natural rows, the game-forcing `2♦!` with its answers, the `2♣!` puppet (a minimum with four spades, long hearts or six diamonds; the balanced invitation) with its completion, and opener's rebid over `1NT`. Owed there: the puppet's shaped invitations and 15–17 `3NT`, five of opener's seven game-forcing answers, the `2NT!` club transfer, the direct slam tries. The `1♣ - 1M - 1NT` tables are the house XYZ, **borrowed** |
 | Inviting `2M` (`1C/1M/2M.md`) | floor | |
 | `1♣ - 1NT`, `2NT` (`1C/1NT.md`) | **authored**, natural rows | the `2♦!` relay and `3♦!` slam try wait for their answers |
 | Swapped `2♣`/`2♦` (`1C/2CD.md`) | **authored** | responder places a flat game (capped at 15 points; stronger hands bid on with the floor); opener's splinters over `2♦!` owed |
@@ -96,7 +103,10 @@ page gives no continuation, or the continuation is owed, `one_club.rs`
 answers with two rows, to play (`closing_entries`, `place_game`,
 `after_odwrotka_step`). Before they existed the floor passed `1♣ - 3♦!`,
 `1♣ - 2♠!` and the forcing `1♣ - 1♥ - 1♠` (the last with 21 opposite 9).
-They are not the book; each is replaced with its chapter.
+They are not the book; each is replaced with its chapter.  One was wrong
+until 2026-11-28: the `1♣ - 3♦` table fanned over every seat, so a passed
+hand's natural `3♦` invitation was forced to `3NT` (and a 20-count opposite
+the real 12–15 game force stopped there).
 
 ## 4. Census
 
@@ -163,6 +173,38 @@ sides, and the tails where they double or overcall.
    asks, the strong-`2♥` Odwrotka structure, opener's splinters.
 8. **Gambling `3NT`, Namyats, `4M`, `4NT`**, and Namyats over `1♣`.
 
+### By lane (2026-11-28)
+
+The node buckets book a board to its opening.  Split instead by the
+`strawberry` arm's own auction from the opening through five calls (what
+`ab-dump-bucket --by prefix` now prints; here over the boards both arms
+opened in the same seat), the first run's none cell reads as below.  These
+are the losing lanes among the 45 most frequent, which together carry
+−4,628 plain of the cell's −13,117; the rest is a long tail, mostly
+contested.  The both cell was not sliced.
+
+| Lane | Boards | Fired | Plain | PD | Plain / fired | What it is |
+| --- | --- | --- | --- | --- | --- | --- |
+| `1♣ (2♣) - - -` | 387 | 333 | −620 | +176 | −1.86 | item 3: we pass out their `2♣` with game on (46 boards `2♣` against `4♥`) |
+| `1♣ - 1♠ - 1NT` | 1,323 | 892 | −605 | −641 | −0.68 | item 2: no checkback; **borrowed XYZ, round 2** |
+| `1♣ - 1♥ - 1♠` | 1,594 | 1,102 | −603 | −667 | −0.55 | item 2: `1NT` on the invitation, passed (119 boards against `3NT`); **puppet, round 2** |
+| `1♣ - 1♠ - 2♦` | 941 | 523 | −352 | −385 | −0.67 | item 1: Odwrotka slam judgement, both ways (`4♠` against `6♠` 44, `6♠` against `4♠` 26); over `1♥` it washes (+9) |
+| `1♣ - 1♦ - 2♠` | 224 | 153 | −271 | −332 | −1.77 | item 1: responder raises, opener bids six over the raise (36 boards); **round 2**, with `2♥` (−37) |
+| `1♣ - 3♦ - 3NT` | 172 | 106 | −243 | −316 | −2.29 | the closing table: slams missed, and the passed-hand bug; **round 2** |
+| `1♣ - 1♦ - 2♦` | 584 | 509 | −234 | −335 | −0.46 | item 1: no Stayman or transfer (`3NT` against `4M` 59); **round 2** |
+| `1♣ - 1♥ - 1NT` | 712 | 468 | −191 | −151 | −0.41 | item 2: **borrowed XYZ, round 2** |
+| `1♣ - 2♠ - 3NT` | 170 | 123 | −174 | −224 | −1.41 | the closing table: `3NT` on 15 opposite a diamond invitation |
+| `1♣ - 1♦ - 1NT` | 993 | 907 | −170 | +73 | −0.19 | item 1, [S7](#72-structure): the floor passes on 5 and 6 HCP (415 boards) and never looks for a major |
+| `1♣ - 1NT - 2NT` | 202 | 201 | −164 | −318 | −0.82 | the invitation on 14–15 |
+| `1♣ - 2♣ - 2NT`, `1♣ - 2♦ - 2NT` | 544 | 299 | −262 | −364 | −0.88 | item 1: the minor game forces, flat game only |
+| `1♣ - 1♠ - 2NT` | 214 | 91 | −117 | −125 | −1.29 | item 1: the 17+ notrump rebid, the floor's |
+| `1♣ - 1♦ - 1♠` | 538 | 414 | −113 | −623 | −0.27 | the wide `1M` rebid |
+| `1♣ - 1♦ - 1♥` | 805 | 657 | +0 | −1,055 | +0.00 | the same, PD only |
+
+Read with the ranking above: items 1 and 2 are each about −1,400 plain in
+this cell, spread over five or six lanes apiece, and the single worst lane
+is competition.  The closing tables are a chapter of their own, about −580.
+
 Beyond the book: the floor was never trained on these auctions (the
 `strawberry-instinct` arm prices it), and a Strawberry corpus is retrain work,
 deferred with the rest ([next-steps.md](next-steps.md)).
@@ -215,6 +257,19 @@ seed 1795771032426658059, 204,800 boards per arm per cell, results in
   `strawberry-instinct` plain loss, so most of what the learned floor is
   worth here is not under the Polish `1♣`.
 
+**Round 2, queued 2026-11-28** (`scripts/ab-strawberry-lanes.sh`,
+`ab-results/strawberry-lanes/`, 409,600 boards per arm per cell).  Five
+lanes of the table in [§5](#by-lane-2026-11-28), −2,184 plain in the first
+run's none cell: the house XYZ borrowed under `1♣ - 1M - 1NT`, the `2♣!`
+puppet over `1♣ - 1♥ - 1♠`, the house 2NT structure under `1♣ - 1♦ - 2♦!`,
+responder's placement over `1♣ - 1♦ - 2M`, and opener's rebid over
+`1♣ - 3♦!`.  Strawberry takes no knob, so the arms are two binaries on one
+seed: `before` (`d6552f49`) and `strawberry` (the snapshot), with `advanced`
+as before.  `strawberry` against `before` prices the round, and `--by node`
+files each board at the lane that moved it.  `american` is byte-identical
+across the round (`smoke-default --count 20000 --seed 1`, dev profile, both
+dumps `558a7fe7…`).  Verdict owed.
+
 The borrowed `1♥`/`1♠` chapters took the semiforcing `1NT` with the house
 default on 2026-11-27, after this run; the book's own `1M - 1NT` is
 non-forcing (§5 item 5), so that moves toward it.
@@ -249,7 +304,8 @@ upgraded count (`constraint::points`).
 | S4 | What card does BBA get? | the WJ header over the house rows | the 2/1 header, which says `1♣` is natural; or a hand-written `.bbsa` | `card::strawberry_card` |
 | S5 | An artificial call the book leaves unanswered, or whose answers are owed | answered by a two-row closing table, to play | leave it to the floor, which passed `1♣ - 3♦!` and `1♣ - 2♠!` in the smoke | `close`, `closing_entries` |
 | S6 | An artificial ask whose answers are not authored | withheld; its hands stay in the natural rows | bid it and let the floor answer | the module doc of `one_club.rs` lists them |
-| S7 | Systems on over the 18–20 `1NT` rebid | the floor's, natural | graft the house `1NT` tree verbatim: right conventions, every strength gate three points off | add a graft in `strawberry::book` |
+| S7 | Systems on over the 18–20 `1NT` rebid | the floor's, natural. Measured 2026-11-28: of 993 boards the floor passes 415 on 5 or 6 HCP and bids `3NT` from 7; it never bids a major | graft the house `1NT` tree verbatim: right conventions, every strength gate three points off. Or give the house structure a `shift`, as its 2NT structure has: the right answer, a refactor of two dozen packages | add a graft in `strawberry::book` |
+| S10 | `1♣ - 1M - 1NT` until Checkback Gladiator is authored there | the house XYZ, grafted (2026-11-28): the rebid means the same in both books | the floor, as before (−796 plain in the first run's none cell) | the second graft loop in `strawberry::book` |
 | S8 | No two-level opening is authored: what do those hands do? | pass, or `3x` on seven cards | borrow the house weak twos until Ekren, the Multi and Muiderberg exist | `strawberry::openings` |
 | S9 | The measurement | 204,800 boards per arm per cell, cells none and both, vs BBA on its 2/1 card | four cells, or more boards, once a chapter is close enough for δ to matter | `scripts/ab-strawberry.sh`, `BOARDS`, `VULS` |
 
@@ -285,7 +341,13 @@ upgraded count (`constraint::points`).
 | R14 | `1♣ - 2NT - 3NT` "S/O", no figure | 14+ HCP | 13+ | `after_jump_notrump` |
 | R15 | swapped minors: "11–14 or 18+" cheap, 15–17 jumps | as written; responder then bids a flat game, capped at 15 points | natural continuations and slam tries | `after_swapped_minor`, `place_game` |
 | R16 | Reverse Flannery: game through the `3♣!`/`3♦!` asks | game bid directly on 17+ with a fit, `3NT` on 18+ HCP without one; invitations 15–16; pass on four hearts, else `2♠` | the asks and the `2NT!` lebensohl with their answers | `after_flannery` |
-| R17 | `1♣ - 1♥ - 1♠`: the `2♣!` checkback carries the minimum with four spades and the balanced invitation | `1NT` takes both (to 12 points); `2♥`/`2♠` invite on 11–12; 13+ bids `3♠`, `3♥` or the game-forcing `2♦!` | the `2♣!` lane | `after_one_spade` |
+| R17 | `1♣ - 1♥ - 1♠`: the `2♣!` puppet carries "to play 2x", the shaped invitations, the balanced invitation and a 15–17 slam try | four variants: a minimum (to 10) with four spades, with six hearts or an unbalanced five, or with six diamonds; and every 11–12 the direct `2♥`/`2♠` invitations do not take. 13+ still bids `3♠`, `3♥` or `2♦!` | the shaped invitations and the slam try; pass the completion on five diamonds | `after_one_spade`, `after_completion` |
+| R18 | opener over the puppet: `2♦!` "P/C, 11–16", `2♥` "INV, 3=♥", and seven game-forcing answers | `2♦!` on 11–16; 17+ bids `2♠` on five spades, else `2NT`; responder then places game (`4♠` on a fit, `4♥` on six, else `3NT`) | the page's answers, each with its continuation | `after_puppet`, `place_after_puppet` |
+| R19 | `1♣ - 1♥ - 1♠ - 1NT`: `2♠` "FG, 5+♠", `2NT` "BAL FG", `2♣` "NF, 11–16, 5+♣" | `2♠` as written; `3NT` on every other 17+ (for `2NT` and the minor jumps); `2♣` unbalanced only; no `2♦!` fourth suit, no `2♥` invitation | the page's table | `after_one_spade_notrump` |
+| R20 | `1♣ - 1♦ - 2♦!`: "bid as if partner opened a natural 2NT", then Muppet | the house 2NT structure, one point lower (Stayman from 4 HCP, transfers, `3NT` on 4–9, the quantitative `4NT` accepted on 22+). Opener answers as a balanced hand even on 24+ unbalanced | the Muppet tree; a second lane for the unbalanced game force | `two_notrump_rows` in `package` |
+| R21 | `1♣ - 1♦ - 2M` "20–23, 5+" with no table | `4M` on three trumps and 4–9 points, `3NT` on 4–9 HCP without them, pass to 3 HCP; opener passes `4M`, corrects `3NT` on six. Stronger hands are the floor's | forcing, with a second negative | `after_strong_major` |
+| R22 | `1♣ - 3♦!` with no table | `3NT`; `4NT` on 18–19 (accepted on 14+); `6NT` on 20+ | suits, a five-card major | `after_balanced_force` |
+| R23 | a passed hand's `3♦`: "STR INV, 10–11, 6+" | opener bids `3NT` on 14+ HCP, else passes | a fit or stopper test | `closing_entries` |
 
 ### 7.5 Discrepancies met
 
@@ -302,7 +364,12 @@ Not resolved here; each needs your reading.
    `3♥!`/`3♠!` game forcing in the other major, `3NT!` a solid suit, and
    relays over the minimum answers. Proposed default: leave the measured
    knob alone and author the page's table in Strawberry's two-level module.
-4. **House code, met by the readers, not touched.** `defense/overcall.rs`
+4. **A dead row, left in.** The house 2NT table that shares the
+   `1♣ - 1♦ - 2♦!` node brings its `Pass` on 0–3 HCP.  The sign-offs above
+   it take every such hand, so it never bids, and a pass is never read
+   there.  Proposed default: leave it; dropping it means a second variant of
+   `two_notrump_responses`.
+5. **House code, met by the readers, not touched.** `defense/overcall.rs`
    says seven-card preempts "remain with the floor" under a node whose
    finite pass shadows it; the systems-on graft under `(1♠) 1NT` renders
    `2♥` as a transfer to their suit.

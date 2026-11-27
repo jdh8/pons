@@ -458,6 +458,110 @@ fn accept_quantitative_nineteen() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// The 2NT-strength structure under one `prefix`: responder's table, the
+/// Stayman answers, the transfer completions and what follows them
+///
+/// `prefix` is the row key of responder's turn (`P* 2NT -`).  `shift` lowers
+/// every HCP band from the 20–21 opening's; `accept_hcp` is opener's floor
+/// for accepting the quantitative `4NT`.
+pub fn two_notrump_rows(
+    agreements: &Agreements,
+    prefix: &str,
+    shift: u8,
+    accept_hcp: u8,
+) -> Vec<Entry> {
+    let four_nt = call(4, Strain::Notrump);
+    let mut entries = Vec::new();
+
+    // Responses to the 2NT bid.
+    entries.extend(rows_of(
+        Pattern::node(prefix),
+        two_notrump_responses(agreements, shift),
+    ));
+
+    // Stayman answers and transfer completions at the three level.
+    let extend = |tail: Call| format!("{prefix} {tail} -");
+    entries.extend(rows_of(
+        Pattern::node(&extend(call(3, Strain::Clubs))),
+        stayman_answers_at_three(),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend(call(3, Strain::Diamonds))),
+        complete_transfer_at_three(Suit::Hearts, agreements),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend(call(3, Strain::Hearts))),
+        complete_transfer_at_three(Suit::Spades, agreements),
+    ));
+
+    // Quantitative 4NT answer.
+    entries.extend(rows_of(
+        Pattern::node(&extend(four_nt)),
+        quantitative_answer(accept_hcp),
+    ));
+
+    // Smolen after 3♣ Stayman when opener denies a major (3♦):
+    // responder jumps to show 5–4 in the majors, opener completes
+    // to game in the long one.
+    let extend2 = |a: Call, b: Call| format!("{prefix} {a} - {b} -");
+    let extend3 = |a: Call, b: Call, c: Call| format!("{prefix} {a} - {b} - {c} -");
+    let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
+    let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
+    if agreements.notrump.two_notrump_transfer_rebid {
+        for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
+            let completed = extend2(transfer, call(3, Strain::from(major)));
+            entries.extend(rows_of(
+                Pattern::node(&completed),
+                after_transfer_completion(major, agreements, shift),
+            ));
+            entries.extend(rows_of(
+                Pattern::node(&format!("{completed} {four_nt} -")),
+                quantitative_answer(accept_hcp),
+            ));
+            // The `4M` sign-off stands: left to the floor,
+            // opener raised it to `6M` on 20–21 (22 boards,
+            // −9.9 IMPs each, round 1).
+            let signed_off = call(4, Strain::from(major));
+            entries.extend(rows_of(
+                Pattern::node(&format!("{completed} {signed_off} -")),
+                Rules::new().rule(Call::Pass, 0, hcp(0..)),
+            ));
+        }
+    }
+    if agreements.notrump.two_notrump_super_accept {
+        for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
+            let jumped = extend2(transfer, call(4, Strain::from(major)));
+            entries.extend(rows_of(
+                Pattern::node(&jumped),
+                after_super_accept(major, shift),
+            ));
+            entries.extend(slam::rkcb_rows_facing_strong(&jumped, major));
+            entries.extend(slam::rkcb_answerer_rows(&jumped, major));
+        }
+    }
+    entries.extend(rows_of(
+        Pattern::node(&extend2(three_c, three_d)),
+        smolen_at_three(),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend2(three_c, three_d)),
+        quantitative_after_stayman_denial(agreements, shift),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend3(three_c, three_d, four_nt)),
+        quantitative_answer(accept_hcp),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend3(three_c, three_d, three_h)),
+        smolen_completion(Suit::Spades, agreements),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&extend3(three_c, three_d, three_s)),
+        smolen_completion(Suit::Hearts, agreements),
+    ));
+    entries
+}
+
 /// Responses and continuations shared by the three 2NT-strength sequences
 pub(crate) fn two_notrump_structure() -> Package {
     Package {
@@ -465,7 +569,6 @@ pub(crate) fn two_notrump_structure() -> Package {
         gate: |_| true,
         entries: |agreements| {
             let two_nt = call(2, Strain::Notrump);
-            let four_nt = call(4, Strain::Notrump);
             let bases: &[(&[Call], u8)] = &[
                 (&[two_nt], 21),
                 (
@@ -493,99 +596,13 @@ pub(crate) fn two_notrump_structure() -> Package {
                 };
                 // `notrump.quantitative_thirty_two`: the three-point 22–24
                 // range accepts the one-point invite on 23 as well.
-                let accept_hcp = &(*accept_hcp
-                    - u8::from(base.len() > 1 && agreements.notrump.quantitative_thirty_two));
+                let accept_hcp = *accept_hcp
+                    - u8::from(base.len() > 1 && agreements.notrump.quantitative_thirty_two);
                 let prefix = core::iter::once("P*".to_owned())
                     .chain(base.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()
                     .join(" ");
-
-                // Responses to the 2NT bid.
-                entries.extend(rows_of(
-                    Pattern::node(&prefix),
-                    two_notrump_responses(agreements, shift),
-                ));
-
-                // Stayman answers and transfer completions at the three level.
-                let extend = |tail: Call| format!("{prefix} {tail} -");
-                entries.extend(rows_of(
-                    Pattern::node(&extend(call(3, Strain::Clubs))),
-                    stayman_answers_at_three(),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend(call(3, Strain::Diamonds))),
-                    complete_transfer_at_three(Suit::Hearts, agreements),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend(call(3, Strain::Hearts))),
-                    complete_transfer_at_three(Suit::Spades, agreements),
-                ));
-
-                // Quantitative 4NT answer.
-                entries.extend(rows_of(
-                    Pattern::node(&extend(four_nt)),
-                    quantitative_answer(*accept_hcp),
-                ));
-
-                // Smolen after 3♣ Stayman when opener denies a major (3♦):
-                // responder jumps to show 5–4 in the majors, opener completes
-                // to game in the long one.
-                let extend2 = |a: Call, b: Call| format!("{prefix} {a} - {b} -");
-                let extend3 = |a: Call, b: Call, c: Call| format!("{prefix} {a} - {b} - {c} -");
-                let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
-                let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
-                if agreements.notrump.two_notrump_transfer_rebid {
-                    for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
-                        let completed = extend2(transfer, call(3, Strain::from(major)));
-                        entries.extend(rows_of(
-                            Pattern::node(&completed),
-                            after_transfer_completion(major, agreements, shift),
-                        ));
-                        entries.extend(rows_of(
-                            Pattern::node(&format!("{completed} {four_nt} -")),
-                            quantitative_answer(*accept_hcp),
-                        ));
-                        // The `4M` sign-off stands: left to the floor,
-                        // opener raised it to `6M` on 20–21 (22 boards,
-                        // −9.9 IMPs each, round 1).
-                        let signed_off = call(4, Strain::from(major));
-                        entries.extend(rows_of(
-                            Pattern::node(&format!("{completed} {signed_off} -")),
-                            Rules::new().rule(Call::Pass, 0, hcp(0..)),
-                        ));
-                    }
-                }
-                if agreements.notrump.two_notrump_super_accept {
-                    for (transfer, major) in [(three_d, Suit::Hearts), (three_h, Suit::Spades)] {
-                        let jumped = extend2(transfer, call(4, Strain::from(major)));
-                        entries.extend(rows_of(
-                            Pattern::node(&jumped),
-                            after_super_accept(major, shift),
-                        ));
-                        entries.extend(slam::rkcb_rows_facing_strong(&jumped, major));
-                        entries.extend(slam::rkcb_answerer_rows(&jumped, major));
-                    }
-                }
-                entries.extend(rows_of(
-                    Pattern::node(&extend2(three_c, three_d)),
-                    smolen_at_three(),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend2(three_c, three_d)),
-                    quantitative_after_stayman_denial(agreements, shift),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend3(three_c, three_d, four_nt)),
-                    quantitative_answer(*accept_hcp),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend3(three_c, three_d, three_h)),
-                    smolen_completion(Suit::Spades, agreements),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&extend3(three_c, three_d, three_s)),
-                    smolen_completion(Suit::Hearts, agreements),
-                ));
+                entries.extend(two_notrump_rows(agreements, &prefix, shift, accept_hcp));
             }
 
             entries

@@ -29,6 +29,12 @@
 //! differing call (`node`, `prefix ⟨ON vs OFF⟩`) or by the opening and the first
 //! call over it (`lane`), and prints the buckets sorted by PD total so the loss
 //! is attributed to nodes rather than read off a single number.
+//!
+//! `--by prefix` keys a divergent board by the ON arm's own auction, from its
+//! opening through `--depth` calls (`1♣ - 1♦ - 2♦` at the default 5).  `node`
+//! files a board at its first difference, so two systems that open
+//! differently book everything to the opening; this says which of the ON
+//! system's lanes the board went down (docs/strawberry.md §5).
 
 use clap::Parser;
 use contract_bridge::auction::Call;
@@ -62,6 +68,9 @@ struct Args {
     /// Buckets to print in `--by` mode (sorted by PD total, worst first)
     #[arg(long, default_value_t = 40)]
     top: usize,
+    /// Calls kept from the ON arm's opening in `--by prefix`
+    #[arg(long, default_value_t = 5)]
+    depth: usize,
 }
 
 /// Which of our seats made the rebid, and where in the auction it opened.
@@ -139,7 +148,7 @@ fn classify(on: &Board, off: &Board) -> Option<Bucket> {
 }
 
 /// A `--by` key for a divergent board; `None` when the auctions do not differ.
-fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
+fn key_of(by: &str, depth: usize, on: &Board, off: &Board) -> Option<String> {
     if by == "holding" {
         return common::holding_key(on, off);
     }
@@ -174,6 +183,11 @@ fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
             });
             format!("{} {over}", show(open))
         }
+        "prefix" => {
+            let open = a.iter().position(|c| !matches!(c, Call::Pass))?;
+            let calls: Vec<String> = a[open..].iter().take(depth).map(show).collect();
+            calls.join(" ")
+        }
         "side" => {
             let ours = |k: usize| same_side(seat_to_act(on.dealer, k), Seat::North);
             let opened = a.iter().position(|c| matches!(c, Call::Bid(_)));
@@ -196,7 +210,14 @@ fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
 }
 
 /// `--by` report: every bucket's fired count and plain/PD totals, worst PD first.
-fn report_by(by: &str, on: &[Board], off: &[Board], vul: AbsoluteVulnerability, top: usize) {
+fn report_by(
+    by: &str,
+    depth: usize,
+    on: &[Board],
+    off: &[Board],
+    vul: AbsoluteVulnerability,
+    top: usize,
+) {
     let mut deals = Vec::with_capacity(on.len());
     let contracts: Vec<(Reached, Reached)> = on
         .iter()
@@ -226,7 +247,7 @@ fn report_by(by: &str, on: &[Board], off: &[Board], vul: AbsoluteVulnerability, 
         divergent[i] = true;
     }
     for (i, (a, b)) in on.iter().zip(off).enumerate() {
-        let Some(key) = key_of(by, a, b) else {
+        let Some(key) = key_of(by, depth, a, b) else {
             continue;
         };
         let e = buckets.entry(key).or_default();
@@ -285,6 +306,7 @@ fn main() {
         );
         report_by(
             by,
+            args.depth,
             &on,
             &off,
             args.vulnerability.unwrap_or(on_vul),

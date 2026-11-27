@@ -26,9 +26,11 @@
 //! with [`american()`][crate::bidding::american::american()] price exactly the authored chapters.
 //! It is not the book's meaning — `1M - 2♣` is a natural game force there,
 //! where Strawberry's is a relay — so each chapter leaves the list in the
-//! commit that authors it.  Nothing is grafted under `1♣`: the house tables
-//! there read the opening as natural clubs, so the Polish `1♣` stands on its
-//! own rows and the floor.
+//! commit that authors it.  Under `1♣` the house tables read the opening as
+//! natural clubs, so the Polish `1♣` stands on its own rows and the floor,
+//! with one exception: `1♣ - 1M - 1NT` is the same 12–14 balanced hand in
+//! both books, so the house XYZ tables below it are borrowed until Checkback
+//! Gladiator is authored there.
 //!
 //! # The other two books
 //!
@@ -131,6 +133,26 @@ fn book(agreements: &Agreements) -> System {
             debug_assert!(
                 collisions.is_empty(),
                 "borrowed chapter collides at {prefix:?}: {collisions:?}"
+            );
+            competitive.graft(&prefix, &house.competitive, &prefix);
+        }
+    }
+    // `1♣ - 1M - 1NT`: the house rebid is this one, so its continuations fit.
+    for major in [Strain::Hearts, Strain::Spades] {
+        for passes in 0..=3 {
+            let prefix: Vec<Call> = core::iter::repeat_n(Call::Pass, passes)
+                .chain([
+                    Call::Bid(Bid::new(1, Strain::Clubs)),
+                    Call::Pass,
+                    Call::Bid(Bid::new(1, major)),
+                    Call::Pass,
+                    Call::Bid(Bid::new(1, Strain::Notrump)),
+                ])
+                .collect();
+            let collisions = constructive.graft(&prefix, &house.constructive, &prefix);
+            debug_assert!(
+                collisions.is_empty(),
+                "borrowed checkback collides at {prefix:?}: {collisions:?}"
             );
             competitive.graft(&prefix, &house.competitive, &prefix);
         }

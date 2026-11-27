@@ -14,18 +14,28 @@
 //! * **Round two** where the page is a single table: responder over
 //!   `1♣ - 1♦ - 1M`, `2♣` and `2♦!`, opener over `1♣ - 1♦ - 1M - 1NT`, and
 //!   the reverse-445566 steps over Odwrotka (`1C/1M/2D.md`).
+//! * **Checkback Gladiator** over `1♣ - 1♥ - 1♠`
+//!   (`1C/1M/CheckbackGladiator.md`): the `2♣!` puppet with its weak and
+//!   balanced-invitation variants, the game-forcing `2♦!`, and opener's
+//!   rebid over `1NT`.
+//! * **The strong rebids over `1♦!`**: the house 2NT structure under
+//!   `2♦!` ([`two_notrump_rows`], one point lower than over the opening),
+//!   standing in for the page's Muppet tree, and responder's placement over
+//!   the 20–23 `2M`.
 //!
-//! Left to the floor, and listed in `docs/strawberry.md`: Checkback
-//! Gladiator, the relay answers over `1♣ - 1NT - 2♦!`, the Muppet tree over
-//! the `2♦!` rebid, the systems-on tail of the 18–20 `1NT` rebid, opener's
-//! splinters and two-suited jumps, Namyats, and everything contested.  An
-//! artificial ask whose answers are not authored is withheld rather than
-//! bid: the hands it would take stay in the natural rows.
+//! Left to the floor, and listed in `docs/strawberry.md`: the shaped
+//! invitations and slam tries of Checkback Gladiator, the relay answers over
+//! `1♣ - 1NT - 2♦!`, the Muppet tree proper, the systems-on tail of the
+//! 18–20 `1NT` rebid, opener's splinters and two-suited jumps, Namyats, and
+//! everything contested.  An artificial ask whose answers are not authored
+//! is withheld rather than bid: the hands it would take stay in the natural
+//! rows.
 //!
 //! "FG" for opener opposite a positive is 17+ points, as the competitive
 //! chapter states it; an invitation is 15–16.
 
 use crate::bidding::agreements::Agreements;
+use crate::bidding::american::notrump::two_notrump_rows;
 use crate::bidding::constraint::{and, balanced, hcp, len, points};
 use crate::bidding::rows::{Entry, Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
@@ -67,6 +77,11 @@ const BOTH_MINORS: Alert = Alert("strawberry:both-minors");
 /// Responder's `2♦` over `1♣ - 1♥ - 1♠`, the game-forcing checkback, and
 /// opener's `3♥` answer to it (five spades and three hearts)
 const CHECKBACK: Alert = Alert("strawberry:checkback");
+/// Responder's `2♣` over `1♣ - 1♥ - 1♠`: the Gladiator puppet, a weak hand
+/// with somewhere to play or the balanced invitation
+const PUPPET: Alert = Alert("strawberry:checkback-puppet");
+/// Opener's `2♦` over the puppet: 11–16, nothing about diamonds
+const PUPPET_COMPLETION: Alert = Alert("strawberry:checkback-completion");
 
 const MAJORS: [Suit; 2] = [Suit::Hearts, Suit::Spades];
 const MINORS: [Suit; 2] = [Suit::Diamonds, Suit::Clubs];
@@ -351,21 +366,36 @@ fn after_negative_clubs() -> Rules {
 
 /// Responder's second call after `1♣ - 1♦ - 2♦!`: the weak sign-offs
 ///
-/// A hand worth game opposite 21 (4+ HCP) has no row: the table rejects it
-/// and the floor bids on, knowing opener's strength.  A bust never passes.
+/// A hand worth game opposite 21 (4+ HCP) bids "as if partner opened a
+/// natural 2NT": the house 2NT structure shares this node
+/// ([`two_notrump_rows`] in [`package`]).  These rows outrank its transfers,
+/// which take any strength, and cover every hand its pass would: a bust
+/// never passes the artificial rebid.
 fn after_strong_rebid() -> Rules {
     Rules::new()
         .rule(
             bid(2, Suit::Hearts),
-            110,
+            310,
             hcp(..=3) & len(Suit::Hearts, 4..),
         )
         .rule(
             bid(2, Suit::Spades),
-            105,
+            305,
             hcp(..=3) & len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
-        .rule(bid(2, Strain::Notrump), 100, hcp(..=3) & and(MAJORS, ..4))
+        .rule(bid(2, Strain::Notrump), 300, hcp(..=3) & and(MAJORS, ..4))
+}
+
+/// Responder's second call after `1♣ - 1♦ - 2M` (20–23, five cards)
+///
+/// The page gives no table.  Game with a fit or with values, to play: left
+/// to the floor, opener read the raise as unlimited and bid six over it.  A
+/// hand too good for these rows has none and bids on with the floor.
+fn after_strong_major(major: Suit) -> Rules {
+    Rules::new()
+        .rule(bid(4, major), 150, points(4..=9) & len(major, 3..))
+        .rule(bid(3, Strain::Notrump), 140, hcp(4..=9) & len(major, ..3))
+        .rule(Call::Pass, 0, hcp(..=3))
 }
 
 /// Opener's rebid after a positive `1♣ - 1M`
@@ -661,6 +691,16 @@ fn after_flannery() -> Rules {
         .rule(bid(2, Suit::Spades), 100, hcp(0..))
 }
 
+/// Opener's rebid after `1♣ - 3♦!` (balanced, 12–15, no major)
+///
+/// The page gives no table: notrump by weight of points.
+fn after_balanced_force() -> Rules {
+    Rules::new()
+        .rule(bid(6, Strain::Notrump), 120, hcp(20..))
+        .rule(bid(4, Strain::Notrump), 110, hcp(18..=19))
+        .rule(bid(3, Strain::Notrump), 50, hcp(0..))
+}
+
 /// A two-row table: `accept` under `when`, else the sign-off
 ///
 /// The shape of every closing table below.  Each answers an artificial call
@@ -679,8 +719,8 @@ fn close(
 /// Opener over the artificial invitations and the balanced game force
 ///
 /// `1♣ - 2♠!` (six diamonds) and a passed hand's `2♣!`, `2♦!` and `2♠!`:
-/// `3NT` on 15+, else the suit shown.  `1♣ - 3♦!` is game forcing and
-/// balanced: `3NT`.
+/// `3NT` on 15+, else the suit shown.  A passed hand's `3♦` is natural and
+/// invitational: `3NT` on 14+, else pass.
 // ponytail: no stopper check and no minor-suit game; the pages give none.
 fn closing_entries() -> Vec<Entry> {
     let node = |key: &str, rules: Rules| rows_of(Pattern::node(key), rules);
@@ -693,8 +733,13 @@ fn closing_entries() -> Vec<Entry> {
     .collect::<Vec<Entry>>();
     // The key above fans over every seat; the passed-hand `2♠!` is both
     // minors, where diamonds are still the cheaper preference.
-    entries.extend(node("P* 1♣ - 3♦ -", Rules::new().rule(game, 50, hcp(0..))));
     for seat in ["- -", "- - -"] {
+        entries.extend(node(
+            &format!("{seat} 1♣ - 3♦ -"),
+            Rules::new()
+                .rule(game, 100, hcp(14..))
+                .rule(Call::Pass, 0, hcp(0..)),
+        ));
         entries.extend(node(
             &format!("{seat} 1♣ - 2♣ -"),
             close(game, hcp(15..), bid(2, Suit::Diamonds)),
@@ -741,10 +786,14 @@ fn closing_entries() -> Vec<Entry> {
 
 /// Responder's second call after `1♣ - 1♥ - 1♠` (forcing)
 ///
-/// The natural rows of the page, and its game-forcing `2♦!` checkback.  The
-/// `2♣!` checkback is owed, so the hands it would carry — a minimum with
-/// four spades, the balanced invitation — bid `1NT`.
+/// The natural rows of the page and both checkbacks.  The `2♣!` puppet
+/// carries the minimum with four spades, long hearts or long diamonds, and
+/// the balanced invitation; `1NT` is what is left of the minimum.
+// ponytail: the puppet's shaped invitations (`3♣`, `3♦`, `3♥`, `3♠` over the
+// completion) and its 15–17 `3NT` are not authored; neither are the direct
+// slam tries.  A minimum passes the completion only on six diamonds.
 fn after_one_spade() -> Rules {
+    let minimum = || points(..=10);
     Rules::new()
         .rule(
             bid(3, Suit::Spades),
@@ -768,7 +817,88 @@ fn after_one_spade() -> Rules {
             135,
             points(11..=12) & len(Suit::Hearts, 5..),
         )
+        .rule(
+            bid(2, Suit::Clubs),
+            130,
+            points(11..=12)
+                | (minimum() & len(Suit::Spades, 4..))
+                | (minimum() & len(Suit::Hearts, 6..))
+                | (minimum() & len(Suit::Hearts, 5..=5) & !balanced())
+                | (minimum() & len(Suit::Diamonds, 6..)),
+        )
+        .alert(PUPPET)
         .rule(bid(1, Strain::Notrump), 100, points(..=12))
+}
+
+/// Opener's answer to the puppet `1♣ - 1♥ - 1♠ - 2♣!`
+///
+/// 11–16 completes; a game force says so, with five spades or without.
+// ponytail: two game-forcing answers for the page's seven, and no `2♥`
+// invitation on three hearts.
+fn after_puppet() -> Rules {
+    Rules::new()
+        .rule(
+            bid(2, Suit::Spades),
+            160,
+            points(17..) & len(Suit::Spades, 5..),
+        )
+        .rule(bid(2, Strain::Notrump), 150, points(17..))
+        .rule(bid(2, Suit::Diamonds), 100, points(..=16))
+        .alert(PUPPET_COMPLETION)
+}
+
+/// Responder's hand type over the completion `1♣ - 1♥ - 1♠ - 2♣ - 2♦`
+///
+/// The four variants of the puppet, and nothing else: no other hand reaches
+/// this node.
+fn after_completion() -> Rules {
+    let minimum = || points(..=10);
+    Rules::new()
+        .rule(
+            bid(2, Suit::Spades),
+            120,
+            minimum() & len(Suit::Spades, 4..),
+        )
+        .rule(
+            bid(2, Suit::Hearts),
+            110,
+            minimum() & len(Suit::Hearts, 5..),
+        )
+        .rule(Call::Pass, 105, minimum() & len(Suit::Diamonds, 6..))
+        .rule(bid(2, Strain::Notrump), 100, points(11..=12))
+}
+
+/// Responder's game over a game-forcing answer to the puppet, or over
+/// opener's forcing `2♠` after `1NT`: spades on a fit, hearts on six, else
+/// notrump
+///
+/// `fit` is the spade length that makes eight: three facing five, four
+/// facing four.
+fn place_after_puppet(fit: usize) -> Rules {
+    Rules::new()
+        .rule(bid(4, Suit::Spades), 100, len(Suit::Spades, fit..))
+        .rule(bid(4, Suit::Hearts), 90, len(Suit::Hearts, 6..))
+        .rule(bid(3, Strain::Notrump), 50, hcp(0..))
+}
+
+/// Opener's third call after `1♣ - 1♥ - 1♠ - 1NT` (a minimum, at most three
+/// spades)
+// ponytail: `3NT` stands for the page's forcing `2NT` and its minor-suit
+// jumps; the `2♦!` fourth suit and the `2♥` invitation are not authored.
+fn after_one_spade_notrump() -> Rules {
+    Rules::new()
+        .rule(
+            bid(2, Suit::Spades),
+            160,
+            points(17..) & len(Suit::Spades, 5..),
+        )
+        .rule(bid(3, Strain::Notrump), 150, points(17..))
+        .rule(
+            bid(2, Suit::Clubs),
+            110,
+            points(..=16) & len(Suit::Clubs, 5..) & !balanced(),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to the game-forcing checkback `1♣ - 1♥ - 1♠ - 2♦!`
@@ -827,8 +957,9 @@ pub(super) fn package() -> Package {
     Package {
         name: "strawberry-one-club",
         gate: |_| true,
-        entries: |_: &Agreements| {
+        entries: |agreements: &Agreements| {
             let node = |key: &str, rules: Rules| rows_of(Pattern::node(key), rules);
+            let pass = || Rules::new().rule(Call::Pass, 0, hcp(0..));
             let mut entries: Vec<Entry> =
                 rows_of(Pattern::node("P* 1♣ -").with_fan(1), responses());
             for seat in ["- -", "- - -"] {
@@ -837,6 +968,21 @@ pub(super) fn package() -> Package {
             entries.extend(node("P* 1♣ - 1♦ -", after_negative()));
             entries.extend(node("P* 1♣ - 1♦ - 2♣ -", after_negative_clubs()));
             entries.extend(node("P* 1♣ - 1♦ - 2♦ -", after_strong_rebid()));
+            // 21–23 where the house opening is 20–21: every band one point
+            // lower, and the quantitative `4NT` accepted on the upper two.
+            entries.extend(two_notrump_rows(agreements, "P* 1♣ - 1♦ - 2♦ -", 1, 22));
+            // The balanced game force, by an unpassed hand only: a passed
+            // hand's `3♦` is the natural invitation `closing_entries` answers.
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ - 3♦ -").with_fan(1),
+                after_balanced_force(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ - 3♦ - 4NT -").with_fan(1),
+                Rules::new()
+                    .rule(bid(6, Strain::Notrump), 100, hcp(14..))
+                    .rule(Call::Pass, 0, hcp(0..)),
+            ));
             entries.extend(node("P* 1♣ - 1NT -", after_notrump()));
             entries.extend(node("P* 1♣ - 2NT -", after_jump_notrump()));
             entries.extend(node("P* 1♣ - 2♥ -", after_flannery()));
@@ -850,8 +996,36 @@ pub(super) fn package() -> Package {
                 }
             }
             entries.extend(node("P* 1♣ - 1♥ - 1♠ - 2♦ -", answers));
+            let puppet = "P* 1♣ - 1♥ - 1♠ - 2♣ -";
+            entries.extend(node(puppet, after_puppet()));
+            entries.extend(node(&format!("{puppet} 2♦ -"), after_completion()));
+            entries.extend(node(&format!("{puppet} 2♦ - 2♥ -"), pass()));
+            entries.extend(node(&format!("{puppet} 2♦ - 2♠ -"), pass()));
+            entries.extend(node(
+                &format!("{puppet} 2♦ - 2NT -"),
+                Rules::new()
+                    .rule(bid(3, Strain::Notrump), 100, hcp(14..))
+                    .rule(Call::Pass, 0, hcp(0..)),
+            ));
+            entries.extend(node(&format!("{puppet} 2♠ -"), place_after_puppet(3)));
+            entries.extend(node(&format!("{puppet} 2NT -"), place_after_puppet(4)));
+            let notrump = "P* 1♣ - 1♥ - 1♠ - 1NT -";
+            entries.extend(node(notrump, after_one_spade_notrump()));
+            entries.extend(node(&format!("{notrump} 2♠ -"), place_after_puppet(3)));
             for major in MAJORS {
                 let m = Call::Bid(bid(1, major));
+                let strong = format!("P* 1♣ - 1♦ - {} -", Call::Bid(bid(2, major)));
+                let game = Call::Bid(bid(4, major));
+                entries.extend(node(&strong, after_strong_major(major)));
+                entries.extend(node(&format!("{strong} {game} -"), pass()));
+                entries.extend(node(
+                    &format!("{strong} 3NT -"),
+                    Rules::new().rule(bid(4, major), 100, len(major, 6..)).rule(
+                        Call::Pass,
+                        0,
+                        hcp(0..),
+                    ),
+                ));
                 entries.extend(node(
                     &format!("P* 1♣ - 1♦ - {m} -"),
                     after_negative_major(major),

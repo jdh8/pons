@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Strawberry round 2: five lanes under the Polish `1♣`, measurement
+  queued (2026-11-28).** The first run's loss, re-sliced by Strawberry's
+  own auction (`ab-dump-bucket --by prefix`, new), put −2,184 of the none
+  cell's −13,117 plain IMPs in five lanes, now authored. `1♣ - 1M - 1NT`
+  borrows the house XYZ (the rebid is the same 12–14 hand in both books).
+  `1♣ - 1♥ - 1♠` gains the Checkback Gladiator `2♣!` puppet (a minimum with
+  somewhere to play, or the balanced invitation) and opener's rebid over
+  `1NT`. `1♣ - 1♦ - 2♦!` (21+) is answered as a natural 2NT through the
+  house 2NT structure, one point lower (`two_notrump_rows`, split out of
+  `two_notrump_structure`). Over `1♣ - 1♦ - 2M` responder places game and
+  opener respects it: left to the floor, opener bid six over the raise.
+  Over the balanced `1♣ - 3♦!` opener invites or bids slam by points.
+  Fixed on the way: a passed hand's natural `3♦` invitation was answered by
+  the game force's table and forced to `3NT`. `scripts/ab-strawberry-lanes.sh`
+  prices the round against the commit before it, two binaries on one seed.
+  `american()` is byte-identical (`smoke-default`, 20,000 boards).
+
 - **Three BWS follow-up runs vs BBA, measurement queued (2026-11-28).**
   `scripts/ab-transfer-super-accept.sh` re-measures the `1NT` super-accept
   (`notrump.transfer_super_accept`), whose only record was a 640k-board DD
