@@ -206,6 +206,27 @@ fn a_knob_moves_its_row() {
     );
 }
 
+/// The "after double" rows are the advances of `(2x) X -`: a radio pair on
+/// `defense.advance_sohl_style`, deaf to the style over our overcalled `1NT`
+#[test]
+fn the_after_double_rows_follow_the_advance_style() {
+    let rows = |a: &Agreements| {
+        let card = american_card(a);
+        (
+            card.row("Lebensohl after double"),
+            card.row("Rubensohl after double"),
+        )
+    };
+    let mut agreements = Agreements::default();
+    assert_eq!(rows(&agreements), (Some(0), Some(1)));
+    agreements.competition.lebensohl_style = LebensohlStyle::Plain;
+    assert_eq!(rows(&agreements), (Some(0), Some(1)));
+    agreements.defense.advance_sohl_style = LebensohlStyle::Plain;
+    assert_eq!(rows(&agreements), (Some(1), Some(0)));
+    agreements.defense.advance_sohl_style = LebensohlStyle::Off;
+    assert_eq!(rows(&agreements), (Some(0), Some(0)));
+}
+
 /// The 5542 partition moves exactly its one schema row; the wide 1♣ moves
 /// none and speaks through the WJ header instead.
 #[test]

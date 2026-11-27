@@ -1177,6 +1177,13 @@ impl ConventionCard {
             } else {
                 NotrumpDefense::Natural
             },
+            // FLAGGED (docs/bws-2017.md §6.6): the `Transfer` pole rides the
+            // *advance* row.  `american_card` wrote `competition.lebensohl_style`
+            // there until 2026-11-28 and now writes `defense.advance_sohl_style`,
+            // so this agrees with `capture` only while the two styles agree
+            // (every shipped preset).  The honest row, `Rubensohl after 1NT`,
+            // is one our card never sets; moving to it moves the declared
+            // net input and is a measured change.
             lebensohl: if !row("Lebensohl after 1NT") {
                 LebensohlStyle::Off
             } else if row("Rubensohl after double") {

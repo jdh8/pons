@@ -592,7 +592,14 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Multi-Landy" => i32::from(a.decision.reading.notrump_defense == NotrumpDefense::Woolsey),
         "Leaping Michaels" => i32::from(a.defense.leaping_michaels_enabled),
         "Lebensohl after 1NT" => i32::from(a.competition.lebensohl_style != LebensohlStyle::Off),
-        "Rubensohl after double" => i32::from(a.competition.lebensohl_style == LebensohlStyle::Transfer),
+        // EPBot's "after double" rows are the advances of a takeout double of
+        // a weak two (`(2x) X -`), which is `defense.advance_sohl_style`, not
+        // the style over our overcalled `1NT`.  Until 2026-11-28 the Rubensohl
+        // row read `competition.lebensohl_style` and the Lebensohl row was
+        // never set; the shipped cards moved only where a preset plays
+        // `Plain` advances (`basic`, `bws`).
+        "Lebensohl after double" => i32::from(a.defense.advance_sohl_style == LebensohlStyle::Plain),
+        "Rubensohl after double" => i32::from(a.defense.advance_sohl_style == LebensohlStyle::Transfer),
         "New Minor Forcing" => i32::from(a.rebid.new_minor_forcing && !a.decision.reading.xyz),
         "Two Way New Minor Forcing" => i32::from(a.decision.reading.xyz),
         "Responsive double" => i32::from(a.defense.responsive_takeout_enabled),
@@ -794,7 +801,6 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         | "Imposible 2S"
         | "Inviting Jump Shifts"
         | "Lebensohl after 1m"
-        | "Lebensohl after double"
         | "Maximal Doubles"
         | "Mini Splinter"
         | "Minor Suit Slam Try after 2NT"

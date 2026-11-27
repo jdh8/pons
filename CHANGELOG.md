@@ -52,8 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PD −0.094 to −0.103 (`docs/bws-2017.md` §5). With the verdict read the
   preset has its name's surface (2026-11-28): the factory `american_bws()`,
   `cards/American-BWS.bbsa` (`bba-card --system american-bws`, pinned with
-  the other two cards; three rows from `American.bbsa`: Multi-Landy,
-  Rubensohl after double, Super acceptance after NT) and a "Bridge World
+  the other two cards; four rows from `American.bbsa`: Multi-Landy,
+  Lebensohl after double, Rubensohl after double, Super acceptance after
+  NT) and a "Bridge World
   Standard 2017" choice in the web app's system preset. The default system
   is untouched.
 - **`RebidKnobs::semiforcing_notrump`, default-on since 2026-11-27: opener
@@ -266,6 +267,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The `.bbsa` "after double" rows follow the advance style (2026-11-28).**
+  `Rubensohl after double` read `competition.lebensohl_style` (our `1NT`
+  overcalled) and `Lebensohl after double` was never set; EPBot's rows are
+  the advances of a takeout double of a weak two, so both now read
+  `defense.advance_sohl_style` (`Transfer` → Rubensohl, `Plain` →
+  Lebensohl). `cards/American.bbsa` is byte-identical, so runs of the default
+  system are untouched. `American-Basic.bbsa` and `American-BWS.bbsa` gain
+  `Lebensohl after double = 1`, so BBA reads those two presets' advances of
+  `(2x) X` as lebensohl; their recorded numbers predate the row and were
+  not re-run. Flagged, not changed: `ConventionCard::from_card` still reads
+  the `1NT` lebensohl style off that row (`docs/bws-2017.md` §6.6).
 - **`bba-gen`'s declared EPBot book no longer follows two of our opt-in
   knobs (2026-11-27).** `european_minors_opponents` copied the arm's
   agreements into the book we read EPBot off, so
