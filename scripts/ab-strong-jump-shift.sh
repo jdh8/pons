@@ -29,6 +29,28 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
+# MEASURED 2026-11-27, NON-INFERIOR, stays off pending jdh8 (sha e89f9301;
+# seed 1795735355469146667; 1,638,400 bd/cell).  IMPs none / ns / ew / both:
+#
+#   f16 vs base  plain +106 / +168 / +111 / +127  (NI 4/4, CI +-0.0002..0.0003)
+#                PD    +163 / +333 / +120 / +212  (NI 4/4)
+#                fired 684 / 685 / 696 / 698 (0.04%)
+#   f15 vs base  plain +361 / +505 / +360 / +403  (NI 4/4, +0.0002..0.0003)
+#                PD    +430 / +693 / +380 / +507  (NI / win / NI / NI)
+#                fired 882 / 891 / 894 / 901 (0.05%)
+#   f15 vs f16   plain +231 / +301 / +225 / +242  (NI / win / NI / NI)
+#                PD    +243 / +324 / +236 / +265  (win / win / NI / NI)
+#
+# The 15 floor beats 16 in every cell.  Isolation gate FAILED in every cell
+# (32 / 22 / 49 / 40 boards they opened, the same leak as
+# ab-single-raise-gap.sh); none cell f15, they open +60 plain, we open +301.
+# Bucketed by node (f15, none cell): the lost weak `2♠` costs -137 plain on
+# 226 boards; the strong `2♠` over `1♠` is -23 on 304 boards with opener the
+# dealer but +440 on 309 with opener in second seat, an asymmetry not traced.
+# Decision row: plain NI / PD NI, so naturalness breaks the tie (BWS 2017
+# IV.G(f) and BBA both play it strong), but the card still declares weak jump
+# shifts, so some of the PD gain may come from BBA defending a preempt.
+#
 # Resumable; SEED_BASE persists in $R/strong-jump-shift.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-strong-jump-shift.sh RESULTS_DIR}

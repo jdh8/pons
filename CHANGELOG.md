@@ -60,7 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keycards on 18+, and opener asks over a placed `4M` on 15+ points. BBA
   anchor `4592d0a3`, lead 4: our `1♠` where BBA jump-shifts is −442 plain
   on 303 rows, all of it on 16–17 HCP. Default `None`, the default book is
-  unchanged; the A/B vs BBA at 16 and 15 is queued
+  unchanged. Measured vs BBA 2026-11-27 (1,638,400 boards a cell):
+  non-inferior in all four cells at both floors, at 15 plain +361 / +505 /
+  +360 / +403 IMPs (none / ns / ew / both), PD +430 / +693 / +380 / +507;
+  15 beats 16 in every cell. Stays opt-in until the default is decided
   (`scripts/ab-strong-jump-shift.sh`). The `.bbsa` card cannot disclose it.
   `bba-gen --ns-heart-spade-strong-jump-shift 16`,
   `PROBE_HEART_SPADE_STRONG_JUMP_SHIFT=16`.
@@ -70,8 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1NT` is 10–12 HCP, so a 9-count with a doubleton fits neither and bids
   `1NT` (BBA anchor `4592d0a3`, lead 5: −298 plain on 147 rows). On,
   responder also accepts game tries on 8+ support points. Default off, the
-  default book is unchanged; the A/B vs BBA is queued
-  (`scripts/ab-single-raise-gap.sh`). `bba-gen --ns-single-raise-gap`,
+  default book is unchanged. Measured vs BBA 2026-11-27: a loss in all four
+  cells, plain −3567 / −4865 / −4005 / −4762 IMPs per 1,638,400 boards,
+  PD worse; opener's slam judgement over `4M` moves with the wider `2M`
+  reading. Stays off (`scripts/ab-single-raise-gap.sh`). `bba-gen --ns-single-raise-gap`,
   `PROBE_SINGLE_RAISE_GAP=1`.
 - **`OpeningKnobs::longer_hearts_first`: the heart half of
   `longer_suit_first` alone.** Shipped (see Changed).

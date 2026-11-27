@@ -27,6 +27,25 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.  Read each cell's `fired` count first.
 #
+# MEASURED 2026-11-27, a LOSS 4/4, stays off (sha 9c4fac3f; seed
+# 1795719864118489639; 1,638,400 bd/cell).  IMPs none / ns / ew / both, CI
+# +-0.0006..0.0007 per board:
+#
+#   plain  -3567 / -4865 / -4005 / -4762  (-0.0022 / -0.0030 / -0.0024 / -0.0029)
+#   PD     -5606 / -6682 / -5933 / -6384  (-0.0034 / -0.0041 / -0.0036 / -0.0039)
+#   fired  3571 / 3096 / 3538 / 3045 (0.19-0.22%), -1.0..-1.6 plain per fired
+#
+# Isolation gate FAILED in every cell (257 / 191 / 194 / 155 boards they
+# opened): european_minors_opponents copies the knob into the EPBot book we
+# read.  Not the loss: none cell, they open -127 plain, we open -3440.
+# Bucketed by node (none cell) the loss is opener's slam judgement over
+# `4M`, both majors: after the raise opener now bids slam (`1♠ - 2♠ - 3♠ -
+# 4♠ - 6♠` 150 boards -1269, `1♥ - 2♥ - 3♣ - 4♥ - 6♥` 52 -340), and in the
+# 2/1 lanes it now passes where it bid slam (`1♠ - 2♣ - 3♠ - 4♠` 170 -550,
+# `1♠ - 2♦ - 3♠ - 4♠` -195, `1♥ - 2♣ - 3♥ - 4♥` -186), so the widened `2M`
+# reading moves the floor beyond the knob's own hands.  The heart sibling's
+# +46 on the anchor does not survive.
+#
 # Resumable; SEED_BASE persists in $R/single-raise-gap.seed.
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-single-raise-gap.sh RESULTS_DIR}
