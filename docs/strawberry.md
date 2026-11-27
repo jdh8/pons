@@ -126,28 +126,39 @@ moved here (the borrowed chapters stay byte-identical to the house's):
 
 ## 5. Holes, ranked
 
-By how often the auction comes up, most frequent first. Each is one chapter
-authored whole: both sides, and the tails where they double or overcall.
+By measured cost (§6 attribution, 2026-11-28), most expensive first; the
+pre-measurement order was by frequency (1, 2, … 8 below in their old
+numbering: 6, 2, 1, 5, 3, 4, 7, 8). Each is one chapter authored whole: both
+sides, and the tails where they double or overcall.
 
-1. **Competition over `1♣`** (`1C/Competition.md`, `Opener.md`): the transfer
-   responses over `(X)` and the one-level overcalls, Landik over `(1NT)`,
-   opener's rebids. Today the net answers a `1♣` it was trained to read as
-   clubs; in the smoke a 13-count passed `1♣ (1♠)`.
-   `competition.cachalot_contested_x` is the nearest house code.
-2. **Checkback Gladiator** under `1♣`: the `2♣!` lane, then the three
-   `1♣ - 1M - 1NT` tables; `1D/1M/CheckbackGladiator.md` shares the scheme.
-3. **`1♥` and `1♠`**: the non-forcing `1NT`, the `2♣!` relay, the transfer
-   raise, Stenberg, opener's limited rebids; then their competition.
-4. **`1♦`**: standard and mixed raises, Reverse Flannery, the artificial
-   `3♣` reverse, the wide range's rebids.
-5. **The two level**: Ekren, the Multi re-read against the page, Muiderberg,
-   the minors `2NT`, their fourth-seat forms. Double-dummy is blind to what a
-   preempt obstructs ([measurement.md](measurement.md)).
-6. **Strong hands**: the Muppet tree over `2♦!`, systems on over the 18–20
+1. **Strong hands**: the Muppet tree over `2♦!`, systems on over the 18–20
    `1NT`, the two-suited jumps, slam tries after Odwrotka and the minor game
    forces. In the smoke the floor leapt to a grand slam opposite readings
    with no ceiling (`1♣ - 1♠ - 2NT - 7NT`: responder, with 16, opposite a
-   17+ rebid).
+   17+ rebid). **Measured**: hands `american` opens `1♥`/`1♠`/`2♣`/`2NT`
+   that we open `1♣` cost −4,556 / −5,479 plain (none / both), a third of
+   the loss; −0.95 to −1.4 a fired board on the `1♠` and `2♣` hands.
+2. **Checkback Gladiator** under `1♣`: the `2♣!` lane, then the three
+   `1♣ - 1M - 1NT` tables; `1D/1M/CheckbackGladiator.md` shares the scheme. With 3, the minimum `1♣` (`american` opens `1♦`):
+   −2,544 / −3,085 plain, −0.5 to −0.6 a fired board; the node buckets
+   cannot split it between this chapter, 3 and 7.
+3. **Competition over `1♣`** (`1C/Competition.md`, `Opener.md`): the transfer
+   responses over `(X)` and the one-level overcalls, Landik over `(1NT)`,
+   opener's rebids. Today the net answers a `1♣` it was trained to read as
+   clubs; in the smoke a 13-count passed `1♣ (1♠)`.
+   `competition.cachalot_contested_x` is the nearest house code. **Measured** where both arms opened `1♣`:
+   −856 / −1,726 plain, −1,971 / −3,097 PD; more sits inside 1 and 2.
+4. **The two level**: Ekren, the Multi re-read against the page, Muiderberg,
+   the minors `2NT`, their fourth-seat forms. Double-dummy is blind to what a
+   preempt obstructs ([measurement.md](measurement.md)). **Measured**:
+   passing hands `american` opens `2♦`/`2♥`/`2♠` costs −2,809 / −1,520
+   plain even so (21 / 9% of the loss).
+5. **`1♥` and `1♠`**: the non-forcing `1NT`, the `2♣!` relay, the transfer
+   raise, Stenberg, opener's limited rebids; then their competition. **Measured**: the light `1M` openings that
+   `american` passes *win* plain (+1,176 / +500) and lose PD (−1,922 /
+   −4,134), the doubling bracket; against BBA that is recorded, not a veto.
+6. **`1♦`**: standard and mixed raises, Reverse Flannery, the artificial
+   `3♣` reverse, the wide range's rebids.
 7. **The asks withheld**: `1♣ - 1NT - 2♦!`, `1♣ - 2NT - 3♦!`, the Flannery
    asks, the strong-`2♥` Odwrotka structure, opener's splinters.
 8. **Gambling `3NT`, Namyats, `4M`, `4NT`**, and Namyats over `1♣`.
@@ -192,13 +203,21 @@ seed 1795771032426658059, 204,800 boards per arm per cell, results in
   and +0.392 PD ([bba-gap-campaign.md](bba-gap-campaign.md)). Never trained
   on a Polish `1♣`, it still covers the unauthored ground better than the
   ladder does; that is no reason to leave the holes to it.
-- **Attribution owed**: `ab-dump-bucket --by side|node` for both pairs,
-  queued as pueue task 44 (files `ab-results/strawberry/bucket.*.txt`,
-  the `instinct` ones prefixed `bucket.instinct.`). It re-ranks §5.
+- **Attribution** (pueue task 44, `ab-results/strawberry/bucket.*.txt`,
+  read 2026-11-28). By side, our openings carry 71 / 74% of the plain loss
+  (none / both) and the openings where we pass and they open 28 / 23%; BBA's
+  own divergences over our card are −46 / −536 plain. The top 60 nodes
+  carry 77 / 70% of plain, almost all of it at the opening call itself: a
+  node bucket files a board at its first divergence, so whatever follows a
+  Polish `1♣` is booked to that opening. §5 is re-ranked from it.
+- **The floor's worth is diffuse**: 25 thousand nodes, the top 40 carry 8%
+  of PD. They-open auctions, the house defense, carry 57 / 59% of the
+  `strawberry-instinct` plain loss, so most of what the learned floor is
+  worth here is not under the Polish `1♣`.
 
 The borrowed `1♥`/`1♠` chapters took the semiforcing `1NT` with the house
 default on 2026-11-27, after this run; the book's own `1M - 1NT` is
-non-forcing (§5 item 3), so that moves toward it.
+non-forcing (§5 item 5), so that moves toward it.
 
 Checked before queueing: `american` is byte-identical to `f61d3699`
 (`smoke-default --count 20000 --seed 1`, dev profile, both dumps

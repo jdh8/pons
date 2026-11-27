@@ -23,6 +23,19 @@
 # Verdict per docs/measurement.md's decision table: plain DD is the verdict,
 # PD the guard; delta = 0.002 IMPs/board.
 #
+# MEASURED 2026-11-27 (sha fae1bb9a; seed 1795771032426658059; 204,800
+# bd/cell).  IMPs/board none / both:
+#
+#   strawberry          vs advanced    plain -0.0640 / -0.0835  (loss 2/2)
+#                                      PD    -0.0870 / -0.0995  (loss 2/2)
+#   strawberry-instinct vs strawberry  plain -0.3371 / -0.4133  (floor +)
+#                                      PD    -0.3424 / -0.4941
+#
+# Expected loss for a half-built system.  Attribution (pueue 44,
+# $R/bucket.*.txt) re-ranked docs/strawberry.md §5: strong hands through
+# 1♣ cost a third of the plain loss, the minimum 1♣ a fifth, passing the
+# weak twos 9-21%; the light 1M openings win plain and lose PD.
+#
 # Resumable; SEED_BASE persists in $R/seed (a NEW dir -> a new seed).
 # Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-strawberry.sh RESULTS_DIR}
