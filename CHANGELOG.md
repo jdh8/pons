@@ -256,7 +256,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   28–119 foreign boards a cell; both failed the isolation gate. Both are now
   pinned to their defaults there. Harness only: the default arm is
   unchanged, and the two measured washes stand (the foreign boards were
-  worth −54 to +138 IMPs a cell).
+  worth −54 to +138 IMPs a cell). Later the same day
+  `--ns-single-raise-gap` (it re-read their 2/1 `1♥ - 2♣`) and
+  `--ns-heart-spade-strong-jump-shift` (their `1♥ - 2♠`) were pinned too,
+  after 155–257 and 22–49 foreign boards a cell; neither verdict moves
+  (−127 of −3567 and +60 of +361 plain, none cell).
 - **An unchanged `tauri/` no longer recompiles on every build
   (2026-11-27).** `tauri-build` watches `tauri/capabilities`, and cargo
   treats a missing watched path as always stale, so the build script reran

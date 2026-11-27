@@ -84,26 +84,62 @@ fn declared_european_minors_read_their_2nt_as_an_invitation() {
     );
 }
 
+/// The reading of `auction` under the declared EPBot book of the arm that
+/// `argv` builds, every seat (an arm knob can move any of them)
+fn declared_reading(argv: &[&str], auction: &[contract_bridge::auction::Call]) -> String {
+    use contract_bridge::auction::RelativeVulnerability;
+    let agreements = arm_knobs(&Args::parse_from(argv)).unwrap();
+    let ours = super::seat_floor("american", &agreements).unwrap();
+    let reading = super::european_minors_opponents(ours, &agreements)
+        .infer(RelativeVulnerability::NONE, auction);
+    format!("{reading:?}")
+}
+
+/// An arm knob must not re-read EPBot's calls: `auction` reads the same
+/// with and without `flags`
+fn assert_declared_ignores(flags: &[&str], auction: &[contract_bridge::auction::Call]) {
+    let armed: Vec<&str> = std::iter::once("bba-gen")
+        .chain(flags.iter().copied())
+        .collect();
+    assert_eq!(
+        declared_reading(&["bba-gen"], auction),
+        declared_reading(&armed, auction)
+    );
+}
+
 #[test]
 fn declared_opponents_ignore_our_two_over_one_suit_order() {
-    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::auction::Call;
     use contract_bridge::{Bid, Strain};
-
-    // EPBot's `1♠ - 2♥` must read the same whichever 2/1 order our arm plays.
     let auction = [
         Call::Bid(Bid::new(1, Strain::Spades)),
         Call::Pass,
         Call::Bid(Bid::new(2, Strain::Hearts)),
     ];
-    let read = |argv: &[&str]| {
-        let agreements = arm_knobs(&Args::parse_from(argv)).unwrap();
-        let ours = super::seat_floor("american", &agreements).unwrap();
-        let reading = super::european_minors_opponents(ours, &agreements)
-            .infer(RelativeVulnerability::NONE, &auction);
-        format!("{:?}", reading.rho())
-    };
-    assert_eq!(
-        read(&["bba-gen"]),
-        read(&["bba-gen", "--ns-two-over-one-hearts-first"])
-    );
+    assert_declared_ignores(&["--ns-two-over-one-hearts-first"], &auction);
+}
+
+#[test]
+fn declared_opponents_ignore_our_single_raise_gap() {
+    use contract_bridge::auction::Call;
+    use contract_bridge::{Bid, Strain};
+    // Not their `2♥`: the knob moves the reading of their 2/1 (a gate board).
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Hearts)),
+        Call::Pass,
+        Call::Bid(Bid::new(2, Strain::Clubs)),
+    ];
+    assert_declared_ignores(&["--ns-single-raise-gap"], &auction);
+}
+
+#[test]
+fn declared_opponents_ignore_our_strong_jump_shift() {
+    use contract_bridge::auction::Call;
+    use contract_bridge::{Bid, Strain};
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Hearts)),
+        Call::Pass,
+        Call::Bid(Bid::new(2, Strain::Spades)),
+    ];
+    assert_declared_ignores(&["--ns-heart-spade-strong-jump-shift", "15"], &auction);
 }

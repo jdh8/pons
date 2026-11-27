@@ -43,7 +43,9 @@
 # 4♠ - 6♠` 150 boards -1269, `1♥ - 2♥ - 3♣ - 4♥ - 6♥` 52 -340), and in the
 # 2/1 lanes it now passes where it bid slam (`1♠ - 2♣ - 3♠ - 4♠` 170 -550,
 # `1♠ - 2♦ - 3♠ - 4♠` -195, `1♥ - 2♣ - 3♥ - 4♥` -186), so the widened `2M`
-# reading moves the floor beyond the knob's own hands.  The heart sibling's
+# reading moves the floor beyond the knob's own hands.  It moves the 2/1's
+# reading too: with the knob on, `1♥ - 2♣` reads differently (found pinning
+# the leak, examples/bba-gen/tests.rs), the likely route into those lanes.  The heart sibling's
 # +46 on the anchor does not survive.
 #
 # Resumable; SEED_BASE persists in $R/single-raise-gap.seed.

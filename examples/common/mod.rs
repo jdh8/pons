@@ -1646,6 +1646,11 @@ pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> 
     // (2026-11-25/27: 28–76 and 72–119 foreign boards a cell).
     theirs.response.two_over_one_hearts_first = false;
     theirs.opening.strong_two_six_major = None;
+    // And lead 4 / lead 5 of the 4592d0a3 anchor: the arm re-read EPBot's
+    // `1♥ - 2♠` as strong and their `1M - 2M` as up to 10+ support points
+    // (2026-11-27: 22–49 and 155–257 foreign boards a cell).
+    theirs.response.single_raise_gap = false;
+    theirs.response.heart_spade_strong_jump_shift = None;
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 
