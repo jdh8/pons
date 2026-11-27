@@ -1388,19 +1388,24 @@ static SYSTEM_PRESET_VARIANTS: &[Variant] = &[
         label: "Advanced (every measured win)",
     },
     Variant {
+        value: "bws",
+        label: "Bridge World Standard 2017 (expert consensus)",
+    },
+    Variant {
         value: "custom",
         label: "Custom",
     },
 ];
 
-/// The system preset (`docs/system-variants.md`): `basic` or `advanced`
-/// rewrites every knob at once, keeping only the opponents' disclosures;
+/// The system preset (`docs/system-variants.md`, `docs/bws-2017.md`):
+/// `basic`, `advanced` or `bws` rewrites every knob at once, keeping only the opponents' disclosures;
 /// `custom` is the read-back for any other knob vector and sets nothing.
 fn set_system_preset(agreements: &mut Agreements, value: &str) {
     let their = agreements.decision.their;
     match value {
         "basic" => *agreements = Agreements::basic(),
         "advanced" => *agreements = Agreements::advanced(),
+        "bws" => *agreements = Agreements::bws(),
         _ => return,
     }
     agreements.decision.their = their;
@@ -1414,6 +1419,8 @@ fn get_system_preset(agreements: &Agreements) -> &'static str {
         "basic"
     } else if ours == Agreements::advanced() {
         "advanced"
+    } else if ours == Agreements::bws() {
+        "bws"
     } else {
         "custom"
     }

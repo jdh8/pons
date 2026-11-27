@@ -392,6 +392,18 @@ fn every_registry_getter_observes_its_own_setter() {
     }
 }
 
+/// The registry round trip above tries only the first non-default variant
+#[test]
+fn bws_preset_round_trips_and_keeps_their_disclosures() {
+    let mut agreements = Agreements::default();
+    agreements.decision.their.two_clubs_landy = !agreements.decision.their.two_clubs_landy;
+    let their = agreements.decision.their;
+    set_system_preset(&mut agreements, "bws");
+    assert_eq!(get_system_preset(&agreements), "bws");
+    assert_eq!(agreements.decision.their, their);
+    assert_ne!(agreements, Agreements::default());
+}
+
 #[test]
 fn set_choice_reroutes_the_defense() {
     // North opens 1NT; East (19 HCP) acts over it — doubles under the natural

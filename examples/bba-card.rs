@@ -20,7 +20,7 @@ fn main() {
             "--system" => system = args.next().unwrap_or_default(),
             other => {
                 eprintln!("bba-card: unexpected argument `{other}`");
-                eprintln!("usage: bba-card [--system american|american-basic]");
+                eprintln!("usage: bba-card [--system american|american-basic|american-bws]");
                 std::process::exit(2);
             }
         }
@@ -37,9 +37,10 @@ fn card_for(system: &str) -> Card {
     match system {
         "american" => american_card(&pons::bidding::agreements::Agreements::default()),
         "american-basic" => american_card(&pons::bidding::agreements::Agreements::basic()),
+        "american-bws" => american_card(&pons::bidding::agreements::Agreements::bws()),
         other => {
             eprintln!("bba-card: no card generator for system `{other}`");
-            eprintln!("           known systems: american, american-basic");
+            eprintln!("           known systems: american, american-basic, american-bws");
             std::process::exit(2);
         }
     }

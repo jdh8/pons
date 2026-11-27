@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   −0.087 / −0.100; on the instinct ladder instead of the learned floor it
   loses another 0.34–0.41 plain.
 - **`Agreements::bws()`: Bridge World Standard 2017 as a third named
-  preset, measurement queued.** `default()` with sixteen knobs moved to
+  preset, a measured loss to `advanced` as expected.** `default()` with sixteen knobs moved to
   the state [BWS 2017](https://bridgeworld.com/bridge-world-standard)
   prescribes, where that state is authored (the semiforcing `1NT`, a
   seventeenth when measured, is the default since 2026-11-27): the
@@ -49,7 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unauthored) and the ranked holes. `--ns-preset bws` in `bba-gen`,
   `render-book` and `probe-call-reading`; `scripts/ab-bws.sh`. Measured
   2026-11-27: a loss in every cell, plain −0.012 to −0.024 IMPs a board,
-  PD −0.094 to −0.103 (`docs/bws-2017.md` §5).
+  PD −0.094 to −0.103 (`docs/bws-2017.md` §5). With the verdict read the
+  preset has its name's surface (2026-11-28): the factory `american_bws()`,
+  `cards/American-BWS.bbsa` (`bba-card --system american-bws`, pinned with
+  the other two cards; three rows from `American.bbsa`: Multi-Landy,
+  Rubensohl after double, Super acceptance after NT) and a "Bridge World
+  Standard 2017" choice in the web app's system preset. The default system
+  is untouched.
 - **`RebidKnobs::semiforcing_notrump`, default-on since 2026-11-27: opener
   passes `1M - 1NT` on a balanced minimum.** A 5-3-3-2, or a 4=5=2=2 over
   `1♥ - 1NT`, with at most 12 HCP passes instead of bidding a three-card

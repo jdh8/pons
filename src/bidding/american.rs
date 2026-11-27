@@ -349,6 +349,14 @@ pub fn american_basic() -> System {
     american(&Agreements::basic())
 }
 
+/// [`american`] on [`Agreements::bws`] — Bridge World Standard 2017 as far
+/// as the authored book reaches (`docs/bws-2017.md`): the polled consensus
+/// card on the same books and floor, a measured loss to the default
+#[must_use]
+pub fn american_bws() -> System {
+    american(&Agreements::bws())
+}
+
 /// [`american_book`] on the shipped agreements — see [`american_default`]
 #[must_use]
 pub fn american_book_default() -> System {
