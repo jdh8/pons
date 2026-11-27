@@ -2758,6 +2758,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_woolsey_wide_2nt: bool,
 
+    /// Advancer's double of their raise after partner's overcall is responsive
+    /// (`(1t) overcall (2t) X`, the two unbid suits on 8+; default off; see
+    /// `defense.responsive_overcall_enabled`).
+    #[arg(long, default_value_t = false)]
+    ns_responsive_overcall: bool,
+
     /// Disable the penalty-double latch (default on): after our natural penalty X of
     /// BBA's 1NT, our later doubles read as penalty instead of takeout.
     #[arg(long, default_value_t = false)]
@@ -3764,6 +3770,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.woolsey_muiderberg_sit = !args.no_ns_woolsey_muiderberg_sit;
     agreements.defense.woolsey_tails = !args.no_ns_woolsey_tails;
     agreements.defense.woolsey_wide_unusual_2nt = args.ns_woolsey_wide_2nt;
+    agreements.defense.responsive_overcall_enabled = args.ns_responsive_overcall;
     agreements.defense.xx_dont_runout = !args.no_ns_xx_dont_runout;
     agreements.defense.xx_dont_major_first = args.ns_xx_dont_major_first.into();
     agreements.defense.nt_overcall_doubled_runout = !args.no_ns_nt_doubled_runout;

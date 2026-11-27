@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Three BWS follow-up runs vs BBA, measurement queued (2026-11-28).**
+  `scripts/ab-transfer-super-accept.sh` re-measures the `1NT` super-accept
+  (`notrump.transfer_super_accept`), whose only record was a 640k-board DD
+  wash with a stale PD figure. `scripts/ab-responsive-overcall.sh` gives
+  the responsive double after partner's overcall
+  (`defense.responsive_overcall_enabled`) its first run against BBA and
+  its first plain-DD number, through the new `bba-gen
+  --ns-responsive-overcall`. `scripts/ab-presets.sh` re-prices `bws` and
+  `basic` against today's default on their corrected cards. The declared
+  EPBot book now pins the `1NT` super-accept off, so that arm cannot
+  re-read their `1NT - 2♦ - 3♥`. No default moves.
+
 - **`cargo desktop` (2026-11-27).** A cargo alias in `.cargo/config.toml`
   that runs the `tauri/` desktop client in release from the repository root.
 

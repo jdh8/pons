@@ -1655,6 +1655,10 @@ pub fn european_minors_opponents(ours: Partnership, agreements: &Agreements) -> 
     // as a balanced minimum and our balancing call moved (2026-11-27: 0–2
     // foreign boards a cell, `scripts/ab-bws.sh` arm `sf`).
     theirs.rebid.semiforcing_notrump = false;
+    // And the `1NT` super-accept, pinned before its run rather than after a
+    // failed gate (2026-11-28, `scripts/ab-transfer-super-accept.sh`): the arm
+    // would re-read EPBot's `1NT - 2♦ - 3♥` as four trumps and a maximum.
+    theirs.notrump.transfer_super_accept = false;
     ours.with_opponents(&pons::american(&theirs).bind())
 }
 
