@@ -2,7 +2,7 @@
 //! fourth-seat `1M`, opener's answers and responder's rungs
 //!
 //! Gated by [`ResponseKnobs::drury`][crate::bidding::agreements::ResponseKnobs::drury],
-//! default off.  The `2♣!` itself is a row of
+//! default on.  The `2♣!` itself is a row of
 //! [`passed_hand_major_responses`][super::super::responses::passed_hand_major_responses],
 //! the responder table keyed only under the passed-hand seats; this module
 //! is everything after it, keyed under the two passed-hand prefixes

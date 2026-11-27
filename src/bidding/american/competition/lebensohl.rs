@@ -297,9 +297,11 @@ pub(super) fn lebensohl_relay_shape(over: Suit) -> Cons<impl Constraint + Clone>
 /// hands bid a forcing 3-level suit or a to-play `3NT` directly — so a game is
 /// never stranded in a partscore (the failure mode of the Rubensohl v1 attempt).
 //
-// ponytail: the cue (Stayman / stopper-ask, "slow shows / fast denies") is
-// skipped — 4-4-major game hands bid 3NT. Author the cue + opener's reply if the
-// A/B shows it matters.
+// ponytail: only the direct cue is authored (Stayman, stopper-agnostic, below).
+// "Slow shows / fast denies" is not: the `2NT` relay is weak-only
+// (`points(..=9)`), so no game hand reaches a delayed cue or `2NT - 3♣ - 3NT`
+// under this style. Author the strong relay + opener's reply if an A/B shows it
+// matters.
 //
 // The Section-5 builders below are pure functions of `(over, hand)` — the auction
 // prefix and the bidder's identity never enter — so `american/defense.rs` reuses

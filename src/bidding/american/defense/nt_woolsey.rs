@@ -29,7 +29,8 @@ pub(super) fn woolsey_enabled(agreements: &Agreements) -> bool {
 /// Woolsey **Multi** `2♦`: a single 6+ card major (unknown which), nothing else long —
 /// both minors at most four.  M6.2d simplified the shape and states it with `or`/`and`
 /// so it projects straight off the rule: the strictly-longer-major and no-6-6 guards
-/// are dropped, so a 6-5 or 6-6 major hand now qualifies as Multi.
+/// are dropped, so a hand 6-5 or 6-6 **in the majors** now qualifies as Multi (a
+/// six-card major beside a five-card minor does not: the minor cap bars it).
 pub(super) fn woolsey_multi() -> Cons<impl Constraint + Clone> {
     or([Suit::Hearts, Suit::Spades], 6..) & and([Suit::Clubs, Suit::Diamonds], ..=4)
 }

@@ -511,7 +511,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
 
     // Section 9d: the takeout double of the other-major overcall and its
     // continuations (`agreements.competition.other_major_takeout_double`,
-    // default off).
+    // default on).
     compile_into(&mut book, agreements, &[other_major_takeout_package()]);
 
     // Section 7: our contested weak twos (`agreements.competition.weak_two_competition`, default

@@ -310,6 +310,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Five stale source comments corrected (2026-11-28), no code change.**
+  Reverse Drury and the other-major takeout double are "default on";
+  plain lebensohl's direct cue is authored (the strong relay is not);
+  the Texas slam drive is 16+ over South African `4♣`/`4♦` with the direct
+  `4M` capped at 15; Woolsey's Multi admits six-five in the majors, not a
+  six-card major beside a five-card minor (`docs/bws-2017.md` §6.5).
 - **Reading `5♣` as four keycards in every RKCB lane: measured, not a win,
   dropped (2026-11-23).** An asker holding none or one keycard read the
   `5♣` answer as four in every book RKCB lane, as the lane facing 20+ after

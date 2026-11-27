@@ -1,4 +1,4 @@
-//! Texas transfers — `4♦`/`4♥`, and the slam drive above them
+//! South African Texas transfers — `4♣`/`4♦`, and the slam drive above them
 //!
 //! The direct game transfer, right-siding a `4M` contract, plus the
 //! [`NotrumpKnobs::texas_slam_drive`][crate::bidding::agreements::NotrumpKnobs::texas_slam_drive] continuation that keeps a slam try alive above it.
@@ -10,7 +10,7 @@ use super::*;
 /// Responder's RKCB drive over opener's Texas completion (`1NT - 4♣ - 4♥ - 4NT` /
 /// `1NT - 4♦ - 4♠ - 4NT`)
 ///
-/// A 17+ six-card-major hand transferred at the four level and now keycards: `4NT`
+/// A 16+ six-card-major hand transferred at the four level and now keycards: `4NT`
 /// is RKCB, the [`slam`] 1430 ladder (installed alongside) places the slam.  Weaker
 /// (game-only) transfers match no rule and pass opener's `4M`.  Empty unless the
 /// reroute is on ([`NotrumpKnobs::texas_slam_drive`][crate::bidding::agreements::NotrumpKnobs::texas_slam_drive]).
@@ -30,9 +30,9 @@ pub(super) fn texas_game_floor(agreements: &Agreements) -> usize {
 
 /// The strength ceiling on a **direct** `4♥`/`4♠` (the opener-decides slam try)
 ///
-/// With the Texas slam-drive reroute on, `17+` transfers at the four level and
-/// drives its own RKCB, so the direct call caps at the 15–16 invitational band;
-/// off, it carries the whole slam zone.  Shared with the competitive book's
+/// With the Texas slam-drive reroute on, `16+` transfers at the four level and
+/// drives its own RKCB, so the direct call caps at the bare 15 invitational
+/// cusp; off, it carries the whole slam zone (15–18).  Shared with the competitive book's
 /// Kokish–Kraft lane, which copies the tier under their `(2♦)` Multi.
 pub(crate) fn direct_4m_max(agreements: &Agreements) -> u8 {
     if agreements.notrump.texas_slam_drive {
