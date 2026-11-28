@@ -433,8 +433,8 @@ is concealment only, which DD does not price, so it is a separate knob.
 Leads 2–6 are first-call pairs that price BBA's continuation with its call
 (the census lesson above); each needs its worst boards traced before a
 build. Lead 2 goes through [notrump-slam.md](notrump-slam.md)'s `6NT` gate
-and lead 4 is not the `1NT` super-accept (`transfer_super_accept`, a
-measured wash), because over `2NT` the jump is to game.
+and lead 4 is not the `1NT` super-accept (`transfer_super_accept`,
+non-inferior on plain DD, opt-in), because over `2NT` the jump is to game.
 **Lead 1 worked 2026-11-21:** `rebid.one_club_one_diamond_two_notrump_first`
 (default on) puts the `2NT` at 1.40, above `1M`: plain +1434 / +2629 / +1416
 / +2568 IMPs none / ns / ew / both per 1,638.4k boards per cell vs BBA

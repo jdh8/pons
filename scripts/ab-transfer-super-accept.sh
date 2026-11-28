@@ -31,6 +31,23 @@
 #
 # Resumable; SEED_BASE persists in $R/seed (a NEW dir -> a new seed).
 # Iron rule: do NOT rebuild binaries while this runs.
+#
+# MEASURED 2026-11-28, stays off (SEED_BASE 1795815144234142806, 1,638,400
+# boards/arm/vul, 0.04-0.05% fired).  Plain DD none / ns / ew / both:
+# +0.0001 ±0.0002 / +0.0005 ±0.0003 / +0.0002 ±0.0002 / +0.0004 ±0.0003
+# IMPs/board (+0.27 / +1.00 / +0.36 / +0.98 per fired): non-inferior, a win
+# in both cells where we are vulnerable.  PD -0.0003 ±0.0002 / -0.0001
+# ±0.0003 / -0.0003 ±0.0002 / -0.0001 ±0.0003: a loss when we are not
+# vulnerable, recorded, not a veto against BBA.  A convention needs a plain
+# win in every cell to become the default.  By contract class (none / both):
+# the partscore the jump turns into a game earns +286 / +880 plain on 448 /
+# 510 boards and is PD's loss (-250 / -11); every other class loses, the
+# floor's table over `3M` among them (game -> slam -11 / -39 on 87 / 91,
+# slam -> grand -21 / -32 on 14 / 16).
+#
+# The isolation gate reports 111-126 boards a cell opened by them.  They are
+# ours: `(1x) 1NT - 2♦ - 3♥`, systems on over our `1NT` overcall, shares
+# `complete_transfer`.  They score +99 / +237 plain (none / both).
 R=${1:?usage: ab-transfer-super-accept.sh RESULTS_DIR}
 SHOW=${SHOW:-50}
 BUILD_EXTRA='--example probe-divergence'

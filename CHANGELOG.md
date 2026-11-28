@@ -193,6 +193,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `1NT` super-accept re-measured vs BBA: non-inferior, stays opt-in
+  (2026-11-28).** `notrump.transfer_super_accept` (opener jumps to `3M` on
+  four trumps and 17 HCP) had only a 640k-board DD wash on record.
+  `scripts/ab-transfer-super-accept.sh`, seed 1795815144234142806, 1,638,400
+  boards per cell, 683–753 fired, none / ns / ew / both: plain DD +183 /
+  +752 / +248 / +737 IMPs (+0.0001 to +0.0005 IMPs/board, +0.27 to +1.00 per
+  fired board), a win in both cells where we are vulnerable and non-inferior
+  in the other two; PD −412 / −85 / −454 / −239, a loss when we are not
+  vulnerable. The gain and the PD loss are the same boards: a partscore the
+  jump turns into a game. Responder's table over `3M` is still the floor's
+  and gives back 32 to 71 IMPs a cell in slams and grands. A convention
+  needs a plain win in every cell to become the default, so no default
+  moves; `Agreements::bws()` keeps it on.
 - **Five spades under six or more hearts open `1♥` (2026-11-27).** They
   opened `1♠`. 12+ points and 10+ HCP; the minors and the `1m` reading stay
   the book's, and opener's rebids are the natural ones (`1♥ - 1NT - 2♥`;
