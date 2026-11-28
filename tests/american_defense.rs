@@ -117,6 +117,105 @@ fn test_responsive_overcall_double_toggle() {
     );
 }
 
+/// `(1x) 1♠ (2x) X - ?`: overcaller's answer to the responsive double is
+/// authored, so the floor's jump to game in the overcalled suit is gone
+#[test]
+fn test_responsive_overcall_answer() {
+    let mut on = Agreements::default();
+    on.defense.responsive_overcall_enabled = true;
+    let system = american(&on).bind();
+    let answer = |open: Strain, their: Call, hand: &str| {
+        let auction = [
+            call(1, open),
+            call(1, Strain::Spades),
+            call(2, open),
+            Call::Double,
+            their,
+        ];
+        best_call(&system, &auction, hand)
+    };
+    let (hearts, diamonds) = (Strain::Hearts, Strain::Diamonds);
+
+    // Partner has the minors.  Four clubs take them at the cheapest level.
+    assert_eq!(
+        answer(hearts, Call::Pass, "AQJ54.32.K4.Q932"),
+        call(3, Strain::Clubs)
+    );
+    // No fit: the cheapest rebid, on a hand the floor took to `4♠`, and with
+    // four trumps behind opener there is still no penalty pass.
+    assert_eq!(
+        answer(hearts, Call::Pass, "AKJ954.A2.KJ4.32"),
+        call(2, Strain::Spades)
+    );
+    assert_eq!(
+        answer(hearts, Call::Pass, "AQJ54.KJ98.K4.32"),
+        call(2, Strain::Spades)
+    );
+    // Partner has hearts and clubs.  A heart fit bids two, invites with a
+    // jump on 13-15 and bids game on 16+; the longer suit comes first.
+    assert_eq!(
+        answer(diamonds, Call::Pass, "AQ954.K932.32.32"),
+        call(2, hearts)
+    );
+    assert_eq!(
+        answer(diamonds, Call::Pass, "AQ954.KQ32.32.K2"),
+        call(3, hearts)
+    );
+    assert_eq!(
+        answer(diamonds, Call::Pass, "AKJ54.AQ32.32.K2"),
+        call(4, hearts)
+    );
+    assert_eq!(
+        answer(diamonds, Call::Pass, "AQ954.K932..J432"),
+        call(2, hearts)
+    );
+    assert_eq!(
+        answer(diamonds, Call::Pass, "AQ954.K93.2.J432"),
+        call(3, Strain::Clubs)
+    );
+    // Their redouble changes nothing.
+    assert_eq!(
+        answer(hearts, Call::Redouble, "AQJ54.32.K4.Q932"),
+        call(3, Strain::Clubs)
+    );
+    assert_eq!(
+        answer(hearts, Call::Redouble, "AKJ954.A2.KJ4.32"),
+        call(2, Strain::Spades)
+    );
+}
+
+/// What doubler reads: the fit answer shows four, the catch-all rebid no
+/// sixth card
+#[test]
+fn test_responsive_overcall_answer_reading() {
+    use contract_bridge::Suit;
+    use pons::bidding::inference::Relative;
+
+    let mut on = Agreements::default();
+    on.defense.responsive_overcall_enabled = true;
+    let system = american(&on).bind();
+    let lengths = |answer: Call| {
+        let auction = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            call(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            answer,
+            Call::Pass,
+        ];
+        let read = system.infer(RelativeVulnerability::NONE, &auction);
+        let partner = read.get(Relative::Partner);
+        (
+            partner.length(Suit::Spades).min,
+            partner.length(Suit::Clubs).min,
+        )
+    };
+    // (spades, clubs) minimums.
+    assert_eq!(lengths(call(3, Strain::Clubs)), (5, 4));
+    assert_eq!(lengths(call(2, Strain::Spades)), (5, 0));
+}
+
 // --- Unusual 2NT advance ----------------------------------------------------
 
 /// (1♠) 2NT - with diamonds longer than clubs → 3♦

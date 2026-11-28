@@ -193,6 +193,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Overcaller answers the responsive double, measurement queued
+  (2026-11-28).** Under `defense.responsive_overcall_enabled` (still off by
+  default), `(1x) 1y (2x) X - ?` and its redoubled twin are now authored:
+  four cards in one of doubler's suits bid it at the cheapest level, the
+  longer first; a major fit invites with a jump on 13–15 where the two
+  level was open and bids game on 16+; every other hand rebids the
+  overcalled suit at the cheapest level; there is no penalty pass. The
+  floor's answer, a jump to game in the overcalled suit on three fires in
+  ten, was the whole of the knob's measured loss (the verdict entry below). Doubler
+  reads the fit answer as four cards and the rebid as no sixth. Doubler's
+  rebid is still the floor's. Round 2 of
+  `scripts/ab-responsive-overcall.sh` is queued; `american()` is unchanged
+  (the knob is off), `Agreements::bws()` plays the new answer.
 - **The `1NT` super-accept re-measured vs BBA: non-inferior, stays opt-in
   (2026-11-28).** `notrump.transfer_super_accept` (opener jumps to `3M` on
   four trumps and 17 HCP) had only a 640k-board DD wash on record.

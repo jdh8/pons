@@ -2,7 +2,8 @@
 //!
 //! Their raise removes the room to bid two suits, so the second double is
 //! takeout of the remaining ones.  `agreements.defense.responsive_takeout_enabled` covers the
-//! doubled auction, `agreements.defense.responsive_overcall_enabled` the overcalled one.
+//! doubled auction, `agreements.defense.responsive_overcall_enabled` the overcalled one,
+//! with overcaller's answer to the double.
 use super::*;
 
 /// Advancer's action when partner made a takeout double and they raised `t` to `raise_lvl`
@@ -64,14 +65,68 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
 // ponytail: faithful reconstruction of the never-committed "8+ floor double" (ledger
 // #100); off by default, the A/B knob for `examples/responsive-ab --conv overcall`.
 fn responsive_overcall_doubles(open: Suit, overcall: Suit, _raise_lvl: u8) -> Rules {
+    let (s1, s2) = unbid_suits(open, overcall);
+    Rules::new()
+        .rule(Call::Double, 150, len(s1, 4..) & len(s2, 4..) & points(8..))
+        .alert(RESPONSIVE)
+}
+
+/// The two suits neither opener nor overcaller bid, lower first
+fn unbid_suits(open: Suit, overcall: Suit) -> (Suit, Suit) {
     let mut unbid = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
         .into_iter()
         .filter(|&s| s != open && s != overcall);
     let s1 = unbid.next().expect("two suits remain unbid");
     let s2 = unbid.next().expect("two suits remain unbid");
-    Rules::new()
-        .rule(Call::Double, 150, len(s1, 4..) & len(s2, 4..) & points(8..))
-        .alert(RESPONSIVE)
+    (s1, s2)
+}
+
+/// Overcaller's answer to the responsive double (`(1t) overcall (raise) X - ?`)
+///
+/// Total, so the floor never answers: left to it, overcaller jumped to game in
+/// the overcalled suit on three fires in ten and bid one of doubler's suits
+/// below game on almost none (`scripts/ab-responsive-overcall.sh`, 2026-11-28).
+/// Four cards in one of doubler's suits bid it, the longer first and the higher
+/// on a tie, at the cheapest level; a major fit invites with a jump on 13–15
+/// where the two level was open and bids game on 16+.  Every other hand rebids
+/// the overcalled suit at the cheapest level, promising nothing more.  There is
+/// no penalty pass.
+// ponytail: doubler's rebid stays the floor's, and a hand with no fit has one
+// answer (no 2NT, no three-card preference); author them if the bucket by
+// answer in the A/B asks.
+fn answer_responsive_overcall(open: Suit, overcall: Suit, raise_lvl: u8) -> Rules {
+    let (low, high) = unbid_suits(open, overcall);
+    let cheapest = |suit: Suit| raise_lvl + u8::from(suit < open);
+    let rules = fit_answers(
+        Rules::new(),
+        high,
+        cheapest(high),
+        at_least_as_long(high, low),
+    );
+    fit_answers(rules, low, cheapest(low), longer_suit(low, high)).rule(
+        Bid::new(cheapest(overcall), Strain::from(overcall)),
+        0,
+        hcp(0..),
+    )
+}
+
+/// The answers that take doubler's `suit`: game and the jump invitation in a
+/// major, then the cheapest bid at `level`
+fn fit_answers(
+    mut rules: Rules,
+    suit: Suit,
+    level: u8,
+    preferred: Cons<impl Constraint + Clone + 'static>,
+) -> Rules {
+    let strain = Strain::from(suit);
+    let fit = len(suit, 4..) & preferred;
+    if matches!(suit, Suit::Hearts | Suit::Spades) && level < 4 {
+        rules = rules.rule(Bid::new(4, strain), 300, fit.clone() & points(16..));
+        if level == 2 {
+            rules = rules.rule(Bid::new(3, strain), 250, fit.clone() & points(13..=15));
+        }
+    }
+    rules.rule(Bid::new(level, strain), 200, fit)
 }
 
 /// Responsive doubles: partner doubled for takeout, they raised
@@ -127,6 +182,16 @@ pub(super) fn responsive_overcall_package() -> Package {
                             Pattern::node(&format!("P* ({opening}) {overcall} ({raise})")),
                             responsive_overcall_doubles(suit, over, raise_lvl),
                         ));
+                        // Their redouble changes nothing: overcaller still
+                        // names the strain.
+                        for their in ["-", "(XX)"] {
+                            entries.extend(rows_of(
+                                Pattern::node(&format!(
+                                    "P* ({opening}) {overcall} ({raise}) X {their}"
+                                )),
+                                answer_responsive_overcall(suit, over, raise_lvl),
+                            ));
+                        }
                     }
                 }
             }

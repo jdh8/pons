@@ -17,10 +17,14 @@
 #   base the book: `(1t) overcall (2t)` / `(3t)` is the floor's
 #   ro   --ns-responsive-overcall: `X` there shows the two suits unbid by
 #        opener and partner, 4+ each, 8+ points (defense/responsive.rs); a
-#        hand that does not qualify still falls to the floor
+#        hand that does not qualify still falls to the floor.  Since round 2
+#        overcaller's answer is authored, redoubled or not: four cards in one
+#        of doubler's suits bid it (a major fit jumps on 13-15 where the two
+#        level was open and bids game on 16+), anything else rebids the
+#        overcalled suit at the cheapest level, and there is no penalty pass
 #
-# Not in this arm: overcaller's answer to the double (the floor's, reading
-# the alerted two-suiter), and any disclosure: EPBot has no row for it (its
+# Not in this arm: doubler's rebid over the answer (the floor's), a notrump
+# or three-card answer, and any disclosure: EPBot has no row for it (its
 # `Responsive double` is the takeout-double form, its `Snapdragon Double` is
 # over a new suit), so BBA meets the double undescribed.  The declared EPBot
 # book keeps the shipped defense, so the arm cannot re-read their calls.
@@ -51,6 +55,15 @@
 # loses -1.2 / -2.2 a board, one with three is flat.  Over the raise to
 # three the double wins plain (+235 / +179 on 460 / 401).  Not dead: owed an
 # authored answer before a re-measure.
+#
+# ROUND 2, queued 2026-11-28 with the answer authored:
+#
+#   BOARDS=1638400 scripts/queue-ab.sh responsive-overcall-answer \
+#       scripts/ab-responsive-overcall.sh ab-results/responsive-overcall-answer
+#
+# Read it by overcaller's answer and by doubler's length in partner's suit
+# before the headline: the first says whether doubler's rebid needs a table,
+# the second whether the double should deny three-card support.
 R=${1:?usage: ab-responsive-overcall.sh RESULTS_DIR}
 SHOW=${SHOW:-50}
 BUILD_EXTRA='--example probe-divergence'
