@@ -206,6 +206,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and gives back 32 to 71 IMPs a cell in slams and grands. A convention
   needs a plain win in every cell to become the default, so no default
   moves; `Agreements::bws()` keeps it on.
+- **The responsive double after partner's overcall, first run vs BBA: a
+  loss as built, stays opt-in (2026-11-28).**
+  `defense.responsive_overcall_enabled` (`(1x) 1y (2x) X`, the two unbid
+  suits, 8+ points) had only a self-play PD number.
+  `scripts/ab-responsive-overcall.sh`, seed 1795828526733790909, 1,638,400
+  boards per cell, 4,282–4,512 fired, none / ns / ew / both: plain DD −1,795
+  / −4,492 / +59 / −3,369 IMPs (−0.0011 / −0.0027 / +0.0000 / −0.0021
+  IMPs/board), PD −6,412 / −10,496 / −4,756 / −9,028. The loss is
+  overcaller's answer, which the floor supplies: it jumps to game in its
+  own suit on 1,316 of the 4,452 fires at none for −2,732 plain IMPs, more
+  than the cell's whole loss, and bids one of doubler's suits below game on
+  2 boards. The knob is incomplete, not dead; an authored answer is owed
+  before a re-measure. No default moves; `Agreements::bws()` keeps it on,
+  as BWS VI.C says.
 - **Five spades under six or more hearts open `1♥` (2026-11-27).** They
   opened `1♠`. 12+ points and 10+ HCP; the minors and the `1m` reading stay
   the book's, and opener's rebids are the natural ones (`1♥ - 1NT - 2♥`;

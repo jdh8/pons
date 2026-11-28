@@ -33,6 +33,24 @@
 #
 # Resumable; SEED_BASE persists in $R/seed (a NEW dir -> a new seed).
 # Iron rule: do NOT rebuild binaries while this runs.
+#
+# MEASURED 2026-11-28, a loss as built, stays off (SEED_BASE
+# 1795828526733790909, 1,638,400 boards/arm/vul, 0.26-0.28% fired, gate
+# passed).  Plain DD none / ns / ew / both: -0.0011 ±0.0005 / -0.0027 ±0.0006
+# / +0.0000 ±0.0006 / -0.0021 ±0.0006 IMPs/board (-0.40 / -1.05 / +0.01 /
+# -0.77 per fired): a loss in three cells.  PD -0.0039 ±0.0006 / -0.0064
+# ±0.0007 / -0.0029 ±0.0007 / -0.0055 ±0.0007: a loss in all four.
+#
+# Traced (none / ns): the loss is overcaller's answer, which is the floor's.
+# It jumps to game in its own suit on 1,316 / 1,219 of the 4,452 / 4,282
+# fires for -2,732 / -3,808 plain IMPs, more than the cell's whole loss
+# (-1,795 / -4,492), and passes the double for penalty on 309 / 284 for
+# -579 / -542.  It bids one of doubler's suits below game on 2 / 1 boards;
+# game in doubler's suit earns +1,253 / +1,127 on 491 / 491.  The double
+# itself is too wide: a doubler with at most one card in partner's suit
+# loses -1.2 / -2.2 a board, one with three is flat.  Over the raise to
+# three the double wins plain (+235 / +179 on 460 / 401).  Not dead: owed an
+# authored answer before a re-measure.
 R=${1:?usage: ab-responsive-overcall.sh RESULTS_DIR}
 SHOW=${SHOW:-50}
 BUILD_EXTRA='--example probe-divergence'
